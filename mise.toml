@@ -1,0 +1,38 @@
+min_version = "2026.6.14"
+
+[tools]
+node = "24.18.0"
+pnpm = "11.4.0"
+
+[settings]
+lockfile = true
+lockfile_platforms = ["macos-arm64", "linux-x64"]
+minimum_release_age = "24h"
+
+[tasks.install]
+description = "Install dependencies from the lockfile"
+run = "pnpm install --frozen-lockfile"
+
+[tasks.dev]
+description = "Start the development server"
+depends = ["install"]
+run = "pnpm run dev"
+
+[tasks.typecheck]
+run = "pnpm run typecheck"
+
+[tasks.lint]
+run = "pnpm run lint"
+
+[tasks.format-check]
+run = "pnpm run format:check"
+
+[tasks.test]
+run = "pnpm run test"
+
+[tasks.build]
+run = "pnpm run build"
+
+[tasks.check]
+description = "Run all validation tasks"
+depends = ["typecheck", "lint", "format-check", "test"]
