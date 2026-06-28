@@ -80,5 +80,12 @@ describe("SequenceRandomSource", () => {
     it("UT-RAND-015: reports the index of the invalid value", () => {
       expect(() => new SequenceRandomSource([0.5, 0.3, 1.0])).toThrow("index 2");
     });
+
+    it("UT-RAND-016: mutating source array after construction does not affect returned values", () => {
+      const values = [0.5];
+      const src = new SequenceRandomSource(values);
+      values[0] = 1;
+      expect(src.next()).toBe(0.5);
+    });
   });
 });

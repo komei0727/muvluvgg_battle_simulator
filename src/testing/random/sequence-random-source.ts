@@ -20,7 +20,7 @@ export class SequenceRandomSource implements RandomSource {
         );
       }
     }
-    this.values = values;
+    this.values = [...values];
   }
 
   next(): number {
