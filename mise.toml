@@ -30,6 +30,22 @@ run = "pnpm run format:check"
 [tasks.test]
 run = "pnpm run test"
 
+[tasks."test:coverage"]
+description = "Run unit/scenario/contract tests with coverage report"
+run = "pnpm run test:coverage"
+
+[tasks."test:integration"]
+description = "Run Worker and HTTP integration tests"
+run = "pnpm run test:integration"
+
+[tasks."test:e2e"]
+description = "Run end-to-end tests (HTTP to Worker to Battle)"
+run = "pnpm run test:e2e"
+
+[tasks."test:load"]
+description = "Run load and soak tests (nightly / pre-release)"
+run = "pnpm run test:load"
+
 [tasks.build]
 run = "pnpm run build"
 

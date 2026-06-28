@@ -19,6 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:load": "vitest run --config vitest.load.config.ts",
     "check:circular": "madge --circular --extensions ts src/ --ts-config tsconfig.json"
   },
   "devDependencies": {
@@ -32,5 +35,11 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.62.0",
     "vitest": "4.1.9"
+  },
+  "dependencies": {
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/swagger-ui": "^6.0.0",
+    "fastify": "^5.8.5",
+    "piscina": "^5.2.0"
   }
 }

@@ -1,0 +1,44 @@
+name: Main Branch Quality Gate
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Full Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Format check
+        run: mise run format-check
+
+      - name: Type check
+        run: mise run typecheck
+
+      - name: Lint
+        run: mise run lint
+
+      - name: Unit / Scenario / Contract tests with coverage
+        run: mise run test:coverage
+
+      - name: Build
+        run: mise run build
+
+      - name: Circular dependency check
+        run: mise run check-circular
+
+      # Integration and E2E steps are added here when corresponding tests exist.
+      # (passWithNoTests: false in their configs — adding empty steps would fail.)
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
