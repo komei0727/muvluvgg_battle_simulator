@@ -1,5 +1,12 @@
+import { builtinModules } from "node:module";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+
+// Generate regex from the runtime's built-in module list to catch bare imports like `import fs from "fs"`.
+// This covers all Node.js built-ins (including `constants`, internal `_*` modules, and subpath exports)
+// without maintaining a static list.
+const _bareBuiltins = builtinModules.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+const bareBuiltinPattern = `^(${_bareBuiltins})(/|$)`;
 
 /** @type {import('@typescript-eslint/utils').TSESLint.FlatConfig.ConfigArray} */
 export default tseslint.config(
@@ -51,8 +58,7 @@ export default tseslint.config(
               message: "Domain layer must not import Node.js built-in modules.",
             },
             {
-              regex:
-                "^(assert|async_hooks|buffer|child_process|cluster|console|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(/|$)",
+              regex: bareBuiltinPattern,
               message: "Domain layer must not import Node.js built-in modules (bare name).",
             },
           ],

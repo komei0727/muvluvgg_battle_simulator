@@ -1,5 +1,5 @@
 /**
- * UT-LAYER-001 through UT-LAYER-007
+ * UT-LAYER-001 through UT-LAYER-012
  * Verifies that the ESLint no-restricted-imports rules enforce layer boundaries.
  * Type-checked rules are disabled so that lintText works with virtual file paths;
  * no-restricted-imports is syntax-only and does not need type information.
@@ -61,6 +61,14 @@ describe("Layer boundary — domain", () => {
     );
     const violations = violationsOf(results, "no-restricted-imports");
     expect(violations.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("UT-LAYER-012: domain cannot import Node.js built-in modules not in previous fixture (constants)", async () => {
+    const results = await eslint.lintText("import constants from 'constants';\n", {
+      filePath: "src/domain/value-objects/bad.ts",
+    });
+    const violations = violationsOf(results, "no-restricted-imports");
+    expect(violations.length).toBeGreaterThan(0);
   });
 
   it("UT-LAYER-004: domain CAN import from within domain", async () => {

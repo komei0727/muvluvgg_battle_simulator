@@ -39,4 +39,4 @@ run = "pnpm run check:circular"
 
 [tasks.check]
 description = "Run all validation tasks"
-depends = ["typecheck", "lint", "format-check", "test", "check-circular"]
+depends = ["typecheck", "lint", "format-check", "test", "build", "check-circular"]
