@@ -2,6 +2,7 @@ import type { RandomSource } from "../../domain/ports/random-source.js";
 
 /**
  * Deterministic RandomSource that returns preset values in order.
+ * All values must be in [0, 1) — construction fails on invalid input.
  * Throws immediately if values run out (underflow).
  * Call assertFullyConsumed() in afterEach to detect leftover values (overflow).
  */
@@ -11,6 +12,14 @@ export class SequenceRandomSource implements RandomSource {
   readonly consumedValues: number[] = [];
 
   constructor(values: readonly number[]) {
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i];
+      if (v === undefined || !Number.isFinite(v) || v < 0 || v >= 1) {
+        throw new Error(
+          `SequenceRandomSource: value at index ${i} is out of range [0, 1) — got ${String(v)}`,
+        );
+      }
+    }
     this.values = values;
   }
 

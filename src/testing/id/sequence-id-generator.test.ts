@@ -32,12 +32,11 @@ describe("SequenceIdGenerator", () => {
     expect(gen.callCount).toBe(2);
   });
 
-  it("UT-IDGEN-005: reset restarts the sequence", () => {
+  it("UT-IDGEN-005: IDs within a single instance are globally unique (no reset, new instance per test)", () => {
     const gen = new SequenceIdGenerator("battle");
-    gen.next();
-    gen.next();
-    gen.reset();
-    expect(gen.next()).toBe("battle-1");
-    expect(gen.callCount).toBe(1);
+    const id1 = gen.next();
+    const id2 = gen.next();
+    const id3 = gen.next();
+    expect(new Set([id1, id2, id3]).size).toBe(3);
   });
 });

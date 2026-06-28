@@ -47,4 +47,38 @@ describe("SequenceRandomSource", () => {
     expect(() => src.next()).toThrow();
     expect(src.callCount).toBe(1);
   });
+
+  describe("value range validation [0, 1)", () => {
+    it("UT-RAND-008: accepts boundary value 0", () => {
+      expect(() => new SequenceRandomSource([0])).not.toThrow();
+    });
+
+    it("UT-RAND-009: accepts value just below upper bound (0.9999…)", () => {
+      expect(() => new SequenceRandomSource([0.9999999999])).not.toThrow();
+    });
+
+    it("UT-RAND-010: rejects negative value", () => {
+      expect(() => new SequenceRandomSource([-0.1])).toThrow("out of range");
+    });
+
+    it("UT-RAND-011: rejects upper bound value 1", () => {
+      expect(() => new SequenceRandomSource([1])).toThrow("out of range");
+    });
+
+    it("UT-RAND-012: rejects value greater than 1", () => {
+      expect(() => new SequenceRandomSource([1.5])).toThrow("out of range");
+    });
+
+    it("UT-RAND-013: rejects NaN", () => {
+      expect(() => new SequenceRandomSource([NaN])).toThrow("out of range");
+    });
+
+    it("UT-RAND-014: rejects Infinity", () => {
+      expect(() => new SequenceRandomSource([Infinity])).toThrow("out of range");
+    });
+
+    it("UT-RAND-015: reports the index of the invalid value", () => {
+      expect(() => new SequenceRandomSource([0.5, 0.3, 1.0])).toThrow("index 2");
+    });
+  });
 });
