@@ -50,6 +50,11 @@ export default tseslint.config(
               regex: "^node:",
               message: "Domain layer must not import Node.js built-in modules.",
             },
+            {
+              regex:
+                "^(assert|async_hooks|buffer|child_process|cluster|console|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(/|$)",
+              message: "Domain layer must not import Node.js built-in modules (bare name).",
+            },
           ],
         },
       ],
@@ -76,7 +81,7 @@ export default tseslint.config(
     },
   },
 
-  // Layer boundary: presentation must not import from infrastructure or bootstrap
+  // Layer boundary: presentation must not import from domain, infrastructure, or bootstrap
   {
     files: ["src/presentation/**/*.ts"],
     ignores: ["src/presentation/**/*.test.ts", "src/presentation/**/*.spec.ts"],
@@ -86,8 +91,28 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: "(^|.+\\/)(infrastructure|bootstrap)(\\/|$)",
-              message: "Presentation layer must not import from infrastructure or bootstrap.",
+              regex: "(^|.+\\/)(domain|infrastructure|bootstrap)(\\/|$)",
+              message:
+                "Presentation layer must not import from domain, infrastructure, or bootstrap.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // Layer boundary: infrastructure must not import from presentation or bootstrap
+  {
+    files: ["src/infrastructure/**/*.ts"],
+    ignores: ["src/infrastructure/**/*.test.ts", "src/infrastructure/**/*.spec.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "(^|.+\\/)(presentation|bootstrap)(\\/|$)",
+              message: "Infrastructure layer must not import from presentation or bootstrap.",
             },
           ],
         },

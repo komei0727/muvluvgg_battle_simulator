@@ -42,12 +42,25 @@ describe("Layer boundary — domain", () => {
     expect(violations.length).toBeGreaterThan(0);
   });
 
-  it("UT-LAYER-003: domain cannot import Node.js built-in modules", async () => {
+  it("UT-LAYER-003: domain cannot import Node.js built-in modules (node: prefix)", async () => {
     const results = await eslint.lintText("import { readFileSync } from 'node:fs';\n", {
       filePath: "src/domain/value-objects/bad.ts",
     });
     const violations = violationsOf(results, "no-restricted-imports");
     expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("UT-LAYER-008: domain cannot import Node.js built-in modules (bare name)", async () => {
+    const results = await eslint.lintText(
+      [
+        "import fs from 'fs';",
+        "import path from 'path';",
+        "import { randomUUID } from 'crypto';",
+      ].join("\n") + "\n",
+      { filePath: "src/domain/value-objects/bad.ts" },
+    );
+    const violations = violationsOf(results, "no-restricted-imports");
+    expect(violations.length).toBeGreaterThanOrEqual(3);
   });
 
   it("UT-LAYER-004: domain CAN import from within domain", async () => {
@@ -75,6 +88,34 @@ describe("Layer boundary — application", () => {
     });
     const violations = violationsOf(results, "no-restricted-imports");
     expect(violations).toHaveLength(0);
+  });
+});
+
+describe("Layer boundary — presentation", () => {
+  it("UT-LAYER-009: presentation cannot import from domain", async () => {
+    const results = await eslint.lintText("import type {} from '../../domain/index.js';\n", {
+      filePath: "src/presentation/handlers/bad.ts",
+    });
+    const violations = violationsOf(results, "no-restricted-imports");
+    expect(violations.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Layer boundary — infrastructure", () => {
+  it("UT-LAYER-010: infrastructure cannot import from presentation", async () => {
+    const results = await eslint.lintText("import type {} from '../../presentation/index.js';\n", {
+      filePath: "src/infrastructure/repos/bad.ts",
+    });
+    const violations = violationsOf(results, "no-restricted-imports");
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("UT-LAYER-011: infrastructure cannot import from bootstrap", async () => {
+    const results = await eslint.lintText("import type {} from '../../bootstrap/index.js';\n", {
+      filePath: "src/infrastructure/repos/bad.ts",
+    });
+    const violations = violationsOf(results, "no-restricted-imports");
+    expect(violations.length).toBeGreaterThan(0);
   });
 });
 
