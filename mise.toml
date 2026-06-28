@@ -33,6 +33,10 @@ run = "pnpm run test"
 [tasks.build]
 run = "pnpm run build"
 
+[tasks.check-circular]
+description = "Detect circular dependencies between source files"
+run = "pnpm run check:circular"
+
 [tasks.check]
 description = "Run all validation tasks"
-depends = ["typecheck", "lint", "format-check", "test"]
+depends = ["typecheck", "lint", "format-check", "test", "check-circular"]

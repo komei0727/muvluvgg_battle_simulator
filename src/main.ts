@@ -1,3 +1,3 @@
-const PORT = process.env["PORT"] ?? "3000";
+import { bootstrap } from "./bootstrap/index.js";
 
-console.log(`muvluvgg-battle-simulator starting on port ${PORT}`);
+bootstrap();
