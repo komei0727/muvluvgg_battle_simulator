@@ -18,13 +18,15 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check:circular": "madge --circular --extensions ts src/ --ts-config tsconfig.json"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "^24.13.2",
     "@vitest/coverage-v8": "4.1.9",
     "eslint": "10.5.0",
+    "madge": "^8.0.0",
     "prettier": "3.8.4",
     "tsx": "4.22.4",
     "typescript": "6.0.3",
