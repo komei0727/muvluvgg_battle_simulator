@@ -25,8 +25,8 @@ jobs:
       - name: Lint
         run: mise run lint
 
-      - name: Unit / Scenario / Contract tests
-        run: mise run test
+      - name: Unit / Scenario / Contract tests with coverage
+        run: mise run test:coverage
 
       - name: Circular dependency check
         run: mise run check-circular

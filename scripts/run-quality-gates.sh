@@ -6,5 +6,5 @@ set -euo pipefail
 mise run format-check
 mise run typecheck
 mise run lint
-mise run test
+mise run test:coverage
 mise run check-circular
