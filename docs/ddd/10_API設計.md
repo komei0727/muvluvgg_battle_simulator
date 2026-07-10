@@ -664,32 +664,32 @@ reconstructedFinalState = apply(
 
 ### ViolationResponse
 
-| プロパティ     | 型     | 必須 | 説明                         |
-| -------------- | ------ | ---- | ---------------------------- |
-| `path`         | string | 任意 | JSON Pointer形式の入力位置。 |
-| `definitionId` | string | 任意 | 問題がある定義ID。           |
+| プロパティ     | 型     | 必須 | 説明                          |
+| -------------- | ------ | ---- | ----------------------------- |
+| `path`         | string | 任意 | JSON Pointer形式の入力位置。  |
+| `definitionId` | string | 任意 | 問題がある定義ID。            |
 | `ruleId`       | string | 任意 | 違反規則またはCapability ID。 |
-| `message`      | string | 必須 | 個別違反の説明。             |
+| `message`      | string | 必須 | 個別違反の説明。              |
 
 `message` の文言は互換性契約にしない。クライアントは `code`、`ruleId`、`path` を使用する。
 
 ### ステータスコード対応
 
-| HTTP                         | code                           | 使用条件                                |
-| ---------------------------- | ------------------------------ | --------------------------------------- |
-| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。  |
-| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                  |
-| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                |
-| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                |
-| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。       |
-| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。          |
+| HTTP                         | code                           | 使用条件                                 |
+| ---------------------------- | ------------------------------ | ---------------------------------------- |
+| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。   |
+| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                   |
+| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                 |
+| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                 |
+| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。        |
+| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。           |
 | `422 Unprocessable Content`  | `UNSUPPORTED_RULE`             | 選択定義が未実装Capabilityを必要とする。 |
-| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。  |
-| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。 |
-| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。              |
-| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。       |
-| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。    |
-| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。      |
+| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。   |
+| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。  |
+| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。               |
+| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。        |
+| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。     |
+| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。       |
 
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 

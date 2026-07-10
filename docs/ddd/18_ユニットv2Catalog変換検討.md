@@ -34,27 +34,27 @@
 
 ## 追加確認・小修正候補
 
-| ID | 内容 | 影響ユニット | 対応案 |
-| --- | --- | --- | --- |
-| C-UNIT-01 | `14_Catalog定義スキーマ.md` の `TriggerDefinition.eventType` 候補に `EffectApplied` がないが、`08_ドメインイベント.md` では定義済み。 | ケイト | `EffectApplied` を trigger event 候補へ追加する。凍結付与時PSは `payload.effectKind=APPLY_STATUS`, `payload.status=FREEZE` で判定する。 |
-| C-UNIT-02 | `APPLY_COVER`, `APPLY_TARGET_REDIRECT`, `APPLY_REFLECT`, `APPLY_DEATH_SURVIVAL`, `EFFECT_IMMUNITY`, `EVASION` の payload 詳細が Catalog schema 上はまだ粗い。 | エヴィ、ステラ、カリナ、コトハ、フルート、ケイト | v2 Catalog の変換JSONを作る前に、各 payload の必須フィールドを小さく定義する。 |
-| C-UNIT-03 | 「同タイミングでは発動しない」を `simultaneousActivationLimited` だけで表すか、明示的な排他グループを持たせるか。 | ステラ | 初期変換では該当PS双方に `simultaneousActivationLimited: true` を設定する。必要なら `exclusiveActivationGroupId` を追加検討する。 |
-| C-UNIT-04 | 「右列」「左列」「前後列」の authoring 規約。 | リディア、フルート | Q-TGT-06 の共通座標に従い、`LEFT` / `RIGHT` は俯瞰時の絶対列として扱う。フルートの「敵前後列」は最近対象と同じ縦列の前後2マスとして `SAME_COLUMN_AS_BASE` で表す案が自然。 |
+| ID        | 内容                                                                                                                                                          | 影響ユニット                                     | 対応案                                                                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C-UNIT-01 | `14_Catalog定義スキーマ.md` の `TriggerDefinition.eventType` 候補に `EffectApplied` がないが、`08_ドメインイベント.md` では定義済み。                         | ケイト                                           | `EffectApplied` を trigger event 候補へ追加する。凍結付与時PSは `payload.effectKind=APPLY_STATUS`, `payload.status=FREEZE` で判定する。                                    |
+| C-UNIT-02 | `APPLY_COVER`, `APPLY_TARGET_REDIRECT`, `APPLY_REFLECT`, `APPLY_DEATH_SURVIVAL`, `EFFECT_IMMUNITY`, `EVASION` の payload 詳細が Catalog schema 上はまだ粗い。 | エヴィ、ステラ、カリナ、コトハ、フルート、ケイト | v2 Catalog の変換JSONを作る前に、各 payload の必須フィールドを小さく定義する。                                                                                             |
+| C-UNIT-03 | 「同タイミングでは発動しない」を `simultaneousActivationLimited` だけで表すか、明示的な排他グループを持たせるか。                                             | ステラ                                           | 初期変換では該当PS双方に `simultaneousActivationLimited: true` を設定する。必要なら `exclusiveActivationGroupId` を追加検討する。                                          |
+| C-UNIT-04 | 「右列」「左列」「前後列」の authoring 規約。                                                                                                                 | リディア、フルート                               | Q-TGT-06 の共通座標に従い、`LEFT` / `RIGHT` は俯瞰時の絶対列として扱う。フルートの「敵前後列」は最近対象と同じ縦列の前後2マスとして `SAME_COLUMN_AS_BASE` で表す案が自然。 |
 
 ## ユニット別サマリ
 
-| Unit | 変換可否 | 主な `CAP_*` | 変換上の要点 |
-| --- | --- | --- | --- |
-| リディア | 可能 | `CAP_ADVANCED_TARGETING`, `CAP_TARGET_FALLBACK`, `CAP_DERIVED_TARGETS`, `CAP_DAMAGE_MOD`, `CAP_HEAL`, `CAP_RESOURCE_MOD`, `CAP_CONSUMABLE_EFFECT`, `CAP_RUNTIME_COUNTER`, `CAP_EFFECT_CONDITION`, `CAP_CRITICAL_CONTROL` | 複数範囲、fallback、対象生存分岐、生存味方数参照、戦闘中1回制限を使う。 |
-| エヴィ | 可能 | `CAP_TARGET_REDIRECT`, `CAP_COVER_DAMAGE`, `CAP_HEAL`, `CAP_RESOURCE_MOD`, `CAP_RESOURCE_CAPACITY_MOD`, `CAP_ADVANCED_PASSIVE_TRIGGER`, `CAP_RUNTIME_COUNTER` | 前半3スキルは単純。PSは肩代わり、HP閾値、戦闘中1回、横一列の他味方が難所。 |
-| ラウラ | 可能 | `CAP_RANDOM_BRANCH`, `CAP_DERIVED_TARGETS`, `CAP_DAMAGE_MOD`, `CAP_HEAL`, `CAP_FORMULA`, `CAP_EFFECT_CONDITION` | 独立60%抽選が2つある。生存味方数に応じた攻撃力上昇は Formula。 |
-| ステラ | 可能 | `CAP_HIT_COUNT_EVASION`, `CAP_MARKER`, `CAP_MARKER_STACK_FORMULA`, `CAP_SPECIFIC_IMMUNITY`, `CAP_EFFECT_CONDITION`, `CAP_REFLECT_DAMAGE`, `CAP_HEAL`, `CAP_FORMULA` | 「惑光」は Marker。現在HP割合ダメージ、攻撃力上限、反撃、同タイミング排他が必要。 |
-| カリナ | 可能 | `CAP_DERIVED_TARGETS`, `CAP_RESOURCE_MOD`, `CAP_MARKER`, `CAP_MARKER_STACK_FORMULA`, `CAP_TARGET_REDIRECT`, `CAP_COVER_DAMAGE`, `CAP_SPECIFIC_IMMUNITY`, `CAP_DAMAGE_MOD`, `CAP_FORMULA` | 「警棒」は Marker。Marker数によるダメージ増加、後列攻撃への介入、HP量比例デバフがある。 |
-| ハリエット | 可能 | `CAP_HEAL`, `CAP_CONTINUOUS_HEAL`, `CAP_MARKER`, `CAP_RESOURCE_MOD`, `CAP_CONSUMABLE_EFFECT`, `CAP_COMPLEX_EXPIRATION`, `CAP_EFFECT_CONDITION`, `CAP_ADVANCED_PASSIVE_TRIGGER` | 「カース」は Marker と linked effect。4個目でPP全削り、Marker全解除。 |
-| コトハ | 可能 | `CAP_EFFECT_CONDITION`, `CAP_RESOLUTION_BRANCH`, `CAP_PARTIAL_PIERCING`, `CAP_HEAL`, `CAP_CONTINUOUS_HEAL`, `CAP_MARKER`, `CAP_MARKER_STACK_FORMULA`, `CAP_DEATH_SURVIVAL`, `CAP_RUNTIME_COUNTER` | HP条件分岐、憤怒Marker数による攻撃内容変化、致死耐えが中心。 |
-| 鎧衣美琴 | 可能 | `CAP_CRITICAL_CONTROL`, `CAP_DERIVED_TARGETS`, `CAP_EFFECT_CONDITION`, `CAP_RUNTIME_COUNTER`, `CAP_RESOURCE_MOD`, `CAP_DAMAGE_MOD` | 累計被ダメージカウンターとAP有無分岐が必要。 |
-| ケイト | 可能 | `CAP_RANDOM_BRANCH`, `CAP_HEAL`, `CAP_RESOURCE_MOD`, `CAP_DAMAGE_MOD`, `CAP_HIT_COUNT_EVASION`, `CAP_EFFECT_CONDITION`, `CAP_ADVANCED_PASSIVE_TRIGGER` | EX/ASで確率分岐が多い。凍結付与時PSには `EffectApplied` trigger が必要。 |
-| フルート | 可能 | `CAP_DERIVED_TARGETS`, `CAP_HEAL`, `CAP_EFFECT_CONDITION`, `CAP_RESOURCE_CAPACITY_MOD`, `CAP_MARKER`, `CAP_REFLECT_DAMAGE`, `CAP_HIT_COUNT_EVASION`, `CAP_DEATH_SURVIVAL`, `CAP_DAMAGE_MOD`, `CAP_RUNTIME_COUNTER` | 「極限」は解除不可Marker。HP消費、最大AP増加、極限中の発動抑止、致死耐えがある。 |
+| Unit       | 変換可否 | 主な `CAP_*`                                                                                                                                                                                                             | 変換上の要点                                                                            |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| リディア   | 可能     | `CAP_ADVANCED_TARGETING`, `CAP_TARGET_FALLBACK`, `CAP_DERIVED_TARGETS`, `CAP_DAMAGE_MOD`, `CAP_HEAL`, `CAP_RESOURCE_MOD`, `CAP_CONSUMABLE_EFFECT`, `CAP_RUNTIME_COUNTER`, `CAP_EFFECT_CONDITION`, `CAP_CRITICAL_CONTROL` | 複数範囲、fallback、対象生存分岐、生存味方数参照、戦闘中1回制限を使う。                 |
+| エヴィ     | 可能     | `CAP_TARGET_REDIRECT`, `CAP_COVER_DAMAGE`, `CAP_HEAL`, `CAP_RESOURCE_MOD`, `CAP_RESOURCE_CAPACITY_MOD`, `CAP_ADVANCED_PASSIVE_TRIGGER`, `CAP_RUNTIME_COUNTER`                                                            | 前半3スキルは単純。PSは肩代わり、HP閾値、戦闘中1回、横一列の他味方が難所。              |
+| ラウラ     | 可能     | `CAP_RANDOM_BRANCH`, `CAP_DERIVED_TARGETS`, `CAP_DAMAGE_MOD`, `CAP_HEAL`, `CAP_FORMULA`, `CAP_EFFECT_CONDITION`                                                                                                          | 独立60%抽選が2つある。生存味方数に応じた攻撃力上昇は Formula。                          |
+| ステラ     | 可能     | `CAP_HIT_COUNT_EVASION`, `CAP_MARKER`, `CAP_MARKER_STACK_FORMULA`, `CAP_SPECIFIC_IMMUNITY`, `CAP_EFFECT_CONDITION`, `CAP_REFLECT_DAMAGE`, `CAP_HEAL`, `CAP_FORMULA`                                                      | 「惑光」は Marker。現在HP割合ダメージ、攻撃力上限、反撃、同タイミング排他が必要。       |
+| カリナ     | 可能     | `CAP_DERIVED_TARGETS`, `CAP_RESOURCE_MOD`, `CAP_MARKER`, `CAP_MARKER_STACK_FORMULA`, `CAP_TARGET_REDIRECT`, `CAP_COVER_DAMAGE`, `CAP_SPECIFIC_IMMUNITY`, `CAP_DAMAGE_MOD`, `CAP_FORMULA`                                 | 「警棒」は Marker。Marker数によるダメージ増加、後列攻撃への介入、HP量比例デバフがある。 |
+| ハリエット | 可能     | `CAP_HEAL`, `CAP_CONTINUOUS_HEAL`, `CAP_MARKER`, `CAP_RESOURCE_MOD`, `CAP_CONSUMABLE_EFFECT`, `CAP_COMPLEX_EXPIRATION`, `CAP_EFFECT_CONDITION`, `CAP_ADVANCED_PASSIVE_TRIGGER`                                           | 「カース」は Marker と linked effect。4個目でPP全削り、Marker全解除。                   |
+| コトハ     | 可能     | `CAP_EFFECT_CONDITION`, `CAP_RESOLUTION_BRANCH`, `CAP_PARTIAL_PIERCING`, `CAP_HEAL`, `CAP_CONTINUOUS_HEAL`, `CAP_MARKER`, `CAP_MARKER_STACK_FORMULA`, `CAP_DEATH_SURVIVAL`, `CAP_RUNTIME_COUNTER`                        | HP条件分岐、憤怒Marker数による攻撃内容変化、致死耐えが中心。                            |
+| 鎧衣美琴   | 可能     | `CAP_CRITICAL_CONTROL`, `CAP_DERIVED_TARGETS`, `CAP_EFFECT_CONDITION`, `CAP_RUNTIME_COUNTER`, `CAP_RESOURCE_MOD`, `CAP_DAMAGE_MOD`                                                                                       | 累計被ダメージカウンターとAP有無分岐が必要。                                            |
+| ケイト     | 可能     | `CAP_RANDOM_BRANCH`, `CAP_HEAL`, `CAP_RESOURCE_MOD`, `CAP_DAMAGE_MOD`, `CAP_HIT_COUNT_EVASION`, `CAP_EFFECT_CONDITION`, `CAP_ADVANCED_PASSIVE_TRIGGER`                                                                   | EX/ASで確率分岐が多い。凍結付与時PSには `EffectApplied` trigger が必要。                |
+| フルート   | 可能     | `CAP_DERIVED_TARGETS`, `CAP_HEAL`, `CAP_EFFECT_CONDITION`, `CAP_RESOURCE_CAPACITY_MOD`, `CAP_MARKER`, `CAP_REFLECT_DAMAGE`, `CAP_HIT_COUNT_EVASION`, `CAP_DEATH_SURVIVAL`, `CAP_DAMAGE_MOD`, `CAP_RUNTIME_COUNTER`       | 「極限」は解除不可Marker。HP消費、最大AP増加、極限中の発動抑止、致死耐えがある。        |
 
 ## ユニット別変換メモ
 
@@ -254,4 +254,3 @@
 3. **ラウラ / ケイト**: `RANDOM_BRANCH` の `INDEPENDENT` と `WEIGHTED_ONE` を確認できる。
 4. **ステラ / カリナ / ハリエット / コトハ / フルート**: Marker、linkedEffectGroup、特殊防御、致死耐え、複雑な発動条件を確認する。
 5. **鎧衣美琴**: RuntimeCounter とリソース分岐を確認する。
-
