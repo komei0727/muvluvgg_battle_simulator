@@ -13,8 +13,8 @@ function extractRuleIdsFromSpec(): string[] {
 }
 
 describe("Rule coverage ledger", () => {
-  it("UT-TRACEABILITY-001: ledger contains exactly 80 rule IDs", () => {
-    expect(RULE_COVERAGE).toHaveLength(80);
+  it("UT-TRACEABILITY-001: ledger contains exactly 108 rule IDs", () => {
+    expect(RULE_COVERAGE).toHaveLength(108);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {
