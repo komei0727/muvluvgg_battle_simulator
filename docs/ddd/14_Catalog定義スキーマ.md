@@ -1,0 +1,1606 @@
+# Catalog 定義スキーマ
+
+## 目的
+
+本書は、[`02_仕様確認事項.md`](./02_仕様確認事項.md) の決定事項と、`raw/units/`・`raw/memories/` の実データ調査結果を踏まえ、Catalog v2 の JSON 契約を定義する。
+
+前提文書: [`05_ドメインモデル.md`](./05_ドメインモデル.md)・[`07_戦闘ルール詳細.md`](./07_戦闘ルール詳細.md)・[`08_ドメインイベント.md`](./08_ドメインイベント.md)・[`11_インフラストラクチャ設計.md`](./11_インフラストラクチャ設計.md)
+
+## 設計方針
+
+### 基本方針
+
+Catalog v2 は、Unit Skill と Memory の効果を同じ基盤で表現する。
+
+効果は次の構成要素に分解する。
+
+| 要素                      | 役割                                            |
+| ------------------------- | ----------------------------------------------- |
+| `TriggerDefinition`       | いつ発動候補になるか                            |
+| `ConditionDefinition`     | どの状態なら実行するか                          |
+| `TargetBindingDefinition` | 誰を対象として束縛するか                        |
+| `EffectStepDefinition`    | どの順番で何を解決するか                        |
+| `EffectActionDefinition`  | HP、リソース、状態、マーカーなどへ何をするか    |
+| `FormulaDefinition`       | 値をどの戦闘状態から計算するか                  |
+| `DurationDefinition`      | いつまで有効か、何で消費・失効するか            |
+| `Capability`              | 表現済みだが未実装の機能を preflight で隔離する |
+
+任意コード、文字列式、eval 相当の拡張は許可しない。条件、式、対象選択は列挙値と構造化フィールドだけで表す。
+
+### v1 からの主な変更
+
+| 領域            | v1                                                                                    | v2                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit            | `affinityBonus`, `criticalDamageBonus`, `extraGaugeMaximum`, `sourceReference` を必須 | `affinityBonus` と `criticalDamageBonus` は既定値で生成し、`extraGaugeMaximum` はEXスキル `cost.amount` から生成する。`sourceReference` は production Catalog から削除 |
+| Skill targeting | Skill 全体に1つの `targeting`                                                         | `effectSequence.targetBindings` で複数対象束縛を定義                                                                                                                   |
+| Skill effect    | `effects.json` の `kind` 列挙                                                         | `EffectStep` と `EffectAction` の構成で表現                                                                                                                            |
+| 条件分岐        | AS発動条件とPS predicate中心                                                          | Step / Action 単位の `condition` と `BRANCH` step                                                                                                                      |
+| 確率            | 会心・暗闇・回避中心                                                                  | `RANDOM_BRANCH` step                                                                                                                                                   |
+| Memory          | 静的 `modifiers`                                                                      | `triggeredEffects` を主表現にし、`modifiers` は省略記法                                                                                                                |
+| Capability      | 保留仕様のみ                                                                          | `CAP_*` による段階導入機能も管理                                                                                                                                       |
+
+---
+
+## Catalog ファイル構成
+
+```text
+catalog/
+  manifest.json
+  units.json
+  skills.json
+  effects.json
+  memories.json
+  capabilities.json
+```
+
+`effects.json` は v1 の `SkillEffectDefinition` ではなく、再利用可能な `EffectActionDefinition` を格納する。Skill / Memory の解決順、対象、条件、分岐はそれぞれの `effectSequence` が持つ。
+
+### manifest.json
+
+```json
+{
+  "schemaVersion": 2,
+  "catalogRevision": "2026-07-11.1",
+  "files": {
+    "units.json": "sha256:...",
+    "skills.json": "sha256:...",
+    "effects.json": "sha256:...",
+    "memories.json": "sha256:...",
+    "capabilities.json": "sha256:..."
+  }
+}
+```
+
+| フィールド        | 型      | 制約                                |
+| ----------------- | ------- | ----------------------------------- |
+| `schemaVersion`   | integer | v2 は `2` 固定                      |
+| `catalogRevision` | string  | 不透明な文字列                      |
+| `files`           | object  | 上記5ファイルの sha256 を必須とする |
+
+---
+
+## ID体系
+
+| 種別           | プレフィックス  | 例                               |
+| -------------- | --------------- | -------------------------------- |
+| Unit           | `UNIT_`         | `UNIT_001`                       |
+| Skill          | `SKL_`          | `SKL_001_AS1`                    |
+| EffectAction   | `ACT_`          | `ACT_001_DAMAGE`                 |
+| Memory         | `MEM_`          | `MEM_001`                        |
+| Target binding | `TGT_`          | `TGT_PRIMARY`                    |
+| Marker         | `MARKER_`       | `MARKER_CURSE`                   |
+| Capability     | `Q-*` / `CAP_*` | `CAP_HEAL`, `CAP_REFLECT_DAMAGE` |
+
+ID は ASCII 英数字、ハイフン、アンダースコアのみ許可する。Catalog 全体で同種 ID は一意でなければならない。
+
+---
+
+## UnitDefinition
+
+### YAML 全体像
+
+```yaml
+unitDefinitionId: UNIT_001
+attribute: COMICAL
+unitType: AGILE
+role: CONTROL
+positionAptitudes:
+  - FRONT
+  - BACK
+baseStats:
+  maximumHp: 28375
+  attack: 23221
+  defense: 11781
+  criticalRate: 0.25
+  criticalDamageBonus: 0.5
+  affinityBonus: 0.25
+  actionSpeed: 780
+  maximumAp: 4
+  maximumPp: 4
+extraGaugeMaximum: 7
+activeSkillDefinitionIds:
+  - SKL_001_AS1
+  - SKL_001_AS2
+passiveSkillDefinitionIds:
+  - SKL_001_PS1
+  - SKL_001_PS2
+extraSkillDefinitionId: SKL_001_EX
+requiredCapabilities: []
+metadata:
+  displayName: "【純真無垢なるジーニアス】リディア・エルドリッジ"
+  characterName: "リディア・エルドリッジ"
+  characterId: CHAR_LYDIA_ELDRIDGE
+  affiliations: []
+  tags: []
+```
+
+### フィールド詳細
+
+| フィールド                      | 型       | 必須 | 制約                                                                 |
+| ------------------------------- | -------- | ---- | -------------------------------------------------------------------- |
+| `unitDefinitionId`              | string   | ✓    | 一意                                                                 |
+| `attribute`                     | enum     | ✓    | `AGGRESSIVE` / `SHY` / `CUTE` / `SMART` / `COMICAL` / `CLEVER`       |
+| `unitType`                      | enum     | ✓    | `PHYSICAL` / `ENERGY` / `AGILE`                                      |
+| `role`                          | enum     | ✓    | `PHYSICAL_ATTACKER` / `EN_ATTACKER` / `TANK` / `SUPPORT` / `CONTROL` |
+| `positionAptitudes`             | enum[]   | ✓    | `FRONT` / `BACK` の1件以上                                           |
+| `baseStats`                     | object   | ✓    | 下表                                                                 |
+| `baseStats.maximumHp`           | integer  | ✓    | >= 1                                                                 |
+| `baseStats.attack`              | integer  | ✓    | >= 0                                                                 |
+| `baseStats.defense`             | integer  | ✓    | >= 0                                                                 |
+| `baseStats.criticalRate`        | number   | ✓    | raw の%を割合へ変換                                                  |
+| `baseStats.criticalDamageBonus` | number   | ✓    | Catalog作成時は既定値 `0.5`。Unitごとに上書き可                      |
+| `baseStats.affinityBonus`       | number   | ✓    | Catalog作成時は既定値 `0.25`。Unitごとに上書き可                     |
+| `baseStats.actionSpeed`         | integer  | ✓    | >= 0                                                                 |
+| `baseStats.maximumAp`           | integer  | ✓    | >= 1                                                                 |
+| `baseStats.maximumPp`           | integer  | ✓    | >= 1                                                                 |
+| `extraGaugeMaximum`             | integer  | ✓    | >= 1。Catalog作成時はEXスキル `cost.amount` と同値で生成             |
+| `activeSkillDefinitionIds`      | string[] | ✓    | AS選択優先順                                                         |
+| `passiveSkillDefinitionIds`     | string[] | ✓    | 0件可。PSタイブレーカー順                                            |
+| `extraSkillDefinitionId`        | string   | ✓    | EXスキル1件                                                          |
+| `requiredCapabilities`          | string[] | ✓    | 空配列可                                                             |
+| `metadata`                      | object   | ✓    | 表示、所属、タグ                                                     |
+
+### v2でUnitに保持する/削除するフィールド
+
+| v1フィールド                    | v2の扱い                                                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `baseStats.affinityBonus`       | Unitフィールドとして保持。Catalog作成時は既定値 `0.25` で生成し、Unitごとに上書き可能                      |
+| `baseStats.criticalDamageBonus` | Unitフィールドとして保持。Catalog作成時は既定値 `0.5` で生成し、Unitごとに上書き可能                       |
+| `extraGaugeMaximum`             | Unitフィールドとして保持。Catalog作成時はEXスキル `cost.amount` と同値で生成し、参照整合性で一致を検証する |
+| `metadata.sourceReference`      | production Catalog から削除。authoring metadata として保持                                                 |
+
+### metadata
+
+| フィールド      | 型       | 必須 | 制約                         |
+| --------------- | -------- | ---- | ---------------------------- |
+| `displayName`   | string   | ✓    | raw の名前                   |
+| `characterName` | string   | ✓    | 衣装名を除いたキャラクター名 |
+| `characterId`   | string   | ✓    | 正規化ID                     |
+| `affiliations`  | string[] | ✓    | 所属ID。空配列可             |
+| `tags`          | string[] | ✓    | 任意タグ。空配列可           |
+
+`affiliations` は Memory の所属フィルタで使用する。所属不明の場合は空配列にし、所属フィルタを必要とする Memory の Catalog 化時に補完する。
+
+---
+
+## SkillDefinition
+
+### YAML 全体像
+
+```yaml
+skillDefinitionId: SKL_001_AS1
+skillType: AS
+cost:
+  resource: AP
+  amount: 1
+activationCondition:
+  kind: TRUE
+triggers: []
+resolution:
+  kind: IMMEDIATE
+  targetBindings:
+    - targetBindingId: TGT_PRIMARY
+      selector:
+        kind: SELECT
+        side: ENEMY
+        count: 1
+        order:
+          - NEAREST
+          - FRONT_ROW
+          - LEFT_TO_RIGHT
+  steps:
+    - kind: ACTION
+      target:
+        kind: BINDING
+        targetBindingId: TGT_PRIMARY
+      actions:
+        - effectActionDefinitionId: ACT_DAMAGE_PHYSICAL_7020
+cooldown:
+  unit: ACTION
+  count: 1
+traits:
+  priorityAttack: false
+  simultaneousActivationLimited: false
+  exclusiveActivationGroupId: null
+  accuracy:
+    guaranteedHit: false
+  piercing:
+    defenseIgnoreRate: 0
+    shieldIgnoreRate: 0
+    damageReductionIgnoreRate: 0
+requiredCapabilities: []
+metadata:
+  displayName: "ジャマしちゃ、めっ……だよ？"
+  tags: []
+```
+
+### フィールド詳細
+
+| フィールド             | 型                        | 必須 | 制約                            |
+| ---------------------- | ------------------------- | ---- | ------------------------------- |
+| `skillDefinitionId`    | string                    | ✓    | 一意                            |
+| `skillType`            | enum                      | ✓    | `AS` / `PS` / `EX`              |
+| `cost`                 | object                    | ✓    | AS=`AP`, PS=`PP`, EX=`EX_GAUGE` |
+| `activationCondition`  | ConditionDefinition       | ✓    | Skill使用可否。通常は `TRUE`    |
+| `triggers`             | TriggerDefinition[]       | ✓    | PSは1件以上。AS/EXは空配列      |
+| `resolution`           | SkillResolutionDefinition | ✓    | 下記                            |
+| `cooldown`             | object                    | ✓    | `unit`, `count`                 |
+| `traits`               | object                    | ✓    | 先制、同時発動制限、命中、貫通  |
+| `requiredCapabilities` | string[]                  | ✓    | 空配列可                        |
+| `metadata`             | object                    | ✓    | `displayName`, `tags`           |
+
+### traits
+
+| フィールド                           | 型          | 必須 | 制約                                                            |
+| ------------------------------------ | ----------- | ---- | --------------------------------------------------------------- |
+| `priorityAttack`                     | boolean     | ✓    | 先制攻撃なら true                                               |
+| `simultaneousActivationLimited`      | boolean     | ✓    | 同一イベントで候補になった同時発動制限PSのうち1件だけを発動する |
+| `exclusiveActivationGroupId`         | string/null | ✓    | 同タイミング排他グループ。null なら排他グループなし             |
+| `accuracy.guaranteedHit`             | boolean     | ✓    | 必中なら true                                                   |
+| `piercing.defenseIgnoreRate`         | number      | ✓    | 防御力無視率。0〜1                                              |
+| `piercing.shieldIgnoreRate`          | number      | ✓    | シールド無視率。0〜1                                            |
+| `piercing.damageReductionIgnoreRate` | number      | ✓    | ダメージ軽減無視率。0〜1                                        |
+
+`exclusiveActivationGroupId` が同一の PS が同じ event / root action で同時に候補になった場合、同一グループ内で発動できるのは1件だけとする。選択順は `R-PS-02` と `R-PS-03` に従い、選ばれなかった候補は同じ event では再候補化しない。
+
+### cost
+
+| フィールド | 型      | 制約                                                                 |
+| ---------- | ------- | -------------------------------------------------------------------- |
+| `resource` | enum    | `AP` / `PP` / `EX_GAUGE`                                             |
+| `amount`   | integer | >= 0。EXの場合、Unit の `extraGaugeMaximum` と一致しなければならない |
+
+### traits.piercing
+
+```yaml
+piercing:
+  defenseIgnoreRate: 0.5
+  shieldIgnoreRate: 0.5
+  damageReductionIgnoreRate: 0
+```
+
+| フィールド                  | 型     | 制約 |
+| --------------------------- | ------ | ---- |
+| `defenseIgnoreRate`         | number | 0〜1 |
+| `shieldIgnoreRate`          | number | 0〜1 |
+| `damageReductionIgnoreRate` | number | 0〜1 |
+
+v1 の `defensePiercing: true` は v2 では `defenseIgnoreRate: 0`, `shieldIgnoreRate: 1`, `damageReductionIgnoreRate: 1` など、確定ルールに応じた明示値へ移行する。raw の「防御力とシールドを50%無視」は `defenseIgnoreRate: 0.5`, `shieldIgnoreRate: 0.5` とする。
+
+---
+
+## SkillResolutionDefinition
+
+### YAML 全体像
+
+```yaml
+resolution:
+  kind: IMMEDIATE
+  targetBindings:
+    - targetBindingId: TGT_MAIN
+      selector:
+        kind: SELECT
+        side: ENEMY
+        count: 1
+        order:
+          - LOWEST_HP_RATIO
+          - FRONT_ROW
+          - LEFT_TO_RIGHT
+  steps:
+    - kind: ACTION
+      target:
+        kind: BINDING
+        targetBindingId: TGT_MAIN
+      actions:
+        - effectActionDefinitionId: ACT_DAMAGE_EN_18020
+    - kind: BRANCH
+      condition:
+        kind: TARGET_STATE
+        target:
+          kind: BINDING
+          targetBindingId: TGT_MAIN
+        field: IS_ALIVE
+        op: EQ
+        value: true
+      thenSteps:
+        - kind: ACTION
+          target:
+            kind: BINDING
+            targetBindingId: TGT_MAIN
+          actions:
+            - effectActionDefinitionId: ACT_DAMAGE_EN_4740
+      elseSteps: []
+```
+
+### フィールド詳細
+
+| フィールド       | 型                        | 必須 | 制約                      |
+| ---------------- | ------------------------- | ---- | ------------------------- |
+| `kind`           | enum                      | ✓    | `IMMEDIATE` / `CHARGE`    |
+| `targetBindings` | TargetBindingDefinition[] | ✓    | 0件可。定義順で束縛する   |
+| `steps`          | EffectStepDefinition[]    | ✓    | 1件以上                   |
+| `chargeRelease`  | object                    | —    | `kind: CHARGE` の場合必須 |
+
+### CHARGE
+
+```yaml
+resolution:
+  kind: CHARGE
+  targetBindings: []
+  steps:
+    - kind: ACTION
+      target:
+        kind: SELF
+      actions:
+        - effectActionDefinitionId: ACT_MARKER_CHARGING
+  chargeRelease:
+    targetBindings:
+      - targetBindingId: TGT_ALL_ENEMIES
+        selector:
+          kind: SELECT
+          side: ENEMY
+          count: ALL
+          order:
+            - DEFAULT
+    steps:
+      - kind: ACTION
+        target:
+          kind: BINDING
+          targetBindingId: TGT_ALL_ENEMIES
+        actions:
+          - effectActionDefinitionId: ACT_DAMAGE_EN_21200
+```
+
+`CHARGE` 中の「回避と自身のパッシブスキルが使用できない」は、チャージ状態の共通ルール、または `requiredCapabilities: ["CAP_CHARGE_RESTRICTION"]` を持つ拡張ルールとして扱う。
+
+---
+
+## TargetBindingDefinition / TargetSelectorDefinition
+
+### TargetBindingDefinition
+
+```yaml
+targetBindingId: TGT_PRIMARY
+selector:
+  kind: SELECT
+  side: ENEMY
+  count: 1
+  filters: []
+  order:
+    - NEAREST
+    - FRONT_ROW
+    - LEFT_TO_RIGHT
+  fallback: null
+```
+
+| フィールド        | 型                       | 必須 | 制約                                |
+| ----------------- | ------------------------ | ---- | ----------------------------------- |
+| `targetBindingId` | string                   | ✓    | Skill / Memory の sequence 内で一意 |
+| `selector`        | TargetSelectorDefinition | ✓    | 下記                                |
+
+### TargetSelectorDefinition
+
+| フィールド        | 型                       | 必須     | 制約                                                                        |
+| ----------------- | ------------------------ | -------- | --------------------------------------------------------------------------- |
+| `kind`            | enum                     | ✓        | `SELECT` / `SELF` / `TRIGGER_SOURCE` / `TRIGGER_TARGET` / `BINDING_DERIVED` |
+| `side`            | enum                     | 条件付き | `ALLY` / `ENEMY` / `ALL`                                                    |
+| `count`           | integer / `ALL`          | 条件付き | `SELECT` の場合必須                                                         |
+| `filters`         | TargetFilterDefinition[] | —        | 省略時空配列                                                                |
+| `order`           | enum[]                   | —        | 省略時 `DEFAULT`                                                            |
+| `area`            | AreaDefinition           | —        | 範囲指定                                                                    |
+| `base`            | TargetReference          | 条件付き | `BINDING_DERIVED` の場合必須                                                |
+| `fallback`        | TargetSelectorDefinition | —        | 候補0件時に評価                                                             |
+| `includeDefeated` | boolean                  | —        | 省略時 false                                                                |
+
+### order 候補
+
+| 値                       | 意味                   |
+| ------------------------ | ---------------------- |
+| `DEFAULT`                | 距離昇順、前列、左列   |
+| `NEAREST`                | 距離昇順               |
+| `FARTHEST`               | 距離降順               |
+| `LOWEST_HP_RATIO`        | HP割合が低い順         |
+| `HIGHEST_HP_RATIO`       | HP割合が高い順         |
+| `HIGHEST_ATTACK`         | 攻撃力が高い順         |
+| `LOWEST_MAX_HP`          | 最大HPが低い順         |
+| `HIGHEST_EX_GAUGE_RATIO` | EXゲージ充填率が高い順 |
+| `FRONT_ROW`              | 前列優先               |
+| `BACK_ROW`               | 後列優先               |
+| `LEFT_TO_RIGHT`          | 絶対左から右           |
+
+### TargetFilterDefinition
+
+```yaml
+filters:
+  - kind: POSITION_ROW
+    row: FRONT
+  - kind: UNIT_TYPE
+    unitType: PHYSICAL
+```
+
+| kind              | 追加フィールド  | 意味                        |
+| ----------------- | --------------- | --------------------------- |
+| `POSITION_ROW`    | `row`           | `FRONT` / `BACK`            |
+| `POSITION_COLUMN` | `column`        | `LEFT` / `CENTER` / `RIGHT` |
+| `POSITION_SLOT`   | `row`, `column` | 具体位置                    |
+| `UNIT_TYPE`       | `unitType`      | UnitType一致                |
+| `ROLE`            | `role`          | Role一致                    |
+| `ATTRIBUTE`       | `attribute`     | Attribute一致               |
+| `AFFILIATION`     | `affiliationId` | 所属一致                    |
+| `CHARACTER`       | `characterId`   | キャラクター一致            |
+| `HAS_MARKER`      | `markerId`      | Marker所持                  |
+| `HP_RATIO`        | `op`, `value`   | HP割合比較                  |
+| `AND`             | `conditions[]`  | 全条件                      |
+| `OR`              | `conditions[]`  | いずれか                    |
+| `NOT`             | `condition`     | 否定                        |
+
+### AreaDefinition
+
+```yaml
+area:
+  kind: SAME_ROW_AS_BASE
+  includeBase: true
+```
+
+| kind                     | 意味              |
+| ------------------------ | ----------------- |
+| `SINGLE`                 | 対象そのもの      |
+| `ALL`                    | 候補全体          |
+| `ROW`                    | 指定行            |
+| `COLUMN`                 | 指定列            |
+| `SAME_ROW_AS_BASE`       | base と同じ横一列 |
+| `SAME_COLUMN_AS_BASE`    | base と同じ縦一列 |
+| `ADJACENT_ORTHOGONAL`    | 上下左右          |
+| `DIRECTLY_AHEAD_OF_BASE` | base の前方1マス  |
+| `BEHIND_BASE`            | base の背後1マス  |
+
+### 位置指定の authoring 規約
+
+- `LEFT` / `CENTER` / `RIGHT` は Q-TGT-06 の共通座標に基づく俯瞰時の絶対列とする。味方・敵の向きで左右を反転しない。
+- 「右列」「左列」は `POSITION_COLUMN` または `AreaDefinition.kind=COLUMN` で表す。
+- 「前列」「後列」は対象側陣営の前後列を `POSITION_ROW` で表す。
+- 「対象に隣接する敵」は base target から `BINDING_DERIVED` + `ADJACENT_ORTHOGONAL` で表す。
+- 「敵前後列」のように最近対象を基準に前後2マスを含める表現は、最近対象を base binding とし、`BINDING_DERIVED` + `SAME_COLUMN_AS_BASE` + `includeBase: true` で表す。
+
+### 例: 範囲が空なら最も近い敵単体へフォールバック
+
+```yaml
+selector:
+  kind: SELECT
+  side: ENEMY
+  count: ALL
+  filters:
+    - kind: POSITION_COLUMN
+      column: RIGHT
+  fallback:
+    kind: SELECT
+    side: ENEMY
+    count: 1
+    order:
+      - NEAREST
+      - FRONT_ROW
+      - LEFT_TO_RIGHT
+```
+
+---
+
+## EffectStepDefinition
+
+### 種別
+
+| kind            | 役割                                        |
+| --------------- | ------------------------------------------- |
+| `ACTION`        | 対象へ1つ以上の EffectAction を順に適用する |
+| `BRANCH`        | 条件によって then / else の steps を選ぶ    |
+| `RANDOM_BRANCH` | 確率で steps を選ぶ                         |
+| `REPEAT`        | 同じ steps を指定回数繰り返す               |
+
+### ACTION
+
+```yaml
+kind: ACTION
+condition:
+  kind: TRUE
+target:
+  kind: BINDING
+  targetBindingId: TGT_PRIMARY
+actions:
+  - effectActionDefinitionId: ACT_DAMAGE_PHYSICAL_15600
+  - effectActionDefinitionId: ACT_APPLY_STUN_ACTION_2
+```
+
+| フィールド  | 型                  | 必須 | 制約                  |
+| ----------- | ------------------- | ---- | --------------------- |
+| `condition` | ConditionDefinition | —    | 省略時 `TRUE`         |
+| `target`    | TargetReference     | ✓    | 対象参照              |
+| `actions`   | object[]            | ✓    | 1件以上。定義順に解決 |
+
+`actions[]` は `effectActionDefinitionId` 参照を基本とする。Catalog authoring 中だけ `inlineAction` を許可してもよいが、production Catalog では参照形式に統一する。
+
+### BRANCH
+
+```yaml
+kind: BRANCH
+condition:
+  kind: TARGET_STATE
+  target:
+    kind: BINDING
+    targetBindingId: TGT_PRIMARY
+  field: HP_RATIO
+  op: LTE
+  value: 0.3
+thenSteps: []
+elseSteps: []
+```
+
+### RANDOM_BRANCH
+
+```yaml
+kind: RANDOM_BRANCH
+mode: WEIGHTED_ONE
+branches:
+  - weight: 10
+    label: DAIKICHI
+    steps: []
+  - weight: 20
+    label: CHUKICHI
+    steps: []
+  - weight: 30
+    label: SHOKICHI
+    steps: []
+  - weight: 40
+    label: SUEKICHI
+    steps: []
+```
+
+| mode           | 意味                                     |
+| -------------- | ---------------------------------------- |
+| `WEIGHTED_ONE` | weight に応じて1分岐だけ選ぶ             |
+| `INDEPENDENT`  | branch ごとに probability で独立判定する |
+
+乱数消費順は branches の定義順とする。
+
+### REPEAT
+
+```yaml
+kind: REPEAT
+count: 5
+steps:
+  - kind: ACTION
+    target:
+      kind: BINDING
+      targetBindingId: TGT_PRIMARY
+    actions:
+      - effectActionDefinitionId: ACT_DAMAGE_EN_2340
+```
+
+複数ヒット攻撃は `REPEAT` または `DAMAGE.hitCount` のどちらでも表せるが、ヒットごとに異なる追加効果を挟む場合は `REPEAT` を使う。
+
+---
+
+## TargetReference
+
+```yaml
+target:
+  kind: BINDING
+  targetBindingId: TGT_PRIMARY
+```
+
+| kind                   | 追加フィールド    | 意味                                    |
+| ---------------------- | ----------------- | --------------------------------------- |
+| `BINDING`              | `targetBindingId` | targetBindings で束縛した対象           |
+| `SELF`                 | なし              | 使用者/発動者                           |
+| `TRIGGER_SOURCE`       | なし              | trigger event の source                 |
+| `TRIGGER_TARGET`       | なし              | trigger event の target                 |
+| `LAST_ACTION_TARGETS`  | なし              | 直前 action の対象                      |
+| `LAST_DAMAGED_TARGETS` | なし              | 直前にHP/シールドへダメージを受けた対象 |
+
+---
+
+## EffectActionDefinition
+
+### YAML 全体像
+
+```yaml
+effectActionDefinitionId: ACT_DAMAGE_PHYSICAL_15600
+kind: DAMAGE
+payload:
+  damageType: PHYSICAL
+  formula:
+    kind: SKILL_POWER
+    power: 1.56
+  hitCount: 1
+  link:
+    enabled: false
+requiredCapabilities: []
+metadata:
+  tags: []
+```
+
+### 共通フィールド
+
+| フィールド                 | 型       | 必須 | 制約             |
+| -------------------------- | -------- | ---- | ---------------- |
+| `effectActionDefinitionId` | string   | ✓    | 一意             |
+| `kind`                     | enum     | ✓    | 下表             |
+| `payload`                  | object   | ✓    | kindごとに異なる |
+| `requiredCapabilities`     | string[] | ✓    | 空配列可         |
+| `metadata`                 | object   | ✓    | `tags`           |
+
+### kind 一覧
+
+| kind                       | 概要                                   | 主なCapability                 |
+| -------------------------- | -------------------------------------- | ------------------------------ |
+| `DAMAGE`                   | HP/シールドへダメージ                  | なし / `CAP_PARTIAL_PIERCING`  |
+| `HEAL`                     | 即時回復                               | `CAP_HEAL`                     |
+| `APPLY_CONTINUOUS_HEAL`    | 行動/ターン時の継続回復                | `CAP_CONTINUOUS_HEAL`          |
+| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正 | なし                           |
+| `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正              | `CAP_DAMAGE_MOD`               |
+| `APPLY_HEALING_MOD`        | 回復量増減                             | `CAP_HEAL`                     |
+| `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                     | `CAP_RESOURCE_MOD`             |
+| `MODIFY_RESOURCE_CAPACITY` | 最大APなど上限変更                     | `CAP_RESOURCE_CAPACITY_MOD`    |
+| `APPLY_STATUS`             | 気絶、凍結、暗闇など                   | 状態により異なる               |
+| `APPLY_SHIELD`             | シールド付与                           | なし                           |
+| `REMOVE_EFFECTS`           | 効果解除                               | なし                           |
+| `EFFECT_IMMUNITY`          | 効果付与拒否                           | なし / `CAP_SPECIFIC_IMMUNITY` |
+| `APPLY_MARKER`             | 固有マーカー付与                       | `CAP_MARKER`                   |
+| `REMOVE_MARKER`            | 固有マーカー解除                       | `CAP_MARKER`                   |
+| `APPLY_DEATH_SURVIVAL`     | 致死耐え                               | `CAP_DEATH_SURVIVAL`           |
+| `APPLY_TARGET_REDIRECT`    | 攻撃引き寄せ                           | `CAP_TARGET_REDIRECT`          |
+| `APPLY_COVER`              | 肩代わり                               | `CAP_COVER_DAMAGE`             |
+| `APPLY_REFLECT`            | 反射                                   | `CAP_REFLECT_DAMAGE`           |
+| `APPLY_DAMAGE_LINK`        | 継続リンク状態                         | `CAP_DAMAGE_LINK_STATE`        |
+| `APPLY_SUBUNIT`            | サブユニット                           | なし                           |
+
+---
+
+## EffectAction payload
+
+### DAMAGE
+
+```yaml
+kind: DAMAGE
+payload:
+  damageType: PHYSICAL
+  formula:
+    kind: SKILL_POWER
+    power: 1.56
+  hitCount: 1
+  critical:
+    mode: NORMAL
+  accuracy:
+    mode: NORMAL
+  piercing:
+    defenseIgnoreRate: 0
+    shieldIgnoreRate: 0
+    damageReductionIgnoreRate: 0
+  damageModifiers: []
+  link:
+    enabled: false
+```
+
+| フィールド        | 型                  | 必須 | 制約                                           |
+| ----------------- | ------------------- | ---- | ---------------------------------------------- |
+| `damageType`      | enum                | ✓    | `PHYSICAL` / `EN`                              |
+| `formula`         | FormulaDefinition   | ✓    | 多くは `SKILL_POWER`                           |
+| `hitCount`        | integer             | —    | 省略時1                                        |
+| `critical.mode`   | enum                | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`          |
+| `accuracy.mode`   | enum                | —    | `NORMAL` / `GUARANTEED`                        |
+| `piercing`        | object              | —    | 省略時0                                        |
+| `damageModifiers` | FormulaDefinition[] | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列 |
+| `link.enabled`    | boolean             | —    | 即時リンクダメージ                             |
+
+### HEAL
+
+```yaml
+kind: HEAL
+payload:
+  formula:
+    kind: MAX_HP_RATIO
+    source:
+      kind: TARGET
+    ratio: 0.45
+  overheal: DISCARD
+```
+
+| フィールド | 型                | 必須 | 制約                 |
+| ---------- | ----------------- | ---- | -------------------- |
+| `formula`  | FormulaDefinition | ✓    | 回復量               |
+| `overheal` | enum              | —    | `DISCARD` 固定で開始 |
+
+### APPLY_CONTINUOUS_HEAL
+
+```yaml
+kind: APPLY_CONTINUOUS_HEAL
+payload:
+  formula:
+    kind: MAX_HP_RATIO
+    source:
+      kind: TARGET
+    ratio: 0.1
+  timing:
+    eventType: ActionStarted
+    targetSelector: EFFECT_OWNER
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 2
+    dispellable: true
+```
+
+### APPLY_STAT_MOD
+
+```yaml
+kind: APPLY_STAT_MOD
+payload:
+  stat: ATTACK
+  valueType: RATIO
+  formula:
+    kind: CONSTANT
+    value: 0.2
+  stacking:
+    mode: STACKABLE
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 2
+```
+
+`stat` 候補:
+
+- `MAXIMUM_HP`
+- `ATTACK`
+- `DEFENSE`
+- `CRITICAL_RATE`
+- `CRITICAL_DAMAGE_BONUS`
+- `AFFINITY_BONUS`
+- `ACTION_SPEED`
+
+`AFFINITY_BONUS` と `CRITICAL_DAMAGE_BONUS` は Unit の `baseStats` に保持する。Catalog作成時の初期値はそれぞれ `0.25` と `0.5` だが、Unitごとの上書きと `APPLY_STAT_MOD` による一時補正の対象にできる。
+
+### APPLY_DAMAGE_MOD
+
+```yaml
+kind: APPLY_DAMAGE_MOD
+payload:
+  direction: OUTGOING
+  damageType: PHYSICAL
+  formula:
+    kind: CONSTANT
+    value: 0.03
+  stacking:
+    mode: STACKABLE
+  duration:
+    timeLimit:
+      unit: BATTLE
+      count: 1
+```
+
+| フィールド    | 型                    | 制約                         |
+| ------------- | --------------------- | ---------------------------- |
+| `direction`   | enum                  | `OUTGOING` / `INCOMING`      |
+| `damageType`  | enum/null             | `PHYSICAL` / `EN` / null     |
+| `formula`     | FormulaDefinition     | 符号付き。増加は正、減少は負 |
+| `consumption` | ConsumptionDefinition | 次の攻撃など                 |
+
+### MODIFY_RESOURCE
+
+```yaml
+kind: MODIFY_RESOURCE
+payload:
+  resource: PP
+  operation: ADD
+  formula:
+    kind: CONSTANT
+    value: -2
+  bounds:
+    min: 0
+    max: CURRENT_MAX
+```
+
+| operation    | 意味                     |
+| ------------ | ------------------------ |
+| `ADD`        | 現在値へ加算。減算は負値 |
+| `SET`        | 指定値にする             |
+| `SET_TO_MAX` | 最大値にする             |
+| `DISTRIBUTE` | 対象間で分配             |
+
+### APPLY_STATUS
+
+```yaml
+kind: APPLY_STATUS
+payload:
+  status: STUN
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 2
+    dispellable: true
+```
+
+`status` 候補:
+
+- `STUN`
+- `FREEZE`
+- `BLIND`
+- `STEALTH`
+- `EVASION`
+- `DAMAGE_IMMUNITY`
+- `CRITICAL_GUARANTEE`
+- `CRITICAL_PREVENTION`
+- `GUARANTEED_HIT`
+- `HIT_EVASION`
+
+凍結のダメージ解除倍率は status payload に保持する。スキルに具体の倍率が記載されていない場合は `damageAmplificationOnBreak: 0.5` を既定値として生成する。
+
+```yaml
+kind: APPLY_STATUS
+payload:
+  status: FREEZE
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+    dispellable: true
+  damageAmplificationOnBreak: 0.5
+```
+
+回避は `APPLY_STATUS` の `EVASION` / `HIT_EVASION` として表す。ヒット数制限、確率、対象攻撃種別は status payload に保持する。
+
+```yaml
+kind: APPLY_STATUS
+payload:
+  status: EVASION
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+    consumption:
+      kind: INCOMING_HIT
+      maxCount: 1
+    dispellable: true
+  probability: 1.0
+  appliesTo:
+    incomingActionKinds:
+      - DAMAGE
+```
+
+### EFFECT_IMMUNITY
+
+```yaml
+kind: EFFECT_IMMUNITY
+payload:
+  categories:
+    - DEBUFF
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+    dispellable: true
+  maxBlocks: null
+```
+
+| フィールド                  | 型                 | 制約                                                              |
+| --------------------------- | ------------------ | ----------------------------------------------------------------- |
+| `categories`                | enum[]             | `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SPECIFIC_EFFECT` |
+| `effectActionDefinitionIds` | string[]           | `SPECIFIC_EFFECT` の場合に対象IDを指定                            |
+| `duration`                  | DurationDefinition | 省略時は即時効果として不正                                        |
+| `maxBlocks`                 | integer/null       | null = 期間中は上限なし                                           |
+
+`EFFECT_IMMUNITY` により付与を拒否した場合は `EffectApplicationRejected` を発行する。
+
+### APPLY_DEATH_SURVIVAL
+
+```yaml
+kind: APPLY_DEATH_SURVIVAL
+payload:
+  trigger:
+    lethalDamageOnly: true
+  survivalHp:
+    kind: CONSTANT
+    value: 1
+  healAfterSurvival:
+    kind: MAX_HP_RATIO
+    source: TARGET
+    ratio: 0.65
+  duration:
+    timeLimit:
+      unit: BATTLE
+      count: 1
+    consumption:
+      kind: LETHAL_DAMAGE
+      maxCount: 1
+    dispellable: true
+```
+
+| フィールド                 | 型                     | 制約                                           |
+| -------------------------- | ---------------------- | ---------------------------------------------- |
+| `trigger.lethalDamageOnly` | boolean                | 致死ダメージ時だけ消費する場合 true            |
+| `survivalHp`               | FormulaDefinition      | 耐えた直後の最低HP。HP1耐えは `CONSTANT=1`     |
+| `healAfterSurvival`        | FormulaDefinition/null | 耐えた後に回復する場合のみ指定                 |
+| `duration`                 | DurationDefinition     | 通常は `consumption.kind=LETHAL_DAMAGE` を持つ |
+
+### APPLY_TARGET_REDIRECT
+
+```yaml
+kind: APPLY_TARGET_REDIRECT
+payload:
+  redirectTo:
+    kind: SELF
+  appliesTo:
+    actionKinds:
+      - DAMAGE
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+      owner: BATTLE
+    dispellable: true
+```
+
+| フィールド              | 型                 | 制約                                                      |
+| ----------------------- | ------------------ | --------------------------------------------------------- |
+| `redirectTo`            | TargetReference    | 攻撃を引き寄せる対象。多くは `SELF`                       |
+| `appliesTo.actionKinds` | enum[]             | `DAMAGE` / `DEBUFF` / `ANY`                               |
+| `duration`              | DurationDefinition | 行動終了までなら `owner=BATTLE`, `unit=ACTION`, `count=1` |
+
+### APPLY_COVER
+
+```yaml
+kind: APPLY_COVER
+payload:
+  coverer:
+    kind: SELF
+  damageShareRate: 1.0
+  guardRate: 0.5
+  appliesTo:
+    actionKinds:
+      - DAMAGE
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+      owner: BATTLE
+    dispellable: true
+```
+
+| フィールド              | 型                 | 制約                                                      |
+| ----------------------- | ------------------ | --------------------------------------------------------- |
+| `coverer`               | TargetReference    | 肩代わりする対象                                          |
+| `damageShareRate`       | number             | 肩代わりするダメージ割合。全肩代わりは `1.0`              |
+| `guardRate`             | number             | 肩代わり時に軽減する割合。50%ガードは `0.5`               |
+| `appliesTo.actionKinds` | enum[]             | `DAMAGE` / `ANY`                                          |
+| `duration`              | DurationDefinition | 行動終了までなら `owner=BATTLE`, `unit=ACTION`, `count=1` |
+
+`APPLY_TARGET_REDIRECT` と `APPLY_COVER` を同じ行動で付与する場合、redirect 後の攻撃対象に対して cover を評価する。
+
+### APPLY_REFLECT
+
+```yaml
+kind: APPLY_REFLECT
+payload:
+  reflectTo:
+    kind: TRIGGER_SOURCE
+  formula:
+    kind: DAMAGE_RECEIVED_RATIO
+    sourceResult: LAST_DAMAGE_RECEIVED
+    ratio: 0.5
+  timing: AFTER_DAMAGE_APPLIED
+  allowRecursiveReflect: false
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+    dispellable: true
+```
+
+| フィールド              | 型                 | 制約                                      |
+| ----------------------- | ------------------ | ----------------------------------------- |
+| `reflectTo`             | TargetReference    | 反撃・反射先。攻撃者なら `TRIGGER_SOURCE` |
+| `formula`               | FormulaDefinition  | 反射ダメージ量                            |
+| `timing`                | enum               | `AFTER_DAMAGE_APPLIED`                    |
+| `allowRecursiveReflect` | boolean            | 通常 false                                |
+| `duration`              | DurationDefinition | 省略時は即時反撃として扱わず不正          |
+
+### APPLY_SUBUNIT
+
+```yaml
+kind: APPLY_SUBUNIT
+payload:
+  durability:
+    formula:
+      kind: STAT_RATIO
+      source: SKILL_SOURCE
+      stat: ATTACK
+      ratio: 1.0
+  additionalDamage:
+    formula:
+      kind: SUBUNIT_ADDITIONAL_DAMAGE
+      ownerAttack: CURRENT_ATTACK
+      providerAttack: SOURCE_SNAPSHOT_ATTACK
+      skillMultiplier: 0.5
+      targetDefense: TARGET_CURRENT_DEFENSE
+```
+
+`SUBUNIT_ADDITIONAL_DAMAGE` は `サブユニット所持者の攻撃力 + 付与者の攻撃力 × スキル倍率 - 対象の防御力` を表す。最終ダメージの丸めと最低1ダメージは通常のダメージ規則に従う。
+
+### APPLY_MARKER
+
+```yaml
+kind: APPLY_MARKER
+payload:
+  markerId: MARKER_CURSE
+  stack:
+    policy: ADD
+    max: 4
+  duration:
+    timeLimit:
+      unit: BATTLE
+      count: 1
+    dispellable: false
+```
+
+| フィールド     | 型           | 制約                                            |
+| -------------- | ------------ | ----------------------------------------------- |
+| `markerId`     | string       | `MARKER_` prefix                                |
+| `stack.policy` | enum         | `ADD` / `KEEP_EXISTING` / `REFRESH` / `REPLACE` |
+| `stack.max`    | integer/null | null = 上限なし                                 |
+
+---
+
+## FormulaDefinition
+
+### 基本構造
+
+```yaml
+formula:
+  kind: CONSTANT
+  value: 0.2
+```
+
+Formula は数値を返す。戻り値が整数リソースやHPへ適用される場合は、適用側のルールで整数化する。
+
+### kind 一覧
+
+| kind                        | 追加フィールド                                                      | 意味                             |
+| --------------------------- | ------------------------------------------------------------------- | -------------------------------- |
+| `CONSTANT`                  | `value`                                                             | 固定値                           |
+| `SKILL_POWER`               | `power`                                                             | 攻撃力を基礎にしたスキル威力倍率 |
+| `SUBUNIT_ADDITIONAL_DAMAGE` | `ownerAttack`, `providerAttack`, `skillMultiplier`, `targetDefense` | サブユニット追加ダメージ         |
+| `STAT_RATIO`                | `source`, `stat`, `ratio`                                           | 指定対象のstat×ratio             |
+| `MAX_HP_RATIO`              | `source`, `ratio`                                                   | 最大HP×ratio                     |
+| `CURRENT_HP_RATIO`          | `source`, `ratio`                                                   | 現在HP×ratio                     |
+| `MISSING_HP_RATIO`          | `source`, `ratio`                                                   | 不足HP×ratio                     |
+| `LOST_HP_RATIO`             | `source`, `ratio`                                                   | 失ったHP×ratio                   |
+| `DAMAGE_DEALT_RATIO`        | `sourceResult`, `ratio`                                             | 直前に与えたダメージ×ratio       |
+| `DAMAGE_RECEIVED_RATIO`     | `sourceResult`, `ratio`                                             | 直前に受けたダメージ×ratio       |
+| `MARKER_COUNT_SCALE`        | `target`, `markerId`, `perStack`, `max`                             | marker数×perStack                |
+| `ALIVE_UNIT_COUNT_SCALE`    | `side`, `perUnit`, `max`                                            | 生存数×perUnit                   |
+| `HP_RATIO_SCALE`            | `target`, `min`, `max`, `direction`                                 | HP割合でmin〜maxを線形補間       |
+| `SUM`                       | `formulas[]`                                                        | 合計                             |
+| `MIN`                       | `formulas[]`                                                        | 最小                             |
+| `MAX`                       | `formulas[]`                                                        | 最大                             |
+| `CLAMP`                     | `formula`, `min`, `max`                                             | 範囲制限                         |
+
+### source
+
+| kind             | 意味                  |
+| ---------------- | --------------------- |
+| `SKILL_SOURCE`   | Skill使用者           |
+| `TARGET`         | 現在action対象        |
+| `TRIGGER_SOURCE` | trigger source        |
+| `TRIGGER_TARGET` | trigger target        |
+| `BINDING`        | targetBindingIdで指定 |
+
+### 例: 対象の現在HP90%、攻撃力150%上限
+
+```yaml
+formula:
+  kind: MIN
+  formulas:
+    - kind: CURRENT_HP_RATIO
+      source:
+        kind: TARGET
+      ratio: 0.9
+    - kind: STAT_RATIO
+      source:
+        kind: SKILL_SOURCE
+      stat: ATTACK
+      ratio: 1.5
+```
+
+---
+
+## ConditionDefinition
+
+### 基本構造
+
+```yaml
+condition:
+  kind: AND
+  conditions:
+    - kind: TARGET_STATE
+      target:
+        kind: BINDING
+        targetBindingId: TGT_PRIMARY
+      field: HP_RATIO
+      op: LTE
+      value: 0.3
+    - kind: TARGET_HAS_MARKER
+      target:
+        kind: BINDING
+        targetBindingId: TGT_PRIMARY
+      markerId: MARKER_CURSE
+```
+
+### kind 一覧
+
+| kind                | 追加フィールド                         | 意味                        |
+| ------------------- | -------------------------------------- | --------------------------- |
+| `TRUE`              | なし                                   | 常に成立                    |
+| `AND`               | `conditions[]`                         | 全条件                      |
+| `OR`                | `conditions[]`                         | いずれか                    |
+| `NOT`               | `condition`                            | 否定                        |
+| `TARGET_STATE`      | `target`, `field`, `op`, `value`       | 対象状態比較                |
+| `TARGET_HAS_MARKER` | `target`, `markerId`, `countCondition` | Marker所持                  |
+| `EVENT_PAYLOAD`     | `field`, `op`, `value`                 | trigger payload比較         |
+| `LAST_RESULT`       | `field`, `op`, `value`                 | 直前結果比較                |
+| `RUNTIME_COUNTER`   | `counter`, `op`, `value`               | SkillRuntime等のcounter比較 |
+| `TURN_NUMBER`       | `op`, `value`, `modulo`                | ターン番号条件              |
+
+### TARGET_STATE field
+
+| field               | 型      |
+| ------------------- | ------- |
+| `IS_ALIVE`          | boolean |
+| `HP_RATIO`          | number  |
+| `ATTRIBUTE`         | enum    |
+| `UNIT_TYPE`         | enum    |
+| `ROLE`              | enum    |
+| `POSITION_ROW`      | enum    |
+| `POSITION_COLUMN`   | enum    |
+| `HAS_STATUS`        | enum    |
+| `RESOURCE_AP`       | integer |
+| `RESOURCE_PP`       | integer |
+| `RESOURCE_EX_GAUGE` | integer |
+
+### op
+
+`GT` / `GTE` / `LT` / `LTE` / `EQ` / `NEQ` / `IN` / `CONTAINS`
+
+---
+
+## DurationDefinition
+
+### 基本構造
+
+```yaml
+duration:
+  timeLimit:
+    unit: ACTION
+    count: 2
+    owner: EFFECT_TARGET
+  consumption:
+    kind: NEXT_INCOMING_ATTACK
+    maxCount: 1
+  expiration:
+    conditions: []
+  dispellable: true
+  linkedEffectGroupId: null
+```
+
+| フィールド            | 型          | 必須 | 制約             |
+| --------------------- | ----------- | ---- | ---------------- |
+| `timeLimit`           | object      | —    | 省略時は即時効果 |
+| `consumption`         | object      | —    | 消費型効果       |
+| `expiration`          | object      | —    | 特殊失効         |
+| `dispellable`         | boolean     | —    | 省略時 true      |
+| `linkedEffectGroupId` | string/null | —    | 親子連動         |
+
+### timeLimit.unit
+
+| unit        | 意味             |
+| ----------- | ---------------- |
+| `ACTION`    | owner の行動回数 |
+| `TURN`      | ターン終了回数   |
+| `BATTLE`    | 戦闘終了まで     |
+| `HIT`       | ヒット数         |
+| `SKILL_USE` | スキル使用回数   |
+
+### timeLimit.owner
+
+| owner           | 意味       |
+| --------------- | ---------- |
+| `EFFECT_TARGET` | 効果対象   |
+| `EFFECT_SOURCE` | 効果付与者 |
+| `BATTLE`        | 戦闘全体   |
+
+### consumption.kind
+
+| kind                   | 意味                     |
+| ---------------------- | ------------------------ |
+| `NEXT_OUTGOING_ATTACK` | 次に行う攻撃             |
+| `NEXT_INCOMING_ATTACK` | 次に受ける攻撃           |
+| `INCOMING_HIT`         | 被ヒットごと             |
+| `OUTGOING_HIT`         | 与ヒットごと             |
+| `STATUS_BLOCKED`       | 状態異常を無効化したとき |
+| `LETHAL_DAMAGE`        | 致死ダメージを受けたとき |
+
+`consumption.maxCount` は消費条件の成立回数上限を表す。上限に到達した効果は、該当する EffectAction の解決後に失効する。
+
+---
+
+## TriggerDefinition
+
+### 基本構造
+
+```yaml
+trigger:
+  eventType: TurnStarted
+  category: FACT
+  sourceSelector: ANY
+  targetSelector: ANY
+  condition:
+    kind: TRUE
+```
+
+### eventType 候補
+
+v2では v1 のイベントに加えて、raw のPS条件を表現するため次を追加候補とする。
+
+| eventType               | 用途                       |
+| ----------------------- | -------------------------- |
+| `BattleStarted`         | Memoryの戦闘開始時効果     |
+| `TurnStarted`           | ターン開始PS/Memory        |
+| `TurnCompleting`        | ターン終了PS               |
+| `SkillUseStarting`      | スキル使用前               |
+| `SkillUseCompleted`     | スキル使用後               |
+| `UnitBeingAttacked`     | 攻撃対象決定後、ダメージ前 |
+| `DamageWillBeApplied`   | ダメージ適用直前           |
+| `DamageApplied`         | ダメージ適用後             |
+| `EffectApplied`         | 効果インスタンス追加後     |
+| `HealApplied`           | 回復後                     |
+| `CriticalHitConfirmed`  | 会心確定後                 |
+| `ResourceChanged`       | AP/PP/EX変更後             |
+| `MarkerApplied`         | Marker付与後               |
+| `MarkerCountChanged`    | Marker数変更後             |
+| `ChargeStarted`         | チャージ開始後             |
+| `PassiveEffectReceived` | 他味方からPS効果を受けた後 |
+| `UnitDefeated`          | 戦闘不能後                 |
+
+Memory の `BattleStarted` trigger は、編成内 Memory の API 指定順、同一 Memory 内の `triggeredEffects` 定義順で解決する。
+
+---
+
+## MemoryDefinition
+
+### YAML 全体像
+
+```yaml
+memoryDefinitionId: MEM_001
+triggeredEffects:
+  - trigger:
+      eventType: BattleStarted
+      category: FACT
+      condition:
+        kind: TRUE
+    effectSequence:
+      targetBindings:
+        - targetBindingId: TGT_ALL_ALLIES
+          selector:
+            kind: SELECT
+            side: ALLY
+            count: ALL
+      steps:
+        - kind: ACTION
+          target:
+            kind: BINDING
+            targetBindingId: TGT_ALL_ALLIES
+          actions:
+            - effectActionDefinitionId: ACT_MEMORY_ATTACK_FIXED_250
+modifiers: []
+requiredCapabilities: []
+metadata:
+  displayName: "Colorful Bouquet"
+  tags: []
+```
+
+### フィールド詳細
+
+| フィールド             | 型       | 必須 | 制約                          |
+| ---------------------- | -------- | ---- | ----------------------------- |
+| `memoryDefinitionId`   | string   | ✓    | 一意                          |
+| `triggeredEffects`     | object[] | ✓    | 0件可。v2主表現               |
+| `modifiers`            | object[] | ✓    | 0件可。単純静的補正の省略記法 |
+| `requiredCapabilities` | string[] | ✓    | 空配列可                      |
+| `metadata`             | object   | ✓    | displayName / tags            |
+
+`triggeredEffects` と `modifiers` はどちらか1件以上を持つ。
+
+### modifiers 省略記法
+
+単純な「戦闘開始時に味方へ stat 補正」だけは v1 互換の `modifiers` で表現できる。
+
+```yaml
+modifiers:
+  - targetFilter:
+      kind: ALL
+    stat: ATTACK
+    valueType: FIXED
+    value: 250
+```
+
+`modifiers` で扱える範囲:
+
+- source side から見た `ALLY` のみ
+- `BattleStarted` のみ
+- duration は `BATTLE`
+- stat は `MAXIMUM_HP`, `ATTACK`, `DEFENSE`, `CRITICAL_RATE`, `ACTION_SPEED`, `CRITICAL_DAMAGE_BONUS`
+- 与ダメージ/被ダメージ補正、敵対象、期限付き、Marker付与は `triggeredEffects` を使う
+
+---
+
+## CapabilityDefinition
+
+### capabilities.json
+
+```json
+[
+  {
+    "capabilityId": "CAP_HEAL",
+    "status": "PLANNED",
+    "description": "即時回復EffectAction",
+    "requiredBy": []
+  }
+]
+```
+
+| フィールド     | 型       | 必須 | 制約                                  |
+| -------------- | -------- | ---- | ------------------------------------- |
+| `capabilityId` | string   | ✓    | `Q-*` または `CAP_*`                  |
+| `status`       | enum     | ✓    | `IMPLEMENTED` / `PLANNED` / `BLOCKED` |
+| `description`  | string   | ✓    | 説明                                  |
+| `requiredBy`   | string[] | ✓    | 参照ID。空配列可                      |
+
+`SimulationPreflightValidator` は編成が参照する Unit / Skill / EffectAction / Memory の `requiredCapabilities` を推移的に走査し、`status != IMPLEMENTED` の Capability があれば `UNSUPPORTED_RULE` とする。
+
+### 初期Capability候補
+
+| Capability                     | 対象                       |
+| ------------------------------ | -------------------------- |
+| `CAP_HEAL`                     | 即時回復                   |
+| `CAP_CONTINUOUS_HEAL`          | 継続回復                   |
+| `CAP_DAMAGE_MOD`               | 与ダメージ・被ダメージ補正 |
+| `CAP_RESOURCE_MOD`             | AP / PP / EX 操作          |
+| `CAP_RESOURCE_CAPACITY_MOD`    | 最大APなどの上限変更       |
+| `CAP_EFFECT_CONDITION`         | Effect単位の条件           |
+| `CAP_RESOLUTION_BRANCH`        | Resolution分岐             |
+| `CAP_ADVANCED_TARGETING`       | 高度ターゲット             |
+| `CAP_TARGET_FALLBACK`          | 対象フォールバック         |
+| `CAP_DERIVED_TARGETS`          | 派生対象                   |
+| `CAP_ADVANCED_PASSIVE_TRIGGER` | 高度PSトリガー             |
+| `CAP_RUNTIME_COUNTER`          | 発動回数・累計条件         |
+| `CAP_CONSUMABLE_EFFECT`        | 次回攻撃、Nヒットなど      |
+| `CAP_COMPLEX_EXPIRATION`       | 複雑な失効条件             |
+| `CAP_MARKER`                   | 固有マーカー               |
+| `CAP_MARKER_STACK_FORMULA`     | Marker数を参照するFormula  |
+| `CAP_RANDOM_BRANCH`            | 確率分岐                   |
+| `CAP_FORMULA`                  | 動的値計算                 |
+| `CAP_PARTIAL_PIERCING`         | 部分防御/シールド無視      |
+| `CAP_CHARGE_RESTRICTION`       | チャージ中の回避/PS制限    |
+| `CAP_TARGET_REDIRECT`          | 挑発・攻撃引き寄せ         |
+| `CAP_COVER_DAMAGE`             | 肩代わり                   |
+| `CAP_REFLECT_DAMAGE`           | 反射                       |
+| `CAP_DAMAGE_LINK_STATE`        | 継続リンク状態             |
+| `CAP_DEATH_SURVIVAL`           | 致死耐え                   |
+| `CAP_CRITICAL_CONTROL`         | 会心保証・会心不可         |
+| `CAP_SPECIFIC_IMMUNITY`        | 個別状態異常無効           |
+| `CAP_HIT_COUNT_EVASION`        | Nヒット回避                |
+| `CAP_MEMORY_TRIGGERED_EFFECT`  | MemoryのTriggeredEffect化  |
+| `CAP_MEMORY_DYNAMIC_EFFECT`    | Memoryの期限付き/動的効果  |
+
+現時点で保留仕様として隔離する `Q-*` Capability はない。
+
+---
+
+## raw からの変換例
+
+### 例1: 単体攻撃 + 気絶
+
+raw:
+
+```text
+敵単体に威力301.2で攻撃し、対象に2行動分の気絶を付与する。
+```
+
+v2:
+
+```yaml
+targetBindings:
+  - targetBindingId: TGT_PRIMARY
+    selector:
+      kind: SELECT
+      side: ENEMY
+      count: 1
+      order:
+        - DEFAULT
+steps:
+  - kind: ACTION
+    target:
+      kind: BINDING
+      targetBindingId: TGT_PRIMARY
+    actions:
+      - effectActionDefinitionId: ACT_DAMAGE_PHYSICAL_30120
+      - effectActionDefinitionId: ACT_STUN_ACTION_2
+```
+
+### 例2: 対象が生存していた場合に追加攻撃
+
+raw:
+
+```text
+敵単体に威力20で2ヒット攻撃する。攻撃後に対象が生存していた場合、さらに威力53でもう一度攻撃を行う。
+```
+
+v2:
+
+```yaml
+steps:
+  - kind: ACTION
+    target:
+      kind: BINDING
+      targetBindingId: TGT_PRIMARY
+    actions:
+      - effectActionDefinitionId: ACT_DAMAGE_PHYSICAL_2000_HIT2
+  - kind: BRANCH
+    condition:
+      kind: TARGET_STATE
+      target:
+        kind: BINDING
+        targetBindingId: TGT_PRIMARY
+      field: IS_ALIVE
+      op: EQ
+      value: true
+    thenSteps:
+      - kind: ACTION
+        target:
+          kind: BINDING
+          targetBindingId: TGT_PRIMARY
+        actions:
+          - effectActionDefinitionId: ACT_DAMAGE_PHYSICAL_5300
+    elseSteps: []
+```
+
+### 例3: Memory の敵前衛被ダメージ増加
+
+raw:
+
+```text
+戦闘開始時に発動。敵前衛の受けるダメージを7.5%上昇させる
+```
+
+v2:
+
+```yaml
+triggeredEffects:
+  - trigger:
+      eventType: BattleStarted
+      category: FACT
+      condition:
+        kind: TRUE
+    effectSequence:
+      targetBindings:
+        - targetBindingId: TGT_ENEMY_FRONT
+          selector:
+            kind: SELECT
+            side: ENEMY
+            count: ALL
+            filters:
+              - kind: POSITION_ROW
+                row: FRONT
+      steps:
+        - kind: ACTION
+          target:
+            kind: BINDING
+            targetBindingId: TGT_ENEMY_FRONT
+          actions:
+            - effectActionDefinitionId: ACT_INCOMING_DAMAGE_UP_075
+requiredCapabilities:
+  - CAP_MEMORY_TRIGGERED_EFFECT
+  - CAP_DAMAGE_MOD
+```
+
+### 例4: 固有マーカー数に応じたダメージ増加
+
+raw:
+
+```text
+この攻撃によるダメージは、対象に付与されている「警棒」1つにつき15%増加する(最大3つまで)
+```
+
+v2:
+
+```yaml
+kind: DAMAGE
+payload:
+  damageType: PHYSICAL
+  formula:
+    kind: SKILL_POWER
+    power: 0.53
+  damageModifiers:
+    - kind: MARKER_COUNT_SCALE
+      target:
+        kind: TARGET
+      markerId: MARKER_KEIBO
+      perStack: 0.15
+      max: 0.45
+requiredCapabilities:
+  - CAP_MARKER
+  - CAP_MARKER_STACK_FORMULA
+```
+
+---
+
+## 参照整合性規則
+
+Catalog v2 検証器は次を確認する。
+
+1. ID一意性。
+2. Unit が参照する Skill が存在し、`skillType` が一致する。
+3. Skill / Memory の `effectSequence.steps` が参照する `effectActionDefinitionId` が存在する。
+4. `TargetReference.kind: BINDING` が同じ sequence 内の `targetBindings` に存在する。
+5. `ConditionDefinition` と `FormulaDefinition` の参照 field が許可一覧に存在する。
+6. `requiredCapabilities` が `capabilities.json` に存在する。
+7. `schemaVersion` が `2` である。
+8. `modifiers` と `triggeredEffects` の少なくとも一方を持つ Memory だけを許可する。
+9. AS/EX の `triggers` は空、PS の `triggers` は1件以上。
+10. EX Skill の `cost.resource` は `EX_GAUGE` で、`cost.amount` が Unit の `extraGaugeMaximum` と一致する。
+
+---
+
+## Authoring への影響
+
+Unit / Memory Markdown から Catalog v2 へ変換する際は、次をテンプレートへ追加する。
+
+- Unit metadata: `characterName`, `characterId`, `affiliations`
+- Unit generated fields: `baseStats.affinityBonus = 0.25`, `baseStats.criticalDamageBonus = 0.5`, `extraGaugeMaximum = EX skill cost.amount`
+- Skill: `targetBindings`, `steps`, `requiredCapabilities`
+- EffectAction: `formula`, `duration`, `stacking`, `requiredCapabilities`
+- Memory: `triggeredEffects`
+- 判断記録: raw 文のどの句が Target / Condition / Formula / Action / Duration に対応したか
+
+production Catalog には source text を含めない。出典と転記根拠は authoring Markdown の front matter / source block / decisions block へ保持する。
+
+---
+
+## 後続設計で具体化する点
+
+本書では Catalog schema の枠を定める。以下は `05_ドメインモデル.md`、`07_戦闘ルール詳細.md`、`08_ドメインイベント.md` で具体化する。
+
+1. DamageModifier / HealingModifier の正確な計算順。
+2. `UnitBeingAttacked` / `DamageWillBeApplied` など新イベントの発行位置。
+3. Cover / Reflect / DamageLink の割り込み順。
+4. Marker と linkedEffectGroup の失効順。
+5. RandomBranch のログ形式。
+6. Memory の複数指定時の発動順。
+7. Capability ごとの初期 `IMPLEMENTED` / `PLANNED` 状態。

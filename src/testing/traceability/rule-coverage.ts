@@ -11,6 +11,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-NUM-01", testCaseIds: [], kinds: [] },
   { ruleId: "R-NUM-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-NUM-03", testCaseIds: [], kinds: [] },
+  { ruleId: "R-NUM-04", testCaseIds: [], kinds: [] },
 
   // FRM: 編成
   { ruleId: "R-FRM-01", testCaseIds: [], kinds: [] },
@@ -18,6 +19,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-FRM-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-FRM-04", testCaseIds: [], kinds: [] },
   { ruleId: "R-FRM-05", testCaseIds: [], kinds: [] },
+  { ruleId: "R-FRM-06", testCaseIds: [], kinds: [] },
 
   // POS: 座標
   { ruleId: "R-POS-01", testCaseIds: [], kinds: [] },
@@ -45,6 +47,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-ACT-01", testCaseIds: [], kinds: [] },
   { ruleId: "R-ACT-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-ACT-03", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ACT-04", testCaseIds: [], kinds: [] },
 
   // TGT: 対象選択
   { ruleId: "R-TGT-01", testCaseIds: [], kinds: [] },
@@ -55,6 +58,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-TGT-06", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-07", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
+  { ruleId: "R-TGT-09", testCaseIds: [], kinds: [] },
+  { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
 
   // SKL: スキル
   { ruleId: "R-SKL-01", testCaseIds: [], kinds: [] },
@@ -62,6 +67,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-SKL-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-SKL-04", testCaseIds: [], kinds: [] },
   { ruleId: "R-SKL-05", testCaseIds: [], kinds: [] },
+  { ruleId: "R-SKL-06", testCaseIds: [], kinds: [] },
+  { ruleId: "R-SKL-07", testCaseIds: [], kinds: [] },
+  { ruleId: "R-SKL-08", testCaseIds: [], kinds: [] },
 
   // PS: パッシブスキル
   { ruleId: "R-PS-01", testCaseIds: [], kinds: [] },
@@ -72,6 +80,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-PS-06", testCaseIds: [], kinds: [] },
   { ruleId: "R-PS-07", testCaseIds: [], kinds: [] },
   { ruleId: "R-PS-08", testCaseIds: [], kinds: [] },
+
+  // MEM: Memory発動
+  { ruleId: "R-MEM-01", testCaseIds: [], kinds: [] },
+  { ruleId: "R-MEM-02", testCaseIds: [], kinds: [] },
+  { ruleId: "R-MEM-03", testCaseIds: [], kinds: [] },
+  { ruleId: "R-MEM-04", testCaseIds: [], kinds: [] },
+
+  // ACTN: EffectAction解決
+  { ruleId: "R-ACTN-01", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ACTN-02", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ACTN-03", testCaseIds: [], kinds: [] },
 
   // HIT: 命中
   { ruleId: "R-HIT-01", testCaseIds: [], kinds: [] },
@@ -90,6 +109,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-DMG-01", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-03", testCaseIds: [], kinds: [] },
+  { ruleId: "R-DMG-04", testCaseIds: [], kinds: [] },
+  { ruleId: "R-DMG-05", testCaseIds: [], kinds: [] },
+
+  // HEAL: 回復計算
+  { ruleId: "R-HEAL-01", testCaseIds: [], kinds: [] },
+  { ruleId: "R-HEAL-02", testCaseIds: [], kinds: [] },
+  { ruleId: "R-HEAL-03", testCaseIds: [], kinds: [] },
 
   // SHD: シールド
   { ruleId: "R-SHD-01", testCaseIds: [], kinds: [] },
@@ -99,6 +125,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // SUB: サブユニット
   { ruleId: "R-SUB-01", testCaseIds: [], kinds: [] },
   { ruleId: "R-SUB-02", testCaseIds: [], kinds: [] },
+
+  // INT: 防御介入
+  { ruleId: "R-INT-01", testCaseIds: [], kinds: [] },
+  { ruleId: "R-INT-02", testCaseIds: [], kinds: [] },
+  { ruleId: "R-INT-03", testCaseIds: [], kinds: [] },
 
   // LNK: リンク
   { ruleId: "R-LNK-01", testCaseIds: [], kinds: [] },
@@ -124,6 +155,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-EFF-04", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-05", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-06", testCaseIds: [], kinds: [] },
+  { ruleId: "R-EFF-07", testCaseIds: [], kinds: [] },
+  { ruleId: "R-EFF-08", testCaseIds: [], kinds: [] },
+  { ruleId: "R-EFF-09", testCaseIds: [], kinds: [] },
+  { ruleId: "R-EFF-10", testCaseIds: [], kinds: [] },
+  { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定
   { ruleId: "R-END-01", testCaseIds: [], kinds: [] },
