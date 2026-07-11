@@ -1,0 +1,61 @@
+{
+  "memoryDefinitionId": "MEM_OJOSAMA_MANNERS",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ALLIES",
+            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_OJOSAMA_MANNERS_SPEED_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ENEMIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_OJOSAMA_MANNERS_ENEMY_DMG_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "modifiers": [],
+  "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+  "metadata": { "displayName": "お嬢様直伝マナー講座", "tags": [] }
+}

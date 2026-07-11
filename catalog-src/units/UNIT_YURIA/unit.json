@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_YURIA",
+  "attribute": "SMART",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32278,
+    "attack": 18329,
+    "defense": 12625,
+    "criticalRate": 0.2,
+    "actionSpeed": 712,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_YURIA_AS1", "SKL_YURIA_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_YURIA_PS1", "SKL_YURIA_PS2"],
+  "extraSkillDefinitionId": "SKL_YURIA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【享楽のワイルドカード】ユリア・バーンズ",
+    "characterName": "ユリア・バーンズ",
+    "characterId": "CHAR_YURIA_BURNES"
+  }
+}

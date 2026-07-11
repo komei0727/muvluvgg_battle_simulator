@@ -52,6 +52,19 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_LYDIA",
         "UNIT_MIKOTO",
         "UNIT_STELLA",
+        // Issue #47 先行バッチ（残Unit/Memory基礎Catalog整備）
+        "UNIT_ANIS",
+        "UNIT_CHIYURU",
+        "UNIT_DOROTHEA",
+        "UNIT_EVIE_KYONSHI",
+        "UNIT_FEE",
+        "UNIT_JUNKA",
+        "UNIT_KEI",
+        "UNIT_LAYLA",
+        "UNIT_SAYA_BUNNY",
+        "UNIT_SAYA_LONGING",
+        "UNIT_SUIRAN",
+        "UNIT_YURIA",
       ].sort(),
     );
   });

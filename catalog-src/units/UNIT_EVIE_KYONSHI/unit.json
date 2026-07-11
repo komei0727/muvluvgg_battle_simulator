@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_EVIE_KYONSHI",
+  "attribute": "SHY",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 29518,
+    "attack": 20177,
+    "defense": 12262,
+    "criticalRate": 0.2,
+    "actionSpeed": 745,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_EVIE_KYONSHI_AS1", "SKL_EVIE_KYONSHI_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_EVIE_KYONSHI_PS1", "SKL_EVIE_KYONSHI_PS2"],
+  "extraSkillDefinitionId": "SKL_EVIE_KYONSHI_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【キョンシーハッカー】エヴィ・レーナルト",
+    "characterName": "エヴィ・レーナルト",
+    "characterId": "CHAR_EVIE_RENALT"
+  }
+}

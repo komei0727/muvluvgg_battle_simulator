@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_DOROTHEA",
+  "attribute": "COMICAL",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 27600,
+    "attack": 23672,
+    "defense": 11830,
+    "criticalRate": 0.2,
+    "actionSpeed": 796,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_DOROTHEA_AS1"],
+  "passiveSkillDefinitionIds": ["SKL_DOROTHEA_PS1", "SKL_DOROTHEA_PS2", "SKL_DOROTHEA_PS3"],
+  "extraSkillDefinitionId": "SKL_DOROTHEA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【ノーブル・グレイス】ドロテア・カークランド",
+    "characterName": "ドロテア・カークランド",
+    "characterId": "CHAR_DOROTHEA_KIRKLAND"
+  }
+}

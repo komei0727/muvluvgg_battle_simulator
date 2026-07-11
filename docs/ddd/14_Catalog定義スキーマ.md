@@ -137,6 +137,8 @@ pnpm run check-catalog-src catalog-src catalog
 3. `pnpm run validate-catalog catalog` と `pnpm run check-catalog-src catalog-src catalog` が成功することを確認する。
 4. 追加・変更したユニット/メモリ単位でレビューを依頼する（`catalog-src/` 側の差分がレビュー対象になる）。
 
+`raw/units/`・`raw/memories/` 全件の変換状況（済み/未変換/保留）と、未変換分のM2向け分類は [`15_Unit_Memory変換台帳.md`](./15_Unit_Memory変換台帳.md) で追跡する。新しいUnit/Memoryを変換した際は台帳の該当行も更新する。
+
 ---
 
 ## ID体系

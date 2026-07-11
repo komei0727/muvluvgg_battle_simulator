@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_LAYLA",
+  "attribute": "AGGRESSIVE",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 26111,
+    "attack": 20006,
+    "defense": 11995,
+    "criticalRate": 0.25,
+    "actionSpeed": 866,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_LAYLA_AS1", "SKL_LAYLA_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_LAYLA_PS1", "SKL_LAYLA_PS2"],
+  "extraSkillDefinitionId": "SKL_LAYLA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【戦うアントレプレナー】レイラ・ジェンキンス",
+    "characterName": "レイラ・ジェンキンス",
+    "characterId": "CHAR_LAYLA_JENKINS"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "memoryDefinitionId": "MEM_STRANGERS",
+  "triggeredEffects": [],
+  "modifiers": [
+    {
+      "targetFilter": { "kind": "ALL" },
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "value": 30
+    },
+    {
+      "targetFilter": { "kind": "ALL" },
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "value": 0.01
+    }
+  ],
+  "requiredCapabilities": [],
+  "metadata": { "displayName": "STRANGERS", "tags": [] }
+}

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SAYA_BUNNY",
+  "attribute": "AGGRESSIVE",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 32279,
+    "attack": 19147,
+    "defense": 16348,
+    "criticalRate": 0.2,
+    "actionSpeed": 777,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_SAYA_BUNNY_AS1", "SKL_SAYA_BUNNY_AS2", "SKL_SAYA_BUNNY_AS3"],
+  "passiveSkillDefinitionIds": ["SKL_SAYA_BUNNY_PS1"],
+  "extraSkillDefinitionId": "SKL_SAYA_BUNNY_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【発情バニー】紫雲沙耶",
+    "characterName": "紫雲沙耶",
+    "characterId": "CHAR_SAYA_SHIUN"
+  }
+}
