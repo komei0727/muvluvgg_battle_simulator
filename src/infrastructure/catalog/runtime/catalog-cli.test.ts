@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import { formatCatalogValidationError, validateCatalogDirectory } from "./catalog-cli.js";
 
 function fixturePath(...segments: string[]): string {
-  return fileURLToPath(new URL(`./__fixtures__/${segments.join("/")}`, import.meta.url));
+  return fileURLToPath(new URL(`../__fixtures__/${segments.join("/")}`, import.meta.url));
 }
 
 describe("validateCatalogDirectory", () => {
   it("CT-CAT-CLI-001: reports ok=true with the catalogRevision for a valid Catalog", () => {
-    const result = validateCatalogDirectory(fixturePath("minimal"));
+    const result = validateCatalogDirectory(fixturePath("runtime", "valid", "minimal"));
     expect(result).toEqual({ ok: true, catalogRevision: "test-minimal.1" });
   });
 
   it("CT-CAT-CLI-002: reports ok=false with a formatted message for an invalid Catalog", () => {
-    const result = validateCatalogDirectory(fixturePath("invalid", "duplicate-id"));
+    const result = validateCatalogDirectory(fixturePath("runtime", "invalid", "duplicate-id"));
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message).toContain("DUPLICATE_ID");
@@ -24,7 +24,7 @@ describe("validateCatalogDirectory", () => {
 
 describe("formatCatalogValidationError", () => {
   it("CT-CAT-CLI-003: formats every integrity violation, not just the first", () => {
-    const result = validateCatalogDirectory(fixturePath("invalid", "duplicate-id"));
+    const result = validateCatalogDirectory(fixturePath("runtime", "invalid", "duplicate-id"));
     expect(result.ok).toBe(false);
     if (!result.ok) {
       const lines = result.message.split("\n");
@@ -33,7 +33,7 @@ describe("formatCatalogValidationError", () => {
   });
 
   it("CT-CAT-CLI-004: formats a hash mismatch naming the offending file", () => {
-    const result = validateCatalogDirectory(fixturePath("invalid", "hash-mismatch"));
+    const result = validateCatalogDirectory(fixturePath("runtime", "invalid", "hash-mismatch"));
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message).toContain("units.json");
@@ -41,7 +41,9 @@ describe("formatCatalogValidationError", () => {
   });
 
   it("CT-CAT-CLI-005: formats an unknown schemaVersion error", () => {
-    const result = validateCatalogDirectory(fixturePath("invalid", "unknown-schema-version"));
+    const result = validateCatalogDirectory(
+      fixturePath("runtime", "invalid", "unknown-schema-version"),
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message).toContain("schemaVersion");

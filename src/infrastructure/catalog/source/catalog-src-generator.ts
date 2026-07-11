@@ -8,7 +8,7 @@ import {
   sha256Hex,
   type CatalogFileName,
   type CatalogManifest,
-} from "./catalog-manifest.js";
+} from "../runtime/catalog-manifest.js";
 
 /**
  * Turns `catalog-src/` (Issue #50 authoring source, split by unit/memory

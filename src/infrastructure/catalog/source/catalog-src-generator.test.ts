@@ -8,8 +8,8 @@ import {
   checkCatalogUpToDate,
   generateCatalogFiles,
 } from "./catalog-src-generator.js";
-import { sha256Hex } from "./catalog-manifest.js";
-import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
+import { sha256Hex } from "../runtime/catalog-manifest.js";
+import { loadCatalogFromDirectory } from "../runtime/catalog-file-loader.js";
 
 /**
  * Issue #50: `catalog-src-generator.ts` turns the aggregated
@@ -19,7 +19,7 @@ import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
  */
 
 function fixturePath(...segments: string[]): string {
-  return fileURLToPath(new URL(`./__fixtures__/${segments.join("/")}`, import.meta.url));
+  return fileURLToPath(new URL(`../__fixtures__/${segments.join("/")}`, import.meta.url));
 }
 
 let outDir: string;
@@ -35,7 +35,7 @@ afterEach(() => {
 describe("buildCatalogFiles", () => {
   it("IT-CAT-GEN-001: produces parseable JSON content for all five catalog files plus manifest.json", async () => {
     const files = await buildCatalogFiles({
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     });
@@ -61,7 +61,7 @@ describe("buildCatalogFiles", () => {
 
   it("IT-CAT-GEN-002: manifest.json's file hashes match sha256Hex of the generated content", async () => {
     const files = await buildCatalogFiles({
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     });
@@ -75,7 +75,7 @@ describe("buildCatalogFiles", () => {
 
   it("IT-CAT-GEN-003: manifest.json carries the given catalogRevision and schemaVersion 2", async () => {
     const files = await buildCatalogFiles({
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.7",
     });
@@ -89,7 +89,7 @@ describe("buildCatalogFiles", () => {
 
   it("IT-CAT-GEN-004: is idempotent — regenerating from the same inputs yields byte-identical output", async () => {
     const options = {
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     };
@@ -102,7 +102,7 @@ describe("buildCatalogFiles", () => {
 describe("generateCatalogFiles", () => {
   it("IT-CAT-GEN-005: writes all six files to catalogDir, loadable by loadCatalogFromDirectory", async () => {
     await generateCatalogFiles({
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     });
@@ -112,7 +112,7 @@ describe("generateCatalogFiles", () => {
 
   it("IT-CAT-GEN-006: writes catalog/*.json formatted per the repo's Prettier config", async () => {
     await generateCatalogFiles({
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     });
@@ -125,7 +125,7 @@ describe("generateCatalogFiles", () => {
 describe("checkCatalogUpToDate", () => {
   it("IT-CAT-GEN-007: reports drift when catalogDir has no generated files yet", async () => {
     const result = await checkCatalogUpToDate({
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     });
@@ -135,7 +135,7 @@ describe("checkCatalogUpToDate", () => {
 
   it("IT-CAT-GEN-008: reports up to date immediately after generateCatalogFiles with the same revision", async () => {
     const options = {
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     };
@@ -146,14 +146,14 @@ describe("checkCatalogUpToDate", () => {
 
   it("IT-CAT-GEN-009: reports drift when catalog-src/ changed after the last generateCatalogFiles run", async () => {
     const options = {
-      catalogSrcDir: fixturePath("catalog-src-minimal"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
       catalogRevision: "test-gen.1",
     };
     await generateCatalogFiles(options);
     const result = await checkCatalogUpToDate({
       ...options,
-      catalogSrcDir: fixturePath("catalog-src-with-memory"),
+      catalogSrcDir: fixturePath("catalog-src", "valid", "with-memory"),
     });
     expect(result.upToDate).toBe(false);
   });

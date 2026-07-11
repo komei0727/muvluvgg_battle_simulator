@@ -18,7 +18,7 @@ import { CatalogSourceError } from "./catalog-src-aggregator.js";
  */
 
 function fixturePath(...segments: string[]): string {
-  return fileURLToPath(new URL(`./__fixtures__/${segments.join("/")}`, import.meta.url));
+  return fileURLToPath(new URL(`../__fixtures__/${segments.join("/")}`, import.meta.url));
 }
 
 let outDir: string;
@@ -34,7 +34,7 @@ afterEach(() => {
 describe("generateCatalogCommand", () => {
   it("CT-CAT-SRCCLI-001: writes catalog/ and reports ok=true with the six generated file names", async () => {
     const result = await generateCatalogCommand(
-      fixturePath("catalog-src-minimal"),
+      fixturePath("catalog-src", "valid", "minimal"),
       outDir,
       "test-cli.1",
     );
@@ -56,7 +56,7 @@ describe("generateCatalogCommand", () => {
 
   it("CT-CAT-SRCCLI-002: reports ok=false with a formatted message for a malformed catalog-src", async () => {
     const result = await generateCatalogCommand(
-      fixturePath("catalog-src-mismatched-unit"),
+      fixturePath("catalog-src", "invalid", "mismatched-unit"),
       outDir,
       "test-cli.1",
     );
@@ -69,14 +69,28 @@ describe("generateCatalogCommand", () => {
 
 describe("checkCatalogSrcCommand", () => {
   it("CT-CAT-SRCCLI-003: reports upToDate=true right after generateCatalogCommand", async () => {
-    await generateCatalogCommand(fixturePath("catalog-src-minimal"), outDir, "test-cli.1");
-    const result = await checkCatalogSrcCommand(fixturePath("catalog-src-minimal"), outDir);
+    await generateCatalogCommand(
+      fixturePath("catalog-src", "valid", "minimal"),
+      outDir,
+      "test-cli.1",
+    );
+    const result = await checkCatalogSrcCommand(
+      fixturePath("catalog-src", "valid", "minimal"),
+      outDir,
+    );
     expect(result).toEqual({ ok: true, upToDate: true, diffFiles: [] });
   });
 
   it("CT-CAT-SRCCLI-004: reports upToDate=false naming the drifted files when catalog-src changed since generation", async () => {
-    await generateCatalogCommand(fixturePath("catalog-src-minimal"), outDir, "test-cli.1");
-    const result = await checkCatalogSrcCommand(fixturePath("catalog-src-with-memory"), outDir);
+    await generateCatalogCommand(
+      fixturePath("catalog-src", "valid", "minimal"),
+      outDir,
+      "test-cli.1",
+    );
+    const result = await checkCatalogSrcCommand(
+      fixturePath("catalog-src", "valid", "with-memory"),
+      outDir,
+    );
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.upToDate).toBe(false);
@@ -85,7 +99,10 @@ describe("checkCatalogSrcCommand", () => {
   });
 
   it("CT-CAT-SRCCLI-005: reports ok=false when catalogDir has no manifest.json to read a revision from", async () => {
-    const result = await checkCatalogSrcCommand(fixturePath("catalog-src-minimal"), outDir);
+    const result = await checkCatalogSrcCommand(
+      fixturePath("catalog-src", "valid", "minimal"),
+      outDir,
+    );
     expect(result.ok).toBe(false);
   });
 
@@ -94,7 +111,10 @@ describe("checkCatalogSrcCommand", () => {
       join(outDir, "manifest.json"),
       JSON.stringify({ schemaVersion: 2, catalogRevision: "test-cli.1", files: {} }),
     );
-    const result = await checkCatalogSrcCommand(fixturePath("catalog-src-mismatched-unit"), outDir);
+    const result = await checkCatalogSrcCommand(
+      fixturePath("catalog-src", "invalid", "mismatched-unit"),
+      outDir,
+    );
     expect(result.ok).toBe(false);
   });
 });

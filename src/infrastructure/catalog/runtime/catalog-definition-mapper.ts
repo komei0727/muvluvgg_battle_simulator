@@ -3,27 +3,27 @@ import {
   createCapabilityDefinition,
   type CapabilityDefinition,
   type CapabilityDefinitionInput,
-} from "../../domain/catalog/capability-definition.js";
+} from "../../../domain/catalog/capability-definition.js";
 import {
   createEffectActionDefinition,
   type EffectActionDefinition,
   type EffectActionDefinitionInput,
-} from "../../domain/catalog/effect-action-definition.js";
+} from "../../../domain/catalog/effect-action-definition.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,
   type MemoryDefinitionInput,
-} from "../../domain/catalog/memory-definition.js";
+} from "../../../domain/catalog/memory-definition.js";
 import {
   createSkillDefinition,
   type SkillDefinition,
   type SkillDefinitionInput,
-} from "../../domain/catalog/skill-definition.js";
+} from "../../../domain/catalog/skill-definition.js";
 import {
   createUnitDefinition,
   type UnitDefinition,
   type UnitDefinitionInput,
-} from "../../domain/catalog/unit-definition.js";
+} from "../../../domain/catalog/unit-definition.js";
 import {
   validateCapabilityDefinitionDto,
   validateEffectActionDefinitionDto,

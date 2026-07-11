@@ -12,23 +12,23 @@ import { CatalogSourceError, readCatalogSource } from "./catalog-src-aggregator.
  */
 
 function fixturePath(...segments: string[]): string {
-  return fileURLToPath(new URL(`./__fixtures__/${segments.join("/")}`, import.meta.url));
+  return fileURLToPath(new URL(`../__fixtures__/${segments.join("/")}`, import.meta.url));
 }
 
 describe("readCatalogSource", () => {
   it("UT-CAT-SRC-001: reads capabilities.json as-is from the catalog-src root", () => {
-    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
     expect(source.capabilities).toEqual([]);
   });
 
   it("UT-CAT-SRC-002: aggregates one unit.json per unit directory into the units array", () => {
-    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
     const unitIds = source.units.map((u) => (u as { unitDefinitionId: string }).unitDefinitionId);
     expect(unitIds).toEqual(["UNIT_001", "UNIT_002"]);
   });
 
   it("UT-CAT-SRC-003: orders units by directory name for deterministic output", () => {
-    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
     const displayNames = source.units.map(
       (u) => (u as { metadata: { displayName: string } }).metadata.displayName,
     );
@@ -36,7 +36,7 @@ describe("readCatalogSource", () => {
   });
 
   it("UT-CAT-SRC-004: concatenates each unit's skills.json into a single skills array", () => {
-    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
     const skillIds = source.skills.map(
       (s) => (s as { skillDefinitionId: string }).skillDefinitionId,
     );
@@ -44,7 +44,7 @@ describe("readCatalogSource", () => {
   });
 
   it("UT-CAT-SRC-005: concatenates each unit's effects.json into a single effects array", () => {
-    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
     const effectIds = source.effects.map(
       (e) => (e as { effectActionDefinitionId: string }).effectActionDefinitionId,
     );
@@ -52,12 +52,12 @@ describe("readCatalogSource", () => {
   });
 
   it("UT-CAT-SRC-006: yields an empty memories array when catalog-src has no memories/ directory", () => {
-    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
     expect(source.memories).toEqual([]);
   });
 
   it("UT-CAT-SRC-007: aggregates memory.json and per-memory effects.json when memories/ exists", () => {
-    const source = readCatalogSource(fixturePath("catalog-src-with-memory"));
+    const source = readCatalogSource(fixturePath("catalog-src", "valid", "with-memory"));
     const memoryIds = source.memories.map(
       (m) => (m as { memoryDefinitionId: string }).memoryDefinitionId,
     );
@@ -66,32 +66,32 @@ describe("readCatalogSource", () => {
   });
 
   it("UT-CAT-SRC-008: rejects a unit directory whose name does not match unit.json's unitDefinitionId", () => {
-    expect(() => readCatalogSource(fixturePath("catalog-src-mismatched-unit"))).toThrow(
-      CatalogSourceError,
-    );
+    expect(() =>
+      readCatalogSource(fixturePath("catalog-src", "invalid", "mismatched-unit")),
+    ).toThrow(CatalogSourceError);
   });
 
   it("UT-CAT-SRC-009: rejects a unit's skills.json containing a skill not declared by that unit's unit.json", () => {
-    expect(() => readCatalogSource(fixturePath("catalog-src-unowned-skill"))).toThrow(
+    expect(() => readCatalogSource(fixturePath("catalog-src", "invalid", "unowned-skill"))).toThrow(
       /SKL_001_ROGUE/,
     );
   });
 
   it("UT-CAT-SRC-010: rejects a unit whose unit.json declares a skill missing from that unit's skills.json", () => {
-    expect(() => readCatalogSource(fixturePath("catalog-src-missing-skill"))).toThrow(
+    expect(() => readCatalogSource(fixturePath("catalog-src", "invalid", "missing-skill"))).toThrow(
       /SKL_001_AS1/,
     );
   });
 
   it("UT-CAT-SRC-011: rejects a unit's effects.json containing an effect not referenced by that unit's own skills", () => {
-    expect(() => readCatalogSource(fixturePath("catalog-src-unowned-effect"))).toThrow(
-      /ACT_UNUSED_EXTRA/,
-    );
+    expect(() =>
+      readCatalogSource(fixturePath("catalog-src", "invalid", "unowned-effect")),
+    ).toThrow(/ACT_UNUSED_EXTRA/);
   });
 
   it("UT-CAT-SRC-012: rejects a memory's effects.json containing an effect not referenced by that memory's triggeredEffects", () => {
-    expect(() => readCatalogSource(fixturePath("catalog-src-memory-unowned-effect"))).toThrow(
-      /ACT_MEMORY_UNUSED/,
-    );
+    expect(() =>
+      readCatalogSource(fixturePath("catalog-src", "invalid", "memory-unowned-effect")),
+    ).toThrow(/ACT_MEMORY_UNUSED/);
   });
 });

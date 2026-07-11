@@ -2,24 +2,27 @@ import { describe, expect, it } from "vitest";
 import {
   createCapabilityDefinition,
   type CapabilityDefinition,
-} from "../../domain/catalog/capability-definition.js";
+} from "../../../domain/catalog/capability-definition.js";
 import {
   buildCatalogIndex,
   type CatalogDefinitions,
-} from "../../domain/catalog/catalog-integrity.js";
+} from "../../../domain/catalog/catalog-integrity.js";
 import {
   createEffectActionDefinition,
   type EffectActionDefinition,
-} from "../../domain/catalog/effect-action-definition.js";
+} from "../../../domain/catalog/effect-action-definition.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,
-} from "../../domain/catalog/memory-definition.js";
+} from "../../../domain/catalog/memory-definition.js";
 import {
   createSkillDefinition,
   type SkillDefinition,
-} from "../../domain/catalog/skill-definition.js";
-import { createUnitDefinition, type UnitDefinition } from "../../domain/catalog/unit-definition.js";
+} from "../../../domain/catalog/skill-definition.js";
+import {
+  createUnitDefinition,
+  type UnitDefinition,
+} from "../../../domain/catalog/unit-definition.js";
 import { InMemoryBattleCatalog } from "./in-memory-battle-catalog.js";
 
 function damageAction(

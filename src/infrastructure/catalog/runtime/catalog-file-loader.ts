@@ -3,7 +3,7 @@ import { join } from "node:path";
 import {
   buildCatalogIndex,
   type CatalogDefinitions,
-} from "../../domain/catalog/catalog-integrity.js";
+} from "../../../domain/catalog/catalog-integrity.js";
 import {
   mapCapabilityDefinition,
   mapEffectActionDefinition,

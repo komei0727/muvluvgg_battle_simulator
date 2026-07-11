@@ -3,17 +3,16 @@ import { describe, expect, it } from "vitest";
 import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
 
 /**
- * Issue #46: promotes the Issue #41/#44 pilot fixture
- * (`src/infrastructure/catalog/__fixtures__/pilot-units/`) to the
- * production Catalog candidate at `catalog/` (repo root, per
- * `docs/ddd/14_Catalog定義スキーマ.md`). These tests lock in the
- * conversion-mistake fixes found while re-checking raw/units/ against the
- * pilot fixture, so a future edit to `catalog/` cannot silently reintroduce
- * them.
+ * Issue #46: promotes the Issue #41/#44 pilot fixture (retired in the
+ * docs/ddd/19 cleanup) to the production Catalog candidate at `catalog/`
+ * (repo root, per `docs/ddd/14_Catalog定義スキーマ.md`). These tests lock in
+ * the conversion-mistake fixes found while re-checking raw/units/ against
+ * the pilot fixture, so a future edit to `catalog/` cannot silently
+ * reintroduce them.
  */
 
 function catalogPath(): string {
-  return fileURLToPath(new URL("../../../catalog", import.meta.url));
+  return fileURLToPath(new URL("../../../../catalog", import.meta.url));
 }
 
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {

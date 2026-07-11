@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DomainValidationError } from "../../domain/shared/errors.js";
+import { DomainValidationError } from "../../../domain/shared/errors.js";
 import {
   CatalogShapeValidationError,
   mapCapabilityDefinition,

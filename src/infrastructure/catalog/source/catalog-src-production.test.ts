@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { readCatalogSource } from "./catalog-src-aggregator.js";
 import { checkCatalogUpToDate } from "./catalog-src-generator.js";
-import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
+import { loadCatalogFromDirectory } from "../runtime/catalog-file-loader.js";
 
 /**
  * Issue #50: `catalog/` (repo root) must always equal what regenerating
@@ -16,7 +16,7 @@ import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
  */
 
 function repoRootPath(...segments: string[]): string {
-  return fileURLToPath(new URL(`../../../${segments.join("/")}`, import.meta.url));
+  return fileURLToPath(new URL(`../../../../${segments.join("/")}`, import.meta.url));
 }
 
 function catalogRevision(): string {
