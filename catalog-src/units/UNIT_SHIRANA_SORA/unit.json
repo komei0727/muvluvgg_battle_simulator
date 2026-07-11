@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SHIRANA_SORA",
+  "attribute": "SHY",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 32181,
+    "attack": 22228,
+    "defense": 9115,
+    "criticalRate": 0.2,
+    "actionSpeed": 711,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_SHIRANA_SORA_AS1", "SKL_SHIRANA_SORA_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SHIRANA_SORA_PS1", "SKL_SHIRANA_SORA_PS2"],
+  "extraSkillDefinitionId": "SKL_SHIRANA_SORA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【期待応える輝きの穹】一条白奈",
+    "characterName": "一条白奈",
+    "characterId": "CHAR_SHIRANA_ICHIJO"
+  }
+}

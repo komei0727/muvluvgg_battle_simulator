@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_CLARA_TSUNDERE",
+  "attribute": "CUTE",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 21428,
+    "attack": 25872,
+    "defense": 10428,
+    "criticalRate": 0.2,
+    "actionSpeed": 693,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_AS1", "SKL_CLARA_TSUNDERE_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_PS1", "SKL_CLARA_TSUNDERE_PS2"],
+  "extraSkillDefinitionId": "SKL_CLARA_TSUNDERE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【正々堂々なミス・ツンデレ】綺羅クララ",
+    "characterName": "綺羅クララ",
+    "characterId": "CHAR_CLARA_KIRA"
+  }
+}

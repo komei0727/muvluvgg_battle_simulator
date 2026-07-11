@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_AOI_ELEGANT",
+  "attribute": "SMART",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 28307,
+    "attack": 22040,
+    "defense": 11600,
+    "criticalRate": 0.2,
+    "actionSpeed": 765,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_AOI_ELEGANT_AS1", "SKL_AOI_ELEGANT_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_AOI_ELEGANT_PS1", "SKL_AOI_ELEGANT_PS2"],
+  "extraSkillDefinitionId": "SKL_AOI_ELEGANT_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【優雅なる規律の花】生駒葵",
+    "characterName": "生駒葵",
+    "characterId": "CHAR_AOI_IKOMA"
+  }
+}

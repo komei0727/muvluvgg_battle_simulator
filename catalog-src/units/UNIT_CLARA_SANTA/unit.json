@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_CLARA_SANTA",
+  "attribute": "SMART",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 26967,
+    "attack": 21262,
+    "defense": 17425,
+    "criticalRate": 0.2,
+    "actionSpeed": 685,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 5,
+  "activeSkillDefinitionIds": ["SKL_CLARA_SANTA_AS1", "SKL_CLARA_SANTA_AS2", "SKL_CLARA_SANTA_AS3"],
+  "passiveSkillDefinitionIds": ["SKL_CLARA_SANTA_PS1"],
+  "extraSkillDefinitionId": "SKL_CLARA_SANTA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【聖夜のサンタシンガー】綺羅クララ",
+    "characterName": "綺羅クララ",
+    "characterId": "CHAR_CLARA_KIRA"
+  }
+}

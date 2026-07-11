@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SHIRANA_LUCKY",
+  "attribute": "SMART",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32511,
+    "attack": 18308,
+    "defense": 14903,
+    "criticalRate": 0.15,
+    "actionSpeed": 713,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_AS1", "SKL_SHIRANA_LUCKY_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_PS1", "SKL_SHIRANA_LUCKY_PS2"],
+  "extraSkillDefinitionId": "SKL_SHIRANA_LUCKY_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【純白のラッキーガール】一条白奈",
+    "characterName": "一条白奈",
+    "characterId": "CHAR_SHIRANA_ICHIJO"
+  }
+}

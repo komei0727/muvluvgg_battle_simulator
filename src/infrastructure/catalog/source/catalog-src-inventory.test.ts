@@ -15,7 +15,8 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * against the local `raw/` copy instead.
  *
  * Issue #55 (Batch A of Issue #54) adds 8 more units, bringing the total to
- * 30 (22 from Issue #47 + 8 from this batch).
+ * 30 (22 from Issue #47 + 8 from that batch). Issue #59 (Batch B of Issue
+ * #54) adds another 8 units, bringing the total to 38.
  */
 
 function repoRootPath(...segments: string[]): string {
@@ -23,9 +24,9 @@ function repoRootPath(...segments: string[]): string {
 }
 
 describe("catalog-src/ inventory (Issue #47 ledger)", () => {
-  it("IT-CAT-INV-001: catalog-src/ has exactly the 30 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A)", () => {
+  it("IT-CAT-INV-001: catalog-src/ has exactly the 38 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A + 8 from Issue #59 Batch B)", () => {
     const source = readCatalogSource(repoRootPath("catalog-src"));
-    expect(source.units.length).toBe(30);
+    expect(source.units.length).toBe(38);
   });
 
   it("IT-CAT-INV-002: catalog-src/ has exactly the 6 converted memories tallied in the ledger (Issue #47 batch)", () => {

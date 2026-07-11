@@ -74,6 +74,15 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_FEE_BATH",
         "UNIT_MAIA_SALON",
         "UNIT_MAIA_LAZY",
+        // Issue #59 Batch B（複数バージョン整合性8件）
+        "UNIT_AOI_ELEGANT",
+        "UNIT_AOI_GUARDIAN",
+        "UNIT_LILY_HERO",
+        "UNIT_LILY_SINGER",
+        "UNIT_SHIRANA_LUCKY",
+        "UNIT_SHIRANA_SORA",
+        "UNIT_CLARA_TSUNDERE",
+        "UNIT_CLARA_SANTA",
       ].sort(),
     );
   });
