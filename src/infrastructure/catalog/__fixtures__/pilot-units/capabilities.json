@@ -108,6 +108,12 @@
     "requiredBy": []
   },
   {
+    "capabilityId": "CAP_REMOVE_EFFECTS",
+    "status": "PLANNED",
+    "description": "効果解除",
+    "requiredBy": []
+  },
+  {
     "capabilityId": "CAP_RESOLUTION_BRANCH",
     "status": "PLANNED",
     "description": "Resolution分岐",
@@ -129,6 +135,12 @@
     "capabilityId": "CAP_RUNTIME_COUNTER",
     "status": "PLANNED",
     "description": "発動回数・累計条件",
+    "requiredBy": []
+  },
+  {
+    "capabilityId": "CAP_SHIELD",
+    "status": "PLANNED",
+    "description": "シールド付与",
     "requiredBy": []
   },
   {

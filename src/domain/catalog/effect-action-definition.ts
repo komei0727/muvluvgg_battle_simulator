@@ -776,6 +776,12 @@ function createPayload(
         | { op?: string; formula?: FormulaDefinitionInput }
         | undefined;
       if (damageThresholdRaw !== undefined) {
+        if (status !== "DAMAGE_IMMUNITY") {
+          throw new DomainValidationError(
+            `${path}.damageThreshold`,
+            `is only meaningful when status is "DAMAGE_IMMUNITY", got "${status}"`,
+          );
+        }
         assertKnownKeys(
           damageThresholdRaw,
           DAMAGE_THRESHOLD_ALLOWED_KEYS,
@@ -819,6 +825,12 @@ function createPayload(
             ),
           },
         };
+      }
+      if (payload["effectActionDefinitionIds"] !== undefined) {
+        throw new DomainValidationError(
+          `${path}.effectActionDefinitionIds`,
+          'must not be set when "categories" does not include "SPECIFIC_EFFECT" (it would otherwise be silently ignored)',
+        );
       }
       return { kind: "REMOVE_EFFECTS", payload: result };
     }

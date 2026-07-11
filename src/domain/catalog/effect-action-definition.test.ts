@@ -1093,6 +1093,23 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-ACT-048b: rejects REMOVE_EFFECTS with effectActionDefinitionIds but no SPECIFIC_EFFECT category (would otherwise be silently dropped, widening the removal to every DEBUFF)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_1",
+          kind: "REMOVE_EFFECTS",
+          payload: {
+            categories: ["DEBUFF"],
+            effectActionDefinitionIds: ["ACT_MARKER_CURSE_DEBUFF"],
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-049: rejects REMOVE_EFFECTS with an empty categories array", () => {
     expect(() =>
       createEffectActionDefinition(
@@ -1148,6 +1165,27 @@ describe("EffectActionDefinition", () => {
             status: "DAMAGE_IMMUNITY",
             duration: {},
             damageThreshold: { op: "ALMOST", formula: { kind: "CONSTANT", value: 0.35 } },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-051b: rejects APPLY_STATUS damageThreshold on a status other than DAMAGE_IMMUNITY (e.g. STUN)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_STUN_1",
+          kind: "APPLY_STATUS",
+          payload: {
+            status: "STUN",
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            damageThreshold: {
+              op: "GT",
+              formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
+            },
           },
           requiredCapabilities: [],
         },

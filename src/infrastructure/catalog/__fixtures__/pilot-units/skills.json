@@ -1091,7 +1091,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_MARKER", "CAP_REMOVE_EFFECTS"],
     "metadata": {
       "displayName": "極夜のマスカレード",
       "tags": []
@@ -2641,7 +2641,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_SHIELD"],
     "metadata": {
       "displayName": "飽和爆撃",
       "tags": []

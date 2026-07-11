@@ -3,9 +3,9 @@
   "catalogRevision": "pilot-units.1",
   "files": {
     "units.json": "sha256:487f2808808b91bd665fd40aff2ea763fe351f9d647f91e8f0cd748798399d96",
-    "skills.json": "sha256:05d7cd0a3400aa4b7f3be260ba5d753bcbe728e2a8a3c5a081d361b15cd28f19",
-    "effects.json": "sha256:78a4c1b667ca8ded3e5476ca8d3355cde33046105ed74ec7cc2d4acfb009d9d5",
+    "skills.json": "sha256:ee6494cdb547f583581f2c9aa2a06f18ab2aba0152ea7abb5c9065b88a95224c",
+    "effects.json": "sha256:6a7f59675164dba5da4472c0ec67134526f0af0fcc654dbc79289b427b61639d",
     "memories.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-    "capabilities.json": "sha256:1700999cfad6de52f2b362c412193fc5913b4bd90a138139bb232bff3e35ad02"
+    "capabilities.json": "sha256:8aa381c0c8621cc5ef1c9a1501dd19a8d530f3d9cc7ddc094000886376936e17"
   }
 }

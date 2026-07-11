@@ -2708,7 +2708,7 @@
     "payload": {
       "categories": ["DEBUFF"]
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }
@@ -2734,7 +2734,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }
