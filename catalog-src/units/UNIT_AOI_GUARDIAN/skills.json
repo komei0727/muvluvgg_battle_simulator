@@ -1,0 +1,164 @@
+[
+  {
+    "skillDefinitionId": "SKL_AOI_GUARDIAN_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_EX_HEAL" },
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_EX_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_EX_STUN_IMMUNITY" },
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_EX_SHIELD" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_SHIELD"],
+    "metadata": { "displayName": "規律遵守の精神", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_AOI_GUARDIAN_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_AS1_SHIELD" },
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_AS1_CONTINUOUS_HEAL" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_CONTINUOUS_HEAL"],
+    "metadata": { "displayName": "旱天の慈雨", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_AOI_GUARDIAN_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_GUARDIAN_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "一閃", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_AOI_GUARDIAN_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS1_HEAL" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "displayName": "腹が減っては戦ができぬ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_AOI_GUARDIAN_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_COUNTER" },
+            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_STUN" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "TRIGGER_SOURCE" },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.3
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_PP_ZERO" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "捲土重来", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  }
+]

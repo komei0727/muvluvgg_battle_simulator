@@ -1,0 +1,173 @@
+[
+  {
+    "skillDefinitionId": "SKL_LILY_SINGER_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LILY_SINGER_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LILY_SINGER_EX_IMMUNITY" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": { "displayName": "RAY OF HERO", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LILY_SINGER_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALLY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["FRONT_ROW", "DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LILY_SINGER_AS1_IMMUNITY" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LILY_SINGER_AS1_SPEED_DOWN" },
+            { "effectActionDefinitionId": "ACT_LILY_SINGER_AS1_ATK_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 3 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "カバーは任せて！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LILY_SINGER_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LILY_SINGER_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "みんな、ノッてる！？", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LILY_SINGER_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LILY_SINGER_PS1_REMOVE_DEBUFF" },
+            { "effectActionDefinitionId": "ACT_LILY_SINGER_PS1_EN_DAMAGE_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "気合い入れていこー！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "ALLY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LILY_SINGER_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FRONT_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LILY_SINGER_PS2_SHIELD" },
+            { "effectActionDefinitionId": "ACT_LILY_SINGER_PS2_ATK_UP" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LILY_SINGER_PS2_SELF_EN_VULN" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 99 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "ライブ開始だよ！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]

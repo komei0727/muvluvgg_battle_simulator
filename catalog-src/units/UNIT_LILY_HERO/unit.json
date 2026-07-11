@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_LILY_HERO",
+  "attribute": "SMART",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 29944,
+    "attack": 18627,
+    "defense": 11476,
+    "criticalRate": 0.2,
+    "actionSpeed": 785,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_LILY_HERO_AS1", "SKL_LILY_HERO_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_LILY_HERO_PS1", "SKL_LILY_HERO_PS2"],
+  "extraSkillDefinitionId": "SKL_LILY_HERO_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【正義のヒーロー】リリー・ラヴォア",
+    "characterName": "リリー・ラヴォア",
+    "characterId": "CHAR_LILY_LAVOIE"
+  }
+}

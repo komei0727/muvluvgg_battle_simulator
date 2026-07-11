@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_AOI_GUARDIAN",
+  "attribute": "CUTE",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 30227,
+    "attack": 19597,
+    "defense": 11738,
+    "criticalRate": 0.2,
+    "actionSpeed": 737,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_AOI_GUARDIAN_AS1", "SKL_AOI_GUARDIAN_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_AOI_GUARDIAN_PS1", "SKL_AOI_GUARDIAN_PS2"],
+  "extraSkillDefinitionId": "SKL_AOI_GUARDIAN_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【厳格な規律の守護者】生駒葵",
+    "characterName": "生駒葵",
+    "characterId": "CHAR_AOI_IKOMA"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_LILY_SINGER",
+  "attribute": "AGGRESSIVE",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 33111,
+    "attack": 20365,
+    "defense": 11088,
+    "criticalRate": 0.15,
+    "actionSpeed": 850,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_LILY_SINGER_AS1", "SKL_LILY_SINGER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_LILY_SINGER_PS1", "SKL_LILY_SINGER_PS2"],
+  "extraSkillDefinitionId": "SKL_LILY_SINGER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【想い響かせるヒーローシンガー】リリー・ラヴォア",
+    "characterName": "リリー・ラヴォア",
+    "characterId": "CHAR_LILY_LAVOIE"
+  }
+}

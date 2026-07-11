@@ -28,6 +28,62 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_AOI_ELEGANT",
+    "attribute": "SMART",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28307,
+      "attack": 22040,
+      "defense": 11600,
+      "criticalRate": 0.2,
+      "actionSpeed": 765,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_AOI_ELEGANT_AS1", "SKL_AOI_ELEGANT_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_AOI_ELEGANT_PS1", "SKL_AOI_ELEGANT_PS2"],
+    "extraSkillDefinitionId": "SKL_AOI_ELEGANT_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【優雅なる規律の花】生駒葵",
+      "characterName": "生駒葵",
+      "characterId": "CHAR_AOI_IKOMA"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_AOI_GUARDIAN",
+    "attribute": "CUTE",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 30227,
+      "attack": 19597,
+      "defense": 11738,
+      "criticalRate": 0.2,
+      "actionSpeed": 737,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_AOI_GUARDIAN_AS1", "SKL_AOI_GUARDIAN_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_AOI_GUARDIAN_PS1", "SKL_AOI_GUARDIAN_PS2"],
+    "extraSkillDefinitionId": "SKL_AOI_GUARDIAN_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【厳格な規律の守護者】生駒葵",
+      "characterName": "生駒葵",
+      "characterId": "CHAR_AOI_IKOMA"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_CHIYURU_MAZE",
     "attribute": "SHY",
     "unitType": "AGILE",
@@ -81,6 +137,66 @@
       "displayName": "【新春のメイズ研究者】月ヶ瀬ちゆる",
       "characterName": "月ヶ瀬ちゆる",
       "characterId": "CHAR_CHIYURU_TSUKIGASE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_CLARA_SANTA",
+    "attribute": "SMART",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 26967,
+      "attack": 21262,
+      "defense": 17425,
+      "criticalRate": 0.2,
+      "actionSpeed": 685,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 5,
+    "activeSkillDefinitionIds": [
+      "SKL_CLARA_SANTA_AS1",
+      "SKL_CLARA_SANTA_AS2",
+      "SKL_CLARA_SANTA_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_CLARA_SANTA_PS1"],
+    "extraSkillDefinitionId": "SKL_CLARA_SANTA_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【聖夜のサンタシンガー】綺羅クララ",
+      "characterName": "綺羅クララ",
+      "characterId": "CHAR_CLARA_KIRA"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_CLARA_TSUNDERE",
+    "attribute": "CUTE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 21428,
+      "attack": 25872,
+      "defense": 10428,
+      "criticalRate": 0.2,
+      "actionSpeed": 693,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_AS1", "SKL_CLARA_TSUNDERE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_PS1", "SKL_CLARA_TSUNDERE_PS2"],
+    "extraSkillDefinitionId": "SKL_CLARA_TSUNDERE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【正々堂々なミス・ツンデレ】綺羅クララ",
+      "characterName": "綺羅クララ",
+      "characterId": "CHAR_CLARA_KIRA"
     }
   },
   {
@@ -548,6 +664,62 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_LILY_HERO",
+    "attribute": "SMART",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 29944,
+      "attack": 18627,
+      "defense": 11476,
+      "criticalRate": 0.2,
+      "actionSpeed": 785,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_LILY_HERO_AS1", "SKL_LILY_HERO_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_LILY_HERO_PS1", "SKL_LILY_HERO_PS2"],
+    "extraSkillDefinitionId": "SKL_LILY_HERO_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【正義のヒーロー】リリー・ラヴォア",
+      "characterName": "リリー・ラヴォア",
+      "characterId": "CHAR_LILY_LAVOIE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_LILY_SINGER",
+    "attribute": "AGGRESSIVE",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 33111,
+      "attack": 20365,
+      "defense": 11088,
+      "criticalRate": 0.15,
+      "actionSpeed": 850,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_LILY_SINGER_AS1", "SKL_LILY_SINGER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_LILY_SINGER_PS1", "SKL_LILY_SINGER_PS2"],
+    "extraSkillDefinitionId": "SKL_LILY_SINGER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【想い響かせるヒーローシンガー】リリー・ラヴォア",
+      "characterName": "リリー・ラヴォア",
+      "characterId": "CHAR_LILY_LAVOIE"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_LYDIA_GENIUS",
     "attribute": "COMICAL",
     "unitType": "AGILE",
@@ -718,6 +890,62 @@
       "displayName": "【渇望秘めし淑女】紫雲沙耶",
       "characterName": "紫雲沙耶",
       "characterId": "CHAR_SAYA_SHIUN"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SHIRANA_LUCKY",
+    "attribute": "SMART",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32511,
+      "attack": 18308,
+      "defense": 14903,
+      "criticalRate": 0.15,
+      "actionSpeed": 713,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_AS1", "SKL_SHIRANA_LUCKY_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_PS1", "SKL_SHIRANA_LUCKY_PS2"],
+    "extraSkillDefinitionId": "SKL_SHIRANA_LUCKY_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【純白のラッキーガール】一条白奈",
+      "characterName": "一条白奈",
+      "characterId": "CHAR_SHIRANA_ICHIJO"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SHIRANA_SORA",
+    "attribute": "SHY",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 32181,
+      "attack": 22228,
+      "defense": 9115,
+      "criticalRate": 0.2,
+      "actionSpeed": 711,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_SHIRANA_SORA_AS1", "SKL_SHIRANA_SORA_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SHIRANA_SORA_PS1", "SKL_SHIRANA_SORA_PS2"],
+    "extraSkillDefinitionId": "SKL_SHIRANA_SORA_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【期待応える輝きの穹】一条白奈",
+      "characterName": "一条白奈",
+      "characterId": "CHAR_SHIRANA_ICHIJO"
     }
   },
   {
