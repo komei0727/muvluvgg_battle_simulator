@@ -283,4 +283,24 @@ describe("Catalog v2 definition mapper", () => {
       }),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-INFRA-MAP-020: raises CatalogShapeValidationError when a typo'd sibling of requiredCapabilities sits alongside the correct (empty) field", () => {
+    // A typo like `requiredCapability` (singular) must not silently coexist
+    // with a correct-but-empty `requiredCapabilities: []` — otherwise the
+    // author's intended Capability requirement is lost, and the downstream
+    // Capability preflight checks an empty array instead.
+    expect(() =>
+      mapEffectActionDefinition({
+        ...effectActionDto,
+        requiredCapabilities: [],
+        requiredCapability: ["CAP_REFLECT_DAMAGE"],
+      }),
+    ).toThrow(CatalogShapeValidationError);
+  });
+
+  it("UT-INFRA-MAP-021: raises CatalogShapeValidationError when a typo'd sibling of requiredCapabilities sits on a Skill DTO", () => {
+    expect(() => mapSkillDefinition({ ...skillDto, requiredCapability: ["CAP_HEAL"] })).toThrow(
+      CatalogShapeValidationError,
+    );
+  });
 });

@@ -165,4 +165,63 @@ describe("Catalog v2 DTO JSON Schema", () => {
       }),
     ).toBe(false);
   });
+
+  it("UT-INFRA-SCHEMA-008: rejects an EffectActionDefinition DTO with a typo'd sibling of requiredCapabilities (additionalProperties: false)", () => {
+    const valid = validateEffectActionDefinitionDto({
+      effectActionDefinitionId: "ACT_HEAL_1",
+      kind: "HEAL",
+      payload: { formula: { kind: "CONSTANT", value: 1 } },
+      requiredCapabilities: [],
+      // Typo: singular "requiredCapability" instead of "requiredCapabilities".
+      // additionalProperties:false must reject this rather than silently
+      // ignoring the intended Capability requirement.
+      requiredCapability: ["CAP_HEAL"],
+    });
+    expect(valid).toBe(false);
+    expect(
+      validateEffectActionDefinitionDto.errors?.some((e) => e.keyword === "additionalProperties"),
+    ).toBe(true);
+  });
+
+  it("UT-INFRA-SCHEMA-009: rejects a SkillDefinition DTO with a typo'd sibling of requiredCapabilities", () => {
+    const valid = validateSkillDefinitionDto({
+      skillDefinitionId: "SKL_001_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: { kind: "IMMEDIATE", steps: [{ kind: "ACTION" }] },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities: [],
+      requiredCapability: ["CAP_HEAL"],
+      metadata: { displayName: "x" },
+    });
+    expect(valid).toBe(false);
+  });
+
+  it("UT-INFRA-SCHEMA-010: rejects an unknown property inside a fixed-shape sub-object (baseStats)", () => {
+    const valid = validateUnitDefinitionDto({
+      unitDefinitionId: "UNIT_001",
+      attribute: "COMICAL",
+      unitType: "AGILE",
+      role: "CONTROL",
+      positionAptitudes: ["FRONT"],
+      baseStats: {
+        maximumHp: 100,
+        attack: 10,
+        defense: 10,
+        criticalRate: 0.1,
+        actionSpeed: 100,
+        maximumAp: 4,
+        maximumPp: 4,
+        maximunHp: 100,
+      },
+      extraGaugeMaximum: 5,
+      activeSkillDefinitionIds: [],
+      passiveSkillDefinitionIds: [],
+      extraSkillDefinitionId: "SKL_001_EX",
+      requiredCapabilities: [],
+      metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
+    });
+    expect(valid).toBe(false);
+  });
 });
