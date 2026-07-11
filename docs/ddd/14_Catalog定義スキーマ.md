@@ -1770,6 +1770,7 @@ Catalog v2 検証器は次を確認する。
 8. `modifiers` と `triggeredEffects` の少なくとも一方を持つ Memory だけを許可する。
 9. AS/EX の `triggers` は空、PS の `triggers` は1件以上。
 10. EX Skill の `cost.resource` は `EX_GAUGE` で、`cost.amount` が Unit の `extraGaugeMaximum` と一致する。
+11. `EFFECT_IMMUNITY` / `REMOVE_EFFECTS` の `payload.effectActionDefinitionIds`（`categories` に `SPECIFIC_EFFECT` を含む場合）が参照する `EffectActionDefinition` が存在する。
 
 ---
 
