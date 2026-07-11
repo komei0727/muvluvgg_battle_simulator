@@ -15,7 +15,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DAMAGE_PHYSICAL_100" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_DAMAGE_PHYSICAL_100_U2" }]
         }
       ]
     },

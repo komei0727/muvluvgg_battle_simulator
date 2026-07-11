@@ -48,7 +48,7 @@ describe("readCatalogSource", () => {
     const effectIds = source.effects.map(
       (e) => (e as { effectActionDefinitionId: string }).effectActionDefinitionId,
     );
-    expect(effectIds).toEqual(["ACT_DAMAGE_PHYSICAL_100"]);
+    expect(effectIds).toEqual(["ACT_DAMAGE_PHYSICAL_100", "ACT_DAMAGE_PHYSICAL_100_U2"]);
   });
 
   it("UT-CAT-SRC-006: yields an empty memories array when catalog-src has no memories/ directory", () => {
@@ -93,5 +93,17 @@ describe("readCatalogSource", () => {
     expect(() =>
       readCatalogSource(fixturePath("catalog-src", "invalid", "memory-unowned-effect")),
     ).toThrow(/ACT_MEMORY_UNUSED/);
+  });
+
+  it("UT-CAT-SRC-013: rejects a unit whose skill references an effect missing from that unit's own effects.json", () => {
+    expect(() =>
+      readCatalogSource(fixturePath("catalog-src", "invalid", "missing-effect")),
+    ).toThrow(/ACT_DAMAGE_PHYSICAL_100/);
+  });
+
+  it("UT-CAT-SRC-014: rejects a memory whose triggeredEffects references an effect missing from that memory's own effects.json", () => {
+    expect(() =>
+      readCatalogSource(fixturePath("catalog-src", "invalid", "memory-missing-effect")),
+    ).toThrow(/ACT_MEMORY_USED/);
   });
 });

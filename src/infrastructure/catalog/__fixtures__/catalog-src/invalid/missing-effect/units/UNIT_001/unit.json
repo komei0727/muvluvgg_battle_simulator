@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_001",
+  "attribute": "COMICAL",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 1000,
+    "attack": 100,
+    "defense": 50,
+    "criticalRate": 0.1,
+    "actionSpeed": 100,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_001_AS1"],
+  "passiveSkillDefinitionIds": [],
+  "extraSkillDefinitionId": "SKL_001_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "displayName": "Minimal Unit One",
+    "characterName": "Minimal Character One",
+    "characterId": "CHAR_MINIMAL_ONE",
+    "affiliations": [],
+    "tags": []
+  }
+}

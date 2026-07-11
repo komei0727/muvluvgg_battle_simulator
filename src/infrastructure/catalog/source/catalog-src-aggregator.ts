@@ -85,12 +85,15 @@ function stringField(value: unknown, field: string): string | undefined {
  * Recursively collects every `effectActionDefinitionId` reference found
  * anywhere inside `node` (skill/memory resolution trees nest actions inside
  * steps, BRANCH/RANDOM_BRANCH branches, etc.). Used to verify that a unit's
- * or memory's `effects.json` only holds EffectActionDefinitions that
- * directory's own skills/triggeredEffects actually reference — without this,
- * a Shape/Semantic-valid but *misplaced* skill or effect (declared under the
- * wrong unit/memory directory) would still pass because
- * `loadCatalogFromDirectory` only validates the flattened, catalog-wide
- * result (Issue #50 review).
+ * or memory's `effects.json` holds exactly the EffectActionDefinitions that
+ * directory's own skills/triggeredEffects reference — no more (an effect no
+ * longer referenced by anything in this directory) and no less (an effect
+ * this directory's skills reference but that actually lives under a
+ * *different* unit/memory directory). Without the "no less" half, a skill
+ * could silently depend on another unit's `effects.json` entry: the
+ * flattened, catalog-wide result `loadCatalogFromDirectory` validates would
+ * still resolve the reference and pass, quietly breaking the "reviewable by
+ * unit/memory" contract Issue #50 exists for (Issue #50 review).
  */
 function collectEffectActionReferences(node: unknown, into: Set<string>): void {
   if (Array.isArray(node)) {
@@ -152,14 +155,21 @@ function verifyEffectOwnership(
 ): void {
   const referenced = new Set<string>();
   collectEffectActionReferences(referenceSource, referenced);
-  const unowned = effects
-    .map((e) => stringField(e, "effectActionDefinitionId"))
-    .filter((id) => id === undefined || !referenced.has(id));
-  if (unowned.length > 0) {
-    throw new CatalogSourceError(
-      effectsPath,
-      `effect(s) not referenced by ${ownerDescription}: ${unowned.join(", ")}`,
-    );
+  const ownIds = effects.map((e) => stringField(e, "effectActionDefinitionId"));
+  const ownSet = new Set(ownIds);
+  const missing = [...referenced].filter((id) => !ownSet.has(id));
+  const unowned = ownIds.filter((id) => id === undefined || !referenced.has(id));
+  if (missing.length > 0 || unowned.length > 0) {
+    const parts: string[] = [];
+    if (missing.length > 0) {
+      parts.push(
+        `effect(s) referenced by ${ownerDescription} but missing from this effects.json: ${missing.join(", ")}`,
+      );
+    }
+    if (unowned.length > 0) {
+      parts.push(`effect(s) not referenced by ${ownerDescription}: ${unowned.join(", ")}`);
+    }
+    throw new CatalogSourceError(effectsPath, parts.join("; "));
   }
 }
 
