@@ -56,6 +56,48 @@
 | ケイト     | 可能     | `CAP_RANDOM_BRANCH`, `CAP_HEAL`, `CAP_RESOURCE_MOD`, `CAP_DAMAGE_MOD`, `CAP_HIT_COUNT_EVASION`, `CAP_EFFECT_CONDITION`, `CAP_ADVANCED_PASSIVE_TRIGGER`                                                                   | EX/ASで確率分岐が多い。凍結付与時PSには `EffectApplied` trigger が必要。                |
 | フルート   | 可能     | `CAP_DERIVED_TARGETS`, `CAP_HEAL`, `CAP_EFFECT_CONDITION`, `CAP_RESOURCE_CAPACITY_MOD`, `CAP_MARKER`, `CAP_REFLECT_DAMAGE`, `CAP_HIT_COUNT_EVASION`, `CAP_DEATH_SURVIVAL`, `CAP_DAMAGE_MOD`, `CAP_RUNTIME_COUNTER`       | 「極限」は解除不可Marker。HP消費、最大AP増加、極限中の発動抑止、致死耐えがある。        |
 
+## 追加確認・小修正候補の解消状況
+
+上表のC-UNIT-01〜04は、`14_Catalog定義スキーマ.md` の以降の更新（Issue #5/#6のレビュー対応、`Issue #6実装で判明した制約` 節の追記を含む）で以下の通りすべて反映済みであることを、Issue #41のパイロット実装時に確認した。
+
+- C-UNIT-01: `TriggerDefinition.eventType` 候補に `EffectApplied` が追加済み（`14_Catalog定義スキーマ.md` の `eventType 候補` 表）。
+- C-UNIT-02: `APPLY_COVER` / `APPLY_TARGET_REDIRECT` / `APPLY_REFLECT` / `APPLY_DEATH_SURVIVAL` / `EFFECT_IMMUNITY` の payload は例が整備済み。ただし `EVASION` は独立した `kind` ではなく `APPLY_STATUS` の `status: EVASION` として実装されている（`effect-action-definition.ts`）。
+- C-UNIT-03: `traits.exclusiveActivationGroupId` が実装済み（`skill-definition.ts`）。
+- C-UNIT-04: 「位置指定の authoring 規約」節が追加済み（`14_Catalog定義スキーマ.md`）。
+
+## パイロット実施結果 (Issue #41)
+
+対象10ユニット全ての全スキル（EX/AS/PS、計50スキル・125 EffectActionDefinition）を実際にv2 CatalogのJSON fixtureとして作成し、`src/infrastructure/catalog/__fixtures__/pilot-units/` に配置した。`loadCatalogFromDirectory`（Read→Hash→Shape→Resolve→Semantic→Freeze の全段）と `pnpm run validate-catalog` の両方で検証可能であることを確認済み（`src/infrastructure/catalog/catalog-pilot-units.test.ts`）。
+
+推奨順（エヴィ→リディア→ラウラ/ケイト→ステラ/カリナ/ハリエット/コトハ/フルート→鎧衣美琴）通りに変換ログを積み、`RANDOM_BRANCH`（`WEIGHTED_ONE`/`INDEPENDENT`）、`BRANCH` のネスト、`Marker`・`linkedEffectGroupId`、`APPLY_DEATH_SURVIVAL`、`RUNTIME_COUNTER` 条件、`APPLY_COVER`/`APPLY_TARGET_REDIRECT` の組み合わせなど、Catalog v2の主要な表現要素を一通り実地で確認できた。
+
+### 変換不能・要設計対応の項目（schema/Mapper不足）
+
+パイロット変換中に見つかった、現行Mapper（`src/domain/catalog/effect-action-definition.ts` ほか）では表現できずfixtureから省略した項目。フォローアップIssueで追跡する（後述）。
+
+| #    | 内容                                                                                                                                               | 影響ユニット・スキル                                                                                                                  | 詳細                                                                                                               |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| G-01 | `APPLY_HEALING_MOD`（回復量増減の被付与）が未実装                                                                                                  | エヴィ PS2 リカバリーブースト（回復量-20%）、リディア PS2 がんばるね、おにいちゃん（回復量-50%）、ラウラ PS1 整いサウナ（回復量-20%） | `EFFECT_ACTION_KINDS` に含まれず、Ajv enumレベルで拒否される                                                       |
+| G-02 | 継続ダメージ（DoT）を表す `EffectAction.kind` が存在しない（`APPLY_CONTINUOUS_HEAL` の対になる kind がない）                                       | ラウラ PS1（炎上）、カリナ EX フェイスストライク（行動時継続ダメージ）                                                                | `APPLY_CONTINUOUS_HEAL` はHEAL方向のみ。DAMAGE方向の継続効果を表すkindが未定義                                     |
+| G-03 | `ConditionDefinition` に生存ユニット数を直接比較するkindがない（`ALIVE_UNIT_COUNT_SCALE` はFormula側の倍率計算のみ）                               | ラウラ PS2 みんなと一緒！（自身以外の味方が0体なら不発）                                                                              | 発動可否のゲーティングにFormulaは使えない                                                                          |
+| G-04 | `REMOVE_EFFECTS`（効果解除）が未実装                                                                                                               | ステラ EX 極夜のマスカレード（自身のデバフを全解除）                                                                                  | `EFFECT_ACTION_KINDS` に含まれず拒否される                                                                         |
+| G-05 | リソース「獲得量」自体を増減させるModifierに相当するkindがない（`MODIFY_RESOURCE` は一回限りの加減算/設定のみ）                                    | カリナ PS2 包囲かんりょ～（1行動の間EXゲージ獲得量+50%）                                                                              | 将来の獲得イベントに掛かる倍率を表現できない                                                                       |
+| G-06 | `APPLY_STATUS`（特に `DAMAGE_IMMUNITY`）に、ダメージ量のしきい値で無効化可否を切り替えるフィールドがない                                           | ハリエット AS2 セイントバリア（現在HP35%超の攻撃のみ無効）                                                                            | payloadに条件付きしきい値を持たせる余地がない                                                                      |
+| G-07 | `APPLY_DAMAGE_MOD` に `condition` フィールドがなく、将来解決される対象の動的な相対比較（例: 対象HP割合が自身より低い場合のみ）を後から評価できない | コトハ PS2 起死回生（対象HP割合が自身より低い敵にのみ与ダメ+10%）                                                                     | Duration/StepレベルのconditionはEffectAction付与時に一度だけ評価されるため、対象ごとに変わる継続的な条件を持てない |
+| G-08 | `APPLY_SHIELD`（シールド付与）が未実装                                                                                                             | 鎧衣美琴 EX 飽和爆撃（攻撃力×45%のシールド）                                                                                          | `EFFECT_ACTION_KINDS` に含まれず拒否される（`14_Catalog定義スキーマ.md` の「Issue #6実装で判明した制約」で既知）   |
+| G-09 | `MODIFY_RESOURCE_CAPACITY`（最大リソース上限変更）が未実装                                                                                         | フルート PS1 イモータル・ヴァンパイア（最大APを1増やす）                                                                              | `EFFECT_ACTION_KINDS` に含まれず拒否される（同上、既知の制約）                                                     |
+
+G-08・G-09は `14_Catalog定義スキーマ.md`「Issue #6実装で判明した制約」で既に未実装と明記済みの項目が実際のunit変換で初めて具体的なユースケースにヒットした例。G-01〜G-07はIssue #41で新たに顕在化した不足。
+
+### 軽微な authoring 判断（ブロッカーではないが設計確認が望ましい）
+
+- `RuntimeCounterId` はCatalogファイル上で定義を持たず、`RUNTIME_COUNTER` condition から文字列IDで参照するのみ（`14_Catalog定義スキーマ.md`）。「戦闘中に1度しか発動しない」は `counter: "<SkillId>_ACTIVATIONS", op: LT, value: 1` という命名規約で表現したが、カウンタの増分（誰がいつ+1するか）を定義するCatalog上の仕組みがなく、Engine側の暗黙規約に依存する。鎧衣美琴PS1「累計で最大HP×10%のダメージ」も同様に、正規化済みの比率カウンタを前提とした近似表現になっている。
+- `TriggerDefinition.condition` の `EVENT_PAYLOAD.field` に使った `skillType` / `effectKind` / `status` は、`08_ドメインイベント.md` にイベントペイロードのフィールド名一覧がないため、Catalog側の推測で命名した。実装時にイベントペイロードの実フィールド名と突き合わせる必要がある。
+
+### フォローアップ
+
+上記 G-01〜G-09 は Issue #44「[Catalog] v2 EffectAction/Formula/Condition の未実装拡張を追加する」でトラッキングする。
+
 ## ユニット別変換メモ
 
 ### 【純真無垢なるジーニアス】リディア・エルドリッジ
