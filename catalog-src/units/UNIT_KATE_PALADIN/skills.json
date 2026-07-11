@@ -1,0 +1,322 @@
+[
+  {
+    "skillDefinitionId": "SKL_KATE_PALADIN_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_SINGLE_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_LOWEST_ALLY",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "RANDOM_BRANCH",
+          "mode": "WEIGHTED_ONE",
+          "branches": [
+            {
+              "weight": 1,
+              "label": "HIT5",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_SINGLE_ENEMY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_DAMAGE5" }]
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "label": "FREEZE",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_FREEZE" }]
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "label": "HEAL",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_ALL" }]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_ALLY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_EXTRA" }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_HEAL"],
+    "metadata": { "displayName": "聖剣『ディバインキャリバー』", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KATE_PALADIN_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE1" }]
+        },
+        {
+          "kind": "RANDOM_BRANCH",
+          "mode": "WEIGHTED_ONE",
+          "branches": [
+            {
+              "weight": 1,
+              "label": "EX_DOWN",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_EX_DOWN" }]
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "label": "DMG_DOWN",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN" }]
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "label": "SELF_HEAL",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_100" }]
+                }
+              ]
+            },
+            { "weight": 1, "label": "NONE", "steps": [] }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE2" }]
+        },
+        {
+          "kind": "RANDOM_BRANCH",
+          "mode": "WEIGHTED_ONE",
+          "branches": [
+            {
+              "weight": 1,
+              "label": "EX_DOWN",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_EX_DOWN" }]
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "label": "DMG_DOWN",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN" }]
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "label": "SELF_HEAL",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_20" }]
+                }
+              ]
+            },
+            { "weight": 1, "label": "NONE", "steps": [] }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 3 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_RANDOM_BRANCH",
+      "CAP_RESOURCE_MOD",
+      "CAP_DAMAGE_MOD",
+      "CAP_HEAL",
+      "CAP_FORMULA"
+    ],
+    "metadata": { "displayName": "祝福の斬撃", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KATE_PALADIN_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGHEST_ATK",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["HIGHEST_ATTACK"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "RANDOM_BRANCH",
+          "mode": "WEIGHTED_ONE",
+          "branches": [
+            {
+              "weight": 75,
+              "label": "ATTACK",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_DAMAGE" },
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_STUN_TARGET" }
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "label": "DEFENSIVE",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_DMG_DOWN" },
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_EVASION" },
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_STUN" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD", "CAP_HIT_COUNT_EVASION"],
+    "metadata": { "displayName": "聖剣の峰打ち", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KATE_PALADIN_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJ",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS3_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS3_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "聖騎士の威光", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KATE_PALADIN_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_PS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "metadata": { "displayName": "聖なる剣筋", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "effectKind", "op": "EQ", "value": "APPLY_STATUS" },
+            { "kind": "EVENT_PAYLOAD", "field": "status", "op": "EQ", "value": "FREEZE" }
+          ]
+        }
+      }
+    ]
+  }
+]

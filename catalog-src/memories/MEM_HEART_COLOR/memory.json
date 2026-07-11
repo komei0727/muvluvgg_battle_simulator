@@ -1,0 +1,44 @@
+{
+  "memoryDefinitionId": "MEM_HEART_COLOR",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_HEART_COLOR_FRONT_CRIT_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "targetFilter": { "kind": "ALL" },
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "RATIO",
+      "value": 0.1
+    }
+  ],
+  "requiredCapabilities": [],
+  "metadata": { "displayName": "心の色", "tags": [] }
+}

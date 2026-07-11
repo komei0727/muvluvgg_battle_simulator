@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_EVIE_ECO",
+  "attribute": "AGGRESSIVE",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 35783,
+    "attack": 16246,
+    "defense": 17061,
+    "criticalRate": 0.15,
+    "actionSpeed": 630,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 5,
+  "activeSkillDefinitionIds": ["SKL_EVIE_ECO_AS1", "SKL_EVIE_ECO_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_EVIE_ECO_PS1", "SKL_EVIE_ECO_PS2"],
+  "extraSkillDefinitionId": "SKL_EVIE_ECO_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【省エネ主義の天才ハッカー】エヴィ・レーナルト",
+    "characterName": "エヴィ・レーナルト",
+    "characterId": "CHAR_EVIE_RENALT"
+  }
+}

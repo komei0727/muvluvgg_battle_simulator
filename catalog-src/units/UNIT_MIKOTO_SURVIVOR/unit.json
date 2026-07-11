@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_MIKOTO_SURVIVOR",
+  "attribute": "AGGRESSIVE",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 27601,
+    "attack": 20328,
+    "defense": 11424,
+    "criticalRate": 0.25,
+    "actionSpeed": 830,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_AS1", "SKL_MIKOTO_SURVIVOR_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_PS1", "SKL_MIKOTO_SURVIVOR_PS2"],
+  "extraSkillDefinitionId": "SKL_MIKOTO_SURVIVOR_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【ナチュラルボーンサバイバー】鎧衣美琴",
+    "characterName": "鎧衣美琴",
+    "characterId": "CHAR_YOROI_MIKOTO"
+  }
+}

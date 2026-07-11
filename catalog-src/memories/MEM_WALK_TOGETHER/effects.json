@@ -1,0 +1,15 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MEM_WALK_TOGETHER_PHYSICAL_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CONSTANT", "value": 0.042 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  }
+]

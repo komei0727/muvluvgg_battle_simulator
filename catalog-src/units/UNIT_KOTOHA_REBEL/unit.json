@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_KOTOHA_REBEL",
+  "attribute": "CLEVER",
+  "unitType": "AGILE",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 28355,
+    "attack": 21130,
+    "defense": 12648,
+    "criticalRate": 0.2,
+    "actionSpeed": 680,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_KOTOHA_REBEL_AS1", "SKL_KOTOHA_REBEL_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_KOTOHA_REBEL_PS1", "SKL_KOTOHA_REBEL_PS2"],
+  "extraSkillDefinitionId": "SKL_KOTOHA_REBEL_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【世界への反逆者】コトハ",
+    "characterName": "コトハ",
+    "characterId": "CHAR_KOTOHA"
+  }
+}

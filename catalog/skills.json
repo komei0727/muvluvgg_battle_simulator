@@ -1,6 +1,630 @@
 [
   {
-    "skillDefinitionId": "SKL_EVIE_EX",
+    "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_AP_DOWN" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_EVASION" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_HIT_COUNT_EVASION"],
+    "metadata": { "displayName": "アクセプトラヴ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": false
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_ATK_UP" },
+                { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_CRIT_UP" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "スウィートクレイヴ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["BACK_ROW", "DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "ATTRIBUTE",
+            "op": "EQ",
+            "value": "SMART"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "オブセッションロケット", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS1_EVASION" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "displayName": "ブレイジングハート", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_NEAREST",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_EVASION" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "priorityAttack": true },
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_HIT_COUNT_EVASION"],
+    "metadata": { "displayName": "エモーショナルエッジ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TURN_NUMBER", "op": "GT", "value": 1 }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_MAZE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "Q.E.D", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_MAZE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "field": "HP_RATIO",
+            "op": "GTE",
+            "value": 0.8
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_DERIVED_TARGETS",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_EFFECT_CONDITION"
+    ],
+    "metadata": { "displayName": "Pスラスト", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_MAZE_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "多重連突", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_MAZE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "ポイズンチェイス", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "field": "ATTRIBUTE",
+              "op": "EQ",
+              "value": "SHY"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_MAZE_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "simultaneousActivationLimited": true },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "ポイズンライド", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "field": "UNIT_TYPE",
+              "op": "EQ",
+              "value": "AGILE"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_DOROTHEA_GRACE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_REMOVE_DEBUFFS" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": false
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_AP_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "ルミナグレイス", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_DOROTHEA_GRACE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.7
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_STUN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "ソーヴィニヨン", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_DOROTHEA_GRACE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS1_GUARD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "アイギスランバード", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_DOROTHEA_GRACE_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BACK_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+          }
+        },
+        {
+          "targetBindingId": "TGT_BACK_COMICAL",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [
+              { "kind": "POSITION_ROW", "row": "BACK" },
+              { "kind": "ATTRIBUTE", "attribute": "COMICAL" }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_DEF_UP" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_COMICAL" },
+          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_EX_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "グローリーコール", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnCompleting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "ALIVE_UNIT_COUNT",
+          "side": "ALLY",
+          "excludeSelf": false,
+          "op": "GTE",
+          "value": 4
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_DOROTHEA_GRACE_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_DEF_UP" },
+            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_EX_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "ブラッドオース", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitDefeated",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_ECO_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 5 },
     "resolution": {
@@ -16,8 +640,8 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_EVIE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_EVIE_EX_STUN" }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN" }
           ]
         }
       ]
@@ -28,7 +652,7 @@
     "metadata": { "displayName": "スタックオーバーフロー", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_EVIE_AS1",
+    "skillDefinitionId": "SKL_EVIE_ECO_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -44,8 +668,8 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_EVIE_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_EVIE_AS1_DEBUFF" }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DEBUFF" }
           ]
         }
       ]
@@ -56,7 +680,7 @@
     "metadata": { "displayName": "グリッチストライク", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_EVIE_AS2",
+    "skillDefinitionId": "SKL_EVIE_ECO_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -71,7 +695,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_AS2_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_ECO_AS2_DAMAGE" }]
         }
       ]
     },
@@ -81,7 +705,7 @@
     "metadata": { "displayName": "バニッシュ", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_EVIE_PS1",
+    "skillDefinitionId": "SKL_EVIE_ECO_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -92,8 +716,8 @@
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_EVIE_PS1_REDIRECT" },
-            { "effectActionDefinitionId": "ACT_EVIE_PS1_COVER" }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_REDIRECT" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_COVER" }
           ]
         }
       ]
@@ -117,7 +741,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_EVIE_PS2",
+    "skillDefinitionId": "SKL_EVIE_ECO_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -138,15 +762,15 @@
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_EVIE_PS2_HEAL" },
-            { "effectActionDefinitionId": "ACT_EVIE_PS2_DEF_UP_SELF" },
-            { "effectActionDefinitionId": "ACT_EVIE_PS2_ATK_DOWN_SELF" }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_SELF" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_ATK_DOWN_SELF" }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_PS2_DEF_UP_ROW" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_ROW" }]
         }
       ]
     },
@@ -172,7 +796,7 @@
             },
             {
               "kind": "RUNTIME_COUNTER",
-              "counter": "SKL_EVIE_PS2_ACTIVATIONS",
+              "counter": "SKL_EVIE_ECO_PS2_ACTIVATIONS",
               "op": "LT",
               "value": 1
             }
@@ -182,7 +806,392 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_FLUTE_EX",
+    "skillDefinitionId": "SKL_EVIE_KYONSHI_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DEBUFF" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_SELF_BUFF" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_PARTIAL_PIERCING", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "ナイトメア・キョンシー", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_KYONSHI_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_THREE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_KYONSHI_AS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "ゴーストハザード", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_KYONSHI_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_KYONSHI_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "ウォーキング・スペクター", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_KYONSHI_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_TWO",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 2, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_TWO" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_KYONSHI_PS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "アンデッドリベンジ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "CriticalCheckResolved",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_KYONSHI_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_KYONSHI_PS2_CRIT_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "ハロウィン・オブ・ザ・デッド", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FEE_ACTOR_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "幕間の微睡み", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_FEE_ACTOR_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJACENT",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_AP_DOWN" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "カーテンショット", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_FEE_ACTOR_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "TRIGGER_SOURCE" },
+            "field": "ATTRIBUTE",
+            "op": "EQ",
+            "value": "SHY"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_CRIT_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "simultaneousActivationLimited": true },
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "アタックアンプリファイ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FEE_ACTOR_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BACK_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+          }
+        },
+        {
+          "targetBindingId": "TGT_FRONT_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_UP" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_DOWN" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RUNTIME_COUNTER"],
+    "metadata": { "displayName": "ステージブースト", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_FEE_ACTOR_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FEE_ACTOR_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BACK_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_ATK_UP" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_SPEED_DOWN" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "ヴォイドアンプリファイ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "field": "POSITION_ROW",
+              "op": "EQ",
+              "value": "BACK"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
@@ -206,7 +1215,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_COLUMN" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_EX_DAMAGE_COLUMN" }]
         },
         {
           "kind": "BRANCH",
@@ -221,7 +1230,7 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_FOLLOWUP" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_EX_DAMAGE_FOLLOWUP" }]
             }
           ],
           "elseSteps": []
@@ -229,7 +1238,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_EX_SELF_HEAL" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_EX_SELF_HEAL" }]
         }
       ]
     },
@@ -244,7 +1253,7 @@
     "metadata": { "displayName": "＃ぽよ・オア・トリート", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_FLUTE_AS1",
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -259,7 +1268,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_AS1_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_AS1_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
@@ -272,7 +1281,7 @@
             {
               "kind": "ACTION",
               "target": { "kind": "SELF" },
-              "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_AS1_HP_COST" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_AS1_HP_COST" }]
             }
           ],
           "elseSteps": []
@@ -285,7 +1294,7 @@
     "metadata": { "displayName": "かぷっとファンサ", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_FLUTE_PS1",
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -296,10 +1305,10 @@
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_FLUTE_PS1_HEAL_FULL" },
-            { "effectActionDefinitionId": "ACT_FLUTE_PS1_MARKER" },
-            { "effectActionDefinitionId": "ACT_FLUTE_PS1_DMG_UP" },
-            { "effectActionDefinitionId": "ACT_FLUTE_PS1_MAX_AP_UP" }
+            { "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_HEAL_FULL" },
+            { "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_MARKER" },
+            { "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP" }
           ]
         }
       ]
@@ -332,7 +1341,7 @@
             },
             {
               "kind": "RUNTIME_COUNTER",
-              "counter": "SKL_FLUTE_PS1_ACTIVATIONS",
+              "counter": "SKL_FLUTE_VAMPIRE_PS1_ACTIVATIONS",
               "op": "LT",
               "value": 1
             }
@@ -342,7 +1351,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_FLUTE_PS2",
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -352,12 +1361,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_SOURCE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS2_COUNTER" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS2_COUNTER" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS2_EVASION" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS2_EVASION" }]
         }
       ]
     },
@@ -389,7 +1398,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_FLUTE_PS3",
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_PS3",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -404,12 +1413,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS3_DEBUFF" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS3_DEBUFF" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS3_DEATH_SURVIVAL" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS3_DEATH_SURVIVAL" }]
         }
       ]
     },
@@ -425,7 +1434,7 @@
         "targetSelector": "SELF",
         "condition": {
           "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_FLUTE_PS3_ACTIVATIONS",
+          "counter": "SKL_FLUTE_VAMPIRE_PS3_ACTIVATIONS",
           "op": "LT",
           "value": 1
         }
@@ -433,7 +1442,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_HARRIET_EX",
+    "skillDefinitionId": "SKL_HARRIET_SAGE_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
@@ -449,8 +1458,8 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_HARRIET_EX_HEAL" },
-            { "effectActionDefinitionId": "ACT_HARRIET_EX_CONTINUOUS_HEAL" }
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_HEAL" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_CONTINUOUS_HEAL" }
           ]
         }
       ]
@@ -461,7 +1470,7 @@
     "metadata": { "displayName": "治癒魔法『グレーターヒール』", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_HARRIET_AS1",
+    "skillDefinitionId": "SKL_HARRIET_SAGE_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -485,20 +1494,20 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_MARKER" },
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DMGDOWN" }
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN" }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_MARKER" },
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DMGDOWN" }
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN" }
           ]
         },
         {
@@ -514,8 +1523,8 @@
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
               "actions": [
-                { "effectActionDefinitionId": "ACT_HARRIET_AS1_PP_ZERO" },
-                { "effectActionDefinitionId": "ACT_HARRIET_AS1_REMOVE_CURSE" }
+                { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO" },
+                { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE" }
               ]
             }
           ],
@@ -534,8 +1543,8 @@
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
               "actions": [
-                { "effectActionDefinitionId": "ACT_HARRIET_AS1_PP_ZERO" },
-                { "effectActionDefinitionId": "ACT_HARRIET_AS1_REMOVE_CURSE" }
+                { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO" },
+                { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE" }
               ]
             }
           ],
@@ -556,7 +1565,7 @@
     "metadata": { "displayName": "攻撃魔法『ホーリーレイ』", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_HARRIET_AS2",
+    "skillDefinitionId": "SKL_HARRIET_SAGE_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -572,8 +1581,8 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_HARRIET_AS2_IMMUNITY" },
-            { "effectActionDefinitionId": "ACT_HARRIET_AS2_CONTINUOUS_HEAL" }
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS2_IMMUNITY" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL" }
           ]
         }
       ]
@@ -589,7 +1598,7 @@
     "metadata": { "displayName": "防御魔法『セイントバリア』", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_HARRIET_PS1",
+    "skillDefinitionId": "SKL_HARRIET_SAGE_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
@@ -618,12 +1627,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK" },
-          "actions": [{ "effectActionDefinitionId": "ACT_HARRIET_PS1_CONTINUOUS_HEAL" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT" },
-          "actions": [{ "effectActionDefinitionId": "ACT_HARRIET_PS1_CONTINUOUS_HEAL" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL" }]
         }
       ]
     },
@@ -641,7 +1650,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_HARRIET_PS2",
+    "skillDefinitionId": "SKL_HARRIET_SAGE_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -652,8 +1661,8 @@
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_HARRIET_PS2_AP_UP" },
-            { "effectActionDefinitionId": "ACT_HARRIET_PS2_SPEED_UP" }
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS2_AP_UP" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS2_SPEED_UP" }
           ]
         }
       ]
@@ -672,7 +1681,229 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_KARINA_EX",
+    "skillDefinitionId": "SKL_JUNKA_CHILDHOOD_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_EX_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_EX_SHIELD" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_SHIELD", "CAP_HIT_COUNT_EVASION"],
+    "metadata": { "displayName": "ドリルミルキィパンチ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_JUNKA_CHILDHOOD_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJACENT",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": true
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE_EXTRA" },
+                { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DEBUFF" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "なにするかーーー！！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_JUNKA_CHILDHOOD_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": false
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS2_AP_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "レバッ！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_JUNKA_CHILDHOOD_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_OTHER_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_ATK_UP_SELF" },
+            { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_DEF_UP_SELF" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_ATK_UP_OTHERS" },
+            { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_DEF_UP_OTHERS" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "まじ本気だすぞー！！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "SELF" },
+              "field": "HP_RATIO",
+              "op": "GTE",
+              "value": 0.6
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_JUNKA_CHILDHOOD_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS2_HEAL" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS2_CONTINUOUS_HEAL" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL"],
+    "metadata": { "displayName": "ぜ～～ったい負けないから！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_KARINA_DOWNER_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
@@ -696,18 +1927,18 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_KARINA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_EX_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_KARINA_EX_DOT" }
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_KARINA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_EX_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_KARINA_EX_DOT" }
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
           ]
         }
       ]
@@ -718,7 +1949,7 @@
     "metadata": { "displayName": "フェイスストライク", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KARINA_AS1",
+    "skillDefinitionId": "SKL_KARINA_DOWNER_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -734,8 +1965,8 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_KARINA_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_AS1_EX_DOWN" }
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_EX_DOWN" }
           ]
         }
       ]
@@ -746,7 +1977,7 @@
     "metadata": { "displayName": "とりしまり～", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KARINA_AS2",
+    "skillDefinitionId": "SKL_KARINA_DOWNER_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -762,8 +1993,8 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_KARINA_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_AS2_ATKDOWN" }
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_ATKDOWN" }
           ]
         }
       ]
@@ -774,7 +2005,7 @@
     "metadata": { "displayName": "弱点はそこかな？", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KARINA_PS1",
+    "skillDefinitionId": "SKL_KARINA_DOWNER_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -794,22 +2025,22 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_PS1_SELF_IMMUNITY" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_SELF_IMMUNITY" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_KARINA_PS1_MARK_ATTACKER" },
-            { "effectActionDefinitionId": "ACT_KARINA_PS1_ATTACKER_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_KARINA_PS1_REDIRECT" },
-            { "effectActionDefinitionId": "ACT_KARINA_PS1_COVER" }
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_MARK_ATTACKER" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_ATTACKER_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_REDIRECT" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_COVER" }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_PS1_BACKROW_ATKDOWN" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_BACKROW_ATKDOWN" }]
         }
       ]
     },
@@ -852,7 +2083,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_KARINA_PS2",
+    "skillDefinitionId": "SKL_KARINA_DOWNER_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -867,7 +2098,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_PS2_DEBUFF" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_DEBUFF" }]
         }
       ]
     },
@@ -885,7 +2116,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_KATE_EX",
+    "skillDefinitionId": "SKL_KATE_PALADIN_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
@@ -920,7 +2151,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_SINGLE_ENEMY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_EX_DAMAGE5" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_DAMAGE5" }]
                 }
               ]
             },
@@ -931,7 +2162,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_EX_FREEZE" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_FREEZE" }]
                 }
               ]
             },
@@ -942,12 +2173,12 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_EX_HEAL_ALL" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_ALL" }]
                 },
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_ALLY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_EX_HEAL_EXTRA" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_EXTRA" }]
                 }
               ]
             }
@@ -961,7 +2192,7 @@
     "metadata": { "displayName": "聖剣『ディバインキャリバー』", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KATE_AS1",
+    "skillDefinitionId": "SKL_KATE_PALADIN_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -976,7 +2207,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_DAMAGE1" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE1" }]
         },
         {
           "kind": "RANDOM_BRANCH",
@@ -989,7 +2220,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_EX_DOWN" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_EX_DOWN" }]
                 }
               ]
             },
@@ -1000,7 +2231,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_DMG_DOWN" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN" }]
                 }
               ]
             },
@@ -1011,7 +2242,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "SELF" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_SELF_HEAL_100" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_100" }]
                 }
               ]
             },
@@ -1021,7 +2252,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_DAMAGE2" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE2" }]
         },
         {
           "kind": "RANDOM_BRANCH",
@@ -1034,7 +2265,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_EX_DOWN" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_EX_DOWN" }]
                 }
               ]
             },
@@ -1045,7 +2276,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_DMG_DOWN" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN" }]
                 }
               ]
             },
@@ -1056,7 +2287,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "SELF" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS1_SELF_HEAL_20" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_20" }]
                 }
               ]
             },
@@ -1077,7 +2308,7 @@
     "metadata": { "displayName": "祝福の斬撃", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KATE_AS2",
+    "skillDefinitionId": "SKL_KATE_PALADIN_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1101,8 +2332,8 @@
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_KATE_AS2_DAMAGE" },
-                    { "effectActionDefinitionId": "ACT_KATE_AS2_STUN_TARGET" }
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_DAMAGE" },
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_STUN_TARGET" }
                   ]
                 }
               ]
@@ -1115,9 +2346,9 @@
                   "kind": "ACTION",
                   "target": { "kind": "SELF" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_KATE_AS2_SELF_DMG_DOWN" },
-                    { "effectActionDefinitionId": "ACT_KATE_AS2_SELF_EVASION" },
-                    { "effectActionDefinitionId": "ACT_KATE_AS2_SELF_STUN" }
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_DMG_DOWN" },
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_EVASION" },
+                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_STUN" }
                   ]
                 }
               ]
@@ -1132,7 +2363,7 @@
     "metadata": { "displayName": "聖剣の峰打ち", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KATE_AS3",
+    "skillDefinitionId": "SKL_KATE_PALADIN_AS3",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1155,12 +2386,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS3_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS3_DAMAGE" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KATE_AS3_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS3_DAMAGE" }]
         }
       ]
     },
@@ -1170,7 +2401,7 @@
     "metadata": { "displayName": "聖騎士の威光", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KATE_PS1",
+    "skillDefinitionId": "SKL_KATE_PALADIN_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
@@ -1180,7 +2411,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PS1_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_PS1_DAMAGE" }]
         }
       ]
     },
@@ -1205,7 +2436,192 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_KOTOHA_EX",
+    "skillDefinitionId": "SKL_KEI_JACKKNIFE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "突撃前衛", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KEI_JACKKNIFE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_THREE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_NEAREST",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJACENT",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE_ADJACENT" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_MARKER" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_MARKER"],
+    "metadata": { "displayName": "ウルフズショット", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KEI_JACKKNIFE_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_THREE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_ROUSHIN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE_BOOSTED" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "ウルフズスラッシュ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KEI_JACKKNIFE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_MAXHP_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RUNTIME_COUNTER"],
+    "metadata": { "displayName": "応急防御", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_KEI_JACKKNIFE_PS1_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_KEI_JACKKNIFE_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "勝機の直感", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_KOTOHA_REBEL_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
@@ -1245,14 +2661,14 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE_PIERCE" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE_PIERCE" }]
                 }
               ],
               "elseSteps": [
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE" }]
                 }
               ]
             }
@@ -1262,8 +2678,8 @@
               "kind": "ACTION",
               "target": { "kind": "SELF" },
               "actions": [
-                { "effectActionDefinitionId": "ACT_KOTOHA_EX_HEAL" },
-                { "effectActionDefinitionId": "ACT_KOTOHA_EX_CONTINUOUS_HEAL" }
+                { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_HEAL" },
+                { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_CONTINUOUS_HEAL" }
               ]
             }
           ]
@@ -1282,7 +2698,7 @@
     "metadata": { "displayName": "支配への反逆", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KOTOHA_AS1",
+    "skillDefinitionId": "SKL_KOTOHA_REBEL_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1306,17 +2722,17 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE1" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE1" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE2" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE2" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_AS1_MARKER" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_MARKER" }]
         }
       ]
     },
@@ -1326,7 +2742,7 @@
     "metadata": { "displayName": "快刀乱麻", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KOTOHA_AS2",
+    "skillDefinitionId": "SKL_KOTOHA_REBEL_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1341,7 +2757,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_AS2_ATK_UP" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_ATK_UP" }]
         },
         {
           "kind": "BRANCH",
@@ -1355,7 +2771,7 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_1HIT" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_1HIT" }]
             }
           ],
           "elseSteps": [
@@ -1371,7 +2787,7 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_2HIT" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_2HIT" }]
                 }
               ],
               "elseSteps": [
@@ -1388,8 +2804,8 @@
                       "kind": "ACTION",
                       "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                       "actions": [
-                        { "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT_BOOSTED" },
-                        { "effectActionDefinitionId": "ACT_KOTOHA_AS2_TARGET_DMG_DOWN" }
+                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED" },
+                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
                       ]
                     }
                   ],
@@ -1398,8 +2814,8 @@
                       "kind": "ACTION",
                       "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                       "actions": [
-                        { "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT" },
-                        { "effectActionDefinitionId": "ACT_KOTOHA_AS2_TARGET_DMG_DOWN" }
+                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT" },
+                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
                       ]
                     }
                   ]
@@ -1421,7 +2837,7 @@
     "metadata": { "displayName": "怒髪衝天", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_KOTOHA_PS1",
+    "skillDefinitionId": "SKL_KOTOHA_REBEL_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -1431,7 +2847,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_PS1_ATK_UP" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS1_ATK_UP" }]
         }
       ]
     },
@@ -1449,7 +2865,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_KOTOHA_PS2",
+    "skillDefinitionId": "SKL_KOTOHA_REBEL_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -1459,7 +2875,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_PS2_DEATH_SURVIVAL" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL" }]
         }
       ]
     },
@@ -1475,7 +2891,7 @@
         "targetSelector": "SELF",
         "condition": {
           "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_KOTOHA_PS2_ACTIVATIONS",
+          "counter": "SKL_KOTOHA_REBEL_PS2_ACTIVATIONS",
           "op": "LT",
           "value": 1
         }
@@ -1483,7 +2899,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_LAURA_EX",
+    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 8 },
     "resolution": {
@@ -1499,8 +2915,8 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_LAURA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_LAURA_EX_ATKDOWN" }
+            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN" }
           ]
         }
       ]
@@ -1511,7 +2927,7 @@
     "metadata": { "displayName": "ラウラＳＯＳ！", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_LAURA_AS1",
+    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1526,7 +2942,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_AS1_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_AS1_DAMAGE" }]
         }
       ]
     },
@@ -1536,7 +2952,7 @@
     "metadata": { "displayName": "落雷注意", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_LAURA_PS1",
+    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -1556,7 +2972,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_PS1_ATK_BUFF" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF" }]
         },
         {
           "kind": "RANDOM_BRANCH",
@@ -1570,8 +2986,8 @@
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_LAURA_PS1_BURN" },
-                    { "effectActionDefinitionId": "ACT_LAURA_PS1_BURN_HEALING_DOWN" }
+                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN" },
+                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN_HEALING_DOWN" }
                   ]
                 }
               ]
@@ -1590,14 +3006,14 @@
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_LAURA_PS1_ADJACENT_DAMAGE" },
-                    { "effectActionDefinitionId": "ACT_LAURA_PS1_ENEMY_DEBUFF" }
+                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ADJACENT_DAMAGE" },
+                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF" }
                   ]
                 },
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_LAURA_PS1_ENEMY_DEBUFF" }]
+                  "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF" }]
                 }
               ]
             }
@@ -1628,7 +3044,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_LAURA_PS2",
+    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -1639,8 +3055,8 @@
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_RATE" },
-            { "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_DMG" }
+            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_RATE" },
+            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_DMG" }
           ]
         }
       ]
@@ -1666,7 +3082,7 @@
     }
   },
   {
-    "skillDefinitionId": "SKL_LAURA_PS3",
+    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS3",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -1676,7 +3092,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_PS3_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE" }]
         }
       ]
     },
@@ -1695,7 +3111,196 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_LYDIA_EX",
+    "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_IMMUNITY" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_SPECIFIC_IMMUNITY"],
+    "metadata": { "displayName": "大儲けだー！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_CRIT_UP" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "field": "UNIT_TYPE",
+            "op": "EQ",
+            "value": "PHYSICAL"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE_EXTRA" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "フォーカススラスト", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "四連突", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_CRIT_UP" },
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RUNTIME_COUNTER"],
+    "metadata": { "displayName": "CRTフォーカス", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_LAYLA_ENTREPRENEUR_PS1_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": { "displayName": "ラッキー４！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "CriticalCheckResolved",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_GENIUS_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
@@ -1738,12 +3343,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMNS" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_COLUMN" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_BACKROW_CRIT" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT" }]
         }
       ]
     },
@@ -1757,7 +3362,7 @@
     "metadata": { "displayName": "リディアたいちょうのめいれい", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_LYDIA_AS1",
+    "skillDefinitionId": "SKL_LYDIA_GENIUS_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1785,12 +3390,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMNS" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_AS1_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_DAMAGE" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_AS1_SELF_BUFF" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_SELF_BUFF" }]
         }
       ]
     },
@@ -1800,7 +3405,7 @@
     "metadata": { "displayName": "ジャマしちゃ、めっ……だよ？", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_LYDIA_AS2",
+    "skillDefinitionId": "SKL_LYDIA_GENIUS_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1815,7 +3420,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE1" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE1" }]
         },
         {
           "kind": "BRANCH",
@@ -1831,8 +3436,8 @@
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
               "actions": [
-                { "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE2" },
-                { "effectActionDefinitionId": "ACT_LYDIA_AS2_DEBUFF" }
+                { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE2" },
+                { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DEBUFF" }
               ]
             }
           ],
@@ -1846,7 +3451,7 @@
     "metadata": { "displayName": "わるいこはおしおき", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_LYDIA_PS1",
+    "skillDefinitionId": "SKL_LYDIA_GENIUS_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -1861,7 +3466,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_PS1_SHIELD_BUFF" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS1_SHIELD_BUFF" }]
         }
       ]
     },
@@ -1880,7 +3485,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_LYDIA_PS2",
+    "skillDefinitionId": "SKL_LYDIA_GENIUS_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
@@ -1896,9 +3501,9 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_LYDIA_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_LYDIA_PS2_PP_DOWN" },
-            { "effectActionDefinitionId": "ACT_LYDIA_PS2_HEALING_DOWN" }
+            { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_PP_DOWN" },
+            { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_HEALING_DOWN" }
           ]
         }
       ]
@@ -1920,7 +3525,7 @@
         "targetSelector": "SELF",
         "condition": {
           "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_LYDIA_PS2_ACTIVATIONS",
+          "counter": "SKL_LYDIA_GENIUS_PS2_ACTIVATIONS",
           "op": "LT",
           "value": 1
         }
@@ -1928,7 +3533,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_MIKOTO_EX",
+    "skillDefinitionId": "SKL_MIKOTO_SURVIVOR_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 8 },
     "resolution": {
@@ -1948,14 +3553,14 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_EX_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_DAMAGE" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_MIKOTO_EX_CRIT_GUARANTEE" },
-            { "effectActionDefinitionId": "ACT_MIKOTO_EX_SHIELD" }
+            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE" },
+            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_SHIELD" }
           ]
         }
       ]
@@ -1966,7 +3571,7 @@
     "metadata": { "displayName": "飽和爆撃", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_MIKOTO_AS1",
+    "skillDefinitionId": "SKL_MIKOTO_SURVIVOR_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -1990,16 +3595,16 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_MIKOTO_AS1_DAMAGE_BASE" },
-            { "effectActionDefinitionId": "ACT_MIKOTO_AS1_DEFDOWN" }
+            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_BASE" },
+            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN" }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_MIKOTO_AS1_DAMAGE_ADJ" },
-            { "effectActionDefinitionId": "ACT_MIKOTO_AS1_DEFDOWN" }
+            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ" },
+            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN" }
           ]
         }
       ]
@@ -2010,7 +3615,7 @@
     "metadata": { "displayName": "制圧支援", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_MIKOTO_AS2",
+    "skillDefinitionId": "SKL_MIKOTO_SURVIVOR_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -2029,7 +3634,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_AS2_DAMAGE" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS2_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
@@ -2044,7 +3649,7 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-              "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_AS2_CRIT_UP" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS2_CRIT_UP" }]
             }
           ],
           "elseSteps": []
@@ -2057,7 +3662,7 @@
     "metadata": { "displayName": "点射", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_MIKOTO_PS1",
+    "skillDefinitionId": "SKL_MIKOTO_SURVIVOR_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -2083,22 +3688,22 @@
               "kind": "ACTION",
               "target": { "kind": "SELF" },
               "actions": [
-                { "effectActionDefinitionId": "ACT_MIKOTO_PS1_AP_DOWN" },
-                { "effectActionDefinitionId": "ACT_MIKOTO_PS1_EX_FULL" },
-                { "effectActionDefinitionId": "ACT_MIKOTO_PS1_ATK_UP" }
+                { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_AP_DOWN" },
+                { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_EX_FULL" },
+                { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_ATK_UP" }
               ]
             },
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
-              "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_PS1_ALLY_EX_UP" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_ALLY_EX_UP" }]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
               "target": { "kind": "SELF" },
-              "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_PS1_EX_FULL" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_EX_FULL" }]
             }
           ]
         }
@@ -2121,7 +3726,7 @@
         "targetSelector": "SELF",
         "condition": {
           "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_MIKOTO_PS1_CUMULATIVE_DAMAGE_RATIO",
+          "counter": "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
           "op": "GTE",
           "value": 0.1
         }
@@ -2129,7 +3734,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_MIKOTO_PS2",
+    "skillDefinitionId": "SKL_MIKOTO_SURVIVOR_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -2139,7 +3744,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_PS2_DMG_UP" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS2_DMG_UP" }]
         }
       ]
     },
@@ -2158,7 +3763,376 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_STELLA_EX",
+    "skillDefinitionId": "SKL_SAYA_BUNNY_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_NEAREST",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_OTHERS",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHERS" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE_EXTRA" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_MARKER" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_MARKER"],
+    "metadata": { "displayName": "バニー＆ベット", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_BUNNY_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT1" },
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DEBUFF" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_GOOD_LUCK"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2_BOOSTED" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 4 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "オッドイーブン", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_BUNNY_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_THREE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 3,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.6
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_CRIT_UP" }]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "ハイローベット", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_BUNNY_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS3_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "ストレートアップ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_BUNNY_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_UP" },
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_DMG_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "ジャックポット", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "CriticalCheckResolved",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_LONGING_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_BURN" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_HEAL" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA", "CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "乙女の高ぶり", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_LONGING_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_HEAL" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "UNIT_TYPE",
+            "op": "EQ",
+            "value": "ENERGY"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_PP_DOWN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "禅刃再生", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_LONGING_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_LONGING_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": { "displayName": "桜花の舞", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_LONGING_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_LONGING_PS1_DMG_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "鬼神活性", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnCompleting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TURN_NUMBER", "op": "GT", "value": 1 }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SAYA_LONGING_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SAYA_LONGING_PS2_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_SAYA_LONGING_PS2_CRIT_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": { "displayName": "茶鬼舞踏", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_STELLA_STATUE_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 8 },
     "resolution": {
@@ -2177,19 +4151,19 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_EX_EVASION" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_EVASION" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_EX_MARKER" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_MARKER" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_STELLA_EX_REMOVE_DEBUFFS" },
-            { "effectActionDefinitionId": "ACT_STELLA_EX_DEBUFF_IMMUNITY" }
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_REMOVE_DEBUFFS" },
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_DEBUFF_IMMUNITY" }
           ]
         }
       ]
@@ -2200,7 +4174,7 @@
     "metadata": { "displayName": "極夜のマスカレード", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_STELLA_AS1",
+    "skillDefinitionId": "SKL_STELLA_STATUE_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 2 },
     "resolution": {
@@ -2228,12 +4202,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_AS1_BLIND" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_BLIND" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_AS1_CRIT_UP" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_CRIT_UP" }]
         }
       ]
     },
@@ -2243,7 +4217,7 @@
     "metadata": { "displayName": "ブラックアウト・ラビリンス", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_STELLA_AS2",
+    "skillDefinitionId": "SKL_STELLA_STATUE_AS2",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
@@ -2266,21 +4240,21 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_STELLA_AS2_DAMAGE_BOOSTED" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE_BOOSTED" }]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_STELLA_AS2_DAMAGE" }]
+              "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE" }]
             }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_AS2_SELF_EVASION" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_SELF_EVASION" }]
         }
       ]
     },
@@ -2290,7 +4264,7 @@
     "metadata": { "displayName": "オーロラとの戯れ", "tags": [] }
   },
   {
-    "skillDefinitionId": "SKL_STELLA_PS1",
+    "skillDefinitionId": "SKL_STELLA_STATUE_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -2301,8 +4275,8 @@
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_TARGET" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_STELLA_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_STELLA_PS1_REMOVE_MARKER" }
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_REMOVE_MARKER" }
           ]
         }
       ]
@@ -2346,7 +4320,7 @@
     ]
   },
   {
-    "skillDefinitionId": "SKL_STELLA_PS2",
+    "skillDefinitionId": "SKL_STELLA_STATUE_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
@@ -2356,12 +4330,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_SOURCE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_PS2_COUNTER" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_COUNTER" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_PS2_HEAL" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_HEAL" }]
         }
       ]
     },
@@ -2378,6 +4352,355 @@
         "category": "FACT",
         "sourceSelector": "ENEMY",
         "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SUIRAN_CHAOS_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "ブラック・スタイル", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SUIRAN_CHAOS_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DEBUFF" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "一破能弾", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SUIRAN_CHAOS_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS1_EVASION" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": { "simultaneousActivationLimited": true },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "displayName": "代助一避", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SUIRAN_CHAOS_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_DEF_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "displayName": "再起律動", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "field": "HP_RATIO",
+          "op": "LTE",
+          "value": 0.5
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SUIRAN_CHAOS_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_CRIT_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "simultaneousActivationLimited": true },
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "追撃符", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_WILDCARD_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.4
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE_BOOSTED" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE" }]
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": false
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_AP_DOWN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_PARTIAL_PIERCING", "CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "びしょ濡れだねー！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_WILDCARD_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_BURN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "カオスキャノン", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_WILDCARD_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "マッドブレイドオーバーロード", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_WILDCARD_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_EX_UP" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_DEF_UP" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_SHIELD" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_SHIELD"],
+    "metadata": { "displayName": "アナーキーシールド", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitDefeated",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_WILDCARD_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_COUNTER" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_EX_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "フレンジーキャノン", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
   }

@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_LAURA_MOUNTAIN",
+  "attribute": "AGGRESSIVE",
+  "unitType": "PHYSICAL",
+  "role": "CONTROL",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 22367,
+    "attack": 24691,
+    "defense": 10170,
+    "criticalRate": 0.2,
+    "actionSpeed": 747,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_LAURA_MOUNTAIN_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_LAURA_MOUNTAIN_PS1",
+    "SKL_LAURA_MOUNTAIN_PS2",
+    "SKL_LAURA_MOUNTAIN_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_LAURA_MOUNTAIN_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【みんなを見守る山ガール】黒森ラウラ",
+    "characterName": "黒森ラウラ",
+    "characterId": "CHAR_KUROMORI_LAURA"
+  }
+}

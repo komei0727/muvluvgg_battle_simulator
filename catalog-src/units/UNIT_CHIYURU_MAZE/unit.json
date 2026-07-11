@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_CHIYURU_MAZE",
+  "attribute": "SHY",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 24403,
+    "attack": 23147,
+    "defense": 10558,
+    "criticalRate": 0.2,
+    "actionSpeed": 726,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_CHIYURU_MAZE_AS1", "SKL_CHIYURU_MAZE_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_CHIYURU_MAZE_PS1", "SKL_CHIYURU_MAZE_PS2"],
+  "extraSkillDefinitionId": "SKL_CHIYURU_MAZE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【博識なメイズの探求者】月ヶ瀬ちゆる",
+    "characterName": "月ヶ瀬ちゆる",
+    "characterId": "CHAR_CHIYURU_TSUKIGASE"
+  }
+}

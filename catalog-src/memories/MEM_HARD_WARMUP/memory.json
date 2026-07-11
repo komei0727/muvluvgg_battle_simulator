@@ -1,0 +1,66 @@
+{
+  "memoryDefinitionId": "MEM_HARD_WARMUP",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_HARD_WARMUP_FRONT_ATK_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_HARD_WARMUP_BACK_ATK_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "modifiers": [],
+  "requiredCapabilities": [],
+  "metadata": { "displayName": "ハードな準備運動……？", "tags": [] }
+}

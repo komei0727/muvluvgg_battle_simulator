@@ -1,6 +1,94 @@
 [
   {
-    "unitDefinitionId": "UNIT_EVIE",
+    "unitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
+    "attribute": "CUTE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 23561,
+      "attack": 21721,
+      "defense": 11371,
+      "criticalRate": 0.25,
+      "actionSpeed": 870,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_AS1", "SKL_ANIS_TROUBLEMAKER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_PS1", "SKL_ANIS_TROUBLEMAKER_PS2"],
+    "extraSkillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【愛を求めるトラブルメーカー】アニス・ベネット",
+      "characterName": "アニス・ベネット",
+      "characterId": "CHAR_ANIS_BENNETT"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_CHIYURU_MAZE",
+    "attribute": "SHY",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 24403,
+      "attack": 23147,
+      "defense": 10558,
+      "criticalRate": 0.2,
+      "actionSpeed": 726,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_CHIYURU_MAZE_AS1", "SKL_CHIYURU_MAZE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_CHIYURU_MAZE_PS1", "SKL_CHIYURU_MAZE_PS2"],
+    "extraSkillDefinitionId": "SKL_CHIYURU_MAZE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【博識なメイズの探求者】月ヶ瀬ちゆる",
+      "characterName": "月ヶ瀬ちゆる",
+      "characterId": "CHAR_CHIYURU_TSUKIGASE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_DOROTHEA_GRACE",
+    "attribute": "COMICAL",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 27600,
+      "attack": 23672,
+      "defense": 11830,
+      "criticalRate": 0.2,
+      "actionSpeed": 796,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_DOROTHEA_GRACE_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_DOROTHEA_GRACE_PS1",
+      "SKL_DOROTHEA_GRACE_PS2",
+      "SKL_DOROTHEA_GRACE_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_DOROTHEA_GRACE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【ノーブル・グレイス】ドロテア・カークランド",
+      "characterName": "ドロテア・カークランド",
+      "characterId": "CHAR_DOROTHEA_KIRKLAND"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_EVIE_ECO",
     "attribute": "AGGRESSIVE",
     "unitType": "PHYSICAL",
     "role": "TANK",
@@ -15,9 +103,9 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 5,
-    "activeSkillDefinitionIds": ["SKL_EVIE_AS1", "SKL_EVIE_AS2"],
-    "passiveSkillDefinitionIds": ["SKL_EVIE_PS1", "SKL_EVIE_PS2"],
-    "extraSkillDefinitionId": "SKL_EVIE_EX",
+    "activeSkillDefinitionIds": ["SKL_EVIE_ECO_AS1", "SKL_EVIE_ECO_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_EVIE_ECO_PS1", "SKL_EVIE_ECO_PS2"],
+    "extraSkillDefinitionId": "SKL_EVIE_ECO_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -28,7 +116,63 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_FLUTE",
+    "unitDefinitionId": "UNIT_EVIE_KYONSHI",
+    "attribute": "SHY",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 29518,
+      "attack": 20177,
+      "defense": 12262,
+      "criticalRate": 0.2,
+      "actionSpeed": 745,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_EVIE_KYONSHI_AS1", "SKL_EVIE_KYONSHI_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_EVIE_KYONSHI_PS1", "SKL_EVIE_KYONSHI_PS2"],
+    "extraSkillDefinitionId": "SKL_EVIE_KYONSHI_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【キョンシーハッカー】エヴィ・レーナルト",
+      "characterName": "エヴィ・レーナルト",
+      "characterId": "CHAR_EVIE_RENALT"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_FEE_ACTOR",
+    "attribute": "SHY",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 26111,
+      "attack": 23273,
+      "defense": 11476,
+      "criticalRate": 0.2,
+      "actionSpeed": 697,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_FEE_ACTOR_AS1"],
+    "passiveSkillDefinitionIds": ["SKL_FEE_ACTOR_PS1", "SKL_FEE_ACTOR_PS2", "SKL_FEE_ACTOR_PS3"],
+    "extraSkillDefinitionId": "SKL_FEE_ACTOR_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【空っぽのアクター】フィー・ドレーゼ",
+      "characterName": "フィー・ドレーゼ",
+      "characterId": "CHAR_FEE_DREZE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_FLUTE_VAMPIRE",
     "attribute": "SMART",
     "unitType": "AGILE",
     "role": "CONTROL",
@@ -43,9 +187,13 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 7,
-    "activeSkillDefinitionIds": ["SKL_FLUTE_AS1"],
-    "passiveSkillDefinitionIds": ["SKL_FLUTE_PS1", "SKL_FLUTE_PS2", "SKL_FLUTE_PS3"],
-    "extraSkillDefinitionId": "SKL_FLUTE_EX",
+    "activeSkillDefinitionIds": ["SKL_FLUTE_VAMPIRE_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_FLUTE_VAMPIRE_PS1",
+      "SKL_FLUTE_VAMPIRE_PS2",
+      "SKL_FLUTE_VAMPIRE_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_FLUTE_VAMPIRE_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -56,7 +204,7 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_HARRIET",
+    "unitDefinitionId": "UNIT_HARRIET_SAGE",
     "attribute": "SMART",
     "unitType": "ENERGY",
     "role": "SUPPORT",
@@ -71,9 +219,9 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 7,
-    "activeSkillDefinitionIds": ["SKL_HARRIET_AS1", "SKL_HARRIET_AS2"],
-    "passiveSkillDefinitionIds": ["SKL_HARRIET_PS1", "SKL_HARRIET_PS2"],
-    "extraSkillDefinitionId": "SKL_HARRIET_EX",
+    "activeSkillDefinitionIds": ["SKL_HARRIET_SAGE_AS1", "SKL_HARRIET_SAGE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_HARRIET_SAGE_PS1", "SKL_HARRIET_SAGE_PS2"],
+    "extraSkillDefinitionId": "SKL_HARRIET_SAGE_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -84,7 +232,35 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_KARINA",
+    "unitDefinitionId": "UNIT_JUNKA_CHILDHOOD",
+    "attribute": "CUTE",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 33315,
+      "attack": 19724,
+      "defense": 11576,
+      "criticalRate": 0.2,
+      "actionSpeed": 715,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_AS1", "SKL_JUNKA_CHILDHOOD_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_PS1", "SKL_JUNKA_CHILDHOOD_PS2"],
+    "extraSkillDefinitionId": "SKL_JUNKA_CHILDHOOD_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【唯一無二の幼なじみ】鑑純夏",
+      "characterName": "鑑純夏",
+      "characterId": "CHAR_JUNKA_KAGAMI"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_KARINA_DOWNER",
     "attribute": "SMART",
     "unitType": "PHYSICAL",
     "role": "SUPPORT",
@@ -99,9 +275,9 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 7,
-    "activeSkillDefinitionIds": ["SKL_KARINA_AS1", "SKL_KARINA_AS2"],
-    "passiveSkillDefinitionIds": ["SKL_KARINA_PS1", "SKL_KARINA_PS2"],
-    "extraSkillDefinitionId": "SKL_KARINA_EX",
+    "activeSkillDefinitionIds": ["SKL_KARINA_DOWNER_AS1", "SKL_KARINA_DOWNER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_KARINA_DOWNER_PS1", "SKL_KARINA_DOWNER_PS2"],
+    "extraSkillDefinitionId": "SKL_KARINA_DOWNER_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -112,7 +288,7 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_KATE",
+    "unitDefinitionId": "UNIT_KATE_PALADIN",
     "attribute": "CUTE",
     "unitType": "ENERGY",
     "role": "EN_ATTACKER",
@@ -127,9 +303,13 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 7,
-    "activeSkillDefinitionIds": ["SKL_KATE_AS1", "SKL_KATE_AS2", "SKL_KATE_AS3"],
-    "passiveSkillDefinitionIds": ["SKL_KATE_PS1"],
-    "extraSkillDefinitionId": "SKL_KATE_EX",
+    "activeSkillDefinitionIds": [
+      "SKL_KATE_PALADIN_AS1",
+      "SKL_KATE_PALADIN_AS2",
+      "SKL_KATE_PALADIN_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_KATE_PALADIN_PS1"],
+    "extraSkillDefinitionId": "SKL_KATE_PALADIN_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -140,7 +320,35 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_KOTOHA",
+    "unitDefinitionId": "UNIT_KEI_JACKKNIFE",
+    "attribute": "SMART",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 33623,
+      "attack": 17679,
+      "defense": 12777,
+      "criticalRate": 0.2,
+      "actionSpeed": 725,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_AS1", "SKL_KEI_JACKKNIFE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_PS1", "SKL_KEI_JACKKNIFE_PS2"],
+    "extraSkillDefinitionId": "SKL_KEI_JACKKNIFE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【無邪気なジャックナイフ】彩峰慧",
+      "characterName": "彩峰慧",
+      "characterId": "CHAR_KEI_AYAMINE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_KOTOHA_REBEL",
     "attribute": "CLEVER",
     "unitType": "AGILE",
     "role": "PHYSICAL_ATTACKER",
@@ -155,9 +363,9 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 7,
-    "activeSkillDefinitionIds": ["SKL_KOTOHA_AS1", "SKL_KOTOHA_AS2"],
-    "passiveSkillDefinitionIds": ["SKL_KOTOHA_PS1", "SKL_KOTOHA_PS2"],
-    "extraSkillDefinitionId": "SKL_KOTOHA_EX",
+    "activeSkillDefinitionIds": ["SKL_KOTOHA_REBEL_AS1", "SKL_KOTOHA_REBEL_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_KOTOHA_REBEL_PS1", "SKL_KOTOHA_REBEL_PS2"],
+    "extraSkillDefinitionId": "SKL_KOTOHA_REBEL_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -168,7 +376,7 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_LAURA",
+    "unitDefinitionId": "UNIT_LAURA_MOUNTAIN",
     "attribute": "AGGRESSIVE",
     "unitType": "PHYSICAL",
     "role": "CONTROL",
@@ -183,9 +391,13 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 8,
-    "activeSkillDefinitionIds": ["SKL_LAURA_AS1"],
-    "passiveSkillDefinitionIds": ["SKL_LAURA_PS1", "SKL_LAURA_PS2", "SKL_LAURA_PS3"],
-    "extraSkillDefinitionId": "SKL_LAURA_EX",
+    "activeSkillDefinitionIds": ["SKL_LAURA_MOUNTAIN_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_LAURA_MOUNTAIN_PS1",
+      "SKL_LAURA_MOUNTAIN_PS2",
+      "SKL_LAURA_MOUNTAIN_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_LAURA_MOUNTAIN_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -196,7 +408,35 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_LYDIA",
+    "unitDefinitionId": "UNIT_LAYLA_ENTREPRENEUR",
+    "attribute": "AGGRESSIVE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 26111,
+      "attack": 20006,
+      "defense": 11995,
+      "criticalRate": 0.25,
+      "actionSpeed": 866,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_AS1", "SKL_LAYLA_ENTREPRENEUR_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_PS1", "SKL_LAYLA_ENTREPRENEUR_PS2"],
+    "extraSkillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【戦うアントレプレナー】レイラ・ジェンキンス",
+      "characterName": "レイラ・ジェンキンス",
+      "characterId": "CHAR_LAYLA_JENKINS"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_LYDIA_GENIUS",
     "attribute": "COMICAL",
     "unitType": "AGILE",
     "role": "CONTROL",
@@ -211,9 +451,9 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 7,
-    "activeSkillDefinitionIds": ["SKL_LYDIA_AS1", "SKL_LYDIA_AS2"],
-    "passiveSkillDefinitionIds": ["SKL_LYDIA_PS1", "SKL_LYDIA_PS2"],
-    "extraSkillDefinitionId": "SKL_LYDIA_EX",
+    "activeSkillDefinitionIds": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_LYDIA_GENIUS_PS1", "SKL_LYDIA_GENIUS_PS2"],
+    "extraSkillDefinitionId": "SKL_LYDIA_GENIUS_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -224,7 +464,7 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_MIKOTO",
+    "unitDefinitionId": "UNIT_MIKOTO_SURVIVOR",
     "attribute": "AGGRESSIVE",
     "unitType": "AGILE",
     "role": "CONTROL",
@@ -239,9 +479,9 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 8,
-    "activeSkillDefinitionIds": ["SKL_MIKOTO_AS1", "SKL_MIKOTO_AS2"],
-    "passiveSkillDefinitionIds": ["SKL_MIKOTO_PS1", "SKL_MIKOTO_PS2"],
-    "extraSkillDefinitionId": "SKL_MIKOTO_EX",
+    "activeSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_AS1", "SKL_MIKOTO_SURVIVOR_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_PS1", "SKL_MIKOTO_SURVIVOR_PS2"],
+    "extraSkillDefinitionId": "SKL_MIKOTO_SURVIVOR_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -252,7 +492,63 @@
     }
   },
   {
-    "unitDefinitionId": "UNIT_STELLA",
+    "unitDefinitionId": "UNIT_SAYA_BUNNY",
+    "attribute": "AGGRESSIVE",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 32279,
+      "attack": 19147,
+      "defense": 16348,
+      "criticalRate": 0.2,
+      "actionSpeed": 777,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_SAYA_BUNNY_AS1", "SKL_SAYA_BUNNY_AS2", "SKL_SAYA_BUNNY_AS3"],
+    "passiveSkillDefinitionIds": ["SKL_SAYA_BUNNY_PS1"],
+    "extraSkillDefinitionId": "SKL_SAYA_BUNNY_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【発情バニー】紫雲沙耶",
+      "characterName": "紫雲沙耶",
+      "characterId": "CHAR_SAYA_SHIUN"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SAYA_LONGING",
+    "attribute": "SMART",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 26967,
+      "attack": 23671,
+      "defense": 10694,
+      "criticalRate": 0.2,
+      "actionSpeed": 802,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_SAYA_LONGING_AS1", "SKL_SAYA_LONGING_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SAYA_LONGING_PS1", "SKL_SAYA_LONGING_PS2"],
+    "extraSkillDefinitionId": "SKL_SAYA_LONGING_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【渇望秘めし淑女】紫雲沙耶",
+      "characterName": "紫雲沙耶",
+      "characterId": "CHAR_SAYA_SHIUN"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_STELLA_STATUE",
     "attribute": "SHY",
     "unitType": "AGILE",
     "role": "CONTROL",
@@ -267,9 +563,9 @@
       "maximumPp": 4
     },
     "extraGaugeMaximum": 8,
-    "activeSkillDefinitionIds": ["SKL_STELLA_AS1", "SKL_STELLA_AS2"],
-    "passiveSkillDefinitionIds": ["SKL_STELLA_PS1", "SKL_STELLA_PS2"],
-    "extraSkillDefinitionId": "SKL_STELLA_EX",
+    "activeSkillDefinitionIds": ["SKL_STELLA_STATUE_AS1", "SKL_STELLA_STATUE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_STELLA_STATUE_PS1", "SKL_STELLA_STATUE_PS2"],
+    "extraSkillDefinitionId": "SKL_STELLA_STATUE_EX",
     "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
@@ -277,6 +573,66 @@
       "displayName": "【スタチュービューティー】ステラ・ブレーメル",
       "characterName": "ステラ・ブレーメル",
       "characterId": "CHAR_STELLA_BREMER"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SUIRAN_CHAOS",
+    "attribute": "AGGRESSIVE",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 32260,
+      "attack": 18710,
+      "defense": 17502,
+      "criticalRate": 0.15,
+      "actionSpeed": 651,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_SUIRAN_CHAOS_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_SUIRAN_CHAOS_PS1",
+      "SKL_SUIRAN_CHAOS_PS2",
+      "SKL_SUIRAN_CHAOS_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_SUIRAN_CHAOS_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【混沌の立役者】劉翠蘭",
+      "characterName": "劉翠蘭",
+      "characterId": "CHAR_SUIRAN_LIU"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_YURIA_WILDCARD",
+    "attribute": "SMART",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32278,
+      "attack": 18329,
+      "defense": 12625,
+      "criticalRate": 0.2,
+      "actionSpeed": 712,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_YURIA_WILDCARD_AS1", "SKL_YURIA_WILDCARD_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_YURIA_WILDCARD_PS1", "SKL_YURIA_WILDCARD_PS2"],
+    "extraSkillDefinitionId": "SKL_YURIA_WILDCARD_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【享楽のワイルドカード】ユリア・バーンズ",
+      "characterName": "ユリア・バーンズ",
+      "characterId": "CHAR_YURIA_BURNES"
     }
   }
 ]

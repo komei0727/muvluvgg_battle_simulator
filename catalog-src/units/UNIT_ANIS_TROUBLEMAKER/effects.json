@@ -1,0 +1,143 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.506 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_AP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      },
+      "probability": 1,
+      "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.4618 },
+      "hitCount": 4
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.3 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.7068 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS1_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      },
+      "probability": 1,
+      "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.008 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "CRITICAL_PREVENTION",
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
+      "probability": 1
+    },
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      },
+      "probability": 1,
+      "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "tags": [] }
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SAYA_LONGING",
+  "attribute": "SMART",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 26967,
+    "attack": 23671,
+    "defense": 10694,
+    "criticalRate": 0.2,
+    "actionSpeed": 802,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_SAYA_LONGING_AS1", "SKL_SAYA_LONGING_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SAYA_LONGING_PS1", "SKL_SAYA_LONGING_PS2"],
+  "extraSkillDefinitionId": "SKL_SAYA_LONGING_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【渇望秘めし淑女】紫雲沙耶",
+    "characterName": "紫雲沙耶",
+    "characterId": "CHAR_SAYA_SHIUN"
+  }
+}

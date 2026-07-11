@@ -1,0 +1,215 @@
+[
+  {
+    "skillDefinitionId": "SKL_KARINA_DOWNER_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJ",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "フェイスストライク", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KARINA_DOWNER_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_EX_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_MARKER_STACK_FORMULA", "CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "とりしまり～", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KARINA_DOWNER_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FARTHEST",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_ATKDOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "弱点はそこかな？", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KARINA_DOWNER_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BACK_ROW",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_SELF_IMMUNITY" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_MARK_ATTACKER" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_ATTACKER_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_REDIRECT" },
+            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_COVER" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_BACKROW_ATKDOWN" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "simultaneousActivationLimited": true },
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_TARGET_REDIRECT",
+      "CAP_COVER_DAMAGE",
+      "CAP_ADVANCED_PASSIVE_TRIGGER",
+      "CAP_EFFECT_CONDITION"
+    ],
+    "metadata": { "displayName": "風紀委員会の管轄だよ～", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "field": "POSITION_ROW",
+              "op": "EQ",
+              "value": "BACK"
+            },
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "SELF" },
+              "field": "HP_RATIO",
+              "op": "GTE",
+              "value": 0.4
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_KARINA_DOWNER_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_DEBUFF" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "metadata": { "displayName": "包囲かんりょ～", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnCompleting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]

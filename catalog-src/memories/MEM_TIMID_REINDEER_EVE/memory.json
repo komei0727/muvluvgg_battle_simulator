@@ -1,0 +1,46 @@
+{
+  "memoryDefinitionId": "MEM_TIMID_REINDEER_EVE",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_TIMID_REINDEER_EVE_BACK_CRIT_DMG_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "targetFilter": { "kind": "ALL" },
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "value": 0.05
+    }
+  ],
+  "requiredCapabilities": [],
+  "metadata": { "displayName": "臆病トナカイの聖夜", "tags": [] }
+}
