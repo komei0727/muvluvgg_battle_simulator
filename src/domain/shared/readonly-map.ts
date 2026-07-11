@@ -23,7 +23,9 @@ export function toReadonlyMap<K, V>(map: ReadonlyMap<K, V>): ReadonlyMap<K, V> {
       return snapshot.has(key);
     },
     forEach(callback: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown): void {
-      snapshot.forEach((value, key) => callback(value, key, this), thisArg);
+      snapshot.forEach((value, key) => {
+        callback.call(thisArg, value, key, this);
+      });
     },
     keys() {
       return snapshot.keys();

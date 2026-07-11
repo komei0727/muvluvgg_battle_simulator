@@ -36,6 +36,16 @@ describe("toReadonlyMap", () => {
     expect(calls).toEqual([[1, "a", true]]);
   });
 
+  it("UT-SHARED-ROMAP-003b: forEach binds the callback's `this` to thisArg, like Map.prototype.forEach", () => {
+    const wrapped = toReadonlyMap(new Map([["a", 1]]));
+    const ctx = { label: "ctx" };
+    const seenThis: unknown[] = [];
+    wrapped.forEach(function (this: unknown) {
+      seenThis.push(this);
+    }, ctx);
+    expect(seenThis).toEqual([ctx]);
+  });
+
   it("UT-SHARED-ROMAP-004: exposes no mutating methods even when cast to Map", () => {
     const wrapped: object = toReadonlyMap(new Map([["a", 1]]));
     expect("set" in wrapped).toBe(false);
