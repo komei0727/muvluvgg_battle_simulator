@@ -15,6 +15,8 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 代表10ユニットは Issue #41 / #46 で production Catalog（`catalog-src/units/`）へ昇格済み。本Issue #47 では「先行バッチ」として指定された12ユニット・6 Memory を同水準（`unit.json`/`skills.json`/`effects.json` フル変換）で追加した。残りは本Issueの棚卸し対象として一覧化するのみで、後続バッチ（追って起票するIssue）で変換する。
 
+`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・32）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（22ユニット・6メモリー）のみを `src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
+
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 
 ## Unit 変換台帳
