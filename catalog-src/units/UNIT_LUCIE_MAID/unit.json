@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_LUCIE_MAID",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32015,
+    "attack": 20227,
+    "defense": 10428,
+    "criticalRate": 0.2,
+    "actionSpeed": 740,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_LUCIE_MAID_AS1", "SKL_LUCIE_MAID_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_LUCIE_MAID_PS1", "SKL_LUCIE_MAID_PS2"],
+  "extraSkillDefinitionId": "SKL_LUCIE_MAID_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【忠義の狂犬メイド】リュシー・ムーアクロフト",
+    "characterName": "リュシー・ムーアクロフト",
+    "characterId": "CHAR_LUCIE_MOORCROFT"
+  }
+}

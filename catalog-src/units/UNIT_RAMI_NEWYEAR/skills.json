@@ -1,0 +1,214 @@
+[
+  {
+    "skillDefinitionId": "SKL_RAMI_NEWYEAR_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_NEAREST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST", "FRONT_ROW", "LEFT_TO_RIGHT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ADJ",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "ど～こ見てんのよ♪", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_NEWYEAR_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_AS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "破魔砲", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_NEWYEAR_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_AS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_AS2_DMG_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "厄除け祈願", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_NEWYEAR_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_AS3_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "必勝祈願", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_NEWYEAR_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "SELF" },
+      "field": "HP_RATIO",
+      "op": "GT",
+      "value": 0.5
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_PS1_DMG_UP" }]
+        },
+        {
+          "kind": "RANDOM_BRANCH",
+          "mode": "WEIGHTED_ONE",
+          "branches": [
+            { "label": "DAIKICHI", "weight": 10, "steps": [] },
+            { "label": "CHUKICHI", "weight": 20, "steps": [] },
+            {
+              "label": "SHOKICHI",
+              "weight": 30,
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_PS1_ATK_UP_10" }]
+                }
+              ]
+            },
+            {
+              "label": "SUEKICHI",
+              "weight": 40,
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_PS1_ATK_UP_5" }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "おみくじ運試し", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  }
+]

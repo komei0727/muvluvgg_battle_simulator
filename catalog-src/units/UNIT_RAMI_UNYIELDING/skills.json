@@ -1,0 +1,202 @@
+[
+  {
+    "skillDefinitionId": "SKL_RAMI_UNYIELDING_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_HEAL" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": false
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_ENEMY_DMG_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_DERIVED_TARGETS",
+      "CAP_HEAL",
+      "CAP_FORMULA",
+      "CAP_EFFECT_CONDITION",
+      "CAP_DAMAGE_MOD"
+    ],
+    "metadata": { "displayName": "あっかんべー♡", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_UNYIELDING_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_AS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "クライシスドライブ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_UNYIELDING_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS1_SHIELD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 99 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_RUNTIME_COUNTER"],
+    "metadata": { "displayName": "緊急防壁", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "SELF" },
+              "field": "HP_RATIO",
+              "op": "LTE",
+              "value": 0.3
+            },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_RAMI_UNYIELDING_PS1_ACTIVATIONS",
+              "op": "LT",
+              "value": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_UNYIELDING_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL" },
+            { "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_SPEED_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 6 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": { "displayName": "まだ終わんないけど？", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_UNYIELDING_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS3_DMG_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "ブーストトリガー", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  }
+]

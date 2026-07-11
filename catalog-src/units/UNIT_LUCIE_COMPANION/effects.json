@@ -1,0 +1,140 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_DAMAGE_IMMUNITY",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "DAMAGE_IMMUNITY",
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.35 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_POISON",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.2 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_HEAL_FROM_DAMAGE",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "LAST_DAMAGE_DEALT",
+        "ratio": 0.35
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_HEAL_MAXHP",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS2_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.55 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.65 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL_UP",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "BATTLE", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL_DOWN",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": { "kind": "CONSTANT", "value": -0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "BATTLE", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_DAMAGE",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 0.1
+      },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "tags": [] }
+  }
+]

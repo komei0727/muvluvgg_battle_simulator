@@ -1,0 +1,258 @@
+[
+  {
+    "skillDefinitionId": "SKL_MERU_FLATSPIN_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_HP",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO", "FRONT_ROW", "LEFT_TO_RIGHT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_EX_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": true
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_EX_DAMAGE_EXTRA" }]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": false
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_EX_GAUGE_FULL" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_FORMULA", "CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "新たなる力", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_FLATSPIN_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGHEST_ATK",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK", "FRONT_ROW", "LEFT_TO_RIGHT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_AP_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "フラットスピン", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_FLATSPIN_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "OR",
+            "conditions": [
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "STUN"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "FREEZE"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "BLIND"
+              }
+            ]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS2_DAMAGE_EXTRA" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "スカイドライヴ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_FLATSPIN_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS3_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "OR",
+            "conditions": [
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "STUN"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "FREEZE"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "BLIND"
+              }
+            ]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS3_DMG_DOWN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "ハードラッシュ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_FLATSPIN_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_PS1_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_PS1_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_PS1_DEBUFF_IMMUNITY" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "超集中", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  }
+]

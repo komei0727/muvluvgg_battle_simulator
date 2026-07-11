@@ -1,0 +1,117 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.546 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.3 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 2 }, "dispellable": true }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_DEBUFF_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 2 }, "dispellable": true },
+      "maxBlocks": null
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.9076 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": -150 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_STUN",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true },
+      "probability": 1
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.404 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_AS2_DAMAGE_EXTRA",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.624 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_PS1_GUARD",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CONSTANT", "value": -0.75 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.696 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_PP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "PP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  }
+]

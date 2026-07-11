@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_LUCIE_COMPANION",
+  "attribute": "SMART",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 28045,
+    "attack": 21590,
+    "defense": 10952,
+    "criticalRate": 0.2,
+    "actionSpeed": 650,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": [
+    "SKL_LUCIE_COMPANION_AS1",
+    "SKL_LUCIE_COMPANION_AS2",
+    "SKL_LUCIE_COMPANION_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_LUCIE_COMPANION_PS1"],
+  "extraSkillDefinitionId": "SKL_LUCIE_COMPANION_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【連れ添い歩む傍らの友】リュシー・ムーアクロフト",
+    "characterName": "リュシー・ムーアクロフト",
+    "characterId": "CHAR_LUCIE_MOORCROFT"
+  }
+}

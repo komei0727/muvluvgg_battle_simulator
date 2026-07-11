@@ -720,6 +720,66 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_LUCIE_COMPANION",
+    "attribute": "SMART",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 28045,
+      "attack": 21590,
+      "defense": 10952,
+      "criticalRate": 0.2,
+      "actionSpeed": 650,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": [
+      "SKL_LUCIE_COMPANION_AS1",
+      "SKL_LUCIE_COMPANION_AS2",
+      "SKL_LUCIE_COMPANION_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_LUCIE_COMPANION_PS1"],
+    "extraSkillDefinitionId": "SKL_LUCIE_COMPANION_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【連れ添い歩む傍らの友】リュシー・ムーアクロフト",
+      "characterName": "リュシー・ムーアクロフト",
+      "characterId": "CHAR_LUCIE_MOORCROFT"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_LUCIE_MAID",
+    "attribute": "SHY",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32015,
+      "attack": 20227,
+      "defense": 10428,
+      "criticalRate": 0.2,
+      "actionSpeed": 740,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_LUCIE_MAID_AS1", "SKL_LUCIE_MAID_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_LUCIE_MAID_PS1", "SKL_LUCIE_MAID_PS2"],
+    "extraSkillDefinitionId": "SKL_LUCIE_MAID_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【忠義の狂犬メイド】リュシー・ムーアクロフト",
+      "characterName": "リュシー・ムーアクロフト",
+      "characterId": "CHAR_LUCIE_MOORCROFT"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_LYDIA_GENIUS",
     "attribute": "COMICAL",
     "unitType": "AGILE",
@@ -809,6 +869,66 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_MERU_FLATSPIN",
+    "attribute": "COMICAL",
+    "unitType": "AGILE",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 27704,
+      "attack": 24421,
+      "defense": 10410,
+      "criticalRate": 0.15,
+      "actionSpeed": 724,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": [
+      "SKL_MERU_FLATSPIN_AS1",
+      "SKL_MERU_FLATSPIN_AS2",
+      "SKL_MERU_FLATSPIN_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_MERU_FLATSPIN_PS1"],
+    "extraSkillDefinitionId": "SKL_MERU_FLATSPIN_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【蒼き穹舞うフラットスピン】桃園める",
+      "characterName": "桃園める",
+      "characterId": "CHAR_MERU_MOMOZONO"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_MERU_SIRIUS",
+    "attribute": "AGGRESSIVE",
+    "unitType": "AGILE",
+    "role": "SUPPORT",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 24403,
+      "attack": 23147,
+      "defense": 10428,
+      "criticalRate": 0.2,
+      "actionSpeed": 761,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_MERU_SIRIUS_AS1", "SKL_MERU_SIRIUS_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MERU_SIRIUS_PS1", "SKL_MERU_SIRIUS_PS2"],
+    "extraSkillDefinitionId": "SKL_MERU_SIRIUS_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【シリウスシュガーのエース】桃園める",
+      "characterName": "桃園める",
+      "characterId": "CHAR_MERU_MOMOZONO"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MIKOTO_SURVIVOR",
     "attribute": "AGGRESSIVE",
     "unitType": "AGILE",
@@ -834,6 +954,70 @@
       "displayName": "【ナチュラルボーンサバイバー】鎧衣美琴",
       "characterName": "鎧衣美琴",
       "characterId": "CHAR_YOROI_MIKOTO"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_RAMI_NEWYEAR",
+    "attribute": "CUTE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 30225,
+      "attack": 21735,
+      "defense": 11607,
+      "criticalRate": 0.2,
+      "actionSpeed": 746,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": [
+      "SKL_RAMI_NEWYEAR_AS1",
+      "SKL_RAMI_NEWYEAR_AS2",
+      "SKL_RAMI_NEWYEAR_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_RAMI_NEWYEAR_PS1"],
+    "extraSkillDefinitionId": "SKL_RAMI_NEWYEAR_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【大吉ハッピーニューイヤー】朽葉ラミ",
+      "characterName": "朽葉ラミ",
+      "characterId": "CHAR_RAMI_KUZUHA"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_RAMI_UNYIELDING",
+    "attribute": "SHY",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 24848,
+      "attack": 22542,
+      "defense": 10428,
+      "criticalRate": 0.2,
+      "actionSpeed": 750,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_RAMI_UNYIELDING_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_RAMI_UNYIELDING_PS1",
+      "SKL_RAMI_UNYIELDING_PS2",
+      "SKL_RAMI_UNYIELDING_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_RAMI_UNYIELDING_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【負けず嫌いな不屈少女】朽葉ラミ",
+      "characterName": "朽葉ラミ",
+      "characterId": "CHAR_RAMI_KUZUHA"
     }
   },
   {
@@ -946,6 +1130,62 @@
       "displayName": "【期待応える輝きの穹】一条白奈",
       "characterName": "一条白奈",
       "characterId": "CHAR_SHIRANA_ICHIJO"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SIENA_DIVA",
+    "attribute": "SHY",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 30205,
+      "attack": 22040,
+      "defense": 11218,
+      "criticalRate": 0.2,
+      "actionSpeed": 752,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_SIENA_DIVA_AS1", "SKL_SIENA_DIVA_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SIENA_DIVA_PS1", "SKL_SIENA_DIVA_PS2"],
+    "extraSkillDefinitionId": "SKL_SIENA_DIVA_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク",
+      "characterName": "シエナ・クラーク",
+      "characterId": "CHAR_SIENA_CLARK"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SIENA_OFFSTAGE",
+    "attribute": "SMART",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 23987,
+      "attack": 24686,
+      "defense": 11218,
+      "criticalRate": 0.2,
+      "actionSpeed": 642,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_AS1", "SKL_SIENA_OFFSTAGE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_PS1", "SKL_SIENA_OFFSTAGE_PS2"],
+    "extraSkillDefinitionId": "SKL_SIENA_OFFSTAGE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【舞台を降りた元歌姫】シエナ・クラーク",
+      "characterName": "シエナ・クラーク",
+      "characterId": "CHAR_SIENA_CLARK"
     }
   },
   {

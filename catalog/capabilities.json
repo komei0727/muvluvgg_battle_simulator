@@ -12,6 +12,12 @@
     "requiredBy": []
   },
   {
+    "capabilityId": "CAP_CHARGE_RESTRICTION",
+    "status": "PLANNED",
+    "description": "チャージ中の回避/PS制限",
+    "requiredBy": []
+  },
+  {
     "capabilityId": "CAP_COMPLEX_EXPIRATION",
     "status": "PLANNED",
     "description": "複雑な失効条件",

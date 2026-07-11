@@ -1,0 +1,197 @@
+[
+  {
+    "skillDefinitionId": "SKL_SIENA_OFFSTAGE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_LOWEST_HP",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO", "FRONT_ROW", "LEFT_TO_RIGHT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_EX_DAMAGE_EXTRA" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_EX_DMG_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "ヴィヴァーチェ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SIENA_OFFSTAGE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "CHARGE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_AS1_CHARGE_MARKER" }]
+        }
+      ],
+      "chargeRelease": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ENEMIES",
+            "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_AS1_DAMAGE" }]
+          }
+        ]
+      }
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_CHARGE_RESTRICTION"],
+    "metadata": { "displayName": "リリカルブラスト", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SIENA_OFFSTAGE_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_HP",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO", "FRONT_ROW", "LEFT_TO_RIGHT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "アリアエナジー", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SIENA_OFFSTAGE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_PS1_CRIT_DOWN" },
+            { "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_PS1_EX_DOWN" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+            "field": "UNIT_TYPE",
+            "op": "EQ",
+            "value": "PHYSICAL"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_PS1_DMG_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "スウィートルミナ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SIENA_OFFSTAGE_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_PS2_SPEED_UP" },
+            { "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_PS2_DMG_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "シンフォニックドロップ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  }
+]

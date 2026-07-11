@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_MERU_SIRIUS",
+  "attribute": "AGGRESSIVE",
+  "unitType": "AGILE",
+  "role": "SUPPORT",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 24403,
+    "attack": 23147,
+    "defense": 10428,
+    "criticalRate": 0.2,
+    "actionSpeed": 761,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_MERU_SIRIUS_AS1", "SKL_MERU_SIRIUS_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MERU_SIRIUS_PS1", "SKL_MERU_SIRIUS_PS2"],
+  "extraSkillDefinitionId": "SKL_MERU_SIRIUS_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【シリウスシュガーのエース】桃園める",
+    "characterName": "桃園める",
+    "characterId": "CHAR_MERU_MOMOZONO"
+  }
+}

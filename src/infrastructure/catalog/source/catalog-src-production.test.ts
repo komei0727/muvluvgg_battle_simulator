@@ -83,6 +83,15 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_SHIRANA_SORA",
         "UNIT_CLARA_TSUNDERE",
         "UNIT_CLARA_SANTA",
+        // Issue #57 Batch C（所属/チーム系候補8件）
+        "UNIT_MERU_SIRIUS",
+        "UNIT_MERU_FLATSPIN",
+        "UNIT_SIENA_DIVA",
+        "UNIT_SIENA_OFFSTAGE",
+        "UNIT_LUCIE_MAID",
+        "UNIT_LUCIE_COMPANION",
+        "UNIT_RAMI_NEWYEAR",
+        "UNIT_RAMI_UNYIELDING",
       ].sort(),
     );
   });

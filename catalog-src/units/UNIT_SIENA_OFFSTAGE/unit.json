@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SIENA_OFFSTAGE",
+  "attribute": "SMART",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 23987,
+    "attack": 24686,
+    "defense": 11218,
+    "criticalRate": 0.2,
+    "actionSpeed": 642,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_AS1", "SKL_SIENA_OFFSTAGE_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_PS1", "SKL_SIENA_OFFSTAGE_PS2"],
+  "extraSkillDefinitionId": "SKL_SIENA_OFFSTAGE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【舞台を降りた元歌姫】シエナ・クラーク",
+    "characterName": "シエナ・クラーク",
+    "characterId": "CHAR_SIENA_CLARK"
+  }
+}
