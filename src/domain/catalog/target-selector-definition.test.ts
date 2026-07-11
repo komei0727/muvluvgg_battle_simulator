@@ -255,4 +255,25 @@ describe("TargetSelectorDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-TSEL-019: rejects a stale count on a non-SELECT selector (SELF)", () => {
+    expect(() =>
+      createTargetSelectorDefinition({ kind: "SELF", count: 1 }, "selector", undefined),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-TSEL-020: rejects a stale count on a non-SELECT selector (TRIGGER_SOURCE)", () => {
+    expect(() =>
+      createTargetSelectorDefinition({ kind: "TRIGGER_SOURCE", count: 1 }, "selector", undefined),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-TSEL-021: still allows side to co-occur with a non-SELECT kind", () => {
+    const result = createTargetSelectorDefinition(
+      { kind: "TRIGGER_SOURCE", side: "ALLY" },
+      "selector",
+      undefined,
+    );
+    expect(result.side).toBe("ALLY");
+  });
 });

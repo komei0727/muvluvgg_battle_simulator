@@ -38,4 +38,20 @@ describe("References", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-REF-006: rejects a stale targetBindingId on a non-BINDING TargetReference", () => {
+    expect(() =>
+      createTargetReference({ kind: "SELF", targetBindingId: "TGT_UNUSED" }, "ref", undefined),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-REF-007: rejects a stale targetBindingId on a non-BINDING FormulaSourceReference", () => {
+    expect(() =>
+      createFormulaSourceReference(
+        { kind: "TARGET", targetBindingId: "TGT_UNUSED" },
+        "ref",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

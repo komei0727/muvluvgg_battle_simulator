@@ -65,6 +65,12 @@ export function createTargetReference(
     checkBindingScope(targetBindingId, scope, `${path}.targetBindingId`);
     return { kind: input.kind, targetBindingId };
   }
+  if (input.targetBindingId !== undefined) {
+    throw new DomainValidationError(
+      `${path}.targetBindingId`,
+      `must not be set when kind is "${input.kind}" (only valid when kind is BINDING)`,
+    );
+  }
   return { kind: input.kind };
 }
 
@@ -104,6 +110,12 @@ export function createFormulaSourceReference(
     const targetBindingId = createTargetBindingId(input.targetBindingId, `${path}.targetBindingId`);
     checkBindingScope(targetBindingId, scope, `${path}.targetBindingId`);
     return { kind: input.kind, targetBindingId };
+  }
+  if (input.targetBindingId !== undefined) {
+    throw new DomainValidationError(
+      `${path}.targetBindingId`,
+      `must not be set when kind is "${input.kind}" (only valid when kind is BINDING)`,
+    );
   }
   return { kind: input.kind };
 }

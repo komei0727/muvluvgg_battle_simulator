@@ -333,4 +333,32 @@ describe("Catalog v2 definition mapper", () => {
     };
     expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
   });
+
+  it("UT-INFRA-MAP-025: raises DomainValidationError for a stale targetBindingId on a non-BINDING TargetReference inside a step's target", () => {
+    const invalidSkill = {
+      ...skillDto,
+      resolution: {
+        ...skillDto.resolution,
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "SELF", targetBindingId: "TGT_UNUSED" },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
+          },
+        ],
+      },
+    };
+    expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
+  });
+
+  it("UT-INFRA-MAP-026: raises DomainValidationError for a stale count on a non-SELECT targetBinding selector", () => {
+    const invalidSkill = {
+      ...skillDto,
+      resolution: {
+        ...skillDto.resolution,
+        targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector: { kind: "SELF", count: 1 } }],
+      },
+    };
+    expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
+  });
 });

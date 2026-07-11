@@ -401,9 +401,17 @@ export function createTargetSelectorDefinition(
       }
     }
     result.count = input.count;
-  } else if (input.side !== undefined) {
-    assertEnumValue(input.side, SIDES, `${path}.side`);
-    result.side = input.side;
+  } else {
+    if (input.count !== undefined) {
+      throw new DomainValidationError(
+        `${path}.count`,
+        `must not be set when kind is "${input.kind}" (only valid when kind is SELECT)`,
+      );
+    }
+    if (input.side !== undefined) {
+      assertEnumValue(input.side, SIDES, `${path}.side`);
+      result.side = input.side;
+    }
   }
 
   if (input.kind === "BINDING_DERIVED") {
