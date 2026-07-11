@@ -1,0 +1,235 @@
+[
+  {
+    "skillDefinitionId": "SKL_LYDIA_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_COLUMNS",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "OR",
+                "conditions": [
+                  { "kind": "POSITION_COLUMN", "column": "RIGHT" },
+                  { "kind": "POSITION_COLUMN", "column": "LEFT" }
+                ]
+              }
+            ],
+            "fallback": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": 1,
+              "order": ["NEAREST", "FRONT_ROW", "LEFT_TO_RIGHT"]
+            }
+          }
+        },
+        {
+          "targetBindingId": "TGT_BACK_ROW",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMNS" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_COLUMN" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_BACKROW_CRIT" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_ADVANCED_TARGETING",
+      "CAP_TARGET_FALLBACK",
+      "CAP_CRITICAL_CONTROL"
+    ],
+    "metadata": { "displayName": "リディアたいちょうのめいれい", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_COLUMNS",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "OR",
+                "conditions": [
+                  { "kind": "POSITION_COLUMN", "column": "RIGHT" },
+                  { "kind": "POSITION_COLUMN", "column": "LEFT" }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMNS" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_AS1_SELF_BUFF" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_ADVANCED_TARGETING", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "ジャマしちゃ、めっ……だよ？", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE1" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": true
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE2" },
+                { "effectActionDefinitionId": "ACT_LYDIA_AS2_DEBUFF" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "わるいこはおしおき", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_PS1_SHIELD_BUFF" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "metadata": { "displayName": "みんなをおたすけ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FARTHEST",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LYDIA_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LYDIA_PS2_PP_DOWN" },
+            { "effectActionDefinitionId": "ACT_LYDIA_PS2_HEALING_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "priorityAttack": true },
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MOD",
+      "CAP_RUNTIME_COUNTER",
+      "CAP_ADVANCED_PASSIVE_TRIGGER",
+      "CAP_HEAL"
+    ],
+    "metadata": { "displayName": "がんばるね、おにいちゃん", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_LYDIA_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ]
+  }
+]

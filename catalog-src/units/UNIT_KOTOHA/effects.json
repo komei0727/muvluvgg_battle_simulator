@@ -1,0 +1,174 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 4.664 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE_PIERCE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 4.664 },
+      "piercing": { "defenseIgnoreRate": 0.2, "shieldIgnoreRate": 0.2 }
+    },
+    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.135 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE1",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.014 },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE2",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.546 },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FUNDO",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_1HIT",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.872 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_2HIT",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.248 },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.014 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.014 },
+      "hitCount": 3,
+      "damageModifiers": [{ "kind": "CONSTANT", "value": 0.5 }]
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_TARGET_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_PS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_PS2_DEATH_SURVIVAL",
+    "kind": "APPLY_DEATH_SURVIVAL",
+    "payload": {
+      "trigger": { "lethalDamageOnly": true },
+      "survivalHp": { "kind": "CONSTANT", "value": 1 },
+      "healAfterSurvival": {
+        "kind": "MAX_HP_RATIO",
+        "source": { "kind": "TARGET" },
+        "ratio": 0.65
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "consumption": { "kind": "LETHAL_DAMAGE", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": { "tags": [] }
+  }
+]

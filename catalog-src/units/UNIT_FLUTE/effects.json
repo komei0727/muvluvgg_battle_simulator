@@ -1,0 +1,146 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_COLUMN",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.014 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_FOLLOWUP",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.468 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_EX_SELF_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.6 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_AS1_HP_COST",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.25 },
+      "critical": { "mode": "PREVENTED" },
+      "accuracy": { "mode": "GUARANTEED" },
+      "piercing": { "defenseIgnoreRate": 1, "shieldIgnoreRate": 1, "damageReductionIgnoreRate": 1 }
+    },
+    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_HEAL_FULL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 1 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_KYOKUGEN",
+      "stack": { "policy": "ADD", "max": 1 },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS2_COUNTER",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS2_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "HIT_EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      },
+      "probability": 1
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS3_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS3_DEATH_SURVIVAL",
+    "kind": "APPLY_DEATH_SURVIVAL",
+    "payload": {
+      "trigger": { "lethalDamageOnly": true },
+      "survivalHp": { "kind": "CONSTANT", "value": 1 },
+      "healAfterSurvival": null,
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "consumption": { "kind": "LETHAL_DAMAGE", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_MAX_AP_UP",
+    "kind": "MODIFY_RESOURCE_CAPACITY",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_CAPACITY_MOD"],
+    "metadata": { "tags": [] }
+  }
+]

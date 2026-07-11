@@ -1,0 +1,178 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_EX_HEAL",
+    "kind": "HEAL",
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.5 }, "overheal": "DISCARD" },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_EX_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_CURSE",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_ATKDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_DMGDOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_PP_ZERO",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "PP",
+      "operation": "SET",
+      "formula": { "kind": "CONSTANT", "value": 0 }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_REMOVE_CURSE",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_CURSE" },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS2_IMMUNITY",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "DAMAGE_IMMUNITY",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 },
+        "linkedEffectGroupId": "HARRIET_BARRIER"
+      },
+      "damageThreshold": {
+        "op": "GT",
+        "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 }
+      }
+    },
+    "requiredCapabilities": [
+      "CAP_SPECIFIC_IMMUNITY",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_COMPLEX_EXPIRATION"
+    ],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS2_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.135 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "HARRIET_BARRIER"
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_PS1_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.105 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1 },
+        "expiration": {
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "SELF" },
+              "field": "IS_ALIVE",
+              "op": "EQ",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_PS2_AP_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_PS2_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 100 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  }
+]
