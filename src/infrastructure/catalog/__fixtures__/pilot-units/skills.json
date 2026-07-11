@@ -639,6 +639,9 @@
             },
             {
               "effectActionDefinitionId": "ACT_LYDIA_PS2_PP_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_LYDIA_PS2_HEALING_DOWN"
             }
           ]
         }
@@ -654,7 +657,8 @@
     "requiredCapabilities": [
       "CAP_RESOURCE_MOD",
       "CAP_RUNTIME_COUNTER",
-      "CAP_ADVANCED_PASSIVE_TRIGGER"
+      "CAP_ADVANCED_PASSIVE_TRIGGER",
+      "CAP_HEAL"
     ],
     "metadata": {
       "displayName": "がんばるね、おにいちゃん",
@@ -817,8 +821,24 @@
           "branches": [
             {
               "probability": 0.6,
-              "label": "BURN_UNCONVERTIBLE",
-              "steps": []
+              "label": "BURN",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_AS_TARGET"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_LAURA_PS1_BURN"
+                    },
+                    {
+                      "effectActionDefinitionId": "ACT_LAURA_PS1_BURN_HEALING_DOWN"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
@@ -873,7 +893,9 @@
       "CAP_RANDOM_BRANCH",
       "CAP_DAMAGE_MOD",
       "CAP_DERIVED_TARGETS",
-      "CAP_ADVANCED_PASSIVE_TRIGGER"
+      "CAP_ADVANCED_PASSIVE_TRIGGER",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_HEAL"
     ],
     "metadata": {
       "displayName": "整いサウナ",
@@ -938,7 +960,14 @@
         "sourceSelector": "SELF",
         "targetSelector": "SELF"
       }
-    ]
+    ],
+    "activationCondition": {
+      "kind": "ALIVE_UNIT_COUNT",
+      "side": "ALLY",
+      "excludeSelf": true,
+      "op": "GT",
+      "value": 0
+    }
   },
   {
     "skillDefinitionId": "SKL_LAURA_PS3",
@@ -1047,6 +1076,9 @@
             "kind": "SELF"
           },
           "actions": [
+            {
+              "effectActionDefinitionId": "ACT_STELLA_EX_REMOVE_DEBUFFS"
+            },
             {
               "effectActionDefinitionId": "ACT_STELLA_EX_DEBUFF_IMMUNITY"
             }
@@ -1408,6 +1440,9 @@
             },
             {
               "effectActionDefinitionId": "ACT_KARINA_EX_ATKDOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_KARINA_EX_DOT"
             }
           ]
         },
@@ -1423,6 +1458,9 @@
             },
             {
               "effectActionDefinitionId": "ACT_KARINA_EX_ATKDOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_KARINA_EX_DOT"
             }
           ]
         }
@@ -1433,7 +1471,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "displayName": "フェイスストライク",
       "tags": []
@@ -2590,6 +2628,9 @@
           "actions": [
             {
               "effectActionDefinitionId": "ACT_MIKOTO_EX_CRIT_GUARANTEE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MIKOTO_EX_SHIELD"
             }
           ]
         }
@@ -3660,6 +3701,9 @@
             },
             {
               "effectActionDefinitionId": "ACT_FLUTE_PS1_DMG_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_PS1_MAX_AP_UP"
             }
           ]
         }
@@ -3670,7 +3714,13 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_MARKER",
+      "CAP_DAMAGE_MOD",
+      "CAP_RUNTIME_COUNTER",
+      "CAP_RESOURCE_CAPACITY_MOD"
+    ],
     "metadata": {
       "displayName": "イモータル・ヴァンパイア",
       "tags": []

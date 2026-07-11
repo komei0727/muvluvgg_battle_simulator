@@ -18,6 +18,12 @@
     "requiredBy": []
   },
   {
+    "capabilityId": "CAP_CONTINUOUS_DAMAGE",
+    "status": "PLANNED",
+    "description": "継続ダメージ(DoT)",
+    "requiredBy": []
+  },
+  {
     "capabilityId": "CAP_CONTINUOUS_HEAL",
     "status": "PLANNED",
     "description": "継続回復",
@@ -105,6 +111,12 @@
     "capabilityId": "CAP_RESOLUTION_BRANCH",
     "status": "PLANNED",
     "description": "Resolution分岐",
+    "requiredBy": []
+  },
+  {
+    "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",
+    "status": "PLANNED",
+    "description": "最大APなどの上限変更",
     "requiredBy": []
   },
   {

@@ -31,12 +31,12 @@ describe("EffectActionDefinition", () => {
     });
   });
 
-  it("UT-CAT-ACT-002: rejects an unsupported (undocumented-payload) kind such as APPLY_SHIELD", () => {
+  it("UT-CAT-ACT-002: rejects an unsupported (undocumented-payload) kind such as APPLY_DAMAGE_LINK", () => {
     expect(() =>
       createEffectActionDefinition(
         {
-          effectActionDefinitionId: "ACT_SHIELD_1",
-          kind: "APPLY_SHIELD",
+          effectActionDefinitionId: "ACT_LINK_1",
+          kind: "APPLY_DAMAGE_LINK",
           payload: {},
           requiredCapabilities: [],
         },
@@ -940,6 +940,302 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             maxBlocks: null,
             typoField: true,
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  // --- Issue #44 G-01: APPLY_HEALING_MOD ---
+
+  it("UT-CAT-ACT-042: maps APPLY_HEALING_MOD reducing incoming healing by a fixed ratio", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_HEALING_MOD_1",
+        kind: "APPLY_HEALING_MOD",
+        payload: {
+          direction: "INCOMING",
+          formula: { kind: "CONSTANT", value: -0.2 },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
+        },
+        requiredCapabilities: ["CAP_HEAL"],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_HEALING_MOD");
+    if (result.kind === "APPLY_HEALING_MOD") {
+      expect(result.payload.direction).toBe("INCOMING");
+      expect(result.payload.formula).toEqual({ kind: "CONSTANT", value: -0.2 });
+    }
+  });
+
+  it("UT-CAT-ACT-043: rejects APPLY_HEALING_MOD with an unknown direction", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_HEALING_MOD_1",
+          kind: "APPLY_HEALING_MOD",
+          payload: {
+            direction: "SIDEWAYS",
+            formula: { kind: "CONSTANT", value: -0.2 },
+            stacking: { mode: "STACKABLE" },
+            duration: {},
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  // --- Issue #44 G-02: APPLY_CONTINUOUS_DAMAGE ---
+
+  it("UT-CAT-ACT-044: maps APPLY_CONTINUOUS_DAMAGE (DoT) ticking on ActionStarted", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_BURN_1",
+        kind: "APPLY_CONTINUOUS_DAMAGE",
+        payload: {
+          damageType: "PHYSICAL",
+          formula: {
+            kind: "STAT_RATIO",
+            source: { kind: "SKILL_SOURCE" },
+            stat: "ATTACK",
+            ratio: 0.3,
+          },
+          timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+          duration: { timeLimit: { unit: "ACTION", count: 1 } },
+        },
+        requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_CONTINUOUS_DAMAGE");
+    if (result.kind === "APPLY_CONTINUOUS_DAMAGE") {
+      expect(result.payload.damageType).toBe("PHYSICAL");
+      expect(result.payload.timing).toEqual({
+        eventType: "ActionStarted",
+        targetSelector: "EFFECT_OWNER",
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-045: rejects APPLY_CONTINUOUS_DAMAGE with an unknown damageType", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_BURN_1",
+          kind: "APPLY_CONTINUOUS_DAMAGE",
+          payload: {
+            damageType: "FIRE",
+            formula: { kind: "CONSTANT", value: 1 },
+            timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+            duration: {},
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  // --- Issue #44 G-04: REMOVE_EFFECTS ---
+
+  it("UT-CAT-ACT-046: maps REMOVE_EFFECTS clearing every DEBUFF category", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_REMOVE_DEBUFFS",
+        kind: "REMOVE_EFFECTS",
+        payload: { categories: ["DEBUFF"] },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result).toMatchObject({
+      kind: "REMOVE_EFFECTS",
+      payload: { categories: ["DEBUFF"] },
+    });
+  });
+
+  it("UT-CAT-ACT-047: maps REMOVE_EFFECTS with SPECIFIC_EFFECT and effectActionDefinitionIds", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_REMOVE_SPECIFIC",
+        kind: "REMOVE_EFFECTS",
+        payload: {
+          categories: ["SPECIFIC_EFFECT"],
+          effectActionDefinitionIds: ["ACT_MARKER_CURSE_DEBUFF"],
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("REMOVE_EFFECTS");
+    if (result.kind === "REMOVE_EFFECTS") {
+      expect(result.payload.effectActionDefinitionIds).toEqual(["ACT_MARKER_CURSE_DEBUFF"]);
+    }
+  });
+
+  it("UT-CAT-ACT-048: rejects REMOVE_EFFECTS with SPECIFIC_EFFECT but no effectActionDefinitionIds", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_SPECIFIC",
+          kind: "REMOVE_EFFECTS",
+          payload: { categories: ["SPECIFIC_EFFECT"] },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-049: rejects REMOVE_EFFECTS with an empty categories array", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_1",
+          kind: "REMOVE_EFFECTS",
+          payload: { categories: [] },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  // --- Issue #44 G-06: APPLY_STATUS.damageThreshold ---
+
+  it("UT-CAT-ACT-050: maps APPLY_STATUS DAMAGE_IMMUNITY with a damageThreshold (only large hits are nullified)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_BARRIER_1",
+        kind: "APPLY_STATUS",
+        payload: {
+          status: "DAMAGE_IMMUNITY",
+          duration: {
+            timeLimit: { unit: "ACTION", count: 2 },
+            consumption: { kind: "INCOMING_HIT", maxCount: 2 },
+          },
+          damageThreshold: {
+            op: "GT",
+            formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
+          },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_STATUS");
+    if (result.kind === "APPLY_STATUS") {
+      expect(result.payload.damageThreshold).toEqual({
+        op: "GT",
+        formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-051: rejects APPLY_STATUS damageThreshold with an unknown op", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_BARRIER_1",
+          kind: "APPLY_STATUS",
+          payload: {
+            status: "DAMAGE_IMMUNITY",
+            duration: {},
+            damageThreshold: { op: "ALMOST", formula: { kind: "CONSTANT", value: 0.35 } },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  // --- Issue #44 G-08: APPLY_SHIELD ---
+
+  it("UT-CAT-ACT-052: maps APPLY_SHIELD sized as a ratio of the source's attack", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SHIELD_1",
+        kind: "APPLY_SHIELD",
+        payload: {
+          formula: {
+            kind: "STAT_RATIO",
+            source: { kind: "SKILL_SOURCE" },
+            stat: "ATTACK",
+            ratio: 0.45,
+          },
+          duration: { timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_TARGET" } },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_SHIELD");
+    if (result.kind === "APPLY_SHIELD") {
+      expect(result.payload.formula).toEqual({
+        kind: "STAT_RATIO",
+        source: { kind: "SKILL_SOURCE" },
+        stat: "ATTACK",
+        ratio: 0.45,
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-053: rejects APPLY_SHIELD when duration is omitted", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_SHIELD_1",
+          kind: "APPLY_SHIELD",
+          payload: { formula: { kind: "CONSTANT", value: 100 } },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  // --- Issue #44 G-09: MODIFY_RESOURCE_CAPACITY ---
+
+  it("UT-CAT-ACT-054: maps MODIFY_RESOURCE_CAPACITY adding 1 to maximum AP for the rest of the battle", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MAX_AP_UP",
+        kind: "MODIFY_RESOURCE_CAPACITY",
+        payload: {
+          resource: "AP",
+          operation: "ADD",
+          formula: { kind: "CONSTANT", value: 1 },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
+        },
+        requiredCapabilities: ["CAP_RESOURCE_CAPACITY_MOD"],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("MODIFY_RESOURCE_CAPACITY");
+    if (result.kind === "MODIFY_RESOURCE_CAPACITY") {
+      expect(result.payload.resource).toBe("AP");
+      expect(result.payload.operation).toBe("ADD");
+    }
+  });
+
+  it("UT-CAT-ACT-055: rejects MODIFY_RESOURCE_CAPACITY with an unsupported operation (SET_TO_MAX is not meaningful for a capacity change)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_MAX_AP_UP",
+          kind: "MODIFY_RESOURCE_CAPACITY",
+          payload: {
+            resource: "AP",
+            operation: "SET_TO_MAX",
+            formula: { kind: "CONSTANT", value: 1 },
+            duration: {},
           },
           requiredCapabilities: [],
         },

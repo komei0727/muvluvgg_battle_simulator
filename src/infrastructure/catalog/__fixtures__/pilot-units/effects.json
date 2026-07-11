@@ -1361,6 +1361,16 @@
           "maxCount": 2
         },
         "linkedEffectGroupId": "HARRIET_BARRIER"
+      },
+      "damageThreshold": {
+        "op": "GT",
+        "formula": {
+          "kind": "CURRENT_HP_RATIO",
+          "source": {
+            "kind": "TARGET"
+          },
+          "ratio": 0.35
+        }
       }
     },
     "requiredCapabilities": [
@@ -2379,7 +2389,7 @@
     "payload": {
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
+        "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 0.6
       },
       "overheal": "DISCARD"
@@ -2577,6 +2587,177 @@
       }
     },
     "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_PS2_HEALING_DOWN",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS1_BURN",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "stat": "ATTACK",
+        "ratio": 0.3
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS1_BURN_HEALING_DOWN",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "EFFECT_SOURCE"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_EX_DOT",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "stat": "ATTACK",
+        "ratio": 0.075
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_EX_REMOVE_DEBUFFS",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["DEBUFF"]
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_EX_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "stat": "ATTACK",
+        "ratio": 0.45
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_TARGET"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_MAX_AP_UP",
+    "kind": "MODIFY_RESOURCE_CAPACITY",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_CAPACITY_MOD"],
     "metadata": {
       "tags": []
     }
