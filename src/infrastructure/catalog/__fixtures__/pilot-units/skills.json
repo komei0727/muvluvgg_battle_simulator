@@ -1468,15 +1468,7 @@
           "actions": [
             {
               "effectActionDefinitionId": "ACT_KARINA_AS1_DAMAGE"
-            }
-          ]
-        },
-        {
-          "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
+            },
             {
               "effectActionDefinitionId": "ACT_KARINA_AS1_EX_DOWN"
             }
