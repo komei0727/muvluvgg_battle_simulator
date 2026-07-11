@@ -12,7 +12,12 @@ import {
   type TargetReferenceInput,
 } from "./references.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue, assertFinite, assertNonEmptyArray } from "../shared/validate.js";
+import {
+  assertEnumValue,
+  assertFinite,
+  assertKnownKeys,
+  assertNonEmptyArray,
+} from "../shared/validate.js";
 
 export type JsonPrimitive = string | number | boolean;
 
@@ -60,6 +65,20 @@ const CONDITION_KINDS = [
   "TURN_NUMBER",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
+
+const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
+  TRUE: ["kind"],
+  AND: ["kind", "conditions"],
+  OR: ["kind", "conditions"],
+  NOT: ["kind", "condition"],
+  TARGET_STATE: ["kind", "target", "field", "op", "value"],
+  TARGET_HAS_MARKER: ["kind", "target", "markerId", "countCondition"],
+  EVENT_PAYLOAD: ["kind", "field", "op", "value"],
+  LAST_RESULT: ["kind", "field", "op", "value"],
+  RUNTIME_COUNTER: ["kind", "counter", "op", "value"],
+  TURN_NUMBER: ["kind", "op", "value", "modulo"],
+};
+const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 
 export interface MarkerCountCondition {
   readonly op: ComparisonOperator;
@@ -156,6 +175,7 @@ export function createConditionDefinition(
   scope: TargetBindingScope | undefined,
 ): ConditionDefinition {
   assertEnumValue(input.kind, CONDITION_KINDS, `${path}.kind`);
+  assertKnownKeys(input, CONDITION_ALLOWED_KEYS[input.kind], path);
 
   switch (input.kind) {
     case "TRUE":
@@ -209,6 +229,11 @@ export function createConditionDefinition(
       if (input.countCondition === undefined) {
         return result;
       }
+      assertKnownKeys(
+        input.countCondition,
+        MARKER_COUNT_CONDITION_ALLOWED_KEYS,
+        `${path}.countCondition`,
+      );
       assertEnumValue(input.countCondition.op, COMPARISON_OPERATORS, `${path}.countCondition.op`);
       assertFinite(input.countCondition.value, `${path}.countCondition.value`);
       return {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createAreaDefinition,
   createTargetFilterDefinition,
   createTargetSelectorDefinition,
   type TargetFilterDefinitionInput,
@@ -227,6 +228,31 @@ describe("TargetSelectorDefinition", () => {
   it("UT-CAT-TSEL-015: rejects a malformed HAS_MARKER markerId", () => {
     expect(() =>
       createTargetFilterDefinition({ kind: "HAS_MARKER", markerId: "CURSE" }, "filter"),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-TSEL-016: rejects a typo'd sibling key on a TargetFilterDefinition", () => {
+    expect(() =>
+      createTargetFilterDefinition(
+        { kind: "POSITION_ROW", row: "FRONT", typoField: "oops" } as never,
+        "filter",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-TSEL-017: rejects a typo'd sibling key on an AreaDefinition", () => {
+    expect(() =>
+      createAreaDefinition({ kind: "SINGLE", typoField: "oops" } as never, "area"),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-TSEL-018: rejects a typo'd sibling key on a TargetSelectorDefinition", () => {
+    expect(() =>
+      createTargetSelectorDefinition(
+        { kind: "SELF", typoField: "oops" } as never,
+        "selector",
+        undefined,
+      ),
     ).toThrow(DomainValidationError);
   });
 });

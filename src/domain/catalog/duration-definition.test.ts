@@ -133,4 +133,34 @@ describe("DurationDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-DUR-012: rejects a typo'd sibling key at the top level", () => {
+    expect(() =>
+      createDurationDefinition(
+        { dispellable: true, typoField: "oops" } as never,
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-013: rejects a typo'd sibling key inside timeLimit", () => {
+    expect(() =>
+      createDurationDefinition(
+        { timeLimit: { unit: "ACTION", count: 1, typoField: "oops" } as never },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-014: rejects a typo'd sibling key inside consumption", () => {
+    expect(() =>
+      createDurationDefinition(
+        { consumption: { kind: "LETHAL_DAMAGE", maxCount: 1, typoField: "oops" } as never },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -72,4 +72,19 @@ describe("TriggerDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-TRIG-006: rejects a typo'd sibling key", () => {
+    expect(() =>
+      createTriggerDefinition(
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          typoField: "oops",
+        } as never,
+        "trigger",
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

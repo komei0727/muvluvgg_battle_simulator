@@ -16,7 +16,11 @@ import {
 } from "./trigger-definition.js";
 import { deepFreeze } from "../shared/deep-freeze.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertArray, assertEnumValue, assertFinite } from "../shared/validate.js";
+import { assertArray, assertEnumValue, assertFinite, assertKnownKeys } from "../shared/validate.js";
+
+const TRIGGERED_EFFECT_ALLOWED_KEYS = ["trigger", "effectSequence"] as const;
+const MODIFIER_ALLOWED_KEYS = ["targetFilter", "stat", "valueType", "value"] as const;
+const MODIFIER_TARGET_FILTER_ALLOWED_KEYS = ["kind"] as const;
 
 const MODIFIER_STATS = [
   "MAXIMUM_HP",
@@ -75,6 +79,8 @@ export interface MemoryDefinitionInput {
 }
 
 function createModifier(input: MemoryModifierInput, path: string): MemoryModifier {
+  assertKnownKeys(input, MODIFIER_ALLOWED_KEYS, path);
+  assertKnownKeys(input.targetFilter, MODIFIER_TARGET_FILTER_ALLOWED_KEYS, `${path}.targetFilter`);
   assertEnumValue(input.targetFilter.kind, ["ALL"], `${path}.targetFilter.kind`);
   assertEnumValue(input.stat, MODIFIER_STATS, `${path}.stat`);
   assertEnumValue(input.valueType, MODIFIER_VALUE_TYPES, `${path}.valueType`);
@@ -99,13 +105,16 @@ export function createMemoryDefinition(
   if (input.triggeredEffects !== undefined) {
     assertArray(input.triggeredEffects, `${path}.triggeredEffects`);
   }
-  const triggeredEffects = (input.triggeredEffects ?? []).map((te, i) => ({
-    trigger: createTriggerDefinition(te.trigger, `${path}.triggeredEffects[${i}].trigger`),
-    effectSequence: createEffectSequence(
-      te.effectSequence,
-      `${path}.triggeredEffects[${i}].effectSequence`,
-    ),
-  }));
+  const triggeredEffects = (input.triggeredEffects ?? []).map((te, i) => {
+    assertKnownKeys(te, TRIGGERED_EFFECT_ALLOWED_KEYS, `${path}.triggeredEffects[${i}]`);
+    return {
+      trigger: createTriggerDefinition(te.trigger, `${path}.triggeredEffects[${i}].trigger`),
+      effectSequence: createEffectSequence(
+        te.effectSequence,
+        `${path}.triggeredEffects[${i}].effectSequence`,
+      ),
+    };
+  });
   if (input.modifiers !== undefined) {
     assertArray(input.modifiers, `${path}.modifiers`);
   }

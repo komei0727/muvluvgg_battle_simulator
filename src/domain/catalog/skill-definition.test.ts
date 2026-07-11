@@ -283,4 +283,26 @@ describe("SkillDefinition", () => {
     const result = createSkillDefinition({ ...input, requiredCapabilities: ["CAP_HEAL"] });
     expect(result.requiredCapabilities).toEqual(["CAP_HEAL"]);
   });
+
+  it("UT-CAT-SKL-017: rejects a typo'd sibling key inside traits (traits.typoTraitField)", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        traits: { priorityAttack: true, typoTraitField: true } as unknown as typeof input.traits,
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-018: rejects a typo'd sibling key inside traits.accuracy", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        traits: {
+          accuracy: { guaranteedHit: true, typoField: 1 },
+        } as unknown as typeof input.traits,
+      }),
+    ).toThrow(DomainValidationError);
+  });
 });

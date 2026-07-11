@@ -892,4 +892,59 @@ describe("EffectActionDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-ACT-039: rejects a typo'd sibling key inside payload (payload.typoDamageFiled)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_1",
+          kind: "DAMAGE",
+          payload: {
+            damageType: "PHYSICAL",
+            formula: { kind: "CONSTANT", value: 1 },
+            typoDamageFiled: "oops",
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-040: rejects a typo'd sibling key inside a nested payload sub-object (piercing)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_1",
+          kind: "DAMAGE",
+          payload: {
+            damageType: "PHYSICAL",
+            formula: { kind: "CONSTANT", value: 1 },
+            piercing: { defenseIgnoreRate: 0.5, typoRate: 0.1 },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-041: rejects a typo'd sibling key inside EFFECT_IMMUNITY payload", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_1",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["DEBUFF"],
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            maxBlocks: null,
+            typoField: true,
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

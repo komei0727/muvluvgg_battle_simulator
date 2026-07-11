@@ -99,4 +99,54 @@ describe("MemoryDefinition", () => {
       }),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-MEM-007: rejects a typo'd sibling key inside a modifier", () => {
+    expect(() =>
+      createMemoryDefinition({
+        memoryDefinitionId: "MEM_007",
+        modifiers: [
+          {
+            targetFilter: { kind: "ALL" },
+            stat: "ATTACK",
+            valueType: "FIXED",
+            value: 1,
+            typoField: 1,
+          } as never,
+        ],
+        requiredCapabilities: [],
+        metadata: { displayName: "Invalid" },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-MEM-008: rejects a typo'd sibling key inside a triggeredEffect", () => {
+    expect(() =>
+      createMemoryDefinition({
+        memoryDefinitionId: "MEM_008",
+        triggeredEffects: [
+          {
+            trigger: {
+              eventType: "BattleStarted",
+              category: "FACT",
+              sourceSelector: "ANY",
+              targetSelector: "ANY",
+            },
+            effectSequence: {
+              targetBindings: [],
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_1" }],
+                },
+              ],
+            },
+            typoField: "oops",
+          } as never,
+        ],
+        requiredCapabilities: [],
+        metadata: { displayName: "Invalid" },
+      }),
+    ).toThrow(DomainValidationError);
+  });
 });

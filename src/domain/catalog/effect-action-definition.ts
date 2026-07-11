@@ -42,6 +42,7 @@ import {
   assertEnumValue,
   assertFinite,
   assertInteger,
+  assertKnownKeys,
   assertNonEmptyArray,
   assertNullableInteger,
 } from "../shared/validate.js";
@@ -112,6 +113,50 @@ const EFFECT_ACTION_KINDS = [
   "APPLY_SUBUNIT",
 ] as const;
 export type EffectActionKind = (typeof EFFECT_ACTION_KINDS)[number];
+
+const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
+  DAMAGE: [
+    "damageType",
+    "formula",
+    "hitCount",
+    "critical",
+    "accuracy",
+    "piercing",
+    "damageModifiers",
+    "link",
+  ],
+  HEAL: ["formula", "overheal"],
+  APPLY_CONTINUOUS_HEAL: ["formula", "timing", "duration"],
+  APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
+  APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "stacking", "duration"],
+  MODIFY_RESOURCE: ["resource", "operation", "formula", "bounds"],
+  APPLY_STATUS: ["status", "duration", "probability", "appliesTo", "damageAmplificationOnBreak"],
+  EFFECT_IMMUNITY: ["categories", "effectActionDefinitionIds", "duration", "maxBlocks"],
+  APPLY_MARKER: ["markerId", "stack", "duration"],
+  REMOVE_MARKER: ["markerId"],
+  APPLY_DEATH_SURVIVAL: ["trigger", "survivalHp", "healAfterSurvival", "duration"],
+  APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
+  APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
+  APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
+  APPLY_SUBUNIT: ["durability", "additionalDamage"],
+};
+
+const DAMAGE_CRITICAL_ALLOWED_KEYS = ["mode"] as const;
+const DAMAGE_ACCURACY_ALLOWED_KEYS = ["mode"] as const;
+const DAMAGE_PIERCING_ALLOWED_KEYS = [
+  "defenseIgnoreRate",
+  "shieldIgnoreRate",
+  "damageReductionIgnoreRate",
+] as const;
+const LINK_ALLOWED_KEYS = ["enabled"] as const;
+const TIMING_ALLOWED_KEYS = ["eventType", "targetSelector"] as const;
+const STACKING_ALLOWED_KEYS = ["mode"] as const;
+const BOUNDS_ALLOWED_KEYS = ["min", "max"] as const;
+const APPLIES_TO_ACTION_KINDS_ALLOWED_KEYS = ["actionKinds"] as const;
+const APPLIES_TO_INCOMING_ACTION_KINDS_ALLOWED_KEYS = ["incomingActionKinds"] as const;
+const STACK_ALLOWED_KEYS = ["policy", "max"] as const;
+const TRIGGER_LETHAL_ALLOWED_KEYS = ["lethalDamageOnly"] as const;
+const SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS = ["formula"] as const;
 
 // ---- payload types ----
 
@@ -305,13 +350,27 @@ function createActionKinds(
   return (value ?? []) as readonly ActionKind[];
 }
 
+function requireStackingMode(payload: Record<string, unknown>, path: string): "STACKABLE" {
+  const stacking = requireField(
+    payload["stacking"] as { mode?: string } | undefined,
+    `${path}.stacking`,
+  );
+  assertKnownKeys(stacking, STACKING_ALLOWED_KEYS, `${path}.stacking`);
+  const mode = requireField(stacking.mode, `${path}.stacking.mode`);
+  assertEnumValue(mode, STACKING_MODES, `${path}.stacking.mode`);
+  return mode;
+}
+
 function createAppliesTo(
   payload: Record<string, unknown>,
   path: string,
 ): { readonly actionKinds: readonly ActionKind[] } {
   const appliesTo = payload["appliesTo"] as { actionKinds?: readonly string[] } | undefined;
-  const actionKinds = requireField(appliesTo, `${path}.appliesTo`).actionKinds;
-  return { actionKinds: createActionKinds(actionKinds, `${path}.appliesTo.actionKinds`) };
+  const appliesToObj = requireField(appliesTo, `${path}.appliesTo`);
+  assertKnownKeys(appliesToObj, APPLIES_TO_ACTION_KINDS_ALLOWED_KEYS, `${path}.appliesTo`);
+  return {
+    actionKinds: createActionKinds(appliesToObj.actionKinds, `${path}.appliesTo.actionKinds`),
+  };
 }
 
 export function createEffectActionDefinition(
@@ -347,6 +406,7 @@ function createPayload(
   payload: Record<string, unknown>,
   path: string,
 ): EffectActionPayload {
+  assertKnownKeys(payload, PAYLOAD_ALLOWED_KEYS[kind], path);
   switch (kind) {
     case "DAMAGE": {
       const damageType = requireField(
@@ -356,18 +416,29 @@ function createPayload(
       assertEnumValue(damageType, DAMAGE_TYPES, `${path}.damageType`);
       const hitCount = (payload["hitCount"] as number | undefined) ?? 1;
       assertInteger(hitCount, `${path}.hitCount`, { min: 1 });
-      const criticalMode = (payload["critical"] as { mode?: string } | undefined)?.mode ?? "NORMAL";
+      const criticalRaw = payload["critical"] as { mode?: string } | undefined;
+      if (criticalRaw !== undefined) {
+        assertKnownKeys(criticalRaw, DAMAGE_CRITICAL_ALLOWED_KEYS, `${path}.critical`);
+      }
+      const criticalMode = criticalRaw?.mode ?? "NORMAL";
       assertEnumValue(criticalMode, CRITICAL_MODES, `${path}.critical.mode`);
-      const accuracyMode = (payload["accuracy"] as { mode?: string } | undefined)?.mode ?? "NORMAL";
+      const accuracyRaw = payload["accuracy"] as { mode?: string } | undefined;
+      if (accuracyRaw !== undefined) {
+        assertKnownKeys(accuracyRaw, DAMAGE_ACCURACY_ALLOWED_KEYS, `${path}.accuracy`);
+      }
+      const accuracyMode = accuracyRaw?.mode ?? "NORMAL";
       assertEnumValue(accuracyMode, ACCURACY_MODES, `${path}.accuracy.mode`);
-      const piercing =
-        (payload["piercing"] as
-          | {
-              defenseIgnoreRate?: number;
-              shieldIgnoreRate?: number;
-              damageReductionIgnoreRate?: number;
-            }
-          | undefined) ?? {};
+      const piercingRaw = payload["piercing"] as
+        | {
+            defenseIgnoreRate?: number;
+            shieldIgnoreRate?: number;
+            damageReductionIgnoreRate?: number;
+          }
+        | undefined;
+      if (piercingRaw !== undefined) {
+        assertKnownKeys(piercingRaw, DAMAGE_PIERCING_ALLOWED_KEYS, `${path}.piercing`);
+      }
+      const piercing = piercingRaw ?? {};
       const defenseIgnoreRate = piercing.defenseIgnoreRate ?? 0;
       const shieldIgnoreRate = piercing.shieldIgnoreRate ?? 0;
       const damageReductionIgnoreRate = piercing.damageReductionIgnoreRate ?? 0;
@@ -391,6 +462,9 @@ function createPayload(
       const damageModifiersInput =
         (damageModifiersRaw as readonly FormulaDefinitionInput[] | undefined) ?? [];
       const linkRaw = payload["link"] as { enabled?: unknown } | undefined;
+      if (linkRaw !== undefined) {
+        assertKnownKeys(linkRaw, LINK_ALLOWED_KEYS, `${path}.link`);
+      }
       let linkEnabled = false;
       if (linkRaw?.enabled !== undefined) {
         assertBoolean(linkRaw.enabled, `${path}.link.enabled`);
@@ -425,6 +499,7 @@ function createPayload(
         payload["timing"] as { eventType?: string; targetSelector?: string } | undefined,
         `${path}.timing`,
       );
+      assertKnownKeys(timing, TIMING_ALLOWED_KEYS, `${path}.timing`);
       const eventType = requireField(timing.eventType, `${path}.timing.eventType`);
       const targetSelector = requireField(timing.targetSelector, `${path}.timing.targetSelector`);
       return {
@@ -444,11 +519,7 @@ function createPayload(
         `${path}.valueType`,
       );
       assertEnumValue(valueType, STAT_VALUE_TYPES, `${path}.valueType`);
-      const stackingMode = requireField(
-        (payload["stacking"] as { mode?: string } | undefined)?.mode,
-        `${path}.stacking.mode`,
-      );
-      assertEnumValue(stackingMode, STACKING_MODES, `${path}.stacking.mode`);
+      const stackingMode = requireStackingMode(payload, path);
       return {
         kind: "APPLY_STAT_MOD",
         payload: {
@@ -472,11 +543,7 @@ function createPayload(
         assertEnumValue(damageTypeRaw, DAMAGE_TYPES, `${path}.damageType`);
         damageType = damageTypeRaw;
       }
-      const stackingMode = requireField(
-        (payload["stacking"] as { mode?: string } | undefined)?.mode,
-        `${path}.stacking.mode`,
-      );
-      assertEnumValue(stackingMode, STACKING_MODES, `${path}.stacking.mode`);
+      const stackingMode = requireStackingMode(payload, path);
       return {
         kind: "APPLY_DAMAGE_MOD",
         payload: {
@@ -510,6 +577,7 @@ function createPayload(
         formula: createFormulaField(payload, "formula", path),
       };
       if (boundsInput !== undefined) {
+        assertKnownKeys(boundsInput, BOUNDS_ALLOWED_KEYS, `${path}.bounds`);
         const min = requireField(boundsInput.min, `${path}.bounds.min`);
         assertFinite(min, `${path}.bounds.min`);
         const max = requireField(boundsInput.max, `${path}.bounds.max`);
@@ -545,6 +613,11 @@ function createPayload(
         | { incomingActionKinds?: readonly string[] }
         | undefined;
       if (appliesTo !== undefined) {
+        assertKnownKeys(
+          appliesTo,
+          APPLIES_TO_INCOMING_ACTION_KINDS_ALLOWED_KEYS,
+          `${path}.appliesTo`,
+        );
         result.appliesTo = {
           incomingActionKinds: createActionKinds(
             appliesTo.incomingActionKinds,
@@ -601,6 +674,7 @@ function createPayload(
         payload["stack"] as { policy?: string; max?: number | null } | undefined,
         `${path}.stack`,
       );
+      assertKnownKeys(stackInput, STACK_ALLOWED_KEYS, `${path}.stack`);
       const policy = requireField(stackInput.policy, `${path}.stack.policy`);
       assertEnumValue(policy, MARKER_STACK_POLICIES, `${path}.stack.policy`);
       if (stackInput.max !== undefined) {
@@ -627,6 +701,7 @@ function createPayload(
         payload["trigger"] as { lethalDamageOnly?: boolean } | undefined,
         `${path}.trigger`,
       );
+      assertKnownKeys(trigger, TRIGGER_LETHAL_ALLOWED_KEYS, `${path}.trigger`);
       const lethalDamageOnly = requireField(
         trigger.lethalDamageOnly,
         `${path}.trigger.lethalDamageOnly`,
@@ -717,6 +792,12 @@ function createPayload(
       );
       const additionalDamage = requireField(
         payload["additionalDamage"] as { formula?: FormulaDefinitionInput } | undefined,
+        `${path}.additionalDamage`,
+      );
+      assertKnownKeys(durability, SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS, `${path}.durability`);
+      assertKnownKeys(
+        additionalDamage,
+        SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS,
         `${path}.additionalDamage`,
       );
       const durabilityFormula = requireField(durability.formula, `${path}.durability.formula`);

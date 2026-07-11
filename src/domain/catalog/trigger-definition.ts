@@ -5,9 +5,16 @@ import {
   type ConditionDefinitionInput,
 } from "./condition-definition.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue } from "../shared/validate.js";
+import { assertEnumValue, assertKnownKeys } from "../shared/validate.js";
 
 const EVENT_CATEGORIES = ["FACT", "TIMING"] as const;
+const TRIGGER_ALLOWED_KEYS = [
+  "eventType",
+  "category",
+  "sourceSelector",
+  "targetSelector",
+  "condition",
+] as const;
 
 /**
  * Attested across `08_ドメインイベント.md`/`14_Catalog定義スキーマ.md` examples
@@ -39,6 +46,7 @@ export function createTriggerDefinition(
   input: TriggerDefinitionInput,
   path: string,
 ): TriggerDefinition {
+  assertKnownKeys(input, TRIGGER_ALLOWED_KEYS, path);
   if (input.eventType.length === 0) {
     throw new DomainValidationError(`${path}.eventType`, "must not be empty");
   }

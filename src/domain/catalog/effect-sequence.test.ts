@@ -420,4 +420,65 @@ describe("EffectSequence", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-SEQ-022: rejects a typo'd sibling key inside a step (steps[].typoStepField)", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_HEAL_1" }],
+              typoStepField: "oops",
+            } as never,
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-023: rejects a typo'd sibling key inside a targetBinding", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [
+            {
+              targetBindingId: "TGT_PRIMARY",
+              selector: { kind: "SELECT", side: "ENEMY", count: 1 },
+              typoField: "oops",
+            } as never,
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              actions: [{ effectActionDefinitionId: "ACT_HEAL_1" }],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-024: rejects a typo'd sibling key inside a RandomBranch", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "RANDOM_BRANCH",
+              mode: "WEIGHTED_ONE",
+              branches: [{ weight: 1, steps: [], typoField: "oops" } as never],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

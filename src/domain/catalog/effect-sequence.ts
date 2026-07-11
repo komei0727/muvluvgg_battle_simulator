@@ -26,6 +26,7 @@ import {
   assertEnumValue,
   assertFinite,
   assertInteger,
+  assertKnownKeys,
   assertNonEmptyArray,
 } from "../shared/validate.js";
 
@@ -43,6 +44,8 @@ export interface TargetBindingDefinitionInput {
   readonly selector: TargetSelectorDefinitionInput;
 }
 
+const TARGET_BINDING_ALLOWED_KEYS = ["targetBindingId", "selector"] as const;
+
 // ---- EffectActionReference (within an ACTION step) ----
 
 export interface EffectActionReference {
@@ -53,10 +56,20 @@ export interface EffectActionReferenceInput {
   readonly effectActionDefinitionId: string;
 }
 
+const EFFECT_ACTION_REFERENCE_ALLOWED_KEYS = ["effectActionDefinitionId"] as const;
+
 // ---- EffectStepDefinition ----
 
 const EFFECT_STEP_KINDS = ["ACTION", "BRANCH", "RANDOM_BRANCH", "REPEAT"] as const;
 const RANDOM_BRANCH_MODES = ["WEIGHTED_ONE", "INDEPENDENT"] as const;
+
+const EFFECT_STEP_ALLOWED_KEYS: Record<(typeof EFFECT_STEP_KINDS)[number], readonly string[]> = {
+  ACTION: ["kind", "condition", "target", "actions"],
+  BRANCH: ["kind", "condition", "thenSteps", "elseSteps"],
+  RANDOM_BRANCH: ["kind", "mode", "branches"],
+  REPEAT: ["kind", "count", "steps"],
+};
+const RANDOM_BRANCH_ALLOWED_KEYS = ["label", "weight", "probability", "steps"] as const;
 
 export interface RandomBranch {
   readonly label?: string;
@@ -113,6 +126,7 @@ function createEffectActionReference(
   input: EffectActionReferenceInput,
   path: string,
 ): EffectActionReference {
+  assertKnownKeys(input, EFFECT_ACTION_REFERENCE_ALLOWED_KEYS, path);
   return {
     effectActionDefinitionId: createEffectActionDefinitionId(
       input.effectActionDefinitionId,
@@ -127,6 +141,7 @@ export function createEffectStepDefinition(
   scope: TargetBindingScope,
 ): EffectStepDefinition {
   assertEnumValue(input.kind, EFFECT_STEP_KINDS, `${path}.kind`);
+  assertKnownKeys(input, EFFECT_STEP_ALLOWED_KEYS[input.kind], path);
 
   switch (input.kind) {
     case "ACTION": {
@@ -214,6 +229,7 @@ function createRandomBranch(
   path: string,
   scope: TargetBindingScope,
 ): RandomBranch {
+  assertKnownKeys(input, RANDOM_BRANCH_ALLOWED_KEYS, path);
   // Branches may legitimately have no mechanical effect yet (`14_Catalog定義スキーマ.md` の
   // RANDOM_BRANCH例: 全枝が `steps: []`), so an empty array is valid here.
   assertArray(input.steps, `${path}.steps`);
@@ -273,11 +289,17 @@ export interface EffectSequenceInput {
   readonly steps: readonly EffectStepDefinitionInput[];
 }
 
+const EFFECT_SEQUENCE_ALLOWED_KEYS = ["targetBindings", "steps"] as const;
+
 export function createEffectSequence(input: EffectSequenceInput, path: string): EffectSequence {
+  assertKnownKeys(input, EFFECT_SEQUENCE_ALLOWED_KEYS, path);
   if (input.targetBindings !== undefined) {
     assertArray(input.targetBindings, `${path}.targetBindings`);
   }
   const bindingInputs = input.targetBindings ?? [];
+  bindingInputs.forEach((b, i) =>
+    assertKnownKeys(b, TARGET_BINDING_ALLOWED_KEYS, `${path}.targetBindings[${i}]`),
+  );
 
   const ids = bindingInputs.map((b, i) =>
     createTargetBindingId(b.targetBindingId, `${path}.targetBindings[${i}].targetBindingId`),

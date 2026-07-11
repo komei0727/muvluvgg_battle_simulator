@@ -20,6 +20,7 @@ import {
   assertBoolean,
   assertEnumValue,
   assertFinite,
+  assertKnownKeys,
   assertNonEmptyArray,
 } from "../shared/validate.js";
 
@@ -77,6 +78,23 @@ export type TargetFilterDefinition =
   | { readonly kind: "AND" | "OR"; readonly conditions: readonly TargetFilterDefinition[] }
   | { readonly kind: "NOT"; readonly condition: TargetFilterDefinition };
 
+const TARGET_FILTER_ALLOWED_KEYS: Record<(typeof TARGET_FILTER_KINDS)[number], readonly string[]> =
+  {
+    POSITION_ROW: ["kind", "row"],
+    POSITION_COLUMN: ["kind", "column"],
+    POSITION_SLOT: ["kind", "row", "column"],
+    UNIT_TYPE: ["kind", "unitType"],
+    ROLE: ["kind", "role"],
+    ATTRIBUTE: ["kind", "attribute"],
+    AFFILIATION: ["kind", "affiliationId"],
+    CHARACTER: ["kind", "characterId"],
+    HAS_MARKER: ["kind", "markerId"],
+    HP_RATIO: ["kind", "op", "value"],
+    AND: ["kind", "conditions"],
+    OR: ["kind", "conditions"],
+    NOT: ["kind", "condition"],
+  };
+
 export interface TargetFilterDefinitionInput {
   readonly kind: string;
   readonly row?: string;
@@ -105,6 +123,7 @@ export function createTargetFilterDefinition(
   path: string,
 ): TargetFilterDefinition {
   assertEnumValue(input.kind, TARGET_FILTER_KINDS, `${path}.kind`);
+  assertKnownKeys(input, TARGET_FILTER_ALLOWED_KEYS[input.kind], path);
   switch (input.kind) {
     case "POSITION_ROW": {
       const row = requireStringField(input.row, `${path}.row`);
@@ -225,8 +244,21 @@ export interface AreaDefinitionInput {
   readonly includeBase?: boolean;
 }
 
+const AREA_ALLOWED_KEYS: Record<(typeof AREA_KINDS)[number], readonly string[]> = {
+  SINGLE: ["kind"],
+  ALL: ["kind"],
+  ADJACENT_ORTHOGONAL: ["kind"],
+  DIRECTLY_AHEAD_OF_BASE: ["kind"],
+  BEHIND_BASE: ["kind"],
+  ROW: ["kind", "row"],
+  COLUMN: ["kind", "column"],
+  SAME_ROW_AS_BASE: ["kind", "includeBase"],
+  SAME_COLUMN_AS_BASE: ["kind", "includeBase"],
+};
+
 export function createAreaDefinition(input: AreaDefinitionInput, path: string): AreaDefinition {
   assertEnumValue(input.kind, AREA_KINDS, `${path}.kind`);
+  assertKnownKeys(input, AREA_ALLOWED_KEYS[input.kind], path);
   switch (input.kind) {
     case "SINGLE":
     case "ALL":
@@ -290,12 +322,30 @@ export interface TargetSelectorDefinitionInput {
   readonly includeDefeated?: boolean;
 }
 
+/**
+ * `side` and other fields can legitimately co-occur across every
+ * `TargetSelectorDefinition` kind (e.g. `side` on `TRIGGER_SOURCE`), so this
+ * is a single fixed set rather than a per-kind lookup like `TargetFilterDefinition`.
+ */
+const TARGET_SELECTOR_ALLOWED_KEYS = [
+  "kind",
+  "side",
+  "count",
+  "filters",
+  "order",
+  "area",
+  "base",
+  "fallback",
+  "includeDefeated",
+] as const;
+
 export function createTargetSelectorDefinition(
   input: TargetSelectorDefinitionInput,
   path: string,
   scope: TargetBindingScope | undefined,
 ): TargetSelectorDefinition {
   assertEnumValue(input.kind, TARGET_SELECTOR_KINDS, `${path}.kind`);
+  assertKnownKeys(input, TARGET_SELECTOR_ALLOWED_KEYS, path);
 
   if (input.filters !== undefined) {
     assertArray(input.filters, `${path}.filters`);

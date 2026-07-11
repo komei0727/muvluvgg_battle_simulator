@@ -1,6 +1,8 @@
 import { createTargetBindingId, type TargetBindingId } from "./catalog-ids.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue } from "../shared/validate.js";
+import { assertEnumValue, assertKnownKeys } from "../shared/validate.js";
+
+const REFERENCE_ALLOWED_KEYS = ["kind", "targetBindingId"] as const;
 
 /**
  * `scope` is the set of `TargetBindingId`s declared by the enclosing
@@ -51,6 +53,7 @@ export function createTargetReference(
   scope: TargetBindingScope | undefined,
 ): TargetReference {
   assertEnumValue(input.kind, TARGET_REFERENCE_KINDS, `${path}.kind`);
+  assertKnownKeys(input, REFERENCE_ALLOWED_KEYS, path);
   if (input.kind === "BINDING") {
     if (input.targetBindingId === undefined) {
       throw new DomainValidationError(
@@ -90,6 +93,7 @@ export function createFormulaSourceReference(
   scope: TargetBindingScope | undefined,
 ): FormulaSourceReference {
   assertEnumValue(input.kind, FORMULA_SOURCE_REFERENCE_KINDS, `${path}.kind`);
+  assertKnownKeys(input, REFERENCE_ALLOWED_KEYS, path);
   if (input.kind === "BINDING") {
     if (input.targetBindingId === undefined) {
       throw new DomainValidationError(

@@ -3,6 +3,7 @@ import { DomainValidationError } from "./errors.js";
 import {
   assertArray,
   assertBoolean,
+  assertKnownKeys,
   assertNonEmptyArray,
   assertNullableInteger,
   assertNullableString,
@@ -48,5 +49,22 @@ describe("Shared validate helpers", () => {
     expect(() => assertNullableString(null, "field")).not.toThrow();
     expect(() => assertNullableString("ok", "field")).not.toThrow();
     expect(() => assertNullableString(1, "field")).toThrow(DomainValidationError);
+  });
+
+  it("UT-SHARED-VALIDATE-007: assertKnownKeys accepts objects with only allowed keys", () => {
+    expect(() => assertKnownKeys({ a: 1, b: 2 }, ["a", "b"], "field")).not.toThrow();
+    expect(() => assertKnownKeys({}, ["a", "b"], "field")).not.toThrow();
+  });
+
+  it("UT-SHARED-VALIDATE-008: assertKnownKeys rejects a typo'd sibling key", () => {
+    expect(() => assertKnownKeys({ formula: 1, typoField: 2 }, ["formula"], "field")).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-SHARED-VALIDATE-009: assertKnownKeys rejects non-object values", () => {
+    expect(() => assertKnownKeys("not-an-object", ["a"], "field")).toThrow(DomainValidationError);
+    expect(() => assertKnownKeys([], ["a"], "field")).toThrow(DomainValidationError);
+    expect(() => assertKnownKeys(null, ["a"], "field")).toThrow(DomainValidationError);
   });
 });

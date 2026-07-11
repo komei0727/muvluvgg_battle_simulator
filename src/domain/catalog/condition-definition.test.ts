@@ -148,4 +148,29 @@ describe("ConditionDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-011: rejects a typo'd sibling key not valid for the given kind", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "TRUE", typoField: "oops" } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-012: rejects a typo'd sibling key inside countCondition", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "SELF" },
+          markerId: "MARKER_CURSE",
+          countCondition: { op: "GTE", value: 2, typoField: 1 } as never,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

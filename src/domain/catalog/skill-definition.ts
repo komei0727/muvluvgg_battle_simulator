@@ -28,11 +28,25 @@ import {
   assertEnumValue,
   assertFinite,
   assertInteger,
+  assertKnownKeys,
 } from "../shared/validate.js";
 
 const SKILL_TYPES = ["AS", "PS", "EX"] as const;
 const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE"] as const;
 const COOLDOWN_UNITS = ["ACTION", "TURN"] as const;
+const TRAITS_ALLOWED_KEYS = [
+  "priorityAttack",
+  "simultaneousActivationLimited",
+  "exclusiveActivationGroupId",
+  "accuracy",
+  "piercing",
+] as const;
+const TRAITS_ACCURACY_ALLOWED_KEYS = ["guaranteedHit"] as const;
+const TRAITS_PIERCING_ALLOWED_KEYS = [
+  "defenseIgnoreRate",
+  "shieldIgnoreRate",
+  "damageReductionIgnoreRate",
+] as const;
 export type CooldownUnit = (typeof COOLDOWN_UNITS)[number];
 
 /** `05_ドメインモデル.md`: AS費消はAP、PSはPP、EXはEX_GAUGEで固定される。 */
@@ -137,6 +151,13 @@ function createCost(input: SkillCostInput, skillType: SkillType, path: string): 
 }
 
 function createTraits(input: SkillTraitsInput, path: string): SkillTraits {
+  assertKnownKeys(input, TRAITS_ALLOWED_KEYS, path);
+  if (input.accuracy !== undefined) {
+    assertKnownKeys(input.accuracy, TRAITS_ACCURACY_ALLOWED_KEYS, `${path}.accuracy`);
+  }
+  if (input.piercing !== undefined) {
+    assertKnownKeys(input.piercing, TRAITS_PIERCING_ALLOWED_KEYS, `${path}.piercing`);
+  }
   const piercing = input.piercing ?? {};
   const defenseIgnoreRate = piercing.defenseIgnoreRate ?? 0;
   const shieldIgnoreRate = piercing.shieldIgnoreRate ?? 0;

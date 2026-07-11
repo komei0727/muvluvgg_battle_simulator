@@ -6,7 +6,24 @@ import {
 } from "./condition-definition.js";
 import type { TargetBindingScope } from "./references.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertArray, assertBoolean, assertEnumValue, assertInteger } from "../shared/validate.js";
+import {
+  assertArray,
+  assertBoolean,
+  assertEnumValue,
+  assertInteger,
+  assertKnownKeys,
+} from "../shared/validate.js";
+
+const DURATION_ALLOWED_KEYS = [
+  "timeLimit",
+  "consumption",
+  "expiration",
+  "dispellable",
+  "linkedEffectGroupId",
+] as const;
+const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner"] as const;
+const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount"] as const;
+const EXPIRATION_ALLOWED_KEYS = ["conditions"] as const;
 
 const DURATION_TIME_UNITS = ["ACTION", "TURN", "BATTLE", "HIT", "SKILL_USE"] as const;
 const DURATION_OWNERS = ["EFFECT_TARGET", "EFFECT_SOURCE", "BATTLE"] as const;
@@ -66,6 +83,7 @@ export interface DurationDefinitionInput {
 }
 
 function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationTimeLimit {
+  assertKnownKeys(input, TIME_LIMIT_ALLOWED_KEYS, path);
   assertEnumValue(input.unit, DURATION_TIME_UNITS, `${path}.unit`);
   assertInteger(input.count, `${path}.count`, { min: 1 });
   if (input.owner === undefined) {
@@ -76,6 +94,7 @@ function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationT
 }
 
 function createConsumption(input: DurationConsumptionInput, path: string): DurationConsumption {
+  assertKnownKeys(input, CONSUMPTION_ALLOWED_KEYS, path);
   assertEnumValue(input.kind, CONSUMPTION_KINDS, `${path}.kind`);
   assertInteger(input.maxCount, `${path}.maxCount`, { min: 1 });
   return { kind: input.kind, maxCount: input.maxCount };
@@ -91,6 +110,8 @@ export function createDurationDefinition(
   path: string,
   scope: TargetBindingScope | undefined,
 ): DurationDefinition {
+  assertKnownKeys(input, DURATION_ALLOWED_KEYS, path);
+
   let dispellable = true;
   if (input.dispellable !== undefined) {
     assertBoolean(input.dispellable, `${path}.dispellable`);
@@ -123,6 +144,7 @@ export function createDurationDefinition(
     result.consumption = createConsumption(input.consumption, `${path}.consumption`);
   }
   if (input.expiration !== undefined) {
+    assertKnownKeys(input.expiration, EXPIRATION_ALLOWED_KEYS, `${path}.expiration`);
     assertArray(input.expiration.conditions, `${path}.expiration.conditions`);
     result.expiration = {
       conditions: input.expiration.conditions.map((c, i) =>

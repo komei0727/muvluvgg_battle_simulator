@@ -123,4 +123,14 @@ describe("FormulaDefinition", () => {
       createFormulaDefinition({ kind: "CONSTANT", value: Number.NaN }, "formula", undefined),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-FORM-011: rejects a typo'd sibling key not valid for the given kind", () => {
+    expect(() =>
+      createFormulaDefinition(
+        { kind: "CONSTANT", value: 1, typoField: "oops" } as never,
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

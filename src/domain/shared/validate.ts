@@ -90,3 +90,27 @@ export function assertNullableString(value: unknown, path: string): asserts valu
     throw new DomainValidationError(path, `must be a string or null, got ${typeof value}`);
   }
 }
+
+/**
+ * Rejects properties outside `allowedKeys`. Used for the recursive/polymorphic
+ * regions (`payload`, `traits`, `resolution.steps`, ...) that the Catalog v2
+ * JSON Schema deliberately leaves as generic objects — this is the Domain
+ * layer's counterpart to `additionalProperties: false`, catching typos like
+ * `hitCoutn` that would otherwise be silently dropped instead of applied.
+ */
+export function assertKnownKeys(
+  value: unknown,
+  allowedKeys: readonly string[],
+  path: string,
+): void {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new DomainValidationError(path, `must be an object, got ${typeof value}`);
+  }
+  const unknownKeys = Object.keys(value).filter((key) => !allowedKeys.includes(key));
+  if (unknownKeys.length > 0) {
+    throw new DomainValidationError(
+      path,
+      `contains unknown propert${unknownKeys.length === 1 ? "y" : "ies"}: ${unknownKeys.join(", ")}`,
+    );
+  }
+}

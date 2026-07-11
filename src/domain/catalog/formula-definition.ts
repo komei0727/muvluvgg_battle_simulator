@@ -9,7 +9,12 @@ import {
   type TargetBindingScope,
 } from "./references.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue, assertFinite, assertNonEmptyArray } from "../shared/validate.js";
+import {
+  assertEnumValue,
+  assertFinite,
+  assertKnownKeys,
+  assertNonEmptyArray,
+} from "../shared/validate.js";
 
 /**
  * Payload shapes documented in `14_Catalog定義スキーマ.md`. `HP_RATIO_SCALE`
@@ -48,6 +53,31 @@ const STAT_RATIO_STATS = [
 export type StatRatioStat = (typeof STAT_RATIO_STATS)[number];
 
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
+
+const FORMULA_ALLOWED_KEYS: Record<FormulaKind, readonly string[]> = {
+  CONSTANT: ["kind", "value"],
+  SKILL_POWER: ["kind", "power"],
+  SUBUNIT_ADDITIONAL_DAMAGE: [
+    "kind",
+    "ownerAttack",
+    "providerAttack",
+    "skillMultiplier",
+    "targetDefense",
+  ],
+  STAT_RATIO: ["kind", "source", "stat", "ratio"],
+  MAX_HP_RATIO: ["kind", "source", "ratio"],
+  CURRENT_HP_RATIO: ["kind", "source", "ratio"],
+  MISSING_HP_RATIO: ["kind", "source", "ratio"],
+  LOST_HP_RATIO: ["kind", "source", "ratio"],
+  DAMAGE_DEALT_RATIO: ["kind", "sourceResult", "ratio"],
+  DAMAGE_RECEIVED_RATIO: ["kind", "sourceResult", "ratio"],
+  MARKER_COUNT_SCALE: ["kind", "target", "markerId", "perStack", "max"],
+  ALIVE_UNIT_COUNT_SCALE: ["kind", "side", "perUnit", "max"],
+  SUM: ["kind", "formulas"],
+  MIN: ["kind", "formulas"],
+  MAX: ["kind", "formulas"],
+  CLAMP: ["kind", "formula", "min", "max"],
+};
 
 export type FormulaDefinition =
   | { readonly kind: "CONSTANT"; readonly value: number }
@@ -140,6 +170,7 @@ export function createFormulaDefinition(
   scope: TargetBindingScope | undefined,
 ): FormulaDefinition {
   assertEnumValue(input.kind, FORMULA_KINDS, `${path}.kind`);
+  assertKnownKeys(input, FORMULA_ALLOWED_KEYS[input.kind], path);
 
   switch (input.kind) {
     case "CONSTANT":

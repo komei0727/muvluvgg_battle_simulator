@@ -303,4 +303,34 @@ describe("Catalog v2 definition mapper", () => {
       CatalogShapeValidationError,
     );
   });
+
+  it("UT-INFRA-MAP-022: raises DomainValidationError (not silent success) for a typo inside EffectActionDefinition.payload, which the loose JSON Schema does not catch", () => {
+    // `payload` is deliberately a generic object in the JSON Schema (Shape
+    // stage); the Mapper's Domain factories are the layer responsible for
+    // rejecting an unknown key like `typoDamageFiled` sitting next to the
+    // correctly-spelled `formula`.
+    expect(() =>
+      mapEffectActionDefinition({
+        ...effectActionDto,
+        payload: { ...effectActionDto.payload, typoDamageFiled: "oops" },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-INFRA-MAP-023: raises DomainValidationError for a typo inside Skill.traits, which the loose JSON Schema does not catch", () => {
+    expect(() =>
+      mapSkillDefinition({ ...skillDto, traits: { ...skillDto.traits, typoTraitField: true } }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-INFRA-MAP-024: raises DomainValidationError for a typo inside a resolution step, which the loose JSON Schema does not catch", () => {
+    const invalidSkill = {
+      ...skillDto,
+      resolution: {
+        ...skillDto.resolution,
+        steps: [{ ...skillDto.resolution.steps[0], typoStepField: "oops" }],
+      },
+    };
+    expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
+  });
 });
