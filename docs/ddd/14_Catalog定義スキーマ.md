@@ -1604,3 +1604,14 @@ production Catalog には source text を含めない。出典と転記根拠は
 5. RandomBranch のログ形式。
 6. Memory の複数指定時の発動順。
 7. Capability ごとの初期 `IMPLEMENTED` / `PLANNED` 状態。
+
+## Issue #6実装で判明した制約
+
+Catalog v2 DTO・Domain Definition・Mapperの実装（Issue #6）で、本書の記述だけでは一意に決まらない箇所が見つかった。次はpayload例やenum一覧が未確定であり、production Catalogの authoring 前に本書へ追記が必要。
+
+1. `EffectActionDefinition.kind` のうち `APPLY_HEALING_MOD`、`MODIFY_RESOURCE_CAPACITY`、`APPLY_SHIELD`、`REMOVE_EFFECTS`、`APPLY_DAMAGE_LINK` の5種はpayload例が示されていない。Mapperはこの5種を未サポートとして拒否する（`kind` enumに含めない）。`REMOVE_MARKER` は `APPLY_MARKER` の対称形（`markerId` のみ）として実装した。
+2. `FormulaDefinition` の `HP_RATIO_SCALE.direction` は値候補が本書のどこにも列挙されていない。Mapperは `HP_RATIO_SCALE` 自体を未サポートとして拒否する。
+3. `APPLY_STAT_MOD.stacking.mode` / `APPLY_DAMAGE_MOD.stacking.mode` は例で `STACKABLE` しか示されていない。「重複なし」(`R-STA-03`) に対応する値が未定義のため、Mapperは `STACKABLE` のみを許可する。
+4. Formulaの `source`/`target` 参照（`STAT_RATIO.source`、`MARKER_COUNT_SCALE.target` など）はHEAL/MARKER_COUNT_SCALE例では `{kind: ...}` オブジェクト形式、APPLY_SUBUNIT例 (`source: SKILL_SOURCE`) では裸のenum文字列形式と表記が揺れている。Mapperはオブジェクト形式 `{kind, targetBindingId?}` に統一した（`BINDING` 種別が追加フィールドを要するため）。
+5. `TriggerDefinition.sourceSelector` / `targetSelector` の値候補は本書に一覧化されていない。実装では `08_ドメインイベント.md` と本書の例に実際に現れる値（`SELF`、`ALLY`、`ENEMY`、`ANY`、`EFFECT_OWNER`）だけを許可した。
+6. `MarkerDefinition` はUnit/Skill/EffectAction/Memoryのような専用Catalogファイルを持たず、`MarkerId` 参照のみが登場する。Issue #6では `MarkerId` のformat検証のみを実装し、スタック上限や関連効果を持つ独立したMarkerカタログは未実装とした。
