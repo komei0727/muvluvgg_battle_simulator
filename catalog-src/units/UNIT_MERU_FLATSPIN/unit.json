@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_MERU_FLATSPIN",
+  "attribute": "COMICAL",
+  "unitType": "AGILE",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 27704,
+    "attack": 24421,
+    "defense": 10410,
+    "criticalRate": 0.15,
+    "actionSpeed": 724,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": [
+    "SKL_MERU_FLATSPIN_AS1",
+    "SKL_MERU_FLATSPIN_AS2",
+    "SKL_MERU_FLATSPIN_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_MERU_FLATSPIN_PS1"],
+  "extraSkillDefinitionId": "SKL_MERU_FLATSPIN_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【蒼き穹舞うフラットスピン】桃園める",
+    "characterName": "桃園める",
+    "characterId": "CHAR_MERU_MOMOZONO"
+  }
+}

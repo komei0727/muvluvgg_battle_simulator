@@ -1,0 +1,112 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "SUM_DAMAGE_DEALT",
+        "ratio": 0.3
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_ENEMY_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": { "kind": "CONSTANT", "value": 0.3 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "BATTLE", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.06 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS1_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.5 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 3, "owner": "EFFECT_TARGET" }
+      }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL",
+    "kind": "APPLY_DEATH_SURVIVAL",
+    "payload": {
+      "trigger": { "lethalDamageOnly": true },
+      "survivalHp": { "kind": "CONSTANT", "value": 1 },
+      "healAfterSurvival": null,
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "consumption": { "kind": "LETHAL_DAMAGE", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.8 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 150 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS3_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "formula": { "kind": "CONSTANT", "value": 0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  }
+]

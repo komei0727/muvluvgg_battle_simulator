@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_RAMI_NEWYEAR",
+  "attribute": "CUTE",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 30225,
+    "attack": 21735,
+    "defense": 11607,
+    "criticalRate": 0.2,
+    "actionSpeed": 746,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": [
+    "SKL_RAMI_NEWYEAR_AS1",
+    "SKL_RAMI_NEWYEAR_AS2",
+    "SKL_RAMI_NEWYEAR_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_RAMI_NEWYEAR_PS1"],
+  "extraSkillDefinitionId": "SKL_RAMI_NEWYEAR_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【大吉ハッピーニューイヤー】朽葉ラミ",
+    "characterName": "朽葉ラミ",
+    "characterId": "CHAR_RAMI_KUZUHA"
+  }
+}

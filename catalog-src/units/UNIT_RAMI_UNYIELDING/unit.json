@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_RAMI_UNYIELDING",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 24848,
+    "attack": 22542,
+    "defense": 10428,
+    "criticalRate": 0.2,
+    "actionSpeed": 750,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_RAMI_UNYIELDING_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_RAMI_UNYIELDING_PS1",
+    "SKL_RAMI_UNYIELDING_PS2",
+    "SKL_RAMI_UNYIELDING_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_RAMI_UNYIELDING_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【負けず嫌いな不屈少女】朽葉ラミ",
+    "characterName": "朽葉ラミ",
+    "characterId": "CHAR_RAMI_KUZUHA"
+  }
+}

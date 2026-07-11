@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SIENA_DIVA",
+  "attribute": "SHY",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 30205,
+    "attack": 22040,
+    "defense": 11218,
+    "criticalRate": 0.2,
+    "actionSpeed": 752,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_SIENA_DIVA_AS1", "SKL_SIENA_DIVA_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SIENA_DIVA_PS1", "SKL_SIENA_DIVA_PS2"],
+  "extraSkillDefinitionId": "SKL_SIENA_DIVA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク",
+    "characterName": "シエナ・クラーク",
+    "characterId": "CHAR_SIENA_CLARK"
+  }
+}
