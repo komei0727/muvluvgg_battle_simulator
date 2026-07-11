@@ -1,0 +1,214 @@
+[
+  {
+    "skillDefinitionId": "SKL_LAURA_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LAURA_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LAURA_EX_ATKDOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "ラウラＳＯＳ！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LAURA_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_AS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "落雷注意", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LAURA_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        { "targetBindingId": "TGT_AS_TARGET", "selector": { "kind": "TRIGGER_TARGET" } },
+        {
+          "targetBindingId": "TGT_ADJACENT",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_PS1_ATK_BUFF" }]
+        },
+        {
+          "kind": "RANDOM_BRANCH",
+          "mode": "INDEPENDENT",
+          "branches": [
+            {
+              "probability": 0.6,
+              "label": "BURN",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_LAURA_PS1_BURN" },
+                    { "effectActionDefinitionId": "ACT_LAURA_PS1_BURN_HEALING_DOWN" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "RANDOM_BRANCH",
+          "mode": "INDEPENDENT",
+          "branches": [
+            {
+              "probability": 0.6,
+              "label": "ADJACENT_ATTACK",
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_LAURA_PS1_ADJACENT_DAMAGE" },
+                    { "effectActionDefinitionId": "ACT_LAURA_PS1_ENEMY_DEBUFF" }
+                  ]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_LAURA_PS1_ENEMY_DEBUFF" }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_FORMULA",
+      "CAP_RANDOM_BRANCH",
+      "CAP_DAMAGE_MOD",
+      "CAP_DERIVED_TARGETS",
+      "CAP_ADVANCED_PASSIVE_TRIGGER",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_HEAL"
+    ],
+    "metadata": { "displayName": "整いサウナ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LAURA_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_RATE" },
+            { "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_DMG" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "みんなと一緒！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ],
+    "activationCondition": {
+      "kind": "ALIVE_UNIT_COUNT",
+      "side": "ALLY",
+      "excludeSelf": true,
+      "op": "GT",
+      "value": 0
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_LAURA_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_PS3_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "metadata": { "displayName": "私も混ぜて～！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  }
+]

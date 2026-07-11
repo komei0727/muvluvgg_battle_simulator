@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_KARINA",
+  "attribute": "SMART",
+  "unitType": "PHYSICAL",
+  "role": "SUPPORT",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 32042,
+    "attack": 19850,
+    "defense": 13302,
+    "criticalRate": 0.2,
+    "actionSpeed": 651,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_KARINA_AS1", "SKL_KARINA_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_KARINA_PS1", "SKL_KARINA_PS2"],
+  "extraSkillDefinitionId": "SKL_KARINA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【ダウナーギャルな副委員長】カリナ・ジェンティーレ",
+    "characterName": "カリナ・ジェンティーレ",
+    "characterId": "CHAR_KARINA_GENTILE"
+  }
+}

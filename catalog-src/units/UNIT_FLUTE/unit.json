@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_FLUTE",
+  "attribute": "SMART",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 22794,
+    "attack": 26033,
+    "defense": 10952,
+    "criticalRate": 0.2,
+    "actionSpeed": 713,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_FLUTE_AS1"],
+  "passiveSkillDefinitionIds": ["SKL_FLUTE_PS1", "SKL_FLUTE_PS2", "SKL_FLUTE_PS3"],
+  "extraSkillDefinitionId": "SKL_FLUTE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【＃激カワ吸血鬼配信者♪】フルート・メルヴィル",
+    "characterName": "フルート・メルヴィル",
+    "characterId": "CHAR_FLUTE_MELVILLE"
+  }
+}

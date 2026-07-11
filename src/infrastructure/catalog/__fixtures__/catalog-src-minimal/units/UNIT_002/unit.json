@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_002",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 2000,
+    "attack": 80,
+    "defense": 120,
+    "criticalRate": 0.05,
+    "actionSpeed": 90,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": [],
+  "passiveSkillDefinitionIds": [],
+  "extraSkillDefinitionId": "SKL_002_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "displayName": "Minimal Unit Two",
+    "characterName": "Minimal Character Two",
+    "characterId": "CHAR_MINIMAL_TWO",
+    "affiliations": [],
+    "tags": []
+  }
+}

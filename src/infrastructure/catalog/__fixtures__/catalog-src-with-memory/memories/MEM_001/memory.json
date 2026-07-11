@@ -1,0 +1,9 @@
+{
+  "memoryDefinitionId": "MEM_001",
+  "triggeredEffects": [],
+  "modifiers": [
+    { "targetFilter": { "kind": "ALL" }, "stat": "ATTACK", "valueType": "FIXED", "value": 100 }
+  ],
+  "requiredCapabilities": [],
+  "metadata": { "displayName": "Minimal Memory", "tags": [] }
+}

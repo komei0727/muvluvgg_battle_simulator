@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "validate-catalog": "tsx src/infrastructure/catalog/validate-catalog-cli.ts",
+    "generate-catalog": "tsx src/infrastructure/catalog/generate-catalog-cli.ts",
+    "check-catalog-src": "tsx src/infrastructure/catalog/check-catalog-src-cli.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node --enable-source-maps dist/main.js",
     "typecheck": "tsc --noEmit",

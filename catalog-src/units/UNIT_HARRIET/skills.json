@@ -1,0 +1,241 @@
+[
+  {
+    "skillDefinitionId": "SKL_HARRIET_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HARRIET_EX_HEAL" },
+            { "effectActionDefinitionId": "ACT_HARRIET_EX_CONTINUOUS_HEAL" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL", "CAP_FORMULA"],
+    "metadata": { "displayName": "治癒魔法『グレーターヒール』", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_HARRIET_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJ",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_MARKER" },
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DMGDOWN" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_MARKER" },
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_ATKDOWN" },
+            { "effectActionDefinitionId": "ACT_HARRIET_AS1_DMGDOWN" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "markerId": "MARKER_CURSE",
+            "countCondition": { "op": "GTE", "value": 4 }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_HARRIET_AS1_PP_ZERO" },
+                { "effectActionDefinitionId": "ACT_HARRIET_AS1_REMOVE_CURSE" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+            "markerId": "MARKER_CURSE",
+            "countCondition": { "op": "GTE", "value": 4 }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_HARRIET_AS1_PP_ZERO" },
+                { "effectActionDefinitionId": "ACT_HARRIET_AS1_REMOVE_CURSE" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_DAMAGE_MOD",
+      "CAP_COMPLEX_EXPIRATION",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOURCE_MOD",
+      "CAP_DERIVED_TARGETS"
+    ],
+    "metadata": { "displayName": "攻撃魔法『ホーリーレイ』", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_HARRIET_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_HP_ALLY",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HARRIET_AS2_IMMUNITY" },
+            { "effectActionDefinitionId": "ACT_HARRIET_AS2_CONTINUOUS_HEAL" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_SPECIFIC_IMMUNITY",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_COMPLEX_EXPIRATION",
+      "CAP_CONTINUOUS_HEAL"
+    ],
+    "metadata": { "displayName": "防御魔法『セイントバリア』", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_HARRIET_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BACK",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+          }
+        },
+        {
+          "targetBindingId": "TGT_FRONT",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HARRIET_PS1_CONTINUOUS_HEAL" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HARRIET_PS1_CONTINUOUS_HEAL" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": { "displayName": "治癒魔法『ヒール』", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_HARRIET_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HARRIET_PS2_AP_UP" },
+            { "effectActionDefinitionId": "ACT_HARRIET_PS2_SPEED_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "metadata": { "displayName": "強化魔法『スピードブースト』", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "ChargeStarted",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ALLY"
+      }
+    ]
+  }
+]

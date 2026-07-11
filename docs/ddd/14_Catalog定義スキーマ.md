@@ -79,6 +79,66 @@ catalog/
 
 ---
 
+## authoring source（`catalog-src/`）と生成フロー
+
+`catalog/` は runtime loader（`loadCatalogFromDirectory()`）が読む生成物であり、手編集の対象ではない（Issue #50）。人間が編集・レビューするのはリポジトリ直下 `catalog-src/` で、ユニット・メモリ単位に分割されている。
+
+```text
+catalog-src/
+  capabilities.json          # 共有・フラット。catalog/capabilities.json と同一形式
+  units/
+    <unitDefinitionId>/      # 例: UNIT_EVIE。バージョン単位のID。キャラクター単位ではない
+      unit.json               # UnitDefinition 1件
+      skills.json              # そのユニットのSkillDefinition配列
+      effects.json              # そのユニットのEffectActionDefinition配列
+  memories/
+    <memoryDefinitionId>/    # 例: MEM_001。memories/ ディレクトリ自体が無い場合は0件として扱う
+      memory.json              # MemoryDefinition 1件
+      effects.json              # そのMemoryのEffectActionDefinition配列
+```
+
+### ディレクトリ粒度: バージョン単位（キャラクター単位ではない）
+
+同一キャラクターでも衣装違い・イベント違いなどで複数バージョンのユニットが存在する（例: `raw/units/` の「ユリア・バーンズ」「生駒葵」「劉翠蘭」等は各2バージョン以上）。`unitDefinitionId`（例: `UNIT_EVIE`）はバージョン単位で一意なIDであり、`characterId`（例: `CHAR_EVIE_RENALT`）はキャラクター単位でユニット間に重複しうる。`catalog-src/units/` のディレクトリ名は必ず `unitDefinitionId` を用いる。`characterId` や `characterName` でディレクトリを作ると、同一キャラクターの複数バージョンが衝突する。
+
+`memories/` も同様に `memoryDefinitionId` 単位でディレクトリを作る。
+
+### 生成コマンド
+
+`catalog-src/` から `catalog/` の5ファイルと `manifest.json` を決定的に生成する。
+
+```bash
+pnpm run generate-catalog catalog-src catalog <catalogRevision>
+```
+
+- 各 `catalog-src/units/*/{unit.json,skills.json,effects.json}` と `catalog-src/memories/*/{memory.json,effects.json}`、`catalog-src/capabilities.json` を読み込み、ディレクトリ名昇順でユニット/メモリを並べて集約する。
+- ユニットディレクトリ名が `unit.json` の `unitDefinitionId` と一致しない場合（メモリも同様）は生成せずエラーにする。
+- 出力はリポジトリの Prettier 設定（`.prettierrc`）で整形され、`pnpm run format-check` をそのまま通過する。
+- `manifest.json` の各ファイルhashは生成した内容から自動算出される。`catalogRevision` は明示指定必須（暗黙の日付生成はしない）。
+
+同じ入力（`catalog-src/` の内容と `catalogRevision`）から再生成しても出力は毎回バイト単位で同一になる（決定的）。
+
+### 検証コマンド
+
+`catalog/` が `catalog-src/` から生成した内容と一致しているか（drift していないか）を確認する。
+
+```bash
+pnpm run check-catalog-src catalog-src catalog
+```
+
+`catalog/manifest.json` に記録済みの `catalogRevision` を使って再生成した結果と、実際の `catalog/*.json` を比較する。`catalog/` を直接手編集した場合や、`catalog-src/` を編集した後に生成コマンドを実行し忘れた場合に差分ファイル名を報告して失敗する。CIやコミット前チェックに組み込む想定。
+
+生成後は必ず `pnpm run validate-catalog catalog` で Shape/Resolve/Semantic 検証も行う。
+
+### #47（残Unit/Memory追加）での編集手順
+
+1. `catalog-src/units/<新しいunitDefinitionId>/`（または `catalog-src/memories/<新しいmemoryDefinitionId>/`）を追加し、`raw/units/` や `raw/memories/` から変換した内容を書く。
+2. `pnpm run generate-catalog catalog-src catalog <新しいcatalogRevision>` で `catalog/` を再生成する。
+3. `pnpm run validate-catalog catalog` と `pnpm run check-catalog-src catalog-src catalog` が成功することを確認する。
+4. 追加・変更したユニット/メモリ単位でレビューを依頼する（`catalog-src/` 側の差分がレビュー対象になる）。
+
+---
+
 ## ID体系
 
 | 種別           | プレフィックス  | 例                               |

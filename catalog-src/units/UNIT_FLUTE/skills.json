@@ -1,0 +1,253 @@
+[
+  {
+    "skillDefinitionId": "SKL_FLUTE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_COLUMN" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": true
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_FOLLOWUP" }]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_EX_SELF_HEAL" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_DERIVED_TARGETS",
+      "CAP_HEAL",
+      "CAP_FORMULA",
+      "CAP_EFFECT_CONDITION"
+    ],
+    "metadata": { "displayName": "＃ぽよ・オア・トリート", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_KYOKUGEN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_AS1_HP_COST" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA", "CAP_EFFECT_CONDITION"],
+    "metadata": { "displayName": "かぷっとファンサ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_FLUTE_PS1_HEAL_FULL" },
+            { "effectActionDefinitionId": "ACT_FLUTE_PS1_MARKER" },
+            { "effectActionDefinitionId": "ACT_FLUTE_PS1_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_FLUTE_PS1_MAX_AP_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_MARKER",
+      "CAP_DAMAGE_MOD",
+      "CAP_RUNTIME_COUNTER",
+      "CAP_RESOURCE_CAPACITY_MOD"
+    ],
+    "metadata": { "displayName": "イモータル・ヴァンパイア", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "SELF" },
+              "field": "HP_RATIO",
+              "op": "LTE",
+              "value": 0.1
+            },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_FLUTE_PS1_ACTIVATIONS",
+              "op": "LT",
+              "value": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS2_COUNTER" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS2_EVASION" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 3 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_EFFECT_CONDITION", "CAP_MARKER"],
+    "metadata": { "displayName": "アウェイキング・ヴァンパイア", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "NOT",
+              "condition": {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "SELF" },
+                "markerId": "MARKER_KYOKUGEN"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FARTHEST",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS3_DEBUFF" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_PS3_DEATH_SURVIVAL" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_DEATH_SURVIVAL", "CAP_RUNTIME_COUNTER"],
+    "metadata": { "displayName": "あなたにマーキング♡", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_FLUTE_PS3_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ]
+  }
+]

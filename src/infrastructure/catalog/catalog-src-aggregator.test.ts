@@ -1,0 +1,73 @@
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { CatalogSourceError, readCatalogSource } from "./catalog-src-aggregator.js";
+
+/**
+ * Issue #50: `catalog-src/` is the human-edited authoring source, split by
+ * unit/memory version (`catalog-src/units/<unitDefinitionId>/`,
+ * `catalog-src/memories/<memoryDefinitionId>/`) rather than by character, so
+ * that a character with multiple gacha versions gets one directory per
+ * version. `readCatalogSource` aggregates it back into the same five
+ * in-memory arrays `catalog/*.json` holds today.
+ */
+
+function fixturePath(...segments: string[]): string {
+  return fileURLToPath(new URL(`./__fixtures__/${segments.join("/")}`, import.meta.url));
+}
+
+describe("readCatalogSource", () => {
+  it("UT-CAT-SRC-001: reads capabilities.json as-is from the catalog-src root", () => {
+    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    expect(source.capabilities).toEqual([]);
+  });
+
+  it("UT-CAT-SRC-002: aggregates one unit.json per unit directory into the units array", () => {
+    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const unitIds = source.units.map((u) => (u as { unitDefinitionId: string }).unitDefinitionId);
+    expect(unitIds).toEqual(["UNIT_001", "UNIT_002"]);
+  });
+
+  it("UT-CAT-SRC-003: orders units by directory name for deterministic output", () => {
+    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const displayNames = source.units.map(
+      (u) => (u as { metadata: { displayName: string } }).metadata.displayName,
+    );
+    expect(displayNames).toEqual(["Minimal Unit One", "Minimal Unit Two"]);
+  });
+
+  it("UT-CAT-SRC-004: concatenates each unit's skills.json into a single skills array", () => {
+    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const skillIds = source.skills.map(
+      (s) => (s as { skillDefinitionId: string }).skillDefinitionId,
+    );
+    expect(skillIds).toEqual(["SKL_001_AS1", "SKL_001_EX", "SKL_002_EX"]);
+  });
+
+  it("UT-CAT-SRC-005: concatenates each unit's effects.json into a single effects array", () => {
+    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    const effectIds = source.effects.map(
+      (e) => (e as { effectActionDefinitionId: string }).effectActionDefinitionId,
+    );
+    expect(effectIds).toEqual(["ACT_DAMAGE_PHYSICAL_100"]);
+  });
+
+  it("UT-CAT-SRC-006: yields an empty memories array when catalog-src has no memories/ directory", () => {
+    const source = readCatalogSource(fixturePath("catalog-src-minimal"));
+    expect(source.memories).toEqual([]);
+  });
+
+  it("UT-CAT-SRC-007: aggregates memory.json and per-memory effects.json when memories/ exists", () => {
+    const source = readCatalogSource(fixturePath("catalog-src-with-memory"));
+    const memoryIds = source.memories.map(
+      (m) => (m as { memoryDefinitionId: string }).memoryDefinitionId,
+    );
+    expect(memoryIds).toEqual(["MEM_001"]);
+    expect(source.units).toEqual([]);
+  });
+
+  it("UT-CAT-SRC-008: rejects a unit directory whose name does not match unit.json's unitDefinitionId", () => {
+    expect(() => readCatalogSource(fixturePath("catalog-src-mismatched-unit"))).toThrow(
+      CatalogSourceError,
+    );
+  });
+});
