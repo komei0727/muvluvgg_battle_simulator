@@ -1,0 +1,402 @@
+import { describe, expect, it } from "vitest";
+import { createCapabilityDefinition, type CapabilityDefinition } from "./capability-definition.js";
+import {
+  buildCatalogIndex,
+  CatalogIntegrityError,
+  type CatalogDefinitions,
+} from "./catalog-integrity.js";
+import {
+  createEffectActionDefinition,
+  type EffectActionDefinition,
+} from "./effect-action-definition.js";
+import { createMemoryDefinition } from "./memory-definition.js";
+import { createSkillDefinition, type SkillDefinition } from "./skill-definition.js";
+import { createUnitDefinition, type UnitDefinition } from "./unit-definition.js";
+
+function damageAction(id: string): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "DAMAGE",
+      payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
+      requiredCapabilities: [],
+    },
+    "effectAction",
+  );
+}
+
+function asSkill(id: string, targetActionId: string): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: "TGT_PRIMARY",
+          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+          actions: [{ effectActionDefinitionId: targetActionId }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities: [],
+    metadata: { displayName: "AS" },
+  });
+}
+
+function psSkill(id: string, eventType: string, category: string): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [{ eventType, category, sourceSelector: "SELF", targetSelector: "SELF" }],
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities: [],
+    metadata: { displayName: "PS" },
+  });
+}
+
+function exSkill(id: string, amount: number): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "EX",
+    cost: { resource: "EX_GAUGE", amount },
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: "TGT_PRIMARY",
+          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities: [],
+    metadata: { displayName: "EX" },
+  });
+}
+
+function unit(
+  id: string,
+  overrides: {
+    active?: readonly string[];
+    passive?: readonly string[];
+    extra?: string;
+    extraGaugeMaximum?: number;
+    requiredCapabilities?: readonly string[];
+  } = {},
+): UnitDefinition {
+  return createUnitDefinition({
+    unitDefinitionId: id,
+    attribute: "COMICAL",
+    unitType: "AGILE",
+    role: "CONTROL",
+    positionAptitudes: ["FRONT"],
+    baseStats: {
+      maximumHp: 1000,
+      attack: 100,
+      defense: 50,
+      criticalRate: 0.1,
+      actionSpeed: 100,
+      maximumAp: 4,
+      maximumPp: 4,
+    },
+    extraGaugeMaximum: overrides.extraGaugeMaximum ?? 7,
+    activeSkillDefinitionIds: overrides.active ?? ["SKL_AS1"],
+    passiveSkillDefinitionIds: overrides.passive ?? [],
+    extraSkillDefinitionId: overrides.extra ?? "SKL_EX1",
+    requiredCapabilities: overrides.requiredCapabilities ?? [],
+    metadata: { displayName: "Unit", characterName: "Character", characterId: "CHAR_1" },
+  });
+}
+
+function capability(id: string, status = "IMPLEMENTED"): CapabilityDefinition {
+  return createCapabilityDefinition({ capabilityId: id, status, description: "d", requiredBy: [] });
+}
+
+function baseDefinitions(): CatalogDefinitions {
+  return {
+    units: [unit("UNIT_001")],
+    skills: [asSkill("SKL_AS1", "ACT_DAMAGE_1"), exSkill("SKL_EX1", 7)],
+    effectActions: [damageAction("ACT_DAMAGE_1")],
+    memories: [],
+    capabilities: [],
+  };
+}
+
+describe("buildCatalogIndex", () => {
+  it("UT-CAT-IDX-001: indexes a valid minimal catalog without violations", () => {
+    const index = buildCatalogIndex(baseDefinitions());
+    expect(index.units.get("UNIT_001" as never)).toBeDefined();
+    expect(index.skills.size).toBe(2);
+    expect(index.effectActions.size).toBe(1);
+  });
+
+  it("UT-CAT-IDX-002: rejects duplicate ids within the same definition type", () => {
+    const defs = baseDefinitions();
+    const withDup: CatalogDefinitions = {
+      ...defs,
+      effectActions: [...defs.effectActions, damageAction("ACT_DAMAGE_1")],
+    };
+    expect(() => buildCatalogIndex(withDup)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withDup);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(CatalogIntegrityError);
+      const err = error as CatalogIntegrityError;
+      expect(err.violations).toHaveLength(1);
+      expect(err.violations[0]?.targetId).toBe("ACT_DAMAGE_1");
+      expect(err.violations[0]?.rule).toBe("DUPLICATE_ID");
+    }
+  });
+
+  it("UT-CAT-IDX-003: rejects a Unit's activeSkillDefinitionIds referencing a missing Skill", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { active: ["SKL_MISSING"] })],
+    };
+    expect(() => buildCatalogIndex(withDangling)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
+      expect(err.violations[0]?.targetId).toBe("UNIT_001");
+    }
+  });
+
+  it("UT-CAT-IDX-004: rejects a Unit referencing a Skill of the wrong skillType", () => {
+    const defs = baseDefinitions();
+    const withWrongType: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { active: ["SKL_EX1"] })],
+    };
+    expect(() => buildCatalogIndex(withWrongType)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withWrongType);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("TYPE_MISMATCH");
+    }
+  });
+
+  it("UT-CAT-IDX-005: rejects an EX skill whose cost.amount does not match the Unit's extraGaugeMaximum", () => {
+    const defs = baseDefinitions();
+    const mismatched: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { extraGaugeMaximum: 9 })],
+    };
+    expect(() => buildCatalogIndex(mismatched)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(mismatched);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("EX_COST_MISMATCH");
+    }
+  });
+
+  it("UT-CAT-IDX-006: rejects a Skill effectSequence referencing a missing EffectActionDefinition", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      skills: [asSkill("SKL_AS1", "ACT_MISSING"), exSkill("SKL_EX1", 7)],
+    };
+    expect(() => buildCatalogIndex(withDangling)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
+      expect(err.violations[0]?.targetId).toBe("SKL_AS1");
+    }
+  });
+
+  it("UT-CAT-IDX-007: rejects a Memory triggeredEffect referencing a missing EffectActionDefinition", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      memories: [
+        createMemoryDefinition({
+          memoryDefinitionId: "MEM_001",
+          triggeredEffects: [
+            {
+              trigger: {
+                eventType: "BattleStarted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ALLY",
+              },
+              effectSequence: {
+                targetBindings: [
+                  {
+                    targetBindingId: "TGT_ALL_ALLIES",
+                    selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+                  },
+                ],
+                steps: [
+                  {
+                    kind: "ACTION",
+                    target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+                    actions: [{ effectActionDefinitionId: "ACT_MISSING" }],
+                  },
+                ],
+              },
+            },
+          ],
+          requiredCapabilities: [],
+          metadata: { displayName: "Memory" },
+        }),
+      ],
+    };
+    expect(() => buildCatalogIndex(withDangling)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
+      expect(err.violations[0]?.targetId).toBe("MEM_001");
+    }
+  });
+
+  it("UT-CAT-IDX-008: rejects requiredCapabilities that are not defined in capabilities.json", () => {
+    const defs = baseDefinitions();
+    const withUnknownCap: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { requiredCapabilities: ["CAP_UNKNOWN"] })],
+    };
+    expect(() => buildCatalogIndex(withUnknownCap)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withUnknownCap);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("UNKNOWN_CAPABILITY");
+      expect(err.violations[0]?.targetId).toBe("UNIT_001");
+    }
+  });
+
+  it("UT-CAT-IDX-009: accepts requiredCapabilities that are defined in capabilities.json", () => {
+    const defs = baseDefinitions();
+    const withCap: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { requiredCapabilities: ["CAP_HEAL"] })],
+      capabilities: [capability("CAP_HEAL", "PLANNED")],
+    };
+    const index = buildCatalogIndex(withCap);
+    expect(index.capabilities.get("CAP_HEAL" as never)?.status).toBe("PLANNED");
+  });
+
+  it("UT-CAT-IDX-010: rejects a PS trigger referencing an unknown eventType", () => {
+    const defs = baseDefinitions();
+    const withUnknownEvent: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+      skills: [...defs.skills, psSkill("SKL_PS1", "NotARealEvent", "FACT")],
+    };
+    expect(() => buildCatalogIndex(withUnknownEvent)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withUnknownEvent);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("UNKNOWN_EVENT_TYPE");
+      expect(err.violations[0]?.targetId).toBe("SKL_PS1");
+    }
+  });
+
+  it("UT-CAT-IDX-011: rejects a PS trigger whose declared category mismatches the eventType's documented category", () => {
+    const defs = baseDefinitions();
+    const withMismatch: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+      // UnitBeingAttacked is documented as TIMING, not FACT.
+      skills: [...defs.skills, psSkill("SKL_PS1", "UnitBeingAttacked", "FACT")],
+    };
+    expect(() => buildCatalogIndex(withMismatch)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withMismatch);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("EVENT_CATEGORY_MISMATCH");
+    }
+  });
+
+  it("UT-CAT-IDX-012: accepts the documented EffectApplied (FACT) trigger", () => {
+    const defs = baseDefinitions();
+    const withEffectApplied: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+      skills: [...defs.skills, psSkill("SKL_PS1", "EffectApplied", "FACT")],
+    };
+    const index = buildCatalogIndex(withEffectApplied);
+    expect(index.skills.get("SKL_PS1" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-013: rejects a Unit that lists the same Skill id twice in activeSkillDefinitionIds", () => {
+    const defs = baseDefinitions();
+    const withDupRef: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS1"] })],
+    };
+    expect(() => buildCatalogIndex(withDupRef)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withDupRef);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("DUPLICATE_SKILL_REFERENCE");
+      expect(err.violations[0]?.targetId).toBe("UNIT_001");
+    }
+  });
+
+  it("UT-CAT-IDX-014: collects multiple violations in a single pass", () => {
+    const defs = baseDefinitions();
+    const multi: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { active: ["SKL_MISSING"], requiredCapabilities: ["CAP_UNKNOWN"] })],
+    };
+    try {
+      buildCatalogIndex(multi);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
