@@ -61,7 +61,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 | 【新春のメイズ研究者】月ヶ瀬ちゆる                   | `UNIT_CHIYURU_NEWYEAR`    | `CHAR_CHIYURU_TSUKIGASE` | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
 | 【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク       | -                         | -                        | 未変換（後続バッチ）                                    |
 | 【期待応える輝きの穹】一条白奈                       | `UNIT_SHIRANA_SORA`       | `CHAR_SHIRANA_ICHIJO`    | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【正々堂々なミス・ツンデレ】綺羅クララ               | `UNIT_CLARA_TSUNDERE`     | `CHAR_CLARA_KIRA`        | 済み（本Issue #59 Batch B）                             |
+| 【正々堂々なミス・ツンデレ】綺羅クララ               | `UNIT_CLARA_TSUNDERE`     | `CHAR_CLARA_KIRA`        | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
 | 【正義のヒーロー】リリー・ラヴォア                   | `UNIT_LILY_HERO`          | `CHAR_LILY_LAVOIE`       | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
 | 【歴戦の鉄母】オルガ・ヴォルコワ                     | -                         | -                        | 未変換（後続バッチ）                                    |
 | 【気高きランウェイモデル】レイヴェル・ブライトリーフ | -                         | -                        | 未変換（後続バッチ）                                    |
@@ -95,7 +95,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 ### 不完全変換の詳細（※印のユニット）
 
-上表で「※不完全変換あり」と記載した20ユニット（Issue #47先行バッチ6 + Issue #55 Batch A 7 + Issue #59 Batch B 7）について、raw記載の効果のうちCatalog v2の現行スキーマでは表現しきれず、近似または省略した箇所を一覧化する。いずれもM2の基礎Catalog項目（Unit ID・属性・タイプ・ロール・配置適性・基礎ステータス・AP/PP/EX関連値）には影響しない。スキル効果の完全表現は本Issueのスコープ外（Issue本文の「Out of scope」参照）であり、対応する`EffectActionDefinition`/`ConditionDefinition`/`TriggerDefinition`拡張が実装されるまで、後続Issueで解消する。
+上表で「※不完全変換あり」と記載した21ユニット（Issue #47先行バッチ6 + Issue #55 Batch A 7 + Issue #59 Batch B 8）について、raw記載の効果のうちCatalog v2の現行スキーマでは表現しきれず、近似または省略した箇所を一覧化する。いずれもM2の基礎Catalog項目（Unit ID・属性・タイプ・ロール・配置適性・基礎ステータス・AP/PP/EX関連値）には影響しない。スキル効果の完全表現は本Issueのスコープ外（Issue本文の「Out of scope」参照）であり、対応する`EffectActionDefinition`/`ConditionDefinition`/`TriggerDefinition`拡張が実装されるまで、後続Issueで解消する。
 
 | unitDefinitionId          | 該当スキル                                                                                               | 変換できなかった内容                                                                                                                                                                                | 原因                                                                                                                       |
 | ------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -144,6 +144,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 | `UNIT_SHIRANA_SORA`       | `SKL_SHIRANA_SORA_PS1`（期待に応えたい）                                                                 | 「アクティブスキルを2回使用するたびに発動」を「使用するたびに発動」に近似した                                                                                                                       | `RUNTIME_COUNTER`にmodulo（周期）がなく、N回ごとの発動間隔を表せない                                                       |
 | `UNIT_CLARA_SANTA`        | `SKL_CLARA_SANTA_AS2`（アンコール！）                                                                    | 「「サンタタグ」が付与された敵がいる列を優先」を、HAS_MARKERフィルタ＋DEFAULTフォールバックで近似した（列単位ではなく対象個体単位の判定になっている）                                               | 列単位でMarkerの所在を判定するTargetFilter/AreaDefinitionが存在しない                                                      |
 | `UNIT_CLARA_SANTA`        | `SKL_CLARA_SANTA_PS1`（クララ・オン・ステージ）                                                          | 「アクティブスキルを3回使用するたびに発動」を「使用するたびに発動」に近似した                                                                                                                       | `RUNTIME_COUNTER`にmodulo（周期）がなく、N回ごとの発動間隔を表せない                                                       |
+| `UNIT_CLARA_TSUNDERE`     | `SKL_CLARA_TSUNDERE_PS2`（クイックブースト）                                                             | 「自身を除く味方全員」「自身を除く味方単体」を、自身を含む味方全員／味方単体に近似した                                                                                                              | 解決済み束縛から特定の1体（自身）を除外するTargetFilterが存在しない                                                        |
 
 ## Memory 変換台帳
 
