@@ -253,6 +253,12 @@ function createRandomBranch(
     if (input.weight === undefined) {
       throw new DomainValidationError(`${path}.weight`, "is required when mode is WEIGHTED_ONE");
     }
+    if (input.probability !== undefined) {
+      throw new DomainValidationError(
+        `${path}.probability`,
+        "must not be set when mode is WEIGHTED_ONE (only valid when mode is INDEPENDENT)",
+      );
+    }
     assertFinite(input.weight, `${path}.weight`);
     if (input.weight < 0) {
       throw new DomainValidationError(`${path}.weight`, `must be >= 0, got ${input.weight}`);
@@ -263,6 +269,12 @@ function createRandomBranch(
       throw new DomainValidationError(
         `${path}.probability`,
         "is required when mode is INDEPENDENT",
+      );
+    }
+    if (input.weight !== undefined) {
+      throw new DomainValidationError(
+        `${path}.weight`,
+        "must not be set when mode is INDEPENDENT (only valid when mode is WEIGHTED_ONE)",
       );
     }
     assertFinite(input.probability, `${path}.probability`);

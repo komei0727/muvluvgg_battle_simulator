@@ -481,4 +481,40 @@ describe("EffectSequence", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-SEQ-025: rejects a stale probability on a WEIGHTED_ONE branch", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "RANDOM_BRANCH",
+              mode: "WEIGHTED_ONE",
+              branches: [{ weight: 1, probability: 0.5, steps: [] }],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-026: rejects a stale weight on an INDEPENDENT branch", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "RANDOM_BRANCH",
+              mode: "INDEPENDENT",
+              branches: [{ weight: 1, probability: 0.5, steps: [] }],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

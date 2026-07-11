@@ -419,6 +419,11 @@ export function createTargetSelectorDefinition(
       throw new DomainValidationError(`${path}.base`, "is required when kind is BINDING_DERIVED");
     }
     result.base = createTargetReference(input.base, `${path}.base`, scope);
+  } else if (input.base !== undefined) {
+    throw new DomainValidationError(
+      `${path}.base`,
+      `must not be set when kind is "${input.kind}" (only valid when kind is BINDING_DERIVED)`,
+    );
   }
 
   if (input.area !== undefined) {

@@ -361,4 +361,37 @@ describe("Catalog v2 definition mapper", () => {
     };
     expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
   });
+
+  it("UT-INFRA-MAP-027: raises DomainValidationError for a stale base on a SELECT targetBinding selector", () => {
+    const invalidSkill = {
+      ...skillDto,
+      resolution: {
+        ...skillDto.resolution,
+        targetBindings: [
+          {
+            targetBindingId: "TGT_PRIMARY",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, base: { kind: "SELF" } },
+          },
+        ],
+      },
+    };
+    expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
+  });
+
+  it("UT-INFRA-MAP-028: raises DomainValidationError for a WEIGHTED_ONE RandomBranch that also sets probability", () => {
+    const invalidSkill = {
+      ...skillDto,
+      resolution: {
+        kind: "IMMEDIATE",
+        steps: [
+          {
+            kind: "RANDOM_BRANCH",
+            mode: "WEIGHTED_ONE",
+            branches: [{ weight: 1, probability: 0.5, steps: [] }],
+          },
+        ],
+      },
+    };
+    expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
+  });
 });

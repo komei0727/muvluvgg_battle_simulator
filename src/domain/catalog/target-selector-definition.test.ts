@@ -276,4 +276,24 @@ describe("TargetSelectorDefinition", () => {
     );
     expect(result.side).toBe("ALLY");
   });
+
+  it("UT-CAT-TSEL-022: rejects a stale base on a SELECT selector", () => {
+    expect(() =>
+      createTargetSelectorDefinition(
+        { kind: "SELECT", side: "ENEMY", count: 1, base: { kind: "SELF" } },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-TSEL-023: rejects a stale base on a SELF selector", () => {
+    expect(() =>
+      createTargetSelectorDefinition(
+        { kind: "SELF", base: { kind: "SELF" } },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });
