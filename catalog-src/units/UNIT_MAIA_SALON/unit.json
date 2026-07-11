@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_MAIA_SALON",
+  "attribute": "AGGRESSIVE",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 33023,
+    "attack": 19815,
+    "defense": 16457,
+    "criticalRate": 0.15,
+    "actionSpeed": 632,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_MAIA_SALON_AS1", "SKL_MAIA_SALON_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MAIA_SALON_PS1", "SKL_MAIA_SALON_PS2"],
+  "extraSkillDefinitionId": "SKL_MAIA_SALON_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【眠れる社交界の淑女】夕凪舞亜",
+    "characterName": "夕凪舞亜",
+    "characterId": "CHAR_MAIA_YUNAGI"
+  }
+}

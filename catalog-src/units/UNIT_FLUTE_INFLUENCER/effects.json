@@ -1,0 +1,75 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.45 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_LOWEST",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.975 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS1_HEAL_OVER_TIME",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.15 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 5 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.248 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE_ADJACENT",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.624 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS1_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 1.5
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.55 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  }
+]

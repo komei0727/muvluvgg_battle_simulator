@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_CHIYURU_NEWYEAR",
+  "attribute": "SMART",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 33166,
+    "attack": 20365,
+    "defense": 11340,
+    "criticalRate": 0.2,
+    "actionSpeed": 678,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_AS1", "SKL_CHIYURU_NEWYEAR_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_PS1", "SKL_CHIYURU_NEWYEAR_PS2"],
+  "extraSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【新春のメイズ研究者】月ヶ瀬ちゆる",
+    "characterName": "月ヶ瀬ちゆる",
+    "characterId": "CHAR_CHIYURU_TSUKIGASE"
+  }
+}

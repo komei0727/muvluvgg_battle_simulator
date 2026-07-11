@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_SUIRAN_CASINO",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 33361,
+    "attack": 19147,
+    "defense": 13924,
+    "criticalRate": 0.15,
+    "actionSpeed": 750,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": [
+    "SKL_SUIRAN_CASINO_AS1",
+    "SKL_SUIRAN_CASINO_AS2",
+    "SKL_SUIRAN_CASINO_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_SUIRAN_CASINO_PS1"],
+  "extraSkillDefinitionId": "SKL_SUIRAN_CASINO_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【恥じらうカジノラビット】劉翠蘭",
+    "characterName": "劉翠蘭",
+    "characterId": "CHAR_SUIRAN_LIU"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_YURIA_YUKATA",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32393,
+    "attack": 19057,
+    "defense": 11476,
+    "criticalRate": 0.2,
+    "actionSpeed": 655,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_YURIA_YUKATA_AS1", "SKL_YURIA_YUKATA_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_YURIA_YUKATA_PS1", "SKL_YURIA_YUKATA_PS2"],
+  "extraSkillDefinitionId": "SKL_YURIA_YUKATA_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【はだけるわんぱく浴衣】ユリア・バーンズ",
+    "characterName": "ユリア・バーンズ",
+    "characterId": "CHAR_YURIA_BURNES"
+  }
+}

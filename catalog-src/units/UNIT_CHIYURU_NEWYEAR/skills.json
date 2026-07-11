@@ -1,0 +1,173 @@
+[
+  {
+    "skillDefinitionId": "SKL_CHIYURU_NEWYEAR_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_MOCHI" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_MARKER"],
+    "metadata": { "displayName": "餅つき、よいしょ～！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_NEWYEAR_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_SELF" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 99 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_DERIVED_TARGETS", "CAP_HEAL"],
+    "metadata": { "displayName": "除災招福", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_NEWYEAR_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_ATK_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "お祓い", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_NEWYEAR_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_HEAL" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MOCHI" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_MARKER"],
+    "metadata": { "displayName": "お清め", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitDefeated",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "ANY"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_NEWYEAR_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS2_SHIELD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "displayName": "災難除け", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]

@@ -1,0 +1,127 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_STUN",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "probability": 1
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.716 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.003 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_CLEAR_FLUSH",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_FEE_BATH_FLUSH" },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.954 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FEE_BATH_FLUSH",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.468 },
+      "hitCount": 3,
+      "damageModifiers": [
+        {
+          "kind": "MARKER_COUNT_SCALE",
+          "target": { "kind": "TARGET" },
+          "markerId": "MARKER_FEE_BATH_FLUSH",
+          "perStack": 0.2,
+          "max": 1.0
+        }
+      ]
+    },
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FEE_BATH_FLUSH",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_PS1_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_PS2_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FEE_BATH_FLUSH",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_PS2_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  }
+]

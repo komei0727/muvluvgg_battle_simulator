@@ -1,0 +1,33 @@
+{
+  "unitDefinitionId": "UNIT_MAIA_LAZY",
+  "attribute": "SMART",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 30205,
+    "attack": 21590,
+    "defense": 11083,
+    "criticalRate": 0.2,
+    "actionSpeed": 750,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 5,
+  "activeSkillDefinitionIds": [
+    "SKL_MAIA_LAZY_AS1",
+    "SKL_MAIA_LAZY_AS2",
+    "SKL_MAIA_LAZY_AS3",
+    "SKL_MAIA_LAZY_AS4"
+  ],
+  "passiveSkillDefinitionIds": [],
+  "extraSkillDefinitionId": "SKL_MAIA_LAZY_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【温厚篤実な面倒くさがり】夕凪舞亜",
+    "characterName": "夕凪舞亜",
+    "characterId": "CHAR_MAIA_YUNAGI"
+  }
+}

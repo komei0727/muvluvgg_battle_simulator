@@ -1,0 +1,182 @@
+[
+  {
+    "skillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_LOWEST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_LOWEST" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "displayName": "ライブストリーミング！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_INFLUENCER_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ALLY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS1_HEAL_OVER_TIME" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "いいね☆で元気だそ？", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_INFLUENCER_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJACENT",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE_ADJACENT" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "ぽよビ～～ム♡", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_INFLUENCER_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS1_SHIELD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "displayName": "ぽよぽよプロテクト", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "field": "HP_RATIO",
+          "op": "LTE",
+          "value": 0.5
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_INFLUENCER_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "displayName": "イケてる♡イケてる", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY"
+      }
+    ]
+  }
+]

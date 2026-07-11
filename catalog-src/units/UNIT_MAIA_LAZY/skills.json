@@ -1,0 +1,175 @@
+[
+  {
+    "skillDefinitionId": "SKL_MAIA_LAZY_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 5 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FRONT_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+          }
+        },
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_HEAL" },
+            { "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_ATK_UP" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "さて……準備はできたわ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAIA_LAZY_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["BACK_ROW", "DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 3 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "スナイプリフレクター", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAIA_LAZY_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": false },
+            "side": "ALLY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL_OVER_TIME" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 3 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL", "CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "アライヒーリング", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAIA_LAZY_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGHEST_ATK",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["HIGHEST_ATTACK"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_AP_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 3 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "displayName": "パワーアプライ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAIA_LAZY_AS4",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS4_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "シングル・スナイプ", "tags": [] }
+  }
+]

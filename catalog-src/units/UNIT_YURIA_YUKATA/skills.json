@@ -1,0 +1,181 @@
+[
+  {
+    "skillDefinitionId": "SKL_YURIA_YUKATA_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["FRONT_ROW", "DEFAULT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_SPEED_DOWN" },
+            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_CRIT_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "桶シュート！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_YUKATA_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "スーパー枕投げ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_YUKATA_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ALLY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS2_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS2_DMG_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "みんなで温泉入ろ♪", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_YUKATA_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FRONT_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_YUKATA_PS1_ATK_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 3 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "湯上がりの牛乳", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_YUKATA_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_YUKATA_PS2_SHIELD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_RUNTIME_COUNTER"],
+    "metadata": { "displayName": "温泉の効能", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_YURIA_YUKATA_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ]
+  }
+]

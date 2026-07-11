@@ -1,0 +1,137 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_EX_ENEMY_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_EX_ALLY_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.125 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.546 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_MAIA_SALON_RANCHOU",
+      "stack": { "policy": "KEEP_EXISTING", "max": 1 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.092 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": -80 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS1_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.0585 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_MAIA_SALON_HANAMAI",
+      "stack": { "policy": "KEEP_EXISTING", "max": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS1_MAX_HP_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "MAXIMUM_HP",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.0315 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS2_CLEAR_MARKER",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_MAIA_SALON_RANCHOU" },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  }
+]

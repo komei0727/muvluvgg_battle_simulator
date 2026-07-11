@@ -216,6 +216,181 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.272 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_MOCHI",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+      "stack": { "policy": "ADD", "max": 6 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "MARKER_COUNT_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+        "perStack": 0.03,
+        "max": 0.18
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "MARKER_COUNT_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+        "perStack": 0.06,
+        "max": 0.36
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.39 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_SELF",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "SUM_DAMAGE_DEALT",
+        "ratio": 0.25
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.484 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.15 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "MAXIMUM_HP",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MOCHI",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+      "stack": { "policy": "ADD", "max": 6 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_REMOVE_DEBUFFS",
     "kind": "REMOVE_EFFECTS",
     "payload": { "categories": ["DEBUFF"] },
@@ -360,6 +535,134 @@
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
     "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_DAMAGE_MULTI",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 0.3792 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_DAMAGE_EXTRA",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.8532 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_EX_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -3 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.014 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_DOROTHEA_PIONEER_GRACE",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.014 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.35 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 100 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 0.25
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_TARGET" }
+      }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
@@ -684,6 +987,195 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_STUN",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "probability": 1
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.716 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.003 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_EX_CLEAR_FLUSH",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_FEE_BATH_FLUSH" },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.954 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FEE_BATH_FLUSH",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.468 },
+      "hitCount": 3,
+      "damageModifiers": [
+        {
+          "kind": "MARKER_COUNT_SCALE",
+          "target": { "kind": "TARGET" },
+          "markerId": "MARKER_FEE_BATH_FLUSH",
+          "perStack": 0.2,
+          "max": 1
+        }
+      ]
+    },
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FEE_BATH_FLUSH",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_PS1_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_PS2_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FEE_BATH_FLUSH",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FEE_BATH_PS2_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.45 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_LOWEST",
+    "kind": "HEAL",
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.975 }, "overheal": "DISCARD" },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS1_HEAL_OVER_TIME",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.15 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 5 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.248 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE_ADJACENT",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.624 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS1_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 1.5
+      },
+      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL",
+    "kind": "HEAL",
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.55 }, "overheal": "DISCARD" },
+    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -2132,6 +2624,225 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_HEAL",
+    "kind": "HEAL",
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.55 }, "overheal": "DISCARD" },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.948 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL",
+    "kind": "HEAL",
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.55 }, "overheal": "DISCARD" },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL_OVER_TIME",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.6 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_AP_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS4_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_EX_ENEMY_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_EX_ALLY_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.125 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.546 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_MAIA_SALON_RANCHOU",
+      "stack": { "policy": "KEEP_EXISTING", "max": 1 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.092 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": -80 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS1_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.0585 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_MAIA_SALON_HANAMAI",
+      "stack": { "policy": "KEEP_EXISTING", "max": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS1_MAX_HP_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "MAXIMUM_HP",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.0315 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_PS2_CLEAR_MARKER",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_MAIA_SALON_RANCHOU" },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.34 } },
@@ -2682,6 +3393,128 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.2048 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_EX_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
+      "stack": { "policy": "REPLACE", "max": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_SHIELD1",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_SHIELD2",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.424 }
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_AP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS3_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.624 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS3_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 1.5 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS3_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
+      "stack": { "policy": "REPLACE", "max": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_PS1_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_PS1_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 },
+      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 3.18 } },
@@ -2935,6 +3768,102 @@
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
     "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": -100 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_CRIT_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.175 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.06 },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS2_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.35 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS2_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.35 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_PS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.125 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YURIA_YUKATA_PS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.45 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
+      }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {

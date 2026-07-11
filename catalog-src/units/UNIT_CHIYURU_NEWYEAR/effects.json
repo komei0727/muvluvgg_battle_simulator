@@ -1,0 +1,177 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.272 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_MOCHI",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+      "stack": { "policy": "ADD", "max": 6 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "MARKER_COUNT_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+        "perStack": 0.03,
+        "max": 0.18
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "MARKER_COUNT_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+        "perStack": 0.06,
+        "max": 0.36
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.39 },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": { "kind": "CONSTANT", "value": -1.0 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_SELF",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "SUM_DAMAGE_DEALT",
+        "ratio": 0.25
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.484 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.15 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "MAXIMUM_HP",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MOCHI",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_CHIYURU_NEWYEAR_MOCHI",
+      "stack": { "policy": "ADD", "max": 6 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  }
+]

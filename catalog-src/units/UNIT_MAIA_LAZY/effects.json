@@ -1,0 +1,92 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.55 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.948 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.55 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL_OVER_TIME",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.6 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_AP_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS4_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  }
+]
