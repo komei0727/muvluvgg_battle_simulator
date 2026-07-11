@@ -1,0 +1,2761 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_EVIE_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 3.012
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_EX_STUN",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.56
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_AS1_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.6
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.12
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_PS1_REDIRECT",
+    "kind": "APPLY_TARGET_REDIRECT",
+    "payload": {
+      "redirectTo": {
+        "kind": "SELF"
+      },
+      "appliesTo": {
+        "actionKinds": ["DAMAGE"]
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_TARGET_REDIRECT"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_PS1_COVER",
+    "kind": "APPLY_COVER",
+    "payload": {
+      "coverer": {
+        "kind": "SELF"
+      },
+      "damageShareRate": 1,
+      "guardRate": 0.5,
+      "appliesTo": {
+        "actionKinds": ["DAMAGE"]
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_COVER_DAMAGE"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_PS2_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.75
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_PS2_DEF_UP_SELF",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_PS2_ATK_DOWN_SELF",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_EVIE_PS2_DEF_UP_ROW",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_COLUMN",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.1376
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_BACKROW_CRIT",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.1376
+      },
+      "critical": {
+        "mode": "GUARANTEED"
+      }
+    },
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.702
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_AS1_SELF_BUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.025
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE1",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.2
+      },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE2",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.53
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_AS2_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_PS1_SHIELD_BUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": {
+        "kind": "ALIVE_UNIT_COUNT_SCALE",
+        "side": "ALLY",
+        "perUnit": -0.05,
+        "max": -0.25
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.78
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_PS2_PP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "PP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -2
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.0428
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_EX_ATKDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.848
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS1_ATK_BUFF",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "ALIVE_UNIT_COUNT_SCALE",
+        "side": "ALLY",
+        "perUnit": 0.0175,
+        "max": 0.07
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS1_ADJACENT_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.848
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS1_ENEMY_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.075
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_RATE",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_DMG",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.125
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS3_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.954
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_EX_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 1
+        }
+      },
+      "probability": 1,
+      "appliesTo": {
+        "incomingActionKinds": ["DAMAGE"]
+      }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_EX_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_WAKKOU",
+      "stack": {
+        "policy": "KEEP_EXISTING",
+        "max": 1
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_EX_DEBUFF_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      },
+      "maxBlocks": null
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_AS1_BLIND",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "BLIND",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      },
+      "probability": 0.55
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_AS1_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.9
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_AS2_DAMAGE_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.9
+      },
+      "damageModifiers": [
+        {
+          "kind": "CONSTANT",
+          "value": 0.5
+        }
+      ]
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_AS2_SELF_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 1
+        }
+      },
+      "probability": 0.6,
+      "appliesTo": {
+        "incomingActionKinds": ["DAMAGE"]
+      }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_PS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "MIN",
+        "formulas": [
+          {
+            "kind": "CURRENT_HP_RATIO",
+            "source": {
+              "kind": "TARGET"
+            },
+            "ratio": 0.9
+          },
+          {
+            "kind": "STAT_RATIO",
+            "source": {
+              "kind": "SKILL_SOURCE"
+            },
+            "stat": "ATTACK",
+            "ratio": 1.5
+          }
+        ]
+      }
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_PS1_REMOVE_MARKER",
+    "kind": "REMOVE_MARKER",
+    "payload": {
+      "markerId": "MARKER_WAKKOU"
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_PS2_COUNTER",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "DAMAGE_RECEIVED_RATIO",
+        "sourceResult": "LAST_DAMAGE_RECEIVED",
+        "ratio": 0.5
+      }
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_PS2_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "MISSING_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.35
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.248
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_EX_ATKDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.53
+      },
+      "damageModifiers": [
+        {
+          "kind": "MARKER_COUNT_SCALE",
+          "target": {
+            "kind": "TARGET"
+          },
+          "markerId": "MARKER_KEIBO",
+          "perStack": 0.15,
+          "max": 0.45
+        }
+      ]
+    },
+    "requiredCapabilities": ["CAP_MARKER", "CAP_MARKER_STACK_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_AS1_EX_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.404
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_AS2_ATKDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_PS1_SELF_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
+      },
+      "maxBlocks": null
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_PS1_MARK_ATTACKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_KEIBO",
+      "stack": {
+        "policy": "ADD",
+        "max": 3
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_PS1_ATTACKER_ATKDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.25
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_PS1_REDIRECT",
+    "kind": "APPLY_TARGET_REDIRECT",
+    "payload": {
+      "redirectTo": {
+        "kind": "SELF"
+      },
+      "appliesTo": {
+        "actionKinds": ["DAMAGE"]
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_TARGET_REDIRECT"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_PS1_COVER",
+    "kind": "APPLY_COVER",
+    "payload": {
+      "coverer": {
+        "kind": "SELF"
+      },
+      "damageShareRate": 1,
+      "guardRate": 0,
+      "appliesTo": {
+        "actionKinds": ["DAMAGE"]
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_COVER_DAMAGE"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_PS1_BACKROW_ATKDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 3
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_PS2_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": -0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_EX_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.5
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_EX_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": {
+        "kind": "MISSING_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.3
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.858
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_CURSE",
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_ATKDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.075
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_DMGDOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.075
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_PP_ZERO",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "PP",
+      "operation": "SET",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS1_REMOVE_CURSE",
+    "kind": "REMOVE_MARKER",
+    "payload": {
+      "markerId": "MARKER_CURSE"
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS2_IMMUNITY",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "DAMAGE_IMMUNITY",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        },
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 2
+        },
+        "linkedEffectGroupId": "HARRIET_BARRIER"
+      },
+      "damageThreshold": {
+        "op": "GT",
+        "formula": {
+          "kind": "CURRENT_HP_RATIO",
+          "source": {
+            "kind": "TARGET"
+          },
+          "ratio": 0.35
+        }
+      }
+    },
+    "requiredCapabilities": [
+      "CAP_SPECIFIC_IMMUNITY",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_COMPLEX_EXPIRATION"
+    ],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_AS2_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.135
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        },
+        "linkedEffectGroupId": "HARRIET_BARRIER"
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_PS1_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.105
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "TURN",
+          "count": 1
+        },
+        "expiration": {
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": {
+                "kind": "SELF"
+              },
+              "field": "IS_ALIVE",
+              "op": "EQ",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_PS2_AP_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HARRIET_PS2_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 100
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 4.664
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE_PIERCE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 4.664
+      },
+      "piercing": {
+        "defenseIgnoreRate": 0.2,
+        "shieldIgnoreRate": 0.2
+      }
+    },
+    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.35
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_EX_CONTINUOUS_HEAL",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.135
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE1",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.014
+      },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE2",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.546
+      },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FUNDO",
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_1HIT",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.872
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_2HIT",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.248
+      },
+      "hitCount": 2
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.014
+      },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.014
+      },
+      "hitCount": 3,
+      "damageModifiers": [
+        {
+          "kind": "CONSTANT",
+          "value": 0.5
+        }
+      ]
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_AS2_TARGET_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_PS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_PS2_DEATH_SURVIVAL",
+    "kind": "APPLY_DEATH_SURVIVAL",
+    "payload": {
+      "trigger": {
+        "lethalDamageOnly": true
+      },
+      "survivalHp": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "healAfterSurvival": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.65
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "LETHAL_DAMAGE",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.34
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_EX_CRIT_GUARANTEE",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "CRITICAL_GUARANTEE",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_AS1_DAMAGE_BASE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.896
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_AS1_DAMAGE_ADJ",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.1376
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_AS1_DEFDOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.35
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.12
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_AS2_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_PS1_AP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_PS1_EX_FULL",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "SET_TO_MAX",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_PS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_PS1_ALLY_EX_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_PS2_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_EX_DAMAGE5",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.3816
+      },
+      "hitCount": 5
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_EX_FREEZE",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "FREEZE",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 3
+        }
+      },
+      "damageAmplificationOnBreak": 1.5
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_EX_HEAL_ALL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.45
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_EX_HEAL_EXTRA",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.745
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS1_DAMAGE1",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.234
+      },
+      "hitCount": 4
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS1_DAMAGE2",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.1248
+      },
+      "hitCount": 4
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS1_EX_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS1_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS1_SELF_HEAL_100",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "LAST_DAMAGE_DEALT",
+        "ratio": 1
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS1_SELF_HEAL_20",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.2
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.936
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS2_STUN_TARGET",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS2_SELF_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.75
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS2_SELF_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 2
+        }
+      },
+      "probability": 1,
+      "appliesTo": {
+        "incomingActionKinds": ["DAMAGE"]
+      }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS2_SELF_STUN",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_AS3_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.742
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KATE_PS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.59
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_COLUMN",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.014
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_FOLLOWUP",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.468
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_EX_SELF_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "SUM_DAMAGE_DEALT",
+        "ratio": 0.6
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.858
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_AS1_HP_COST",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.25
+      },
+      "critical": {
+        "mode": "PREVENTED"
+      },
+      "accuracy": {
+        "mode": "GUARANTEED"
+      },
+      "piercing": {
+        "defenseIgnoreRate": 1,
+        "shieldIgnoreRate": 1,
+        "damageReductionIgnoreRate": 1
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_HEAL_FULL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 1
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_KYOKUGEN",
+      "stack": {
+        "policy": "ADD",
+        "max": 1
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.25
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS2_COUNTER",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.848
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS2_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "HIT_EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 1
+        }
+      },
+      "probability": 1
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS3_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS3_DEATH_SURVIVAL",
+    "kind": "APPLY_DEATH_SURVIVAL",
+    "payload": {
+      "trigger": {
+        "lethalDamageOnly": true
+      },
+      "survivalHp": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "healAfterSurvival": null,
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "LETHAL_DAMAGE",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_PS2_HEALING_DOWN",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS1_BURN",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "stat": "ATTACK",
+        "ratio": 0.3
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAURA_PS1_BURN_HEALING_DOWN",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "EFFECT_SOURCE"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KARINA_EX_DOT",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "stat": "ATTACK",
+        "ratio": 0.075
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_EX_REMOVE_DEBUFFS",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["DEBUFF"]
+    },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MIKOTO_EX_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "stat": "ATTACK",
+        "ratio": 0.45
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_TARGET"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_PS1_MAX_AP_UP",
+    "kind": "MODIFY_RESOURCE_CAPACITY",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_CAPACITY_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  }
+]

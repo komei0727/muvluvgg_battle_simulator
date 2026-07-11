@@ -290,6 +290,31 @@ G-08・G-09は `14_Catalog定義スキーマ.md`「Issue #6実装で判明した
   - ターン開始時、最遠敵へ次に受ける攻撃の被ダメージ増加。
   - 自身へHP1で耐える致死耐え。戦闘中1回。
 
+## production Catalog候補への昇格 (Issue #46)
+
+Issue #41/#44のauthoring fixture（`src/infrastructure/catalog/__fixtures__/pilot-units/`）を、`docs/ddd/14_Catalog定義スキーマ.md`「Catalog ファイル構成」が定めるレイアウトに従い、リポジトリ直下 `catalog/`（`manifest.json` + `units.json` / `skills.json` / `effects.json` / `memories.json` / `capabilities.json`）へproduction Catalog候補として複製した。他ユニットのproduction Catalogは未整備のため、この配置がリポジトリ内で最初の前例になる。`catalogRevision` は `2026-07-11.1` とした。
+
+`src/bootstrap/`・`src/application/`・`src/presentation/` はいずれもまだ Catalog を読み込む配線を持たない（`13_実装計画.md` の方針どおり、production Catalogデータの投入とEngine実装は分離されている）。このIssueはデータの昇格のみを扱い、Worker/HTTPからの読み込み配線は対象外。
+
+### rawとの再照合で見つかった変換ミス
+
+代表10ユニット・全50スキル・全EffectActionDefinitionをrawと1つずつ突き合わせた結果、確定的な変換ミスを2件、schema表現の甘さを1件検出し、`catalog/` 側でのみ修正した（`__fixtures__/pilot-units/` の内容は authoring draft の記録として変更していない）。
+
+1. **エヴィ PS1「デコイプロトコル」のトリガー方向逆転**（`SKL_EVIE_PS1`）。`triggers[0]` が `sourceSelector: ALLY, targetSelector: SELF`（＝「味方が自分を攻撃したとき」）になっており、これでは戦闘中に発火しない。raw「他の味方が攻撃される前に発動」および同型の肩代わりPSであるカリナPS1「風紀委員会の管轄だよ～」の実装（`sourceSelector: ENEMY, targetSelector: ALLY`）に合わせて修正した。あわせて `resolution.steps[0].target` を `SELF` から `TRIGGER_SOURCE`（攻撃者）へ変更し、`APPLY_TARGET_REDIRECT`/`APPLY_COVER` をカリナPS1と同じ「攻撃者へ付与」の形に統一した。
+2. **リディアEX「リディアたいちょうのめいれい」のfallback攻撃が未結線**（`SKL_LYDIA_EX`）。raw「対象範囲に敵が存在しない場合、代わりに最も近い敵単体に威力100で攻撃する」に対応する `TGT_FALLBACK` targetBinding と `ACT_LYDIA_EX_DAMAGE_FALLBACK`（威力100）が宣言されていたが、`resolution.steps` のどこからも参照されていなかった。調査の結果、現行schemaには「同一targetBindingが通常フィルタ経由かfallback経由かで異なるEffectActionを適用する」手段がなく、正確な変換は不可能と判明した（新規課題 `G-11`、`14_Catalog定義スキーマ.md`「Issue #46実装で見つかった追加課題」参照）。死んでいた `TGT_FALLBACK`/`ACT_LYDIA_EX_DAMAGE_FALLBACK` は削除し、既存の `TGT_COLUMNS` 埋め込み `fallback`（対象選択のみ代替、適用威力は113.76のまま）を暫定の近似として残した。この近似は `CAP_TARGET_FALLBACK` が `PLANNED` の間は production でも実行されない。
+3. **フルートAS1「かぷっとファンサ」のHPコストが通常ダメージ処理を経由する**（`ACT_FLUTE_AS1_HP_COST`）。raw「自身が『極限』状態の場合、発動時に現在HPの25%を消費する」は無条件のリソース消費だが、`kind: DAMAGE` で表現されており `critical`/`accuracy`/`piercing` が既定値のままだと会心・回避・防御軽減の影響を受けてしまう。`critical.mode: PREVENTED`、`accuracy.mode: GUARANTEED`、`piercing` を全項目1.0に設定し、既存フィールドの範囲内で「無条件の25%消費」に近づけた。
+
+上記の突き合わせでは、Issueが個別に確認を求めていた次の2点は変換ミスなしと確認できた。
+
+- カリナAS「とりしまり～」のEXゲージ減少対象は `TGT_ALL_ENEMIES`（敵全体）に正しく設定されている。
+- フルートEX「＃ぽよ・オア・トリート」の自己回復は `FormulaDefinition.sourceResult: SUM_DAMAGE_DEALT`（列攻撃＋条件付き追撃の合計ダメージ）を参照しており、直前1回のダメージだけを見る実装にはなっていない。
+
+G-01〜G-04・G-06・G-08〜G-10（Issue #44で実装済み）とG-05・G-07（見送り）はいずれもfixtureの時点から変更していない。G-05（カリナPS2 包囲かんりょ～のEXゲージ獲得量+50%）とG-07（コトハPS2 起死回生の対象HP割合比較）は、引き続き該当効果を省略した近似のままproduction Catalog候補へ含めている。新規のG-11（リディアEXのfallback威力差分）も同様に見送りとして`14_Catalog定義スキーマ.md`へ記録した。
+
+### 代表テスト
+
+`src/infrastructure/catalog/catalog-production-units.test.ts`（IT-CAT-PROD-001〜006）が `catalog/` を対象に、上記1・2・3の修正結果と、確認済みの2点（カリナEXゲージ、フルート合算ダメージ）を固定するリグレッションテストとして追加されている。IT-CAT-PROD-006は全10ユニットの全スキルについて、宣言された `targetBindingId` がstep（BRANCH/RANDOM_BRANCHの入れ子を含む）またはBINDING_DERIVEDの`base`のいずれからも一切参照されない「死んだbinding」が存在しないことを機械的に検証する汎用チェックであり、今回のリディアEXの不具合と同種の見落としを将来も検出する。
+
 ## 変換テストの推奨順
 
 1. **エヴィ**: 単体攻撃、気絶、DamageModifier、肩代わり、HP閾値回復を一通り確認できる。
