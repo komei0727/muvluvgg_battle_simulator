@@ -24,6 +24,7 @@ describe("Converted Definitions are immutable", () => {
       activeSkillDefinitionIds: ["SKL_001_AS1"],
       passiveSkillDefinitionIds: [],
       extraSkillDefinitionId: "SKL_001_EX",
+      requiredCapabilities: [],
       metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
     });
 
@@ -46,6 +47,7 @@ describe("Converted Definitions are immutable", () => {
         effectActionDefinitionId: "ACT_DAMAGE_1",
         kind: "DAMAGE",
         payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
+        requiredCapabilities: [],
       },
       "effectAction",
     );

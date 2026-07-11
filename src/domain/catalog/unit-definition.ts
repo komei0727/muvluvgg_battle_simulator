@@ -10,6 +10,7 @@ import {
 import { deepFreeze } from "../shared/deep-freeze.js";
 import { DomainValidationError } from "../shared/errors.js";
 import {
+  assertArray,
   assertEnumValue,
   assertFinite,
   assertInteger,
@@ -87,7 +88,7 @@ export interface UnitDefinitionInput {
   readonly activeSkillDefinitionIds: readonly string[];
   readonly passiveSkillDefinitionIds: readonly string[];
   readonly extraSkillDefinitionId: string;
-  readonly requiredCapabilities?: readonly string[];
+  readonly requiredCapabilities: readonly string[];
   readonly metadata: UnitMetadataInput;
 }
 
@@ -139,9 +140,11 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
 
   assertInteger(input.extraGaugeMaximum, `${path}.extraGaugeMaximum`, { min: 1 });
 
+  assertArray(input.activeSkillDefinitionIds, `${path}.activeSkillDefinitionIds`);
   const activeSkillDefinitionIds = input.activeSkillDefinitionIds.map((id, i) =>
     createSkillDefinitionId(id, `${path}.activeSkillDefinitionIds[${i}]`),
   );
+  assertArray(input.passiveSkillDefinitionIds, `${path}.passiveSkillDefinitionIds`);
   const passiveSkillDefinitionIds = input.passiveSkillDefinitionIds.map((id, i) =>
     createSkillDefinitionId(id, `${path}.passiveSkillDefinitionIds[${i}]`),
   );
@@ -149,7 +152,8 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     input.extraSkillDefinitionId,
     `${path}.extraSkillDefinitionId`,
   );
-  const requiredCapabilities = (input.requiredCapabilities ?? []).map((id, i) =>
+  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
+  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
     createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
   );
 

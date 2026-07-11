@@ -22,6 +22,7 @@ import {
 } from "./target-selector-definition.js";
 import { DomainValidationError } from "../shared/errors.js";
 import {
+  assertArray,
   assertEnumValue,
   assertFinite,
   assertInteger,
@@ -133,9 +134,10 @@ export function createEffectStepDefinition(
         throw new DomainValidationError(`${path}.target`, "is required");
       }
       const actions = input.actions;
-      if (actions === undefined || actions.length === 0) {
-        throw new DomainValidationError(`${path}.actions`, "must contain at least one element");
+      if (actions === undefined) {
+        throw new DomainValidationError(`${path}.actions`, "is required");
       }
+      assertNonEmptyArray(actions, `${path}.actions`);
       return {
         kind: "ACTION",
         condition:
@@ -149,6 +151,12 @@ export function createEffectStepDefinition(
     case "BRANCH": {
       if (input.condition === undefined) {
         throw new DomainValidationError(`${path}.condition`, "is required");
+      }
+      if (input.thenSteps !== undefined) {
+        assertArray(input.thenSteps, `${path}.thenSteps`);
+      }
+      if (input.elseSteps !== undefined) {
+        assertArray(input.elseSteps, `${path}.elseSteps`);
       }
       const thenSteps = input.thenSteps ?? [];
       const elseSteps = input.elseSteps ?? [];
@@ -170,9 +178,10 @@ export function createEffectStepDefinition(
       }
       assertEnumValue(mode, RANDOM_BRANCH_MODES, `${path}.mode`);
       const branches = input.branches;
-      if (branches === undefined || branches.length === 0) {
-        throw new DomainValidationError(`${path}.branches`, "must contain at least one element");
+      if (branches === undefined) {
+        throw new DomainValidationError(`${path}.branches`, "is required");
       }
+      assertNonEmptyArray(branches, `${path}.branches`);
       return {
         kind: "RANDOM_BRANCH",
         mode,
@@ -207,6 +216,7 @@ function createRandomBranch(
 ): RandomBranch {
   // Branches may legitimately have no mechanical effect yet (`14_Catalog定義スキーマ.md` の
   // RANDOM_BRANCH例: 全枝が `steps: []`), so an empty array is valid here.
+  assertArray(input.steps, `${path}.steps`);
   const steps = input.steps.map((s, i) =>
     createEffectStepDefinition(s, `${path}.steps[${i}]`, scope),
   );
@@ -264,6 +274,9 @@ export interface EffectSequenceInput {
 }
 
 export function createEffectSequence(input: EffectSequenceInput, path: string): EffectSequence {
+  if (input.targetBindings !== undefined) {
+    assertArray(input.targetBindings, `${path}.targetBindings`);
+  }
   const bindingInputs = input.targetBindings ?? [];
 
   const ids = bindingInputs.map((b, i) =>

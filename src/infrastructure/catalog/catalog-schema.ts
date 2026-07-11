@@ -37,6 +37,7 @@ export const unitDefinitionSchema = {
     "activeSkillDefinitionIds",
     "passiveSkillDefinitionIds",
     "extraSkillDefinitionId",
+    "requiredCapabilities",
     "metadata",
   ],
   properties: {
@@ -102,6 +103,7 @@ export const skillDefinitionSchema = {
     "resolution",
     "cooldown",
     "traits",
+    "requiredCapabilities",
     "metadata",
   ],
   properties: {
@@ -152,7 +154,7 @@ export const effectActionDefinitionSchema = {
   $id: "https://muvluvgg.local/catalog/effect-action-definition.json",
   type: "object",
   additionalProperties: true,
-  required: ["effectActionDefinitionId", "kind", "payload"],
+  required: ["effectActionDefinitionId", "kind", "payload", "requiredCapabilities"],
   properties: {
     effectActionDefinitionId: idSchema("ACT_"),
     kind: {
@@ -187,7 +189,7 @@ export const memoryDefinitionSchema = {
   $id: "https://muvluvgg.local/catalog/memory-definition.json",
   type: "object",
   additionalProperties: true,
-  required: ["memoryDefinitionId", "metadata"],
+  required: ["memoryDefinitionId", "requiredCapabilities", "metadata"],
   properties: {
     memoryDefinitionId: idSchema("MEM_"),
     triggeredEffects: looseObjectArray,
@@ -208,7 +210,7 @@ export const capabilityDefinitionSchema = {
   $id: "https://muvluvgg.local/catalog/capability-definition.json",
   type: "object",
   additionalProperties: true,
-  required: ["capabilityId", "status", "description"],
+  required: ["capabilityId", "status", "description", "requiredBy"],
   properties: {
     capabilityId: { type: "string", pattern: "^(CAP_|Q-)[A-Za-z0-9_-]*$" },
     status: { enum: ["IMPLEMENTED", "PLANNED", "BLOCKED"] },

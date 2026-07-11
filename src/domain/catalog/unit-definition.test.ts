@@ -22,6 +22,7 @@ function minimalUnitInput() {
     activeSkillDefinitionIds: ["SKL_001_AS1", "SKL_001_AS2"],
     passiveSkillDefinitionIds: ["SKL_001_PS1"],
     extraSkillDefinitionId: "SKL_001_EX",
+    requiredCapabilities: [],
     metadata: {
       displayName: "【純真無垢なるジーニアス】リディア・エルドリッジ",
       characterName: "リディア・エルドリッジ",
@@ -86,6 +87,23 @@ describe("UnitDefinition", () => {
   it("UT-CAT-UNIT-008: rejects a malformed extraSkillDefinitionId", () => {
     expect(() =>
       createUnitDefinition({ ...minimalUnitInput(), extraSkillDefinitionId: "NOT_A_SKILL" }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-UNIT-009: maps requiredCapabilities as branded CapabilityIds", () => {
+    const result = createUnitDefinition({
+      ...minimalUnitInput(),
+      requiredCapabilities: ["CAP_HEAL"],
+    });
+    expect(result.requiredCapabilities).toEqual(["CAP_HEAL"]);
+  });
+
+  it("UT-CAT-UNIT-010: rejects a non-array requiredCapabilities", () => {
+    expect(() =>
+      createUnitDefinition({
+        ...minimalUnitInput(),
+        requiredCapabilities: "CAP_HEAL" as unknown as readonly string[],
+      }),
     ).toThrow(DomainValidationError);
   });
 });

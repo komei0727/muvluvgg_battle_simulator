@@ -37,10 +37,13 @@ import {
 import { deepFreeze } from "../shared/deep-freeze.js";
 import { DomainValidationError } from "../shared/errors.js";
 import {
+  assertArray,
+  assertBoolean,
   assertEnumValue,
   assertFinite,
   assertInteger,
   assertNonEmptyArray,
+  assertNullableInteger,
 } from "../shared/validate.js";
 
 const DAMAGE_TYPES = ["PHYSICAL", "EN"] as const;
@@ -249,7 +252,7 @@ export interface EffectActionDefinitionInput {
   readonly effectActionDefinitionId: string;
   readonly kind: string;
   readonly payload: Record<string, unknown>;
-  readonly requiredCapabilities?: readonly string[];
+  readonly requiredCapabilities: readonly string[];
   readonly metadata?: { readonly tags?: readonly string[] };
 }
 
@@ -325,7 +328,8 @@ export function createEffectActionDefinition(
   const payload = input.payload;
   const shape = createPayload(input.kind, payload, payloadPath);
 
-  const requiredCapabilities = (input.requiredCapabilities ?? []).map((id, i) =>
+  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
+  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
     createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
   );
   const tags = input.metadata?.tags ?? [];
@@ -380,9 +384,18 @@ function createPayload(
           );
         }
       }
+      const damageModifiersRaw = payload["damageModifiers"];
+      if (damageModifiersRaw !== undefined) {
+        assertArray(damageModifiersRaw, `${path}.damageModifiers`);
+      }
       const damageModifiersInput =
-        (payload["damageModifiers"] as readonly FormulaDefinitionInput[] | undefined) ?? [];
-      const linkEnabled = (payload["link"] as { enabled?: boolean } | undefined)?.enabled ?? false;
+        (damageModifiersRaw as readonly FormulaDefinitionInput[] | undefined) ?? [];
+      const linkRaw = payload["link"] as { enabled?: unknown } | undefined;
+      let linkEnabled = false;
+      if (linkRaw?.enabled !== undefined) {
+        assertBoolean(linkRaw.enabled, `${path}.link.enabled`);
+        linkEnabled = linkRaw.enabled;
+      }
       return {
         kind: "DAMAGE",
         payload: {
@@ -555,6 +568,11 @@ function createPayload(
         assertEnumValue(category, EFFECT_IMMUNITY_CATEGORIES, `${path}.categories[${i}]`);
       }
       const typedCategories = (categories ?? []) as readonly EffectImmunityCategory[];
+      const maxBlocksRaw = payload["maxBlocks"];
+      if (maxBlocksRaw === undefined) {
+        throw new DomainValidationError(`${path}.maxBlocks`, "is required");
+      }
+      assertNullableInteger(maxBlocksRaw, `${path}.maxBlocks`, { min: 1 });
       const result: {
         categories: readonly EffectImmunityCategory[];
         effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
@@ -563,7 +581,7 @@ function createPayload(
       } = {
         categories: typedCategories,
         duration: createDurationField(payload, path),
-        maxBlocks: (payload["maxBlocks"] as number | null | undefined) ?? null,
+        maxBlocks: maxBlocksRaw,
       };
       if (typedCategories.includes("SPECIFIC_EFFECT")) {
         const ids = payload["effectActionDefinitionIds"] as readonly string[] | undefined;
@@ -585,6 +603,9 @@ function createPayload(
       );
       const policy = requireField(stackInput.policy, `${path}.stack.policy`);
       assertEnumValue(policy, MARKER_STACK_POLICIES, `${path}.stack.policy`);
+      if (stackInput.max !== undefined) {
+        assertNullableInteger(stackInput.max, `${path}.stack.max`, { min: 1 });
+      }
       return {
         kind: "APPLY_MARKER",
         payload: {
@@ -610,6 +631,7 @@ function createPayload(
         trigger.lethalDamageOnly,
         `${path}.trigger.lethalDamageOnly`,
       );
+      assertBoolean(lethalDamageOnly, `${path}.trigger.lethalDamageOnly`);
       const healAfterSurvivalInput = payload["healAfterSurvival"] as
         | FormulaDefinitionInput
         | null
@@ -671,13 +693,19 @@ function createPayload(
       );
       const timing = requireField(payload["timing"] as string | undefined, `${path}.timing`);
       assertEnumValue(timing, REFLECT_TIMINGS, `${path}.timing`);
+      const allowRecursiveReflectRaw = payload["allowRecursiveReflect"];
+      let allowRecursiveReflect = false;
+      if (allowRecursiveReflectRaw !== undefined) {
+        assertBoolean(allowRecursiveReflectRaw, `${path}.allowRecursiveReflect`);
+        allowRecursiveReflect = allowRecursiveReflectRaw;
+      }
       return {
         kind: "APPLY_REFLECT",
         payload: {
           reflectTo: createTargetReference(reflectTo, `${path}.reflectTo`, undefined),
           formula: createFormulaField(payload, "formula", path),
           timing,
-          allowRecursiveReflect: (payload["allowRecursiveReflect"] as boolean | undefined) ?? false,
+          allowRecursiveReflect,
           duration: createDurationField(payload, path),
         },
       };

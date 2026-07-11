@@ -22,7 +22,13 @@ import {
 } from "./trigger-definition.js";
 import { deepFreeze } from "../shared/deep-freeze.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue, assertFinite, assertInteger } from "../shared/validate.js";
+import {
+  assertArray,
+  assertBoolean,
+  assertEnumValue,
+  assertFinite,
+  assertInteger,
+} from "../shared/validate.js";
 
 const SKILL_TYPES = ["AS", "PS", "EX"] as const;
 const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE"] as const;
@@ -113,7 +119,7 @@ export interface SkillDefinitionInput {
   readonly resolution: SkillResolutionDefinitionInput;
   readonly cooldown: CooldownInput;
   readonly traits: SkillTraitsInput;
-  readonly requiredCapabilities?: readonly string[];
+  readonly requiredCapabilities: readonly string[];
   readonly metadata: { readonly displayName: string; readonly tags?: readonly string[] };
 }
 
@@ -148,11 +154,38 @@ function createTraits(input: SkillTraitsInput, path: string): SkillTraits {
       );
     }
   }
+  let priorityAttack = false;
+  if (input.priorityAttack !== undefined) {
+    assertBoolean(input.priorityAttack, `${path}.priorityAttack`);
+    priorityAttack = input.priorityAttack;
+  }
+
+  let simultaneousActivationLimited = false;
+  if (input.simultaneousActivationLimited !== undefined) {
+    assertBoolean(input.simultaneousActivationLimited, `${path}.simultaneousActivationLimited`);
+    simultaneousActivationLimited = input.simultaneousActivationLimited;
+  }
+
+  if (input.exclusiveActivationGroupId !== undefined && input.exclusiveActivationGroupId !== null) {
+    if (typeof input.exclusiveActivationGroupId !== "string") {
+      throw new DomainValidationError(
+        `${path}.exclusiveActivationGroupId`,
+        `must be a string or null, got ${typeof input.exclusiveActivationGroupId}`,
+      );
+    }
+  }
+
+  let guaranteedHit = false;
+  if (input.accuracy?.guaranteedHit !== undefined) {
+    assertBoolean(input.accuracy.guaranteedHit, `${path}.accuracy.guaranteedHit`);
+    guaranteedHit = input.accuracy.guaranteedHit;
+  }
+
   return {
-    priorityAttack: input.priorityAttack ?? false,
-    simultaneousActivationLimited: input.simultaneousActivationLimited ?? false,
+    priorityAttack,
+    simultaneousActivationLimited,
     exclusiveActivationGroupId: input.exclusiveActivationGroupId ?? null,
-    accuracy: { guaranteedHit: input.accuracy?.guaranteedHit ?? false },
+    accuracy: { guaranteedHit },
     piercing: { defenseIgnoreRate, shieldIgnoreRate, damageReductionIgnoreRate },
   };
 }
@@ -201,6 +234,9 @@ export function createSkillDefinition(
   );
   assertEnumValue(input.skillType, SKILL_TYPES, `${path}.skillType`);
 
+  if (input.triggers !== undefined) {
+    assertArray(input.triggers, `${path}.triggers`);
+  }
   const triggers = (input.triggers ?? []).map((t, i) =>
     createTriggerDefinition(t, `${path}.triggers[${i}]`),
   );
@@ -218,7 +254,8 @@ export function createSkillDefinition(
     );
   }
 
-  const requiredCapabilities = (input.requiredCapabilities ?? []).map((id, i) =>
+  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
+  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
     createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
   );
 

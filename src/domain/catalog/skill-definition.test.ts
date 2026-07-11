@@ -30,6 +30,7 @@ function minimalAsInput() {
     },
     cooldown: { unit: "ACTION", count: 1 },
     traits: {},
+    requiredCapabilities: [],
     metadata: { displayName: "ジャマしちゃ、めっ……だよ？" },
   };
 }
@@ -244,6 +245,36 @@ describe("SkillDefinition", () => {
     const input = minimalAsInput();
     expect(() =>
       createSkillDefinition({ ...input, traits: { piercing: { defenseIgnoreRate: 1.5 } } }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-015b: rejects a non-boolean priorityAttack", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        traits: { priorityAttack: "true" as unknown as boolean },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-015c: rejects a non-boolean accuracy.guaranteedHit", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        traits: { accuracy: { guaranteedHit: 1 as unknown as boolean } },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-015d: rejects an exclusiveActivationGroupId that is neither a string nor null", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        traits: { exclusiveActivationGroupId: 123 as unknown as string },
+      }),
     ).toThrow(DomainValidationError);
   });
 

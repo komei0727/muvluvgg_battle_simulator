@@ -12,7 +12,7 @@ import {
   type TargetReferenceInput,
 } from "./references.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue, assertFinite } from "../shared/validate.js";
+import { assertEnumValue, assertFinite, assertNonEmptyArray } from "../shared/validate.js";
 
 export type JsonPrimitive = string | number | boolean;
 
@@ -163,9 +163,7 @@ export function createConditionDefinition(
     case "AND":
     case "OR": {
       const conditions = requireField(input, "conditions", path);
-      if (conditions.length === 0) {
-        throw new DomainValidationError(`${path}.conditions`, "must contain at least one element");
-      }
+      assertNonEmptyArray(conditions, `${path}.conditions`);
       return {
         kind: input.kind,
         conditions: conditions.map((c, i) =>

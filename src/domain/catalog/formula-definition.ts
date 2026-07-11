@@ -9,7 +9,7 @@ import {
   type TargetBindingScope,
 } from "./references.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue, assertFinite } from "../shared/validate.js";
+import { assertEnumValue, assertFinite, assertNonEmptyArray } from "../shared/validate.js";
 
 /**
  * Payload shapes documented in `14_Catalog定義スキーマ.md`. `HP_RATIO_SCALE`
@@ -223,9 +223,10 @@ export function createFormulaDefinition(
     case "MIN":
     case "MAX": {
       const formulas = input.formulas;
-      if (formulas === undefined || formulas.length === 0) {
-        throw new DomainValidationError(`${path}.formulas`, "must contain at least one element");
+      if (formulas === undefined) {
+        throw new DomainValidationError(`${path}.formulas`, "is required");
       }
+      assertNonEmptyArray(formulas, `${path}.formulas`);
       return {
         kind: input.kind,
         formulas: formulas.map((f, i) =>

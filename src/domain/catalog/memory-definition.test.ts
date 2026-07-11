@@ -31,6 +31,7 @@ describe("MemoryDefinition", () => {
           },
         },
       ],
+      requiredCapabilities: [],
       metadata: { displayName: "Colorful Bouquet" },
     });
     expect(result.memoryDefinitionId).toBe("MEM_001");
@@ -44,6 +45,7 @@ describe("MemoryDefinition", () => {
       modifiers: [
         { targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "FIXED", value: 250 },
       ],
+      requiredCapabilities: [],
       metadata: { displayName: "Fixed Attack Buff" },
     });
     expect(result.modifiers).toEqual([
@@ -53,7 +55,11 @@ describe("MemoryDefinition", () => {
 
   it("UT-CAT-MEM-003: rejects a Memory with neither triggeredEffects nor modifiers", () => {
     expect(() =>
-      createMemoryDefinition({ memoryDefinitionId: "MEM_003", metadata: { displayName: "Empty" } }),
+      createMemoryDefinition({
+        memoryDefinitionId: "MEM_003",
+        requiredCapabilities: [],
+        metadata: { displayName: "Empty" },
+      }),
     ).toThrow(DomainValidationError);
   });
 
@@ -64,6 +70,31 @@ describe("MemoryDefinition", () => {
         modifiers: [
           { targetFilter: { kind: "ALL" }, stat: "AFFINITY_BONUS", valueType: "FIXED", value: 1 },
         ],
+        requiredCapabilities: [],
+        metadata: { displayName: "Invalid" },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-MEM-005: rejects a non-array requiredCapabilities", () => {
+    expect(() =>
+      createMemoryDefinition({
+        memoryDefinitionId: "MEM_005",
+        modifiers: [
+          { targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "FIXED", value: 1 },
+        ],
+        requiredCapabilities: "CAP_HEAL" as unknown as readonly string[],
+        metadata: { displayName: "Invalid" },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-MEM-006: rejects a non-array triggeredEffects", () => {
+    expect(() =>
+      createMemoryDefinition({
+        memoryDefinitionId: "MEM_006",
+        triggeredEffects: "not-an-array" as unknown as never[],
+        requiredCapabilities: [],
         metadata: { displayName: "Invalid" },
       }),
     ).toThrow(DomainValidationError);

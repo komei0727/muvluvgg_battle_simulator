@@ -103,4 +103,34 @@ describe("DurationDefinition", () => {
       ],
     });
   });
+
+  it("UT-CAT-DUR-009: rejects a non-boolean dispellable", () => {
+    expect(() =>
+      createDurationDefinition(
+        { dispellable: "nope" as unknown as boolean },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-010: rejects a linkedEffectGroupId that is neither a string nor null", () => {
+    expect(() =>
+      createDurationDefinition(
+        { linkedEffectGroupId: 123 as unknown as string },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-011: rejects a non-array expiration.conditions", () => {
+    expect(() =>
+      createDurationDefinition(
+        { expiration: { conditions: "not-an-array" as unknown as never[] } },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

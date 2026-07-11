@@ -9,6 +9,7 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_15600",
         kind: "DAMAGE",
         payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1.56 } },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -33,7 +34,12 @@ describe("EffectActionDefinition", () => {
   it("UT-CAT-ACT-002: rejects an unsupported (undocumented-payload) kind such as APPLY_SHIELD", () => {
     expect(() =>
       createEffectActionDefinition(
-        { effectActionDefinitionId: "ACT_SHIELD_1", kind: "APPLY_SHIELD", payload: {} },
+        {
+          effectActionDefinitionId: "ACT_SHIELD_1",
+          kind: "APPLY_SHIELD",
+          payload: {},
+          requiredCapabilities: [],
+        },
         "effectAction",
       ),
     ).toThrow(DomainValidationError);
@@ -50,6 +56,7 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             piercing: { defenseIgnoreRate: 1.5, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -66,6 +73,7 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           maxBlocks: null,
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -83,6 +91,42 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_IMMUNITY_DEBUFF",
           kind: "EFFECT_IMMUNITY",
           payload: { categories: ["DEBUFF"], maxBlocks: null },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-005b: rejects EFFECT_IMMUNITY when maxBlocks is omitted entirely", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_DEBUFF",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["DEBUFF"],
+            duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-005c: rejects EFFECT_IMMUNITY when maxBlocks is a non-integer, non-null value", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_DEBUFF",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["DEBUFF"],
+            duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
+            maxBlocks: -1,
+          },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -104,6 +148,7 @@ describe("EffectActionDefinition", () => {
             dispellable: true,
           },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -112,6 +157,25 @@ describe("EffectActionDefinition", () => {
       expect(result.payload.duration.consumption).toEqual({ kind: "LETHAL_DAMAGE", maxCount: 1 });
       expect(result.payload.survivalHp).toEqual({ kind: "CONSTANT", value: 1 });
     }
+  });
+
+  it("UT-CAT-ACT-006b: rejects APPLY_DEATH_SURVIVAL when trigger.lethalDamageOnly is not a boolean", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DEATH_SURVIVAL_1",
+          kind: "APPLY_DEATH_SURVIVAL",
+          payload: {
+            trigger: { lethalDamageOnly: "true" },
+            survivalHp: { kind: "CONSTANT", value: 1 },
+            healAfterSurvival: null,
+            duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-ACT-007: maps APPLY_TARGET_REDIRECT with a SELF redirect", () => {
@@ -124,6 +188,7 @@ describe("EffectActionDefinition", () => {
           appliesTo: { actionKinds: ["DAMAGE"] },
           duration: { timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" }, dispellable: true },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -142,6 +207,7 @@ describe("EffectActionDefinition", () => {
           appliesTo: { actionKinds: ["DAMAGE"] },
           duration: { timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" }, dispellable: true },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -165,6 +231,7 @@ describe("EffectActionDefinition", () => {
             appliesTo: { actionKinds: ["DAMAGE"] },
             duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -187,10 +254,31 @@ describe("EffectActionDefinition", () => {
           allowRecursiveReflect: false,
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
     expect(result.kind).toBe("APPLY_REFLECT");
+  });
+
+  it("UT-CAT-ACT-010b: rejects APPLY_REFLECT when allowRecursiveReflect is not a boolean", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REFLECT_1",
+          kind: "APPLY_REFLECT",
+          payload: {
+            reflectTo: { kind: "TRIGGER_SOURCE" },
+            formula: { kind: "CONSTANT", value: 1 },
+            timing: "AFTER_DAMAGE_APPLIED",
+            allowRecursiveReflect: "yes",
+            duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-ACT-011: rejects APPLY_REFLECT when duration is omitted", () => {
@@ -204,6 +292,7 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             timing: "AFTER_DAMAGE_APPLIED",
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -228,6 +317,25 @@ describe("EffectActionDefinition", () => {
     expect(result.requiredCapabilities).toEqual(["CAP_REFLECT_DAMAGE"]);
   });
 
+  it("UT-CAT-ACT-012b: rejects a non-array requiredCapabilities", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REFLECT_1",
+          kind: "APPLY_REFLECT",
+          payload: {
+            reflectTo: { kind: "TRIGGER_SOURCE" },
+            formula: { kind: "CONSTANT", value: 1 },
+            timing: "AFTER_DAMAGE_APPLIED",
+            duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
+          },
+          requiredCapabilities: "CAP_REFLECT_DAMAGE" as unknown as readonly string[],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-013: does not existence-check a BINDING TargetReference inside a standalone payload", () => {
     const result = createEffectActionDefinition(
       {
@@ -238,6 +346,7 @@ describe("EffectActionDefinition", () => {
           appliesTo: { actionKinds: ["DAMAGE"] },
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -253,6 +362,7 @@ describe("EffectActionDefinition", () => {
           formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.45 },
           overheal: "DISCARD",
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -266,6 +376,7 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_HEAL_1",
           kind: "HEAL",
           payload: { formula: { kind: "CONSTANT", value: 1 }, overheal: "BANK" },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -282,6 +393,7 @@ describe("EffectActionDefinition", () => {
           timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
           duration: { timeLimit: { unit: "ACTION", count: 2 }, dispellable: true },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -306,6 +418,7 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "ACTION", count: 2 }, dispellable: true },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -328,6 +441,7 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "NON_STACKABLE" },
             duration: { timeLimit: { unit: "ACTION", count: 2 } },
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -345,6 +459,7 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -366,6 +481,7 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "STACKABLE" },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -383,6 +499,7 @@ describe("EffectActionDefinition", () => {
           formula: { kind: "CONSTANT", value: -2 },
           bounds: { min: 0, max: "CURRENT_MAX" },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -402,6 +519,7 @@ describe("EffectActionDefinition", () => {
           operation: "SET_TO_MAX",
           formula: { kind: "CONSTANT", value: 0 },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -422,6 +540,7 @@ describe("EffectActionDefinition", () => {
             operation: "MULTIPLY",
             formula: { kind: "CONSTANT", value: 1 },
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -438,6 +557,7 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           damageAmplificationOnBreak: 0.5,
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -462,6 +582,7 @@ describe("EffectActionDefinition", () => {
           probability: 1.0,
           appliesTo: { incomingActionKinds: ["DAMAGE"] },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -484,6 +605,7 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             probability: 1.5,
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -497,6 +619,7 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_UNKNOWN_STATUS",
           kind: "APPLY_STATUS",
           payload: { status: "CONFUSED", duration: { timeLimit: { unit: "ACTION", count: 1 } } },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -513,6 +636,7 @@ describe("EffectActionDefinition", () => {
           stack: { policy: "ADD", max: 4 },
           duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -533,12 +657,31 @@ describe("EffectActionDefinition", () => {
           stack: { policy: "REFRESH" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
     if (result.kind === "APPLY_MARKER") {
       expect(result.payload.stack).toEqual({ policy: "REFRESH", max: null });
     }
+  });
+
+  it("UT-CAT-ACT-029b: rejects APPLY_MARKER stack.max that is not an integer or null", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_MARKER_CURSE",
+          kind: "APPLY_MARKER",
+          payload: {
+            markerId: "MARKER_CURSE",
+            stack: { policy: "REFRESH", max: "unlimited" },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-ACT-030: rejects APPLY_MARKER with an unknown stack policy", () => {
@@ -552,6 +695,7 @@ describe("EffectActionDefinition", () => {
             stack: { policy: "MULTIPLY" },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -564,6 +708,7 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_REMOVE_CURSE",
         kind: "REMOVE_MARKER",
         payload: { markerId: "MARKER_CURSE" },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -594,6 +739,7 @@ describe("EffectActionDefinition", () => {
             },
           },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -611,6 +757,7 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             maxBlocks: null,
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -628,6 +775,7 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 } },
           maxBlocks: 2,
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -649,6 +797,7 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             hitCount: 0,
           },
+          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -668,6 +817,7 @@ describe("EffectActionDefinition", () => {
           damageModifiers: [{ kind: "CONSTANT", value: 0.1 }],
           link: { enabled: true },
         },
+        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -679,6 +829,42 @@ describe("EffectActionDefinition", () => {
     }
   });
 
+  it("UT-CAT-ACT-036b: rejects DAMAGE when link.enabled is not a boolean", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_2",
+          kind: "DAMAGE",
+          payload: {
+            damageType: "EN",
+            formula: { kind: "CONSTANT", value: 1 },
+            link: { enabled: "yes" },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-036c: rejects DAMAGE when damageModifiers is not an array", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_2",
+          kind: "DAMAGE",
+          payload: {
+            damageType: "EN",
+            formula: { kind: "CONSTANT", value: 1 },
+            damageModifiers: { kind: "CONSTANT", value: 0.1 },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-037: rejects an unknown EffectActionDefinitionId prefix", () => {
     expect(() =>
       createEffectActionDefinition(
@@ -686,6 +872,21 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "BAD_ID",
           kind: "DAMAGE",
           payload: { damageType: "PHYSICAL", formula: { kind: "CONSTANT", value: 1 } },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-038: rejects a non-array requiredCapabilities at the top level (redundant guard, defense-in-depth)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_1",
+          kind: "DAMAGE",
+          payload: { damageType: "PHYSICAL", formula: { kind: "CONSTANT", value: 1 } },
+          requiredCapabilities: null as unknown as readonly string[],
         },
         "effectAction",
       ),

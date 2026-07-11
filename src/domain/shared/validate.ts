@@ -43,8 +43,50 @@ export function assertInteger(
   }
 }
 
-export function assertNonEmptyArray(value: readonly unknown[], path: string): void {
+export function assertArray(value: unknown, path: string): asserts value is readonly unknown[] {
+  if (!Array.isArray(value)) {
+    throw new DomainValidationError(path, `must be an array, got ${typeof value}`);
+  }
+}
+
+export function assertNonEmptyArray(value: unknown, path: string): void {
+  assertArray(value, path);
   if (value.length === 0) {
     throw new DomainValidationError(path, "must contain at least one element");
+  }
+}
+
+export function assertBoolean(value: unknown, path: string): asserts value is boolean {
+  if (typeof value !== "boolean") {
+    throw new DomainValidationError(path, `must be a boolean, got ${typeof value}`);
+  }
+}
+
+export function assertString(value: unknown, path: string): asserts value is string {
+  if (typeof value !== "string") {
+    throw new DomainValidationError(path, `must be a string, got ${typeof value}`);
+  }
+}
+
+export function assertNullableInteger(
+  value: unknown,
+  path: string,
+  options: { min?: number; max?: number } = {},
+): asserts value is number | null {
+  if (value === null) {
+    return;
+  }
+  if (typeof value !== "number") {
+    throw new DomainValidationError(path, `must be an integer or null, got ${typeof value}`);
+  }
+  assertInteger(value, path, options);
+}
+
+export function assertNullableString(value: unknown, path: string): asserts value is string | null {
+  if (value === null) {
+    return;
+  }
+  if (typeof value !== "string") {
+    throw new DomainValidationError(path, `must be a string or null, got ${typeof value}`);
   }
 }

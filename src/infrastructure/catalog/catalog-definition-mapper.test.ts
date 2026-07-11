@@ -227,7 +227,11 @@ describe("Catalog v2 definition mapper", () => {
 
   it("UT-INFRA-MAP-014: raises DomainValidationError for a shape-valid but semantically-invalid Memory DTO (neither triggeredEffects nor modifiers)", () => {
     expect(() =>
-      mapMemoryDefinition({ memoryDefinitionId: "MEM_002", metadata: { displayName: "Empty" } }),
+      mapMemoryDefinition({
+        memoryDefinitionId: "MEM_002",
+        requiredCapabilities: [],
+        metadata: { displayName: "Empty" },
+      }),
     ).toThrow(DomainValidationError);
   });
 
@@ -237,6 +241,7 @@ describe("Catalog v2 definition mapper", () => {
         effectActionDefinitionId: "ACT_DAMAGE_1",
         kind: "DAMAGE",
         payload: { damageType: "PHYSICAL" },
+        requiredCapabilities: [],
       }),
     ).toThrow(DomainValidationError);
   });
@@ -246,7 +251,36 @@ describe("Catalog v2 definition mapper", () => {
       capabilityId: "Q-TGT-06",
       status: "BLOCKED",
       description: "pending",
+      requiredBy: [],
     });
     expect(capability.capabilityId).toBe("Q-TGT-06");
+  });
+
+  it("UT-INFRA-MAP-017: raises CatalogShapeValidationError when requiredCapabilities is missing from a Unit DTO", () => {
+    const { requiredCapabilities: _omit, ...unitDtoWithoutCapabilities } = unitDto;
+    expect(() => mapUnitDefinition(unitDtoWithoutCapabilities)).toThrow(
+      CatalogShapeValidationError,
+    );
+  });
+
+  it("UT-INFRA-MAP-018: raises DomainValidationError when a Skill's traits booleans are wrong-typed (bypasses the loose JSON Schema, caught by the Mapper)", () => {
+    expect(() =>
+      mapSkillDefinition({ ...skillDto, traits: { ...skillDto.traits, priorityAttack: "false" } }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-INFRA-MAP-019: raises DomainValidationError when an EffectActionDefinition's duration.dispellable is wrong-typed", () => {
+    expect(() =>
+      mapEffectActionDefinition({
+        effectActionDefinitionId: "ACT_IMMUNITY_1",
+        kind: "EFFECT_IMMUNITY",
+        payload: {
+          categories: ["DEBUFF"],
+          duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: "nope" },
+          maxBlocks: null,
+        },
+        requiredCapabilities: [],
+      }),
+    ).toThrow(DomainValidationError);
   });
 });

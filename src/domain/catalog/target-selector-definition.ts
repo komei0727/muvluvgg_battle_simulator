@@ -15,7 +15,13 @@ import {
   type TargetReferenceInput,
 } from "./references.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue, assertFinite } from "../shared/validate.js";
+import {
+  assertArray,
+  assertBoolean,
+  assertEnumValue,
+  assertFinite,
+  assertNonEmptyArray,
+} from "../shared/validate.js";
 
 const COMPARISON_OPERATORS = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
@@ -162,9 +168,10 @@ export function createTargetFilterDefinition(
     case "AND":
     case "OR": {
       const conditions = input.conditions;
-      if (conditions === undefined || conditions.length === 0) {
-        throw new DomainValidationError(`${path}.conditions`, "must contain at least one element");
+      if (conditions === undefined) {
+        throw new DomainValidationError(`${path}.conditions`, "is required");
       }
+      assertNonEmptyArray(conditions, `${path}.conditions`);
       return {
         kind: input.kind,
         conditions: conditions.map((c, i) =>
@@ -238,8 +245,14 @@ export function createAreaDefinition(input: AreaDefinitionInput, path: string): 
       return { kind: "COLUMN", column };
     }
     case "SAME_ROW_AS_BASE":
-    case "SAME_COLUMN_AS_BASE":
-      return { kind: input.kind, includeBase: input.includeBase ?? false };
+    case "SAME_COLUMN_AS_BASE": {
+      let includeBase = false;
+      if (input.includeBase !== undefined) {
+        assertBoolean(input.includeBase, `${path}.includeBase`);
+        includeBase = input.includeBase;
+      }
+      return { kind: input.kind, includeBase };
+    }
   }
 }
 
@@ -284,12 +297,24 @@ export function createTargetSelectorDefinition(
 ): TargetSelectorDefinition {
   assertEnumValue(input.kind, TARGET_SELECTOR_KINDS, `${path}.kind`);
 
+  if (input.filters !== undefined) {
+    assertArray(input.filters, `${path}.filters`);
+  }
   const filters = (input.filters ?? []).map((f, i) =>
     createTargetFilterDefinition(f, `${path}.filters[${i}]`),
   );
+  if (input.order !== undefined) {
+    assertArray(input.order, `${path}.order`);
+  }
   const order = input.order ?? ["DEFAULT"];
   for (const [i, key] of order.entries()) {
     assertEnumValue(key, TARGET_ORDER_KEYS, `${path}.order[${i}]`);
+  }
+
+  let includeDefeated = false;
+  if (input.includeDefeated !== undefined) {
+    assertBoolean(input.includeDefeated, `${path}.includeDefeated`);
+    includeDefeated = input.includeDefeated;
   }
 
   const result: {
@@ -306,7 +331,7 @@ export function createTargetSelectorDefinition(
     kind: input.kind,
     filters,
     order: order as readonly TargetOrderKey[],
-    includeDefeated: input.includeDefeated ?? false,
+    includeDefeated,
   };
 
   if (input.kind === "SELECT") {

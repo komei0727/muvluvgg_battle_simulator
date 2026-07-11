@@ -20,7 +20,12 @@ describe("CapabilityDefinition", () => {
 
   it("UT-CAT-CAP-002: rejects an unknown status", () => {
     expect(() =>
-      createCapabilityDefinition({ capabilityId: "CAP_HEAL", status: "DONE", description: "x" }),
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        status: "DONE",
+        description: "x",
+        requiredBy: [],
+      }),
     ).toThrow(DomainValidationError);
   });
 
@@ -29,7 +34,19 @@ describe("CapabilityDefinition", () => {
       capabilityId: "Q-TGT-06",
       status: "BLOCKED",
       description: "pending spec",
+      requiredBy: [],
     });
     expect(result.capabilityId).toBe("Q-TGT-06");
+  });
+
+  it("UT-CAT-CAP-004: rejects a non-array requiredBy", () => {
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        status: "PLANNED",
+        description: "x",
+        requiredBy: "SKL_001_AS1" as unknown as readonly string[],
+      }),
+    ).toThrow(DomainValidationError);
   });
 });

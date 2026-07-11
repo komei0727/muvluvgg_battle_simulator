@@ -5,7 +5,8 @@ import {
   type ConditionDefinitionInput,
 } from "./condition-definition.js";
 import type { TargetBindingScope } from "./references.js";
-import { assertEnumValue, assertInteger } from "../shared/validate.js";
+import { DomainValidationError } from "../shared/errors.js";
+import { assertArray, assertBoolean, assertEnumValue, assertInteger } from "../shared/validate.js";
 
 const DURATION_TIME_UNITS = ["ACTION", "TURN", "BATTLE", "HIT", "SKILL_USE"] as const;
 const DURATION_OWNERS = ["EFFECT_TARGET", "EFFECT_SOURCE", "BATTLE"] as const;
@@ -90,8 +91,22 @@ export function createDurationDefinition(
   path: string,
   scope: TargetBindingScope | undefined,
 ): DurationDefinition {
-  const dispellable = input.dispellable ?? true;
-  const linkedEffectGroupId = input.linkedEffectGroupId ?? null;
+  let dispellable = true;
+  if (input.dispellable !== undefined) {
+    assertBoolean(input.dispellable, `${path}.dispellable`);
+    dispellable = input.dispellable;
+  }
+
+  let linkedEffectGroupId: string | null = null;
+  if (input.linkedEffectGroupId !== undefined && input.linkedEffectGroupId !== null) {
+    if (typeof input.linkedEffectGroupId !== "string") {
+      throw new DomainValidationError(
+        `${path}.linkedEffectGroupId`,
+        `must be a string or null, got ${typeof input.linkedEffectGroupId}`,
+      );
+    }
+    linkedEffectGroupId = input.linkedEffectGroupId;
+  }
 
   const result: {
     timeLimit?: DurationTimeLimit;
@@ -108,6 +123,7 @@ export function createDurationDefinition(
     result.consumption = createConsumption(input.consumption, `${path}.consumption`);
   }
   if (input.expiration !== undefined) {
+    assertArray(input.expiration.conditions, `${path}.expiration.conditions`);
     result.expiration = {
       conditions: input.expiration.conditions.map((c, i) =>
         createConditionDefinition(c, `${path}.expiration.conditions[${i}]`, scope),

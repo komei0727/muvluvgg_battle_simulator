@@ -16,7 +16,7 @@ import {
 } from "./trigger-definition.js";
 import { deepFreeze } from "../shared/deep-freeze.js";
 import { DomainValidationError } from "../shared/errors.js";
-import { assertEnumValue, assertFinite } from "../shared/validate.js";
+import { assertArray, assertEnumValue, assertFinite } from "../shared/validate.js";
 
 const MODIFIER_STATS = [
   "MAXIMUM_HP",
@@ -70,7 +70,7 @@ export interface MemoryDefinitionInput {
   readonly memoryDefinitionId: string;
   readonly triggeredEffects?: readonly TriggeredEffectInput[];
   readonly modifiers?: readonly MemoryModifierInput[];
-  readonly requiredCapabilities?: readonly string[];
+  readonly requiredCapabilities: readonly string[];
   readonly metadata: { readonly displayName: string; readonly tags?: readonly string[] };
 }
 
@@ -96,6 +96,9 @@ export function createMemoryDefinition(
     `${path}.memoryDefinitionId`,
   );
 
+  if (input.triggeredEffects !== undefined) {
+    assertArray(input.triggeredEffects, `${path}.triggeredEffects`);
+  }
   const triggeredEffects = (input.triggeredEffects ?? []).map((te, i) => ({
     trigger: createTriggerDefinition(te.trigger, `${path}.triggeredEffects[${i}].trigger`),
     effectSequence: createEffectSequence(
@@ -103,6 +106,9 @@ export function createMemoryDefinition(
       `${path}.triggeredEffects[${i}].effectSequence`,
     ),
   }));
+  if (input.modifiers !== undefined) {
+    assertArray(input.modifiers, `${path}.modifiers`);
+  }
   const modifiers = (input.modifiers ?? []).map((m, i) =>
     createModifier(m, `${path}.modifiers[${i}]`),
   );
@@ -114,7 +120,8 @@ export function createMemoryDefinition(
     );
   }
 
-  const requiredCapabilities = (input.requiredCapabilities ?? []).map((id, i) =>
+  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
+  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
     createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
   );
 

@@ -27,9 +27,35 @@ describe("Catalog v2 DTO JSON Schema", () => {
       activeSkillDefinitionIds: ["SKL_001_AS1"],
       passiveSkillDefinitionIds: [],
       extraSkillDefinitionId: "SKL_001_EX",
+      requiredCapabilities: [],
       metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
     });
     expect(valid).toBe(true);
+  });
+
+  it("UT-INFRA-SCHEMA-001b: rejects a UnitDefinition DTO missing requiredCapabilities", () => {
+    const valid = validateUnitDefinitionDto({
+      unitDefinitionId: "UNIT_001",
+      attribute: "COMICAL",
+      unitType: "AGILE",
+      role: "CONTROL",
+      positionAptitudes: ["FRONT"],
+      baseStats: {
+        maximumHp: 100,
+        attack: 10,
+        defense: 10,
+        criticalRate: 0.1,
+        actionSpeed: 100,
+        maximumAp: 4,
+        maximumPp: 4,
+      },
+      extraGaugeMaximum: 5,
+      activeSkillDefinitionIds: ["SKL_001_AS1"],
+      passiveSkillDefinitionIds: [],
+      extraSkillDefinitionId: "SKL_001_EX",
+      metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
+    });
+    expect(valid).toBe(false);
   });
 
   it("UT-INFRA-SCHEMA-002: rejects a UnitDefinition DTO with an unknown attribute", () => {
@@ -52,6 +78,7 @@ describe("Catalog v2 DTO JSON Schema", () => {
       activeSkillDefinitionIds: [],
       passiveSkillDefinitionIds: [],
       extraSkillDefinitionId: "SKL_001_EX",
+      requiredCapabilities: [],
       metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
     });
     expect(valid).toBe(false);
@@ -85,6 +112,7 @@ describe("Catalog v2 DTO JSON Schema", () => {
       activeSkillDefinitionIds: [],
       passiveSkillDefinitionIds: [],
       extraSkillDefinitionId: "SKL_001_EX",
+      requiredCapabilities: [],
       metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
     });
     expect(valid).toBe(false);
@@ -95,6 +123,7 @@ describe("Catalog v2 DTO JSON Schema", () => {
       effectActionDefinitionId: "ACT_DAMAGE_1",
       kind: "DAMAGE",
       payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
+      requiredCapabilities: [],
     });
     expect(valid).toBe(true);
   });
@@ -104,7 +133,36 @@ describe("Catalog v2 DTO JSON Schema", () => {
       effectActionDefinitionId: "ACT_SHIELD_1",
       kind: "APPLY_SHIELD",
       payload: {},
+      requiredCapabilities: [],
     });
     expect(valid).toBe(false);
+  });
+
+  it("UT-INFRA-SCHEMA-007: rejects DTOs missing requiredCapabilities/requiredBy across all artifact types", () => {
+    expect(
+      validateSkillDefinitionDto({
+        skillDefinitionId: "SKL_001_AS1",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 1 },
+        resolution: { kind: "IMMEDIATE", steps: [{ kind: "ACTION" }] },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        metadata: { displayName: "x" },
+      }),
+    ).toBe(false);
+    expect(
+      validateEffectActionDefinitionDto({
+        effectActionDefinitionId: "ACT_DAMAGE_1",
+        kind: "DAMAGE",
+        payload: {},
+      }),
+    ).toBe(false);
+    expect(
+      validateCapabilityDefinitionDto({
+        capabilityId: "CAP_HEAL",
+        status: "PLANNED",
+        description: "x",
+      }),
+    ).toBe(false);
   });
 });

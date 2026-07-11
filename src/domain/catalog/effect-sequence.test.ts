@@ -342,4 +342,82 @@ describe("EffectSequence", () => {
       branches: [{ steps: [], label: "ONLY", weight: 1 }],
     });
   });
+
+  it("UT-CAT-SEQ-018: raises DomainValidationError (not a raw TypeError) when a RANDOM_BRANCH branch omits steps", () => {
+    let caught: unknown;
+    try {
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "RANDOM_BRANCH",
+              mode: "WEIGHTED_ONE",
+              branches: [{ weight: 1 } as unknown as { steps: never[] }],
+            },
+          ],
+        },
+        "resolution",
+      );
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(DomainValidationError);
+    expect(caught).not.toBeInstanceOf(TypeError);
+  });
+
+  it("UT-CAT-SEQ-019: rejects a RANDOM_BRANCH whose branches field is not an array", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "RANDOM_BRANCH",
+              mode: "WEIGHTED_ONE",
+              branches: "not-an-array" as unknown as never[],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-020: rejects an ACTION step whose actions field is not an array", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: "not-an-array" as unknown as never[],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-021: rejects a BRANCH step whose thenSteps field is not an array", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "BRANCH",
+              condition: { kind: "TRUE" },
+              thenSteps: "not-an-array" as unknown as never[],
+              elseSteps: [],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -1,6 +1,6 @@
 import { createCapabilityId, type CapabilityId } from "./catalog-ids.js";
 import { deepFreeze } from "../shared/deep-freeze.js";
-import { assertEnumValue } from "../shared/validate.js";
+import { assertArray, assertEnumValue } from "../shared/validate.js";
 
 const CAPABILITY_STATUSES = ["IMPLEMENTED", "PLANNED", "BLOCKED"] as const;
 export type CapabilityStatus = (typeof CAPABILITY_STATUSES)[number];
@@ -16,7 +16,7 @@ export interface CapabilityDefinitionInput {
   readonly capabilityId: string;
   readonly status: string;
   readonly description: string;
-  readonly requiredBy?: readonly string[];
+  readonly requiredBy: readonly string[];
 }
 
 export function createCapabilityDefinition(
@@ -25,10 +25,11 @@ export function createCapabilityDefinition(
 ): CapabilityDefinition {
   const capabilityId = createCapabilityId(input.capabilityId, `${path}.capabilityId`);
   assertEnumValue(input.status, CAPABILITY_STATUSES, `${path}.status`);
+  assertArray(input.requiredBy, `${path}.requiredBy`);
   return deepFreeze({
     capabilityId,
     status: input.status,
     description: input.description,
-    requiredBy: input.requiredBy ?? [],
+    requiredBy: input.requiredBy,
   });
 }
