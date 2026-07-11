@@ -73,6 +73,96 @@ function listVersionDirectoriesSorted(parentDir: string): string[] {
     .sort((a, b) => a.localeCompare(b));
 }
 
+function stringField(value: unknown, field: string): string | undefined {
+  if (value === null || typeof value !== "object") {
+    return undefined;
+  }
+  const v = (value as Record<string, unknown>)[field];
+  return typeof v === "string" ? v : undefined;
+}
+
+/**
+ * Recursively collects every `effectActionDefinitionId` reference found
+ * anywhere inside `node` (skill/memory resolution trees nest actions inside
+ * steps, BRANCH/RANDOM_BRANCH branches, etc.). Used to verify that a unit's
+ * or memory's `effects.json` only holds EffectActionDefinitions that
+ * directory's own skills/triggeredEffects actually reference — without this,
+ * a Shape/Semantic-valid but *misplaced* skill or effect (declared under the
+ * wrong unit/memory directory) would still pass because
+ * `loadCatalogFromDirectory` only validates the flattened, catalog-wide
+ * result (Issue #50 review).
+ */
+function collectEffectActionReferences(node: unknown, into: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const item of node) collectEffectActionReferences(item, into);
+    return;
+  }
+  if (node !== null && typeof node === "object") {
+    const record = node as Record<string, unknown>;
+    const id = record.effectActionDefinitionId;
+    if (typeof id === "string") {
+      into.add(id);
+    }
+    for (const value of Object.values(record)) collectEffectActionReferences(value, into);
+  }
+}
+
+function declaredUnitSkillIds(unit: Record<string, unknown>): Set<string> {
+  const ids = new Set<string>();
+  const active = unit.activeSkillDefinitionIds;
+  const passive = unit.passiveSkillDefinitionIds;
+  if (Array.isArray(active)) {
+    for (const id of active) if (typeof id === "string") ids.add(id);
+  }
+  if (Array.isArray(passive)) {
+    for (const id of passive) if (typeof id === "string") ids.add(id);
+  }
+  const extra = unit.extraSkillDefinitionId;
+  if (typeof extra === "string") ids.add(extra);
+  return ids;
+}
+
+function verifyUnitSkillOwnership(
+  unitDir: string,
+  unit: Record<string, unknown>,
+  skills: readonly unknown[],
+): void {
+  const declared = declaredUnitSkillIds(unit);
+  const actualIds = skills.map((s) => stringField(s, "skillDefinitionId"));
+  const actualSet = new Set(actualIds);
+  const missing = [...declared].filter((id) => !actualSet.has(id));
+  const unexpected = actualIds.filter((id) => id === undefined || !declared.has(id));
+  if (missing.length > 0 || unexpected.length > 0) {
+    const parts: string[] = [];
+    if (missing.length > 0) {
+      parts.push(`missing skill(s) declared by unit.json: ${missing.join(", ")}`);
+    }
+    if (unexpected.length > 0) {
+      parts.push(`skill(s) not declared by this unit's unit.json: ${unexpected.join(", ")}`);
+    }
+    throw new CatalogSourceError(join(unitDir, "skills.json"), parts.join("; "));
+  }
+}
+
+function verifyEffectOwnership(
+  effectsPath: string,
+  referenceSource: unknown,
+  effects: readonly unknown[],
+  ownerDescription: string,
+): void {
+  const referenced = new Set<string>();
+  collectEffectActionReferences(referenceSource, referenced);
+  const unowned = effects
+    .map((e) => stringField(e, "effectActionDefinitionId"))
+    .filter((id) => id === undefined || !referenced.has(id));
+  if (unowned.length > 0) {
+    throw new CatalogSourceError(
+      effectsPath,
+      `effect(s) not referenced by ${ownerDescription}: ${unowned.join(", ")}`,
+    );
+  }
+}
+
 function readUnitDirectory(
   unitsDir: string,
   dirName: string,
@@ -90,7 +180,14 @@ function readUnitDirectory(
     );
   }
   const skills = readJsonArrayFile(join(unitDir, "skills.json"));
+  verifyUnitSkillOwnership(unitDir, unit, skills);
   const effects = readJsonArrayFile(join(unitDir, "effects.json"));
+  verifyEffectOwnership(
+    join(unitDir, "effects.json"),
+    skills,
+    effects,
+    "this unit's own skills.json",
+  );
   return { unit, skills, effects };
 }
 
@@ -110,6 +207,12 @@ function readMemoryDirectory(
     );
   }
   const effects = readJsonArrayFile(join(memoryDir, "effects.json"));
+  verifyEffectOwnership(
+    join(memoryDir, "effects.json"),
+    memory,
+    effects,
+    "this memory's own memory.json",
+  );
   return { memory, effects };
 }
 

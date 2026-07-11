@@ -70,4 +70,28 @@ describe("readCatalogSource", () => {
       CatalogSourceError,
     );
   });
+
+  it("UT-CAT-SRC-009: rejects a unit's skills.json containing a skill not declared by that unit's unit.json", () => {
+    expect(() => readCatalogSource(fixturePath("catalog-src-unowned-skill"))).toThrow(
+      /SKL_001_ROGUE/,
+    );
+  });
+
+  it("UT-CAT-SRC-010: rejects a unit whose unit.json declares a skill missing from that unit's skills.json", () => {
+    expect(() => readCatalogSource(fixturePath("catalog-src-missing-skill"))).toThrow(
+      /SKL_001_AS1/,
+    );
+  });
+
+  it("UT-CAT-SRC-011: rejects a unit's effects.json containing an effect not referenced by that unit's own skills", () => {
+    expect(() => readCatalogSource(fixturePath("catalog-src-unowned-effect"))).toThrow(
+      /ACT_UNUSED_EXTRA/,
+    );
+  });
+
+  it("UT-CAT-SRC-012: rejects a memory's effects.json containing an effect not referenced by that memory's triggeredEffects", () => {
+    expect(() => readCatalogSource(fixturePath("catalog-src-memory-unowned-effect"))).toThrow(
+      /ACT_MEMORY_UNUSED/,
+    );
+  });
 });

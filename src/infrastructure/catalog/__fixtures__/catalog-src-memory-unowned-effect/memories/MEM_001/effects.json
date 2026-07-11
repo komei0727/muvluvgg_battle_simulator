@@ -1,0 +1,22 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MEMORY_USED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.0 }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEMORY_UNUSED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.0 }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  }
+]
