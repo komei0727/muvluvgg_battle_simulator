@@ -87,7 +87,7 @@ catalog/
 catalog-src/
   capabilities.json          # 共有・フラット。catalog/capabilities.json と同一形式
   units/
-    <unitDefinitionId>/      # 例: UNIT_EVIE。バージョン単位のID。キャラクター単位ではない
+    <unitDefinitionId>/      # 例: UNIT_EVIE_ECO。バージョン単位のID。キャラクター単位ではない
       unit.json               # UnitDefinition 1件
       skills.json              # そのユニットのSkillDefinition配列
       effects.json              # そのユニットのEffectActionDefinition配列
@@ -99,7 +99,7 @@ catalog-src/
 
 ### ディレクトリ粒度: バージョン単位（キャラクター単位ではない）
 
-同一キャラクターでも衣装違い・イベント違いなどで複数バージョンのユニットが存在する（例: `raw/units/` の「ユリア・バーンズ」「生駒葵」「劉翠蘭」等は各2バージョン以上）。`unitDefinitionId`（例: `UNIT_EVIE`）はバージョン単位で一意なIDであり、`characterId`（例: `CHAR_EVIE_RENALT`）はキャラクター単位でユニット間に重複しうる。`catalog-src/units/` のディレクトリ名は必ず `unitDefinitionId` を用いる。`characterId` や `characterName` でディレクトリを作ると、同一キャラクターの複数バージョンが衝突する。
+同一キャラクターでも衣装違い・イベント違いなどで複数バージョンのユニットが存在する（例: `raw/units/` の「ユリア・バーンズ」「生駒葵」「劉翠蘭」等は各2バージョン以上）。`unitDefinitionId`（例: `UNIT_EVIE_ECO`、キョンシーハッカー衣装は`UNIT_EVIE_KYONSHI`）はバージョン単位で一意なIDであり、`characterId`（例: `CHAR_EVIE_RENALT`）はキャラクター単位でユニット間に重複しうる。Unit名は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一する（`UNIT_EVIE` のようなキャラクター名のみのIDは使わない）。`catalog-src/units/` のディレクトリ名は必ず `unitDefinitionId` を用いる。`characterId` や `characterName` でディレクトリを作ると、同一キャラクターの複数バージョンが衝突する。
 
 `memories/` も同様に `memoryDefinitionId` 単位でディレクトリを作る。
 

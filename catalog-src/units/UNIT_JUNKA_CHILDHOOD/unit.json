@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_JUNKA_CHILDHOOD",
+  "attribute": "CUTE",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 33315,
+    "attack": 19724,
+    "defense": 11576,
+    "criticalRate": 0.2,
+    "actionSpeed": 715,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_AS1", "SKL_JUNKA_CHILDHOOD_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_PS1", "SKL_JUNKA_CHILDHOOD_PS2"],
+  "extraSkillDefinitionId": "SKL_JUNKA_CHILDHOOD_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【唯一無二の幼なじみ】鑑純夏",
+    "characterName": "鑑純夏",
+    "characterId": "CHAR_JUNKA_KAGAMI"
+  }
+}

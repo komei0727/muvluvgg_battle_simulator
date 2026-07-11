@@ -1,13 +1,13 @@
 [
   {
-    "effectActionDefinitionId": "ACT_ANIS_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.506 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_EX_AP_DOWN",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_AP_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "AP",
@@ -19,7 +19,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_EX_EVASION",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "EVASION",
@@ -35,7 +35,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -46,7 +46,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_AS1_ATK_UP",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -59,7 +59,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_AS1_CRIT_UP",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_CRIT_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -72,14 +72,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.7068 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_AS2_POISON",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -91,7 +91,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_PS1_EVASION",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS1_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "EVASION",
@@ -107,14 +107,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_PS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.008 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_PS2_CRIT_PREVENTION",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "CRITICAL_PREVENTION",
@@ -125,7 +125,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ANIS_PS2_EVASION",
+    "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "EVASION",
@@ -141,21 +141,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.4056 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_AS1_POISON",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -167,7 +167,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -178,14 +178,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_PS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.06 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_PS1_POISON",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -197,14 +197,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_PS2_DAMAGE_ADD",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.3816 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_PS2_POISON",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -216,21 +216,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_EX_REMOVE_DEBUFFS",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_REMOVE_DEBUFFS",
     "kind": "REMOVE_EFFECTS",
     "payload": { "categories": ["DEBUFF"] },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.8152 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_EX_STUN",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
@@ -241,7 +241,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_EX_AP_UP",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_AP_UP",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "AP",
@@ -253,14 +253,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.332 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_AS1_STUN",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
@@ -271,7 +271,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PS1_GUARD",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS1_GUARD",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "INCOMING",
@@ -287,7 +287,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PS2_ATK_UP",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -300,7 +300,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PS2_DEF_UP",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_DEF_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -313,7 +313,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PS2_EX_UP",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_EX_UP",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -325,7 +325,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PS3_ATK_UP",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -338,7 +338,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PS3_DEF_UP",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_DEF_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -351,7 +351,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PS3_EX_UP",
+    "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_EX_UP",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -363,14 +363,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.012 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_EX_STUN",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
@@ -380,14 +380,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_AS1_DEBUFF",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DEBUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -403,14 +403,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_PS1_REDIRECT",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_REDIRECT",
     "kind": "APPLY_TARGET_REDIRECT",
     "payload": {
       "redirectTo": { "kind": "SELF" },
@@ -424,7 +424,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_PS1_COVER",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_COVER",
     "kind": "APPLY_COVER",
     "payload": {
       "coverer": { "kind": "SELF" },
@@ -440,14 +440,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_PS2_HEAL",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.75 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_PS2_DEF_UP_SELF",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_SELF",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -460,7 +460,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_PS2_ATK_DOWN_SELF",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_ATK_DOWN_SELF",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -473,7 +473,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_EVIE_PS2_DEF_UP_ROW",
+    "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_ROW",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -562,14 +562,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_EX_BURN",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -586,14 +586,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.422 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_AS1_AP_DOWN",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_AP_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "AP",
@@ -605,21 +605,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_AS1_DAMAGE_ADJACENT",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.474 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_PS1_DAMAGE_ADD",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.2808 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_PS1_CRIT_UP",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_CRIT_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -635,7 +635,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_PS2_ATK_UP",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -648,7 +648,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_PS2_ATK_DOWN",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_DOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -661,7 +661,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_PS3_ATK_UP",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -674,7 +674,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_PS3_SPEED_DOWN",
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_SPEED_DOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ACTION_SPEED",
@@ -687,21 +687,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_COLUMN",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_EX_DAMAGE_COLUMN",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.014 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_EX_DAMAGE_FOLLOWUP",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_EX_DAMAGE_FOLLOWUP",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.468 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_EX_SELF_HEAL",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_EX_SELF_HEAL",
     "kind": "HEAL",
     "payload": {
       "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.6 },
@@ -711,14 +711,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_AS1_HP_COST",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_AS1_HP_COST",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -731,7 +731,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS1_HEAL_FULL",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_HEAL_FULL",
     "kind": "HEAL",
     "payload": {
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 1 },
@@ -741,7 +741,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS1_MARKER",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_KYOKUGEN",
@@ -752,7 +752,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS1_DMG_UP",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_DMG_UP",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -765,14 +765,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS2_COUNTER",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS2_COUNTER",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS2_EVASION",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS2_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "HIT_EVASION",
@@ -787,7 +787,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS3_DEBUFF",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS3_DEBUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "INCOMING",
@@ -803,7 +803,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS3_DEATH_SURVIVAL",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS3_DEATH_SURVIVAL",
     "kind": "APPLY_DEATH_SURVIVAL",
     "payload": {
       "trigger": { "lethalDamageOnly": true },
@@ -819,7 +819,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_PS1_MAX_AP_UP",
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP",
     "kind": "MODIFY_RESOURCE_CAPACITY",
     "payload": {
       "resource": "AP",
@@ -831,14 +831,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_EX_HEAL",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.5 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_EX_CONTINUOUS_HEAL",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
       "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
@@ -849,14 +849,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS1_MARKER",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_CURSE",
@@ -867,7 +867,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS1_ATKDOWN",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -884,7 +884,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS1_DMGDOWN",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -901,7 +901,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS1_PP_ZERO",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "PP",
@@ -912,14 +912,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS1_REMOVE_CURSE",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_CURSE" },
     "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS2_IMMUNITY",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS2_IMMUNITY",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "DAMAGE_IMMUNITY",
@@ -942,7 +942,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_AS2_CONTINUOUS_HEAL",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
       "formula": { "kind": "SKILL_POWER", "power": 0.135 },
@@ -957,7 +957,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_PS1_CONTINUOUS_HEAL",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
       "formula": { "kind": "SKILL_POWER", "power": 0.105 },
@@ -982,7 +982,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_PS2_AP_UP",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS2_AP_UP",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "AP",
@@ -994,7 +994,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_HARRIET_PS2_SPEED_UP",
+    "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS2_SPEED_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ACTION_SPEED",
@@ -1007,7 +1007,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_EX_DMG_UP",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_EX_DMG_UP",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -1020,7 +1020,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_EX_SHIELD",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_EX_SHIELD",
     "kind": "APPLY_SHIELD",
     "payload": {
       "formula": {
@@ -1035,21 +1035,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.484 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_AS1_DAMAGE_EXTRA",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE_EXTRA",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.468 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_AS1_DEBUFF",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DEBUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -1062,7 +1062,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1073,7 +1073,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_AS2_AP_UP",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS2_AP_UP",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "AP",
@@ -1085,7 +1085,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_PS1_ATK_UP_SELF",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_ATK_UP_SELF",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1098,7 +1098,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_PS1_DEF_UP_SELF",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_DEF_UP_SELF",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -1111,7 +1111,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_PS1_ATK_UP_OTHERS",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_ATK_UP_OTHERS",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1124,7 +1124,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_PS1_DEF_UP_OTHERS",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_DEF_UP_OTHERS",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -1137,14 +1137,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_PS2_HEAL",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS2_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.25 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_JUNKA_PS2_CONTINUOUS_HEAL",
+    "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS2_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
       "formula": { "kind": "SKILL_POWER", "power": 0.15 },
@@ -1155,14 +1155,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.248 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_EX_ATKDOWN",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1175,7 +1175,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1194,7 +1194,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_AS1_EX_DOWN",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_EX_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -1206,14 +1206,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.404 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_AS2_ATKDOWN",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_ATKDOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1226,7 +1226,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_PS1_SELF_IMMUNITY",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_SELF_IMMUNITY",
     "kind": "EFFECT_IMMUNITY",
     "payload": {
       "categories": ["DEBUFF"],
@@ -1240,7 +1240,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_PS1_MARK_ATTACKER",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_MARK_ATTACKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_KEIBO",
@@ -1251,7 +1251,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_PS1_ATTACKER_ATKDOWN",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_ATTACKER_ATKDOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1267,7 +1267,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_PS1_REDIRECT",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_REDIRECT",
     "kind": "APPLY_TARGET_REDIRECT",
     "payload": {
       "redirectTo": { "kind": "SELF" },
@@ -1281,7 +1281,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_PS1_COVER",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_COVER",
     "kind": "APPLY_COVER",
     "payload": {
       "coverer": { "kind": "SELF" },
@@ -1297,7 +1297,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_PS1_BACKROW_ATKDOWN",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_BACKROW_ATKDOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1310,7 +1310,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_PS2_DEBUFF",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_DEBUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -1326,7 +1326,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KARINA_EX_DOT",
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1343,7 +1343,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_EX_DAMAGE5",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_DAMAGE5",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
@@ -1354,7 +1354,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_EX_FREEZE",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_FREEZE",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "FREEZE",
@@ -1365,7 +1365,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_EX_HEAL_ALL",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_ALL",
     "kind": "HEAL",
     "payload": {
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.45 },
@@ -1375,14 +1375,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_EX_HEAL_EXTRA",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_EXTRA",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.745 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS1_DAMAGE1",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE1",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
@@ -1393,7 +1393,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS1_DAMAGE2",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE2",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
@@ -1404,7 +1404,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS1_EX_DOWN",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_EX_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -1416,7 +1416,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS1_DMG_DOWN",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -1429,7 +1429,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS1_SELF_HEAL_100",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_100",
     "kind": "HEAL",
     "payload": {
       "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "LAST_DAMAGE_DEALT", "ratio": 1 },
@@ -1439,21 +1439,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS1_SELF_HEAL_20",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_20",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.2 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.936 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS2_STUN_TARGET",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_STUN_TARGET",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
@@ -1463,7 +1463,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS2_SELF_DMG_DOWN",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_DMG_DOWN",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "INCOMING",
@@ -1476,7 +1476,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS2_SELF_EVASION",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "EVASION",
@@ -1492,7 +1492,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS2_SELF_STUN",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
@@ -1502,21 +1502,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_AS3_DAMAGE",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_AS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.742 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KATE_PS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_KATE_PALADIN_PS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1527,7 +1527,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_EX_SPEED_DOWN",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ACTION_SPEED",
@@ -1540,21 +1540,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.5168 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_AS1_DAMAGE_ADJACENT",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE_ADJACENT",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.948 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_AS1_MARKER",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_ROUSHIN",
@@ -1565,21 +1565,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_AS2_DAMAGE_BOOSTED",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE_BOOSTED",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.544 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_PS1_MAXHP_UP",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_MAXHP_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "MAXIMUM_HP",
@@ -1592,21 +1592,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KEI_PS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 4.664 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_EX_DAMAGE_PIERCE",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE_PIERCE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1617,7 +1617,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_EX_HEAL",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_HEAL",
     "kind": "HEAL",
     "payload": {
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 },
@@ -1627,7 +1627,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_EX_CONTINUOUS_HEAL",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
       "formula": { "kind": "SKILL_POWER", "power": 0.135 },
@@ -1638,7 +1638,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE1",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE1",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1649,7 +1649,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS1_DAMAGE2",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE2",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1660,7 +1660,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS1_MARKER",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_FUNDO",
@@ -1671,7 +1671,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS2_ATK_UP",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1684,14 +1684,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_1HIT",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_1HIT",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.872 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_2HIT",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_2HIT",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1702,7 +1702,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1713,7 +1713,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS2_DMG_3HIT_BOOSTED",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1725,7 +1725,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_AS2_TARGET_DMG_DOWN",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -1738,7 +1738,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_PS1_ATK_UP",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS1_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1751,7 +1751,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_KOTOHA_PS2_DEATH_SURVIVAL",
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL",
     "kind": "APPLY_DEATH_SURVIVAL",
     "payload": {
       "trigger": { "lethalDamageOnly": true },
@@ -1771,14 +1771,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.0428 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_EX_ATKDOWN",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1791,14 +1791,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS1_ATK_BUFF",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -1819,14 +1819,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS1_ADJACENT_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ADJACENT_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS1_ENEMY_DEBUFF",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -1839,7 +1839,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_RATE",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_RATE",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -1852,7 +1852,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS2_CRIT_DMG",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_DMG",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
@@ -1865,14 +1865,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS3_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.954 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS1_BURN",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1889,7 +1889,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAURA_PS1_BURN_HEALING_DOWN",
+    "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN_HEALING_DOWN",
     "kind": "APPLY_HEALING_MOD",
     "payload": {
       "direction": "INCOMING",
@@ -1904,7 +1904,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1915,7 +1915,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_EX_IMMUNITY",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_IMMUNITY",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "DAMAGE_IMMUNITY",
@@ -1929,14 +1929,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.872 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_AS1_CRIT_UP",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_CRIT_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -1949,14 +1949,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_AS1_DAMAGE_EXTRA",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE_EXTRA",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.78 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -1967,7 +1967,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_PS1_CRIT_UP",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_CRIT_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -1980,7 +1980,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_PS1_GUARANTEED_HIT",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "GUARANTEED_HIT",
@@ -1991,14 +1991,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_PS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LAYLA_PS2_DAMAGE_MAXHP",
+    "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2008,14 +2008,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_COLUMN",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.1376 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_EX_DAMAGE_BACKROW_CRIT",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2026,14 +2026,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.702 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_AS1_SELF_BUFF",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_SELF_BUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -2046,7 +2046,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE1",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE1",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2057,14 +2057,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_AS2_DAMAGE2",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE2",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.53 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_AS2_DEBUFF",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DEBUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -2080,7 +2080,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_PS1_SHIELD_BUFF",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS1_SHIELD_BUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "INCOMING",
@@ -2101,14 +2101,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_PS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.78 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_PS2_PP_DOWN",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_PP_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "PP",
@@ -2120,7 +2120,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_LYDIA_PS2_HEALING_DOWN",
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_HEALING_DOWN",
     "kind": "APPLY_HEALING_MOD",
     "payload": {
       "direction": "INCOMING",
@@ -2132,14 +2132,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.34 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_EX_CRIT_GUARANTEE",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "CRITICAL_GUARANTEE",
@@ -2149,21 +2149,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_AS1_DAMAGE_BASE",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_BASE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.896 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_AS1_DAMAGE_ADJ",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.1376 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_AS1_DEFDOWN",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -2176,14 +2176,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_AS2_CRIT_UP",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS2_CRIT_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -2196,7 +2196,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_PS1_AP_DOWN",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_AP_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "AP",
@@ -2208,7 +2208,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_PS1_EX_FULL",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_EX_FULL",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -2219,7 +2219,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_PS1_ATK_UP",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -2232,7 +2232,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_PS1_ALLY_EX_UP",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_ALLY_EX_UP",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -2244,7 +2244,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_PS2_DMG_UP",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS2_DMG_UP",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
@@ -2257,7 +2257,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIKOTO_EX_SHIELD",
+    "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_SHIELD",
     "kind": "APPLY_SHIELD",
     "payload": {
       "formula": {
@@ -2527,7 +2527,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_EX_EVASION",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "EVASION",
@@ -2543,7 +2543,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_EX_MARKER",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_WAKKOU",
@@ -2554,7 +2554,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_EX_DEBUFF_IMMUNITY",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_DEBUFF_IMMUNITY",
     "kind": "EFFECT_IMMUNITY",
     "payload": {
       "categories": ["DEBUFF"],
@@ -2565,7 +2565,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_AS1_BLIND",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_BLIND",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "BLIND",
@@ -2576,7 +2576,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_AS1_CRIT_UP",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_CRIT_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -2589,14 +2589,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.9 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_AS2_DAMAGE_BOOSTED",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE_BOOSTED",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2607,7 +2607,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_AS2_SELF_EVASION",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_SELF_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "EVASION",
@@ -2623,7 +2623,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_PS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2644,14 +2644,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_PS1_REMOVE_MARKER",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_REMOVE_MARKER",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_WAKKOU" },
     "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_PS2_COUNTER",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_COUNTER",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2665,7 +2665,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_PS2_HEAL",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_HEAL",
     "kind": "HEAL",
     "payload": {
       "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 },
@@ -2675,21 +2675,21 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_STELLA_EX_REMOVE_DEBUFFS",
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_REMOVE_DEBUFFS",
     "kind": "REMOVE_EFFECTS",
     "payload": { "categories": ["DEBUFF"] },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 3.18 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_EX_EX_DISTRIBUTE",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -2701,14 +2701,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_AS1_DEBUFF",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DEBUFF",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "INCOMING",
@@ -2724,7 +2724,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_PS1_EVASION",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS1_EVASION",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "EVASION",
@@ -2740,14 +2740,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_PS2_HEAL",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.45 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_PS2_ATK_UP",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
@@ -2760,7 +2760,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_PS2_DEF_UP",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_DEF_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -2773,14 +2773,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_PS3_DAMAGE_ADD",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.3588 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_PS3_SPEED_DOWN",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ACTION_SPEED",
@@ -2793,7 +2793,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_PS3_CRIT_UP",
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
@@ -2809,7 +2809,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_EX_DAMAGE",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2820,7 +2820,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_EX_DAMAGE_BOOSTED",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE_BOOSTED",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2832,7 +2832,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_EX_AP_DOWN",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_AP_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "AP",
@@ -2844,14 +2844,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_AS1_DAMAGE",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.544 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_AS1_BURN",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2868,7 +2868,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_AS2_DAMAGE",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
@@ -2879,7 +2879,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_PS1_EX_UP",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_EX_UP",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",
@@ -2891,7 +2891,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_PS1_DEF_UP",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_DEF_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "DEFENSE",
@@ -2904,7 +2904,7 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_PS1_SHIELD",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_SHIELD",
     "kind": "APPLY_SHIELD",
     "payload": {
       "formula": {
@@ -2919,14 +2919,14 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_PS2_COUNTER",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_COUNTER",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.012 } },
     "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_YURIA_PS2_EX_DOWN",
+    "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_EX_DOWN",
     "kind": "MODIFY_RESOURCE",
     "payload": {
       "resource": "EX_GAUGE",

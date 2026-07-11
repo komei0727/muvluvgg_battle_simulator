@@ -1,0 +1,157 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      },
+      "probability": 1,
+      "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_WAKKOU",
+      "stack": { "policy": "KEEP_EXISTING", "max": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_DEBUFF_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "maxBlocks": null
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_BLIND",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "BLIND",
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
+      "probability": 0.55
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.9 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.9 },
+      "damageModifiers": [{ "kind": "CONSTANT", "value": 0.5 }]
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_SELF_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      },
+      "probability": 0.6,
+      "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
+    },
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "MIN",
+        "formulas": [
+          { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.9 },
+          {
+            "kind": "STAT_RATIO",
+            "source": { "kind": "SKILL_SOURCE" },
+            "stat": "ATTACK",
+            "ratio": 1.5
+          }
+        ]
+      }
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_REMOVE_MARKER",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_WAKKOU" },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_COUNTER",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "DAMAGE_RECEIVED_RATIO",
+        "sourceResult": "LAST_DAMAGE_RECEIVED",
+        "ratio": 0.5
+      }
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_REMOVE_DEBUFFS",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["DEBUFF"] },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "metadata": { "tags": [] }
+  }
+]

@@ -18,21 +18,21 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    expect(catalog.catalogRevision).toBe("2026-07-12.1");
+    expect(catalog.catalogRevision).toBe("2026-07-12.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_EVIE"] as never[], []);
-    const ps1 = snapshot.skills.get("SKL_EVIE_PS1" as never);
+    const snapshot = catalog.loadSnapshot(["UNIT_EVIE_ECO"] as never[], []);
+    const ps1 = snapshot.skills.get("SKL_EVIE_ECO_PS1" as never);
     expect(ps1?.triggers[0]?.sourceSelector).toBe("ENEMY");
     expect(ps1?.triggers[0]?.targetSelector).toBe("ALLY");
   });
 
   it("IT-CAT-PROD-003: Karina's とりしまり～ (AS1) reduces EX gauge on all enemies, not a single target", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_KARINA"] as never[], []);
-    const as1 = snapshot.skills.get("SKL_KARINA_AS1" as never);
+    const snapshot = catalog.loadSnapshot(["UNIT_KARINA_DOWNER"] as never[], []);
+    const as1 = snapshot.skills.get("SKL_KARINA_DOWNER_AS1" as never);
     const binding = as1?.resolution.targetBindings.find(
       (b) => b.targetBindingId === "TGT_ALL_ENEMIES",
     );
@@ -42,15 +42,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     expect(step?.kind).toBe("ACTION");
     if (step?.kind === "ACTION") {
       const actionIds = step.actions.map((a) => a.effectActionDefinitionId);
-      expect(actionIds).toContain("ACT_KARINA_AS1_EX_DOWN");
+      expect(actionIds).toContain("ACT_KARINA_DOWNER_AS1_EX_DOWN");
       expect(step.target).toEqual({ kind: "BINDING", targetBindingId: "TGT_ALL_ENEMIES" });
     }
   });
 
   it("IT-CAT-PROD-004: Flute's ＃ぽよ・オア・トリート (EX) self-heal references the summed damage dealt, not only the last hit", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_FLUTE"] as never[], []);
-    const heal = snapshot.effectActions.get("ACT_FLUTE_EX_SELF_HEAL" as never);
+    const snapshot = catalog.loadSnapshot(["UNIT_FLUTE_VAMPIRE"] as never[], []);
+    const heal = snapshot.effectActions.get("ACT_FLUTE_VAMPIRE_EX_SELF_HEAL" as never);
     expect(heal?.kind).toBe("HEAL");
     if (heal?.kind === "HEAL") {
       expect(heal.payload.formula.kind).toBe("DAMAGE_DEALT_RATIO");
@@ -62,8 +62,8 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
 
   it("IT-CAT-PROD-005: Flute's HP cost (AS1 かぷっとファンサ) bypasses defense/shield/evasion/crit so it behaves as an unconditional resource cost", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_FLUTE"] as never[], []);
-    const hpCost = snapshot.effectActions.get("ACT_FLUTE_AS1_HP_COST" as never);
+    const snapshot = catalog.loadSnapshot(["UNIT_FLUTE_VAMPIRE"] as never[], []);
+    const hpCost = snapshot.effectActions.get("ACT_FLUTE_VAMPIRE_AS1_HP_COST" as never);
     expect(hpCost?.kind).toBe("DAMAGE");
     if (hpCost?.kind === "DAMAGE") {
       expect(hpCost.payload.critical?.mode).toBe("PREVENTED");
@@ -79,16 +79,16 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
   it("IT-CAT-PROD-006: every declared targetBindingId is referenced by a resolution step or another binding's base (no orphaned bindings, e.g. Lydia's EX fallback)", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
     const unitIds = [
-      "UNIT_EVIE",
-      "UNIT_LYDIA",
-      "UNIT_LAURA",
-      "UNIT_STELLA",
-      "UNIT_KARINA",
-      "UNIT_HARRIET",
-      "UNIT_KOTOHA",
-      "UNIT_MIKOTO",
-      "UNIT_KATE",
-      "UNIT_FLUTE",
+      "UNIT_EVIE_ECO",
+      "UNIT_LYDIA_GENIUS",
+      "UNIT_LAURA_MOUNTAIN",
+      "UNIT_STELLA_STATUE",
+      "UNIT_KARINA_DOWNER",
+      "UNIT_HARRIET_SAGE",
+      "UNIT_KOTOHA_REBEL",
+      "UNIT_MIKOTO_SURVIVOR",
+      "UNIT_KATE_PALADIN",
+      "UNIT_FLUTE_VAMPIRE",
     ];
     const snapshot = catalog.loadSnapshot(unitIds as never[], []);
 

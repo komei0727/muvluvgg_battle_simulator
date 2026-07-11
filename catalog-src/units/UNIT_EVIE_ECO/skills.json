@@ -1,0 +1,184 @@
+[
+  {
+    "skillDefinitionId": "SKL_EVIE_ECO_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 5 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "スタックオーバーフロー", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_ECO_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DEBUFF" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "グリッチストライク", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_ECO_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_ECO_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "バニッシュ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_ECO_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_REDIRECT" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_COVER" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "simultaneousActivationLimited": true },
+    "requiredCapabilities": [
+      "CAP_TARGET_REDIRECT",
+      "CAP_COVER_DAMAGE",
+      "CAP_ADVANCED_PASSIVE_TRIGGER"
+    ],
+    "metadata": { "displayName": "デコイプロトコル", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY",
+        "condition": { "kind": "TRUE" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_EVIE_ECO_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ROW_ALLIES",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false },
+            "side": "ALLY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_SELF" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_ATK_DOWN_SELF" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_ROW" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_RUNTIME_COUNTER", "CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "リカバリーブースト", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "SELF" },
+              "field": "HP_RATIO",
+              "op": "LTE",
+              "value": 0.4
+            },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_EVIE_ECO_PS2_ACTIVATIONS",
+              "op": "LT",
+              "value": 1
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
