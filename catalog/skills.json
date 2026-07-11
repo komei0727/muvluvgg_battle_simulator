@@ -4350,11 +4350,11 @@
           "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
         },
         {
-          "targetBindingId": "TGT_COLUMN",
+          "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": false },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false },
             "side": "ALLY"
           }
         }
@@ -4367,7 +4367,7 @@
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL_OVER_TIME" }]
         }
       ]
