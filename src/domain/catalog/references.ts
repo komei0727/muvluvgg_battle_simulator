@@ -120,5 +120,15 @@ export function createFormulaSourceReference(
   return { kind: input.kind };
 }
 
-export const LAST_RESULT_REFERENCE_KINDS = ["LAST_DAMAGE_DEALT", "LAST_DAMAGE_RECEIVED"] as const;
+/**
+ * `SUM_*` (G-10, Issue #44) sums every `DAMAGE` result produced so far within
+ * the current `EffectSequence` execution, unlike `LAST_*` which only looks at
+ * the immediately preceding one.
+ */
+export const LAST_RESULT_REFERENCE_KINDS = [
+  "LAST_DAMAGE_DEALT",
+  "LAST_DAMAGE_RECEIVED",
+  "SUM_DAMAGE_DEALT",
+  "SUM_DAMAGE_RECEIVED",
+] as const;
 export type LastResultReference = (typeof LAST_RESULT_REFERENCE_KINDS)[number];

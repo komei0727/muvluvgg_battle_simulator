@@ -318,13 +318,13 @@ function validateEffectAction(
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
-  if (effectAction.kind === "EFFECT_IMMUNITY") {
+  if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {
     for (const referencedId of effectAction.payload.effectActionDefinitionIds ?? []) {
       if (!effectActions.has(referencedId)) {
         violations.push({
           targetId: effectAction.effectActionDefinitionId,
           rule: "DANGLING_REFERENCE",
-          message: `EFFECT_IMMUNITY payload.effectActionDefinitionIds references undefined EffectActionDefinition "${referencedId}"`,
+          message: `${effectAction.kind} payload.effectActionDefinitionIds references undefined EffectActionDefinition "${referencedId}"`,
         });
       }
     }

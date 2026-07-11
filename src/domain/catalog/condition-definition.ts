@@ -1,4 +1,4 @@
-import type { ComparisonOperator } from "./catalog-enums.js";
+import type { ComparisonOperator, Side } from "./catalog-enums.js";
 import {
   createMarkerId,
   createRuntimeCounterId,
@@ -13,6 +13,7 @@ import {
 } from "./references.js";
 import { DomainValidationError } from "../shared/errors.js";
 import {
+  assertBoolean,
   assertEnumValue,
   assertFinite,
   assertKnownKeys,
@@ -21,7 +22,16 @@ import {
 
 export type JsonPrimitive = string | number | boolean;
 
-const COMPARISON_OPERATORS = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
+export const COMPARISON_OPERATORS = [
+  "GT",
+  "GTE",
+  "LT",
+  "LTE",
+  "EQ",
+  "NEQ",
+  "IN",
+  "CONTAINS",
+] as const;
 
 const TARGET_STATE_FIELDS = [
   "IS_ALIVE",
@@ -63,6 +73,7 @@ const CONDITION_KINDS = [
   "LAST_RESULT",
   "RUNTIME_COUNTER",
   "TURN_NUMBER",
+  "ALIVE_UNIT_COUNT",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
 
@@ -77,8 +88,10 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   LAST_RESULT: ["kind", "field", "op", "value"],
   RUNTIME_COUNTER: ["kind", "counter", "op", "value"],
   TURN_NUMBER: ["kind", "op", "value", "modulo"],
+  ALIVE_UNIT_COUNT: ["kind", "side", "excludeSelf", "op", "value"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
+const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
 
 export interface MarkerCountCondition {
   readonly op: ComparisonOperator;
@@ -126,6 +139,13 @@ export type ConditionDefinition =
       readonly op: ComparisonOperator;
       readonly value: number;
       readonly modulo?: number;
+    }
+  | {
+      readonly kind: "ALIVE_UNIT_COUNT";
+      readonly side: Side;
+      readonly excludeSelf: boolean;
+      readonly op: ComparisonOperator;
+      readonly value: number;
     };
 
 export interface ConditionDefinitionInput {
@@ -140,6 +160,8 @@ export interface ConditionDefinitionInput {
   readonly countCondition?: { readonly op: string; readonly value: number };
   readonly counter?: string;
   readonly modulo?: number;
+  readonly side?: string;
+  readonly excludeSelf?: boolean;
 }
 
 function requireField<K extends keyof ConditionDefinitionInput>(
@@ -263,6 +285,23 @@ export function createConditionDefinition(
       }
       assertFinite(input.modulo, `${path}.modulo`);
       return { kind: "TURN_NUMBER", op, value, modulo: input.modulo };
+    }
+    case "ALIVE_UNIT_COUNT": {
+      const side = requireField(input, "side", path);
+      assertEnumValue(side, SIDES, `${path}.side`);
+      let excludeSelf = false;
+      if (input.excludeSelf !== undefined) {
+        assertBoolean(input.excludeSelf, `${path}.excludeSelf`);
+        excludeSelf = input.excludeSelf;
+      }
+      const value = requireNumberField(input, path);
+      return {
+        kind: "ALIVE_UNIT_COUNT",
+        side,
+        excludeSelf,
+        op: createOperator(input, path),
+        value,
+      };
     }
   }
 }

@@ -130,8 +130,8 @@ describe("Catalog v2 DTO JSON Schema", () => {
 
   it("UT-INFRA-SCHEMA-006: rejects an EffectActionDefinition DTO with an unsupported kind", () => {
     const valid = validateEffectActionDefinitionDto({
-      effectActionDefinitionId: "ACT_SHIELD_1",
-      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: "ACT_LINK_1",
+      kind: "APPLY_DAMAGE_LINK",
       payload: {},
       requiredCapabilities: [],
     });

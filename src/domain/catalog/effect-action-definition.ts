@@ -1,5 +1,6 @@
 import type {
   ActionKind,
+  ComparisonOperator,
   CriticalMode,
   AccuracyMode,
   DamageModDirection,
@@ -19,6 +20,7 @@ import {
   type EffectActionDefinitionId,
   type MarkerId,
 } from "./catalog-ids.js";
+import { COMPARISON_OPERATORS } from "./condition-definition.js";
 import {
   createDurationDefinition,
   type DurationDefinition,
@@ -87,22 +89,29 @@ const EFFECT_IMMUNITY_CATEGORIES = [
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
 const REFLECT_TIMINGS = ["AFTER_DAMAGE_APPLIED"] as const;
+const RESOURCE_CAPACITY_OPERATIONS = ["ADD", "SET"] as const;
 
 /**
  * Kinds documented with a complete payload in `14_Catalog定義スキーマ.md`.
  * `APPLY_HEALING_MOD`, `MODIFY_RESOURCE_CAPACITY`, `APPLY_SHIELD`,
- * `REMOVE_EFFECTS`, `APPLY_DAMAGE_LINK` have no documented payload shape
- * (the doc's own "後続設計で具体化する点" flags Cover/Reflect/DamageLink
- * ordering as still open) and are intentionally unsupported for now.
+ * `REMOVE_EFFECTS` were unsupported pending payload design; Issue #44
+ * (G-01/G-02/G-04/G-08/G-09) adds their payload shapes below.
+ * `APPLY_DAMAGE_LINK` remains unsupported — the doc's own "後続設計で具体化
+ * する点" still flags Cover/Reflect/DamageLink ordering as open.
  */
 const EFFECT_ACTION_KINDS = [
   "DAMAGE",
   "HEAL",
   "APPLY_CONTINUOUS_HEAL",
+  "APPLY_CONTINUOUS_DAMAGE",
   "APPLY_STAT_MOD",
   "APPLY_DAMAGE_MOD",
+  "APPLY_HEALING_MOD",
   "MODIFY_RESOURCE",
+  "MODIFY_RESOURCE_CAPACITY",
   "APPLY_STATUS",
+  "APPLY_SHIELD",
+  "REMOVE_EFFECTS",
   "EFFECT_IMMUNITY",
   "APPLY_MARKER",
   "REMOVE_MARKER",
@@ -127,10 +136,22 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   ],
   HEAL: ["formula", "overheal"],
   APPLY_CONTINUOUS_HEAL: ["formula", "timing", "duration"],
+  APPLY_CONTINUOUS_DAMAGE: ["damageType", "formula", "timing", "duration"],
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
   APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "stacking", "duration"],
+  APPLY_HEALING_MOD: ["direction", "formula", "stacking", "duration"],
   MODIFY_RESOURCE: ["resource", "operation", "formula", "bounds"],
-  APPLY_STATUS: ["status", "duration", "probability", "appliesTo", "damageAmplificationOnBreak"],
+  MODIFY_RESOURCE_CAPACITY: ["resource", "operation", "formula", "duration"],
+  APPLY_STATUS: [
+    "status",
+    "duration",
+    "probability",
+    "appliesTo",
+    "damageAmplificationOnBreak",
+    "damageThreshold",
+  ],
+  APPLY_SHIELD: ["formula", "duration"],
+  REMOVE_EFFECTS: ["categories", "effectActionDefinitionIds"],
   EFFECT_IMMUNITY: ["categories", "effectActionDefinitionIds", "duration", "maxBlocks"],
   APPLY_MARKER: ["markerId", "stack", "duration"],
   REMOVE_MARKER: ["markerId"],
@@ -157,6 +178,7 @@ const APPLIES_TO_INCOMING_ACTION_KINDS_ALLOWED_KEYS = ["incomingActionKinds"] as
 const STACK_ALLOWED_KEYS = ["policy", "max"] as const;
 const TRIGGER_LETHAL_ALLOWED_KEYS = ["lethalDamageOnly"] as const;
 const SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS = ["formula"] as const;
+const DAMAGE_THRESHOLD_ALLOWED_KEYS = ["op", "formula"] as const;
 
 // ---- payload types ----
 
@@ -186,6 +208,14 @@ export interface ApplyContinuousHealPayload {
   readonly duration: DurationDefinition;
 }
 
+/** G-02 (Issue #44): the DAMAGE-direction counterpart of `APPLY_CONTINUOUS_HEAL`. */
+export interface ApplyContinuousDamagePayload {
+  readonly damageType: DamageType;
+  readonly formula: FormulaDefinition;
+  readonly timing: { readonly eventType: string; readonly targetSelector: string };
+  readonly duration: DurationDefinition;
+}
+
 export interface ApplyStatModPayload {
   readonly stat: StatKind;
   readonly valueType: "RATIO" | "FIXED";
@@ -202,11 +232,39 @@ export interface ApplyDamageModPayload {
   readonly duration: DurationDefinition;
 }
 
+/** G-01 (Issue #44): the healing-amount counterpart of `APPLY_DAMAGE_MOD` (no `damageType` — healing isn't typed). */
+export interface ApplyHealingModPayload {
+  readonly direction: DamageModDirection;
+  readonly formula: FormulaDefinition;
+  readonly stacking: { readonly mode: "STACKABLE" };
+  readonly duration: DurationDefinition;
+}
+
 export interface ModifyResourcePayload {
   readonly resource: ResourceKind;
   readonly operation: ResourceModifyOperation;
   readonly formula: FormulaDefinition;
   readonly bounds?: { readonly min: number; readonly max: number | "CURRENT_MAX" };
+}
+
+/** G-09 (Issue #44): raises/lowers a resource's maximum, as opposed to `MODIFY_RESOURCE`'s one-off current-value change. */
+export interface ModifyResourceCapacityPayload {
+  readonly resource: ResourceKind;
+  readonly operation: (typeof RESOURCE_CAPACITY_OPERATIONS)[number];
+  readonly formula: FormulaDefinition;
+  readonly duration: DurationDefinition;
+}
+
+/**
+ * G-06 (Issue #44): gates `DAMAGE_IMMUNITY` by the size of the incoming hit.
+ * The immunity applies only when the incoming raw damage compares true
+ * against `formula` via `op` (e.g. `op: GT` with a `CURRENT_HP_RATIO` formula
+ * blocks only hits exceeding a fraction of the holder's current HP — a ward
+ * against a single big hit, not chip damage).
+ */
+export interface DamageThreshold {
+  readonly op: ComparisonOperator;
+  readonly formula: FormulaDefinition;
 }
 
 export interface ApplyStatusPayload {
@@ -215,6 +273,7 @@ export interface ApplyStatusPayload {
   readonly probability?: number;
   readonly appliesTo?: { readonly incomingActionKinds: readonly ActionKind[] };
   readonly damageAmplificationOnBreak?: number;
+  readonly damageThreshold?: DamageThreshold;
 }
 
 export interface EffectImmunityPayload {
@@ -222,6 +281,23 @@ export interface EffectImmunityPayload {
   readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
   readonly duration: DurationDefinition;
   readonly maxBlocks: number | null;
+}
+
+/** G-08 (Issue #44): a damage-absorbing pool separate from HP. */
+export interface ApplyShieldPayload {
+  readonly formula: FormulaDefinition;
+  readonly duration: DurationDefinition;
+}
+
+/**
+ * G-04 (Issue #44): immediate effect removal (as opposed to `EFFECT_IMMUNITY`,
+ * which blocks future applications for a duration). Shares its `categories`
+ * enum with `EFFECT_IMMUNITY` for the same reason: "which kinds of effect
+ * does this target" is the same taxonomy whether blocking or clearing.
+ */
+export interface RemoveEffectsPayload {
+  readonly categories: readonly EffectImmunityCategory[];
+  readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
 }
 
 export interface ApplyMarkerPayload {
@@ -272,10 +348,15 @@ export type EffectActionPayload =
   | { readonly kind: "DAMAGE"; readonly payload: DamagePayload }
   | { readonly kind: "HEAL"; readonly payload: HealPayload }
   | { readonly kind: "APPLY_CONTINUOUS_HEAL"; readonly payload: ApplyContinuousHealPayload }
+  | { readonly kind: "APPLY_CONTINUOUS_DAMAGE"; readonly payload: ApplyContinuousDamagePayload }
   | { readonly kind: "APPLY_STAT_MOD"; readonly payload: ApplyStatModPayload }
   | { readonly kind: "APPLY_DAMAGE_MOD"; readonly payload: ApplyDamageModPayload }
+  | { readonly kind: "APPLY_HEALING_MOD"; readonly payload: ApplyHealingModPayload }
   | { readonly kind: "MODIFY_RESOURCE"; readonly payload: ModifyResourcePayload }
+  | { readonly kind: "MODIFY_RESOURCE_CAPACITY"; readonly payload: ModifyResourceCapacityPayload }
   | { readonly kind: "APPLY_STATUS"; readonly payload: ApplyStatusPayload }
+  | { readonly kind: "APPLY_SHIELD"; readonly payload: ApplyShieldPayload }
+  | { readonly kind: "REMOVE_EFFECTS"; readonly payload: RemoveEffectsPayload }
   | { readonly kind: "EFFECT_IMMUNITY"; readonly payload: EffectImmunityPayload }
   | { readonly kind: "APPLY_MARKER"; readonly payload: ApplyMarkerPayload }
   | { readonly kind: "REMOVE_MARKER"; readonly payload: RemoveMarkerPayload }
@@ -511,6 +592,29 @@ function createPayload(
         },
       };
     }
+    case "APPLY_CONTINUOUS_DAMAGE": {
+      const damageType = requireField(
+        payload["damageType"] as string | undefined,
+        `${path}.damageType`,
+      );
+      assertEnumValue(damageType, DAMAGE_TYPES, `${path}.damageType`);
+      const timing = requireField(
+        payload["timing"] as { eventType?: string; targetSelector?: string } | undefined,
+        `${path}.timing`,
+      );
+      assertKnownKeys(timing, TIMING_ALLOWED_KEYS, `${path}.timing`);
+      const eventType = requireField(timing.eventType, `${path}.timing.eventType`);
+      const targetSelector = requireField(timing.targetSelector, `${path}.timing.targetSelector`);
+      return {
+        kind: "APPLY_CONTINUOUS_DAMAGE",
+        payload: {
+          damageType,
+          formula: createFormulaField(payload, "formula", path),
+          timing: { eventType, targetSelector },
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
     case "APPLY_STAT_MOD": {
       const stat = requireField(payload["stat"] as string | undefined, `${path}.stat`);
       assertEnumValue(stat, STAT_KINDS, `${path}.stat`);
@@ -555,6 +659,23 @@ function createPayload(
         },
       };
     }
+    case "APPLY_HEALING_MOD": {
+      const direction = requireField(
+        payload["direction"] as string | undefined,
+        `${path}.direction`,
+      );
+      assertEnumValue(direction, DAMAGE_MOD_DIRECTIONS, `${path}.direction`);
+      const stackingMode = requireStackingMode(payload, path);
+      return {
+        kind: "APPLY_HEALING_MOD",
+        payload: {
+          direction,
+          formula: createFormulaField(payload, "formula", path),
+          stacking: { mode: stackingMode },
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
     case "MODIFY_RESOURCE": {
       const resource = requireField(payload["resource"] as string | undefined, `${path}.resource`);
       assertEnumValue(resource, RESOURCE_KINDS, `${path}.resource`);
@@ -588,6 +709,24 @@ function createPayload(
       }
       return { kind: "MODIFY_RESOURCE", payload: result };
     }
+    case "MODIFY_RESOURCE_CAPACITY": {
+      const resource = requireField(payload["resource"] as string | undefined, `${path}.resource`);
+      assertEnumValue(resource, RESOURCE_KINDS, `${path}.resource`);
+      const operation = requireField(
+        payload["operation"] as string | undefined,
+        `${path}.operation`,
+      );
+      assertEnumValue(operation, RESOURCE_CAPACITY_OPERATIONS, `${path}.operation`);
+      return {
+        kind: "MODIFY_RESOURCE_CAPACITY",
+        payload: {
+          resource,
+          operation,
+          formula: createFormulaField(payload, "formula", path),
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
     case "APPLY_STATUS": {
       const status = requireField(payload["status"] as string | undefined, `${path}.status`);
       assertEnumValue(status, STATUS_KINDS, `${path}.status`);
@@ -597,6 +736,7 @@ function createPayload(
         probability?: number;
         appliesTo?: { incomingActionKinds: readonly ActionKind[] };
         damageAmplificationOnBreak?: number;
+        damageThreshold?: DamageThreshold;
       } = { status, duration: createDurationField(payload, path) };
       const probability = payload["probability"] as number | undefined;
       if (probability !== undefined) {
@@ -632,7 +772,67 @@ function createPayload(
         assertFinite(damageAmplificationOnBreak, `${path}.damageAmplificationOnBreak`);
         result.damageAmplificationOnBreak = damageAmplificationOnBreak;
       }
+      const damageThresholdRaw = payload["damageThreshold"] as
+        | { op?: string; formula?: FormulaDefinitionInput }
+        | undefined;
+      if (damageThresholdRaw !== undefined) {
+        if (status !== "DAMAGE_IMMUNITY") {
+          throw new DomainValidationError(
+            `${path}.damageThreshold`,
+            `is only meaningful when status is "DAMAGE_IMMUNITY", got "${status}"`,
+          );
+        }
+        assertKnownKeys(
+          damageThresholdRaw,
+          DAMAGE_THRESHOLD_ALLOWED_KEYS,
+          `${path}.damageThreshold`,
+        );
+        const op = requireField(damageThresholdRaw.op, `${path}.damageThreshold.op`);
+        assertEnumValue(op, COMPARISON_OPERATORS, `${path}.damageThreshold.op`);
+        result.damageThreshold = {
+          op,
+          formula: createFormulaField(damageThresholdRaw, "formula", `${path}.damageThreshold`),
+        };
+      }
       return { kind: "APPLY_STATUS", payload: result };
+    }
+    case "APPLY_SHIELD": {
+      return {
+        kind: "APPLY_SHIELD",
+        payload: {
+          formula: createFormulaField(payload, "formula", path),
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "REMOVE_EFFECTS": {
+      const categories = payload["categories"] as readonly string[] | undefined;
+      assertNonEmptyArray(categories ?? [], `${path}.categories`);
+      for (const [i, category] of (categories ?? []).entries()) {
+        assertEnumValue(category, EFFECT_IMMUNITY_CATEGORIES, `${path}.categories[${i}]`);
+      }
+      const typedCategories = (categories ?? []) as readonly EffectImmunityCategory[];
+      const result: RemoveEffectsPayload = { categories: typedCategories };
+      if (typedCategories.includes("SPECIFIC_EFFECT")) {
+        const ids = payload["effectActionDefinitionIds"] as readonly string[] | undefined;
+        assertNonEmptyArray(ids ?? [], `${path}.effectActionDefinitionIds`);
+        return {
+          kind: "REMOVE_EFFECTS",
+          payload: {
+            ...result,
+            effectActionDefinitionIds: (ids ?? []).map((id, i) =>
+              createEffectActionDefinitionId(id, `${path}.effectActionDefinitionIds[${i}]`),
+            ),
+          },
+        };
+      }
+      if (payload["effectActionDefinitionIds"] !== undefined) {
+        throw new DomainValidationError(
+          `${path}.effectActionDefinitionIds`,
+          'must not be set when "categories" does not include "SPECIFIC_EFFECT" (it would otherwise be silently ignored)',
+        );
+      }
+      return { kind: "REMOVE_EFFECTS", payload: result };
     }
     case "EFFECT_IMMUNITY": {
       const categories = payload["categories"] as readonly string[] | undefined;

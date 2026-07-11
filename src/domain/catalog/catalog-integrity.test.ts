@@ -45,6 +45,24 @@ function effectImmunityAction(
   );
 }
 
+function removeEffectsAction(
+  id: string,
+  referencedEffectActionIds: readonly string[],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "REMOVE_EFFECTS",
+      payload: {
+        categories: ["SPECIFIC_EFFECT"],
+        effectActionDefinitionIds: referencedEffectActionIds,
+      },
+      requiredCapabilities: [],
+    },
+    "effectAction",
+  );
+}
+
 function asSkill(id: string, targetActionId: string): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -437,6 +455,23 @@ describe("buildCatalogIndex", () => {
       const err = error as CatalogIntegrityError;
       expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
       expect(err.violations[0]?.targetId).toBe("ACT_IMMUNITY_1");
+    }
+  });
+
+  it("UT-CAT-IDX-016: rejects a REMOVE_EFFECTS payload.effectActionDefinitionIds referencing a missing EffectActionDefinition (Issue #44 G-04 follow-up)", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      effectActions: [...defs.effectActions, removeEffectsAction("ACT_REMOVE_1", ["ACT_MISSING"])],
+    };
+    expect(() => buildCatalogIndex(withDangling)).toThrow(CatalogIntegrityError);
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
+      expect(err.violations[0]?.targetId).toBe("ACT_REMOVE_1");
     }
   });
 });

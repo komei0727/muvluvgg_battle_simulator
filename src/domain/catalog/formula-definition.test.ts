@@ -133,4 +133,53 @@ describe("FormulaDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-FORM-012: maps DAMAGE_DEALT_RATIO with sourceResult LAST_DAMAGE_DEALT", () => {
+    const result = createFormulaDefinition(
+      { kind: "DAMAGE_DEALT_RATIO", sourceResult: "LAST_DAMAGE_DEALT", ratio: 0.6 },
+      "formula",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "DAMAGE_DEALT_RATIO",
+      sourceResult: "LAST_DAMAGE_DEALT",
+      ratio: 0.6,
+    });
+  });
+
+  it("UT-CAT-FORM-013: maps DAMAGE_DEALT_RATIO with sourceResult SUM_DAMAGE_DEALT (G-10, Issue #44: sums every DAMAGE result produced so far in the current EffectSequence, not just the immediately preceding one)", () => {
+    const result = createFormulaDefinition(
+      { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.6 },
+      "formula",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "DAMAGE_DEALT_RATIO",
+      sourceResult: "SUM_DAMAGE_DEALT",
+      ratio: 0.6,
+    });
+  });
+
+  it("UT-CAT-FORM-014: maps DAMAGE_RECEIVED_RATIO with sourceResult SUM_DAMAGE_RECEIVED", () => {
+    const result = createFormulaDefinition(
+      { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "SUM_DAMAGE_RECEIVED", ratio: 0.5 },
+      "formula",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "DAMAGE_RECEIVED_RATIO",
+      sourceResult: "SUM_DAMAGE_RECEIVED",
+      ratio: 0.5,
+    });
+  });
+
+  it("UT-CAT-FORM-015: rejects an unknown sourceResult", () => {
+    expect(() =>
+      createFormulaDefinition(
+        { kind: "DAMAGE_DEALT_RATIO", sourceResult: "ALL_TIME_DAMAGE_DEALT", ratio: 0.6 },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

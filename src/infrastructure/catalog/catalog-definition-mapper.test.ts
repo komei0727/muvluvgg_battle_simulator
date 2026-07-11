@@ -208,9 +208,9 @@ describe("Catalog v2 definition mapper", () => {
   });
 
   it("UT-INFRA-MAP-011: raises CatalogShapeValidationError for a shape-invalid EffectActionDefinition DTO", () => {
-    expect(() => mapEffectActionDefinition({ ...effectActionDto, kind: "APPLY_SHIELD" })).toThrow(
-      CatalogShapeValidationError,
-    );
+    expect(() =>
+      mapEffectActionDefinition({ ...effectActionDto, kind: "APPLY_DAMAGE_LINK" }),
+    ).toThrow(CatalogShapeValidationError);
   });
 
   it("UT-INFRA-MAP-012: raises CatalogShapeValidationError for a shape-invalid Memory DTO", () => {

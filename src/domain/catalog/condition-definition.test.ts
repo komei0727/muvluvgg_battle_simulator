@@ -173,4 +173,54 @@ describe("ConditionDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-013: maps ALIVE_UNIT_COUNT with excludeSelf defaulted to false (G-03, Issue #44)", () => {
+    const result = createConditionDefinition(
+      { kind: "ALIVE_UNIT_COUNT", side: "ALLY", op: "GT", value: 0 },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "ALIVE_UNIT_COUNT",
+      side: "ALLY",
+      excludeSelf: false,
+      op: "GT",
+      value: 0,
+    });
+  });
+
+  it("UT-CAT-COND-014: maps ALIVE_UNIT_COUNT with excludeSelf true (self excluded from the count)", () => {
+    const result = createConditionDefinition(
+      { kind: "ALIVE_UNIT_COUNT", side: "ALLY", excludeSelf: true, op: "GT", value: 0 },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "ALIVE_UNIT_COUNT",
+      side: "ALLY",
+      excludeSelf: true,
+      op: "GT",
+      value: 0,
+    });
+  });
+
+  it("UT-CAT-COND-015: rejects ALIVE_UNIT_COUNT with an unknown side", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "ALIVE_UNIT_COUNT", side: "SELF", op: "GT", value: 0 },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-016: rejects a typo'd sibling key on ALIVE_UNIT_COUNT", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "ALIVE_UNIT_COUNT", side: "ALLY", op: "GT", value: 0, typoField: 1 } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });
