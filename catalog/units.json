@@ -56,6 +56,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_CHIYURU_NEWYEAR",
+    "attribute": "SMART",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 33166,
+      "attack": 20365,
+      "defense": 11340,
+      "criticalRate": 0.2,
+      "actionSpeed": 678,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_AS1", "SKL_CHIYURU_NEWYEAR_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_PS1", "SKL_CHIYURU_NEWYEAR_PS2"],
+    "extraSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【新春のメイズ研究者】月ヶ瀬ちゆる",
+      "characterName": "月ヶ瀬ちゆる",
+      "characterId": "CHAR_CHIYURU_TSUKIGASE"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_DOROTHEA_GRACE",
     "attribute": "COMICAL",
     "unitType": "PHYSICAL",
@@ -83,6 +111,34 @@
       "affiliations": [],
       "tags": [],
       "displayName": "【ノーブル・グレイス】ドロテア・カークランド",
+      "characterName": "ドロテア・カークランド",
+      "characterId": "CHAR_DOROTHEA_KIRKLAND"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_DOROTHEA_PIONEER",
+    "attribute": "CUTE",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 29824,
+      "attack": 21955,
+      "defense": 10694,
+      "criticalRate": 0.2,
+      "actionSpeed": 679,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_AS1", "SKL_DOROTHEA_PIONEER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_PS1", "SKL_DOROTHEA_PIONEER_PS2"],
+    "extraSkillDefinitionId": "SKL_DOROTHEA_PIONEER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【新たなる時代の導き手】ドロテア・カークランド",
       "characterName": "ドロテア・カークランド",
       "characterId": "CHAR_DOROTHEA_KIRKLAND"
     }
@@ -169,6 +225,62 @@
       "displayName": "【空っぽのアクター】フィー・ドレーゼ",
       "characterName": "フィー・ドレーゼ",
       "characterId": "CHAR_FEE_DREZE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_FEE_BATH",
+    "attribute": "AGGRESSIVE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28326,
+      "attack": 21119,
+      "defense": 11218,
+      "criticalRate": 0.2,
+      "actionSpeed": 712,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_FEE_BATH_AS1", "SKL_FEE_BATH_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_FEE_BATH_PS1", "SKL_FEE_BATH_PS2"],
+    "extraSkillDefinitionId": "SKL_FEE_BATH_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【自己に揺れる白湯気】フィー・ドレーゼ",
+      "characterName": "フィー・ドレーゼ",
+      "characterId": "CHAR_FEE_DREZE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_FLUTE_INFLUENCER",
+    "attribute": "CUTE",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 32015,
+      "attack": 19057,
+      "defense": 11340,
+      "criticalRate": 0.2,
+      "actionSpeed": 646,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_AS1", "SKL_FLUTE_INFLUENCER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_PS1", "SKL_FLUTE_INFLUENCER_PS2"],
+    "extraSkillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【ギャルインフルエンサー】フルート・メルヴィル",
+      "characterName": "フルート・メルヴィル",
+      "characterId": "CHAR_FLUTE_MELVILLE"
     }
   },
   {
@@ -464,6 +576,67 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_MAIA_LAZY",
+    "attribute": "SMART",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 30205,
+      "attack": 21590,
+      "defense": 11083,
+      "criticalRate": 0.2,
+      "actionSpeed": 750,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 5,
+    "activeSkillDefinitionIds": [
+      "SKL_MAIA_LAZY_AS1",
+      "SKL_MAIA_LAZY_AS2",
+      "SKL_MAIA_LAZY_AS3",
+      "SKL_MAIA_LAZY_AS4"
+    ],
+    "passiveSkillDefinitionIds": [],
+    "extraSkillDefinitionId": "SKL_MAIA_LAZY_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【温厚篤実な面倒くさがり】夕凪舞亜",
+      "characterName": "夕凪舞亜",
+      "characterId": "CHAR_MAIA_YUNAGI"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_MAIA_SALON",
+    "attribute": "AGGRESSIVE",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 33023,
+      "attack": 19815,
+      "defense": 16457,
+      "criticalRate": 0.15,
+      "actionSpeed": 632,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_MAIA_SALON_AS1", "SKL_MAIA_SALON_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MAIA_SALON_PS1", "SKL_MAIA_SALON_PS2"],
+    "extraSkillDefinitionId": "SKL_MAIA_SALON_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【眠れる社交界の淑女】夕凪舞亜",
+      "characterName": "夕凪舞亜",
+      "characterId": "CHAR_MAIA_YUNAGI"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MIKOTO_SURVIVOR",
     "attribute": "AGGRESSIVE",
     "unitType": "AGILE",
@@ -576,6 +749,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_SUIRAN_CASINO",
+    "attribute": "SHY",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 33361,
+      "attack": 19147,
+      "defense": 13924,
+      "criticalRate": 0.15,
+      "actionSpeed": 750,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": [
+      "SKL_SUIRAN_CASINO_AS1",
+      "SKL_SUIRAN_CASINO_AS2",
+      "SKL_SUIRAN_CASINO_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_SUIRAN_CASINO_PS1"],
+    "extraSkillDefinitionId": "SKL_SUIRAN_CASINO_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【恥じらうカジノラビット】劉翠蘭",
+      "characterName": "劉翠蘭",
+      "characterId": "CHAR_SUIRAN_LIU"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_SUIRAN_CHAOS",
     "attribute": "AGGRESSIVE",
     "unitType": "ENERGY",
@@ -631,6 +836,34 @@
       "affiliations": [],
       "tags": [],
       "displayName": "【享楽のワイルドカード】ユリア・バーンズ",
+      "characterName": "ユリア・バーンズ",
+      "characterId": "CHAR_YURIA_BURNES"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_YURIA_YUKATA",
+    "attribute": "SHY",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32393,
+      "attack": 19057,
+      "defense": 11476,
+      "criticalRate": 0.2,
+      "actionSpeed": 655,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_YURIA_YUKATA_AS1", "SKL_YURIA_YUKATA_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_YURIA_YUKATA_PS1", "SKL_YURIA_YUKATA_PS2"],
+    "extraSkillDefinitionId": "SKL_YURIA_YUKATA_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【はだけるわんぱく浴衣】ユリア・バーンズ",
       "characterName": "ユリア・バーンズ",
       "characterId": "CHAR_YURIA_BURNES"
     }

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_FLUTE_INFLUENCER",
+  "attribute": "CUTE",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 32015,
+    "attack": 19057,
+    "defense": 11340,
+    "criticalRate": 0.2,
+    "actionSpeed": 646,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_AS1", "SKL_FLUTE_INFLUENCER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_PS1", "SKL_FLUTE_INFLUENCER_PS2"],
+  "extraSkillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【ギャルインフルエンサー】フルート・メルヴィル",
+    "characterName": "フルート・メルヴィル",
+    "characterId": "CHAR_FLUTE_MELVILLE"
+  }
+}

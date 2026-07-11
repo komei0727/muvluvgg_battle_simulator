@@ -13,6 +13,9 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * CI checkout), so a `readdirSync` against it fails with ENOENT in CI. The
  * ledger's raw file tallies (69 units / 32 memories) are maintained by hand
  * against the local `raw/` copy instead.
+ *
+ * Issue #55 (Batch A of Issue #54) adds 8 more units, bringing the total to
+ * 30 (22 from Issue #47 + 8 from this batch).
  */
 
 function repoRootPath(...segments: string[]): string {
@@ -20,9 +23,9 @@ function repoRootPath(...segments: string[]): string {
 }
 
 describe("catalog-src/ inventory (Issue #47 ledger)", () => {
-  it("IT-CAT-INV-001: catalog-src/ has exactly the 22 converted units tallied in the ledger (10 representative + 12 from Issue #47)", () => {
+  it("IT-CAT-INV-001: catalog-src/ has exactly the 30 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A)", () => {
     const source = readCatalogSource(repoRootPath("catalog-src"));
-    expect(source.units.length).toBe(22);
+    expect(source.units.length).toBe(30);
   });
 
   it("IT-CAT-INV-002: catalog-src/ has exactly the 6 converted memories tallied in the ledger (Issue #47 batch)", () => {

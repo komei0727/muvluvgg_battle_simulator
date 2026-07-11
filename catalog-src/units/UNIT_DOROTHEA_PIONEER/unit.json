@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_DOROTHEA_PIONEER",
+  "attribute": "CUTE",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 29824,
+    "attack": 21955,
+    "defense": 10694,
+    "criticalRate": 0.2,
+    "actionSpeed": 679,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_AS1", "SKL_DOROTHEA_PIONEER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_PS1", "SKL_DOROTHEA_PIONEER_PS2"],
+  "extraSkillDefinitionId": "SKL_DOROTHEA_PIONEER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【新たなる時代の導き手】ドロテア・カークランド",
+    "characterName": "ドロテア・カークランド",
+    "characterId": "CHAR_DOROTHEA_KIRKLAND"
+  }
+}

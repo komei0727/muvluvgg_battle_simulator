@@ -65,6 +65,15 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_SAYA_LONGING",
         "UNIT_SUIRAN_CHAOS",
         "UNIT_YURIA_WILDCARD",
+        // Issue #55 Batch A（既存キャラクター別バージョン8件）
+        "UNIT_YURIA_YUKATA",
+        "UNIT_FLUTE_INFLUENCER",
+        "UNIT_SUIRAN_CASINO",
+        "UNIT_DOROTHEA_PIONEER",
+        "UNIT_CHIYURU_NEWYEAR",
+        "UNIT_FEE_BATH",
+        "UNIT_MAIA_SALON",
+        "UNIT_MAIA_LAZY",
       ].sort(),
     );
   });
