@@ -273,4 +273,20 @@ describe("InMemoryBattleCatalog.loadSnapshot", () => {
     const snapshot = catalog.loadSnapshot([], ["MEM_MISSING" as never]);
     expect(snapshot.memories.size).toBe(0);
   });
+
+  it("returns Maps with no mutating methods, so a caller cannot write into the snapshot even by casting the type away", () => {
+    const defs: CatalogDefinitions = {
+      units: [unit("UNIT_001")],
+      skills: [asSkill("SKL_AS1"), exSkill("SKL_EX1", 7)],
+      effectActions: [damageAction("ACT_DAMAGE_AS")],
+      memories: [],
+      capabilities: [],
+    };
+    const catalog = new InMemoryBattleCatalog("rev-1", buildCatalogIndex(defs));
+    const snapshot = catalog.loadSnapshot(["UNIT_001" as never], []);
+    const mutableUnits: object = snapshot.units;
+    expect("set" in mutableUnits).toBe(false);
+    expect("delete" in mutableUnits).toBe(false);
+    expect("clear" in mutableUnits).toBe(false);
+  });
 });

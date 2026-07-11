@@ -13,6 +13,7 @@ import {
 import type { EffectActionDefinition } from "../../domain/catalog/effect-action-definition.js";
 import type { MemoryDefinition } from "../../domain/catalog/memory-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { toReadonlyMap } from "../../domain/shared/readonly-map.js";
 import type { SkillDefinition } from "../../domain/catalog/skill-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
 
@@ -125,11 +126,11 @@ export class InMemoryBattleCatalog implements BattleCatalog {
 
     return {
       catalogRevision: this.catalogRevision,
-      units,
-      skills,
-      effectActions,
-      memories,
-      capabilities,
+      units: toReadonlyMap(units),
+      skills: toReadonlyMap(skills),
+      effectActions: toReadonlyMap(effectActions),
+      memories: toReadonlyMap(memories),
+      capabilities: toReadonlyMap(capabilities),
     };
   }
 }

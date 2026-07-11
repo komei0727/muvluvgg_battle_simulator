@@ -10,6 +10,7 @@ import { DIAGNOSTIC_ONLY_EVENT_TYPES, EVENT_TYPE_CATEGORIES } from "./catalog-ev
 import type { EffectActionDefinition } from "./effect-action-definition.js";
 import type { EffectActionReference, EffectStepDefinition } from "./effect-sequence.js";
 import type { MemoryDefinition } from "./memory-definition.js";
+import { toReadonlyMap } from "../shared/readonly-map.js";
 import type { SkillDefinition } from "./skill-definition.js";
 import type { TriggerDefinition } from "./trigger-definition.js";
 import type { UnitDefinition } from "./unit-definition.js";
@@ -313,9 +314,21 @@ function validateSkill(
 
 function validateEffectAction(
   effectAction: EffectActionDefinition,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
+  if (effectAction.kind === "EFFECT_IMMUNITY") {
+    for (const referencedId of effectAction.payload.effectActionDefinitionIds ?? []) {
+      if (!effectActions.has(referencedId)) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "DANGLING_REFERENCE",
+          message: `EFFECT_IMMUNITY payload.effectActionDefinitionIds references undefined EffectActionDefinition "${referencedId}"`,
+        });
+      }
+    }
+  }
   checkRequiredCapabilities(
     effectAction.requiredCapabilities,
     effectAction.effectActionDefinitionId,
@@ -372,7 +385,7 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
   );
 
   for (const effectAction of effectActions.values()) {
-    validateEffectAction(effectAction, capabilities, violations);
+    validateEffectAction(effectAction, effectActions, capabilities, violations);
   }
   for (const skill of skills.values()) {
     validateSkill(skill, effectActions, capabilities, violations);
@@ -388,5 +401,11 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
     throw new CatalogIntegrityError(violations);
   }
 
-  return { units, skills, effectActions, memories, capabilities };
+  return {
+    units: toReadonlyMap(units),
+    skills: toReadonlyMap(skills),
+    effectActions: toReadonlyMap(effectActions),
+    memories: toReadonlyMap(memories),
+    capabilities: toReadonlyMap(capabilities),
+  };
 }
