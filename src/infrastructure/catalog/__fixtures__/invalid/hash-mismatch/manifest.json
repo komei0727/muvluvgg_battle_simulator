@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "catalogRevision": "test-invalid-hash-mismatch.1",
+  "files": {
+    "units.json": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "skills.json": "sha256:05f0b0ef7a107c2b4a0c98f0e3f592f2a5e8517d44bec253dbfb96293c82b949",
+    "effects.json": "sha256:f711a572f231919835671cfe5d53380a594596f1454b0e3727d3a4465d4b3ba8",
+    "memories.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "capabilities.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  }
+}
