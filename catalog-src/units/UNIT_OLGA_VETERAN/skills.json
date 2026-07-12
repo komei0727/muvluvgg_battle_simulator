@@ -1,0 +1,377 @@
+[
+  {
+    "skillDefinitionId": "SKL_OLGA_VETERAN_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 8
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION_MARKER"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "displayName": "鉄の女",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_OLGA_VETERAN_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_ROW_AS_BASE",
+              "includeBase": true
+            }
+          }
+        },
+        {
+          "targetBindingId": "TGT_ALLY_FRONT",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "POSITION_ROW",
+                "row": "FRONT"
+              }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ROW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": {
+              "kind": "SELF"
+            },
+            "field": "POSITION_ROW",
+            "op": "EQ",
+            "value": "BACK"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ALLY_FRONT"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_ALLY_DAMAGE"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_ALLY_EX_UP"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_ALLY_DMG_UP"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_HEAL"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 3
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MOD",
+      "CAP_DAMAGE_MOD",
+      "CAP_HEAL",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH",
+      "CAP_DERIVED_TARGETS"
+    ],
+    "metadata": {
+      "displayName": "粛清です",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_OLGA_VETERAN_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_HEAL"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_MARKER"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_DMG_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL", "CAP_MARKER", "CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "システマ・ヴラシェーニヤA",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_OLGA_VETERAN_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 2
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_SUBUNIT"
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_SUBUNIT"
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_SUBUNIT"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "この魂、レドフカに捧げます",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_OLGA_VETERAN_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 2
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT"
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT"
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "TURN",
+      "count": 99
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
+    "metadata": {
+      "displayName": "ヴォルコワの血脈A",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_OLGA_VETERAN_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ]
+  }
+]

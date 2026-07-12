@@ -1,0 +1,312 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_OLGA_VETERAN_CONFUSION",
+      "stack": {
+        "policy": "REPLACE",
+        "max": 1
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.716
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_ALLY_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.25
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_ALLY_EX_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_ALLY_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS1_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "SUM_DAMAGE_DEALT",
+        "ratio": 0.125
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.12
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "LAST_DAMAGE_DEALT",
+        "ratio": 0.175
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_OLGA_VETERAN_VIGILANCE",
+      "stack": {
+        "policy": "REFRESH",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.35
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": {
+          "kind": "MAX_HP_RATIO",
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
+          "ratio": 0.15
+        }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.106,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": {
+          "kind": "MAX_HP_RATIO",
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
+          "ratio": 0.15
+        }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.0546,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL",
+    "kind": "APPLY_DEATH_SURVIVAL",
+    "payload": {
+      "trigger": {
+        "lethalDamageOnly": true
+      },
+      "survivalHp": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "healAfterSurvival": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.5
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "LETHAL_DAMAGE",
+          "maxCount": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": {
+      "tags": []
+    }
+  }
+]

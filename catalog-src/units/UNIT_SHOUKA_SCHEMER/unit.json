@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_SHOUKA_SCHEMER",
+  "attribute": "AGGRESSIVE",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 23561,
+    "attack": 21721,
+    "defense": 10694,
+    "criticalRate": 0.2,
+    "actionSpeed": 751,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": [
+    "SKL_SHOUKA_SCHEMER_AS1",
+    "SKL_SHOUKA_SCHEMER_AS2",
+    "SKL_SHOUKA_SCHEMER_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_SHOUKA_SCHEMER_PS1"],
+  "extraSkillDefinitionId": "SKL_SHOUKA_SCHEMER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【風紀委員会の策謀家】姜小花",
+    "characterName": "姜小花",
+    "characterId": "CHAR_SHOUKA_KYOU"
+  }
+}

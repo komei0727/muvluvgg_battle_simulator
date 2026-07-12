@@ -460,6 +460,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_HIIRO_LONEWOLF",
+    "attribute": "CLEVER",
+    "unitType": "AGILE",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 28884,
+      "attack": 21301,
+      "defense": 11610,
+      "criticalRate": 0.2,
+      "actionSpeed": 786,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_AS1", "SKL_HIIRO_LONEWOLF_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_PS1", "SKL_HIIRO_LONEWOLF_PS2"],
+    "extraSkillDefinitionId": "SKL_HIIRO_LONEWOLF_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【緋色の一匹狼】榊野ヒイロ",
+      "characterName": "榊野ヒイロ",
+      "characterId": "CHAR_HIIRO_SAKAKINO"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_JUNKA_CHILDHOOD",
     "attribute": "CUTE",
     "unitType": "PHYSICAL",
@@ -869,6 +897,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_MEIYA_FATED",
+    "attribute": "SHY",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 26364,
+      "attack": 20006,
+      "defense": 11218,
+      "criticalRate": 0.2,
+      "actionSpeed": 772,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_MEIYA_FATED_AS1", "SKL_MEIYA_FATED_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MEIYA_FATED_PS1", "SKL_MEIYA_FATED_PS2"],
+    "extraSkillDefinitionId": "SKL_MEIYA_FATED_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【天命を受けし剣術乙女】御剣冥夜",
+      "characterName": "御剣冥夜",
+      "characterId": "CHAR_MEIYA_MITSURUGI"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MERU_FLATSPIN",
     "attribute": "COMICAL",
     "unitType": "AGILE",
@@ -929,6 +985,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_MIHIME_SNIPER",
+    "attribute": "AGGRESSIVE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28844,
+      "attack": 22363,
+      "defense": 11218,
+      "criticalRate": 0.2,
+      "actionSpeed": 770,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_MIHIME_SNIPER_AS1", "SKL_MIHIME_SNIPER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MIHIME_SNIPER_PS1", "SKL_MIHIME_SNIPER_PS2"],
+    "extraSkillDefinitionId": "SKL_MIHIME_SNIPER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【稀代の狙撃手】珠瀬壬姫",
+      "characterName": "珠瀬壬姫",
+      "characterId": "CHAR_MIHIME_TAMASE"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MIKOTO_SURVIVOR",
     "attribute": "AGGRESSIVE",
     "unitType": "AGILE",
@@ -954,6 +1038,62 @@
       "displayName": "【ナチュラルボーンサバイバー】鎧衣美琴",
       "characterName": "鎧衣美琴",
       "characterId": "CHAR_YOROI_MIKOTO"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_NOEL_RUMBLE",
+    "attribute": "AGGRESSIVE",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 33459,
+      "attack": 18288,
+      "defense": 15979,
+      "criticalRate": 0.15,
+      "actionSpeed": 644,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_NOEL_RUMBLE_AS1", "SKL_NOEL_RUMBLE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_NOEL_RUMBLE_PS1", "SKL_NOEL_RUMBLE_PS2"],
+    "extraSkillDefinitionId": "SKL_NOEL_RUMBLE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【体育祭の暴れん坊】ノエル・アルエ",
+      "characterName": "ノエル・アルエ",
+      "characterId": "CHAR_NOEL_ARUE"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_OLGA_VETERAN",
+    "attribute": "CLEVER",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 31436,
+      "attack": 20604,
+      "defense": 12336,
+      "criticalRate": 0.2,
+      "actionSpeed": 753,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_OLGA_VETERAN_AS1", "SKL_OLGA_VETERAN_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_OLGA_VETERAN_PS1", "SKL_OLGA_VETERAN_PS2"],
+    "extraSkillDefinitionId": "SKL_OLGA_VETERAN_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【歴戦の鉄母】オルガ・ヴォルコワ",
+      "characterName": "オルガ・ヴォルコワ",
+      "characterId": "CHAR_OLGA_VOLKOVA"
     }
   },
   {
@@ -1133,6 +1273,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_SHOUKA_SCHEMER",
+    "attribute": "AGGRESSIVE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 23561,
+      "attack": 21721,
+      "defense": 10694,
+      "criticalRate": 0.2,
+      "actionSpeed": 751,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": [
+      "SKL_SHOUKA_SCHEMER_AS1",
+      "SKL_SHOUKA_SCHEMER_AS2",
+      "SKL_SHOUKA_SCHEMER_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_SHOUKA_SCHEMER_PS1"],
+    "extraSkillDefinitionId": "SKL_SHOUKA_SCHEMER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【風紀委員会の策謀家】姜小花",
+      "characterName": "姜小花",
+      "characterId": "CHAR_SHOUKA_KYOU"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_SIENA_DIVA",
     "attribute": "SHY",
     "unitType": "AGILE",
@@ -1278,6 +1450,66 @@
       "displayName": "【混沌の立役者】劉翠蘭",
       "characterName": "劉翠蘭",
       "characterId": "CHAR_SUIRAN_LIU"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_TARISA_TROUBLEMAKER",
+    "attribute": "SMART",
+    "unitType": "AGILE",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 30263,
+      "attack": 19260,
+      "defense": 11424,
+      "criticalRate": 0.2,
+      "actionSpeed": 867,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": [
+      "SKL_TARISA_TROUBLEMAKER_AS1",
+      "SKL_TARISA_TROUBLEMAKER_AS2",
+      "SKL_TARISA_TROUBLEMAKER_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_TARISA_TROUBLEMAKER_PS1"],
+    "extraSkillDefinitionId": "SKL_TARISA_TROUBLEMAKER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【天真爛漫トラブルメーカー】タリサ・マナンダル",
+      "characterName": "タリサ・マナンダル",
+      "characterId": "CHAR_TARISA_MANANDAL"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_YUI_HEIR",
+    "attribute": "CUTE",
+    "unitType": "AGILE",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32846,
+      "attack": 19577,
+      "defense": 11738,
+      "criticalRate": 0.2,
+      "actionSpeed": 716,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_YUI_HEIR_AS1", "SKL_YUI_HEIR_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_YUI_HEIR_PS1", "SKL_YUI_HEIR_PS2"],
+    "extraSkillDefinitionId": "SKL_YUI_HEIR_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【譜代武家・篁家次期当主】篁唯依",
+      "characterName": "篁唯依",
+      "characterId": "CHAR_YUI_TAKAMURA"
     }
   },
   {

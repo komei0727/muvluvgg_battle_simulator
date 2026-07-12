@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_YUI_HEIR",
+  "attribute": "CUTE",
+  "unitType": "AGILE",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32846,
+    "attack": 19577,
+    "defense": 11738,
+    "criticalRate": 0.2,
+    "actionSpeed": 716,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_YUI_HEIR_AS1", "SKL_YUI_HEIR_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_YUI_HEIR_PS1", "SKL_YUI_HEIR_PS2"],
+  "extraSkillDefinitionId": "SKL_YUI_HEIR_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【譜代武家・篁家次期当主】篁唯依",
+    "characterName": "篁唯依",
+    "characterId": "CHAR_YUI_TAKAMURA"
+  }
+}

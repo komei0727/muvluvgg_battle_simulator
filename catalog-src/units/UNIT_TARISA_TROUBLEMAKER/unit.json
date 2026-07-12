@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_TARISA_TROUBLEMAKER",
+  "attribute": "SMART",
+  "unitType": "AGILE",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 30263,
+    "attack": 19260,
+    "defense": 11424,
+    "criticalRate": 0.2,
+    "actionSpeed": 867,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": [
+    "SKL_TARISA_TROUBLEMAKER_AS1",
+    "SKL_TARISA_TROUBLEMAKER_AS2",
+    "SKL_TARISA_TROUBLEMAKER_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_TARISA_TROUBLEMAKER_PS1"],
+  "extraSkillDefinitionId": "SKL_TARISA_TROUBLEMAKER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【天真爛漫トラブルメーカー】タリサ・マナンダル",
+    "characterName": "タリサ・マナンダル",
+    "characterId": "CHAR_TARISA_MANANDAL"
+  }
+}

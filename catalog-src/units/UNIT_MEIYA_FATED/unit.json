@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_MEIYA_FATED",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 26364,
+    "attack": 20006,
+    "defense": 11218,
+    "criticalRate": 0.2,
+    "actionSpeed": 772,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_MEIYA_FATED_AS1", "SKL_MEIYA_FATED_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MEIYA_FATED_PS1", "SKL_MEIYA_FATED_PS2"],
+  "extraSkillDefinitionId": "SKL_MEIYA_FATED_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【天命を受けし剣術乙女】御剣冥夜",
+    "characterName": "御剣冥夜",
+    "characterId": "CHAR_MEIYA_MITSURUGI"
+  }
+}

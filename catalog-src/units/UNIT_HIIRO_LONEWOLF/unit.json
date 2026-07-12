@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_HIIRO_LONEWOLF",
+  "attribute": "CLEVER",
+  "unitType": "AGILE",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 28884,
+    "attack": 21301,
+    "defense": 11610,
+    "criticalRate": 0.2,
+    "actionSpeed": 786,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_AS1", "SKL_HIIRO_LONEWOLF_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_PS1", "SKL_HIIRO_LONEWOLF_PS2"],
+  "extraSkillDefinitionId": "SKL_HIIRO_LONEWOLF_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【緋色の一匹狼】榊野ヒイロ",
+    "characterName": "榊野ヒイロ",
+    "characterId": "CHAR_HIIRO_SAKAKINO"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_MIHIME_SNIPER",
+  "attribute": "AGGRESSIVE",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 28844,
+    "attack": 22363,
+    "defense": 11218,
+    "criticalRate": 0.2,
+    "actionSpeed": 770,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_MIHIME_SNIPER_AS1", "SKL_MIHIME_SNIPER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MIHIME_SNIPER_PS1", "SKL_MIHIME_SNIPER_PS2"],
+  "extraSkillDefinitionId": "SKL_MIHIME_SNIPER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【稀代の狙撃手】珠瀬壬姫",
+    "characterName": "珠瀬壬姫",
+    "characterId": "CHAR_MIHIME_TAMASE"
+  }
+}

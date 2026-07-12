@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_OLGA_VETERAN",
+  "attribute": "CLEVER",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 31436,
+    "attack": 20604,
+    "defense": 12336,
+    "criticalRate": 0.2,
+    "actionSpeed": 753,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_OLGA_VETERAN_AS1", "SKL_OLGA_VETERAN_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_OLGA_VETERAN_PS1", "SKL_OLGA_VETERAN_PS2"],
+  "extraSkillDefinitionId": "SKL_OLGA_VETERAN_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【歴戦の鉄母】オルガ・ヴォルコワ",
+    "characterName": "オルガ・ヴォルコワ",
+    "characterId": "CHAR_OLGA_VOLKOVA"
+  }
+}
