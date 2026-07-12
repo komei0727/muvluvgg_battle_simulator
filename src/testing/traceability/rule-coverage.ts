@@ -8,17 +8,95 @@ export interface RuleTestCoverage {
 
 export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // NUM: 数値表現
-  { ruleId: "R-NUM-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-NUM-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-NUM-03", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-NUM-01",
+    testCaseIds: [
+      "UT-R-NUM-01-001",
+      "UT-R-NUM-01-002",
+      "UT-R-NUM-01-003",
+      "UT-R-NUM-01-004",
+      "UT-R-NUM-01-005",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
+  {
+    ruleId: "R-NUM-02",
+    testCaseIds: [
+      "UT-R-NUM-02-001",
+      "UT-R-NUM-02-002",
+      "UT-R-NUM-02-003",
+      "UT-R-NUM-02-004",
+      "UT-R-NUM-02-005",
+      "UT-R-NUM-02-006",
+      "UT-R-NUM-02-007",
+      "UT-R-NUM-02-008",
+      "UT-R-NUM-02-009",
+      "UT-R-NUM-02-010",
+      "UT-R-NUM-02-011",
+      "UT-R-NUM-02-012",
+      "UT-R-NUM-02-013",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
+  {
+    ruleId: "R-NUM-03",
+    testCaseIds: [
+      "UT-R-NUM-03-001",
+      "UT-R-NUM-03-002",
+      "UT-R-NUM-03-003",
+      "UT-R-NUM-03-004",
+      "UT-R-NUM-03-005",
+      "UT-R-NUM-03-006",
+    ],
+    kinds: ["BOUNDARY", "PROPERTY"],
+  },
   { ruleId: "R-NUM-04", testCaseIds: [], kinds: [] },
 
   // FRM: 編成
-  { ruleId: "R-FRM-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-FRM-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-FRM-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-FRM-04", testCaseIds: [], kinds: [] },
-  { ruleId: "R-FRM-05", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-FRM-01",
+    testCaseIds: ["UT-R-FRM-01-001", "UT-R-FRM-01-002", "UT-R-FRM-01-003", "UT-R-FRM-01-004"],
+    kinds: ["BOUNDARY", "NEGATIVE"],
+  },
+  {
+    ruleId: "R-FRM-02",
+    testCaseIds: [
+      "UT-R-FRM-02-001",
+      "UT-R-FRM-02-002",
+      "UT-R-FRM-02-003",
+      "UT-R-FRM-02-004",
+      "UT-R-FRM-02-005",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "PROPERTY"],
+  },
+  {
+    ruleId: "R-FRM-03",
+    testCaseIds: ["UT-R-FRM-03-001"],
+    kinds: ["POSITIVE"],
+  },
+  {
+    ruleId: "R-FRM-04",
+    testCaseIds: [
+      "UT-R-FRM-04-001",
+      "UT-R-FRM-04-002",
+      "UT-R-FRM-04-003",
+      "UT-R-FRM-04-004",
+      "UT-R-FRM-04-005",
+      "UT-R-FRM-04-006",
+    ],
+    kinds: ["BOUNDARY", "NEGATIVE", "POSITIVE"],
+  },
+  {
+    ruleId: "R-FRM-05",
+    testCaseIds: [
+      "UT-R-FRM-05-001",
+      "UT-R-FRM-05-002",
+      "UT-R-FRM-05-003",
+      "UT-R-FRM-05-004",
+      "UT-R-FRM-05-005",
+    ],
+    kinds: ["BOUNDARY", "NEGATIVE"],
+  },
   { ruleId: "R-FRM-06", testCaseIds: [], kinds: [] },
 
   // POS: 座標
