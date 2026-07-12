@@ -185,10 +185,58 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // STA: ステータス
-  { ruleId: "R-STA-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-STA-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-STA-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-STA-04", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-STA-01",
+    testCaseIds: [
+      "UT-R-STA-01-001",
+      "UT-R-STA-01-002",
+      "UT-R-STA-01-003",
+      "UT-R-STA-01-004",
+      "UT-R-STA-01-005",
+      "UT-R-STA-01-006",
+      "UT-R-STA-01-010",
+      "UT-R-STA-01-011",
+      "UT-R-STA-01-012",
+      "UT-R-STA-01-013",
+      "UT-R-STA-01-014",
+      "UT-R-STA-01-015",
+      "UT-R-STA-01-016",
+      "UT-R-STA-01-017",
+      "UT-R-STA-01-018",
+      "UT-R-STA-01-019",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-STA-02",
+    testCaseIds: ["UT-R-STA-02-001", "UT-R-STA-02-002"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-STA-03",
+    testCaseIds: [
+      "UT-R-STA-03-001",
+      "UT-R-STA-03-002",
+      "UT-R-STA-03-003",
+      "UT-R-STA-03-004",
+      "UT-R-STA-03-005",
+    ],
+    kinds: ["POSITIVE", "PROPERTY"],
+  },
+  {
+    ruleId: "R-STA-04",
+    testCaseIds: [
+      "UT-R-STA-04-001",
+      "UT-R-STA-04-002",
+      "UT-R-STA-04-003",
+      "UT-R-STA-04-004",
+      "UT-R-STA-04-005",
+      "UT-R-STA-04-006",
+      "UT-R-STA-04-007",
+      "UT-R-STA-04-008",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
 
   // ORD: 行動順
   { ruleId: "R-ORD-01", testCaseIds: [], kinds: [] },
@@ -255,8 +303,32 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-CRT-02", testCaseIds: [], kinds: [] },
 
   // ATR: 属性
-  { ruleId: "R-ATR-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-ATR-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-ATR-01",
+    testCaseIds: [
+      "UT-R-ATR-01-001",
+      "UT-R-ATR-01-002",
+      "UT-R-ATR-01-003",
+      "UT-R-ATR-01-004",
+      "UT-R-ATR-01-005",
+      "UT-R-ATR-01-006",
+      "UT-R-ATR-01-007",
+      "UT-R-ATR-01-008",
+      "UT-R-ATR-01-009",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "PROPERTY"],
+  },
+  {
+    ruleId: "R-ATR-02",
+    testCaseIds: [
+      "UT-R-ATR-02-001",
+      "UT-R-ATR-02-002",
+      "UT-R-ATR-02-003",
+      "UT-R-ATR-02-004",
+      "UT-R-ATR-02-005",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
 
   // DMG: ダメージ
   { ruleId: "R-DMG-01", testCaseIds: [], kinds: [] },
