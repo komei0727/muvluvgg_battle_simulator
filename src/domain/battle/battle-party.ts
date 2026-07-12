@@ -4,6 +4,7 @@ import type { FormationBonus } from "./formation-bonus-calculator.js";
 import type { FormationPosition } from "./formation-input.js";
 import type { GlobalCoordinate } from "./global-coordinate.js";
 import type { Side } from "./side.js";
+import type { CombatStats } from "./starting-combat-stats.js";
 
 /** `05_ドメインモデル.md` の BattleParty: 味方または敵の一方を表す集約内エンティティ。 */
 export interface BattlePartyMember {
@@ -11,6 +12,8 @@ export interface BattlePartyMember {
   readonly unitDefinitionId: UnitDefinitionId;
   readonly position: FormationPosition;
   readonly globalCoordinate: GlobalCoordinate;
+  /** R-STA-01: 配置適性・編成補正・Memory補正を含む開始時の戦闘中ステータス。 */
+  readonly combatStats: CombatStats;
 }
 
 export interface BattleParty {

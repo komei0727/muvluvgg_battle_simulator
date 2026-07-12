@@ -2,22 +2,29 @@ import { describe, expect, it } from "vitest";
 import { createBattleParty } from "./formation-factory.js";
 import type { FormationInput } from "./formation-input.js";
 import {
+  createMemoryDefinitionId,
   createSkillDefinitionId,
   createUnitDefinitionId,
+  type MemoryDefinitionId,
   type UnitDefinitionId,
 } from "../catalog/catalog-ids.js";
+import { createMemoryDefinition, type MemoryDefinition } from "../catalog/memory-definition.js";
 import type { UnitDefinition } from "../catalog/unit-definition.js";
 import { createBattleUnitId } from "../shared/ids.js";
 import { DomainValidationError } from "../shared/errors.js";
-import type { Attribute } from "../catalog/catalog-enums.js";
+import type { Attribute, PositionRow } from "../catalog/catalog-enums.js";
 
-function unitDefinition(id: string, attribute: Attribute): UnitDefinition {
+function unitDefinition(
+  id: string,
+  attribute: Attribute,
+  positionAptitudes: readonly PositionRow[] = ["FRONT", "BACK"],
+): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
     attribute,
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
+    positionAptitudes,
     baseStats: {
       maximumHp: 100,
       attack: 10,
@@ -48,6 +55,14 @@ function unitsMap(...defs: UnitDefinition[]): ReadonlyMap<UnitDefinitionId, Unit
   return new Map(defs.map((d) => [d.unitDefinitionId, d]));
 }
 
+function memoriesMap(
+  ...defs: MemoryDefinition[]
+): ReadonlyMap<MemoryDefinitionId, MemoryDefinition> {
+  return new Map(defs.map((d) => [d.memoryDefinitionId, d]));
+}
+
+const NO_MEMORIES = memoriesMap();
+
 describe("createBattleParty — FormationFactory", () => {
   it("UT-R-FRM-FACTORY-001: builds a BattleParty with resolved global coordinates and formation bonus", () => {
     const formation: FormationInput = {
@@ -62,7 +77,7 @@ describe("createBattleParty — FormationFactory", () => {
     const battleUnitIds = [createBattleUnitId("BU_1")];
     const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
 
-    const party = createBattleParty("ALLY", formation, battleUnitIds, units);
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
 
     expect(party.side).toBe("ALLY");
     expect(party.members).toHaveLength(1);
@@ -71,6 +86,14 @@ describe("createBattleParty — FormationFactory", () => {
       unitDefinitionId: createUnitDefinitionId("UNIT_001"),
       position: { column: "LEFT", row: "FRONT" },
       globalCoordinate: { x: 0, y: 2 },
+      combatStats: {
+        maximumHp: 100,
+        attack: 10,
+        defense: 10,
+        criticalRate: 0.1,
+        actionSpeed: 10,
+        criticalDamageBonus: 0.5,
+      },
     });
     expect(party.memoryDefinitionIds).toEqual([]);
     expect(party.formationBonus.attackBonus).toBeCloseTo(0);
@@ -93,7 +116,7 @@ describe("createBattleParty — FormationFactory", () => {
     const battleUnitIds = [createBattleUnitId("BU_1"), createBattleUnitId("BU_2")];
     const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
 
-    const party = createBattleParty("ALLY", formation, battleUnitIds, units);
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
 
     expect(party.members.map((m) => m.battleUnitId)).toEqual([
       createBattleUnitId("BU_1"),
@@ -138,10 +161,12 @@ describe("createBattleParty — FormationFactory", () => {
       unitDefinition("UNIT_005", "AGGRESSIVE"),
     );
 
-    const party = createBattleParty("ALLY", formation, battleUnitIds, units);
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
 
     expect(party.formationBonus.attackBonus).toBeCloseTo(0.25);
     expect(party.formationBonus.hpBonus).toBeCloseTo(0.25);
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(12.5);
+    expect(party.members[0]!.combatStats.maximumHp).toBeCloseTo(125);
   });
 
   it("UT-R-FRM-FACTORY-004: rejects a slot referencing an unknown UnitDefinitionId", () => {
@@ -157,7 +182,7 @@ describe("createBattleParty — FormationFactory", () => {
     const battleUnitIds = [createBattleUnitId("BU_1")];
     const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
 
-    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units)).toThrow(
+    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES)).toThrow(
       DomainValidationError,
     );
   });
@@ -179,7 +204,7 @@ describe("createBattleParty — FormationFactory", () => {
     const battleUnitIds = [createBattleUnitId("BU_1")];
     const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
 
-    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units)).toThrow(
+    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES)).toThrow(
       DomainValidationError,
     );
   });
@@ -201,7 +226,7 @@ describe("createBattleParty — FormationFactory", () => {
     const battleUnitIds = [createBattleUnitId("BU_1"), createBattleUnitId("BU_1")];
     const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
 
-    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units)).toThrow(
+    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES)).toThrow(
       DomainValidationError,
     );
   });
@@ -219,9 +244,74 @@ describe("createBattleParty — FormationFactory", () => {
     const battleUnitIds = [createBattleUnitId("BU_1")];
     const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
 
-    const party = createBattleParty("ENEMY", formation, battleUnitIds, units);
+    const party = createBattleParty("ENEMY", formation, battleUnitIds, units, NO_MEMORIES);
 
     expect(party.side).toBe("ENEMY");
     expect(party.members[0]!.globalCoordinate).toEqual({ x: 0, y: 1 });
+  });
+
+  it("UT-R-STA-01-018: a mismatched position row applies the aptitude penalty to the member's combat stats", () => {
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "BACK" },
+        },
+      ],
+      memoryDefinitionIds: [],
+    };
+    const battleUnitIds = [createBattleUnitId("BU_1")];
+    const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE", ["FRONT"]));
+
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
+
+    expect(party.members[0]!.combatStats.maximumHp).toBeCloseTo(95);
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(9.5);
+    expect(party.members[0]!.combatStats.defense).toBeCloseTo(9.5);
+    expect(party.members[0]!.combatStats.criticalRate).toBeCloseTo(0.1);
+  });
+
+  it("UT-R-STA-01-019: a Memory RATIO modifier applies to every member's starting combat stats", () => {
+    const memory = createMemoryDefinition({
+      memoryDefinitionId: "MEM_001",
+      modifiers: [
+        { targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "RATIO", value: 0.2 },
+      ],
+      requiredCapabilities: [],
+      metadata: { displayName: "Test Memory" },
+    });
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+        },
+      ],
+      memoryDefinitionIds: [createMemoryDefinitionId("MEM_001")],
+    };
+    const battleUnitIds = [createBattleUnitId("BU_1")];
+    const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
+
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, memoriesMap(memory));
+
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(12);
+  });
+
+  it("UT-R-FRM-FACTORY-008: rejects a formation referencing an unknown MemoryDefinitionId", () => {
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+        },
+      ],
+      memoryDefinitionIds: [createMemoryDefinitionId("MEM_MISSING")],
+    };
+    const battleUnitIds = [createBattleUnitId("BU_1")];
+    const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
+
+    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES)).toThrow(
+      DomainValidationError,
+    );
   });
 });
