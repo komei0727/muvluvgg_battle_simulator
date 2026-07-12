@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_RAVEL_MODEL",
+  "attribute": "SMART",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 22705,
+    "attack": 25701,
+    "defense": 10694,
+    "criticalRate": 0.2,
+    "actionSpeed": 751,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_RAVEL_MODEL_AS1", "SKL_RAVEL_MODEL_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_RAVEL_MODEL_PS1", "SKL_RAVEL_MODEL_PS2"],
+  "extraSkillDefinitionId": "SKL_RAVEL_MODEL_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【気高きランウェイモデル】レイヴェル・ブライトリーフ",
+    "characterName": "レイヴェル・ブライトリーフ",
+    "characterId": "CHAR_RAVEL_BRIGHTLEAF"
+  }
+}

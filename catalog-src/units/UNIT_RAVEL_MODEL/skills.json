@@ -1,0 +1,387 @@
+[
+  {
+    "skillDefinitionId": "SKL_RAVEL_MODEL_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_MARK"
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DMG_UP_DEBUFF"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "プラウド・ランウェイ",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_RAVEL_MODEL_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "markerId": "MARKER_RAVEL_MODEL_TARGET",
+            "countCondition": {
+              "op": "GTE",
+              "value": 3
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS1_DAMAGE_T3"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS1_BURN"
+                }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_HAS_MARKER",
+                "target": {
+                  "kind": "BINDING",
+                  "targetBindingId": "TGT_PRIMARY"
+                },
+                "markerId": "MARKER_RAVEL_MODEL_TARGET",
+                "countCondition": {
+                  "op": "EQ",
+                  "value": 2
+                }
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_PRIMARY"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS1_DAMAGE_T2"
+                    }
+                  ]
+                }
+              ],
+              "elseSteps": [
+                {
+                  "kind": "BRANCH",
+                  "condition": {
+                    "kind": "TARGET_HAS_MARKER",
+                    "target": {
+                      "kind": "BINDING",
+                      "targetBindingId": "TGT_PRIMARY"
+                    },
+                    "markerId": "MARKER_RAVEL_MODEL_TARGET",
+                    "countCondition": {
+                      "op": "EQ",
+                      "value": 1
+                    }
+                  },
+                  "thenSteps": [
+                    {
+                      "kind": "ACTION",
+                      "target": {
+                        "kind": "BINDING",
+                        "targetBindingId": "TGT_PRIMARY"
+                      },
+                      "actions": [
+                        {
+                          "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS1_DAMAGE_T1"
+                        }
+                      ]
+                    }
+                  ],
+                  "elseSteps": [
+                    {
+                      "kind": "ACTION",
+                      "target": {
+                        "kind": "BINDING",
+                        "targetBindingId": "TGT_PRIMARY"
+                      },
+                      "actions": [
+                        {
+                          "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS1_DAMAGE_T0"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH",
+      "CAP_CONTINUOUS_DAMAGE"
+    ],
+    "metadata": {
+      "displayName": "トップライトショット",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_RAVEL_MODEL_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS2_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "markerId": "MARKER_RAVEL_MODEL_TARGET",
+            "countCondition": {
+              "op": "GTE",
+              "value": 3
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS2_STUN"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_RESOLUTION_BRANCH"],
+    "metadata": {
+      "displayName": "アバンギャルドカット",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_RAVEL_MODEL_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "TRIGGER_SOURCE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_MARK"
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DMG_UP_DEBUFF"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "キャッチライト",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "UnitDefeated",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_RAVEL_MODEL_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_MARKED_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "HAS_MARKER",
+                "markerId": "MARKER_RAVEL_MODEL_TARGET"
+              }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_MARKED_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS2_EX_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS2_DEF_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_MARKER"],
+    "metadata": {
+      "displayName": "キャットウォーク",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "TurnCompleting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]

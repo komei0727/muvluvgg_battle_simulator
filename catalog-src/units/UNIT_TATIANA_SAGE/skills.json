@@ -1,0 +1,384 @@
+[
+  {
+    "skillDefinitionId": "SKL_TATIANA_SAGE_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "静かな時を",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_TATIANA_SAGE_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 2
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_MARK"
+            },
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DOT"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "markerId": "MARKER_TATIANA_SAGE_OMEN",
+            "countCondition": {
+              "op": "GTE",
+              "value": 4
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_FOLLOWUP"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_CLEAR_OMEN"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH"
+    ],
+    "metadata": {
+      "displayName": "遅効の毒針",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_TATIANA_SAGE_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "activationCondition": {
+      "kind": "NOT",
+      "condition": {
+        "kind": "TARGET_HAS_MARKER",
+        "target": {
+          "kind": "SELF"
+        },
+        "markerId": "MARKER_TATIANA_SAGE_PRUDENCE"
+      }
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_CRIT_RATE_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_CRIT_DMG_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_MARK"
+            },
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_DOT"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "markerId": "MARKER_TATIANA_SAGE_OMEN",
+            "countCondition": {
+              "op": "GTE",
+              "value": 4
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_FOLLOWUP"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_CLEAR_OMEN"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH"
+    ],
+    "metadata": {
+      "displayName": "逆転の方策",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_TATIANA_SAGE_AS3",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS3_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS3_MARK"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "displayName": "一点突破の戦術",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_TATIANA_SAGE_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "activationCondition": {
+      "kind": "NOT",
+      "condition": {
+        "kind": "TARGET_HAS_MARKER",
+        "target": {
+          "kind": "SELF"
+        },
+        "markerId": "MARKER_TATIANA_SAGE_PRUDENCE"
+      }
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_PS1_SHIELD"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": {
+              "kind": "SELF"
+            },
+            "field": "HP_RATIO",
+            "op": "LT",
+            "value": 0.2
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_TATIANA_SAGE_PS1_EX_UP"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_TATIANA_SAGE_PS1_DEATH_SURVIVAL"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_TATIANA_SAGE_PS1_PRUDENCE_MARK"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_SHIELD",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH",
+      "CAP_RESOURCE_MOD",
+      "CAP_DEATH_SURVIVAL",
+      "CAP_MARKER"
+    ],
+    "metadata": {
+      "displayName": "起死回生の一手",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_ROSIE_ARTIST",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 24848,
+    "attack": 22798,
+    "defense": 10428,
+    "criticalRate": 0.2,
+    "actionSpeed": 785,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_ROSIE_ARTIST_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_ROSIE_ARTIST_PS1",
+    "SKL_ROSIE_ARTIST_PS2",
+    "SKL_ROSIE_ARTIST_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_ROSIE_ARTIST_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【空想造形アーティスト】ロージー・ヒューズ",
+    "characterName": "ロージー・ヒューズ",
+    "characterId": "CHAR_ROSIE_HUGHES"
+  }
+}

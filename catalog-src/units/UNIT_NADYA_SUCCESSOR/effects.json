@@ -1,0 +1,427 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.484
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_STUN",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_TRAINING_MARK",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NADYA_SUCCESSOR_TRAINING",
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": {
+          "kind": "MAX_HP_RATIO",
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
+          "ratio": 0.25
+        }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.234,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.858
+      },
+      "damageModifiers": [
+        {
+          "kind": "CONSTANT",
+          "value": 0.5
+        }
+      ]
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.858
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NADYA_SUCCESSOR_MARK",
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": {
+          "kind": "MAX_HP_RATIO",
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
+          "ratio": 0.25
+        }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.234,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_CLEAR_TRAINING",
+    "kind": "REMOVE_MARKER",
+    "payload": {
+      "markerId": "MARKER_NADYA_SUCCESSOR_TRAINING"
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS1_TRAINING_MARK",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NADYA_SUCCESSOR_TRAINING",
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS1_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": {
+          "kind": "MAX_HP_RATIO",
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
+          "ratio": 0.35
+        }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.312,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.78
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS2_TRAINING_MARK",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NADYA_SUCCESSOR_TRAINING",
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": {
+          "kind": "MAX_HP_RATIO",
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
+          "ratio": 0.25
+        }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.424,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS3_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.075
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS3_CRIT_DMG_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.075
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS3_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 30
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  }
+]

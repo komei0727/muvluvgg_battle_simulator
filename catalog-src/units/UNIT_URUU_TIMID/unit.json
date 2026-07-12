@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_URUU_TIMID",
+  "attribute": "AGGRESSIVE",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 21872,
+    "attack": 25872,
+    "defense": 10694,
+    "criticalRate": 0.25,
+    "actionSpeed": 634,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_URUU_TIMID_AS1"],
+  "passiveSkillDefinitionIds": ["SKL_URUU_TIMID_PS1", "SKL_URUU_TIMID_PS2", "SKL_URUU_TIMID_PS3"],
+  "extraSkillDefinitionId": "SKL_URUU_TIMID_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【臆病な褒められたがり少女】波瀬うるう",
+    "characterName": "波瀬うるう",
+    "characterId": "CHAR_URUU_HASE"
+  }
+}
