@@ -71,8 +71,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-FRM-03",
-    testCaseIds: ["UT-R-FRM-03-001"],
-    kinds: ["POSITIVE"],
+    testCaseIds: ["UT-R-FRM-03-001", "UT-R-FRM-FACTORY-002", "UT-R-FRM-FACTORY-007"],
+    kinds: ["POSITIVE", "NEGATIVE"],
   },
   {
     ruleId: "R-FRM-04",
@@ -146,9 +146,43 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // BON: 編成ボーナス
-  { ruleId: "R-BON-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-BON-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-BON-03", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-BON-01",
+    testCaseIds: [
+      "UT-R-BON-01-001",
+      "UT-R-BON-01-002",
+      "UT-R-BON-01-003",
+      "UT-R-BON-01-004",
+      "UT-R-BON-01-005",
+      "UT-R-BON-01-006",
+      "UT-R-BON-01-007",
+      "UT-R-BON-01-008",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE", "PROPERTY"],
+  },
+  {
+    ruleId: "R-BON-02",
+    testCaseIds: [
+      "UT-R-BON-02-001",
+      "UT-R-BON-02-002",
+      "UT-R-BON-02-003",
+      "UT-R-BON-02-004",
+      "UT-R-BON-02-005",
+    ],
+    kinds: ["POSITIVE", "PROPERTY"],
+  },
+  {
+    ruleId: "R-BON-03",
+    testCaseIds: [
+      "UT-R-BON-03-001",
+      "UT-R-BON-03-002",
+      "UT-R-BON-03-003",
+      "UT-R-BON-03-004",
+      "UT-R-BON-03-005",
+      "UT-R-BON-03-006",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
 
   // STA: ステータス
   { ruleId: "R-STA-01", testCaseIds: [], kinds: [] },
