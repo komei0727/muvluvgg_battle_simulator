@@ -21,81 +21,83 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 ## Unit 変換台帳
 
-| raw/units/ ファイル                                  | unitDefinitionId           | characterId              | ステータス                                              |
-| ---------------------------------------------------- | -------------------------- | ------------------------ | ------------------------------------------------------- |
-| 【はだけるわんぱく浴衣】ユリア・バーンズ             | `UNIT_YURIA_YUKATA`        | `CHAR_YURIA_BURNES`      | 済み（本Issue #55 Batch A）                             |
-| 【みんなを見守る山ガール】黒森ラウラ                 | `UNIT_LAURA_MOUNTAIN`      | `CHAR_LAURA_KUROMORI`    | 済み（#41/#46, 代表10ユニット）                         |
-| 【オールラウンダーな統率者】鳴滝七彩                 | `UNIT_NANAE_COMMANDER`     | `CHAR_NANAE_NARUTAKI`    | 済み（本Issue #58 Batch E）                             |
-| 【キョンシーハッカー】エヴィ・レーナルト             | `UNIT_EVIE_KYONSHI`        | `CHAR_EVIE_RENALT`       | 済み（本Issue #47 先行バッチ）                          |
-| 【ギャルインフルエンサー】フルート・メルヴィル       | `UNIT_FLUTE_INFLUENCER`    | `CHAR_FLUTE_MELVILLE`    | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
-| 【クリスマスコーデの参謀】姫川泉花                   | `UNIT_SENKA_CHRISTMAS`     | `CHAR_SENKA_HIMEKAWA`    | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照    |
-| 【シリウスシュガーのエース】桃園める                 | `UNIT_MERU_SIRIUS`         | `CHAR_MERU_MOMOZONO`     | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照    |
-| 【スタチュービューティー】ステラ・ブレーメル         | `UNIT_STELLA_STATUE`       | `CHAR_STELLA_BREMER`     | 済み（#41/#46, 代表10ユニット）                         |
-| 【ダウナーギャルな副委員長】カリナ・ジェンティーレ   | `UNIT_KARINA_DOWNER`       | `CHAR_KARINA_GENTILE`    | 済み（#41/#46, 代表10ユニット）                         |
-| 【ドメスティックなリーダー】榊千鶴                   | `UNIT_CHIZURU_DOMESTIC`    | `CHAR_CHIZURU_SAKAKI`    | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照    |
-| 【ナチュラルボーンサバイバー】鎧衣美琴               | `UNIT_MIKOTO_SURVIVOR`     | `CHAR_MIKOTO_YOROI`      | 済み（#41/#46, 代表10ユニット）                         |
-| 【ノーブル・グレイス】ドロテア・カークランド         | `UNIT_DOROTHEA_GRACE`      | `CHAR_DOROTHEA_KIRKLAND` | 済み（本Issue #47 先行バッチ）                          |
-| 【ポンコツいいんちょ】大賀真桜                       | `UNIT_MAO_COMMITTEE`       | `CHAR_MAO_OGA`           | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照    |
-| 【世界への反逆者】コトハ                             | `UNIT_KOTOHA_REBEL`        | `CHAR_KOTOHA`            | 済み（#41/#46, 代表10ユニット）                         |
-| 【享楽のワイルドカード】ユリア・バーンズ             | `UNIT_YURIA_WILDCARD`      | `CHAR_YURIA_BURNES`      | 済み（本Issue #47 先行バッチ）                          |
-| 【人見知りの聖騎士】ケイト・フルニエ                 | `UNIT_KATE_PALADIN`        | `CHAR_KATE_FOURNIER`     | 済み（#41/#46, 代表10ユニット）                         |
-| 【体育祭のサポート役】樋向心香                       | `UNIT_KOKORO_SPORTSDAY`    | `CHAR_KOKORO_HIMUKAI`    | 済み（本Issue #58 Batch E）                             |
-| 【体育祭の暴れん坊】ノエル・アルエ                   | `UNIT_NOEL_RUMBLE`         | `CHAR_NOEL_ARUE`         | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【優雅なる規律の花】生駒葵                           | `UNIT_AOI_ELEGANT`         | `CHAR_AOI_IKOMA`         | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【元気印の大魔導士】ミリアム・ヘイワード             | `UNIT_MIRIAM_MAGE`         | `CHAR_MIRIAM_HEYWARD`    | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照    |
-| 【博識なハングリーガール】ルナ・メロウ               | `UNIT_LUNA_HUNGRY`         | `CHAR_LUNA_MELLOW`       | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照    |
-| 【博識なメイズの探求者】月ヶ瀬ちゆる                 | `UNIT_CHIYURU_MAZE`        | `CHAR_CHIYURU_TSUKIGASE` | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照 |
-| 【厳格な規律の守護者】生駒葵                         | `UNIT_AOI_GUARDIAN`        | `CHAR_AOI_IKOMA`         | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【唯一無二の幼なじみ】鑑純夏                         | `UNIT_JUNKA_CHILDHOOD`     | `CHAR_JUNKA_KAGAMI`      | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照 |
-| 【大吉ハッピーニューイヤー】朽葉ラミ                 | `UNIT_RAMI_NEWYEAR`        | `CHAR_RAMI_KUZUHA`       | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照    |
-| 【天命を受けし剣術乙女】御剣冥夜                     | `UNIT_MEIYA_FATED`         | `CHAR_MEIYA_MITSURUGI`   | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【天真爛漫トラブルメーカー】タリサ・マナンダル       | `UNIT_TARISA_TROUBLEMAKER` | `CHAR_TARISA_MANANDAL`   | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【心色見つめるムードメーカー】エレーナ・パステルコワ | `UNIT_ELENA_MOODMAKER`     | `CHAR_ELENA_PASTELKOVA`  | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照    |
-| 【忠義の狂犬メイド】リュシー・ムーアクロフト         | `UNIT_LUCIE_MAID`          | `CHAR_LUCIE_MOORCROFT`   | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照    |
-| 【恥じらうカジノラビット】劉翠蘭                     | `UNIT_SUIRAN_CASINO`       | `CHAR_SUIRAN_LIU`        | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
-| 【想い響かせるヒーローシンガー】リリー・ラヴォア     | `UNIT_LILY_SINGER`         | `CHAR_LILY_LAVOIE`       | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【愛を求めるトラブルメーカー】アニス・ベネット       | `UNIT_ANIS_TROUBLEMAKER`   | `CHAR_ANIS_BENNETT`      | 済み（本Issue #47 先行バッチ）                          |
-| 【憎まれ口の大賢者】ハリエット・ミルズ               | `UNIT_HARRIET_SAGE`        | `CHAR_HARRIET_MILLS`     | 済み（#41/#46, 代表10ユニット）                         |
-| 【戦うアントレプレナー】レイラ・ジェンキンス         | `UNIT_LAYLA_ENTREPRENEUR`  | `CHAR_LAYLA_JENKINS`     | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照 |
-| 【新たなる時代の導き手】ドロテア・カークランド       | `UNIT_DOROTHEA_PIONEER`    | `CHAR_DOROTHEA_KIRKLAND` | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
-| 【新春のメイズ研究者】月ヶ瀬ちゆる                   | `UNIT_CHIYURU_NEWYEAR`     | `CHAR_CHIYURU_TSUKIGASE` | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
-| 【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク       | `UNIT_SIENA_DIVA`          | `CHAR_SIENA_CLARK`       | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照    |
-| 【期待応える輝きの穹】一条白奈                       | `UNIT_SHIRANA_SORA`        | `CHAR_SHIRANA_ICHIJO`    | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【正々堂々なミス・ツンデレ】綺羅クララ               | `UNIT_CLARA_TSUNDERE`      | `CHAR_CLARA_KIRA`        | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【正義のヒーロー】リリー・ラヴォア                   | `UNIT_LILY_HERO`           | `CHAR_LILY_LAVOIE`       | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【歴戦の鉄母】オルガ・ヴォルコワ                     | `UNIT_OLGA_VETERAN`        | `CHAR_OLGA_VOLKOVA`      | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【気高きランウェイモデル】レイヴェル・ブライトリーフ | `UNIT_RAVEL_MODEL`         | `CHAR_RAVEL_BRIGHTLEAF`  | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照    |
-| 【混沌の立役者】劉翠蘭                               | `UNIT_SUIRAN_CHAOS`        | `CHAR_SUIRAN_LIU`        | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照 |
-| 【渇望秘めし淑女】紫雲沙耶                           | `UNIT_SAYA_LONGING`        | `CHAR_SAYA_SHIUN`        | 済み（本Issue #47 先行バッチ）                          |
-| 【温厚篤実な面倒くさがり】夕凪舞亜                   | `UNIT_MAIA_LAZY`           | `CHAR_MAIA_YUNAGI`       | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
-| 【無邪気なジャックナイフ】彩峰慧                     | `UNIT_KEI_JACKKNIFE`       | `CHAR_KEI_AYAMINE`       | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照 |
-| 【理解深き老成の智者】タチアナ・ドロズドヴァ         | `UNIT_TATIANA_SAGE`        | `CHAR_TATIANA_DROZDOVA`  | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照    |
-| 【発情バニー】紫雲沙耶                               | `UNIT_SAYA_BUNNY`          | `CHAR_SAYA_SHIUN`        | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照 |
-| 【省エネ主義の天才ハッカー】エヴィ・レーナルト       | `UNIT_EVIE_ECO`            | `CHAR_EVIE_RENALT`       | 済み（#41/#46, 代表10ユニット）                         |
-| 【眠れる社交界の淑女】夕凪舞亜                       | `UNIT_MAIA_SALON`          | `CHAR_MAIA_YUNAGI`       | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
-| 【稀代の狙撃手】珠瀬壬姫                             | `UNIT_MIHIME_SNIPER`       | `CHAR_MIHIME_TAMASE`     | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【空っぽのアクター】フィー・ドレーゼ                 | `UNIT_FEE_ACTOR`           | `CHAR_FEE_DREZE`         | 済み（本Issue #47 先行バッチ）                          |
-| 【空想造形アーティスト】ロージー・ヒューズ           | `UNIT_ROSIE_ARTIST`        | `CHAR_ROSIE_HUGHES`      | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照    |
-| 【純白のラッキーガール】一条白奈                     | `UNIT_SHIRANA_LUCKY`       | `CHAR_SHIRANA_ICHIJO`    | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【純真無垢なるジーニアス】リディア・エルドリッジ     | `UNIT_LYDIA_GENIUS`        | `CHAR_LYDIA_ELDRIDGE`    | 済み（#41/#46, 代表10ユニット）                         |
-| 【緋色の一匹狼】榊野ヒイロ                           | `UNIT_HIIRO_LONEWOLF`      | `CHAR_HIIRO_SAKAKINO`    | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【聖夜のサンタシンガー】綺羅クララ                   | `UNIT_CLARA_SANTA`         | `CHAR_CLARA_KIRA`        | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照    |
-| 【臆病な褒められたがり少女】波瀬うるう               | `UNIT_URUU_TIMID`          | `CHAR_URUU_HASE`         | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照    |
-| 【自己に揺れる白湯気】フィー・ドレーゼ               | `UNIT_FEE_BATH`            | `CHAR_FEE_DREZE`         | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照    |
-| 【自称腹黒の深謀策士】姫川泉花                       | `UNIT_SENKA_SCHEMER`       | `CHAR_SENKA_HIMEKAWA`    | 済み（本Issue #58 Batch E）                             |
-| 【舞台を降りた元歌姫】シエナ・クラーク               | `UNIT_SIENA_OFFSTAGE`      | `CHAR_SIENA_CLARK`       | 済み（本Issue #57 Batch C）                             |
-| 【蒼き穹舞うフラットスピン】桃園める                 | `UNIT_MERU_FLATSPIN`       | `CHAR_MERU_MOMOZONO`     | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照    |
-| 【譜代武家・篁家次期当主】篁唯依                     | `UNIT_YUI_HEIR`            | `CHAR_YUI_TAKAMURA`      | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【負けず嫌いな不屈少女】朽葉ラミ                     | `UNIT_RAMI_UNYIELDING`     | `CHAR_RAMI_KUZUHA`       | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照    |
-| 【輝ける次代の娘】ナージャ・ヴォルコワ               | `UNIT_NADYA_SUCCESSOR`     | `CHAR_NADYA_VOLKOVA`     | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照    |
-| 【連れ添い歩む傍らの友】リュシー・ムーアクロフト     | `UNIT_LUCIE_COMPANION`     | `CHAR_LUCIE_MOORCROFT`   | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照    |
-| 【雪山もこもこ少女】ジュリー・ステイシー             | `UNIT_JULIE_SNOW`          | `CHAR_JULIE_STACEY`      | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照    |
-| 【風紀委員会の策謀家】姜小花                         | `UNIT_SHOUKA_SCHEMER`      | `CHAR_SHOUKA_KYOU`       | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照    |
-| 【＃激カワ吸血鬼配信者♪】フルート・メルヴィル        | `UNIT_FLUTE_VAMPIRE`       | `CHAR_FLUTE_MELVILLE`    | 済み（#41/#46, 代表10ユニット）                         |
+| raw/units/ ファイル                                  | unitDefinitionId           | characterId              | ステータス                                               |
+| ---------------------------------------------------- | -------------------------- | ------------------------ | -------------------------------------------------------- |
+| 【はだけるわんぱく浴衣】ユリア・バーンズ             | `UNIT_YURIA_YUKATA`        | `CHAR_YURIA_BURNES`      | 済み（本Issue #55 Batch A）                              |
+| 【みんなを見守る山ガール】黒森ラウラ                 | `UNIT_LAURA_MOUNTAIN`      | `CHAR_KUROMORI_LAURA`    | 済み（#41/#46, 代表10ユニット）                          |
+| 【オールラウンダーな統率者】鳴滝七彩                 | `UNIT_NANAE_COMMANDER`     | `CHAR_NANAE_NARUTAKI`    | 済み（本Issue #58 Batch E）                              |
+| 【キョンシーハッカー】エヴィ・レーナルト             | `UNIT_EVIE_KYONSHI`        | `CHAR_EVIE_RENALT`       | 済み（本Issue #47 先行バッチ）                           |
+| 【ギャルインフルエンサー】フルート・メルヴィル       | `UNIT_FLUTE_INFLUENCER`    | `CHAR_FLUTE_MELVILLE`    | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照     |
+| 【クリスマスコーデの参謀】姫川泉花                   | `UNIT_SENKA_CHRISTMAS`     | `CHAR_SENKA_HIMEKAWA`    | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照     |
+| 【シリウスシュガーのエース】桃園める                 | `UNIT_MERU_SIRIUS`         | `CHAR_MERU_MOMOZONO`     | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照     |
+| 【スタチュービューティー】ステラ・ブレーメル         | `UNIT_STELLA_STATUE`       | `CHAR_STELLA_BREMER`     | 済み（#41/#46, 代表10ユニット）                          |
+| 【ダウナーギャルな副委員長】カリナ・ジェンティーレ   | `UNIT_KARINA_DOWNER`       | `CHAR_KARINA_GENTILE`    | 済み（#41/#46, 代表10ユニット） ※不完全変換あり→下表参照 |
+| 【ドメスティックなリーダー】榊千鶴                   | `UNIT_CHIZURU_DOMESTIC`    | `CHAR_CHIZURU_SAKAKI`    | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照     |
+| 【ナチュラルボーンサバイバー】鎧衣美琴               | `UNIT_MIKOTO_SURVIVOR`     | `CHAR_YOROI_MIKOTO`      | 済み（#41/#46, 代表10ユニット）                          |
+| 【ノーブル・グレイス】ドロテア・カークランド         | `UNIT_DOROTHEA_GRACE`      | `CHAR_DOROTHEA_KIRKLAND` | 済み（本Issue #47 先行バッチ）                           |
+| 【ポンコツいいんちょ】大賀真桜                       | `UNIT_MAO_COMMITTEE`       | `CHAR_MAO_OGA`           | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照     |
+| 【世界への反逆者】コトハ                             | `UNIT_KOTOHA_REBEL`        | `CHAR_KOTOHA`            | 済み（#41/#46, 代表10ユニット） ※不完全変換あり→下表参照 |
+| 【享楽のワイルドカード】ユリア・バーンズ             | `UNIT_YURIA_WILDCARD`      | `CHAR_YURIA_BURNES`      | 済み（本Issue #47 先行バッチ）                           |
+| 【人見知りの聖騎士】ケイト・フルニエ                 | `UNIT_KATE_PALADIN`        | `CHAR_KATE_FOURNIER`     | 済み（#41/#46, 代表10ユニット）                          |
+| 【体育祭のサポート役】樋向心香                       | `UNIT_KOKORO_SPORTSDAY`    | `CHAR_KOKORO_HIMUKAI`    | 済み（本Issue #58 Batch E）                              |
+| 【体育祭の暴れん坊】ノエル・アルエ                   | `UNIT_NOEL_RUMBLE`         | `CHAR_NOEL_ARUE`         | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【優雅なる規律の花】生駒葵                           | `UNIT_AOI_ELEGANT`         | `CHAR_AOI_IKOMA`         | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【元気印の大魔導士】ミリアム・ヘイワード             | `UNIT_MIRIAM_MAGE`         | `CHAR_MIRIAM_HEYWARD`    | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照     |
+| 【博識なハングリーガール】ルナ・メロウ               | `UNIT_LUNA_HUNGRY`         | `CHAR_LUNA_MELLOW`       | 済み（本Issue #58 Batch E） ※不完全変換あり→下表参照     |
+| 【博識なメイズの探求者】月ヶ瀬ちゆる                 | `UNIT_CHIYURU_MAZE`        | `CHAR_CHIYURU_TSUKIGASE` | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照  |
+| 【厳格な規律の守護者】生駒葵                         | `UNIT_AOI_GUARDIAN`        | `CHAR_AOI_IKOMA`         | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【唯一無二の幼なじみ】鑑純夏                         | `UNIT_JUNKA_CHILDHOOD`     | `CHAR_JUNKA_KAGAMI`      | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照  |
+| 【大吉ハッピーニューイヤー】朽葉ラミ                 | `UNIT_RAMI_NEWYEAR`        | `CHAR_RAMI_KUZUHA`       | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照     |
+| 【天命を受けし剣術乙女】御剣冥夜                     | `UNIT_MEIYA_FATED`         | `CHAR_MEIYA_MITSURUGI`   | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【天真爛漫トラブルメーカー】タリサ・マナンダル       | `UNIT_TARISA_TROUBLEMAKER` | `CHAR_TARISA_MANANDAL`   | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【心色見つめるムードメーカー】エレーナ・パステルコワ | `UNIT_ELENA_MOODMAKER`     | `CHAR_ELENA_PASTELKOVA`  | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照     |
+| 【忠義の狂犬メイド】リュシー・ムーアクロフト         | `UNIT_LUCIE_MAID`          | `CHAR_LUCIE_MOORCROFT`   | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照     |
+| 【恥じらうカジノラビット】劉翠蘭                     | `UNIT_SUIRAN_CASINO`       | `CHAR_SUIRAN_LIU`        | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照     |
+| 【想い響かせるヒーローシンガー】リリー・ラヴォア     | `UNIT_LILY_SINGER`         | `CHAR_LILY_LAVOIE`       | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【愛を求めるトラブルメーカー】アニス・ベネット       | `UNIT_ANIS_TROUBLEMAKER`   | `CHAR_ANIS_BENNETT`      | 済み（本Issue #47 先行バッチ）                           |
+| 【憎まれ口の大賢者】ハリエット・ミルズ               | `UNIT_HARRIET_SAGE`        | `CHAR_HARRIET_MILLS`     | 済み（#41/#46, 代表10ユニット）                          |
+| 【戦うアントレプレナー】レイラ・ジェンキンス         | `UNIT_LAYLA_ENTREPRENEUR`  | `CHAR_LAYLA_JENKINS`     | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照  |
+| 【新たなる時代の導き手】ドロテア・カークランド       | `UNIT_DOROTHEA_PIONEER`    | `CHAR_DOROTHEA_KIRKLAND` | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照     |
+| 【新春のメイズ研究者】月ヶ瀬ちゆる                   | `UNIT_CHIYURU_NEWYEAR`     | `CHAR_CHIYURU_TSUKIGASE` | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照     |
+| 【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク       | `UNIT_SIENA_DIVA`          | `CHAR_SIENA_CLARK`       | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照     |
+| 【期待応える輝きの穹】一条白奈                       | `UNIT_SHIRANA_SORA`        | `CHAR_SHIRANA_ICHIJO`    | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【正々堂々なミス・ツンデレ】綺羅クララ               | `UNIT_CLARA_TSUNDERE`      | `CHAR_CLARA_KIRA`        | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【正義のヒーロー】リリー・ラヴォア                   | `UNIT_LILY_HERO`           | `CHAR_LILY_LAVOIE`       | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【歴戦の鉄母】オルガ・ヴォルコワ                     | `UNIT_OLGA_VETERAN`        | `CHAR_OLGA_VOLKOVA`      | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【気高きランウェイモデル】レイヴェル・ブライトリーフ | `UNIT_RAVEL_MODEL`         | `CHAR_RAVEL_BRIGHTLEAF`  | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照     |
+| 【混沌の立役者】劉翠蘭                               | `UNIT_SUIRAN_CHAOS`        | `CHAR_SUIRAN_LIU`        | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照  |
+| 【渇望秘めし淑女】紫雲沙耶                           | `UNIT_SAYA_LONGING`        | `CHAR_SAYA_SHIUN`        | 済み（本Issue #47 先行バッチ）                           |
+| 【温厚篤実な面倒くさがり】夕凪舞亜                   | `UNIT_MAIA_LAZY`           | `CHAR_MAIA_YUNAGI`       | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照     |
+| 【無邪気なジャックナイフ】彩峰慧                     | `UNIT_KEI_JACKKNIFE`       | `CHAR_KEI_AYAMINE`       | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照  |
+| 【理解深き老成の智者】タチアナ・ドロズドヴァ         | `UNIT_TATIANA_SAGE`        | `CHAR_TATIANA_DROZDOVA`  | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照     |
+| 【発情バニー】紫雲沙耶                               | `UNIT_SAYA_BUNNY`          | `CHAR_SAYA_SHIUN`        | 済み（本Issue #47 先行バッチ） ※不完全変換あり→下表参照  |
+| 【省エネ主義の天才ハッカー】エヴィ・レーナルト       | `UNIT_EVIE_ECO`            | `CHAR_EVIE_RENALT`       | 済み（#41/#46, 代表10ユニット）                          |
+| 【眠れる社交界の淑女】夕凪舞亜                       | `UNIT_MAIA_SALON`          | `CHAR_MAIA_YUNAGI`       | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照     |
+| 【稀代の狙撃手】珠瀬壬姫                             | `UNIT_MIHIME_SNIPER`       | `CHAR_MIHIME_TAMASE`     | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【空っぽのアクター】フィー・ドレーゼ                 | `UNIT_FEE_ACTOR`           | `CHAR_FEE_DREZE`         | 済み（本Issue #47 先行バッチ）                           |
+| 【空想造形アーティスト】ロージー・ヒューズ           | `UNIT_ROSIE_ARTIST`        | `CHAR_ROSIE_HUGHES`      | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照     |
+| 【純白のラッキーガール】一条白奈                     | `UNIT_SHIRANA_LUCKY`       | `CHAR_SHIRANA_ICHIJO`    | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【純真無垢なるジーニアス】リディア・エルドリッジ     | `UNIT_LYDIA_GENIUS`        | `CHAR_LYDIA_ELDRIDGE`    | 済み（#41/#46, 代表10ユニット） ※不完全変換あり→下表参照 |
+| 【緋色の一匹狼】榊野ヒイロ                           | `UNIT_HIIRO_LONEWOLF`      | `CHAR_HIIRO_SAKAKINO`    | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【聖夜のサンタシンガー】綺羅クララ                   | `UNIT_CLARA_SANTA`         | `CHAR_CLARA_KIRA`        | 済み（本Issue #59 Batch B） ※不完全変換あり→下表参照     |
+| 【臆病な褒められたがり少女】波瀬うるう               | `UNIT_URUU_TIMID`          | `CHAR_URUU_HASE`         | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照     |
+| 【自己に揺れる白湯気】フィー・ドレーゼ               | `UNIT_FEE_BATH`            | `CHAR_FEE_DREZE`         | 済み（本Issue #55 Batch A） ※不完全変換あり→下表参照     |
+| 【自称腹黒の深謀策士】姫川泉花                       | `UNIT_SENKA_SCHEMER`       | `CHAR_SENKA_HIMEKAWA`    | 済み（本Issue #58 Batch E）                              |
+| 【舞台を降りた元歌姫】シエナ・クラーク               | `UNIT_SIENA_OFFSTAGE`      | `CHAR_SIENA_CLARK`       | 済み（本Issue #57 Batch C）                              |
+| 【蒼き穹舞うフラットスピン】桃園める                 | `UNIT_MERU_FLATSPIN`       | `CHAR_MERU_MOMOZONO`     | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照     |
+| 【譜代武家・篁家次期当主】篁唯依                     | `UNIT_YUI_HEIR`            | `CHAR_YUI_TAKAMURA`      | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【負けず嫌いな不屈少女】朽葉ラミ                     | `UNIT_RAMI_UNYIELDING`     | `CHAR_RAMI_KUZUHA`       | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照     |
+| 【輝ける次代の娘】ナージャ・ヴォルコワ               | `UNIT_NADYA_SUCCESSOR`     | `CHAR_NADYA_VOLKOVA`     | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照     |
+| 【連れ添い歩む傍らの友】リュシー・ムーアクロフト     | `UNIT_LUCIE_COMPANION`     | `CHAR_LUCIE_MOORCROFT`   | 済み（本Issue #57 Batch C） ※不完全変換あり→下表参照     |
+| 【雪山もこもこ少女】ジュリー・ステイシー             | `UNIT_JULIE_SNOW`          | `CHAR_JULIE_STACEY`      | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照     |
+| 【風紀委員会の策謀家】姜小花                         | `UNIT_SHOUKA_SCHEMER`      | `CHAR_SHOUKA_KYOU`       | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照     |
+| 【＃激カワ吸血鬼配信者♪】フルート・メルヴィル        | `UNIT_FLUTE_VAMPIRE`       | `CHAR_FLUTE_MELVILLE`    | 済み（#41/#46, 代表10ユニット）                          |
 
 ### 不完全変換の詳細（※印のユニット）
 
-上表で「※不完全変換あり」と記載した48ユニット（Issue #47先行バッチ6 + Issue #55 Batch A 7 + Issue #59 Batch B 8 + Issue #57 Batch C 7 + Issue #56 Batch D 8 + Issue #58 Batch E 5 + Issue #60 Batch F 7）について、raw記載の効果のうちCatalog v2の現行スキーマでは表現しきれず、近似または省略した箇所を一覧化する。いずれもM2の基礎Catalog項目（Unit ID・属性・タイプ・ロール・配置適性・基礎ステータス・AP/PP/EX関連値）には影響しない。スキル効果の完全表現は本Issueのスコープ外（Issue本文の「Out of scope」参照）であり、対応する`EffectActionDefinition`/`ConditionDefinition`/`TriggerDefinition`拡張が実装されるまで、後続Issueで解消する。
+上表で「※不完全変換あり」と記載した51ユニット（#41/#46代表10ユニット3 + Issue #47先行バッチ6 + Issue #55 Batch A 7 + Issue #59 Batch B 8 + Issue #57 Batch C 7 + Issue #56 Batch D 8 + Issue #58 Batch E 5 + Issue #60 Batch F 7）について、raw記載の効果のうちCatalog v2の現行スキーマでは表現しきれず、近似または省略した箇所を一覧化する。いずれもM2の基礎Catalog項目（Unit ID・属性・タイプ・ロール・配置適性・基礎ステータス・AP/PP/EX関連値）には影響しない。スキル効果の完全表現は本Issueのスコープ外（Issue本文の「Out of scope」参照）であり、対応する`EffectActionDefinition`/`ConditionDefinition`/`TriggerDefinition`拡張が実装されるまで、後続Issueで解消する。
+
+#41/#46代表10ユニットのうち3件（カリナ・ジェンティーレ、コトハ、リディア・エルドリッジ）は、Issue #54の最終レビューで新たに不完全変換が確認されたため下表に追加した。
 
 Issue #57 Batch Cでは、raw文の「対象が状態異常だった場合」という汎用条件を、`TARGET_STATE.field: HAS_STATUS`で判定可能な負の状態異常3種（`STUN`/`FREEZE`/`BLIND`）の`OR`条件として変換した（`UNIT_MERU_FLATSPIN`のAS2/AS3）。これは近似ではなくCatalog v2で表現可能な負の状態異常を網羅した解釈であり、下表には含めない。
 
@@ -211,6 +213,9 @@ Issue #57 Batch Cでは、raw文の「対象が状態異常だった場合」と
 | `UNIT_NADYA_SUCCESSOR`     | `SKL_NADYA_SUCCESSOR_PS3`（お母様、見ててください……！）                                                  | 「自身がパッシブスキルを3回使用するたびに発動」を「パッシブスキルを使用するたびに発動」に近似した                                                                                                                | `RUNTIME_COUNTER`にmodulo（周期）がなく、N回ごとの発動間隔を表せない（`UNIT_JUNKA_CHILDHOOD`と同一理由）                                                                              |
 | `UNIT_JULIE_SNOW`          | `SKL_JULIE_SNOW_EX`（雪山とジュリーだるま？）                                                            | 「攻撃後に敵が生存していた場合」の追撃を省略した                                                                                                                                                                 | 複数対象のうちいずれかが生存/撃破されたかを判定する`ConditionDefinition`が存在しない（`UNIT_RAMI_UNYIELDING`と同一理由）                                                              |
 | `UNIT_JULIE_SNOW`          | `SKL_JULIE_SNOW_PS1`（いちばんのりー！）                                                                 | 「自分よりもHP割合が高い相手から攻撃された場合にのみ」という攻撃者側の条件を省略し、無条件の被ダメージ減効果とした                                                                                               | `APPLY_DAMAGE_MOD`が攻撃者側の相対HP割合を条件にする仕組みが存在しない（`UNIT_OLGA_VETERAN`と同一理由）                                                                               |
+| `UNIT_KARINA_DOWNER`       | `SKL_KARINA_DOWNER_PS2`（包囲かんりょ～）                                                                | 「味方全体に対し、1行動の間得られるEXゲージを50%増加させるバフ」を省略した                                                                                                                                       | 将来のリソース獲得量を割合で増加させる`EffectAction`が存在しない（`UNIT_MAIA_SALON`と同一理由。`MODIFY_RESOURCE`は一回限りの加減算のみ）                                              |
+| `UNIT_KOTOHA_REBEL`        | `SKL_KOTOHA_REBEL_PS2`（起死回生）                                                                       | 「対象のHP割合が自身より低い敵に対してのみ与ダメージが10%増加する」バフを省略した                                                                                                                                | `APPLY_DAMAGE_MOD`が個々の`DAMAGE`解決ごとに対象を動的に再評価する手段を持たない（Issue #44 G-07と同種）                                                                              |
+| `UNIT_LYDIA_GENIUS`        | `SKL_LYDIA_GENIUS_AS1`（ジャマしちゃ、めっ……だよ？）                                                     | 「対象範囲（敵右列・左列）に敵が存在しない場合、このスキルは発動しない」という不発条件を省略した                                                                                                                 | `ALIVE_UNIT_COUNT`は陣営(side)単位の生存数比較のみで、列などの`AreaDefinition`/`TargetFilterDefinition`と組み合わせた絞り込みができない                                               |
 
 ## Memory 変換台帳
 

@@ -293,8 +293,8 @@
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
-        "sourceSelector": "ALLY",
-        "targetSelector": "SELF"
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY"
       }
     ]
   }

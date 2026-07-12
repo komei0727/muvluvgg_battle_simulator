@@ -1801,8 +1801,8 @@
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
-        "sourceSelector": "ALLY",
-        "targetSelector": "SELF"
+        "sourceSelector": "ANY",
+        "targetSelector": "ALLY"
       }
     ]
   },
@@ -2166,8 +2166,8 @@
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
-        "sourceSelector": "ALLY",
-        "targetSelector": "SELF"
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY"
       }
     ]
   },
@@ -5435,8 +5435,8 @@
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
-        "sourceSelector": "ALLY",
-        "targetSelector": "SELF"
+        "sourceSelector": "ANY",
+        "targetSelector": "ALLY"
       }
     ]
   },
@@ -10428,8 +10428,8 @@
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
-        "sourceSelector": "ALLY",
-        "targetSelector": "SELF"
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY"
       }
     ]
   },
