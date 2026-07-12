@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_LUNA_HUNGRY",
+  "attribute": "CUTE",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 33459,
+    "attack": 18288,
+    "defense": 12231,
+    "criticalRate": 0.2,
+    "actionSpeed": 644,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_LUNA_HUNGRY_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_LUNA_HUNGRY_PS1",
+    "SKL_LUNA_HUNGRY_PS2",
+    "SKL_LUNA_HUNGRY_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_LUNA_HUNGRY_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【博識なハングリーガール】ルナ・メロウ",
+    "characterName": "ルナ・メロウ",
+    "characterId": "CHAR_LUNA_MELLOW"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_NANAE_COMMANDER",
+  "attribute": "CUTE",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 27427,
+    "attack": 22674,
+    "defense": 13674,
+    "criticalRate": 0.2,
+    "actionSpeed": 751,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_NANAE_COMMANDER_AS1", "SKL_NANAE_COMMANDER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_NANAE_COMMANDER_PS1", "SKL_NANAE_COMMANDER_PS2"],
+  "extraSkillDefinitionId": "SKL_NANAE_COMMANDER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【オールラウンダーな統率者】鳴滝七彩",
+    "characterName": "鳴滝七彩",
+    "characterId": "CHAR_NANAE_NARUTAKI"
+  }
+}
