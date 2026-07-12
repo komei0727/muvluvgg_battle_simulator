@@ -140,6 +140,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_CHIZURU_DOMESTIC",
+    "attribute": "CUTE",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32212,
+      "attack": 19894,
+      "defense": 14348,
+      "criticalRate": 0.15,
+      "actionSpeed": 714,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_CHIZURU_DOMESTIC_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_CHIZURU_DOMESTIC_PS1",
+      "SKL_CHIZURU_DOMESTIC_PS2",
+      "SKL_CHIZURU_DOMESTIC_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_CHIZURU_DOMESTIC_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【ドメスティックなリーダー】榊千鶴",
+      "characterName": "榊千鶴",
+      "characterId": "CHAR_CHIZURU_SAKAKI"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_CLARA_SANTA",
     "attribute": "SMART",
     "unitType": "ENERGY",
@@ -604,6 +636,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_KOKORO_SPORTSDAY",
+    "attribute": "CUTE",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 26626,
+      "attack": 22335,
+      "defense": 11114,
+      "criticalRate": 0.2,
+      "actionSpeed": 748,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_KOKORO_SPORTSDAY_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_KOKORO_SPORTSDAY_PS1",
+      "SKL_KOKORO_SPORTSDAY_PS2",
+      "SKL_KOKORO_SPORTSDAY_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_KOKORO_SPORTSDAY_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【体育祭のサポート役】樋向心香",
+      "characterName": "樋向心香",
+      "characterId": "CHAR_KOKORO_HIMUKAI"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_KOTOHA_REBEL",
     "attribute": "CLEVER",
     "unitType": "AGILE",
@@ -808,6 +872,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_LUNA_HUNGRY",
+    "attribute": "CUTE",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 33459,
+      "attack": 18288,
+      "defense": 12231,
+      "criticalRate": 0.2,
+      "actionSpeed": 644,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_LUNA_HUNGRY_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_LUNA_HUNGRY_PS1",
+      "SKL_LUNA_HUNGRY_PS2",
+      "SKL_LUNA_HUNGRY_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_LUNA_HUNGRY_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【博識なハングリーガール】ルナ・メロウ",
+      "characterName": "ルナ・メロウ",
+      "characterId": "CHAR_LUNA_MELLOW"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_LYDIA_GENIUS",
     "attribute": "COMICAL",
     "unitType": "AGILE",
@@ -894,6 +990,34 @@
       "displayName": "【眠れる社交界の淑女】夕凪舞亜",
       "characterName": "夕凪舞亜",
       "characterId": "CHAR_MAIA_YUNAGI"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_MAO_COMMITTEE",
+    "attribute": "CUTE",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 30789,
+      "attack": 23260,
+      "defense": 11135,
+      "criticalRate": 0.2,
+      "actionSpeed": 718,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_MAO_COMMITTEE_AS1", "SKL_MAO_COMMITTEE_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MAO_COMMITTEE_PS1", "SKL_MAO_COMMITTEE_PS2"],
+    "extraSkillDefinitionId": "SKL_MAO_COMMITTEE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【ポンコツいいんちょ】大賀真桜",
+      "characterName": "大賀真桜",
+      "characterId": "CHAR_MAO_OGA"
     }
   },
   {
@@ -1038,6 +1162,66 @@
       "displayName": "【ナチュラルボーンサバイバー】鎧衣美琴",
       "characterName": "鎧衣美琴",
       "characterId": "CHAR_YOROI_MIKOTO"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_MIRIAM_MAGE",
+    "attribute": "AGGRESSIVE",
+    "unitType": "ENERGY",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 27612,
+      "attack": 24280,
+      "defense": 9729,
+      "criticalRate": 0.2,
+      "actionSpeed": 682,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": [
+      "SKL_MIRIAM_MAGE_AS1",
+      "SKL_MIRIAM_MAGE_AS2",
+      "SKL_MIRIAM_MAGE_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_MIRIAM_MAGE_PS1"],
+    "extraSkillDefinitionId": "SKL_MIRIAM_MAGE_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【元気印の大魔導士】ミリアム・ヘイワード",
+      "characterName": "ミリアム・ヘイワード",
+      "characterId": "CHAR_MIRIAM_HEYWARD"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_NANAE_COMMANDER",
+    "attribute": "CUTE",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 27427,
+      "attack": 22674,
+      "defense": 13674,
+      "criticalRate": 0.2,
+      "actionSpeed": 751,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_NANAE_COMMANDER_AS1", "SKL_NANAE_COMMANDER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_NANAE_COMMANDER_PS1", "SKL_NANAE_COMMANDER_PS2"],
+    "extraSkillDefinitionId": "SKL_NANAE_COMMANDER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【オールラウンダーな統率者】鳴滝七彩",
+      "characterName": "鳴滝七彩",
+      "characterId": "CHAR_NANAE_NARUTAKI"
     }
   },
   {
@@ -1214,6 +1398,62 @@
       "displayName": "【渇望秘めし淑女】紫雲沙耶",
       "characterName": "紫雲沙耶",
       "characterId": "CHAR_SAYA_SHIUN"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SENKA_CHRISTMAS",
+    "attribute": "AGGRESSIVE",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32879,
+      "attack": 18023,
+      "defense": 14680,
+      "criticalRate": 0.15,
+      "actionSpeed": 645,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_AS1", "SKL_SENKA_CHRISTMAS_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_PS1", "SKL_SENKA_CHRISTMAS_PS2"],
+    "extraSkillDefinitionId": "SKL_SENKA_CHRISTMAS_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【クリスマスコーデの参謀】姫川泉花",
+      "characterName": "姫川泉花",
+      "characterId": "CHAR_SENKA_HIMEKAWA"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SENKA_SCHEMER",
+    "attribute": "SHY",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28497,
+      "attack": 21119,
+      "defense": 10952,
+      "criticalRate": 0.2,
+      "actionSpeed": 756,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_SENKA_SCHEMER_AS1", "SKL_SENKA_SCHEMER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SENKA_SCHEMER_PS1", "SKL_SENKA_SCHEMER_PS2"],
+    "extraSkillDefinitionId": "SKL_SENKA_SCHEMER_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【自称腹黒の深謀策士】姫川泉花",
+      "characterName": "姫川泉花",
+      "characterId": "CHAR_SENKA_HIMEKAWA"
     }
   },
   {

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_MAO_COMMITTEE",
+  "attribute": "CUTE",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 30789,
+    "attack": 23260,
+    "defense": 11135,
+    "criticalRate": 0.2,
+    "actionSpeed": 718,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_MAO_COMMITTEE_AS1", "SKL_MAO_COMMITTEE_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MAO_COMMITTEE_PS1", "SKL_MAO_COMMITTEE_PS2"],
+  "extraSkillDefinitionId": "SKL_MAO_COMMITTEE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【ポンコツいいんちょ】大賀真桜",
+    "characterName": "大賀真桜",
+    "characterId": "CHAR_MAO_OGA"
+  }
+}

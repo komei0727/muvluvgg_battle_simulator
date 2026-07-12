@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_MIRIAM_MAGE",
+  "attribute": "AGGRESSIVE",
+  "unitType": "ENERGY",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 27612,
+    "attack": 24280,
+    "defense": 9729,
+    "criticalRate": 0.2,
+    "actionSpeed": 682,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_MIRIAM_MAGE_AS1", "SKL_MIRIAM_MAGE_AS2", "SKL_MIRIAM_MAGE_AS3"],
+  "passiveSkillDefinitionIds": ["SKL_MIRIAM_MAGE_PS1"],
+  "extraSkillDefinitionId": "SKL_MIRIAM_MAGE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【元気印の大魔導士】ミリアム・ヘイワード",
+    "characterName": "ミリアム・ヘイワード",
+    "characterId": "CHAR_MIRIAM_HEYWARD"
+  }
+}

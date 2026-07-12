@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SENKA_SCHEMER",
+  "attribute": "SHY",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 28497,
+    "attack": 21119,
+    "defense": 10952,
+    "criticalRate": 0.2,
+    "actionSpeed": 756,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_SENKA_SCHEMER_AS1", "SKL_SENKA_SCHEMER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SENKA_SCHEMER_PS1", "SKL_SENKA_SCHEMER_PS2"],
+  "extraSkillDefinitionId": "SKL_SENKA_SCHEMER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【自称腹黒の深謀策士】姫川泉花",
+    "characterName": "姫川泉花",
+    "characterId": "CHAR_SENKA_HIMEKAWA"
+  }
+}

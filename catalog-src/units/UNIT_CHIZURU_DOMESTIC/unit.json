@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_CHIZURU_DOMESTIC",
+  "attribute": "CUTE",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32212,
+    "attack": 19894,
+    "defense": 14348,
+    "criticalRate": 0.15,
+    "actionSpeed": 714,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_CHIZURU_DOMESTIC_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_CHIZURU_DOMESTIC_PS1",
+    "SKL_CHIZURU_DOMESTIC_PS2",
+    "SKL_CHIZURU_DOMESTIC_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_CHIZURU_DOMESTIC_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【ドメスティックなリーダー】榊千鶴",
+    "characterName": "榊千鶴",
+    "characterId": "CHAR_CHIZURU_SAKAKI"
+  }
+}

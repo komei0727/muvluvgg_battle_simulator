@@ -1,0 +1,180 @@
+[
+  {
+    "skillDefinitionId": "SKL_MIRIAM_MAGE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_LOW_HP_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [{ "kind": "HP_RATIO", "op": "LTE", "value": 0.3 }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW_HP_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_FREEZE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "metadata": { "displayName": "攻撃魔法『Xプロージョン』", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MIRIAM_MAGE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_THREE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DMG_DOWN" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DAMAGE_EXTRA" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "displayName": "なんか痛い攻撃魔法！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MIRIAM_MAGE_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "CHARGE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS2_CHARGE_MARKER" }]
+        }
+      ],
+      "chargeRelease": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BASE",
+            "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          },
+          {
+            "targetBindingId": "TGT_ROW",
+            "selector": {
+              "kind": "BINDING_DERIVED",
+              "side": "ENEMY",
+              "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS2_FREEZE" }]
+          }
+        ]
+      }
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER", "CAP_CHARGE_RESTRICTION", "CAP_DERIVED_TARGETS"],
+    "metadata": { "displayName": "溜め技いくよー！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MIRIAM_MAGE_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS3_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "痛いやつ飛んでけー！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MIRIAM_MAGE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_PS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": { "displayName": "おまけで、えい！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  }
+]

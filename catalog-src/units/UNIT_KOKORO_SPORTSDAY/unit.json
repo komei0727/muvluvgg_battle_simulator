@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_KOKORO_SPORTSDAY",
+  "attribute": "CUTE",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 26626,
+    "attack": 22335,
+    "defense": 11114,
+    "criticalRate": 0.2,
+    "actionSpeed": 748,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_KOKORO_SPORTSDAY_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_KOKORO_SPORTSDAY_PS1",
+    "SKL_KOKORO_SPORTSDAY_PS2",
+    "SKL_KOKORO_SPORTSDAY_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_KOKORO_SPORTSDAY_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【体育祭のサポート役】樋向心香",
+    "characterName": "樋向心香",
+    "characterId": "CHAR_KOKORO_HIMUKAI"
+  }
+}

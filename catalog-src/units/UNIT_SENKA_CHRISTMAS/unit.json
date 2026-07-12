@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_SENKA_CHRISTMAS",
+  "attribute": "AGGRESSIVE",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32879,
+    "attack": 18023,
+    "defense": 14680,
+    "criticalRate": 0.15,
+    "actionSpeed": 645,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_AS1", "SKL_SENKA_CHRISTMAS_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_PS1", "SKL_SENKA_CHRISTMAS_PS2"],
+  "extraSkillDefinitionId": "SKL_SENKA_CHRISTMAS_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【クリスマスコーデの参謀】姫川泉花",
+    "characterName": "姫川泉花",
+    "characterId": "CHAR_SENKA_HIMEKAWA"
+  }
+}
