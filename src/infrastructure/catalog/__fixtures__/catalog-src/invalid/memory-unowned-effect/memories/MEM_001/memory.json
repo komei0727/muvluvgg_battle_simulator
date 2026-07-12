@@ -24,7 +24,6 @@
       }
     }
   ],
-  "modifiers": [],
   "requiredCapabilities": [],
   "metadata": { "displayName": "Minimal Memory", "tags": [] }
 }

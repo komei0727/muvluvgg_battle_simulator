@@ -53,7 +53,6 @@ export const EVENT_TYPE_CATEGORIES: Readonly<Record<string, EventCategory>> = {
   // Memoryイベント
   MemoryTriggered: "FACT",
   MemoryResolved: "FACT",
-  MemoryModifierApplied: "FACT",
   // 命中・会心イベント
   BlindnessCheckResolved: "FACT",
   EvasionActivated: "FACT",

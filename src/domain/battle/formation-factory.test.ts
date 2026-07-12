@@ -272,11 +272,33 @@ describe("createBattleParty — FormationFactory", () => {
     expect(party.members[0]!.combatStats.criticalRate).toBeCloseTo(0.1);
   });
 
-  it("UT-R-STA-01-019: a Memory RATIO modifier applies to every member's starting combat stats", () => {
+  it("UT-R-STA-01-019: a referenced Memory's triggeredEffects do not affect the member's starting combat stats (resolved later by the Memory engine, not FormationFactory)", () => {
     const memory = createMemoryDefinition({
       memoryDefinitionId: "MEM_001",
-      modifiers: [
-        { targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "RATIO", value: 0.2 },
+      triggeredEffects: [
+        {
+          trigger: {
+            eventType: "BattleStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+          },
+          effectSequence: {
+            targetBindings: [
+              {
+                targetBindingId: "TGT_ALL_ALLIES",
+                selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+              },
+            ],
+            steps: [
+              {
+                kind: "ACTION",
+                target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+                actions: [{ effectActionDefinitionId: "ACT_ATTACK_UP" }],
+              },
+            ],
+          },
+        },
       ],
       requiredCapabilities: [],
       metadata: { displayName: "Test Memory" },
@@ -295,7 +317,7 @@ describe("createBattleParty — FormationFactory", () => {
 
     const party = createBattleParty("ALLY", formation, battleUnitIds, units, memoriesMap(memory));
 
-    expect(party.members[0]!.combatStats.attack).toBeCloseTo(12);
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(10);
   });
 
   it("UT-R-FRM-FACTORY-008: rejects a formation referencing an unknown MemoryDefinitionId", () => {

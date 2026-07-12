@@ -8969,6 +8969,19 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MEM_HEART_COLOR_ALL_CRIT_DMG_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MEM_OJOSAMA_MANNERS_SPEED_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
@@ -8995,12 +9008,51 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_SPEED_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 30 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.01 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MEM_TIMID_REINDEER_EVE_BACK_CRIT_DMG_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_TIMID_REINDEER_EVE_ALL_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.05 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
@@ -9018,6 +9070,19 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_WALK_TOGETHER_ALL_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.01 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   }
 ]

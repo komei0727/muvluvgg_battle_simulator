@@ -55,7 +55,6 @@
       }
     }
   ],
-  "modifiers": [],
-  "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+  "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
   "metadata": { "displayName": "お嬢様直伝マナー講座", "tags": [] }
 }

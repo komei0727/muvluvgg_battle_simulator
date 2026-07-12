@@ -1,8 +1,6 @@
-import type { PositionRow } from "../catalog/catalog-enums.js";
-import type { MemoryModifier, ModifierStat } from "../catalog/memory-definition.js";
+import type { FormationCorrectableStat, PositionRow } from "../catalog/catalog-enums.js";
 import type { BaseStats } from "../catalog/unit-definition.js";
 import { calculateCombatStat } from "./combat-stat-calculator.js";
-import type { StatEffect } from "./effect-stacking-policy.js";
 import { resolveAptitudePenalty } from "./position-aptitude-policy.js";
 import { createPercentage, type Percentage } from "./percentage.js";
 import type { FormationBonus } from "./formation-bonus-calculator.js";
@@ -15,7 +13,7 @@ export interface CombatStats {
   readonly actionSpeed: number;
   readonly criticalDamageBonus: number;
   /**
-   * R-ATR-02: 有利属性倍率の算出に使う。Memoryは`ModifierStat`に
+   * R-ATR-02: 有利属性倍率の算出に使う。`FormationCorrectableStat`に
    * `AFFINITY_BONUS`を持たないため補正対象にならず、Unit定義の値をそのまま写す。
    */
   readonly affinityBonus: number;
@@ -24,7 +22,10 @@ export interface CombatStats {
 const ZERO = createPercentage(0);
 
 /** R-BON-01〜03: `FormationBonus`は攻撃力・HP・防御力・会心率にしか及ばない。 */
-function resolveFormationBonus(formationBonus: FormationBonus, stat: ModifierStat): Percentage {
+function resolveFormationBonus(
+  formationBonus: FormationBonus,
+  stat: FormationCorrectableStat,
+): Percentage {
   switch (stat) {
     case "MAXIMUM_HP":
       return formationBonus.hpBonus;
@@ -40,40 +41,29 @@ function resolveFormationBonus(formationBonus: FormationBonus, stat: ModifierSta
   }
 }
 
-function ratioEffectsFor(modifiers: readonly MemoryModifier[], stat: ModifierStat): StatEffect[] {
-  return modifiers
-    .filter((modifier) => modifier.stat === stat && modifier.valueType === "RATIO")
-    .map((modifier) => ({ stacking: "STACKABLE", value: modifier.value }) as const);
-}
-
-function fixedCorrectionFor(modifiers: readonly MemoryModifier[], stat: ModifierStat): number {
-  return modifiers
-    .filter((modifier) => modifier.stat === stat && modifier.valueType === "FIXED")
-    .reduce((sum, modifier) => sum + modifier.value, 0);
-}
-
 export interface StartingCombatStatsInput {
   readonly baseStats: BaseStats;
   readonly positionAptitudes: readonly PositionRow[];
   readonly row: PositionRow;
   readonly formationBonus: FormationBonus;
-  readonly memoryModifiers: readonly MemoryModifier[];
 }
 
 /**
- * R-STA-01: 配置適性・編成補正・Memory補正を含む開始時の戦闘中ステータスを計算する。
- * `CombatStatCalculator`・`EffectStackingPolicy`・`PositionAptitudePolicy`を
- * ステータスごとに組み立てるだけの薄い合成層であり、戦闘中の再計算(R-STA-04)でも
- * 同じ`calculateCombatStat`をそのまま再利用できる。
+ * R-STA-01: 配置適性・編成補正を含む開始時の戦闘中ステータスを計算する。
+ * `CombatStatCalculator`・`PositionAptitudePolicy`をステータスごとに組み立てるだけの
+ * 薄い合成層であり、戦闘中の再計算(R-STA-04)でも同じ`calculateCombatStat`をそのまま
+ * 再利用できる。Memory由来のstat補正(`APPLY_STAT_MOD`)はMemory発動エンジンが
+ * `AppliedEffect`として解決した後、通常バフと同じ経路で`calculateCombatStat`へ渡す
+ * ため、ここでは扱わない（`13_実装計画.md`参照）。
  */
 export function calculateStartingCombatStats(input: StartingCombatStatsInput): CombatStats {
-  function stat(stat: ModifierStat, baseValue: number): number {
+  function stat(stat: FormationCorrectableStat, baseValue: number): number {
     return calculateCombatStat({
       baseValue,
       formationBonus: resolveFormationBonus(input.formationBonus, stat),
       aptitudePenalty: resolveAptitudePenalty(input.positionAptitudes, input.row, stat),
-      ratioEffects: ratioEffectsFor(input.memoryModifiers, stat),
-      fixedCorrection: fixedCorrectionFor(input.memoryModifiers, stat),
+      ratioEffects: [],
+      fixedCorrection: 0,
     });
   }
 

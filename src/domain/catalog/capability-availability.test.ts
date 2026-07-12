@@ -122,7 +122,31 @@ function memoryWithCapability(
 ): MemoryDefinition {
   return createMemoryDefinition({
     memoryDefinitionId: id,
-    modifiers: [{ targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "FIXED", value: 10 }],
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+              actions: [{ effectActionDefinitionId: "ACT_ATTACK_UP" }],
+            },
+          ],
+        },
+      },
+    ],
     requiredCapabilities,
     metadata: { displayName: "Memory" },
   });
@@ -169,7 +193,7 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     const defs: CatalogDefinitions = {
       units: [],
       skills: [],
-      effectActions: [],
+      effectActions: [damageAction("ACT_ATTACK_UP")],
       memories: [memoryWithCapability("MEM_001", ["CAP_MEMORY_DYNAMIC_EFFECT"])],
       capabilities: [capability("CAP_MEMORY_DYNAMIC_EFFECT", "IMPLEMENTED")],
     };

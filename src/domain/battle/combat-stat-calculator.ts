@@ -9,12 +9,12 @@ export interface CombatStatInput {
   readonly aptitudePenalty: Percentage;
   /** 戦闘中割合補正の元になるバフ・デバフ (`EffectStackingPolicy`へ渡す)。 */
   readonly ratioEffects: readonly StatEffect[];
-  /** メモリー固定値補正の合計。 */
+  /** 固定値補正の合計 (`APPLY_STAT_MOD` の `valueType: FIXED` 由来)。 */
   readonly fixedCorrection: number;
 }
 
 /**
- * R-STA-01: 戦闘中ステータス = 基本値 × (1 + 編成補正 − 適性補正) × (1 + 戦闘中割合補正) + メモリー固定値補正。
+ * R-STA-01: 戦闘中ステータス = 基本値 × (1 + 編成補正 − 適性補正) × (1 + 戦闘中割合補正) + 固定値補正。
  * R-STA-04: バフ・デバフや条件の変化後は同じ純粋関数を新しい`ratioEffects`で呼び直すだけで再計算できる。
  */
 export function calculateCombatStat(input: CombatStatInput): number {

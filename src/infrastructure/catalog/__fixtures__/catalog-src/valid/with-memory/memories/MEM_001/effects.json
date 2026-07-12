@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "effectActionDefinitionId": "ACT_MEM_001_ATTACK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 100 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  }
+]
