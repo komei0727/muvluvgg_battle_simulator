@@ -100,9 +100,50 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-FRM-06", testCaseIds: [], kinds: [] },
 
   // POS: 座標
-  { ruleId: "R-POS-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-POS-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-POS-03", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-POS-01",
+    testCaseIds: [
+      "UT-R-POS-01-001",
+      "UT-R-POS-01-002",
+      "UT-R-POS-01-003",
+      "UT-R-POS-01-004",
+      "UT-R-POS-01-005",
+      "UT-R-POS-01-006",
+      "UT-R-POS-01-007",
+      "UT-R-POS-01-008",
+      "UT-R-POS-01-009",
+      "UT-R-POS-01-010",
+      "UT-R-POS-01-011",
+      "UT-R-POS-01-012",
+      "UT-R-POS-01-013",
+      "UT-R-POS-01-014",
+      "UT-R-POS-01-015",
+      "UT-R-POS-01-016",
+      "UT-R-POS-01-017",
+      "UT-R-POS-01-018",
+      "UT-R-POS-01-019",
+      "UT-R-POS-01-020",
+      "UT-R-POS-01-021",
+      "UT-R-POS-01-022",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE", "PROPERTY"],
+  },
+  {
+    ruleId: "R-POS-02",
+    testCaseIds: ["UT-R-POS-02-001", "UT-R-POS-02-002", "UT-R-POS-02-003", "UT-R-POS-02-004"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-POS-03",
+    testCaseIds: [
+      "UT-R-POS-03-001",
+      "UT-R-POS-03-002",
+      "UT-R-POS-03-003",
+      "UT-R-POS-03-004",
+      "UT-R-POS-03-005",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
+  },
 
   // BON: 編成ボーナス
   { ruleId: "R-BON-01", testCaseIds: [], kinds: [] },
