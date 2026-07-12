@@ -40,7 +40,7 @@
       "formula": { "kind": "SKILL_POWER", "power": 1.17 },
       "critical": { "mode": "GUARANTEED" }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
     "metadata": { "tags": [] }
   },
   {

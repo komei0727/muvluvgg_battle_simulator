@@ -90,7 +90,8 @@
       "CAP_EFFECT_CONDITION",
       "CAP_RESOLUTION_BRANCH",
       "CAP_DERIVED_TARGETS",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_CRITICAL_CONTROL"
     ],
     "metadata": { "displayName": "リミットブラスト", "tags": [] }
   },
