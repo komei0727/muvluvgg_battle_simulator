@@ -108,7 +108,7 @@
     "kind": "HEAL",
     "payload": {
       "formula": {
-        "kind": "MAX_HP_RATIO",
+        "kind": "CURRENT_HP_RATIO",
         "source": {
           "kind": "SKILL_SOURCE"
         },

@@ -18,7 +18,7 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    expect(catalog.catalogRevision).toBe("2026-07-12.8");
+    expect(catalog.catalogRevision).toBe("2026-07-12.9");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

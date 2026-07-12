@@ -1386,7 +1386,11 @@
     "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.235 },
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": 0.235
+      },
       "overheal": "DISCARD"
     },
     "requiredCapabilities": ["CAP_HEAL"],
