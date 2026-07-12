@@ -97,7 +97,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["BOUNDARY", "NEGATIVE"],
   },
-  { ruleId: "R-FRM-06", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-FRM-06",
+    testCaseIds: [
+      "UT-PREFLIGHT-001",
+      "UT-PREFLIGHT-002",
+      "UT-PREFLIGHT-003",
+      "UT-PREFLIGHT-004",
+      "UT-PREFLIGHT-005",
+      "UT-PREFLIGHT-006",
+      "UT-USECASE-003",
+      "UT-USECASE-004",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE"],
+  },
 
   // POS: 座標
   {
@@ -387,6 +400,28 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定
-  { ruleId: "R-END-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-END-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-END-01",
+    testCaseIds: [
+      "UT-R-END-01-001",
+      "UT-R-END-01-002",
+      "UT-R-END-01-003",
+      "UT-R-END-01-004",
+      "UT-BATTLE-009",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
+  {
+    ruleId: "R-END-02",
+    testCaseIds: [
+      "UT-R-END-02-001",
+      "UT-R-END-02-002",
+      "UT-R-END-02-003",
+      "UT-R-END-02-004",
+      "UT-R-END-02-005",
+      "UT-R-END-02-006",
+      "UT-R-END-02-007",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
 ];
