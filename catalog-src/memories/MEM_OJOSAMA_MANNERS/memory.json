@@ -55,7 +55,6 @@
       }
     }
   ],
-  "modifiers": [],
   "requiredCapabilities": ["CAP_DAMAGE_MOD"],
   "metadata": { "displayName": "お嬢様直伝マナー講座", "tags": [] }
 }

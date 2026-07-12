@@ -1,18 +1,53 @@
 {
   "memoryDefinitionId": "MEM_STRANGERS",
-  "triggeredEffects": [],
-  "modifiers": [
+  "triggeredEffects": [
     {
-      "targetFilter": { "kind": "ALL" },
-      "stat": "ACTION_SPEED",
-      "valueType": "FIXED",
-      "value": 30
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ALLIES",
+            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_SPEED_UP" }]
+          }
+        ]
+      }
     },
     {
-      "targetFilter": { "kind": "ALL" },
-      "stat": "CRITICAL_RATE",
-      "valueType": "RATIO",
-      "value": 0.01
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ALLIES",
+            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_CRIT_UP" }]
+          }
+        ]
+      }
     }
   ],
   "requiredCapabilities": [],

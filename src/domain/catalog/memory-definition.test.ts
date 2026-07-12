@@ -36,24 +36,9 @@ describe("MemoryDefinition", () => {
     });
     expect(result.memoryDefinitionId).toBe("MEM_001");
     expect(result.triggeredEffects).toHaveLength(1);
-    expect(result.modifiers).toEqual([]);
   });
 
-  it("UT-CAT-MEM-002: maps the modifiers shorthand example", () => {
-    const result = createMemoryDefinition({
-      memoryDefinitionId: "MEM_002",
-      modifiers: [
-        { targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "FIXED", value: 250 },
-      ],
-      requiredCapabilities: [],
-      metadata: { displayName: "Fixed Attack Buff" },
-    });
-    expect(result.modifiers).toEqual([
-      { targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "FIXED", value: 250 },
-    ]);
-  });
-
-  it("UT-CAT-MEM-003: rejects a Memory with neither triggeredEffects nor modifiers", () => {
+  it("UT-CAT-MEM-003: rejects a Memory with no triggeredEffects", () => {
     expect(() =>
       createMemoryDefinition({
         memoryDefinitionId: "MEM_003",
@@ -63,25 +48,29 @@ describe("MemoryDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-MEM-004: rejects an unknown modifier stat", () => {
-    expect(() =>
-      createMemoryDefinition({
-        memoryDefinitionId: "MEM_004",
-        modifiers: [
-          { targetFilter: { kind: "ALL" }, stat: "AFFINITY_BONUS", valueType: "FIXED", value: 1 },
-        ],
-        requiredCapabilities: [],
-        metadata: { displayName: "Invalid" },
-      }),
-    ).toThrow(DomainValidationError);
-  });
-
   it("UT-CAT-MEM-005: rejects a non-array requiredCapabilities", () => {
     expect(() =>
       createMemoryDefinition({
         memoryDefinitionId: "MEM_005",
-        modifiers: [
-          { targetFilter: { kind: "ALL" }, stat: "ATTACK", valueType: "FIXED", value: 1 },
+        triggeredEffects: [
+          {
+            trigger: {
+              eventType: "BattleStarted",
+              category: "FACT",
+              sourceSelector: "ANY",
+              targetSelector: "ANY",
+            },
+            effectSequence: {
+              targetBindings: [],
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_1" }],
+                },
+              ],
+            },
+          },
         ],
         requiredCapabilities: "CAP_HEAL" as unknown as readonly string[],
         metadata: { displayName: "Invalid" },
@@ -94,25 +83,6 @@ describe("MemoryDefinition", () => {
       createMemoryDefinition({
         memoryDefinitionId: "MEM_006",
         triggeredEffects: "not-an-array" as unknown as never[],
-        requiredCapabilities: [],
-        metadata: { displayName: "Invalid" },
-      }),
-    ).toThrow(DomainValidationError);
-  });
-
-  it("UT-CAT-MEM-007: rejects a typo'd sibling key inside a modifier", () => {
-    expect(() =>
-      createMemoryDefinition({
-        memoryDefinitionId: "MEM_007",
-        modifiers: [
-          {
-            targetFilter: { kind: "ALL" },
-            stat: "ATTACK",
-            valueType: "FIXED",
-            value: 1,
-            typoField: 1,
-          } as never,
-        ],
         requiredCapabilities: [],
         metadata: { displayName: "Invalid" },
       }),

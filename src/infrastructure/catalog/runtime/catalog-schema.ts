@@ -215,7 +215,6 @@ export const memoryDefinitionSchema = {
   properties: {
     memoryDefinitionId: idSchema("MEM_"),
     triggeredEffects: looseObjectArray,
-    modifiers: looseObjectArray,
     requiredCapabilities: { type: "array", items: { type: "string" } },
     metadata: {
       type: "object",

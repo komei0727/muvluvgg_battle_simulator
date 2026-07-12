@@ -122,7 +122,6 @@ const memoryDto = {
       },
     },
   ],
-  modifiers: [],
   requiredCapabilities: [],
   metadata: { displayName: "Colorful Bouquet", tags: [] },
 };
@@ -225,7 +224,7 @@ describe("Catalog v2 definition mapper", () => {
     );
   });
 
-  it("UT-INFRA-MAP-014: raises DomainValidationError for a shape-valid but semantically-invalid Memory DTO (neither triggeredEffects nor modifiers)", () => {
+  it("UT-INFRA-MAP-014: raises DomainValidationError for a shape-valid but semantically-invalid Memory DTO (missing triggeredEffects)", () => {
     expect(() =>
       mapMemoryDefinition({
         memoryDefinitionId: "MEM_002",

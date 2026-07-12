@@ -1,6 +1,6 @@
 import type { Attribute } from "../catalog/catalog-enums.js";
 import type { MemoryDefinitionId, UnitDefinitionId } from "../catalog/catalog-ids.js";
-import type { MemoryDefinition, MemoryModifier } from "../catalog/memory-definition.js";
+import type { MemoryDefinition } from "../catalog/memory-definition.js";
 import type { UnitDefinition } from "../catalog/unit-definition.js";
 import { DomainValidationError } from "../shared/errors.js";
 import type { BattleUnitId } from "../shared/ids.js";
@@ -21,9 +21,12 @@ import { calculateStartingCombatStats } from "./starting-combat-stats.js";
  * rather than silently collapsing two participants' HP/skill/effect/event
  * ownership onto one id.
  *
- * `memories` resolves `formation.memoryDefinitionIds` into their `modifiers`
- * (R-STA-01), which apply uniformly to every member's starting `combatStats`
- * since `MemoryModifier.targetFilter` currently only supports `ALL`.
+ * `memories` is used only to validate that every `formation.memoryDefinitionIds`
+ * entry resolves to a known `MemoryDefinition` (R-FRM-*). It does not affect
+ * `combatStats`: Memory's `triggeredEffects` (the sole representation of
+ * Memory stat correction, `APPLY_STAT_MOD` included) are resolved later by
+ * the Memory triggering engine, not by `FormationFactory`
+ * (`13_実装計画.md`「スコープ外：Memory triggeredEffectsの解決」).
  */
 export function createBattleParty(
   side: Side,
@@ -51,18 +54,14 @@ export function createBattleParty(
     seenBattleUnitIds.add(battleUnitId);
   });
 
-  const memoryModifiers: MemoryModifier[] = formation.memoryDefinitionIds.flatMap(
-    (memoryDefinitionId, index) => {
-      const memory = memories.get(memoryDefinitionId);
-      if (memory === undefined) {
-        throw new DomainValidationError(
-          `${path}.memoryDefinitionIds[${index}]`,
-          `references an unknown MemoryDefinitionId: "${memoryDefinitionId}"`,
-        );
-      }
-      return memory.modifiers;
-    },
-  );
+  formation.memoryDefinitionIds.forEach((memoryDefinitionId, index) => {
+    if (!memories.has(memoryDefinitionId)) {
+      throw new DomainValidationError(
+        `${path}.memoryDefinitionIds[${index}]`,
+        `references an unknown MemoryDefinitionId: "${memoryDefinitionId}"`,
+      );
+    }
+  });
 
   const slotUnits = formation.slots.map((slot, index) => {
     const unitDefinition = units.get(slot.unitDefinitionId);
@@ -88,7 +87,6 @@ export function createBattleParty(
       positionAptitudes: unitDefinition.positionAptitudes,
       row: slot.position.row,
       formationBonus,
-      memoryModifiers,
     }),
   }));
 

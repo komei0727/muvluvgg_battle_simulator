@@ -41,6 +41,19 @@ export type StatKind =
   | "AFFINITY_BONUS"
   | "ACTION_SPEED";
 
+/**
+ * Subset of `StatKind` that `FormationBonus` and `PositionAptitudePolicy`
+ * operate over (excludes `AFFINITY_BONUS`, which is copied through from
+ * `BaseStats` unmodified per R-ATR-02).
+ */
+export type FormationCorrectableStat =
+  | "MAXIMUM_HP"
+  | "ATTACK"
+  | "DEFENSE"
+  | "CRITICAL_RATE"
+  | "ACTION_SPEED"
+  | "CRITICAL_DAMAGE_BONUS";
+
 export type StatusKind =
   | "STUN"
   | "FREEZE"

@@ -1,8 +1,28 @@
 {
   "memoryDefinitionId": "MEM_001",
-  "triggeredEffects": [],
-  "modifiers": [
-    { "targetFilter": { "kind": "ALL" }, "stat": "ATTACK", "valueType": "FIXED", "value": 100 }
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ALLIES",
+            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_001_ATTACK_UP" }]
+          }
+        ]
+      }
+    }
   ],
   "requiredCapabilities": [],
   "metadata": { "displayName": "Minimal Memory", "tags": [] }
