@@ -320,7 +320,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-ATR-02",
-    testCaseIds: ["UT-R-ATR-02-001", "UT-R-ATR-02-002", "UT-R-ATR-02-003"],
+    testCaseIds: [
+      "UT-R-ATR-02-001",
+      "UT-R-ATR-02-002",
+      "UT-R-ATR-02-003",
+      "UT-R-ATR-02-004",
+      "UT-R-ATR-02-005",
+    ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
 
