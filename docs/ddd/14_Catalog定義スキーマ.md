@@ -1572,7 +1572,8 @@ triggeredEffects:
             targetBindingId: TGT_ALL_ALLIES
           actions:
             - effectActionDefinitionId: ACT_MEMORY_ATTACK_FIXED_250
-requiredCapabilities: []
+requiredCapabilities:
+  - CAP_MEMORY_TRIGGERED_EFFECT
 metadata:
   displayName: "Colorful Bouquet"
   tags: []
@@ -1588,6 +1589,8 @@ metadata:
 | `metadata`             | object   | ✓    | displayName / tags    |
 
 単純な「戦闘開始時に味方へ stat 補正」も、`APPLY_STAT_MOD` を持つ `triggeredEffects` として表現する（`eventType: BattleStarted`、`side: ALLY` の `selector`、`duration.timeLimit: { unit: BATTLE, count: 1 }`）。`modifiers` 省略記法は廃止した。
+
+`triggeredEffects` を持つ Memory は `requiredCapabilities` に `CAP_MEMORY_TRIGGERED_EFFECT` を含めること。Memory発動エンジン（`BattleStarted` での `triggeredEffects` 解決、`R-MEM-01`〜`04`）が未実装の間、Capabilityで隔離しないと `SimulationPreflightValidator` を素通りし、戦闘は開始できるがMemory効果だけが黙って未適用になる（`REMOVE_EFFECTS`/`APPLY_SHIELD`と同じ理由）。
 
 ---
 
@@ -1821,7 +1824,7 @@ Unit / Memory Markdown から Catalog v2 へ変換する際は、次をテンプ
 - Unit generated fields: `baseStats.affinityBonus = 0.25`, `baseStats.criticalDamageBonus = 0.5`, `extraGaugeMaximum = EX skill cost.amount`
 - Skill: `targetBindings`, `steps`, `requiredCapabilities`
 - EffectAction: `formula`, `duration`, `stacking`, `requiredCapabilities`
-- Memory: `triggeredEffects`
+- Memory: `triggeredEffects`、`requiredCapabilities`（`CAP_MEMORY_TRIGGERED_EFFECT` を必ず含める）
 - 判断記録: raw 文のどの句が Target / Condition / Formula / Action / Duration に対応したか
 
 production Catalog には source text を含めない。出典と転記根拠は authoring Markdown の front matter / source block / decisions block へ保持する。

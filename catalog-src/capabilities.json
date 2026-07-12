@@ -102,6 +102,12 @@
     "requiredBy": []
   },
   {
+    "capabilityId": "CAP_MEMORY_TRIGGERED_EFFECT",
+    "status": "PLANNED",
+    "description": "MemoryのTriggeredEffect化(BattleStartedでのtriggeredEffects解決・AppliedEffect反映を行うMemory発動エンジン)",
+    "requiredBy": []
+  },
+  {
     "capabilityId": "CAP_PARTIAL_PIERCING",
     "status": "PLANNED",
     "description": "部分防御/シールド無視",

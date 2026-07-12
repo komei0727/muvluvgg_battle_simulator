@@ -64,6 +64,6 @@
       }
     }
   ],
-  "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+  "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
   "metadata": { "displayName": "これからも共に歩むあなたへ", "tags": [] }
 }

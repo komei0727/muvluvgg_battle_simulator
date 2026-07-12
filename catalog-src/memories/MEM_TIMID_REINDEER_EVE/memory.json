@@ -57,6 +57,6 @@
       }
     }
   ],
-  "requiredCapabilities": [],
+  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
   "metadata": { "displayName": "臆病トナカイの聖夜", "tags": [] }
 }

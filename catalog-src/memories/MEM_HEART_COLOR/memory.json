@@ -55,6 +55,6 @@
       }
     }
   ],
-  "requiredCapabilities": [],
+  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
   "metadata": { "displayName": "心の色", "tags": [] }
 }

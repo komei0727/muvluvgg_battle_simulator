@@ -211,7 +211,7 @@ export const memoryDefinitionSchema = {
   $id: "https://muvluvgg.local/catalog/memory-definition.json",
   type: "object",
   additionalProperties: false,
-  required: ["memoryDefinitionId", "requiredCapabilities", "metadata"],
+  required: ["memoryDefinitionId", "triggeredEffects", "requiredCapabilities", "metadata"],
   properties: {
     memoryDefinitionId: idSchema("MEM_"),
     triggeredEffects: looseObjectArray,

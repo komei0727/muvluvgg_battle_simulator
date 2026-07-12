@@ -224,10 +224,11 @@ describe("Catalog v2 definition mapper", () => {
     );
   });
 
-  it("UT-INFRA-MAP-014: raises DomainValidationError for a shape-valid but semantically-invalid Memory DTO (missing triggeredEffects)", () => {
+  it("UT-INFRA-MAP-014: raises DomainValidationError for a shape-valid but semantically-invalid Memory DTO (empty triggeredEffects)", () => {
     expect(() =>
       mapMemoryDefinition({
         memoryDefinitionId: "MEM_002",
+        triggeredEffects: [],
         requiredCapabilities: [],
         metadata: { displayName: "Empty" },
       }),
@@ -392,5 +393,15 @@ describe("Catalog v2 definition mapper", () => {
       },
     };
     expect(() => mapSkillDefinition(invalidSkill)).toThrow(DomainValidationError);
+  });
+
+  it("UT-INFRA-MAP-029: raises CatalogShapeValidationError for a Memory DTO missing the triggeredEffects key entirely", () => {
+    expect(() =>
+      mapMemoryDefinition({
+        memoryDefinitionId: "MEM_002",
+        requiredCapabilities: [],
+        metadata: { displayName: "Empty" },
+      }),
+    ).toThrow(CatalogShapeValidationError);
   });
 });

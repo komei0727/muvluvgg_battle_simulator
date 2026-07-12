@@ -60,6 +60,6 @@
       }
     }
   ],
-  "requiredCapabilities": [],
+  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
   "metadata": { "displayName": "ハードな準備運動……？", "tags": [] }
 }
