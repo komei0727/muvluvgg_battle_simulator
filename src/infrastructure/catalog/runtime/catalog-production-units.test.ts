@@ -125,4 +125,22 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       }
     }
   });
+
+  it.each([
+    { unitId: "UNIT_DOROTHEA_GRACE", skillId: "SKL_DOROTHEA_GRACE_PS3", sourceSelector: "ANY" },
+    { unitId: "UNIT_KOTOHA_REBEL", skillId: "SKL_KOTOHA_REBEL_PS1", sourceSelector: "ANY" },
+    { unitId: "UNIT_ELENA_MOODMAKER", skillId: "SKL_ELENA_MOODMAKER_PS2", sourceSelector: "ENEMY" },
+    { unitId: "UNIT_RAVEL_MODEL", skillId: "SKL_RAVEL_MODEL_PS1", sourceSelector: "ENEMY" },
+  ])(
+    "IT-CAT-PROD-007: $skillId's UnitDefeated trigger targets the defeated ally, not the skill owner ($unitId)",
+    ({ unitId, skillId, sourceSelector }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const skill = snapshot.skills.get(skillId as never);
+      const trigger = skill?.triggers[0];
+      expect(trigger?.eventType).toBe("UnitDefeated");
+      expect(trigger?.targetSelector).toBe("ALLY");
+      expect(trigger?.sourceSelector).toBe(sourceSelector);
+    },
+  );
 });
