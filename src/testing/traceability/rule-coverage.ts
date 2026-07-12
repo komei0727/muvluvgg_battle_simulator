@@ -71,8 +71,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-FRM-03",
-    testCaseIds: ["UT-R-FRM-03-001"],
-    kinds: ["POSITIVE"],
+    testCaseIds: ["UT-R-FRM-03-001", "UT-R-FRM-FACTORY-002", "UT-R-FRM-FACTORY-007"],
+    kinds: ["POSITIVE", "NEGATIVE"],
   },
   {
     ruleId: "R-FRM-04",

@@ -184,6 +184,28 @@ describe("createBattleParty — FormationFactory", () => {
     );
   });
 
+  it("UT-R-FRM-FACTORY-007: rejects duplicate BattleUnitIds across slots (R-FRM-03)", () => {
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+        },
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "CENTER", row: "FRONT" },
+        },
+      ],
+      memoryDefinitionIds: [],
+    };
+    const battleUnitIds = [createBattleUnitId("BU_1"), createBattleUnitId("BU_1")];
+    const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
+
+    expect(() => createBattleParty("ALLY", formation, battleUnitIds, units)).toThrow(
+      DomainValidationError,
+    );
+  });
+
   it("UT-R-FRM-FACTORY-006: resolves ENEMY-side coordinates using the ENEMY row mapping", () => {
     const formation: FormationInput = {
       slots: [

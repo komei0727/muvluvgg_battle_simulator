@@ -13,9 +13,11 @@ import type { Side } from "./side.js";
  * Builds a `BattleParty` from an already-validated `FormationInput`
  * (`R-FRM-01`〜`R-FRM-04`, checked upstream by `validateFormationInput`).
  * `battleUnitIds` is caller-assigned, one per slot in the same order
- * (`09_アプリケーション設計.md`: 参加枠ごとに一意なIDを割り当てるのはApplication層の責務)
- * so the same `UnitDefinitionId` can appear in multiple slots while each
- * slot keeps a distinct `BattleUnitId` (R-FRM-03).
+ * (`09_アプリケーション設計.md`: 参加枠ごとに一意なIDを割り当てるのはApplication層の責務).
+ * The same `UnitDefinitionId` can appear in multiple slots, but each slot
+ * must keep a distinct `BattleUnitId` (R-FRM-03) — a duplicate is rejected
+ * rather than silently collapsing two participants' HP/skill/effect/event
+ * ownership onto one id.
  */
 export function createBattleParty(
   side: Side,
@@ -30,6 +32,17 @@ export function createBattleParty(
       `must contain exactly one BattleUnitId per slot: expected ${formation.slots.length}, got ${battleUnitIds.length}`,
     );
   }
+
+  const seenBattleUnitIds = new Set<BattleUnitId>();
+  battleUnitIds.forEach((battleUnitId, index) => {
+    if (seenBattleUnitIds.has(battleUnitId)) {
+      throw new DomainValidationError(
+        `${path}.battleUnitIds[${index}]`,
+        `duplicates a BattleUnitId already assigned to another slot: "${battleUnitId}"`,
+      );
+    }
+    seenBattleUnitIds.add(battleUnitId);
+  });
 
   const members: BattlePartyMember[] = [];
   const attributes: Attribute[] = [];
