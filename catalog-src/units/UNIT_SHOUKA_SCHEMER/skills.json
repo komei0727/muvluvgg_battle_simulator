@@ -1,0 +1,273 @@
+[
+  {
+    "skillDefinitionId": "SKL_SHOUKA_SCHEMER_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ALLIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_IMMUNITY"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "チェックメイト",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_SCHEMER_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS1_ATK_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "ストライクリリース",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_SCHEMER_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGHEST_ATK",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_HIGHEST_ATK"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_ATK_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_DEF_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "スキュア",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_SCHEMER_AS3",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "インクリメントアタック",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_SCHEMER_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_PS1_ATK_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_PS1_EX_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "displayName": "アフターシェイブ",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "TurnCompleting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TURN_NUMBER",
+          "op": "GT",
+          "value": 1
+        }
+      }
+    ]
+  }
+]

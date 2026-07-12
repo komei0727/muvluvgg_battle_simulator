@@ -1,0 +1,284 @@
+[
+  {
+    "skillDefinitionId": "SKL_MEIYA_FATED_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_EX_STUN"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_EX_DMG_REDUCTION"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "宝刀・皆琉神威",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_MEIYA_FATED_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_DMG_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_SPD_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "己が為の刃に非ず",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_MEIYA_FATED_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS2_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS2_HEAL"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS2_ATK_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "displayName": "牙無き者の為たれ",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_MEIYA_FATED_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_PS1_REMOVE_DEBUFF"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_PS1_IMMUNITY"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_PS1_SHIELD"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_PS1_ATK_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD"],
+    "metadata": {
+      "displayName": "明鏡止水",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "category",
+          "op": "EQ",
+          "value": "DEBUFF"
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_MEIYA_FATED_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_PS2_CRIT_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_PS2_CRIT_DMG_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "一意専心",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
+      }
+    ]
+  }
+]

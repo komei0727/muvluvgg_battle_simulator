@@ -1,0 +1,190 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.506
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["STATUS"],
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      },
+      "maxBlocks": null
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS1_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.326
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.248
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_PS1_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.035
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_PS1_EX_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "tags": []
+    }
+  }
+]

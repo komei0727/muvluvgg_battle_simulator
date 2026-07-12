@@ -1,0 +1,245 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.2332
+      },
+      "hitCount": 10
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.35
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      },
+      "maxBlocks": null
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.2968
+      },
+      "hitCount": 7
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "CRITICAL_PREVENTION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      },
+      "probability": 1
+    },
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.546
+      },
+      "hitCount": 3
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS2_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS3_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.908
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS3_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "LAST_DAMAGE_DEALT",
+        "ratio": 0.35
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_PS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT",
+      "stack": {
+        "policy": "ADD",
+        "max": 14
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.025
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  }
+]

@@ -1,0 +1,365 @@
+[
+  {
+    "skillDefinitionId": "SKL_YUI_HEIR_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "metadata": {
+      "displayName": "ザ式戦術機動剣術「天崩」",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_YUI_HEIR_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_AS1_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_AS1_HEAL"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "field": "RESOURCE_PP",
+            "op": "GTE",
+            "value": 3
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_YUI_HEIR_AS1_PP_DOWN"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_RESOURCE_MOD",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH"
+    ],
+    "metadata": {
+      "displayName": "ザ式戦術機動剣術「貪狼」",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_YUI_HEIR_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_CRIT_UP"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "ザ式戦術機動剣術「破衝撃」",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_YUI_HEIR_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "TRIGGER_SOURCE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DMG_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "ザ式戦術機動剣術・壱型「掩撃」",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": {
+                "kind": "TRIGGER_SOURCE"
+              },
+              "field": "POSITION_ROW",
+              "op": "EQ",
+              "value": "BACK"
+            },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "skillType",
+              "op": "IN",
+              "value": ["AS", "PS"]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_YUI_HEIR_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_PS2_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_PS2_SHIELD"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_LOWEST"
+            },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": false
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_YUI_HEIR_PS2_HEAL"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_RUNTIME_COUNTER",
+      "CAP_SHIELD",
+      "CAP_HEAL",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH"
+    ],
+    "metadata": {
+      "displayName": "ザ式戦術機動剣術・弐型「反魂」",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_YUI_HEIR_PS2_CUMULATIVE_DAMAGE_RATIO",
+          "op": "GTE",
+          "value": 0.3
+        }
+      }
+    ]
+  }
+]

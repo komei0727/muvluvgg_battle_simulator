@@ -92,6 +92,15 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_LUCIE_COMPANION",
         "UNIT_RAMI_NEWYEAR",
         "UNIT_RAMI_UNYIELDING",
+        // Issue #56 Batch D（戦術/前衛寄りUnit8件）
+        "UNIT_MEIYA_FATED",
+        "UNIT_YUI_HEIR",
+        "UNIT_OLGA_VETERAN",
+        "UNIT_HIIRO_LONEWOLF",
+        "UNIT_MIHIME_SNIPER",
+        "UNIT_NOEL_RUMBLE",
+        "UNIT_TARISA_TROUBLEMAKER",
+        "UNIT_SHOUKA_SCHEMER",
       ].sort(),
     );
   });

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_NOEL_RUMBLE",
+  "attribute": "AGGRESSIVE",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 33459,
+    "attack": 18288,
+    "defense": 15979,
+    "criticalRate": 0.15,
+    "actionSpeed": 644,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_NOEL_RUMBLE_AS1", "SKL_NOEL_RUMBLE_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_NOEL_RUMBLE_PS1", "SKL_NOEL_RUMBLE_PS2"],
+  "extraSkillDefinitionId": "SKL_NOEL_RUMBLE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【体育祭の暴れん坊】ノエル・アルエ",
+    "characterName": "ノエル・アルエ",
+    "characterId": "CHAR_NOEL_ARUE"
+  }
+}
