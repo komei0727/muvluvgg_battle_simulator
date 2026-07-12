@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_ELENA_MOODMAKER",
+  "attribute": "CUTE",
+  "unitType": "AGILE",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 66145,
+    "attack": 39772,
+    "defense": 25413,
+    "criticalRate": 0.15,
+    "actionSpeed": 652,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_AS1", "SKL_ELENA_MOODMAKER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_PS1", "SKL_ELENA_MOODMAKER_PS2"],
+  "extraSkillDefinitionId": "SKL_ELENA_MOODMAKER_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【心色見つめるムードメーカー】エレーナ・パステルコワ",
+    "characterName": "エレーナ・パステルコワ",
+    "characterId": "CHAR_ELENA_PASTELKOVA"
+  }
+}

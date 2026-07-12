@@ -1,0 +1,295 @@
+[
+  {
+    "skillDefinitionId": "SKL_URUU_TIMID_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "一日一不憫",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_URUU_TIMID_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_ROW_AS_BASE",
+              "includeBase": true
+            }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ROW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "metadata": {
+      "displayName": "エクスペクトボーダー",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_URUU_TIMID_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGHEST_ATK_ALLY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_PS1_SELF_CRIT_UP"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_HIGHEST_ATK_ALLY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_PS1_ALLY_CRIT_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "アフターライズ",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_URUU_TIMID_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 2
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGHEST_ATK_ALLY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_HIGHEST_ATK_ALLY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_PS2_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_PS2_CRIT_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "TURN",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "ハイサポート",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TURN_NUMBER",
+          "op": "GT",
+          "value": 1
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_URUU_TIMID_PS3",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_PS3_CRIT_UP"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "TRIGGER_SOURCE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_URUU_TIMID_PS3_DMG_UP_DEBUFF"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "スキルリレイティブ",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]

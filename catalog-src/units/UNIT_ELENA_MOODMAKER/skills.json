@@ -1,0 +1,301 @@
+[
+  {
+    "skillDefinitionId": "SKL_ELENA_MOODMAKER_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGH",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_LOW",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_HIGH"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH"
+            },
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW"
+            },
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "あったかいの、どうぞ♪",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_ELENA_MOODMAKER_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "ALIVE_UNIT_COUNT",
+          "side": "ALLY",
+          "excludeSelf": true,
+          "op": "GT",
+          "value": 0
+        },
+        {
+          "kind": "TARGET_STATE",
+          "target": {
+            "kind": "SELF"
+          },
+          "field": "HP_RATIO",
+          "op": "GTE",
+          "value": 0.4
+        }
+      ]
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_ALLY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST_ALLY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEAL"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "displayName": "私に任せて！",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_ELENA_MOODMAKER_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS2_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "苦手なのはそこだね！",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_ELENA_MOODMAKER_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_PS1_HEAL"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "displayName": "リラックスだよ～♪",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ELENA_MOODMAKER_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_PS2_ATK_UP"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_PS2_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "それはやりすぎ！",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "UnitDefeated",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]

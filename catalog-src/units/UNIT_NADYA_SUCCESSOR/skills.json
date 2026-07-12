@@ -1,0 +1,365 @@
+[
+  {
+    "skillDefinitionId": "SKL_NADYA_SUCCESSOR_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_STUN"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_TRAINING_MARK"
+            },
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_SUBUNIT"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "displayName": "ぺたぺた雪だるま",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_NADYA_SUCCESSOR_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "SELF"
+            },
+            "markerId": "MARKER_NADYA_SUCCESSOR_TRAINING",
+            "countCondition": {
+              "op": "GTE",
+              "value": 3
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
+                }
+              ]
+            },
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SUBUNIT"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_CLEAR_TRAINING"
+                }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
+                }
+              ]
+            },
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SUBUNIT"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH",
+      "CAP_DAMAGE_MOD"
+    ],
+    "metadata": {
+      "displayName": "システマ・ヴラシェーニヤΩ",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_NADYA_SUCCESSOR_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS1_TRAINING_MARK"
+            },
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS1_SUBUNIT"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "displayName": "ヴォルコワの血脈Ω",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_NADYA_SUCCESSOR_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS2_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS2_TRAINING_MARK"
+            },
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "displayName": "隙ありです……！",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_NADYA_SUCCESSOR_PS3",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS3_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS3_CRIT_DMG_UP"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ALLIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_PS3_SPEED_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "お母様、見ててください……！",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "PS"
+        }
+      }
+    ]
+  }
+]

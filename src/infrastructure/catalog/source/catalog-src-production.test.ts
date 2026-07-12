@@ -110,6 +110,14 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_CHIZURU_DOMESTIC",
         "UNIT_MIRIAM_MAGE",
         "UNIT_LUNA_HUNGRY",
+        // Issue #60 Batch F（残Unit仕上げ7件）
+        "UNIT_ELENA_MOODMAKER",
+        "UNIT_TATIANA_SAGE",
+        "UNIT_ROSIE_ARTIST",
+        "UNIT_URUU_TIMID",
+        "UNIT_RAVEL_MODEL",
+        "UNIT_NADYA_SUCCESSOR",
+        "UNIT_JULIE_SNOW",
       ].sort(),
     );
   });

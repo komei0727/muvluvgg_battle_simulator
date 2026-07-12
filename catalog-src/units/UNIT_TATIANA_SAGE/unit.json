@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_TATIANA_SAGE",
+  "attribute": "SHY",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 34774,
+    "attack": 19998,
+    "defense": 11210,
+    "criticalRate": 0.2,
+    "actionSpeed": 643,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": [
+    "SKL_TATIANA_SAGE_AS1",
+    "SKL_TATIANA_SAGE_AS2",
+    "SKL_TATIANA_SAGE_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_TATIANA_SAGE_PS1"],
+  "extraSkillDefinitionId": "SKL_TATIANA_SAGE_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【理解深き老成の智者】タチアナ・ドロズドヴァ",
+    "characterName": "タチアナ・ドロズドヴァ",
+    "characterId": "CHAR_TATIANA_DROZDOVA"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "unitDefinitionId": "UNIT_JULIE_SNOW",
+  "attribute": "SHY",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 28326,
+    "attack": 19577,
+    "defense": 11218,
+    "criticalRate": 0.2,
+    "actionSpeed": 755,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_JULIE_SNOW_AS1", "SKL_JULIE_SNOW_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_JULIE_SNOW_PS1", "SKL_JULIE_SNOW_PS2"],
+  "extraSkillDefinitionId": "SKL_JULIE_SNOW_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【雪山もこもこ少女】ジュリー・ステイシー",
+    "characterName": "ジュリー・ステイシー",
+    "characterId": "CHAR_JULIE_STACEY"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "unitDefinitionId": "UNIT_NADYA_SUCCESSOR",
+  "attribute": "CUTE",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 27367,
+    "attack": 22040,
+    "defense": 10762,
+    "criticalRate": 0.2,
+    "actionSpeed": 679,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_NADYA_SUCCESSOR_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_NADYA_SUCCESSOR_PS1",
+    "SKL_NADYA_SUCCESSOR_PS2",
+    "SKL_NADYA_SUCCESSOR_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_NADYA_SUCCESSOR_EX",
+  "requiredCapabilities": [],
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【輝ける次代の娘】ナージャ・ヴォルコワ",
+    "characterName": "ナージャ・ヴォルコワ",
+    "characterId": "CHAR_NADYA_VOLKOVA"
+  }
+}

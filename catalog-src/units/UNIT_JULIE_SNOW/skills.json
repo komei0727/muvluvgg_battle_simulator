@@ -1,0 +1,344 @@
+[
+  {
+    "skillDefinitionId": "SKL_JULIE_SNOW_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_3ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 3,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_3ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_IMMUNITY"
+            },
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DEBUFF_IMMUNITY"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "雪山とジュリーだるま？",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_JULIE_SNOW_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_AS1_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_AS1_HEAL"
+            },
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_AS1_DMG_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_HEAL", "CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "みんなで雪遊び！",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_JULIE_SNOW_AS2",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_DOT"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.35
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_FOLLOWUP"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH"
+    ],
+    "metadata": {
+      "displayName": "雪合戦開始！",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_JULIE_SNOW_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_PS1_DMG_DOWN"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": {
+              "kind": "SELF"
+            },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.35
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_JULIE_SNOW_PS1_EX_UP"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH",
+      "CAP_RESOURCE_MOD"
+    ],
+    "metadata": {
+      "displayName": "いちばんのりー！",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_JULIE_SNOW_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "LAST_ACTION_TARGETS"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_HEALING_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL"],
+    "metadata": {
+      "displayName": "防寒はバッチリ！",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "IN",
+          "value": ["AS", "EX"]
+        }
+      }
+    ]
+  }
+]

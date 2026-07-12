@@ -1,0 +1,295 @@
+[
+  {
+    "skillDefinitionId": "SKL_ROSIE_ARTIST_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_EX_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_EX_DMG_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "あたしのアイデアになって",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_ARTIST_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_ROW_AS_BASE",
+              "includeBase": true
+            }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ROW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "metadata": {
+      "displayName": "メタル・ワイドバレット",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_ARTIST_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS1_DMG_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "ラスト・プレゼント",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "TARGET_STATE",
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
+          "field": "HP_RATIO",
+          "op": "LTE",
+          "value": 0.5
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_ARTIST_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ALLIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS2_HEALING_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "TURN",
+      "count": 2
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "displayName": "ヒール・アクティブ",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_ARTIST_PS3",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_NEAREST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_NEAREST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS3_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS3_EX_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {},
+    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "metadata": {
+      "displayName": "エクストラ・パワーアップ！",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "PassiveResolved",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]
