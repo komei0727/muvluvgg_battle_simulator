@@ -14,6 +14,11 @@ export interface CombatStats {
   readonly criticalRate: number;
   readonly actionSpeed: number;
   readonly criticalDamageBonus: number;
+  /**
+   * R-ATR-02: 有利属性倍率の算出に使う。Memoryは`ModifierStat`に
+   * `AFFINITY_BONUS`を持たないため補正対象にならず、Unit定義の値をそのまま写す。
+   */
+  readonly affinityBonus: number;
 }
 
 const ZERO = createPercentage(0);
@@ -79,5 +84,6 @@ export function calculateStartingCombatStats(input: StartingCombatStatsInput): C
     criticalRate: stat("CRITICAL_RATE", input.baseStats.criticalRate),
     actionSpeed: stat("ACTION_SPEED", input.baseStats.actionSpeed),
     criticalDamageBonus: stat("CRITICAL_DAMAGE_BONUS", input.baseStats.criticalDamageBonus),
+    affinityBonus: input.baseStats.affinityBonus,
   };
 }

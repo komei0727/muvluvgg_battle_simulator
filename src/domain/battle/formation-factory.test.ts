@@ -93,6 +93,7 @@ describe("createBattleParty — FormationFactory", () => {
         criticalRate: 0.1,
         actionSpeed: 10,
         criticalDamageBonus: 0.5,
+        affinityBonus: 0.25,
       },
     });
     expect(party.memoryDefinitionIds).toEqual([]);

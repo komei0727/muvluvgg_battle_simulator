@@ -41,6 +41,7 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
       criticalRate: 0.1,
       actionSpeed: 50,
       criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
     });
   });
 
@@ -171,5 +172,36 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
     });
 
     expect(result.criticalDamageBonus).toBeCloseTo(0.9);
+  });
+
+  it("UT-R-ATR-02-004: affinityBonus is copied through as-is from baseStats, unaffected by formation/aptitude/Memory", () => {
+    const result = calculateStartingCombatStats({
+      baseStats: BASE_STATS,
+      positionAptitudes: ["FRONT"],
+      row: "BACK",
+      formationBonus: {
+        attackBonus: createPercentage(0.25),
+        hpBonus: createPercentage(0.25),
+        defenseBonus: createPercentage(0.3),
+        criticalRateBonus: createPercentage(0.15),
+      },
+      memoryModifiers: [],
+    });
+
+    expect(result.affinityBonus).toBeCloseTo(0.25);
+  });
+
+  it("UT-R-ATR-02-005: a per-unit overridden affinityBonus flows through as the base value", () => {
+    const overriddenBaseStats: BaseStats = { ...BASE_STATS, affinityBonus: 0.4 };
+
+    const result = calculateStartingCombatStats({
+      baseStats: overriddenBaseStats,
+      positionAptitudes: ["FRONT"],
+      row: "FRONT",
+      formationBonus: ZERO_BONUS,
+      memoryModifiers: [],
+    });
+
+    expect(result.affinityBonus).toBeCloseTo(0.4);
   });
 });
