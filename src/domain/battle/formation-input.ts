@@ -1,10 +1,13 @@
 import type { PositionColumn, PositionRow } from "../catalog/catalog-enums.js";
 import type { MemoryDefinitionId, UnitDefinitionId } from "../catalog/catalog-ids.js";
 import { DomainValidationError } from "../shared/errors.js";
+import { assertEnumValue } from "../shared/validate.js";
 
 const MIN_SLOTS = 1;
 const MAX_SLOTS = 5;
 const MAX_MEMORY_DEFINITION_IDS = 6;
+const POSITION_COLUMNS = ["LEFT", "CENTER", "RIGHT"] as const;
+const POSITION_ROWS = ["FRONT", "BACK"] as const;
 
 export interface FormationPosition {
   readonly column: PositionColumn;
@@ -26,13 +29,19 @@ function positionKey(position: FormationPosition): string {
 }
 
 /**
- * R-FRM-01/02/04 at the Domain boundary. R-FRM-03 (same UnitDefinitionId
+ * R-FRM-01/02/03/04 at the Domain boundary. R-FRM-03 (same UnitDefinitionId
  * across slots) is intentionally not checked — it is explicitly allowed.
- * Memory ID *existence* (part of R-FRM-04) requires a Catalog snapshot and
- * belongs to the Application-layer SimulationPreflightValidator (M3); only
- * the 0–6 count is validated here.
+ *
+ * `knownMemoryDefinitionIds` is caller-resolved (e.g. from a Catalog
+ * snapshot's memory keys) rather than fetched here, so this stays a pure
+ * Domain function; only the comparison — not Catalog loading — belongs to
+ * the Domain boundary.
  */
-export function validateFormationInput(input: FormationInput, path: string): void {
+export function validateFormationInput(
+  input: FormationInput,
+  knownMemoryDefinitionIds: ReadonlySet<MemoryDefinitionId>,
+  path: string,
+): void {
   if (input.slots.length < MIN_SLOTS || input.slots.length > MAX_SLOTS) {
     throw new DomainValidationError(
       `${path}.slots`,
@@ -42,6 +51,13 @@ export function validateFormationInput(input: FormationInput, path: string): voi
 
   const seenPositions = new Set<string>();
   input.slots.forEach((slot, index) => {
+    assertEnumValue(
+      slot.position.column,
+      POSITION_COLUMNS,
+      `${path}.slots[${index}].position.column`,
+    );
+    assertEnumValue(slot.position.row, POSITION_ROWS, `${path}.slots[${index}].position.row`);
+
     const key = positionKey(slot.position);
     if (seenPositions.has(key)) {
       throw new DomainValidationError(
@@ -58,4 +74,13 @@ export function validateFormationInput(input: FormationInput, path: string): voi
       `must contain at most ${MAX_MEMORY_DEFINITION_IDS} memory IDs, got ${input.memoryDefinitionIds.length}`,
     );
   }
+
+  input.memoryDefinitionIds.forEach((memoryDefinitionId, index) => {
+    if (!knownMemoryDefinitionIds.has(memoryDefinitionId)) {
+      throw new DomainValidationError(
+        `${path}.memoryDefinitionIds[${index}]`,
+        `references an unknown MemoryDefinitionId: "${memoryDefinitionId}"`,
+      );
+    }
+  });
 }

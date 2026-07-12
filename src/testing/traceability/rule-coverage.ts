@@ -60,7 +60,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-FRM-02",
-    testCaseIds: ["UT-R-FRM-02-001", "UT-R-FRM-02-002", "UT-R-FRM-02-003"],
+    testCaseIds: [
+      "UT-R-FRM-02-001",
+      "UT-R-FRM-02-002",
+      "UT-R-FRM-02-003",
+      "UT-R-FRM-02-004",
+      "UT-R-FRM-02-005",
+    ],
     kinds: ["POSITIVE", "NEGATIVE", "PROPERTY"],
   },
   {
@@ -70,8 +76,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-FRM-04",
-    testCaseIds: ["UT-R-FRM-04-001", "UT-R-FRM-04-002", "UT-R-FRM-04-003"],
-    kinds: ["BOUNDARY", "NEGATIVE"],
+    testCaseIds: [
+      "UT-R-FRM-04-001",
+      "UT-R-FRM-04-002",
+      "UT-R-FRM-04-003",
+      "UT-R-FRM-04-004",
+      "UT-R-FRM-04-005",
+      "UT-R-FRM-04-006",
+    ],
+    kinds: ["BOUNDARY", "NEGATIVE", "POSITIVE"],
   },
   {
     ruleId: "R-FRM-05",
