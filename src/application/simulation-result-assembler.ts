@@ -82,6 +82,28 @@ function statesEqual(a: BattleStateSnapshot, b: BattleStateSnapshot): boolean {
 }
 
 /**
+ * 事前検証(preflight)通過後に発生した内部イベント・差分のバグ（`DomainValidationError`）
+ * を`INTERNAL_INVARIANT_VIOLATION`へ変換して再送出する。`DomainValidationError`を
+ * そのまま外側のcatchへ伝播させると`INVALID_COMMAND`（クライアント入力違反）へ
+ * 誤変換されるため、ここで捕捉して変換する。
+ */
+function runOrConvertToInternalInvariant<T>(
+  operation: () => T,
+  describe: (message: string) => string,
+): T {
+  try {
+    return operation();
+  } catch (error) {
+    if (error instanceof DomainValidationError) {
+      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        { reason: describe(error.message) },
+      ]);
+    }
+    throw error;
+  }
+}
+
+/**
  * `08_ドメインイベント.md`「状態バージョン」契約: 先頭のstateVersionBeforeは0、
  * 各要素はstateVersionAfter === stateVersionBefore + 1、前要素のAfterと次要素の
  * Beforeが一致する。欠番・逆順・重複したバージョンを検出する
@@ -124,12 +146,12 @@ function assertStateVersionContinuity(stateTransitions: readonly StateTransition
  *
  * 返却前に、`stateVersion`の連続性を検証したうえで、独立Reducerで
  * `initialState + stateTransitions`を復元し、与えられた`finalState`と一致する
- * ことを検証する（「全状態差分を独立Reducerで復元できる」）。これらの不整合は、
+ * ことを検証する（「全状態差分を独立Reducerで復元できる」）。また、`events`への
+ * 変換（`parentSequence`/`rootSequence`解決）も、内部イベント間のダングリング
+ * 参照（存在しない`parentEventId`/`rootEventId`）を検出する。これらはいずれも
  * 事前検証(preflight)通過後に発生した内部イベント・差分のバグを示す実装不変条件
  * 違反であり、`09_アプリケーション設計.md`のエラー分類に従い
- * `INTERNAL_INVARIANT_VIOLATION`として扱う。`DomainValidationError`をそのまま
- * 外側のcatchへ伝播させると`INVALID_COMMAND`（クライアント入力違反）へ誤変換
- * されるため、ここで捕捉して変換する。
+ * `INTERNAL_INVARIANT_VIOLATION`として扱う（`runOrConvertToInternalInvariant`）。
  */
 export function assembleSimulationResult(
   input: AssembleSimulationResultInput,
@@ -142,22 +164,14 @@ export function assembleSimulationResult(
 
   assertStateVersionContinuity(observation.stateTransitions);
 
-  let restoredState: BattleStateSnapshot;
-  try {
-    restoredState = reduceStateDeltas(
-      observation.initialState,
-      observation.stateTransitions.map((transition) => transition.stateDelta),
-    );
-  } catch (error) {
-    if (error instanceof DomainValidationError) {
-      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
-        {
-          reason: `the independent StateDelta Reducer rejected the recorded transitions: ${error.message}`,
-        },
-      ]);
-    }
-    throw error;
-  }
+  const restoredState = runOrConvertToInternalInvariant(
+    () =>
+      reduceStateDeltas(
+        observation.initialState,
+        observation.stateTransitions.map((transition) => transition.stateDelta),
+      ),
+    (message) => `the independent StateDelta Reducer rejected the recorded transitions: ${message}`,
+  );
   if (!statesEqual(restoredState, observation.finalState)) {
     throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
       {
@@ -175,10 +189,14 @@ export function assembleSimulationResult(
     completedTurn: input.result.completedTurn,
     initialState: observation.initialState,
     finalState: observation.finalState,
-    events: toBattleLogEvents(
-      projectEventsForLogLevel(observation.events, input.logLevel),
-      observation.events,
-      observation.stateTransitions,
+    events: runOrConvertToInternalInvariant(
+      () =>
+        toBattleLogEvents(
+          projectEventsForLogLevel(observation.events, input.logLevel),
+          observation.events,
+          observation.stateTransitions,
+        ),
+      (message) => `BattleLogEvent conversion rejected the recorded events: ${message}`,
     ),
     stateTransitions: observation.stateTransitions,
   };

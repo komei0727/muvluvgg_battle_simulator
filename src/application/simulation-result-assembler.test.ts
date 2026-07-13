@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { assembleSimulationResult } from "./simulation-result-assembler.js";
 import { ApplicationError } from "./application-error.js";
 import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
+import { createDomainEventId } from "../domain/battle/events/event-ids.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
 import { createBattleId } from "../domain/shared/ids.js";
 
@@ -192,6 +193,42 @@ describe("assembleSimulationResult", () => {
 
     try {
       assembleSimulationResult(baseInput(duplicated));
+      expect.fail("expected assembleSimulationResult to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
+  });
+
+  it("UT-RESULT-ASSEMBLER-008 (P2: 内部因果関係の破損はINTERNAL_INVARIANT_VIOLATION): converts a BattleLogEvent conversion failure (dangling rootEventId) into INTERNAL_INVARIANT_VIOLATION, not INVALID_COMMAND", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recorder.record({
+      eventType: "BattleStarted",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnLimit: 3, allySlotCount: 1, enemySlotCount: 1 },
+    });
+    const [battleStarted] = recorder.getEvents();
+    // No stateDelta, so version-continuity/Reducer checks trivially pass —
+    // this isolates the failure to BattleLogEvent conversion (rootSequence
+    // resolution) rather than the state-restoration path already covered above.
+    const dangling: readonly BattleDomainEvent[] = [
+      { ...battleStarted!, rootEventId: createDomainEventId("battle-1:999") },
+    ];
+    const state = { status: "READY" as const, currentTurn: 0, units: {} };
+
+    try {
+      assembleSimulationResult({
+        battleId: BATTLE_ID,
+        catalogRevision: "rev-1",
+        logLevel: "DETAILED",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+        initialState: state,
+        finalState: state,
+        events: dangling,
+      });
       expect.fail("expected assembleSimulationResult to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(ApplicationError);

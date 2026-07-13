@@ -79,7 +79,9 @@ export function toBattleLogEvents(
 
   return visibleEvents.map((event) => {
     const parentSequence =
-      event.parentEventId !== undefined ? sequenceByEventId.get(event.parentEventId) : undefined;
+      event.parentEventId !== undefined
+        ? requireSequence(sequenceByEventId, event.parentEventId, "parentEventId")
+        : undefined;
     const rootSequence = requireSequence(sequenceByEventId, event.rootEventId, "rootEventId");
     const stateTransitionIndex = transitionIndexBySequence.get(event.sequence);
 

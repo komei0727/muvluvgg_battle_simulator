@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { toBattleLogEvents } from "./battle-log-event.js";
 import type { StateTransition } from "./battle-observation.js";
+import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
+import { createDomainEventId } from "../domain/battle/events/event-ids.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
+import { DomainValidationError } from "../domain/shared/errors.js";
 import { createBattleId } from "../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
@@ -277,5 +280,45 @@ describe("toBattleLogEvents", () => {
 
     expect(logEvents[0]!.stateVersionBefore).toBe(0);
     expect(logEvents[0]!.stateVersionAfter).toBe(1);
+  });
+
+  it("UT-LOG-EVENT-012 (P2: 内部因果関係の破損を検出する): throws DomainValidationError when parentEventId references an eventId absent from the given event list, instead of silently omitting parentSequence", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recorder.record({
+      eventType: "BattleStarted",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnLimit: 3, allySlotCount: 1, enemySlotCount: 1 },
+    });
+    const events = recorder.getEvents();
+    const dangling: readonly BattleDomainEvent[] = [
+      { ...events[0]!, parentEventId: createDomainEventId("battle-1:999") },
+    ];
+
+    expect(() => toBattleLogEvents(dangling, dangling, stateTransitionsOf(dangling))).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-LOG-EVENT-013: throws DomainValidationError when rootEventId references an eventId absent from the given event list", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recorder.record({
+      eventType: "BattleStarted",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnLimit: 3, allySlotCount: 1, enemySlotCount: 1 },
+    });
+    const events = recorder.getEvents();
+    const dangling: readonly BattleDomainEvent[] = [
+      { ...events[0]!, rootEventId: createDomainEventId("battle-1:999") },
+    ];
+
+    expect(() => toBattleLogEvents(dangling, dangling, stateTransitionsOf(dangling))).toThrow(
+      DomainValidationError,
+    );
   });
 });
