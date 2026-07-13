@@ -123,7 +123,7 @@ describe("assembleSimulationResult", () => {
       events: recorder.getEvents(),
     });
 
-    expect(result.events.map((e) => e.eventType)).toEqual(["BattleStarted"]);
+    expect(result.events.map((e) => e.type)).toEqual(["BATTLE_STARTED"]);
     // stateTransitions is unaffected by logLevel: it stays complete either way.
     expect(result.stateTransitions).toHaveLength(1);
   });

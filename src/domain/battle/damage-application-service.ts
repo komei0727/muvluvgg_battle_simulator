@@ -63,13 +63,6 @@ function findUnit(
   return unit;
 }
 
-function resolveSkillPowerForEvent(
-  effectAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }>,
-): number {
-  const formula = effectAction.payload.formula;
-  return formula.kind === "SKILL_POWER" ? formula.power : 0;
-}
-
 /**
  * `DamageApplicationService` の基本形 (`05_ドメインモデル.md`)。`SkillResolutionService`が
  * 解決した1つのDAMAGE EffectActionのヒット列を、R-DMG-05の順序（命中→会心→
@@ -151,18 +144,20 @@ export function applyDamageAction(
       targetUnitIds: [hit.targetBattleUnitId],
       payload: {
         mode: damageAction.payload.critical.mode,
-        criticalRate: currentAttacker.combatStats.criticalRate,
+        baseCriticalRate: critical.baseRate,
+        effectiveCriticalRate: critical.effectiveRate,
         result: critical.isCritical,
       },
     });
 
-    const damage = calculateDamage({
+    const defenseIgnoreRate = damageAction.payload.piercing.defenseIgnoreRate;
+    const damageResult = calculateDamage({
       attackerAttack: currentAttacker.combatStats.attack,
       attackerAttribute: currentAttacker.attribute,
       attackerAffinityBonus: currentAttacker.combatStats.affinityBonus,
       defenderDefense: target.combatStats.defense,
       defenderAttribute: target.attribute,
-      defenseIgnoreRate: damageAction.payload.piercing.defenseIgnoreRate,
+      defenseIgnoreRate,
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
@@ -181,20 +176,26 @@ export function applyDamageAction(
       sourceUnitId: attacker.battleUnitId,
       targetUnitIds: [hit.targetBattleUnitId],
       payload: {
+        skillDefinitionId: context.skillDefinitionId,
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
         targetUnitId: hit.targetBattleUnitId,
         attackerAttack: currentAttacker.combatStats.attack,
         defenderDefense: target.combatStats.defense,
-        skillPower: resolveSkillPowerForEvent(damageAction),
+        effectiveDefense: damageResult.effectiveDefense,
+        defenseIgnoreRate,
+        skillPower: damageResult.skillPower,
+        attributeMultiplier: damageResult.attributeMultiplier,
         criticalMultiplier: critical.multiplier,
-        finalDamage: damage,
+        actionDamageMultiplier: damageResult.actionDamageMultiplier,
+        preTruncationDamage: damageResult.preTruncationDamage,
+        finalDamage: damageResult.finalDamage,
         damageType: damageAction.payload.damageType,
       },
     });
 
     const hpBefore = target.currentHp;
-    const hpAfter = Math.max(0, target.currentHp - damage);
+    const hpAfter = Math.max(0, target.currentHp - damageResult.finalDamage);
     const updatedTarget: BattleUnit = {
       ...target,
       currentHp: createHitPoint(hpAfter, target.combatStats.maximumHp),
@@ -217,7 +218,7 @@ export function applyDamageAction(
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
         targetUnitId: hit.targetBattleUnitId,
-        calculatedDamage: damage,
+        calculatedDamage: damageResult.finalDamage,
         hitPointDamage: hpBefore - hpAfter,
         hpBefore,
         hpAfter,
@@ -250,7 +251,7 @@ export function applyDamageAction(
       hitIndex: hit.hitIndex,
       applied: true,
       isCritical: critical.isCritical,
-      damage,
+      damage: damageResult.finalDamage,
     });
   }
 

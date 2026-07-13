@@ -107,17 +107,29 @@ export interface BattleDomainEventPayloadMap {
   };
   readonly CriticalCheckResolved: {
     readonly mode: CriticalMode;
-    readonly criticalRate: number;
+    /** 元会心率（クランプ前）。 */
+    readonly baseCriticalRate: number;
+    /** 実効会心率（R-CRT-01: `min(100%, max(0%, 元会心率))`）。 */
+    readonly effectiveCriticalRate: number;
     readonly result: boolean;
   };
   readonly DamageCalculated: {
+    readonly skillDefinitionId: SkillDefinitionId;
     readonly effectActionDefinitionId: EffectActionDefinitionId;
     readonly hitIndex: number;
     readonly targetUnitId: BattleUnitId;
     readonly attackerAttack: number;
     readonly defenderDefense: number;
+    /** R-DMG-01の実効防御力（`defenderDefense * (1 - defenseIgnoreRate)`）。 */
+    readonly effectiveDefense: number;
+    readonly defenseIgnoreRate: number;
     readonly skillPower: number;
+    readonly attributeMultiplier: number;
     readonly criticalMultiplier: number;
+    /** R-DMG-01のAction内追加ダメージ倍率。 */
+    readonly actionDamageMultiplier: number;
+    /** 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。 */
+    readonly preTruncationDamage: number;
     readonly finalDamage: number;
     readonly damageType: DamageType;
   };

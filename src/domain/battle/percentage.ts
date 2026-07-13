@@ -13,6 +13,11 @@ export function createPercentage(value: number, path = "percentage"): Percentage
   return value as Percentage;
 }
 
+/** R-CRT-01などの「実効◯◯率 = min(100%, max(0%, 元の率))」を共通化する。 */
+export function clampToEffectiveRate(rate: Percentage): Percentage {
+  return createPercentage(Math.min(1, Math.max(0, rate)));
+}
+
 /**
  * R-NUM-03: probability judgment goes through `RandomSource`. `next()`
  * returns a value in [0, 1), so clamping the rate to [0, 1] and comparing
@@ -20,6 +25,5 @@ export function createPercentage(value: number, path = "percentage"): Percentage
  * without special-casing either boundary.
  */
 export function resolveProbability(rate: Percentage, random: RandomSource): boolean {
-  const effectiveRate = Math.min(1, Math.max(0, rate));
-  return random.next() < effectiveRate;
+  return random.next() < clampToEffectiveRate(rate);
 }

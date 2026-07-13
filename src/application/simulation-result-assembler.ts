@@ -1,4 +1,5 @@
 import { ApplicationError } from "./application-error.js";
+import { toBattleLogEvents, type BattleLogEvent } from "./battle-log-event.js";
 import { projectEventsForLogLevel } from "./battle-log-projection.js";
 import { buildBattleObservation, type StateTransition } from "./battle-observation.js";
 import type { LogLevel } from "./simulate-battle-command.js";
@@ -21,7 +22,7 @@ export interface SimulateBattleResult {
   readonly completedTurn: number;
   readonly initialState: BattleStateSnapshot;
   readonly finalState: BattleStateSnapshot;
-  readonly events: readonly BattleDomainEvent[];
+  readonly events: readonly BattleLogEvent[];
   readonly stateTransitions: readonly StateTransition[];
 }
 
@@ -111,7 +112,11 @@ function assertStateVersionContinuity(stateTransitions: readonly StateTransition
  * `13_実装計画.md`「M3 最小戦闘縦切り」の`SimulationResultAssembler`。Battleの
  * 勝敗フィールドと、記録済みイベント列・初期/最終状態から`SimulateBattleResult`
  * （`09_アプリケーション設計.md`のトップレベル形）を組み立てる。`events`は
- * `logLevel`に応じて`projectEventsForLogLevel`で間引くが、`stateTransitions`
+ * `logLevel`に応じて`projectEventsForLogLevel`で間引いたうえで、内部
+ * `BattleDomainEvent`を公開`BattleLogEvent`（`08_ドメインイベント.md`「公開
+ * イベント形式」: `type`は大文字スネークケース、`payload`は`details`、
+ * `parentEventId`/`rootEventId`は`parentSequence`、`stateDelta`は直接含めず
+ * `stateTransitionReference`で参照）へ変換する。`stateTransitions`
  * （状態復元に必要な全差分）は公開レベルに関わらず完全なまま返す
  * （「イベント公開レベルによって表示用イベントを間引いても、状態復元に必要な
  * 差分はstateTransitionsから失われない」）。
@@ -169,7 +174,10 @@ export function assembleSimulationResult(
     completedTurn: input.result.completedTurn,
     initialState: observation.initialState,
     finalState: observation.finalState,
-    events: projectEventsForLogLevel(observation.events, input.logLevel),
+    events: toBattleLogEvents(
+      projectEventsForLogLevel(observation.events, input.logLevel),
+      observation.events,
+    ),
     stateTransitions: observation.stateTransitions,
   };
 }

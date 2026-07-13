@@ -456,21 +456,22 @@ describe("SimulateBattleUseCase", () => {
     // Event ordering (invariant list #1): sequence is 1..N with no gaps or duplicates.
     expect(events.map((e) => e.sequence)).toEqual(events.map((_, index) => index + 1));
 
-    // eventId is unique within the battle.
-    expect(new Set(events.map((e) => e.eventId)).size).toBe(events.length);
+    // sequence is unique within the battle (BattleLogEvent has no eventId; it
+    // is the public identifier).
+    expect(new Set(events.map((e) => e.sequence)).size).toBe(events.length);
 
-    // Parent/root determinism: a child's sequence exceeds its parent's, and it
-    // shares the parent's rootEventId; a root event is its own rootEventId.
-    const byId = new Map(events.map((e) => [e.eventId, e]));
+    // Parent determinism: a child's sequence exceeds its resolved parentSequence.
+    // BattleLogEvent drops rootEventId (internal-only concept per
+    // 08_ドメインイベント.md「公開イベント形式」), so only the parent chain itself
+    // is checked here, not shared-root membership.
+    const bySequence = new Map(events.map((e) => [e.sequence, e]));
     for (const event of events) {
-      if (event.parentEventId === undefined) {
-        expect(event.rootEventId).toBe(event.eventId);
+      if (event.parentSequence === undefined) {
         continue;
       }
-      const parent = byId.get(event.parentEventId);
+      const parent = bySequence.get(event.parentSequence);
       expect(parent).toBeDefined();
-      expect(event.sequence).toBeGreaterThan(parent!.sequence);
-      expect(event.rootEventId).toBe(parent!.rootEventId);
+      expect(event.sequence).toBeGreaterThan(event.parentSequence);
     }
 
     // The full M3 event catalog except UnitDefeated (this attack is
@@ -478,28 +479,40 @@ describe("SimulateBattleUseCase", () => {
     // turn-limit completion in the same run) is exercised by this one
     // non-lethal-attack + mandatory-WAIT + turn-limit-completion battle.
     // UnitDefeated is covered separately below by the lethal-path test.
-    expect(new Set(events.map((e) => e.eventType))).toEqual(
+    // `type` is the design's UPPER_SNAKE_CASE public form of the internal eventType.
+    expect(new Set(events.map((e) => e.type))).toEqual(
       new Set([
-        "BattleStarted",
-        "TurnStarted",
-        "ResourcesRecovered",
-        "ActionQueueCreated",
-        "ActionStarted",
-        "TargetsSelected",
-        "SkillUseStarting",
-        "SkillUseStarted",
-        "HitConfirmed",
-        "CriticalCheckResolved",
-        "DamageCalculated",
-        "DamageApplied",
-        "SkillUseCompleted",
-        "ActionCompleting",
-        "ActionCompleted",
-        "TurnCompleting",
-        "TurnCompleted",
-        "BattleCompleted",
+        "BATTLE_STARTED",
+        "TURN_STARTED",
+        "RESOURCES_RECOVERED",
+        "ACTION_QUEUE_CREATED",
+        "ACTION_STARTED",
+        "TARGETS_SELECTED",
+        "SKILL_USE_STARTING",
+        "SKILL_USE_STARTED",
+        "HIT_CONFIRMED",
+        "CRITICAL_CHECK_RESOLVED",
+        "DAMAGE_CALCULATED",
+        "DAMAGE_APPLIED",
+        "SKILL_USE_COMPLETED",
+        "ACTION_COMPLETING",
+        "ACTION_COMPLETED",
+        "TURN_COMPLETING",
+        "TURN_COMPLETED",
+        "BATTLE_COMPLETED",
       ]),
     );
+
+    // Events carrying a stateDelta reference their StateTransition by sequence,
+    // and never duplicate the delta content on the event itself.
+    for (const event of events) {
+      expect(event).not.toHaveProperty("stateDelta");
+      if (event.stateTransitionReference !== undefined) {
+        expect(
+          stateTransitions.some((t) => t.causedBySequence === event.stateTransitionReference),
+        ).toBe(true);
+      }
+    }
 
     // SCN-BTL-001/SCN-BTL-021: initialState + stateTransitions = finalState,
     // verified through an independent Reducer (not Battle's own advance/resolve
@@ -566,10 +579,10 @@ describe("SimulateBattleUseCase", () => {
     expect(result.completionReason).toBe("ENEMY_DEFEATED");
 
     const { events } = result;
-    const eventTypes = events.map((e) => e.eventType);
-    const damageAppliedIndex = eventTypes.indexOf("DamageApplied");
-    const unitDefeatedIndex = eventTypes.indexOf("UnitDefeated");
-    const battleCompletedIndex = eventTypes.indexOf("BattleCompleted");
+    const eventTypes = events.map((e) => e.type);
+    const damageAppliedIndex = eventTypes.indexOf("DAMAGE_APPLIED");
+    const unitDefeatedIndex = eventTypes.indexOf("UNIT_DEFEATED");
+    const battleCompletedIndex = eventTypes.indexOf("BATTLE_COMPLETED");
 
     expect(damageAppliedIndex).toBeGreaterThanOrEqual(0);
     expect(unitDefeatedIndex).toBeGreaterThan(damageAppliedIndex);
@@ -577,12 +590,10 @@ describe("SimulateBattleUseCase", () => {
 
     const damageApplied = events[damageAppliedIndex]!;
     const unitDefeated = events[unitDefeatedIndex]!;
-    expect(damageApplied.payload).toMatchObject({ defeated: true });
-    expect(unitDefeated.parentEventId).toBe(damageApplied.eventId);
-    expect(unitDefeated.rootEventId).toBe(damageApplied.rootEventId);
-    expect(unitDefeated.payload).toEqual({
-      unitId: createBattleUnitId("enemy:1"),
-      causeEventId: damageApplied.eventId,
-    });
+    expect(damageApplied.details).toMatchObject({ defeated: true });
+    // Causal link at the public level: UnitDefeated's parentSequence points
+    // back to the DamageApplied event that caused it.
+    expect(unitDefeated.parentSequence).toBe(damageApplied.sequence);
+    expect(unitDefeated.details).toMatchObject({ unitId: createBattleUnitId("enemy:1") });
   });
 });

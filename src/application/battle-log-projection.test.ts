@@ -123,7 +123,7 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
     actionId,
     skillUseId,
     resolutionScopeId: scope(),
-    payload: { mode: "PREVENTED", criticalRate: 0, result: false },
+    payload: { mode: "PREVENTED", baseCriticalRate: 0, effectiveCriticalRate: 0, result: false },
   });
   recorder.record({
     eventType: "DamageCalculated",
@@ -134,13 +134,19 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
     skillUseId,
     resolutionScopeId: scope(),
     payload: {
+      skillDefinitionId: "SKL_1" as never,
       effectActionDefinitionId: "ACT_1" as never,
       hitIndex: 1,
       targetUnitId: "enemy:1" as never,
       attackerAttack: 10,
       defenderDefense: 0,
+      effectiveDefense: 0,
+      defenseIgnoreRate: 0,
       skillPower: 1,
+      attributeMultiplier: 1,
       criticalMultiplier: 1,
+      actionDamageMultiplier: 1,
+      preTruncationDamage: 10,
       finalDamage: 10,
       damageType: "PHYSICAL",
     },

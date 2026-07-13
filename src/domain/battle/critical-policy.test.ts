@@ -41,6 +41,36 @@ describe("resolveCritical", () => {
     random.assertFullyConsumed();
   });
 
+  it("UT-R-CRT-01-008 (会心・ダメージイベントの監査可能性): exposes both baseRate (元会心率) and effectiveRate (実効会心率, R-CRT-01のclamp後) on the result", () => {
+    const random = new SequenceRandomSource([0.999999]);
+
+    const result = resolveCritical("NORMAL", createPercentage(1.5), 0.5, random);
+
+    expect(result.baseRate).toBe(1.5);
+    expect(result.effectiveRate).toBe(1);
+  });
+
+  it("UT-R-CRT-01-009: effectiveRate clamps a negative baseRate up to 0", () => {
+    const random = new SequenceRandomSource([0]);
+
+    const result = resolveCritical("NORMAL", createPercentage(-0.5), 0.5, random);
+
+    expect(result.baseRate).toBe(-0.5);
+    expect(result.effectiveRate).toBe(0);
+  });
+
+  it("UT-R-CRT-01-010: GUARANTEED/PREVENTED modes still report baseRate/effectiveRate for auditability, even though the mode alone determines the outcome", () => {
+    const random = new SequenceRandomSource([]);
+
+    const guaranteed = resolveCritical("GUARANTEED", createPercentage(0.3), 0.5, random);
+    const prevented = resolveCritical("PREVENTED", createPercentage(0.3), 0.5, random);
+
+    expect(guaranteed.baseRate).toBe(0.3);
+    expect(guaranteed.effectiveRate).toBe(0.3);
+    expect(prevented.baseRate).toBe(0.3);
+    expect(prevented.effectiveRate).toBe(0.3);
+  });
+
   it("UT-R-CRT-01-005: NORMAL mode rolls against RandomSource for a mid-range criticalRate", () => {
     const belowRate = new SequenceRandomSource([0.29]);
     const atRate = new SequenceRandomSource([0.3]);
