@@ -6,6 +6,7 @@ import type { LogLevel } from "./simulate-battle-command.js";
 import type {
   BattleResultSnapshot,
   BattleStateSnapshot,
+  BattleUnitRosterEntry,
 } from "../domain/battle/events/battle-state-snapshot.js";
 import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
 import { reduceStateDeltas } from "../domain/battle/events/state-delta-reducer.js";
@@ -24,6 +25,8 @@ export interface SimulateBattleResult {
   readonly finalState: BattleStateSnapshot;
   readonly events: readonly BattleLogEvent[];
   readonly stateTransitions: readonly StateTransition[];
+  /** `10_API設計.md`「BattleUnitStateResponse」の静的項目。Response Mapperが可変状態と合成する。 */
+  readonly unitRoster: readonly BattleUnitRosterEntry[];
 }
 
 export interface AssembleSimulationResultInput {
@@ -38,6 +41,7 @@ export interface AssembleSimulationResultInput {
   readonly initialState: BattleStateSnapshot;
   readonly finalState: BattleStateSnapshot;
   readonly events: readonly BattleDomainEvent[];
+  readonly unitRoster: readonly BattleUnitRosterEntry[];
 }
 
 function unitSnapshotsEqual(
@@ -199,5 +203,6 @@ export function assembleSimulationResult(
       (message) => `BattleLogEvent conversion rejected the recorded events: ${message}`,
     ),
     stateTransitions: observation.stateTransitions,
+    unitRoster: input.unitRoster,
   };
 }

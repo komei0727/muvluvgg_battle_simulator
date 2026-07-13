@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { captureBattleState } from "./battle-state-snapshot.js";
+import { captureBattleState, captureUnitRoster } from "./battle-state-snapshot.js";
 import { createBattle } from "../battle.js";
 import { createBattleUnit, type BattleUnitResourceLimits } from "../battle-unit.js";
 import type { BattlePartyMember } from "../battle-party.js";
@@ -47,5 +47,40 @@ describe("captureBattleState", () => {
     expect(snapshot.currentTurn).toBe(0);
     expect(snapshot.units[ally.battleUnitId]).toEqual({ hp: 100, ap: 0, pp: 0, extraGauge: 0 });
     expect(snapshot.units[enemy.battleUnitId]).toEqual({ hp: 100, ap: 0, pp: 0, extraGauge: 0 });
+  });
+});
+
+describe("captureUnitRoster", () => {
+  it("UT-STATE-SNAPSHOT-002: lists ally units before enemy units, each in slot order, with the static per-unit facts an API response needs (10_API設計.md BattleUnitStateResponse)", () => {
+    const ally1 = unit("ally-1", "ALLY");
+    const ally2 = unit("ally-2", "ALLY");
+    const enemy1 = unit("enemy-1", "ENEMY");
+    const battle = createBattle(
+      createBattleId("battle-1"),
+      [ally1, ally2],
+      [enemy1],
+      createTurnLimit(3),
+      { activeSkillsByUnit: new Map(), effectActions: new Map() },
+    );
+
+    const roster = captureUnitRoster(battle);
+
+    expect(roster.map((entry) => entry.battleUnitId)).toEqual([
+      ally1.battleUnitId,
+      ally2.battleUnitId,
+      enemy1.battleUnitId,
+    ]);
+    expect(roster[0]).toEqual({
+      battleUnitId: ally1.battleUnitId,
+      unitDefinitionId: ally1.unitDefinitionId,
+      side: "ALLY",
+      position: ally1.position,
+      globalCoordinate: ally1.globalCoordinate,
+      combatStats: ally1.combatStats,
+      maximumAp: ally1.maximumAp,
+      maximumPp: ally1.maximumPp,
+      maximumExtraGauge: ally1.maximumExtraGauge,
+    });
+    expect(roster[2]!.side).toBe("ENEMY");
   });
 });

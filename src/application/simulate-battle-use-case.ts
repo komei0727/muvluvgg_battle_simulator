@@ -9,7 +9,10 @@ import { validateCommandShape, type SimulateBattleCommand } from "./simulate-bat
 import { advanceBattle, createBattle, startBattle } from "../domain/battle/battle.js";
 import type { BattleDefinitions } from "../domain/battle/battle-definitions.js";
 import { createBattleUnitsFromParty } from "../domain/battle/battle-unit.js";
-import { captureBattleState } from "../domain/battle/events/battle-state-snapshot.js";
+import {
+  captureBattleState,
+  captureUnitRoster,
+} from "../domain/battle/events/battle-state-snapshot.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
 import { createBattleParty } from "../domain/battle/formation-factory.js";
 import { createTurnLimit } from "../domain/battle/turn-limit.js";
@@ -153,6 +156,7 @@ export class SimulateBattleUseCase {
         buildBattleDefinitions(snapshot),
       );
       const initialState = captureBattleState(battle);
+      const unitRoster = captureUnitRoster(battle);
       battle = startBattle(battle, recorder);
       while (battle.status !== "COMPLETED") {
         battle = advanceBattle(battle, random, recorder);
@@ -173,6 +177,7 @@ export class SimulateBattleUseCase {
         initialState,
         finalState: captureBattleState(battle),
         events: recorder.getEvents(),
+        unitRoster,
       });
     } catch (error) {
       if (error instanceof DomainValidationError) {

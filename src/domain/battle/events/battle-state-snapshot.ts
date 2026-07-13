@@ -1,6 +1,11 @@
 import type { BattleResultSnapshot } from "./state-delta.js";
 import type { Battle } from "../battle.js";
 import type { BattleStatus } from "../battle-status.js";
+import type { FormationPosition } from "../formation-input.js";
+import type { GlobalCoordinate } from "../global-coordinate.js";
+import type { Side } from "../side.js";
+import type { CombatStats } from "../starting-combat-stats.js";
+import type { UnitDefinitionId } from "../../catalog/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 export type { BattleResultSnapshot } from "./state-delta.js";
@@ -41,4 +46,36 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
     units,
     ...(battle.result !== undefined ? { result: battle.result } : {}),
   };
+}
+
+/**
+ * `10_API設計.md`「BattleUnitStateResponse」のうち、`BattleUnit`生成後は戦闘中
+ * 不変な項目（配置、座標、開始戦闘ステータス、リソース最大値）だけを抜き出した
+ * 静的roster。可変値(HP/AP/PP/EX)は`captureBattleState`が別途持つ。
+ */
+export interface BattleUnitRosterEntry {
+  readonly battleUnitId: BattleUnitId;
+  readonly unitDefinitionId: UnitDefinitionId;
+  readonly side: Side;
+  readonly position: FormationPosition;
+  readonly globalCoordinate: GlobalCoordinate;
+  readonly combatStats: CombatStats;
+  readonly maximumAp: number;
+  readonly maximumPp: number;
+  readonly maximumExtraGauge: number;
+}
+
+/** 味方陣営を先に、各陣営は配置(参加枠)順のまま列挙する（`10_API設計.md`「配列順」）。 */
+export function captureUnitRoster(battle: Battle): readonly BattleUnitRosterEntry[] {
+  return [...battle.allyUnits, ...battle.enemyUnits].map((unit) => ({
+    battleUnitId: unit.battleUnitId,
+    unitDefinitionId: unit.unitDefinitionId,
+    side: unit.side,
+    position: unit.position,
+    globalCoordinate: unit.globalCoordinate,
+    combatStats: unit.combatStats,
+    maximumAp: unit.maximumAp,
+    maximumPp: unit.maximumPp,
+    maximumExtraGauge: unit.maximumExtraGauge,
+  }));
 }
