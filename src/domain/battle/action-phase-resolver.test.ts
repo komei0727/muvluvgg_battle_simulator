@@ -3,8 +3,9 @@ import { resolveActionPhase } from "./action-phase-resolver.js";
 import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
 import type { BattleDefinitions } from "./battle-definitions.js";
 import type { BattlePartyMember } from "./battle-party.js";
+import { EventRecorder } from "./events/event-recorder.js";
 import { createActionPoint } from "./resource-gauge.js";
-import { createBattleUnitId } from "../shared/ids.js";
+import { createBattleId, createBattleUnitId } from "../shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -157,13 +158,46 @@ function definitionsOf(
 
 const NO_SKILLS: BattleDefinitions = definitionsOf(new Map(), new Map());
 
+/**
+ * `resolveActionPhase`は通常`advanceBattle`のTURN_STARTING（TurnStarted→
+ * ResourcesRecovered）の後に呼ばれる。単体テストではその前提イベントを
+ * 最小限再現し、recorder・turnNumber・親子連鎖の起点だけを提供する。
+ */
+function actionPhaseContext(turnNumber = 1) {
+  const recorder = new EventRecorder(createBattleId("B_1"));
+  const turnStarted = recorder.record({
+    eventType: "TurnStarted",
+    category: "FACT",
+    turnNumber,
+    cycleNumber: 0,
+    resolutionScopeId: recorder.nextResolutionScopeId(),
+    payload: { turnNumber },
+  });
+  return {
+    recorder,
+    turnNumber,
+    turnRootEventId: turnStarted.eventId,
+    turnScopeParentEventId: turnStarted.eventId,
+  };
+}
+
 describe("resolveActionPhase", () => {
   it("UT-ACTION-PHASE-001: a unit with no active skills WAITs (consuming 1 AP) until it runs out of AP, leaving HP untouched", () => {
     const ally = unit("ALLY_1", "ALLY", { limits: { maximumAp: 2 } });
     const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 2 } });
     const random = new SequenceRandomSource([]);
 
-    const result = resolveActionPhase([ally], [enemy], NO_SKILLS, random);
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      NO_SKILLS,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
 
     expect(result.result).toBeUndefined();
     expect(result.allyUnits[0]!.currentAp).toBe(0);
@@ -191,7 +225,17 @@ describe("resolveActionPhase", () => {
     );
     const random = new SequenceRandomSource([]);
 
-    const result = resolveActionPhase([ally], [enemy], definitions, random);
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
 
     expect(result.allyUnits[0]!.currentAp).toBe(0);
     expect(result.enemyUnits[0]!.currentHp).toBe(80);
@@ -216,7 +260,17 @@ describe("resolveActionPhase", () => {
     );
     const random = new SequenceRandomSource([]);
 
-    const result = resolveActionPhase([allyFast, allySlow], [enemy], definitions, random);
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [allyFast, allySlow],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
 
     expect(result.result).toEqual({ outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED" });
     const updatedSlowAlly = result.allyUnits.find(
@@ -239,9 +293,19 @@ describe("resolveActionPhase", () => {
     );
     const random = new SequenceRandomSource([]);
 
-    expect(() => resolveActionPhase([ally], [enemy], definitions, random)).toThrow(
-      DomainValidationError,
-    );
+    const ctx = actionPhaseContext();
+    expect(() =>
+      resolveActionPhase(
+        [ally],
+        [enemy],
+        definitions,
+        random,
+        ctx.recorder,
+        ctx.turnNumber,
+        ctx.turnRootEventId,
+        ctx.turnScopeParentEventId,
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-ACTION-PHASE-005: throws when a queue reservation is EX (M6 scope)", () => {
@@ -249,9 +313,19 @@ describe("resolveActionPhase", () => {
     const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
     const random = new SequenceRandomSource([]);
 
-    expect(() => resolveActionPhase([ally], [enemy], NO_SKILLS, random)).toThrow(
-      DomainValidationError,
-    );
+    const ctx = actionPhaseContext();
+    expect(() =>
+      resolveActionPhase(
+        [ally],
+        [enemy],
+        NO_SKILLS,
+        random,
+        ctx.recorder,
+        ctx.turnNumber,
+        ctx.turnRootEventId,
+        ctx.turnScopeParentEventId,
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-ACTION-PHASE-006 (Q-BTL-04/06_戦闘状態遷移.md 戦闘不能者の除去): a reservation for a unit defeated earlier in the same queue is skipped, not processed", () => {
@@ -283,11 +357,16 @@ describe("resolveActionPhase", () => {
     );
     const random = new SequenceRandomSource([]);
 
+    const ctx = actionPhaseContext();
     const result = resolveActionPhase(
       [allyFast],
       [enemyDoomed, enemySurvivor],
       definitions,
       random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
     );
 
     const updatedAlly = result.allyUnits.find(

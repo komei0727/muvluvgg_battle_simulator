@@ -1,29 +1,26 @@
 import { ApplicationError } from "./application-error.js";
 import { toDomainFormationInput } from "./formation-input-mapper.js";
+import {
+  assembleSimulationResult,
+  type SimulateBattleResult,
+} from "./simulation-result-assembler.js";
 import { runPreflight } from "./simulation-preflight-validator.js";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
 import { advanceBattle, createBattle, startBattle } from "../domain/battle/battle.js";
 import type { BattleDefinitions } from "../domain/battle/battle-definitions.js";
 import { createBattleUnitsFromParty } from "../domain/battle/battle-unit.js";
+import { captureBattleState } from "../domain/battle/events/battle-state-snapshot.js";
+import { EventRecorder } from "../domain/battle/events/event-recorder.js";
 import { createBattleParty } from "../domain/battle/formation-factory.js";
 import { createTurnLimit } from "../domain/battle/turn-limit.js";
-import type { CompletionReason, BattleOutcome } from "../domain/battle/victory-policy.js";
 import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/catalog-ids.js";
 import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
 import type { BattleIdGenerator } from "../domain/ports/battle-id-generator.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 import type { RandomSourceFactory } from "../domain/ports/random-source-factory.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
-import type { BattleId, BattleUnitId } from "../domain/shared/ids.js";
+import type { BattleUnitId } from "../domain/shared/ids.js";
 import { createBattleUnitId } from "../domain/shared/ids.js";
-
-export interface SimulateBattleResult {
-  readonly battleId: BattleId;
-  readonly catalogRevision: string;
-  readonly outcome: BattleOutcome;
-  readonly completionReason: CompletionReason;
-  readonly completedTurn: number;
-}
 
 export interface SimulateBattleUseCaseDependencies {
   readonly battleCatalog: BattleCatalog;
@@ -145,6 +142,9 @@ export class SimulateBattleUseCase {
       // 09_アプリケーション設計.md「Battleごとに専用のRandomSourceを生成する」
       // 「リクエスト間で共有しない」: このBattleの生存期間全体で1つだけ生成する。
       const random = this.randomSourceFactory.create();
+      // 08_ドメインイベント.md「イベント発行と処理」: BattleごとにEventRecorderを
+      // 1つだけ生成し、開始から完了までの全イベントを蓄積させる。
+      const recorder = new EventRecorder(battleId);
       let battle = createBattle(
         battleId,
         allyUnits,
@@ -152,9 +152,10 @@ export class SimulateBattleUseCase {
         createTurnLimit(command.turnLimit),
         buildBattleDefinitions(snapshot),
       );
-      battle = startBattle(battle);
+      const initialState = captureBattleState(battle);
+      battle = startBattle(battle, recorder);
       while (battle.status !== "COMPLETED") {
-        battle = advanceBattle(battle, random);
+        battle = advanceBattle(battle, random, recorder);
       }
 
       const result = battle.result;
@@ -164,13 +165,14 @@ export class SimulateBattleUseCase {
         ]);
       }
 
-      return {
+      return assembleSimulationResult({
         battleId,
         catalogRevision: snapshot.catalogRevision,
-        outcome: result.outcome,
-        completionReason: result.completionReason,
-        completedTurn: result.completedTurn,
-      };
+        result,
+        initialState,
+        finalState: captureBattleState(battle),
+        events: recorder.getEvents(),
+      });
     } catch (error) {
       if (error instanceof DomainValidationError) {
         // 09_アプリケーション設計.md「ドメインエラーの変換」: 編成・値オブジェクト

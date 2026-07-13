@@ -3,6 +3,7 @@ import { advanceBattle, createBattle, startBattle } from "./battle.js";
 import { createBattleUnit, type BattleUnit } from "./battle-unit.js";
 import type { BattleDefinitions } from "./battle-definitions.js";
 import type { BattlePartyMember } from "./battle-party.js";
+import { EventRecorder } from "./events/event-recorder.js";
 import { createTurnLimit } from "./turn-limit.js";
 import { DomainValidationError } from "../shared/errors.js";
 import { createBattleId, createBattleUnitId } from "../shared/ids.js";
@@ -60,6 +61,7 @@ function unitWithStats(
 
 const NO_SKILLS: BattleDefinitions = { activeSkillsByUnit: new Map(), effectActions: new Map() };
 const NO_RANDOM = () => new SequenceRandomSource([]);
+const recorder = () => new EventRecorder(createBattleId("B_1"));
 
 function readyBattle(turnLimit = 5, definitions: BattleDefinitions = NO_SKILLS) {
   return createBattle(
@@ -238,23 +240,25 @@ describe("createBattle", () => {
 
 describe("startBattle", () => {
   it("UT-BATTLE-004: transitions READY to RUNNING (06_戦闘状態遷移.md)", () => {
-    const battle = startBattle(readyBattle());
+    const battle = startBattle(readyBattle(), recorder());
     expect(battle.status).toBe("RUNNING");
   });
 
   it("UT-BATTLE-005: rejects starting a battle that is not READY", () => {
-    const running = startBattle(readyBattle());
-    expect(() => startBattle(running)).toThrow(DomainValidationError);
+    const running = startBattle(readyBattle(), recorder());
+    expect(() => startBattle(running, recorder())).toThrow(DomainValidationError);
   });
 });
 
 describe("advanceBattle", () => {
   it("UT-BATTLE-006: rejects advancing a battle that is not RUNNING", () => {
-    expect(() => advanceBattle(readyBattle(), NO_RANDOM())).toThrow(DomainValidationError);
+    expect(() => advanceBattle(readyBattle(), NO_RANDOM(), recorder())).toThrow(
+      DomainValidationError,
+    );
   });
 
   it("UT-BATTLE-007: TURN_STARTING recovers AP/PP for surviving units, which the action phase then spends via mandatory WAITs (no AS defined)", () => {
-    const battle = advanceBattle(startBattle(readyBattle(5)), NO_RANDOM());
+    const battle = advanceBattle(startBattle(readyBattle(5), recorder()), NO_RANDOM(), recorder());
 
     expect(battle.turnState.currentTurn).toBe(1);
     // PP is untouched by the action phase (only AP is spent by AS/WAIT), so it proves recovery happened.
@@ -273,7 +277,7 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const advanced = advanceBattle(startBattle(battle), NO_RANDOM());
+    const advanced = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
 
     expect(advanced.allyUnits[0]!.currentAp).toBe(0);
   });
@@ -287,7 +291,7 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
+    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -306,7 +310,7 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
+    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -325,7 +329,7 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
+    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -336,13 +340,14 @@ describe("advanceBattle", () => {
   });
 
   it("UT-R-END-01-004 / SCN-BTL-020 lifecycle: neither side defeated stays RUNNING until the regulation turn count is reached, then resolves ALLY_LOSE/TURN_LIMIT_REACHED", () => {
-    let battle = startBattle(readyBattle(2));
+    const rec = recorder();
+    let battle = startBattle(readyBattle(2), rec);
 
-    battle = advanceBattle(battle, NO_RANDOM());
+    battle = advanceBattle(battle, NO_RANDOM(), rec);
     expect(battle.status).toBe("RUNNING");
     expect(battle.turnState.currentTurn).toBe(1);
 
-    battle = advanceBattle(battle, NO_RANDOM());
+    battle = advanceBattle(battle, NO_RANDOM(), rec);
     expect(battle.status).toBe("COMPLETED");
     expect(battle.result).toEqual({
       outcome: "ALLY_LOSE",
@@ -359,9 +364,9 @@ describe("advanceBattle", () => {
       createTurnLimit(5),
       NO_SKILLS,
     );
-    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
+    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
 
-    expect(() => advanceBattle(completed, NO_RANDOM())).toThrow(DomainValidationError);
+    expect(() => advanceBattle(completed, NO_RANDOM(), recorder())).toThrow(DomainValidationError);
   });
 
   it("UT-BATTLE-010 (Issue #9 acceptance: ダメージから勝敗までDomain内で完結する): AS attacks reduce the target's HP within the action phase, once per AP spent (maximumAp: 3, cost: 1)", () => {
@@ -373,7 +378,7 @@ describe("advanceBattle", () => {
       attackerDefinitions(),
     );
 
-    const advanced = advanceBattle(startBattle(battle), NO_RANDOM());
+    const advanced = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
 
     expect(advanced.status).toBe("RUNNING");
     // 3 AP at 1 AP/use means the ally attacks 3 times this turn: 100 - 3*20 = 40.
@@ -390,9 +395,10 @@ describe("advanceBattle", () => {
         createTurnLimit(5),
         attackerDefinitions(),
       ),
+      recorder(),
     );
 
-    battle = advanceBattle(battle, NO_RANDOM());
+    battle = advanceBattle(battle, NO_RANDOM(), recorder());
 
     expect(battle.status).toBe("COMPLETED");
     expect(battle.result).toEqual({
@@ -411,9 +417,10 @@ describe("advanceBattle", () => {
         createTurnLimit(5),
         mutuallyLethalDefinitions(),
       ),
+      recorder(),
     );
 
-    battle = advanceBattle(battle, NO_RANDOM());
+    battle = advanceBattle(battle, NO_RANDOM(), recorder());
 
     expect(battle.status).toBe("COMPLETED");
     expect(battle.result).toEqual({

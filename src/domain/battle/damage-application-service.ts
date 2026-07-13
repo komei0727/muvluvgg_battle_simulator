@@ -1,10 +1,13 @@
 import { isDefeated, type BattleUnit } from "./battle-unit.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical } from "./critical-policy.js";
+import type { DomainEventId, ActionId, ResolutionScopeId, SkillUseId } from "./events/event-ids.js";
+import type { EventRecorder } from "./events/event-recorder.js";
 import { resolveHit } from "./hit-policy.js";
 import { createPercentage } from "./percentage.js";
 import { createHitPoint } from "./resource-gauge.js";
 import type { ResolvedEffectApplication } from "./skill-resolution-service.js";
+import type { SkillDefinitionId } from "../catalog/catalog-ids.js";
 import type { EffectActionDefinition } from "../catalog/effect-action-definition.js";
 import type { RandomSource } from "../ports/random-source.js";
 import { DomainValidationError } from "../shared/errors.js";
@@ -22,6 +25,20 @@ export interface DamageHitOutcome {
 export interface ApplyDamageActionResult {
   readonly units: readonly BattleUnit[];
   readonly hits: readonly DamageHitOutcome[];
+}
+
+/** ヒットイベント（HitConfirmed〜UnitDefeated）が共有する因果関係コンテキスト。全て`ActionStarted`の解決スコープに属する。 */
+export interface DamageEventContext {
+  readonly recorder: EventRecorder;
+  readonly turnNumber: number;
+  readonly cycleNumber: number;
+  readonly actionId: ActionId;
+  readonly skillUseId: SkillUseId;
+  readonly resolutionScopeId: ResolutionScopeId;
+  readonly rootEventId: DomainEventId;
+  /** 各ヒットの直接の契機（`SkillUseStarted.eventId`）。ヒット同士は互いを親としない。 */
+  readonly parentEventId: DomainEventId;
+  readonly skillDefinitionId: SkillDefinitionId;
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -46,6 +63,13 @@ function findUnit(
   return unit;
 }
 
+function resolveSkillPowerForEvent(
+  effectAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }>,
+): number {
+  const formula = effectAction.payload.formula;
+  return formula.kind === "SKILL_POWER" ? formula.power : 0;
+}
+
 /**
  * `DamageApplicationService` の基本形 (`05_ドメインモデル.md`)。`SkillResolutionService`が
  * 解決した1つのDAMAGE EffectActionのヒット列を、R-DMG-05の順序（命中→会心→
@@ -54,6 +78,9 @@ function findUnit(
  * 使用者(attacker)自身が途中で戦闘不能になった場合、以降の未解決ヒットをすべて
  * 中断する（対象が異なるヒットも含む）。シールド・サブユニット・リンクダメージへの
  * 適用調整(R-SHD-*、R-SUB-*、R-LNK-*)はM8未実装のため、HPへ直接適用する。
+ * 適用されたヒットごとに `HitConfirmed`→`CriticalCheckResolved`→`DamageCalculated`→
+ * `DamageApplied`（→`UnitDefeated`）を発行する。スキップしたヒットは命中が確定して
+ * いないためイベントを発行しない（`08_ドメインイベント.md`「HitConfirmed」）。
  */
 export function applyDamageAction(
   attacker: BattleUnit,
@@ -61,6 +88,7 @@ export function applyDamageAction(
   damageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }>,
   units: readonly BattleUnit[],
   random: RandomSource,
+  context: DamageEventContext,
 ): ApplyDamageActionResult {
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
@@ -82,12 +110,51 @@ export function applyDamageAction(
       continue;
     }
 
+    const hitConfirmed = context.recorder.record({
+      eventType: "HitConfirmed",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      actionId: context.actionId,
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: context.parentEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        skillDefinitionId: context.skillDefinitionId,
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+        targetUnitId: hit.targetBattleUnitId,
+      },
+    });
+
     const critical = resolveCritical(
       damageAction.payload.critical.mode,
       createPercentage(currentAttacker.combatStats.criticalRate),
       currentAttacker.combatStats.criticalDamageBonus,
       random,
     );
+
+    const criticalCheckResolved = context.recorder.record({
+      eventType: "CriticalCheckResolved",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      actionId: context.actionId,
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: hitConfirmed.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        mode: damageAction.payload.critical.mode,
+        criticalRate: currentAttacker.combatStats.criticalRate,
+        result: critical.isCritical,
+      },
+    });
 
     const damage = calculateDamage({
       attackerAttack: currentAttacker.combatStats.attack,
@@ -101,14 +168,82 @@ export function applyDamageAction(
       criticalMultiplier: critical.multiplier,
     });
 
+    const damageCalculated = context.recorder.record({
+      eventType: "DamageCalculated",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      actionId: context.actionId,
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: criticalCheckResolved.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+        targetUnitId: hit.targetBattleUnitId,
+        attackerAttack: currentAttacker.combatStats.attack,
+        defenderDefense: target.combatStats.defense,
+        skillPower: resolveSkillPowerForEvent(damageAction),
+        criticalMultiplier: critical.multiplier,
+        finalDamage: damage,
+        damageType: damageAction.payload.damageType,
+      },
+    });
+
+    const hpBefore = target.currentHp;
+    const hpAfter = Math.max(0, target.currentHp - damage);
     const updatedTarget: BattleUnit = {
       ...target,
-      currentHp: createHitPoint(
-        Math.max(0, target.currentHp - damage),
-        target.combatStats.maximumHp,
-      ),
+      currentHp: createHitPoint(hpAfter, target.combatStats.maximumHp),
     };
     working.set(target.battleUnitId, updatedTarget);
+
+    const damageApplied = context.recorder.record({
+      eventType: "DamageApplied",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      actionId: context.actionId,
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: damageCalculated.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+        targetUnitId: hit.targetBattleUnitId,
+        calculatedDamage: damage,
+        hitPointDamage: hpBefore - hpAfter,
+        hpBefore,
+        hpAfter,
+        defeated: isDefeated(updatedTarget),
+      },
+      stateDelta: {
+        units: { [target.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+      },
+    });
+
+    if (!isDefeated(target) && isDefeated(updatedTarget)) {
+      context.recorder.record({
+        eventType: "UnitDefeated",
+        category: "FACT",
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.resolutionScopeId,
+        parentEventId: damageApplied.eventId,
+        rootEventId: context.rootEventId,
+        sourceUnitId: attacker.battleUnitId,
+        targetUnitIds: [target.battleUnitId],
+        payload: { unitId: target.battleUnitId, causeEventId: damageApplied.eventId },
+      });
+    }
 
     outcomes.push({
       targetBattleUnitId: hit.targetBattleUnitId,
