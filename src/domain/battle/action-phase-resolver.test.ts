@@ -381,7 +381,7 @@ describe("resolveActionPhase", () => {
     expect(updatedDoomed.currentAp).toBe(1);
   });
 
-  it("UT-ACTION-PHASE-007 (P1: zero-cost AS must not cycle forever): a 0-AP-cost AS that never depletes its user's AP is bounded by a cycle-count safety guard instead of looping until the (very large) target HP is exhausted", () => {
+  it("UT-ACTION-PHASE-007 (defense-in-depth: R-ACT-03 now forbids cost 0 at Catalog validation, but this constructs a BattleDefinitions directly, bypassing createCost/JSON Schema): a 0-AP-cost AS that never depletes its user's AP is bounded by a cycle-count safety guard instead of looping until the (very large) target HP is exhausted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_FREE_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_FREE_ATTACKER",
@@ -393,6 +393,9 @@ describe("resolveActionPhase", () => {
     const enemy = unit("ENEMY_1", "ENEMY", { defense: 0, maximumHp: 1_000_000 });
     const effectAction = damageEffectAction("ACT_FREE_ATTACK");
     // apCost: 0 -> consumeAp is a no-op, so this unit is re-queued every cycle.
+    // A valid Catalog can no longer produce this (createCost/JSON Schema now
+    // require amount >= 1), so this test exercises the resolver's own
+    // defensive guard directly via a hand-built SkillDefinition.
     const definitions = definitionsOf(
       new Map([[unitDefinitionId, [attackSkill("ACT_FREE_ATTACK", 0)]]]),
       new Map([[effectAction.effectActionDefinitionId, effectAction]]),

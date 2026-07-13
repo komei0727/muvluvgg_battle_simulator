@@ -127,7 +127,8 @@ export const skillDefinitionSchema = {
       required: ["resource", "amount"],
       properties: {
         resource: { enum: ["AP", "PP", "EX_GAUGE"] },
-        amount: { type: "integer", minimum: 0 },
+        // R-ACT-03: AS・PS・EXいずれもコスト0は存在しない。
+        amount: { type: "integer", minimum: 1 },
       },
     },
     activationCondition: looseObject,

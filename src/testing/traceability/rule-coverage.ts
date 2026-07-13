@@ -272,6 +272,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ACT: 行動
   { ruleId: "R-ACT-01", testCaseIds: [], kinds: [] },
   { ruleId: "R-ACT-02", testCaseIds: [], kinds: [] },
+  // R-ACT-03は「AS・PS・EXのコストは1以上」というCatalog検証の下限だけを
+  // UT-CAT-SKL-019/020/021・UT-INFRA-SCHEMA-011で検証している。行が示す
+  // 各消費量そのもの（PS・EXの実消費、AP0・EX満タン時の特殊待機、チャージ
+  // 効果発動）はPS/EX/M5未実装のため、13_実装計画.md「後続依存を持つルールは
+  // 完了計上しない」に従い台帳上は未完了のままとする。
   { ruleId: "R-ACT-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-ACT-04", testCaseIds: [], kinds: [] },
 

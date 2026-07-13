@@ -146,7 +146,9 @@ function createCost(input: SkillCostInput, skillType: SkillType, path: string): 
       `must be "${expected}" for skillType "${skillType}", got "${input.resource}"`,
     );
   }
-  assertInteger(input.amount, `${path}.amount`, { min: 0 });
+  // R-ACT-03: AS・PS・EXいずれもコスト0は存在しない。EXはUnitのextraGaugeMaximum
+  // （既に1以上を要求）と一致必須のため、この下限と矛盾しない。
+  assertInteger(input.amount, `${path}.amount`, { min: 1 });
   return { resource: input.resource, amount: input.amount };
 }
 

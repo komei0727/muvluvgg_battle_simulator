@@ -198,6 +198,20 @@ describe("Catalog v2 DTO JSON Schema", () => {
     expect(valid).toBe(false);
   });
 
+  it("UT-INFRA-SCHEMA-011 (R-ACT-03: コストは1以上): rejects a SkillDefinition DTO with cost.amount 0", () => {
+    const valid = validateSkillDefinitionDto({
+      skillDefinitionId: "SKL_001_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 0 },
+      resolution: { kind: "IMMEDIATE", steps: [{ kind: "ACTION" }] },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities: [],
+      metadata: { displayName: "x" },
+    });
+    expect(valid).toBe(false);
+  });
+
   it("UT-INFRA-SCHEMA-010: rejects an unknown property inside a fixed-shape sub-object (baseStats)", () => {
     const valid = validateUnitDefinitionDto({
       unitDefinitionId: "UNIT_001",
