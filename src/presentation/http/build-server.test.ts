@@ -1,0 +1,292 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
+import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
+import type {
+  BattleSimulationResponseBody,
+  ErrorResponseBody,
+} from "../../application/http-contract.js";
+import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
+import { createCapabilityDefinition } from "../../domain/catalog/capability-definition.js";
+import {
+  createCapabilityId,
+  createSkillDefinitionId,
+  createUnitDefinitionId,
+  type CapabilityId,
+} from "../../domain/catalog/catalog-ids.js";
+import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
+import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
+import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
+
+function unitDefinition(id: string): UnitDefinition {
+  return {
+    unitDefinitionId: createUnitDefinitionId(id),
+    attribute: "AGGRESSIVE",
+    unitType: "PHYSICAL",
+    role: "PHYSICAL_ATTACKER",
+    positionAptitudes: ["FRONT", "BACK"],
+    baseStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0.1,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+      actionSpeed: 10,
+      maximumAp: 3,
+      maximumPp: 3,
+    },
+    extraGaugeMaximum: 100,
+    activeSkillDefinitionIds: [],
+    passiveSkillDefinitionIds: [],
+    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
+    requiredCapabilities: [],
+    metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
+  };
+}
+
+class FakeBattleCatalog implements BattleCatalog {
+  private readonly units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>;
+  private readonly capabilities: BattleCatalogSnapshot["capabilities"];
+
+  constructor(
+    units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>,
+    capabilities: BattleCatalogSnapshot["capabilities"] = new Map(),
+  ) {
+    this.units = units;
+    this.capabilities = capabilities;
+  }
+
+  loadSnapshot(): BattleCatalogSnapshot {
+    return {
+      catalogRevision: "rev-1",
+      units: this.units,
+      skills: new Map(),
+      effectActions: new Map(),
+      memories: new Map(),
+      capabilities: this.capabilities,
+    };
+  }
+}
+
+const UNITS = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
+
+function buildTestUseCase(): SimulateBattleUseCasePort {
+  return new SimulateBattleUseCase({
+    battleCatalog: new FakeBattleCatalog(UNITS),
+    battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+    randomSourceFactory: new SequenceRandomSourceFactory([]),
+  });
+}
+
+function validRequestBody(overrides: Record<string, unknown> = {}) {
+  return {
+    allyFormation: {
+      units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+      memoryDefinitionIds: [],
+    },
+    enemyFormation: {
+      units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+      memoryDefinitionIds: [],
+    },
+    turnLimit: 3,
+    ...overrides,
+  };
+}
+
+describe("POST /api/v1/battle-simulations", () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    app = await buildServer(buildTestUseCase());
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("API-CONTRACT-001: returns 200 with a schemaVersion 1 BattleSimulationResponse for a minimal valid request", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<BattleSimulationResponseBody>();
+    expect(body.schemaVersion).toBe(1);
+    expect(body.battleId).toBe("B_1");
+    expect(body.result.outcome).toEqual(expect.any(String));
+    expect(body.initialState.stateVersion).toBe(0);
+  });
+
+  it("API-CONTRACT-002: sets Cache-Control: no-store and echoes/generates X-Request-Id on success", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+      headers: { "x-request-id": "client-req-42" },
+    });
+
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.headers["x-request-id"]).toBe("client-req-42");
+  });
+
+  it("API-CONTRACT-003: returns 400 MALFORMED_REQUEST for syntactically invalid JSON", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: "{not json",
+      headers: { "content-type": "application/json" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("MALFORMED_REQUEST");
+  });
+
+  it("API-CONTRACT-004: returns 400 MALFORMED_REQUEST for a missing required field", async () => {
+    const { turnLimit: _turnLimit, ...withoutTurnLimit } = validRequestBody();
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: withoutTurnLimit,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("MALFORMED_REQUEST");
+  });
+
+  it("API-CONTRACT-005: returns 400 MALFORMED_REQUEST for an unknown top-level property", () =>
+    app
+      .inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody({ unexpectedField: true }),
+      })
+      .then((response) => {
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ErrorResponseBody>().error.code).toBe("MALFORMED_REQUEST");
+      }));
+
+  it("API-CONTRACT-006: returns 400 MALFORMED_REQUEST for a numeric-string turnLimit instead of a number", () =>
+    app
+      .inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody({ turnLimit: "3" }),
+      })
+      .then((response) => {
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ErrorResponseBody>().error.code).toBe("MALFORMED_REQUEST");
+      }));
+
+  it("API-CONTRACT-007: returns 415 UNSUPPORTED_MEDIA_TYPE for a non-JSON Content-Type", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: "<xml/>",
+      headers: { "content-type": "application/xml" },
+    });
+
+    expect(response.statusCode).toBe(415);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("UNSUPPORTED_MEDIA_TYPE");
+  });
+
+  it("API-CONTRACT-008: returns 413 REQUEST_TOO_LARGE when the body exceeds the configured bodyLimit", async () => {
+    const small = await buildServer(buildTestUseCase(), { bodyLimit: 64 });
+    try {
+      const response = await small.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+      expect(response.statusCode).toBe(413);
+      expect(response.json<ErrorResponseBody>().error.code).toBe("REQUEST_TOO_LARGE");
+    } finally {
+      await small.close();
+    }
+  });
+
+  it("API-CONTRACT-009: returns 422 INVALID_COMMAND for an out-of-range turnLimit (Command-level, not JSON Schema)", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({ turnLimit: 0 }),
+    });
+
+    expect(response.statusCode).toBe(422);
+    const body = response.json<ErrorResponseBody>();
+    expect(body.error.code).toBe("INVALID_COMMAND");
+    expect(body.error.violations.length).toBeGreaterThan(0);
+  });
+
+  it("API-CONTRACT-010: returns 422 DEFINITION_NOT_FOUND for an unknown unitDefinitionId", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNKNOWN", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+      }),
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("DEFINITION_NOT_FOUND");
+  });
+
+  it("API-CONTRACT-011: returns 422 UNSUPPORTED_RULE for a definition requiring an unimplemented Capability", async () => {
+    const capabilityId: CapabilityId = createCapabilityId("CAP_UNSUPPORTED");
+    const gated = unitDefinition("UNIT_GATED");
+    const units = new Map([
+      [gated.unitDefinitionId, { ...gated, requiredCapabilities: [capabilityId] }],
+    ]);
+    const capabilities = new Map([
+      [
+        capabilityId,
+        createCapabilityDefinition({
+          capabilityId: "CAP_UNSUPPORTED",
+          status: "PLANNED",
+          description: "not yet implemented",
+          requiredBy: [],
+        }),
+      ],
+    ]);
+    const gatedUseCase = new SimulateBattleUseCase({
+      battleCatalog: new FakeBattleCatalog(units, capabilities),
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+    });
+    const gatedApp = await buildServer(gatedUseCase);
+    const gatedSlot = {
+      units: [{ unitDefinitionId: "UNIT_GATED", position: { column: 0, row: "FRONT" } }],
+      memoryDefinitionIds: [],
+    };
+
+    try {
+      const response = await gatedApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody({ allyFormation: gatedSlot, enemyFormation: gatedSlot }),
+      });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json<ErrorResponseBody>().error.code).toBe("UNSUPPORTED_RULE");
+    } finally {
+      await gatedApp.close();
+    }
+  });
+
+  it("API-CONTRACT-012: returns 406 NOT_ACCEPTABLE when Accept excludes application/json and */*", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+      headers: { accept: "text/plain" },
+    });
+
+    expect(response.statusCode).toBe(406);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("NOT_ACCEPTABLE");
+  });
+});

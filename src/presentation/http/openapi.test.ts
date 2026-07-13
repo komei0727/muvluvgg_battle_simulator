@@ -1,0 +1,134 @@
+import { Ajv } from "ajv";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
+import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
+import { battleSimulationResponseSchema } from "./schemas.js";
+import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
+import {
+  createSkillDefinitionId,
+  createUnitDefinitionId,
+} from "../../domain/catalog/catalog-ids.js";
+import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
+import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
+import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
+
+function unitDefinition(id: string): UnitDefinition {
+  return {
+    unitDefinitionId: createUnitDefinitionId(id),
+    attribute: "AGGRESSIVE",
+    unitType: "PHYSICAL",
+    role: "PHYSICAL_ATTACKER",
+    positionAptitudes: ["FRONT", "BACK"],
+    baseStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0.1,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+      actionSpeed: 10,
+      maximumAp: 3,
+      maximumPp: 3,
+    },
+    extraGaugeMaximum: 100,
+    activeSkillDefinitionIds: [],
+    passiveSkillDefinitionIds: [],
+    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
+    requiredCapabilities: [],
+    metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
+  };
+}
+
+class FakeBattleCatalog implements BattleCatalog {
+  private readonly units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>;
+
+  constructor(units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>) {
+    this.units = units;
+  }
+
+  loadSnapshot(): BattleCatalogSnapshot {
+    return {
+      catalogRevision: "rev-1",
+      units: this.units,
+      skills: new Map(),
+      effectActions: new Map(),
+      memories: new Map(),
+      capabilities: new Map(),
+    };
+  }
+}
+
+function buildTestUseCase(): SimulateBattleUseCasePort {
+  const units = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
+  return new SimulateBattleUseCase({
+    battleCatalog: new FakeBattleCatalog(units),
+    battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+    randomSourceFactory: new SequenceRandomSourceFactory([]),
+  });
+}
+
+describe("OpenAPI document", () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    app = await buildServer(buildTestUseCase());
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("API-OPENAPI-001: generates an OpenAPI 3.0.3 document describing POST /api/v1/battle-simulations", () => {
+    interface MinimalOpenApiV3Document {
+      readonly openapi: string;
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly post?: {
+              readonly requestBody?: unknown;
+              readonly responses?: Readonly<Record<string, unknown>>;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+
+    expect(document.openapi).toBe("3.0.3");
+    const operation = document.paths?.["/api/v1/battle-simulations"]?.post;
+    expect(operation).toBeDefined();
+    expect(operation?.requestBody).toBeDefined();
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
+      ["200", "400", "406", "413", "415", "422", "500"].sort(),
+    );
+  });
+
+  it("API-OPENAPI-002: a representative 200 response body validates against the generated response schema (10_API設計.md/12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」)", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 3,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleSimulationResponseSchema);
+    const valid = validate(response.json());
+
+    expect(valid, JSON.stringify(validate.errors)).toBe(true);
+  });
+});

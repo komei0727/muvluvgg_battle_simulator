@@ -47,6 +47,7 @@ function baseInput(events: readonly BattleDomainEvent[]) {
     initialState: { status: "READY" as const, currentTurn: 0, units: {} },
     finalState: { status: "RUNNING" as const, currentTurn: 1, units: {} },
     events,
+    unitRoster: [],
   };
 }
 
@@ -66,6 +67,7 @@ describe("assembleSimulationResult", () => {
       initialState,
       finalState,
       events: recorder.getEvents(),
+      unitRoster: [],
     });
 
     expect(result.battleId).toBe(BATTLE_ID);
@@ -96,6 +98,7 @@ describe("assembleSimulationResult", () => {
         initialState,
         finalState,
         events: recorder.getEvents(),
+        unitRoster: [],
       }),
     ).toThrow(ApplicationError);
   });
@@ -122,6 +125,7 @@ describe("assembleSimulationResult", () => {
       initialState,
       finalState,
       events: recorder.getEvents(),
+      unitRoster: [],
     });
 
     expect(result.events.map((e) => e.type)).toEqual(["BATTLE_STARTED"]);
@@ -228,6 +232,7 @@ describe("assembleSimulationResult", () => {
         initialState: state,
         finalState: state,
         events: dangling,
+        unitRoster: [],
       });
       expect.fail("expected assembleSimulationResult to throw");
     } catch (error) {
