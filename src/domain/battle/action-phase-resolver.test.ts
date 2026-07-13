@@ -1,0 +1,242 @@
+import { describe, expect, it } from "vitest";
+import { resolveActionPhase } from "./action-phase-resolver.js";
+import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
+import type { BattleDefinitions } from "./battle-definitions.js";
+import type { BattlePartyMember } from "./battle-party.js";
+import { createActionPoint } from "./resource-gauge.js";
+import { createBattleUnitId } from "../shared/ids.js";
+import {
+  createEffectActionDefinitionId,
+  createSkillDefinitionId,
+  createTargetBindingId,
+  createUnitDefinitionId,
+  type EffectActionDefinitionId,
+  type UnitDefinitionId,
+} from "../catalog/catalog-ids.js";
+import type { FormationPosition } from "./formation-input.js";
+import { toGlobalCoordinate } from "./global-coordinate.js";
+import type { Side } from "./side.js";
+import type { SkillDefinition } from "../catalog/skill-definition.js";
+import type { TargetSelectorDefinition } from "../catalog/target-selector-definition.js";
+import type { EffectActionDefinition } from "../catalog/effect-action-definition.js";
+import { DomainValidationError } from "../shared/errors.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+
+function unit(
+  id: string,
+  side: Side,
+  overrides: {
+    unitDefinitionId?: string;
+    attack?: number;
+    defense?: number;
+    maximumHp?: number;
+    actionSpeed?: number;
+    limits?: Partial<BattleUnitResourceLimits>;
+  } = {},
+): BattleUnit {
+  const position: FormationPosition = { column: "LEFT", row: "FRONT" };
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(id),
+    unitDefinitionId: createUnitDefinitionId(overrides.unitDefinitionId ?? "UNIT_001"),
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate(side, position),
+    combatStats: {
+      maximumHp: overrides.maximumHp ?? 100,
+      attack: overrides.attack ?? 30,
+      defense: overrides.defense ?? 10,
+      criticalRate: 0,
+      actionSpeed: overrides.actionSpeed ?? 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+    },
+  };
+  const limits: BattleUnitResourceLimits = {
+    maximumAp: 1,
+    maximumPp: 3,
+    maximumExtraGauge: 100,
+    ...overrides.limits,
+  };
+  const built = createBattleUnit(member, side, limits);
+  return { ...built, currentAp: createActionPoint(limits.maximumAp, limits.maximumAp) };
+}
+
+const ENEMY_ALL: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ENEMY",
+  count: "ALL",
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
+function damageEffectAction(
+  id: string,
+  criticalMode: "NORMAL" | "GUARANTEED" | "PREVENTED" = "PREVENTED",
+): EffectActionDefinition {
+  return {
+    kind: "DAMAGE",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      formula: { kind: "SKILL_POWER", power: 1 },
+      hitCount: 1,
+      critical: { mode: criticalMode },
+      accuracy: { mode: "NORMAL" },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
+}
+
+function healEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "HEAL",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { formula: { kind: "CONSTANT", value: 10 }, overheal: "DISCARD" },
+  };
+}
+
+function attackSkill(effectActionId: string, apCost = 1): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(`SKL_${effectActionId}`),
+    skillType: "AS",
+    cost: { resource: "AP", amount: apCost },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Attack", tags: [] },
+  };
+}
+
+function definitionsOf(
+  activeSkillsByUnit: ReadonlyMap<UnitDefinitionId, readonly SkillDefinition[]>,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): BattleDefinitions {
+  return { activeSkillsByUnit, effectActions };
+}
+
+const NO_SKILLS: BattleDefinitions = definitionsOf(new Map(), new Map());
+
+describe("resolveActionPhase", () => {
+  it("UT-ACTION-PHASE-001: a unit with no active skills WAITs (consuming 1 AP) until it runs out of AP, leaving HP untouched", () => {
+    const ally = unit("ALLY_1", "ALLY", { limits: { maximumAp: 2 } });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 2 } });
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveActionPhase([ally], [enemy], NO_SKILLS, random);
+
+    expect(result.result).toBeUndefined();
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.enemyUnits[0]!.currentAp).toBe(0);
+    expect(result.allyUnits[0]!.currentHp).toBe(ally.currentHp);
+    expect(result.enemyUnits[0]!.currentHp).toBe(enemy.currentHp);
+  });
+
+  it("UT-ACTION-PHASE-002: a usable AS skill consumes its AP cost and applies DAMAGE to the target", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 10,
+      maximumHp: 100,
+      limits: { maximumAp: 0 },
+    });
+    const effectAction = damageEffectAction("ACT_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_ATTACK", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveActionPhase([ally], [enemy], definitions, random);
+
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.enemyUnits[0]!.currentHp).toBe(80);
+    expect(result.result).toBeUndefined();
+  });
+
+  it("UT-ACTION-PHASE-003 (R-END-01 timing #1): resolving victory mid-phase stops processing the remaining queue immediately", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
+    // ALLY_1 acts first (higher actionSpeed) and one-shots the only enemy; ALLY_2 must never get to act.
+    const allyFast = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_ATTACKER",
+      attack: 999,
+      actionSpeed: 20,
+      limits: { maximumAp: 1 },
+    });
+    const allySlow = unit("ALLY_2", "ALLY", { actionSpeed: 5, limits: { maximumAp: 1 } });
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 0, maximumHp: 10, limits: { maximumAp: 0 } });
+    const effectAction = damageEffectAction("ACT_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_ATTACK", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveActionPhase([allyFast, allySlow], [enemy], definitions, random);
+
+    expect(result.result).toEqual({ outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED" });
+    const updatedSlowAlly = result.allyUnits.find(
+      (u) => u.battleUnitId === createBattleUnitId("ALLY_2"),
+    )!;
+    expect(updatedSlowAlly.currentAp).toBe(1); // untouched: the phase stopped before ALLY_2's turn.
+  });
+
+  it("UT-ACTION-PHASE-004: throws when a resolved plan targets a non-DAMAGE EffectAction (M6/M7 scope)", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_HEALER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_HEALER",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const effectAction = healEffectAction("ACT_HEAL");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_HEAL", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    expect(() => resolveActionPhase([ally], [enemy], definitions, random)).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-ACTION-PHASE-005: throws when a queue reservation is EX (M6 scope)", () => {
+    const ally = unit("ALLY_1", "ALLY", { limits: { maximumAp: 1, maximumExtraGauge: 0 } });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const random = new SequenceRandomSource([]);
+
+    expect(() => resolveActionPhase([ally], [enemy], NO_SKILLS, random)).toThrow(
+      DomainValidationError,
+    );
+  });
+});

@@ -3,13 +3,16 @@ import { toDomainFormationInput } from "./formation-input-mapper.js";
 import { runPreflight } from "./simulation-preflight-validator.js";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
 import { advanceBattle, createBattle, startBattle } from "../domain/battle/battle.js";
+import type { BattleDefinitions } from "../domain/battle/battle-definitions.js";
 import { createBattleUnitsFromParty } from "../domain/battle/battle-unit.js";
 import { createBattleParty } from "../domain/battle/formation-factory.js";
 import { createTurnLimit } from "../domain/battle/turn-limit.js";
 import type { CompletionReason, BattleOutcome } from "../domain/battle/victory-policy.js";
 import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
 import type { BattleIdGenerator } from "../domain/ports/battle-id-generator.js";
-import type { BattleCatalog } from "../domain/ports/battle-catalog.js";
+import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
+import type { RandomSource } from "../domain/ports/random-source.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
 import type { BattleId, BattleUnitId } from "../domain/shared/ids.js";
 import { createBattleUnitId } from "../domain/shared/ids.js";
@@ -25,6 +28,7 @@ export interface SimulateBattleResult {
 export interface SimulateBattleUseCaseDependencies {
   readonly battleCatalog: BattleCatalog;
   readonly battleIdGenerator: BattleIdGenerator;
+  readonly randomSource: RandomSource;
 }
 
 function collectReferencedIds(command: SimulateBattleCommand): {
@@ -53,17 +57,53 @@ function assignBattleUnitIds(prefix: "ally" | "enemy", count: number): BattleUni
 }
 
 /**
+ * `BattleDefinitions`の`activeSkillsByUnit`を、`BattleCatalogSnapshot`が持つ
+ * `UnitDefinition.activeSkillDefinitionIds`とスキル定義のクロージャから構築する。
+ * `loadSnapshot`はUnit定義が参照する定義の推移閉包を返す契約のため、ここでの
+ * 欠落はCatalogの不変条件違反として防御的に検出する。
+ */
+function buildActiveSkillsByUnit(
+  units: BattleCatalogSnapshot["units"],
+  skills: BattleCatalogSnapshot["skills"],
+): ReadonlyMap<UnitDefinitionId, readonly SkillDefinition[]> {
+  const result = new Map<UnitDefinitionId, readonly SkillDefinition[]>();
+  for (const [unitDefinitionId, unitDefinition] of units) {
+    const activeSkills = unitDefinition.activeSkillDefinitionIds.map((skillDefinitionId) => {
+      const skill = skills.get(skillDefinitionId);
+      if (skill === undefined) {
+        throw new DomainValidationError(
+          `units[${unitDefinitionId}].activeSkillDefinitionIds`,
+          `references a SkillDefinitionId absent from the loaded Catalog snapshot: "${skillDefinitionId}"`,
+        );
+      }
+      return skill;
+    });
+    result.set(unitDefinitionId, activeSkills);
+  }
+  return result;
+}
+
+function buildBattleDefinitions(snapshot: BattleCatalogSnapshot): BattleDefinitions {
+  return {
+    activeSkillsByUnit: buildActiveSkillsByUnit(snapshot.units, snapshot.skills),
+    effectActions: snapshot.effectActions,
+  };
+}
+
+/**
  * `09_アプリケーション設計.md` の SimulateBattleUseCase。`13_実装計画.md`
- * 「M3 最小戦闘縦切り」のライフサイクル部分のみを扱う。ActionQueue・AS選択・
- * ダメージ・イベントログ・BattleObservationは後続Issue（#14/#9/#10）で拡張する。
+ * 「M3 最小戦闘縦切り」のうち、ActionQueue・AS選択・命中・会心・ダメージ・
+ * 勝敗までを扱う。イベントログ・BattleObservationは後続Issue（#10）で拡張する。
  */
 export class SimulateBattleUseCase {
   private readonly battleCatalog: BattleCatalog;
   private readonly battleIdGenerator: BattleIdGenerator;
+  private readonly randomSource: RandomSource;
 
   constructor(dependencies: SimulateBattleUseCaseDependencies) {
     this.battleCatalog = dependencies.battleCatalog;
     this.battleIdGenerator = dependencies.battleIdGenerator;
+    this.randomSource = dependencies.randomSource;
   }
 
   execute(command: SimulateBattleCommand): SimulateBattleResult {
@@ -107,10 +147,11 @@ export class SimulateBattleUseCase {
         allyUnits,
         enemyUnits,
         createTurnLimit(command.turnLimit),
+        buildBattleDefinitions(snapshot),
       );
       battle = startBattle(battle);
       while (battle.status !== "COMPLETED") {
-        battle = advanceBattle(battle);
+        battle = advanceBattle(battle, this.randomSource);
       }
 
       const result = battle.result;

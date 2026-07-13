@@ -83,9 +83,28 @@ describe("calculateDamage", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-DAMAGE-CALCULATOR-004: throws for a non-empty damageModifiers list (requires FormulaEvaluator/AppliedEffect, M7 scope)", () => {
+  it("UT-R-DMG-01-007: damageModifiers sum as signed ratios into an Action内追加ダメージ倍率 of 1 + Σvalues", () => {
+    const result = calculateDamage(
+      input({
+        damageModifiers: [
+          { kind: "CONSTANT", value: 0.1 },
+          { kind: "CONSTANT", value: 0.05 },
+        ],
+      }),
+    );
+    // 1 + 0.1 + 0.05 = 1.15; 30 * 1.15 = 34.5 -> floor -> 34
+    expect(result).toBe(34);
+  });
+
+  it("UT-R-DMG-01-008: a damageModifiers sum below -100% clamps the Action内追加ダメージ倍率 to 0, not negative", () => {
+    const result = calculateDamage(input({ damageModifiers: [{ kind: "CONSTANT", value: -1.5 }] }));
+    // multiplier clamps to 0, so calculated damage is 0 — but the minimum-1-damage floor (R-DMG-02) still applies.
+    expect(result).toBe(1);
+  });
+
+  it("UT-DAMAGE-CALCULATOR-004: throws when a damageModifiers entry is not a CONSTANT formula (general FormulaEvaluator is M7 scope)", () => {
     expect(() =>
-      calculateDamage(input({ damageModifiers: [{ kind: "CONSTANT", value: 0.1 }] })),
+      calculateDamage(input({ damageModifiers: [{ kind: "SKILL_POWER", power: 0.1 }] })),
     ).toThrow(DomainValidationError);
   });
 });

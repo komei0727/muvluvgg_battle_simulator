@@ -3,6 +3,7 @@ import { SimulateBattleUseCase } from "./simulate-battle-use-case.js";
 import type { SimulateBattleCommand } from "./simulate-battle-command.js";
 import { ApplicationError } from "./application-error.js";
 import { FixedBattleIdGenerator } from "../testing/id/fixed-battle-id-generator.js";
+import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 import { createCapabilityDefinition } from "../domain/catalog/capability-definition.js";
 import {
@@ -105,6 +106,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSource: new SequenceRandomSource([]),
     });
 
     const result = useCase.execute(command({ turnLimit: 3 }));
@@ -124,6 +126,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSource: new SequenceRandomSource([]),
     });
 
     try {
@@ -141,6 +144,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSource: new SequenceRandomSource([]),
     });
 
     try {
@@ -173,6 +177,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSource: new SequenceRandomSource([]),
     });
 
     try {
@@ -193,6 +198,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSource: new SequenceRandomSource([]),
     });
 
     useCase.execute(command());
@@ -205,6 +211,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSource: new SequenceRandomSource([]),
     });
 
     const result = useCase.execute(
@@ -259,6 +266,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSource: new SequenceRandomSource([]),
     });
 
     const result = useCase.execute(

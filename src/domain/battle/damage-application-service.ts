@@ -50,10 +50,10 @@ function findUnit(
  * `DamageApplicationService` の基本形 (`05_ドメインモデル.md`)。`SkillResolutionService`が
  * 解決した1つのDAMAGE EffectActionのヒット列を、R-DMG-05の順序（命中→会心→
  * ダメージ計算→HP適用→戦闘不能判定）でヒットごとに処理する。R-ACTN-01/R-SKL-03:
- * 参照時点で既に戦闘不能な対象へのヒットは適用をスキップする。シールド・
- * サブユニット・リンクダメージへの適用調整(R-SHD-*、R-SUB-*、R-LNK-*)はM8未実装の
- * ため、HPへ直接適用する。Battle集約(advanceBattle)・ActionQueueへの結合は
- * AP消費(R-ACT-03, M5/M6)が入る後続issueで行う。
+ * 参照時点で既に戦闘不能な対象へのヒットは適用をスキップする。R-SKL-01/R-SKL-03:
+ * 使用者(attacker)自身が途中で戦闘不能になった場合、以降の未解決ヒットをすべて
+ * 中断する（対象が異なるヒットも含む）。シールド・サブユニット・リンクダメージへの
+ * 適用調整(R-SHD-*、R-SUB-*、R-LNK-*)はM8未実装のため、HPへ直接適用する。
  */
 export function applyDamageAction(
   attacker: BattleUnit,
@@ -65,7 +65,16 @@ export function applyDamageAction(
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
 
-  for (const hit of hits) {
+  for (let i = 0; i < hits.length; i++) {
+    const hit = hits[i]!;
+    const currentAttacker = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
+
+    // R-SKL-01/R-SKL-03: 使用者が戦闘不能になったら残りの未解決ヒットを中断する。
+    if (isDefeated(currentAttacker)) {
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+
     const target = findUnit(working, hit.targetBattleUnitId, "hits[].targetBattleUnitId");
 
     if (isDefeated(target) || !resolveHit()) {
@@ -75,15 +84,15 @@ export function applyDamageAction(
 
     const critical = resolveCritical(
       damageAction.payload.critical.mode,
-      createPercentage(attacker.combatStats.criticalRate),
-      attacker.combatStats.criticalDamageBonus,
+      createPercentage(currentAttacker.combatStats.criticalRate),
+      currentAttacker.combatStats.criticalDamageBonus,
       random,
     );
 
     const damage = calculateDamage({
-      attackerAttack: attacker.combatStats.attack,
-      attackerAttribute: attacker.attribute,
-      attackerAffinityBonus: attacker.combatStats.affinityBonus,
+      attackerAttack: currentAttacker.combatStats.attack,
+      attackerAttribute: currentAttacker.attribute,
+      attackerAffinityBonus: currentAttacker.combatStats.affinityBonus,
       defenderDefense: target.combatStats.defense,
       defenderAttribute: target.attribute,
       defenseIgnoreRate: damageAction.payload.piercing.defenseIgnoreRate,

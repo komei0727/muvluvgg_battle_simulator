@@ -7,7 +7,6 @@ import {
   type BattleUnitResourceLimits,
 } from "./battle-unit.js";
 import { createHitPoint } from "./resource-gauge.js";
-import { resolveVictory } from "./victory-policy.js";
 import type { ResolvedEffectApplication } from "./skill-resolution-service.js";
 import type { BattlePartyMember } from "./battle-party.js";
 import { createBattleUnitId } from "../shared/ids.js";
@@ -212,33 +211,56 @@ describe("applyDamageAction", () => {
       ),
     ).toThrow(DomainValidationError);
   });
-});
 
-describe("applyDamageAction integration with VictoryPolicy", () => {
-  it("UT-DAMAGE-APPLICATION-007: defeating the last enemy while allies are already defeated resolves to simultaneous defeat / ALLY_WIN (R-END-02)", () => {
-    const attacker = defeated(unit("ATTACKER", "ALLY", { attack: 999 }));
-    const lastEnemy = unit("LAST_ENEMY", "ENEMY", { defense: 0, maximumHp: 10 });
+  it("UT-DAMAGE-APPLICATION-007 (R-SKL-01/R-SKL-03): once the attacker itself becomes defeated mid-sequence, remaining hits (even against other targets) are interrupted", () => {
+    // A lethal SELF-targeting hit comes first, then a hit against an unrelated target.
+    const attacker = unit("ATTACKER", "ALLY", { attack: 999, defense: 0, maximumHp: 10 });
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
     const random = new SequenceRandomSource([]);
 
     const result = applyDamageAction(
       attacker,
-      [hit("LAST_ENEMY", 1)],
+      [hit("ATTACKER", 1), hit("TARGET", 1)],
       damageAction("PREVENTED"),
-      [attacker, lastEnemy],
+      [attacker, target],
       random,
     );
 
-    const updatedEnemy = result.units.find(
-      (u) => u.battleUnitId === createBattleUnitId("LAST_ENEMY"),
-    )!;
-    expect(isDefeated(updatedEnemy)).toBe(true);
-
-    const victory = resolveVictory({
-      allAlliesDefeated: true,
-      allEnemiesDefeated: true,
-      turnLimitReached: false,
+    expect(result.hits[0]!.applied).toBe(true);
+    expect(result.hits[1]).toEqual({
+      targetBattleUnitId: createBattleUnitId("TARGET"),
+      hitIndex: 1,
+      applied: false,
+      isCritical: false,
+      damage: 0,
     });
+    const updatedAttacker = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("ATTACKER"),
+    )!;
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(isDefeated(updatedAttacker)).toBe(true);
+    expect(updatedTarget.currentHp).toBe(100);
+  });
 
-    expect(victory).toEqual({ outcome: "ALLY_WIN", completionReason: "SIMULTANEOUS_DEFEAT" });
+  it("UT-DAMAGE-APPLICATION-008 (R-SKL-01/R-SKL-03): an already-defeated attacker cannot apply any hit", () => {
+    const attacker = defeated(unit("ATTACKER", "ALLY", { attack: 999 }));
+    const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 10 });
+    const random = new SequenceRandomSource([]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+    );
+
+    expect(result.hits[0]!.applied).toBe(false);
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(updatedTarget.currentHp).toBe(10);
   });
 });

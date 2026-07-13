@@ -1,12 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { advanceBattle, createBattle, startBattle } from "./battle.js";
 import { createBattleUnit, type BattleUnit } from "./battle-unit.js";
+import type { BattleDefinitions } from "./battle-definitions.js";
 import type { BattlePartyMember } from "./battle-party.js";
 import { createTurnLimit } from "./turn-limit.js";
 import { DomainValidationError } from "../shared/errors.js";
 import { createBattleId, createBattleUnitId } from "../shared/ids.js";
-import { createUnitDefinitionId } from "../catalog/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createSkillDefinitionId,
+  createTargetBindingId,
+  createUnitDefinitionId,
+  type EffectActionDefinitionId,
+  type UnitDefinitionId,
+} from "../catalog/catalog-ids.js";
 import type { Side } from "./side.js";
+import type { SkillDefinition } from "../catalog/skill-definition.js";
+import type { TargetSelectorDefinition } from "../catalog/target-selector-definition.js";
+import type { EffectActionDefinition } from "../catalog/effect-action-definition.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 
 function member(id: string, overrides: Partial<BattlePartyMember> = {}): BattlePartyMember {
   return {
@@ -34,13 +46,101 @@ function unit(id: string, side: Side, overrides: Partial<BattleUnit> = {}): Batt
   return { ...createBattleUnit(member(id), side, LIMITS), ...overrides };
 }
 
-function readyBattle(turnLimit = 5) {
+function unitWithStats(
+  id: string,
+  side: Side,
+  statOverrides: Partial<BattlePartyMember["combatStats"]>,
+): BattleUnit {
+  return createBattleUnit(
+    member(id, { combatStats: { ...member(id).combatStats, ...statOverrides } }),
+    side,
+    LIMITS,
+  );
+}
+
+const NO_SKILLS: BattleDefinitions = { activeSkillsByUnit: new Map(), effectActions: new Map() };
+const NO_RANDOM = () => new SequenceRandomSource([]);
+
+function readyBattle(turnLimit = 5, definitions: BattleDefinitions = NO_SKILLS) {
   return createBattle(
     createBattleId("B_1"),
     [unit("ally:1", "ALLY")],
     [unit("enemy:1", "ENEMY")],
     createTurnLimit(turnLimit),
+    definitions,
   );
+}
+
+const ENEMY_ALL: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ENEMY",
+  count: "ALL",
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
+function damageEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "DAMAGE",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      formula: { kind: "SKILL_POWER", power: 1 },
+      hitCount: 1,
+      critical: { mode: "PREVENTED" },
+      accuracy: { mode: "NORMAL" },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
+}
+
+function attackSkill(effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(`SKL_${effectActionId}`),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Attack", tags: [] },
+  };
+}
+
+/** 攻撃側UnitDefinitionId(UNIT_001)がACT_ATTACKのAS(APコスト1)を1つ持つDefinitions。 */
+function attackerDefinitions(): BattleDefinitions {
+  const effectAction = damageEffectAction("ACT_ATTACK");
+  const activeSkillsByUnit = new Map<UnitDefinitionId, readonly SkillDefinition[]>([
+    [createUnitDefinitionId("UNIT_001"), [attackSkill("ACT_ATTACK")]],
+  ]);
+  const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+    [effectAction.effectActionDefinitionId, effectAction],
+  ]);
+  return { activeSkillsByUnit, effectActions };
 }
 
 describe("createBattle", () => {
@@ -57,13 +157,25 @@ describe("createBattle", () => {
 
   it("UT-BATTLE-002: rejects creation with no ally units (06_戦闘状態遷移.md: 両陣営に1体以上のユニットが存在)", () => {
     expect(() =>
-      createBattle(createBattleId("B_1"), [], [unit("enemy:1", "ENEMY")], createTurnLimit(5)),
+      createBattle(
+        createBattleId("B_1"),
+        [],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        NO_SKILLS,
+      ),
     ).toThrow(DomainValidationError);
   });
 
   it("UT-BATTLE-003: rejects creation with no enemy units", () => {
     expect(() =>
-      createBattle(createBattleId("B_1"), [unit("ally:1", "ALLY")], [], createTurnLimit(5)),
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        [],
+        createTurnLimit(5),
+        NO_SKILLS,
+      ),
     ).toThrow(DomainValidationError);
   });
 });
@@ -82,15 +194,17 @@ describe("startBattle", () => {
 
 describe("advanceBattle", () => {
   it("UT-BATTLE-006: rejects advancing a battle that is not RUNNING", () => {
-    expect(() => advanceBattle(readyBattle())).toThrow(DomainValidationError);
+    expect(() => advanceBattle(readyBattle(), NO_RANDOM())).toThrow(DomainValidationError);
   });
 
-  it("UT-BATTLE-007: TURN_STARTING increments the turn and recovers AP/PP for surviving units", () => {
-    const battle = advanceBattle(startBattle(readyBattle(5)));
+  it("UT-BATTLE-007: TURN_STARTING recovers AP/PP for surviving units, which the action phase then spends via mandatory WAITs (no AS defined)", () => {
+    const battle = advanceBattle(startBattle(readyBattle(5)), NO_RANDOM());
 
     expect(battle.turnState.currentTurn).toBe(1);
-    expect(battle.allyUnits[0]!.currentAp).toBe(3);
+    // PP is untouched by the action phase (only AP is spent by AS/WAIT), so it proves recovery happened.
     expect(battle.allyUnits[0]!.currentPp).toBe(3);
+    // AP recovers to 3, then a unit with no active skills WAITs 3 times (1 AP each) until it is queue-ineligible.
+    expect(battle.allyUnits[0]!.currentAp).toBe(0);
     expect(battle.status).toBe("RUNNING");
   });
 
@@ -100,9 +214,10 @@ describe("advanceBattle", () => {
       [unit("ally:1", "ALLY", { currentHp: 0, currentAp: 0 })],
       [unit("enemy:1", "ENEMY")],
       createTurnLimit(5),
+      NO_SKILLS,
     );
 
-    const advanced = advanceBattle(startBattle(battle));
+    const advanced = advanceBattle(startBattle(battle), NO_RANDOM());
 
     expect(advanced.allyUnits[0]!.currentAp).toBe(0);
   });
@@ -113,9 +228,10 @@ describe("advanceBattle", () => {
       [unit("ally:1", "ALLY", { currentHp: 0 })],
       [unit("enemy:1", "ENEMY", { currentHp: 0 })],
       createTurnLimit(5),
+      NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle));
+    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -131,9 +247,10 @@ describe("advanceBattle", () => {
       [unit("ally:1", "ALLY")],
       [unit("enemy:1", "ENEMY", { currentHp: 0 })],
       createTurnLimit(99),
+      NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle));
+    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -149,9 +266,10 @@ describe("advanceBattle", () => {
       [unit("ally:1", "ALLY", { currentHp: 0 })],
       [unit("enemy:1", "ENEMY")],
       createTurnLimit(5),
+      NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle));
+    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -164,11 +282,11 @@ describe("advanceBattle", () => {
   it("UT-R-END-01-004 / SCN-BTL-020 lifecycle: neither side defeated stays RUNNING until the regulation turn count is reached, then resolves ALLY_LOSE/TURN_LIMIT_REACHED", () => {
     let battle = startBattle(readyBattle(2));
 
-    battle = advanceBattle(battle);
+    battle = advanceBattle(battle, NO_RANDOM());
     expect(battle.status).toBe("RUNNING");
     expect(battle.turnState.currentTurn).toBe(1);
 
-    battle = advanceBattle(battle);
+    battle = advanceBattle(battle, NO_RANDOM());
     expect(battle.status).toBe("COMPLETED");
     expect(battle.result).toEqual({
       outcome: "ALLY_LOSE",
@@ -183,9 +301,48 @@ describe("advanceBattle", () => {
       [unit("ally:1", "ALLY", { currentHp: 0 })],
       [unit("enemy:1", "ENEMY", { currentHp: 0 })],
       createTurnLimit(5),
+      NO_SKILLS,
     );
-    const completed = advanceBattle(startBattle(battle));
+    const completed = advanceBattle(startBattle(battle), NO_RANDOM());
 
-    expect(() => advanceBattle(completed)).toThrow(DomainValidationError);
+    expect(() => advanceBattle(completed, NO_RANDOM())).toThrow(DomainValidationError);
+  });
+
+  it("UT-BATTLE-010 (Issue #9 acceptance: ダメージから勝敗までDomain内で完結する): AS attacks reduce the target's HP within the action phase, once per AP spent (maximumAp: 3, cost: 1)", () => {
+    const battle = createBattle(
+      createBattleId("B_1"),
+      [unitWithStats("ally:1", "ALLY", { attack: 30 })],
+      [unitWithStats("enemy:1", "ENEMY", { defense: 10 })],
+      createTurnLimit(5),
+      attackerDefinitions(),
+    );
+
+    const advanced = advanceBattle(startBattle(battle), NO_RANDOM());
+
+    expect(advanced.status).toBe("RUNNING");
+    // 3 AP at 1 AP/use means the ally attacks 3 times this turn: 100 - 3*20 = 40.
+    expect(advanced.enemyUnits[0]!.currentHp).toBe(40);
+    expect(advanced.allyUnits[0]!.currentAp).toBe(0);
+  });
+
+  it("UT-BATTLE-011 (Issue #9 acceptance: ダメージから勝敗までDomain内で完結する): repeated AS attacks defeat the enemy and resolve ALLY_WIN/ENEMY_DEFEATED without a turn limit", () => {
+    let battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [unitWithStats("ally:1", "ALLY", { attack: 999 })],
+        [unitWithStats("enemy:1", "ENEMY", { defense: 0, maximumHp: 10 })],
+        createTurnLimit(5),
+        attackerDefinitions(),
+      ),
+    );
+
+    battle = advanceBattle(battle, NO_RANDOM());
+
+    expect(battle.status).toBe("COMPLETED");
+    expect(battle.result).toEqual({
+      outcome: "ALLY_WIN",
+      completionReason: "ENEMY_DEFEATED",
+      completedTurn: 1,
+    });
   });
 });

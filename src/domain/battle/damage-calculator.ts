@@ -14,7 +14,10 @@ export interface DamageCalculationInput {
   readonly defenseIgnoreRate: number;
   /** R-DMG-01: `SKILL_POWER`だけをスキル威力として評価する（他の種別はM7のFormulaEvaluator範囲）。 */
   readonly skillPowerFormula: FormulaDefinition;
-  /** R-DMG-01のAction内追加ダメージ倍率。空配列のみ対応（非空はM7のFormulaEvaluator範囲）。 */
+  /**
+   * R-DMG-01のAction内追加ダメージ倍率。各エントリは`CONSTANT`だけを符号付き
+   * 割合として評価する（他の種別はM7のFormulaEvaluator範囲）。
+   */
   readonly damageModifiers: readonly FormulaDefinition[];
   /** `CriticalPolicy`が解決済みの会心倍率（R-CRT-02）。 */
   readonly criticalMultiplier: number;
@@ -30,14 +33,21 @@ function resolveSkillPower(formula: FormulaDefinition): number {
   return formula.power;
 }
 
+/**
+ * R-DMG-01のAction内追加ダメージ倍率。R-DMG-04の与/被ダメージ倍率と同じ合成
+ * パターン（符号付き割合の合計、倍率は`1 + 合計補正`、0未満は0とする）を適用する。
+ */
 function resolveActionDamageMultiplier(damageModifiers: readonly FormulaDefinition[]): number {
-  if (damageModifiers.length > 0) {
-    throw new DomainValidationError(
-      "damageModifiers",
-      "non-empty damageModifiers are not supported by this basic DamageCalculator (evaluating them requires the FormulaEvaluator/AppliedEffect system, M7 scope)",
-    );
-  }
-  return 1;
+  const sum = damageModifiers.reduce((total, modifier, index) => {
+    if (modifier.kind !== "CONSTANT") {
+      throw new DomainValidationError(
+        `damageModifiers[${index}].kind`,
+        `kind "${modifier.kind}" is not supported by this basic DamageCalculator (general FormulaEvaluator is M7 scope)`,
+      );
+    }
+    return total + modifier.value;
+  }, 0);
+  return Math.max(0, 1 + sum);
 }
 
 /**
