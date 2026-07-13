@@ -39,8 +39,17 @@ function resolveReference(
 }
 
 /** R-SKL-03: DAMAGEのhitCountだけが複数ヒットを持つ。それ以外の種別は常に1ヒット。 */
-function hitCountOf(effectAction: EffectActionDefinition | undefined): number {
-  return effectAction?.kind === "DAMAGE" ? effectAction.payload.hitCount : 1;
+function hitCountOf(
+  effectActionDefinitionId: EffectActionDefinitionId,
+  effectAction: EffectActionDefinition | undefined,
+): number {
+  if (effectAction === undefined) {
+    throw new DomainValidationError(
+      "action.effectActionDefinitionId",
+      `effectActionDefinitionId "${effectActionDefinitionId}" was not found in the given effectActions (Catalog preflight should already guarantee this reference exists)`,
+    );
+  }
+  return effectAction.kind === "DAMAGE" ? effectAction.payload.hitCount : 1;
 }
 
 function resolveActionStep(
@@ -57,7 +66,7 @@ function resolveActionStep(
     // EffectStep ACTION: EffectActionDefinitionを定義順に適用する（05_ドメインモデル.md）。
     for (const actionRef of step.actions) {
       const effectAction = effectActions.get(actionRef.effectActionDefinitionId);
-      const hitCount = hitCountOf(effectAction);
+      const hitCount = hitCountOf(actionRef.effectActionDefinitionId, effectAction);
       // R-SKL-03: 各ヒットを独立して定義順に処理する。
       for (let hitIndex = 1; hitIndex <= hitCount; hitIndex++) {
         results.push({
@@ -76,8 +85,10 @@ function resolveActionStep(
  * 一部: targetBindings→stepsの定義順評価）、R-SKL-02（複数対象の定義順処理）、
  * R-SKL-03（複数ヒットの定義順処理）を、実際のダメージ計算やPS/Memory連鎖
  * なしで解決する。ダメージ適用自体は#9（HitPolicy/CriticalPolicy/
- * DamageCalculator）が担う。ACTION以外のstep種別とCHARGEスキルは対象外
- * （M5〜M8で拡張）。
+ * DamageCalculator）が担う。ACTION以外のstep種別、CHARGEスキル、`TRUE`以外の
+ * step.conditionは対象外（ConditionEvaluatorはM7で拡張）。参照先が
+ * `effectActions` に存在しないEffectActionDefinitionIdは、Catalog preflightの
+ * 不変条件違反として例外を投げる（1ヒット成功として扱わない）。
  */
 export function resolveSkillOrder(
   skill: SkillDefinition,
@@ -108,6 +119,12 @@ export function resolveSkillOrder(
       throw new DomainValidationError(
         "step.kind",
         `kind "${step.kind}" is not supported by this basic SkillResolutionService (BRANCH/RANDOM_BRANCH/REPEAT are M6/M7 scope)`,
+      );
+    }
+    if (step.condition.kind !== "TRUE") {
+      throw new DomainValidationError(
+        "step.condition",
+        `kind "${step.condition.kind}" is not supported by this basic SkillResolutionService (ConditionEvaluator is M7 scope)`,
       );
     }
     results.push(...resolveActionStep(step, resolvedBindings, actor, effectActions));

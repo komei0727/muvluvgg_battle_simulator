@@ -357,4 +357,49 @@ describe("resolveSkillOrder", () => {
       DomainValidationError,
     );
   });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-006: throws for a step with a non-TRUE condition instead of silently ignoring it (ConditionEvaluator is M7 scope)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "MARKER_PRESENT", markerId: "MARKER_X" } as never,
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+      [attack.effectActionDefinitionId, attack],
+    ]);
+
+    expect(() => resolveSkillOrder(skill, actor, [actor], effectActions)).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-007: throws when an action references an EffectActionDefinitionId absent from effectActions, instead of treating it as one successful hit (defensive; Catalog preflight should already guarantee this)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const missingActionId = createEffectActionDefinitionId("ACT_MISSING");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: missingActionId }],
+        },
+      ],
+    });
+
+    expect(() => resolveSkillOrder(skill, actor, [actor], new Map())).toThrow(
+      DomainValidationError,
+    );
+  });
 });
