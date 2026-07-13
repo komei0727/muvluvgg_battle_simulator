@@ -253,7 +253,19 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
 
   // ORD: 行動順
   { ruleId: "R-ORD-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-ORD-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-ORD-02",
+    testCaseIds: [
+      "UT-R-ORD-02-001",
+      "UT-R-ORD-02-002",
+      "UT-R-ORD-02-003",
+      "UT-R-ORD-02-004",
+      "UT-R-ORD-02-005",
+      "UT-R-ORD-02-006",
+      "UT-R-ORD-02-007",
+    ],
+    kinds: ["POSITIVE", "PROPERTY", "SCENARIO"],
+  },
   { ruleId: "R-ORD-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-ORD-04", testCaseIds: [], kinds: [] },
 
@@ -264,13 +276,33 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-ACT-04", testCaseIds: [], kinds: [] },
 
   // TGT: 対象選択
-  { ruleId: "R-TGT-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-TGT-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-TGT-01",
+    testCaseIds: [
+      "UT-R-TGT-01-001",
+      "UT-R-TGT-01-002",
+      "UT-R-TGT-01-003",
+      "UT-R-TGT-01-004",
+      "UT-R-TGT-01-005",
+      "UT-R-TGT-01-006",
+      "UT-R-TGT-01-007",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-TGT-02",
+    testCaseIds: ["UT-R-TGT-02-001", "UT-R-TGT-02-002", "UT-R-TGT-02-003", "UT-R-TGT-02-004"],
+    kinds: ["POSITIVE", "PROPERTY"],
+  },
   { ruleId: "R-TGT-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-04", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-05", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-06", testCaseIds: [], kinds: [] },
-  { ruleId: "R-TGT-07", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-TGT-07",
+    testCaseIds: ["UT-R-TGT-07-001", "UT-R-TGT-07-002"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
   { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-09", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
