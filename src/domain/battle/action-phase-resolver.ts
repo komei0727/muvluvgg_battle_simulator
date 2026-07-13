@@ -256,7 +256,7 @@ function resolveOneAsAction(
     working = result.units;
   }
 
-  recorder.record({
+  const skillUseCompleted = recorder.record({
     eventType: "SkillUseCompleted",
     category: "FACT",
     turnNumber,
@@ -286,7 +286,7 @@ function resolveOneAsAction(
       actorId,
     },
     "AS",
-    skillUseStarted.eventId,
+    skillUseCompleted.eventId,
   );
 
   return working;
@@ -301,7 +301,7 @@ interface ActionCompletionContext {
   readonly actorId: BattleUnitId;
 }
 
-/** `ActionCompleting`/`ActionCompleted`。WAITはActionStartedから、ASはSkillUseCompleted相当（skillUseStarted）から直接連鎖する。 */
+/** `ActionCompleting`/`ActionCompleted`。WAITはActionStartedから、ASはSkillUseCompletedから直接連鎖する。 */
 function recordActionCompletion(
   recorder: EventRecorder,
   context: ActionCompletionContext,

@@ -27,7 +27,7 @@ import {
 import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
 import type { TargetSelectorDefinition } from "../domain/catalog/target-selector-definition.js";
 import type { UnitDefinition } from "../domain/catalog/unit-definition.js";
-import { createBattleId } from "../domain/shared/ids.js";
+import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
 
 function unitDefinition(
   id: string,
@@ -473,8 +473,11 @@ describe("SimulateBattleUseCase", () => {
       expect(event.rootEventId).toBe(parent!.rootEventId);
     }
 
-    // The full M3 event catalog is exercised by this one non-lethal-attack +
-    // mandatory-WAIT + turn-limit-completion battle.
+    // The full M3 event catalog except UnitDefeated (this attack is
+    // non-lethal by design, to also exercise TurnCompleting/TurnCompleted/
+    // turn-limit completion in the same run) is exercised by this one
+    // non-lethal-attack + mandatory-WAIT + turn-limit-completion battle.
+    // UnitDefeated is covered separately below by the lethal-path test.
     expect(new Set(events.map((e) => e.eventType))).toEqual(
       new Set([
         "BattleStarted",
@@ -506,5 +509,73 @@ describe("SimulateBattleUseCase", () => {
     );
     expect(restored).toEqual(finalState);
     expect(finalState.status).toBe("COMPLETED");
+  });
+
+  it("SCN-BTL-001 (Issue #10 acceptance, lethal path): a lethal AS attack emits DamageApplied -> UnitDefeated -> BattleCompleted in causal order, with UnitDefeated's payload naming the defeated unit and the causing DamageApplied event", () => {
+    const skillId = "SKL_LETHAL";
+    const effectActionId = "ACT_LETHAL";
+    const attackerUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_ATK"),
+      baseStats: { ...unitDefinition("UNIT_ATK").baseStats, maximumAp: 1, attack: 999 },
+      activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+    };
+    const defenderUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_DEF"),
+      baseStats: { ...unitDefinition("UNIT_DEF").baseStats, maximumHp: 10, defense: 0 },
+    };
+    const units = new Map([
+      [createUnitDefinitionId("UNIT_ATK"), attackerUnit],
+      [createUnitDefinitionId("UNIT_DEF"), defenderUnit],
+    ]);
+    const skills = new Map([
+      [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
+    ]);
+    const effectActions = new Map([
+      [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],
+    ]);
+    const catalog = new FakeBattleCatalog(
+      units,
+      new Map(),
+      new Map(),
+      "rev-1",
+      skills,
+      effectActions,
+    );
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+    });
+
+    const result = useCase.execute(
+      command({
+        allyFormation: { slots: [slot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+        enemyFormation: { slots: [slot("UNIT_DEF", 0)], memoryDefinitionIds: [] },
+        turnLimit: 5,
+      }),
+    );
+
+    expect(result.outcome).toBe("ALLY_WIN");
+    expect(result.completionReason).toBe("ENEMY_DEFEATED");
+
+    const { events } = result.observation;
+    const eventTypes = events.map((e) => e.eventType);
+    const damageAppliedIndex = eventTypes.indexOf("DamageApplied");
+    const unitDefeatedIndex = eventTypes.indexOf("UnitDefeated");
+    const battleCompletedIndex = eventTypes.indexOf("BattleCompleted");
+
+    expect(damageAppliedIndex).toBeGreaterThanOrEqual(0);
+    expect(unitDefeatedIndex).toBeGreaterThan(damageAppliedIndex);
+    expect(battleCompletedIndex).toBeGreaterThan(unitDefeatedIndex);
+
+    const damageApplied = events[damageAppliedIndex]!;
+    const unitDefeated = events[unitDefeatedIndex]!;
+    expect(damageApplied.payload).toMatchObject({ defeated: true });
+    expect(unitDefeated.parentEventId).toBe(damageApplied.eventId);
+    expect(unitDefeated.rootEventId).toBe(damageApplied.rootEventId);
+    expect(unitDefeated.payload).toEqual({
+      unitId: createBattleUnitId("enemy:1"),
+      causeEventId: damageApplied.eventId,
+    });
   });
 });

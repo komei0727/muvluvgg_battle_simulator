@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyStateDelta, reduceStateDeltas } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 import type { StateDelta } from "./state-delta.js";
+import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 
 const UNIT_A = createBattleUnitId("unit-a");
@@ -57,25 +58,51 @@ describe("applyStateDelta", () => {
 
     expect(state.units[UNIT_A]!.hp).toBe(100);
   });
+
+  it("UT-STATE-REDUCER-007: throws when a unit delta references a BattleUnitId absent from the current state", () => {
+    const delta: StateDelta = {
+      units: { [createBattleUnitId("unit-missing")]: { hp: { before: 100, after: 80 } } },
+    };
+
+    expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-008: throws when a unit field's before does not match the current value (dropped or reordered delta)", () => {
+    const delta: StateDelta = { units: { [UNIT_A]: { hp: { before: 50, after: 30 } } } };
+
+    expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-009: throws when battleStatus.before does not match the current status", () => {
+    const delta: StateDelta = { battleStatus: { before: "RUNNING", after: "COMPLETED" } };
+
+    expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-010: throws when turnNumber.before does not match the current turn", () => {
+    const delta: StateDelta = { turnNumber: { before: 5, after: 6 } };
+
+    expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
+  });
 });
 
 describe("reduceStateDeltas", () => {
-  it("UT-STATE-REDUCER-006: folds an ordered sequence of deltas onto the initial state (initialState + transitions = finalState)", () => {
-    const deltas: readonly StateDelta[] = [
-      { battleStatus: { before: "READY", after: "RUNNING" } },
-      { turnNumber: { before: 0, after: 1 } },
-      {
-        units: {
-          [UNIT_A]: { ap: { before: 0, after: 3 }, pp: { before: 0, after: 3 } },
-          [UNIT_B]: { ap: { before: 0, after: 3 }, pp: { before: 0, after: 3 } },
-        },
+  const orderedDeltas: readonly StateDelta[] = [
+    { battleStatus: { before: "READY", after: "RUNNING" } },
+    { turnNumber: { before: 0, after: 1 } },
+    {
+      units: {
+        [UNIT_A]: { ap: { before: 0, after: 3 }, pp: { before: 0, after: 3 } },
+        [UNIT_B]: { ap: { before: 0, after: 3 }, pp: { before: 0, after: 3 } },
       },
-      { units: { [UNIT_A]: { ap: { before: 3, after: 2 } } } },
-      { units: { [UNIT_B]: { hp: { before: 100, after: 80 } } } },
-      { battleStatus: { before: "RUNNING", after: "COMPLETED" } },
-    ];
+    },
+    { units: { [UNIT_A]: { ap: { before: 3, after: 2 } } } },
+    { units: { [UNIT_B]: { hp: { before: 100, after: 80 } } } },
+    { battleStatus: { before: "RUNNING", after: "COMPLETED" } },
+  ];
 
-    const finalState = reduceStateDeltas(initialState(), deltas);
+  it("UT-STATE-REDUCER-006: folds an ordered sequence of deltas onto the initial state (initialState + transitions = finalState)", () => {
+    const finalState = reduceStateDeltas(initialState(), orderedDeltas);
 
     expect(finalState).toEqual({
       status: "COMPLETED",
@@ -85,5 +112,23 @@ describe("reduceStateDeltas", () => {
         [UNIT_B]: { hp: 80, ap: 3, pp: 3, extraGauge: 0 },
       },
     });
+  });
+
+  it("UT-STATE-REDUCER-011: throws when a delta is dropped from the sequence (later before no longer matches)", () => {
+    const withOneDropped = [...orderedDeltas.slice(0, 2), ...orderedDeltas.slice(3)];
+
+    expect(() => reduceStateDeltas(initialState(), withOneDropped)).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-012: throws when the sequence is applied in reverse order", () => {
+    const reversed = [...orderedDeltas].reverse();
+
+    expect(() => reduceStateDeltas(initialState(), reversed)).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-013: throws when a delta is duplicated in the sequence", () => {
+    const withDuplicate = [orderedDeltas[0]!, orderedDeltas[0]!, ...orderedDeltas.slice(1)];
+
+    expect(() => reduceStateDeltas(initialState(), withDuplicate)).toThrow(DomainValidationError);
   });
 });
