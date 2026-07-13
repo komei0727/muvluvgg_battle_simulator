@@ -12,7 +12,7 @@ import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/cat
 import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
 import type { BattleIdGenerator } from "../domain/ports/battle-id-generator.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
-import type { RandomSource } from "../domain/ports/random-source.js";
+import type { RandomSourceFactory } from "../domain/ports/random-source-factory.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
 import type { BattleId, BattleUnitId } from "../domain/shared/ids.js";
 import { createBattleUnitId } from "../domain/shared/ids.js";
@@ -28,7 +28,7 @@ export interface SimulateBattleResult {
 export interface SimulateBattleUseCaseDependencies {
   readonly battleCatalog: BattleCatalog;
   readonly battleIdGenerator: BattleIdGenerator;
-  readonly randomSource: RandomSource;
+  readonly randomSourceFactory: RandomSourceFactory;
 }
 
 function collectReferencedIds(command: SimulateBattleCommand): {
@@ -98,12 +98,12 @@ function buildBattleDefinitions(snapshot: BattleCatalogSnapshot): BattleDefiniti
 export class SimulateBattleUseCase {
   private readonly battleCatalog: BattleCatalog;
   private readonly battleIdGenerator: BattleIdGenerator;
-  private readonly randomSource: RandomSource;
+  private readonly randomSourceFactory: RandomSourceFactory;
 
   constructor(dependencies: SimulateBattleUseCaseDependencies) {
     this.battleCatalog = dependencies.battleCatalog;
     this.battleIdGenerator = dependencies.battleIdGenerator;
-    this.randomSource = dependencies.randomSource;
+    this.randomSourceFactory = dependencies.randomSourceFactory;
   }
 
   execute(command: SimulateBattleCommand): SimulateBattleResult {
@@ -142,6 +142,9 @@ export class SimulateBattleUseCase {
       const enemyUnits = createBattleUnitsFromParty(enemyParty, snapshot.units);
 
       const battleId = this.battleIdGenerator.next();
+      // 09_アプリケーション設計.md「Battleごとに専用のRandomSourceを生成する」
+      // 「リクエスト間で共有しない」: このBattleの生存期間全体で1つだけ生成する。
+      const random = this.randomSourceFactory.create();
       let battle = createBattle(
         battleId,
         allyUnits,
@@ -151,7 +154,7 @@ export class SimulateBattleUseCase {
       );
       battle = startBattle(battle);
       while (battle.status !== "COMPLETED") {
-        battle = advanceBattle(battle, this.randomSource);
+        battle = advanceBattle(battle, random);
       }
 
       const result = battle.result;

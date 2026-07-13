@@ -143,6 +143,62 @@ function attackerDefinitions(): BattleDefinitions {
   return { activeSkillsByUnit, effectActions };
 }
 
+/**
+ * 攻撃側UnitDefinitionId(UNIT_001)が、1回のAS使用の中で
+ * (1) 敵へ致死ダメージ、(2) 自分自身へ致死ダメージ、を2つのACTION stepとして
+ * 定義順に処理するASを1つ持つDefinitions。同じ解決スコープ内(R-SKL-01)で
+ * 両陣営が全滅する「同時全滅」(R-END-02)をダメージ処理経由で再現するために使う。
+ */
+function mutuallyLethalDefinitions(): BattleDefinitions {
+  const enemyEffectAction = damageEffectAction("ACT_LETHAL_ENEMY");
+  const selfEffectAction = damageEffectAction("ACT_LETHAL_SELF");
+  const skill: SkillDefinition = {
+    skillDefinitionId: createSkillDefinitionId("SKL_MUTUALLY_LETHAL"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_ENEMY"), selector: ENEMY_ALL },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ENEMY") },
+          actions: [{ effectActionDefinitionId: enemyEffectAction.effectActionDefinitionId }],
+        },
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: selfEffectAction.effectActionDefinitionId }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "MutuallyLethal", tags: [] },
+  };
+  const activeSkillsByUnit = new Map<UnitDefinitionId, readonly SkillDefinition[]>([
+    [createUnitDefinitionId("UNIT_001"), [skill]],
+  ]);
+  const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+    [enemyEffectAction.effectActionDefinitionId, enemyEffectAction],
+    [selfEffectAction.effectActionDefinitionId, selfEffectAction],
+  ]);
+  return { activeSkillsByUnit, effectActions };
+}
+
 describe("createBattle", () => {
   it("UT-BATTLE-001: creates a READY battle with turn 0 and the given units", () => {
     const battle = readyBattle(5);
@@ -342,6 +398,27 @@ describe("advanceBattle", () => {
     expect(battle.result).toEqual({
       outcome: "ALLY_WIN",
       completionReason: "ENEMY_DEFEATED",
+      completedTurn: 1,
+    });
+  });
+
+  it("UT-BATTLE-012 (Issue #9 acceptance: 同時全滅, R-END-02): a single AS use that deals lethal damage to the enemy and then to its own user resolves SIMULTANEOUS_DEFEAT/ALLY_WIN", () => {
+    let battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [unitWithStats("ally:1", "ALLY", { attack: 999, defense: 0, maximumHp: 10 })],
+        [unitWithStats("enemy:1", "ENEMY", { defense: 0, maximumHp: 10 })],
+        createTurnLimit(5),
+        mutuallyLethalDefinitions(),
+      ),
+    );
+
+    battle = advanceBattle(battle, NO_RANDOM());
+
+    expect(battle.status).toBe("COMPLETED");
+    expect(battle.result).toEqual({
+      outcome: "ALLY_WIN",
+      completionReason: "SIMULTANEOUS_DEFEAT",
       completedTurn: 1,
     });
   });

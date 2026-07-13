@@ -70,6 +70,16 @@ const ENEMY_ALL: TargetSelectorDefinition = {
   includeDefeated: false,
 };
 
+/** DEFAULT order picks the nearest enemy first; ties fall back to input array order (stable sort). */
+const ENEMY_NEAREST: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ENEMY",
+  count: 1,
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
 function damageEffectAction(
   id: string,
   criticalMode: "NORMAL" | "GUARANTEED" | "PREVENTED" = "PREVENTED",
@@ -102,7 +112,11 @@ function healEffectAction(id: string): EffectActionDefinition {
   };
 }
 
-function attackSkill(effectActionId: string, apCost = 1): SkillDefinition {
+function attackSkill(
+  effectActionId: string,
+  apCost = 1,
+  selector: TargetSelectorDefinition = ENEMY_ALL,
+): SkillDefinition {
   return {
     skillDefinitionId: createSkillDefinitionId(`SKL_${effectActionId}`),
     skillType: "AS",
@@ -111,7 +125,7 @@ function attackSkill(effectActionId: string, apCost = 1): SkillDefinition {
     triggers: [],
     resolution: {
       kind: "IMMEDIATE",
-      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector }],
       steps: [
         {
           kind: "ACTION",
@@ -238,5 +252,53 @@ describe("resolveActionPhase", () => {
     expect(() => resolveActionPhase([ally], [enemy], NO_SKILLS, random)).toThrow(
       DomainValidationError,
     );
+  });
+
+  it("UT-ACTION-PHASE-006 (Q-BTL-04/06_戦闘状態遷移.md 戦闘不能者の除去): a reservation for a unit defeated earlier in the same queue is skipped, not processed", () => {
+    const attackerDefId = createUnitDefinitionId("UNIT_ATTACKER");
+    // ALLY_1 acts first (highest actionSpeed) and one-shots ENEMY_1, whose own
+    // reservation (also an attacker) comes later in the same queue. ENEMY_2
+    // survives so the phase does not stop early on a victory check.
+    const allyFast = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_ATTACKER",
+      attack: 999,
+      actionSpeed: 20,
+      limits: { maximumAp: 1 },
+    });
+    const enemyDoomed = unit("ENEMY_1", "ENEMY", {
+      unitDefinitionId: "UNIT_ATTACKER",
+      attack: 999,
+      defense: 0,
+      maximumHp: 10,
+      actionSpeed: 15,
+      limits: { maximumAp: 1 },
+    });
+    const enemySurvivor = unit("ENEMY_2", "ENEMY", { actionSpeed: 10, limits: { maximumAp: 0 } });
+    const effectAction = damageEffectAction("ACT_ATTACK");
+    // ALLY_1 targets only the nearest enemy (ENEMY_1, first in the enemyUnits
+    // array) so ENEMY_2 survives and the phase does not end on a victory check.
+    const definitions = definitionsOf(
+      new Map([[attackerDefId, [attackSkill("ACT_ATTACK", 1, ENEMY_NEAREST)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveActionPhase(
+      [allyFast],
+      [enemyDoomed, enemySurvivor],
+      definitions,
+      random,
+    );
+
+    const updatedAlly = result.allyUnits.find(
+      (u) => u.battleUnitId === createBattleUnitId("ALLY_1"),
+    )!;
+    // ENEMY_1 was defeated before its own reservation was reached, so it never got to attack.
+    expect(updatedAlly.currentHp).toBe(allyFast.currentHp);
+    const updatedDoomed = result.enemyUnits.find(
+      (u) => u.battleUnitId === createBattleUnitId("ENEMY_1"),
+    )!;
+    // The reservation was discarded outright, not consumed as a WAIT either.
+    expect(updatedDoomed.currentAp).toBe(1);
   });
 });

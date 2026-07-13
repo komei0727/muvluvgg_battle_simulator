@@ -135,6 +135,13 @@ export function resolveActionPhase(
     }
 
     for (const reservation of queue.entries) {
+      // Q-BTL-04/06_戦闘状態遷移.md「戦闘不能者の除去」: このキュー生成後、
+      // 自分の番が来るまでの間に戦闘不能になった予約者は、防御的にそのまま
+      // 破棄する（DECIDING #1「戦闘不能なら処理せず終了する」）。
+      if (isDefeated(requireUnit(units, reservation.battleUnitId))) {
+        continue;
+      }
+
       if (reservation.reservedActionKind === "EX") {
         throw new DomainValidationError(
           "reservedActionKind",

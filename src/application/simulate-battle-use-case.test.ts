@@ -3,22 +3,29 @@ import { SimulateBattleUseCase } from "./simulate-battle-use-case.js";
 import type { SimulateBattleCommand } from "./simulate-battle-command.js";
 import { ApplicationError } from "./application-error.js";
 import { FixedBattleIdGenerator } from "../testing/id/fixed-battle-id-generator.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
+import { SequenceRandomSourceFactory } from "../testing/random/sequence-random-source-factory.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 import { createCapabilityDefinition } from "../domain/catalog/capability-definition.js";
 import {
   createCapabilityId,
+  createEffectActionDefinitionId,
   createMemoryDefinitionId,
   createSkillDefinitionId,
+  createTargetBindingId,
   createUnitDefinitionId,
   type CapabilityId,
+  type EffectActionDefinitionId,
   type MemoryDefinitionId,
+  type SkillDefinitionId,
   type UnitDefinitionId,
 } from "../domain/catalog/catalog-ids.js";
+import type { EffectActionDefinition } from "../domain/catalog/effect-action-definition.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,
 } from "../domain/catalog/memory-definition.js";
+import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
+import type { TargetSelectorDefinition } from "../domain/catalog/target-selector-definition.js";
 import type { UnitDefinition } from "../domain/catalog/unit-definition.js";
 import { createBattleId } from "../domain/shared/ids.js";
 
@@ -58,17 +65,23 @@ class FakeBattleCatalog implements BattleCatalog {
   private readonly memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition>;
   private readonly capabilities: BattleCatalogSnapshot["capabilities"];
   private readonly catalogRevision: string;
+  private readonly skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>;
+  private readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
 
   constructor(
     units: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
     memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition> = new Map(),
     capabilities: BattleCatalogSnapshot["capabilities"] = new Map(),
     catalogRevision = "rev-1",
+    skills: ReadonlyMap<SkillDefinitionId, SkillDefinition> = new Map(),
+    effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition> = new Map(),
   ) {
     this.units = units;
     this.memories = memories;
     this.capabilities = capabilities;
     this.catalogRevision = catalogRevision;
+    this.skills = skills;
+    this.effectActions = effectActions;
   }
 
   loadSnapshot(): BattleCatalogSnapshot {
@@ -76,12 +89,72 @@ class FakeBattleCatalog implements BattleCatalog {
     return {
       catalogRevision: this.catalogRevision,
       units: this.units,
-      skills: new Map(),
-      effectActions: new Map(),
+      skills: this.skills,
+      effectActions: this.effectActions,
       memories: this.memories,
       capabilities: this.capabilities,
     };
   }
+}
+
+const ENEMY_ALL: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ENEMY",
+  count: "ALL",
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
+function attackSkill(id: string, effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Attack", tags: [] },
+  };
+}
+
+function damageEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "DAMAGE",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      formula: { kind: "SKILL_POWER", power: 1 },
+      hitCount: 1,
+      critical: { mode: "NORMAL" },
+      accuracy: { mode: "NORMAL" },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
 }
 
 function slot(unitId: string, column: 0 | 1 | 2, row: "FRONT" | "REAR" = "FRONT") {
@@ -106,7 +179,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSource: new SequenceRandomSource([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
     });
 
     const result = useCase.execute(command({ turnLimit: 3 }));
@@ -126,7 +199,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSource: new SequenceRandomSource([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
     });
 
     try {
@@ -144,7 +217,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSource: new SequenceRandomSource([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
     });
 
     try {
@@ -177,7 +250,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSource: new SequenceRandomSource([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
     });
 
     try {
@@ -198,7 +271,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSource: new SequenceRandomSource([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
     });
 
     useCase.execute(command());
@@ -211,7 +284,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSource: new SequenceRandomSource([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
     });
 
     const result = useCase.execute(
@@ -266,7 +339,7 @@ describe("SimulateBattleUseCase", () => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSource: new SequenceRandomSource([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
     });
 
     const result = useCase.execute(
@@ -279,5 +352,53 @@ describe("SimulateBattleUseCase", () => {
     );
 
     expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
+  });
+
+  it("UT-USECASE-008 (09_アプリケーション設計.md: Battleごとに専用のRandomSourceを生成する): a fresh RandomSource is generated per execute() call, so a second call is not exhausted by the first", () => {
+    const skillId = "SKL_ATTACK";
+    const effectActionId = "ACT_ATTACK";
+    const attackerUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_ATK"),
+      baseStats: { ...unitDefinition("UNIT_ATK").baseStats, maximumAp: 1 },
+      activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+    };
+    // UNIT_001 (activeSkillDefinitionIds: []) always WAITs, so only the
+    // attacker ever rolls a critical — exactly one RNG value per execute().
+    const units = new Map([
+      [createUnitDefinitionId("UNIT_ATK"), attackerUnit],
+      [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
+    ]);
+    const skills = new Map([
+      [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
+    ]);
+    const effectActions = new Map([
+      [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],
+    ]);
+    const catalog = new FakeBattleCatalog(
+      units,
+      new Map(),
+      new Map(),
+      "rev-1",
+      skills,
+      effectActions,
+    );
+    // Exactly one preset value: enough for exactly one Battle's single critical roll
+    // (maximumAp: 1, skill cost: 1, turnLimit: 1 -> exactly one AS use per execute()).
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1", "B_2"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+    });
+    const attackerCommand = command({
+      allyFormation: { slots: [slot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+      enemyFormation: { slots: [slot("UNIT_001", 0)], memoryDefinitionIds: [] },
+      turnLimit: 1,
+    });
+
+    useCase.execute(attackerCommand);
+
+    // With a shared RandomSource this second call would throw "exhausted" —
+    // a fresh RandomSource per Battle means it succeeds identically to the first.
+    expect(() => useCase.execute(attackerCommand)).not.toThrow();
   });
 });
