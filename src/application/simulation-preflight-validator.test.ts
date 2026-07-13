@@ -6,14 +6,25 @@ import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 import { createCapabilityDefinition } from "../domain/catalog/capability-definition.js";
 import {
   createCapabilityId,
+  createEffectActionDefinitionId,
   createMemoryDefinitionId,
   createSkillDefinitionId,
   createUnitDefinitionId,
   type CapabilityId,
+  type EffectActionDefinitionId,
   type MemoryDefinitionId,
+  type SkillDefinitionId,
   type UnitDefinitionId,
 } from "../domain/catalog/catalog-ids.js";
-import type { MemoryDefinition } from "../domain/catalog/memory-definition.js";
+import {
+  createEffectActionDefinition,
+  type EffectActionDefinition,
+} from "../domain/catalog/effect-action-definition.js";
+import {
+  createMemoryDefinition,
+  type MemoryDefinition,
+} from "../domain/catalog/memory-definition.js";
+import { createSkillDefinition, type SkillDefinition } from "../domain/catalog/skill-definition.js";
 import type { UnitDefinition } from "../domain/catalog/unit-definition.js";
 
 function unitDefinition(
@@ -44,6 +55,89 @@ function unitDefinition(
     requiredCapabilities,
     metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
   };
+}
+
+function damageAction(
+  id: string,
+  requiredCapabilities: readonly string[] = [],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "DAMAGE",
+      payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
+function asSkill(
+  id: string,
+  targetActionId: string,
+  requiredCapabilities: readonly string[] = [],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: "TGT_PRIMARY",
+          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+          actions: [{ effectActionDefinitionId: targetActionId }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "AS" },
+  });
+}
+
+function memoryWithCapability(
+  id: string,
+  requiredCapabilities: readonly string[],
+): MemoryDefinition {
+  return createMemoryDefinition({
+    memoryDefinitionId: id,
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+              actions: [{ effectActionDefinitionId: "ACT_ATTACK_UP" }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities,
+    metadata: { displayName: "Memory" },
+  });
 }
 
 function snapshot(overrides: Partial<BattleCatalogSnapshot> = {}): BattleCatalogSnapshot {
@@ -193,7 +287,218 @@ describe("runPreflight", () => {
       expect(error).toBeInstanceOf(ApplicationError);
       expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
       expect((error as ApplicationError).violations).toContainEqual(
-        expect.objectContaining({ ruleId: capabilityId }),
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "UNIT_GATED" }),
+      );
+    }
+  });
+
+  it("UT-PREFLIGHT-007 (R-FRM-06): attributes the violation to the Skill (not the Unit) when the Skill itself declares the required Capability", () => {
+    const capabilityId = createCapabilityId("CAP_SKILL_GATED");
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+      enemyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+    });
+    const unit: UnitDefinition = {
+      ...unitDefinition("UNIT_A"),
+      activeSkillDefinitionIds: [createSkillDefinitionId("SKL_GATED")],
+    };
+    const snap = snapshot({
+      units: new Map([[createUnitDefinitionId("UNIT_A"), unit]]),
+      skills: new Map<SkillDefinitionId, SkillDefinition>([
+        [createSkillDefinitionId("SKL_GATED"), asSkill("SKL_GATED", "ACT_PLAIN", [capabilityId])],
+      ]),
+      effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+        [createEffectActionDefinitionId("ACT_PLAIN"), damageAction("ACT_PLAIN")],
+      ]),
+      capabilities: new Map([
+        [
+          capabilityId,
+          createCapabilityDefinition({
+            capabilityId: "CAP_SKILL_GATED",
+            status: "PLANNED",
+            description: "not yet implemented",
+            requiredBy: [],
+          }),
+        ],
+      ]),
+    });
+
+    try {
+      runPreflight(cmd, snap);
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "SKL_GATED" }),
+      );
+    }
+  });
+
+  it("UT-PREFLIGHT-008 (R-FRM-06): attributes the violation to the EffectAction referenced by a Skill's resolution steps", () => {
+    const capabilityId = createCapabilityId("CAP_ACTION_GATED");
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+      enemyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+    });
+    const unit: UnitDefinition = {
+      ...unitDefinition("UNIT_A"),
+      activeSkillDefinitionIds: [createSkillDefinitionId("SKL_PLAIN")],
+    };
+    const snap = snapshot({
+      units: new Map([[createUnitDefinitionId("UNIT_A"), unit]]),
+      skills: new Map<SkillDefinitionId, SkillDefinition>([
+        [createSkillDefinitionId("SKL_PLAIN"), asSkill("SKL_PLAIN", "ACT_GATED")],
+      ]),
+      effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+        [createEffectActionDefinitionId("ACT_GATED"), damageAction("ACT_GATED", [capabilityId])],
+      ]),
+      capabilities: new Map([
+        [
+          capabilityId,
+          createCapabilityDefinition({
+            capabilityId: "CAP_ACTION_GATED",
+            status: "PLANNED",
+            description: "not yet implemented",
+            requiredBy: [],
+          }),
+        ],
+      ]),
+    });
+
+    try {
+      runPreflight(cmd, snap);
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "ACT_GATED" }),
+      );
+    }
+  });
+
+  it("UT-PREFLIGHT-009 (R-FRM-06): attributes the violation to the Memory when the Memory itself declares the required Capability", () => {
+    const capabilityId = createCapabilityId("CAP_MEMORY_GATED");
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [createMemoryDefinitionId("MEM_GATED")],
+      },
+    });
+    const snap = snapshot({
+      memories: new Map<MemoryDefinitionId, MemoryDefinition>([
+        [createMemoryDefinitionId("MEM_GATED"), memoryWithCapability("MEM_GATED", [capabilityId])],
+      ]),
+      capabilities: new Map([
+        [
+          capabilityId,
+          createCapabilityDefinition({
+            capabilityId: "CAP_MEMORY_GATED",
+            status: "PLANNED",
+            description: "not yet implemented",
+            requiredBy: [],
+          }),
+        ],
+      ]),
+    });
+
+    try {
+      runPreflight(cmd, snap);
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "MEM_GATED" }),
+      );
+    }
+  });
+
+  it("UT-PREFLIGHT-010 (R-FRM-06): reports every requiring definition when multiple definitions need the same missing Capability", () => {
+    const capabilityId = createCapabilityId("CAP_SHARED_GATED");
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+      enemyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_B"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+    });
+    const snap = snapshot({
+      units: new Map([
+        [createUnitDefinitionId("UNIT_A"), unitDefinition("UNIT_A", [capabilityId])],
+        [createUnitDefinitionId("UNIT_B"), unitDefinition("UNIT_B", [capabilityId])],
+      ]),
+      capabilities: new Map([
+        [
+          capabilityId,
+          createCapabilityDefinition({
+            capabilityId: "CAP_SHARED_GATED",
+            status: "PLANNED",
+            description: "not yet implemented",
+            requiredBy: [],
+          }),
+        ],
+      ]),
+    });
+
+    try {
+      runPreflight(cmd, snap);
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      const violations = (error as ApplicationError).violations;
+      expect(violations).toContainEqual(
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "UNIT_A" }),
+      );
+      expect(violations).toContainEqual(
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "UNIT_B" }),
       );
     }
   });

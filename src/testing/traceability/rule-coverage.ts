@@ -400,17 +400,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定
-  {
-    ruleId: "R-END-01",
-    testCaseIds: [
-      "UT-R-END-01-001",
-      "UT-R-END-01-002",
-      "UT-R-END-01-003",
-      "UT-R-END-01-004",
-      "UT-BATTLE-009",
-    ],
-    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
-  },
+  // R-END-01は「ユニットの1行動とPS/Memory連鎖完了後」の判定タイミングも
+  // 含むが、ActionQueue・行動処理・PS/Memory連鎖は#14/#9へ後続する
+  // (13_実装計画.md「後続依存を持つルールは部分実装として扱い、この段階では
+  // 完了計上しない」)。#16ではターン開始・終了境界の判定タイミングだけを
+  // battle.test.tsのUT-R-END-01-*/UT-BATTLE-009で検証しており、行動後の判定は
+  // 未検証のため台帳上は未完了のままとする。
+  { ruleId: "R-END-01", testCaseIds: [], kinds: [] },
   {
     ruleId: "R-END-02",
     testCaseIds: [

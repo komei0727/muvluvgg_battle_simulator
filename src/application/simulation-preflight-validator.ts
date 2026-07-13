@@ -84,12 +84,17 @@ export function runPreflight(
   const required = collectRequiredCapabilities(snapshot, unitDefinitionIds, memoryDefinitionIds);
   const unimplemented = findUnimplementedCapabilities(required, snapshot.capabilities);
   if (unimplemented.length > 0) {
-    throw new ApplicationError(
-      "UNSUPPORTED_RULE",
-      unimplemented.map((capabilityId) => ({
-        ruleId: capabilityId,
-        reason: `requires unimplemented capability "${capabilityId}"`,
-      })),
+    // R-FRM-06 #5: 拒否時は対象Capability IDと、それを要求した定義IDの両方を
+    // エラーへ含める。同じCapabilityを複数の定義が要求する場合は、要求元ごとに
+    // 別のViolationとして列挙する。
+    const violations: Violation[] = unimplemented.flatMap(
+      ({ capabilityId, requiredByDefinitionIds }) =>
+        requiredByDefinitionIds.map((definitionId) => ({
+          ruleId: capabilityId,
+          definitionId,
+          reason: `definition "${definitionId}" requires unimplemented capability "${capabilityId}"`,
+        })),
     );
+    throw new ApplicationError("UNSUPPORTED_RULE", violations);
   }
 }
