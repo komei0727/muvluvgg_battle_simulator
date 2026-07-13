@@ -60,6 +60,43 @@ describe("SkillDefinition", () => {
     );
   });
 
+  it("UT-CAT-SKL-019 (R-ACT-03: ASのAPコストは1以上): rejects an AS cost.amount of 0", () => {
+    const input = minimalAsInput();
+    expect(() => createSkillDefinition({ ...input, cost: { resource: "AP", amount: 0 } })).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-CAT-SKL-020 (R-ACT-03: PSのPPコストは1以上): rejects a PS cost.amount of 0", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        skillType: "PS",
+        cost: { resource: "PP", amount: 0 },
+        triggers: [
+          {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "SELF",
+          },
+        ],
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-021 (R-ACT-03: EXのゲージコストは1以上): rejects an EX cost.amount of 0", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        skillType: "EX",
+        cost: { resource: "EX_GAUGE", amount: 0 },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-SKL-004: rejects an AS skill declaring triggers", () => {
     const input = minimalAsInput();
     expect(() =>

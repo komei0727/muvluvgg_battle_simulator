@@ -168,6 +168,7 @@ export class SimulateBattleUseCase {
       return assembleSimulationResult({
         battleId,
         catalogRevision: snapshot.catalogRevision,
+        logLevel: command.logLevel,
         result,
         initialState,
         finalState: captureBattleState(battle),

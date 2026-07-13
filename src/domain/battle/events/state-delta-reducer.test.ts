@@ -84,6 +84,53 @@ describe("applyStateDelta", () => {
 
     expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
   });
+
+  it("UT-STATE-REDUCER-014: applies a result delta (battle outcome becomes part of the restored state)", () => {
+    const delta: StateDelta = {
+      result: {
+        before: undefined,
+        after: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 2 },
+      },
+    };
+
+    const next = applyStateDelta(initialState(), delta);
+
+    expect(next.result).toEqual({
+      outcome: "ALLY_WIN",
+      completionReason: "ENEMY_DEFEATED",
+      completedTurn: 2,
+    });
+  });
+
+  it("UT-STATE-REDUCER-015: throws when result.before does not match the current result (already-completed battle)", () => {
+    const alreadyCompleted: BattleStateSnapshot = {
+      ...initialState(),
+      result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+    };
+    const delta: StateDelta = {
+      result: {
+        before: undefined,
+        after: { outcome: "ALLY_LOSE", completionReason: "ALLY_DEFEATED", completedTurn: 3 },
+      },
+    };
+
+    expect(() => applyStateDelta(alreadyCompleted, delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-016: carries an already-set result forward across a delta that does not touch it", () => {
+    const completed: BattleStateSnapshot = {
+      ...initialState(),
+      result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+    };
+
+    const next = applyStateDelta(completed, { turnNumber: { before: 0, after: 1 } });
+
+    expect(next.result).toEqual({
+      outcome: "ALLY_WIN",
+      completionReason: "ENEMY_DEFEATED",
+      completedTurn: 1,
+    });
+  });
 });
 
 describe("reduceStateDeltas", () => {

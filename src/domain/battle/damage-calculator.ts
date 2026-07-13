@@ -23,6 +23,18 @@ export interface DamageCalculationInput {
   readonly criticalMultiplier: number;
 }
 
+/** `DamageCalculated`イベントでの監査に必要な計算過程を含む結果。 */
+export interface DamageCalculationResult {
+  /** R-DMG-01の実効防御力（`defenderDefense * (1 - defenseIgnoreRate)`）。 */
+  readonly effectiveDefense: number;
+  readonly skillPower: number;
+  readonly attributeMultiplier: number;
+  readonly actionDamageMultiplier: number;
+  /** 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。 */
+  readonly preTruncationDamage: number;
+  readonly finalDamage: number;
+}
+
 function resolveSkillPower(formula: FormulaDefinition): number {
   if (formula.kind !== "SKILL_POWER") {
     throw new DomainValidationError(
@@ -57,7 +69,7 @@ function resolveActionDamageMultiplier(damageModifiers: readonly FormulaDefiniti
  * (R-DMG-04, AppliedEffectが必要)とダメージ無効効果(R-DMG-02の残り)は
  * M7未実装のため、この関数の対象外。
  */
-export function calculateDamage(input: DamageCalculationInput): number {
+export function calculateDamage(input: DamageCalculationInput): DamageCalculationResult {
   const effectiveDefense = input.defenderDefense * (1 - input.defenseIgnoreRate);
   const baseDamage = Math.max(0, input.attackerAttack - effectiveDefense);
 
@@ -69,12 +81,19 @@ export function calculateDamage(input: DamageCalculationInput): number {
   );
   const actionDamageMultiplier = resolveActionDamageMultiplier(input.damageModifiers);
 
-  const calculated =
+  const preTruncationDamage =
     baseDamage *
     skillPower *
     attributeMultiplier *
     input.criticalMultiplier *
     actionDamageMultiplier;
 
-  return Math.max(1, Math.floor(calculated));
+  return {
+    effectiveDefense,
+    skillPower,
+    attributeMultiplier,
+    actionDamageMultiplier,
+    preTruncationDamage,
+    finalDamage: Math.max(1, Math.floor(preTruncationDamage)),
+  };
 }
