@@ -311,4 +311,84 @@ describe("applyDamageAction", () => {
     )!;
     expect(updatedTarget.currentHp).toBe(10);
   });
+
+  it("UT-DAMAGE-APPLICATION-009 (会心・ダメージイベントのpayload監査可能性): the recorded CriticalCheckResolved/DamageCalculated events carry the correct, non-swapped calculation values — not just calculateDamage()/resolveCritical()'s own return values", () => {
+    // criticalRate above 100% so baseCriticalRate (1.5) and effectiveCriticalRate
+    // (clamped to 1) are guaranteed to differ, catching a "stored baseRate into
+    // effectiveRate" bug. attributeMultiplier (1.35, favorable attribute +
+    // affinityBonus) and actionDamageMultiplier (1.2, from damageModifiers) are
+    // chosen to differ from each other and from 1, catching a field swap.
+    const attacker = unit("ATTACKER", "ALLY", {
+      attack: 50,
+      criticalRate: 1.5,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.1,
+      attribute: "AGGRESSIVE",
+    });
+    const target = unit("TARGET", "ENEMY", {
+      defense: 20,
+      maximumHp: 1000,
+      attribute: "SHY", // AGGRESSIVE is favorable against SHY (R-ATR-01/02).
+    });
+    const richDamageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "SKILL_POWER", power: 1 },
+        hitCount: 1,
+        critical: { mode: "GUARANTEED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [{ kind: "CONSTANT", value: 0.2 }],
+        link: { enabled: false },
+      },
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      richDamageAction,
+      [attacker, target],
+      random,
+      context,
+    );
+
+    const events = context.recorder.getEvents();
+    const criticalCheckResolved = events.find((e) => e.eventType === "CriticalCheckResolved");
+    const damageCalculated = events.find((e) => e.eventType === "DamageCalculated");
+    expect(criticalCheckResolved).toBeDefined();
+    expect(damageCalculated).toBeDefined();
+
+    expect(criticalCheckResolved!.payload).toEqual({
+      mode: "GUARANTEED",
+      baseCriticalRate: 1.5,
+      effectiveCriticalRate: 1,
+      result: true,
+    });
+
+    const damageDetails = damageCalculated!.payload as Record<string, unknown>;
+    expect(damageDetails).toMatchObject({
+      skillDefinitionId: context.skillDefinitionId,
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK"),
+      hitIndex: 1,
+      targetUnitId: createBattleUnitId("TARGET"),
+      attackerAttack: 50,
+      defenderDefense: 20,
+      effectiveDefense: 20,
+      defenseIgnoreRate: 0,
+      skillPower: 1,
+      criticalMultiplier: 2,
+      // 30 base damage * 1 * 1.35 * 2 * 1.2 = 97.2 -> floor -> 97.
+      finalDamage: 97,
+      damageType: "PHYSICAL",
+    });
+    expect(damageDetails.attributeMultiplier).toBeCloseTo(1.35);
+    expect(damageDetails.actionDamageMultiplier).toBeCloseTo(1.2);
+    expect(damageDetails.preTruncationDamage).toBeCloseTo(97.2);
+  });
 });

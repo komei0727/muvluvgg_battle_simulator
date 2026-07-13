@@ -460,18 +460,19 @@ describe("SimulateBattleUseCase", () => {
     // is the public identifier).
     expect(new Set(events.map((e) => e.sequence)).size).toBe(events.length);
 
-    // Parent determinism: a child's sequence exceeds its resolved parentSequence.
-    // BattleLogEvent drops rootEventId (internal-only concept per
-    // 08_ドメインイベント.md「公開イベント形式」), so only the parent chain itself
-    // is checked here, not shared-root membership.
+    // Parent/root determinism (10_API設計.md BattleLogEventResponse):
+    // a child's sequence exceeds its resolved parentSequence, a root event is
+    // its own rootSequence, and a child shares its parent's rootSequence.
     const bySequence = new Map(events.map((e) => [e.sequence, e]));
     for (const event of events) {
       if (event.parentSequence === undefined) {
+        expect(event.rootSequence).toBe(event.sequence);
         continue;
       }
       const parent = bySequence.get(event.parentSequence);
       expect(parent).toBeDefined();
       expect(event.sequence).toBeGreaterThan(event.parentSequence);
+      expect(event.rootSequence).toBe(parent!.rootSequence);
     }
 
     // The full M3 event catalog except UnitDefeated (this attack is
@@ -503,14 +504,14 @@ describe("SimulateBattleUseCase", () => {
       ]),
     );
 
-    // Events carrying a stateDelta reference their StateTransition by sequence,
-    // and never duplicate the delta content on the event itself.
+    // Events carrying a stateDelta reference their StateTransition by its
+    // 0-based position in stateTransitions (10_API設計.md
+    // 「stateTransitionIndex」), and never duplicate the delta content on the
+    // event itself.
     for (const event of events) {
       expect(event).not.toHaveProperty("stateDelta");
-      if (event.stateTransitionReference !== undefined) {
-        expect(
-          stateTransitions.some((t) => t.causedBySequence === event.stateTransitionReference),
-        ).toBe(true);
+      if (event.stateTransitionIndex !== undefined) {
+        expect(stateTransitions[event.stateTransitionIndex]?.causedBySequence).toBe(event.sequence);
       }
     }
 

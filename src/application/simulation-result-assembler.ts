@@ -113,10 +113,11 @@ function assertStateVersionContinuity(stateTransitions: readonly StateTransition
  * 勝敗フィールドと、記録済みイベント列・初期/最終状態から`SimulateBattleResult`
  * （`09_アプリケーション設計.md`のトップレベル形）を組み立てる。`events`は
  * `logLevel`に応じて`projectEventsForLogLevel`で間引いたうえで、内部
- * `BattleDomainEvent`を公開`BattleLogEvent`（`08_ドメインイベント.md`「公開
- * イベント形式」: `type`は大文字スネークケース、`payload`は`details`、
- * `parentEventId`/`rootEventId`は`parentSequence`、`stateDelta`は直接含めず
- * `stateTransitionReference`で参照）へ変換する。`stateTransitions`
+ * `BattleDomainEvent`を公開`BattleLogEvent`（`10_API設計.md`
+ * 「BattleLogEventResponse」: `type`は大文字スネークケース、`payload`は
+ * `details`、`parentEventId`/`rootEventId`は`parentSequence`/`rootSequence`、
+ * `stateDelta`は直接含めず`stateTransitionIndex`（`stateTransitions`配列の
+ * 0始まりインデックス）で参照）へ変換する。`stateTransitions`
  * （状態復元に必要な全差分）は公開レベルに関わらず完全なまま返す
  * （「イベント公開レベルによって表示用イベントを間引いても、状態復元に必要な
  * 差分はstateTransitionsから失われない」）。
@@ -177,6 +178,7 @@ export function assembleSimulationResult(
     events: toBattleLogEvents(
       projectEventsForLogLevel(observation.events, input.logLevel),
       observation.events,
+      observation.stateTransitions,
     ),
     stateTransitions: observation.stateTransitions,
   };
