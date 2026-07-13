@@ -12,6 +12,7 @@ function member(id: string, overrides: Partial<BattlePartyMember> = {}): BattleP
   return {
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+    attribute: "AGGRESSIVE",
     position: { column: "LEFT", row: "FRONT" },
     globalCoordinate: { x: 0, y: 2 },
     combatStats: {

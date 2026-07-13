@@ -339,13 +339,33 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-ACTN-03", testCaseIds: [], kinds: [] },
 
   // HIT: 命中
-  { ruleId: "R-HIT-01", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-HIT-01",
+    testCaseIds: ["UT-R-HIT-01-001", "UT-R-HIT-01-002"],
+    kinds: ["POSITIVE"],
+  },
   { ruleId: "R-HIT-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-HIT-03", testCaseIds: [], kinds: [] },
 
   // CRT: 会心
-  { ruleId: "R-CRT-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-CRT-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-CRT-01",
+    testCaseIds: [
+      "UT-R-CRT-01-001",
+      "UT-R-CRT-01-002",
+      "UT-R-CRT-01-003",
+      "UT-R-CRT-01-004",
+      "UT-R-CRT-01-005",
+      "UT-R-CRT-01-006",
+      "UT-R-CRT-01-007",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-CRT-02",
+    testCaseIds: ["UT-R-CRT-02-001", "UT-R-CRT-02-002"],
+    kinds: ["POSITIVE"],
+  },
 
   // ATR: 属性
   {
@@ -376,7 +396,23 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // DMG: ダメージ
-  { ruleId: "R-DMG-01", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-DMG-01",
+    testCaseIds: [
+      "UT-R-DMG-01-001",
+      "UT-R-DMG-01-002",
+      "UT-R-DMG-01-003",
+      "UT-R-DMG-01-004",
+      "UT-R-DMG-01-005",
+      "UT-R-DMG-01-006",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // R-DMG-02はダメージ計算の最終切り捨てと最低1ダメージ(damage-calculator.ts、
+  // UT-DAMAGE-CALCULATOR-001/002で検証)だけを#9で実装している。「ダメージ無効
+  // 効果がある場合も結果を1とする」は効果システム(M7)が無いため未実装であり、
+  // 13_実装計画.md「後続依存を持つルールは完了計上しない」に従い台帳上は
+  // 未完了のままとする。
   { ruleId: "R-DMG-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-04", testCaseIds: [], kinds: [] },

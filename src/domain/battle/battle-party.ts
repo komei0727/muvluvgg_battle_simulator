@@ -1,3 +1,4 @@
+import type { Attribute } from "../catalog/catalog-enums.js";
 import type { MemoryDefinitionId, UnitDefinitionId } from "../catalog/catalog-ids.js";
 import type { BattleUnitId } from "../shared/ids.js";
 import type { FormationBonus } from "./formation-bonus-calculator.js";
@@ -10,6 +11,8 @@ import type { CombatStats } from "./starting-combat-stats.js";
 export interface BattlePartyMember {
   readonly battleUnitId: BattleUnitId;
   readonly unitDefinitionId: UnitDefinitionId;
+  /** R-ATR-02: `UnitDefinition.attribute` をそのまま写す。戦闘中は変化しない。 */
+  readonly attribute: Attribute;
   readonly position: FormationPosition;
   readonly globalCoordinate: GlobalCoordinate;
   /** R-STA-01: 配置適性・編成補正・Memory補正を含む開始時の戦闘中ステータス。 */

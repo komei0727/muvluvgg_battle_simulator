@@ -1,3 +1,4 @@
+import type { Attribute } from "../catalog/catalog-enums.js";
 import type { UnitDefinitionId } from "../catalog/catalog-ids.js";
 import type { UnitDefinition } from "../catalog/unit-definition.js";
 import {
@@ -22,6 +23,7 @@ import type { CombatStats } from "./starting-combat-stats.js";
 export interface BattleUnit {
   readonly battleUnitId: BattleUnitId;
   readonly unitDefinitionId: UnitDefinitionId;
+  readonly attribute: Attribute;
   readonly side: Side;
   readonly position: FormationPosition;
   readonly globalCoordinate: GlobalCoordinate;
@@ -51,6 +53,7 @@ export function createBattleUnit(
   return {
     battleUnitId: member.battleUnitId,
     unitDefinitionId: member.unitDefinitionId,
+    attribute: member.attribute,
     side,
     position: member.position,
     globalCoordinate: member.globalCoordinate,
