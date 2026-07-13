@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assembleSimulationResult } from "./simulation-result-assembler.js";
 import { ApplicationError } from "./application-error.js";
+import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
 import { createBattleId } from "../domain/shared/ids.js";
 
@@ -16,6 +17,35 @@ function recordBattleStarted(recorder: EventRecorder): void {
     payload: { turnLimit: 3, allySlotCount: 1, enemySlotCount: 1 },
     stateDelta: { battleStatus: { before: "READY", after: "RUNNING" } },
   });
+}
+
+/** BattleStarted(version 0->1) -> TurnStarted(version 1->2)の2件のstateDelta付きイベント。 */
+function recordTwoDeltaEvents(recorder: EventRecorder): void {
+  recordBattleStarted(recorder);
+  recorder.record({
+    eventType: "TurnStarted",
+    category: "FACT",
+    turnNumber: 1,
+    cycleNumber: 0,
+    resolutionScopeId: recorder.nextResolutionScopeId(),
+    payload: { turnNumber: 1 },
+    stateDelta: { turnNumber: { before: 0, after: 1 } },
+  });
+}
+
+function baseInput(events: readonly BattleDomainEvent[]) {
+  return {
+    battleId: BATTLE_ID,
+    catalogRevision: "rev-1",
+    result: {
+      outcome: "ALLY_WIN" as const,
+      completionReason: "ENEMY_DEFEATED" as const,
+      completedTurn: 3,
+    },
+    initialState: { status: "READY" as const, currentTurn: 0, units: {} },
+    finalState: { status: "RUNNING" as const, currentTurn: 1, units: {} },
+    events,
+  };
 }
 
 describe("assembleSimulationResult", () => {
@@ -64,5 +94,76 @@ describe("assembleSimulationResult", () => {
         events: recorder.getEvents(),
       }),
     ).toThrow(ApplicationError);
+  });
+
+  it("UT-RESULT-ASSEMBLER-003: converts a Reducer-detected broken delta sequence (DomainValidationError) into INTERNAL_INVARIANT_VIOLATION, not INVALID_COMMAND", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recorder.record({
+      eventType: "BattleStarted",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnLimit: 3, allySlotCount: 1, enemySlotCount: 1 },
+      // before ("RUNNING") does not match initialState.status ("READY"): the
+      // independent Reducer rejects this as a DomainValidationError.
+      stateDelta: { battleStatus: { before: "RUNNING", after: "COMPLETED" } },
+    });
+
+    try {
+      assembleSimulationResult(baseInput(recorder.getEvents()));
+      expect.fail("expected assembleSimulationResult to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
+  });
+
+  it("UT-RESULT-ASSEMBLER-004: throws INTERNAL_INVARIANT_VIOLATION when a transition's stateVersionAfter skips ahead of stateVersionBefore + 1 (missing version)", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordTwoDeltaEvents(recorder);
+    const [battleStarted, turnStarted] = recorder.getEvents();
+    const corrupted: readonly BattleDomainEvent[] = [
+      battleStarted!,
+      { ...turnStarted!, stateVersionBefore: 1, stateVersionAfter: 3 },
+    ];
+
+    try {
+      assembleSimulationResult(baseInput(corrupted));
+      expect.fail("expected assembleSimulationResult to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
+  });
+
+  it("UT-RESULT-ASSEMBLER-005: throws INTERNAL_INVARIANT_VIOLATION when the first transition's stateVersionBefore is not 0 (reversed order)", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordTwoDeltaEvents(recorder);
+    const [battleStarted, turnStarted] = recorder.getEvents();
+    const reversed: readonly BattleDomainEvent[] = [turnStarted!, battleStarted!];
+
+    try {
+      assembleSimulationResult(baseInput(reversed));
+      expect.fail("expected assembleSimulationResult to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
+  });
+
+  it("UT-RESULT-ASSEMBLER-006: throws INTERNAL_INVARIANT_VIOLATION when a stateVersion is duplicated across transitions", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder);
+    const [battleStarted] = recorder.getEvents();
+    const duplicated: readonly BattleDomainEvent[] = [battleStarted!, battleStarted!];
+
+    try {
+      assembleSimulationResult(baseInput(duplicated));
+      expect.fail("expected assembleSimulationResult to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
   });
 });
