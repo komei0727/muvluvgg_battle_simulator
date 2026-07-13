@@ -451,7 +451,7 @@ describe("SimulateBattleUseCase", () => {
     expect(result.outcome).toBe("ALLY_LOSE");
     expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
 
-    const { events, transitions, initialState, finalState } = result.observation;
+    const { events, stateTransitions, initialState, finalState } = result;
 
     // Event ordering (invariant list #1): sequence is 1..N with no gaps or duplicates.
     expect(events.map((e) => e.sequence)).toEqual(events.map((_, index) => index + 1));
@@ -501,14 +501,21 @@ describe("SimulateBattleUseCase", () => {
       ]),
     );
 
-    // SCN-BTL-001/SCN-BTL-021: initialState + transitions = finalState, verified
-    // through an independent Reducer (not Battle's own advance/resolve logic).
+    // SCN-BTL-001/SCN-BTL-021: initialState + stateTransitions = finalState,
+    // verified through an independent Reducer (not Battle's own advance/resolve
+    // logic). This includes the battle outcome itself (`result`), which is real
+    // Battle aggregate state (`Battle.result`), not just status/turn/units.
     const restored = reduceStateDeltas(
       initialState,
-      transitions.map((t) => t.delta),
+      stateTransitions.map((t) => t.stateDelta),
     );
     expect(restored).toEqual(finalState);
     expect(finalState.status).toBe("COMPLETED");
+    expect(finalState.result).toEqual({
+      outcome: "ALLY_LOSE",
+      completionReason: "TURN_LIMIT_REACHED",
+      completedTurn: 1,
+    });
   });
 
   it("SCN-BTL-001 (Issue #10 acceptance, lethal path): a lethal AS attack emits DamageApplied -> UnitDefeated -> BattleCompleted in causal order, with UnitDefeated's payload naming the defeated unit and the causing DamageApplied event", () => {
@@ -558,7 +565,7 @@ describe("SimulateBattleUseCase", () => {
     expect(result.outcome).toBe("ALLY_WIN");
     expect(result.completionReason).toBe("ENEMY_DEFEATED");
 
-    const { events } = result.observation;
+    const { events } = result;
     const eventTypes = events.map((e) => e.eventType);
     const damageAppliedIndex = eventTypes.indexOf("DamageApplied");
     const unitDefeatedIndex = eventTypes.indexOf("UnitDefeated");

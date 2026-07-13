@@ -232,6 +232,7 @@ export function advanceBattle(
 /** BattleCompletedを発行する。勝敗確定契機が複数あるため、単一の親イベントには紐付けずルート化する。 */
 function complete(battle: Battle, result: VictoryResult, recorder: EventRecorder): Battle {
   const completedTurn = battle.turnState.currentTurn;
+  const fullResult: BattleResult = { ...result, completedTurn };
   recorder.record({
     eventType: "BattleCompleted",
     category: "FACT",
@@ -243,11 +244,14 @@ function complete(battle: Battle, result: VictoryResult, recorder: EventRecorder
       completionReason: result.completionReason,
       completedTurn,
     },
-    stateDelta: { battleStatus: { before: battle.status, after: "COMPLETED" } },
+    stateDelta: {
+      battleStatus: { before: battle.status, after: "COMPLETED" },
+      result: { before: battle.result, after: fullResult },
+    },
   });
   return {
     ...battle,
     status: "COMPLETED",
-    result: { ...result, completedTurn },
+    result: fullResult,
   };
 }

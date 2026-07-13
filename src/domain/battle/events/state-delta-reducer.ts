@@ -70,10 +70,15 @@ export function applyStateDelta(
   if (delta.turnNumber !== undefined) {
     assertBeforeMatches("delta.turnNumber", state.currentTurn, delta.turnNumber);
   }
+  if (delta.result !== undefined) {
+    assertBeforeMatches("delta.result", state.result, delta.result);
+  }
+  const nextResult = delta.result !== undefined ? delta.result.after : state.result;
   return {
     status: delta.battleStatus?.after ?? state.status,
     currentTurn: delta.turnNumber?.after ?? state.currentTurn,
     units,
+    ...(nextResult !== undefined ? { result: nextResult } : {}),
   };
 }
 

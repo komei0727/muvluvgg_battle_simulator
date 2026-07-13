@@ -96,6 +96,46 @@ describe("validateCommandShape", () => {
     expect(violations).toContainEqual(expect.objectContaining({ path: "logLevel" }));
   });
 
+  it("UT-CMD-012 (09_アプリケーション設計.md「columnが0～2」): rejects a column outside 0..2", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [
+            {
+              unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+              // @ts-expect-error deliberately invalid for the test
+              position: { column: 3, row: "FRONT" },
+            },
+          ],
+          memoryDefinitionIds: [],
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].position.column" }),
+    );
+  });
+
+  it("UT-CMD-013 (09_アプリケーション設計.md「rowがFRONTまたはREAR」): rejects a row that is neither FRONT nor REAR", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [
+            {
+              unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+              // @ts-expect-error deliberately invalid for the test
+              position: { column: 0, row: "SIDE" },
+            },
+          ],
+          memoryDefinitionIds: [],
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].position.row" }),
+    );
+  });
+
   it("UT-CMD-011: collects every violation in a single call rather than failing on the first (09_アプリケーション設計.md)", () => {
     const violations = validateCommandShape(
       validCommand({

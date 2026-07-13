@@ -366,12 +366,27 @@ export function resolveActionPhase(
   let cycleNumber = 0;
   let turnScopeParent = turnScopeParentEventId;
 
+  // R-ACT-03はAS/PSのコストに0を許容する（`07_戦闘ルール詳細.md`「変化量が0の
+  // 場合はResourceChangedを発行しない」）。costが0のASは`consumeAp`が no-op に
+  // なるため、そのユニットのAPはキュー適格判定(`isQueueEligible`)を通過し続け、
+  // 周回を再生成するたびに再度選ばれてしまう。通常規則（cost>=1、WAITは必ず
+  // AP 1を消費）ではターン内の総周回数は開始時APの合計を超えないため、それを
+  // 上回った時点でコスト0の行動による無限周回と判断し、規定ターン上限を経由せず
+  // このターン内で即座に検出する（`resolveActionPhase`はターンをまたがない）。
+  const maxCyclesPerTurn = units.reduce((sum, unit) => sum + unit.maximumAp, 0) + 1;
+
   for (;;) {
     const queue = createActionQueue(units);
     if (queue.entries.length === 0) {
       break;
     }
     cycleNumber += 1;
+    if (cycleNumber > maxCyclesPerTurn) {
+      throw new DomainValidationError(
+        "resolveActionPhase.cycleNumber",
+        `exceeded the maximum possible cycles for this turn (${maxCyclesPerTurn}, derived from the total starting AP across all units); a 0-cost action is preventing forward progress`,
+      );
+    }
 
     const queueCreated = recorder.record({
       eventType: "ActionQueueCreated",

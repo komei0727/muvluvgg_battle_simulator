@@ -37,6 +37,7 @@ function baseInput(events: readonly BattleDomainEvent[]) {
   return {
     battleId: BATTLE_ID,
     catalogRevision: "rev-1",
+    logLevel: "DETAILED" as const,
     result: {
       outcome: "ALLY_WIN" as const,
       completionReason: "ENEMY_DEFEATED" as const,
@@ -49,7 +50,7 @@ function baseInput(events: readonly BattleDomainEvent[]) {
 }
 
 describe("assembleSimulationResult", () => {
-  it("UT-RESULT-ASSEMBLER-001: packages the battle outcome fields alongside a BattleObservation built from the given events and states", () => {
+  it("UT-RESULT-ASSEMBLER-001: packages the battle outcome fields and initialState/finalState/events/stateTransitions at the top level (09_アプリケーション設計.md SimulateBattleResult)", () => {
     const recorder = new EventRecorder(BATTLE_ID);
     recordBattleStarted(recorder);
     const initialState = { status: "READY" as const, currentTurn: 0, units: {} };
@@ -59,6 +60,7 @@ describe("assembleSimulationResult", () => {
     const result = assembleSimulationResult({
       battleId: BATTLE_ID,
       catalogRevision: "rev-1",
+      logLevel: "DETAILED",
       result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
       initialState,
       finalState,
@@ -70,13 +72,13 @@ describe("assembleSimulationResult", () => {
     expect(result.outcome).toBe("ALLY_WIN");
     expect(result.completionReason).toBe("ENEMY_DEFEATED");
     expect(result.completedTurn).toBe(3);
-    expect(result.observation.initialState).toBe(initialState);
-    expect(result.observation.finalState).toBe(finalState);
-    expect(result.observation.events).toHaveLength(1);
-    expect(result.observation.transitions).toHaveLength(1);
+    expect(result.initialState).toBe(initialState);
+    expect(result.finalState).toBe(finalState);
+    expect(result.events).toHaveLength(1);
+    expect(result.stateTransitions).toHaveLength(1);
   });
 
-  it("UT-RESULT-ASSEMBLER-002: throws INTERNAL_INVARIANT_VIOLATION when the given finalState does not match initialState + transitions restored through the independent Reducer", () => {
+  it("UT-RESULT-ASSEMBLER-002: throws INTERNAL_INVARIANT_VIOLATION when the given finalState does not match initialState + stateTransitions restored through the independent Reducer", () => {
     const recorder = new EventRecorder(BATTLE_ID);
     recordBattleStarted(recorder);
     const initialState = { status: "READY" as const, currentTurn: 0, units: {} };
@@ -88,12 +90,42 @@ describe("assembleSimulationResult", () => {
       assembleSimulationResult({
         battleId: BATTLE_ID,
         catalogRevision: "rev-1",
+        logLevel: "DETAILED",
         result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
         initialState,
         finalState,
         events: recorder.getEvents(),
       }),
     ).toThrow(ApplicationError);
+  });
+
+  it("UT-RESULT-ASSEMBLER-007: filters events by logLevel (SUMMARY) while keeping stateTransitions complete", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // BattleStarted is SUMMARY-visible and carries the only delta.
+    recorder.record({
+      eventType: "TargetsSelected",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { skillDefinitionId: "SKL_1" as never, bindings: [] },
+    });
+    const initialState = { status: "READY" as const, currentTurn: 0, units: {} };
+    const finalState = { status: "RUNNING" as const, currentTurn: 0, units: {} };
+
+    const result = assembleSimulationResult({
+      battleId: BATTLE_ID,
+      catalogRevision: "rev-1",
+      logLevel: "SUMMARY",
+      result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+      initialState,
+      finalState,
+      events: recorder.getEvents(),
+    });
+
+    expect(result.events.map((e) => e.eventType)).toEqual(["BattleStarted"]);
+    // stateTransitions is unaffected by logLevel: it stays complete either way.
+    expect(result.stateTransitions).toHaveLength(1);
   });
 
   it("UT-RESULT-ASSEMBLER-003: converts a Reducer-detected broken delta sequence (DomainValidationError) into INTERNAL_INVARIANT_VIOLATION, not INVALID_COMMAND", () => {

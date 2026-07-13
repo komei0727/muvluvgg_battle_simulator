@@ -36,9 +36,31 @@ export interface SimulateBattleCommand {
 const MIN_SLOTS = 1;
 const MAX_SLOTS = 5;
 const MAX_MEMORY_DEFINITION_IDS = 6;
+const VALID_COLUMNS: readonly number[] = [0, 1, 2];
+const VALID_ROWS: readonly string[] = ["FRONT", "REAR"];
 
 function positionKey(position: FormationPositionInput): string {
   return `${position.column}:${position.row}`;
+}
+
+/** `09_アプリケーション設計.md`「Command検証」: `column`が0～2、`rowがFRONT`または`REAR`であることを検証する。 */
+function validatePosition(
+  position: FormationPositionInput,
+  path: string,
+  violations: Violation[],
+): void {
+  if (!VALID_COLUMNS.includes(position.column)) {
+    violations.push({
+      path: `${path}.column`,
+      reason: `must be one of [${VALID_COLUMNS.join(", ")}], got ${JSON.stringify(position.column)}`,
+    });
+  }
+  if (!VALID_ROWS.includes(position.row)) {
+    violations.push({
+      path: `${path}.row`,
+      reason: `must be one of [${VALID_ROWS.join(", ")}], got ${JSON.stringify(position.row)}`,
+    });
+  }
 }
 
 function validateFormation(formation: FormationInput, path: string, violations: Violation[]): void {
@@ -51,6 +73,8 @@ function validateFormation(formation: FormationInput, path: string, violations: 
 
   const seenPositions = new Set<string>();
   formation.slots.forEach((slot, index) => {
+    validatePosition(slot.position, `${path}.slots[${index}].position`, violations);
+
     const key = positionKey(slot.position);
     if (seenPositions.has(key)) {
       violations.push({

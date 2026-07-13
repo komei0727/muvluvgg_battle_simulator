@@ -380,4 +380,37 @@ describe("resolveActionPhase", () => {
     // The reservation was discarded outright, not consumed as a WAIT either.
     expect(updatedDoomed.currentAp).toBe(1);
   });
+
+  it("UT-ACTION-PHASE-007 (P1: zero-cost AS must not cycle forever): a 0-AP-cost AS that never depletes its user's AP is bounded by a cycle-count safety guard instead of looping until the (very large) target HP is exhausted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_FREE_ATTACKER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_FREE_ATTACKER",
+      attack: 1,
+      limits: { maximumAp: 1 },
+    });
+    // HP large enough that natural HP-based termination would take far more
+    // cycles than the safety guard's bound (maximumAp total + 1 = 3 here).
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 0, maximumHp: 1_000_000 });
+    const effectAction = damageEffectAction("ACT_FREE_ATTACK");
+    // apCost: 0 -> consumeAp is a no-op, so this unit is re-queued every cycle.
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_FREE_ATTACK", 0)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    expect(() =>
+      resolveActionPhase(
+        [ally],
+        [enemy],
+        definitions,
+        random,
+        ctx.recorder,
+        ctx.turnNumber,
+        ctx.turnRootEventId,
+        ctx.turnScopeParentEventId,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });
