@@ -401,4 +401,110 @@ describe("SimulateBattleUseCase", () => {
     // a fresh RandomSource per Battle means it succeeds identically to the first.
     expect(() => useCase.execute(attackerCommand)).not.toThrow();
   });
+
+  it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {
+    const { reduceStateDeltas } = await import("../domain/battle/events/state-delta-reducer.js");
+    const skillId = "SKL_ATTACK";
+    const effectActionId = "ACT_ATTACK";
+    const attackerUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_ATK"),
+      baseStats: { ...unitDefinition("UNIT_ATK").baseStats, maximumAp: 1 },
+      activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+    };
+    // UNIT_001 (activeSkillDefinitionIds: []) always WAITs, exercising both
+    // ActionStarted effectiveActionType values ("AS" and "WAIT") in one battle.
+    const units = new Map([
+      [createUnitDefinitionId("UNIT_ATK"), attackerUnit],
+      [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
+    ]);
+    const skills = new Map([
+      [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
+    ]);
+    const effectActions = new Map([
+      [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],
+    ]);
+    const catalog = new FakeBattleCatalog(
+      units,
+      new Map(),
+      new Map(),
+      "rev-1",
+      skills,
+      effectActions,
+    );
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+    });
+
+    const result = useCase.execute(
+      command({
+        allyFormation: { slots: [slot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+        enemyFormation: { slots: [slot("UNIT_001", 0)], memoryDefinitionIds: [] },
+        turnLimit: 1,
+      }),
+    );
+
+    // Non-lethal attack (UNIT_ATK attack 10 - UNIT_001 defense 10 -> 1 damage
+    // floor, 100 HP survives) that stays RUNNING through TURN_ENDING, then
+    // resolves on the turn-limit boundary — exercising the full M3 event set.
+    expect(result.outcome).toBe("ALLY_LOSE");
+    expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
+
+    const { events, transitions, initialState, finalState } = result.observation;
+
+    // Event ordering (invariant list #1): sequence is 1..N with no gaps or duplicates.
+    expect(events.map((e) => e.sequence)).toEqual(events.map((_, index) => index + 1));
+
+    // eventId is unique within the battle.
+    expect(new Set(events.map((e) => e.eventId)).size).toBe(events.length);
+
+    // Parent/root determinism: a child's sequence exceeds its parent's, and it
+    // shares the parent's rootEventId; a root event is its own rootEventId.
+    const byId = new Map(events.map((e) => [e.eventId, e]));
+    for (const event of events) {
+      if (event.parentEventId === undefined) {
+        expect(event.rootEventId).toBe(event.eventId);
+        continue;
+      }
+      const parent = byId.get(event.parentEventId);
+      expect(parent).toBeDefined();
+      expect(event.sequence).toBeGreaterThan(parent!.sequence);
+      expect(event.rootEventId).toBe(parent!.rootEventId);
+    }
+
+    // The full M3 event catalog is exercised by this one non-lethal-attack +
+    // mandatory-WAIT + turn-limit-completion battle.
+    expect(new Set(events.map((e) => e.eventType))).toEqual(
+      new Set([
+        "BattleStarted",
+        "TurnStarted",
+        "ResourcesRecovered",
+        "ActionQueueCreated",
+        "ActionStarted",
+        "TargetsSelected",
+        "SkillUseStarting",
+        "SkillUseStarted",
+        "HitConfirmed",
+        "CriticalCheckResolved",
+        "DamageCalculated",
+        "DamageApplied",
+        "SkillUseCompleted",
+        "ActionCompleting",
+        "ActionCompleted",
+        "TurnCompleting",
+        "TurnCompleted",
+        "BattleCompleted",
+      ]),
+    );
+
+    // SCN-BTL-001/SCN-BTL-021: initialState + transitions = finalState, verified
+    // through an independent Reducer (not Battle's own advance/resolve logic).
+    const restored = reduceStateDeltas(
+      initialState,
+      transitions.map((t) => t.delta),
+    );
+    expect(restored).toEqual(finalState);
+    expect(finalState.status).toBe("COMPLETED");
+  });
 });

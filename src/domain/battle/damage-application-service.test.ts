@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { applyDamageAction } from "./damage-application-service.js";
+import { applyDamageAction, type DamageEventContext } from "./damage-application-service.js";
 import {
   createBattleUnit,
   isDefeated,
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "./battle-unit.js";
+import { EventRecorder } from "./events/event-recorder.js";
 import { createHitPoint } from "./resource-gauge.js";
 import type { ResolvedEffectApplication } from "./skill-resolution-service.js";
 import type { BattlePartyMember } from "./battle-party.js";
-import { createBattleUnitId } from "../shared/ids.js";
-import { createEffectActionDefinitionId, createUnitDefinitionId } from "../catalog/catalog-ids.js";
+import { createBattleId, createBattleUnitId } from "../shared/ids.js";
+import {
+  createEffectActionDefinitionId,
+  createSkillDefinitionId,
+  createUnitDefinitionId,
+} from "../catalog/catalog-ids.js";
 import type { FormationPosition } from "./formation-input.js";
 import { toGlobalCoordinate } from "./global-coordinate.js";
 import type { Side } from "./side.js";
@@ -87,6 +92,41 @@ function hit(targetId: string, hitIndex: number): ResolvedEffectApplication {
   };
 }
 
+/** `applyDamageAction`は通常`ActionStarted`スコープ内、`SkillUseStarted`直後に呼ばれる。単体テストではその前提イベントを最小限再現する。 */
+function damageEventContext(): DamageEventContext {
+  const recorder = new EventRecorder(createBattleId("B_1"));
+  const actionId = recorder.nextActionId();
+  const resolutionScopeId = recorder.nextResolutionScopeId();
+  const actionStarted = recorder.record({
+    eventType: "ActionStarted",
+    category: "FACT",
+    turnNumber: 1,
+    cycleNumber: 1,
+    actionId,
+    resolutionScopeId,
+    payload: {
+      actorUnitId: createBattleUnitId("ATTACKER"),
+      reservedActionType: "AS",
+      effectiveActionType: "AS",
+      apBefore: 1,
+      apAfter: 0,
+      exBefore: 0,
+      exAfter: 0,
+    },
+  });
+  return {
+    recorder,
+    turnNumber: 1,
+    cycleNumber: 1,
+    actionId,
+    skillUseId: recorder.nextSkillUseId(),
+    resolutionScopeId,
+    rootEventId: actionStarted.eventId,
+    parentEventId: actionStarted.eventId,
+    skillDefinitionId: createSkillDefinitionId("SKL_ATTACK"),
+  };
+}
+
 describe("applyDamageAction", () => {
   it("UT-DAMAGE-APPLICATION-001: a single hit reduces HP by the calculated damage (attack - defense, PREVENTED critical)", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
@@ -99,6 +139,7 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, target],
       random,
+      damageEventContext(),
     );
 
     expect(result.hits).toEqual([
@@ -127,6 +168,7 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, target],
       random,
+      damageEventContext(),
     );
 
     const updatedTarget = result.units.find(
@@ -147,6 +189,7 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, target],
       random,
+      damageEventContext(),
     );
 
     expect(result.hits.map((h) => h.applied)).toEqual([true, false, false]);
@@ -170,6 +213,7 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, targetA, targetB],
       random,
+      damageEventContext(),
     );
 
     const updatedA = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET_A"))!;
@@ -189,6 +233,7 @@ describe("applyDamageAction", () => {
       damageAction("GUARANTEED"),
       [attacker, target],
       random,
+      damageEventContext(),
     );
 
     random.assertFullyConsumed();
@@ -208,6 +253,7 @@ describe("applyDamageAction", () => {
         damageAction("PREVENTED"),
         [attacker],
         random,
+        damageEventContext(),
       ),
     ).toThrow(DomainValidationError);
   });
@@ -224,6 +270,7 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, target],
       random,
+      damageEventContext(),
     );
 
     expect(result.hits[0]!.applied).toBe(true);
@@ -255,6 +302,7 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, target],
       random,
+      damageEventContext(),
     );
 
     expect(result.hits[0]!.applied).toBe(false);

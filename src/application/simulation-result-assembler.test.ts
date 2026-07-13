@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+import { assembleSimulationResult } from "./simulation-result-assembler.js";
+import { EventRecorder } from "../domain/battle/events/event-recorder.js";
+import { createBattleId } from "../domain/shared/ids.js";
+
+const BATTLE_ID = createBattleId("battle-1");
+
+describe("assembleSimulationResult", () => {
+  it("UT-RESULT-ASSEMBLER-001: packages the battle outcome fields alongside a BattleObservation built from the given events and states", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recorder.record({
+      eventType: "BattleStarted",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnLimit: 3, allySlotCount: 1, enemySlotCount: 1 },
+      stateDelta: { battleStatus: { before: "READY", after: "RUNNING" } },
+    });
+    const initialState = { status: "READY" as const, currentTurn: 0, units: {} };
+    const finalState = { status: "COMPLETED" as const, currentTurn: 3, units: {} };
+
+    const result = assembleSimulationResult({
+      battleId: BATTLE_ID,
+      catalogRevision: "rev-1",
+      result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+      initialState,
+      finalState,
+      events: recorder.getEvents(),
+    });
+
+    expect(result.battleId).toBe(BATTLE_ID);
+    expect(result.catalogRevision).toBe("rev-1");
+    expect(result.outcome).toBe("ALLY_WIN");
+    expect(result.completionReason).toBe("ENEMY_DEFEATED");
+    expect(result.completedTurn).toBe(3);
+    expect(result.observation.initialState).toBe(initialState);
+    expect(result.observation.finalState).toBe(finalState);
+    expect(result.observation.events).toHaveLength(1);
+    expect(result.observation.transitions).toHaveLength(1);
+  });
+});
