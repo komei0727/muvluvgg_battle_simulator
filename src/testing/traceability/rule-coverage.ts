@@ -339,13 +339,33 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-ACTN-03", testCaseIds: [], kinds: [] },
 
   // HIT: 命中
-  { ruleId: "R-HIT-01", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-HIT-01",
+    testCaseIds: ["UT-R-HIT-01-001", "UT-R-HIT-01-002"],
+    kinds: ["POSITIVE"],
+  },
   { ruleId: "R-HIT-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-HIT-03", testCaseIds: [], kinds: [] },
 
   // CRT: 会心
-  { ruleId: "R-CRT-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-CRT-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-CRT-01",
+    testCaseIds: [
+      "UT-R-CRT-01-001",
+      "UT-R-CRT-01-002",
+      "UT-R-CRT-01-003",
+      "UT-R-CRT-01-004",
+      "UT-R-CRT-01-005",
+      "UT-R-CRT-01-006",
+      "UT-R-CRT-01-007",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-CRT-02",
+    testCaseIds: ["UT-R-CRT-02-001", "UT-R-CRT-02-002"],
+    kinds: ["POSITIVE"],
+  },
 
   // ATR: 属性
   {
@@ -376,7 +396,25 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // DMG: ダメージ
-  { ruleId: "R-DMG-01", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-DMG-01",
+    testCaseIds: [
+      "UT-R-DMG-01-001",
+      "UT-R-DMG-01-002",
+      "UT-R-DMG-01-003",
+      "UT-R-DMG-01-004",
+      "UT-R-DMG-01-005",
+      "UT-R-DMG-01-006",
+      "UT-R-DMG-01-007",
+      "UT-R-DMG-01-008",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // R-DMG-02はダメージ計算の最終切り捨てと最低1ダメージ(damage-calculator.ts、
+  // UT-DAMAGE-CALCULATOR-001/002で検証)だけを#9で実装している。「ダメージ無効
+  // 効果がある場合も結果を1とする」は効果システム(M7)が無いため未実装であり、
+  // 13_実装計画.md「後続依存を持つルールは完了計上しない」に従い台帳上は
+  // 未完了のままとする。
   { ruleId: "R-DMG-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-04", testCaseIds: [], kinds: [] },
@@ -432,13 +470,26 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定
-  // R-END-01は「ユニットの1行動とPS/Memory連鎖完了後」の判定タイミングも
-  // 含むが、ActionQueue・行動処理・PS/Memory連鎖は#14/#9へ後続する
-  // (13_実装計画.md「後続依存を持つルールは部分実装として扱い、この段階では
-  // 完了計上しない」)。#16ではターン開始・終了境界の判定タイミングだけを
-  // battle.test.tsのUT-R-END-01-*/UT-BATTLE-009で検証しており、行動後の判定は
-  // 未検証のため台帳上は未完了のままとする。
-  { ruleId: "R-END-01", testCaseIds: [], kinds: [] },
+  // R-END-01の2つの判定タイミング区分を#9で両方カバーした:
+  // (1) ターン開始・終了などの行動外トップレベル解決スコープ完了後
+  //     (battle.tsのTURN_STARTING/TURN_ENDING、UT-R-END-01-001〜004)
+  // (2) ユニットの1行動完了後 (action-phase-resolver.tsの各行動処理直後、
+  //     UT-ACTION-PHASE-003/UT-BATTLE-010/011)。
+  // 「PS/Memory連鎖完了後」はPS/Memoryエンジン自体が未実装(M6/M7)のため、
+  // 現状は行動完了直後がそのままPS/Memory連鎖完了後と等価になる。
+  {
+    ruleId: "R-END-01",
+    testCaseIds: [
+      "UT-R-END-01-001",
+      "UT-R-END-01-002",
+      "UT-R-END-01-003",
+      "UT-R-END-01-004",
+      "UT-ACTION-PHASE-003",
+      "UT-BATTLE-010",
+      "UT-BATTLE-011",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
   {
     ruleId: "R-END-02",
     testCaseIds: [
@@ -449,6 +500,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-END-02-005",
       "UT-R-END-02-006",
       "UT-R-END-02-007",
+      "UT-BATTLE-012",
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },

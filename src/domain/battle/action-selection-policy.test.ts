@@ -26,6 +26,7 @@ function unit(
   const member: BattlePartyMember = {
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+    attribute: "AGGRESSIVE",
     position,
     globalCoordinate: toGlobalCoordinate(side, position),
     combatStats: {

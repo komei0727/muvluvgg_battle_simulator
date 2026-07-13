@@ -80,6 +80,7 @@ export function createBattleParty(
   const members: BattlePartyMember[] = slotUnits.map(({ slot, unitDefinition }, index) => ({
     battleUnitId: battleUnitIds[index]!,
     unitDefinitionId: slot.unitDefinitionId,
+    attribute: unitDefinition.attribute,
     position: slot.position,
     globalCoordinate: toGlobalCoordinate(side, slot.position),
     combatStats: calculateStartingCombatStats({

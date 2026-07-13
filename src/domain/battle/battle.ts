@@ -1,7 +1,10 @@
+import { resolveActionPhase } from "./action-phase-resolver.js";
+import type { BattleDefinitions } from "./battle-definitions.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "./battle-unit.js";
 import { beginNextTurn, createTurnState, isFinalTurn, type TurnState } from "./turn-state.js";
 import type { TurnLimit } from "./turn-limit.js";
 import { resolveVictory, type VictoryResult } from "./victory-policy.js";
+import type { RandomSource } from "../ports/random-source.js";
 import { DomainValidationError } from "../shared/errors.js";
 import type { BattleId } from "../shared/ids.js";
 
@@ -10,12 +13,10 @@ export type BattleStatus = "READY" | "RUNNING" | "COMPLETED";
 export type BattleResult = VictoryResult & { readonly completedTurn: number };
 
 /**
- * `05_ドメインモデル.md` の Battle集約。`13_実装計画.md`「M3 最小戦闘縦切り」の
- * ライフサイクル部分（`ActionQueue`以降は#14/#9/#10で拡張する）だけを扱う。
- * ActionQueueがまだ存在しないため、`advanceBattle` 1回が
- * TURN_STARTING〜TURN_ENDINGの1ターン全体（06_戦闘状態遷移.mdの2つの
- * トップレベル解決スコープ境界）に相当する。ActionQueue導入後、この境界は
- * より細かい解決スコープ単位へ分割される。
+ * `05_ドメインモデル.md` の Battle集約。`13_実装計画.md`「M3 最小戦闘縦切り」を扱う。
+ * `advanceBattle` 1回はTURN_STARTING〜TURN_ENDINGの1ターン全体に相当し、内部で
+ * QUEUE_BUILDING〜ACTION_RESOLUTION（`resolveActionPhase`）を使用可能な行動が
+ * 無くなるまで繰り返す。
  */
 export interface Battle {
   readonly battleId: BattleId;
@@ -23,6 +24,7 @@ export interface Battle {
   readonly turnState: TurnState;
   readonly allyUnits: readonly BattleUnit[];
   readonly enemyUnits: readonly BattleUnit[];
+  readonly definitions: BattleDefinitions;
   readonly result?: BattleResult;
 }
 
@@ -32,6 +34,7 @@ export function createBattle(
   allyUnits: readonly BattleUnit[],
   enemyUnits: readonly BattleUnit[],
   turnLimit: TurnLimit,
+  definitions: BattleDefinitions,
 ): Battle {
   if (allyUnits.length === 0) {
     throw new DomainValidationError("battle.allyUnits", "must contain at least one BattleUnit");
@@ -45,6 +48,7 @@ export function createBattle(
     turnState: createTurnState(turnLimit),
     allyUnits,
     enemyUnits,
+    definitions,
   };
 }
 
@@ -65,11 +69,12 @@ function allDefeated(units: readonly BattleUnit[]): boolean {
 
 /**
  * Battle集約の主要操作: advance。1回の呼び出しでTURN_STARTING〜TURN_ENDINGを
- * 進め、R-END-01の2つの判定タイミング（ターン開始後・ターン終了後）を
+ * 進め、R-END-01の2つの判定タイミング区分（行動外のトップレベル解決スコープ
+ * 完了後＝ターン開始・終了／ユニットの1行動完了後＝`resolveActionPhase`内部）を
  * 順に評価する。勝敗が確定した時点で以後の処理を打ち切る
  * （05_ドメインモデル.md「結果が確定した後は、未処理の...を処理しない」）。
  */
-export function advanceBattle(battle: Battle): Battle {
+export function advanceBattle(battle: Battle, random: RandomSource): Battle {
   if (battle.status !== "RUNNING") {
     throw new DomainValidationError(
       "battle.status",
@@ -80,26 +85,34 @@ export function advanceBattle(battle: Battle): Battle {
   const turnState = beginNextTurn(battle.turnState);
   const allyUnits = battle.allyUnits.map(recoverTurnResources);
   const enemyUnits = battle.enemyUnits.map(recoverTurnResources);
-  const progressed: Battle = { ...battle, turnState, allyUnits, enemyUnits };
+  const started: Battle = { ...battle, turnState, allyUnits, enemyUnits };
 
-  const allAlliesDefeated = allDefeated(allyUnits);
-  const allEnemiesDefeated = allDefeated(enemyUnits);
-
-  // R-END-01 第1判定タイミング: ターン開始（TURN_STARTING）というトップレベル解決スコープの完了後。
+  // R-END-01 判定タイミング区分「ターン開始・終了など、行動外のトップレベル解決スコープ完了後」その1: TURN_STARTING完了後。
   const afterTurnStart = resolveVictory({
-    allAlliesDefeated,
-    allEnemiesDefeated,
+    allAlliesDefeated: allDefeated(allyUnits),
+    allEnemiesDefeated: allDefeated(enemyUnits),
     turnLimitReached: false,
   });
   if (afterTurnStart !== undefined) {
-    return complete(progressed, afterTurnStart);
+    return complete(started, afterTurnStart);
   }
 
-  // ActionQueueが未実装のため、この時点で使用可能な行動は存在せず、常にTURN_ENDINGへ進む。
-  // R-END-01 第2判定タイミング: ターン終了（TURN_ENDING）というトップレベル解決スコープの完了後。
+  // QUEUE_BUILDING〜ACTION_RESOLUTION: R-END-01「ユニットの1行動完了後」の判定は
+  // `resolveActionPhase` 内部で各行動ごとに行う。
+  const actionPhase = resolveActionPhase(allyUnits, enemyUnits, battle.definitions, random);
+  const progressed: Battle = {
+    ...started,
+    allyUnits: actionPhase.allyUnits,
+    enemyUnits: actionPhase.enemyUnits,
+  };
+  if (actionPhase.result !== undefined) {
+    return complete(progressed, actionPhase.result);
+  }
+
+  // R-END-01 判定タイミング区分「ターン開始・終了など、行動外のトップレベル解決スコープ完了後」その2: TURN_ENDING完了後。
   const afterTurnEnd = resolveVictory({
-    allAlliesDefeated,
-    allEnemiesDefeated,
+    allAlliesDefeated: allDefeated(actionPhase.allyUnits),
+    allEnemiesDefeated: allDefeated(actionPhase.enemyUnits),
     turnLimitReached: isFinalTurn(turnState),
   });
   if (afterTurnEnd !== undefined) {
