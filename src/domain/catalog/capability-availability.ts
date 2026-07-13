@@ -12,13 +12,37 @@ import type { SkillDefinition } from "./skill-definition.js";
  * non-empty unimplemented result into `UNSUPPORTED_RULE` — this module only
  * computes the set, since it has no knowledge of HTTP/Application error
  * shapes.
+ *
+ * R-FRM-06 #5 requires the rejection to name both the Capability ID and the
+ * definition ID that required it, so each collected Capability is tracked
+ * alongside every definition (Unit/Skill/EffectAction/Memory) that declared
+ * it in `requiredCapabilities`.
  */
 
-function skillRequiredCapabilities(
+/** Capability ID -> every definition ID that declared it in `requiredCapabilities`. */
+export type RequiredCapabilities = ReadonlyMap<CapabilityId, ReadonlySet<string>>;
+
+function addRequirement(
+  target: Map<CapabilityId, Set<string>>,
+  capabilityIds: readonly CapabilityId[],
+  requiredByDefinitionId: string,
+): void {
+  for (const capabilityId of capabilityIds) {
+    let requiredBy = target.get(capabilityId);
+    if (requiredBy === undefined) {
+      requiredBy = new Set();
+      target.set(capabilityId, requiredBy);
+    }
+    requiredBy.add(requiredByDefinitionId);
+  }
+}
+
+function collectSkillRequirements(
   skill: SkillDefinition,
   index: CatalogIndex,
-): readonly CapabilityId[] {
-  const ids: CapabilityId[] = [...skill.requiredCapabilities];
+  target: Map<CapabilityId, Set<string>>,
+): void {
+  addRequirement(target, skill.requiredCapabilities, skill.skillDefinitionId);
   const stepGroups =
     skill.resolution.kind === "CHARGE"
       ? [skill.resolution.steps, skill.resolution.chargeRelease.steps]
@@ -27,31 +51,29 @@ function skillRequiredCapabilities(
     for (const ref of collectEffectActionReferences(steps)) {
       const effectAction = index.effectActions.get(ref.effectActionDefinitionId);
       if (effectAction !== undefined) {
-        ids.push(...effectAction.requiredCapabilities);
+        addRequirement(
+          target,
+          effectAction.requiredCapabilities,
+          effectAction.effectActionDefinitionId,
+        );
       }
     }
   }
-  return ids;
 }
 
 export function collectRequiredCapabilities(
   index: CatalogIndex,
   unitDefinitionIds: readonly UnitDefinitionId[],
   memoryDefinitionIds: readonly MemoryDefinitionId[],
-): ReadonlySet<CapabilityId> {
-  const required = new Set<CapabilityId>();
-  const addAll = (ids: readonly CapabilityId[]): void => {
-    for (const id of ids) {
-      required.add(id);
-    }
-  };
+): RequiredCapabilities {
+  const target = new Map<CapabilityId, Set<string>>();
 
   for (const unitId of unitDefinitionIds) {
     const unit = index.units.get(unitId);
     if (unit === undefined) {
       continue;
     }
-    addAll(unit.requiredCapabilities);
+    addRequirement(target, unit.requiredCapabilities, unit.unitDefinitionId);
     const skillIds = [
       ...unit.activeSkillDefinitionIds,
       ...unit.passiveSkillDefinitionIds,
@@ -60,7 +82,7 @@ export function collectRequiredCapabilities(
     for (const skillId of skillIds) {
       const skill = index.skills.get(skillId);
       if (skill !== undefined) {
-        addAll(skillRequiredCapabilities(skill, index));
+        collectSkillRequirements(skill, index, target);
       }
     }
   }
@@ -70,29 +92,38 @@ export function collectRequiredCapabilities(
     if (memory === undefined) {
       continue;
     }
-    addAll(memory.requiredCapabilities);
+    addRequirement(target, memory.requiredCapabilities, memory.memoryDefinitionId);
     for (const triggeredEffect of memory.triggeredEffects) {
       for (const ref of collectEffectActionReferences(triggeredEffect.effectSequence.steps)) {
         const effectAction = index.effectActions.get(ref.effectActionDefinitionId);
         if (effectAction !== undefined) {
-          addAll(effectAction.requiredCapabilities);
+          addRequirement(
+            target,
+            effectAction.requiredCapabilities,
+            effectAction.effectActionDefinitionId,
+          );
         }
       }
     }
   }
 
-  return required;
+  return target;
+}
+
+export interface UnimplementedCapability {
+  readonly capabilityId: CapabilityId;
+  readonly requiredByDefinitionIds: readonly string[];
 }
 
 export function findUnimplementedCapabilities(
-  requiredCapabilities: ReadonlySet<CapabilityId>,
+  requiredCapabilities: RequiredCapabilities,
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
-): readonly CapabilityId[] {
-  const unimplemented: CapabilityId[] = [];
-  for (const id of requiredCapabilities) {
-    const capability = capabilities.get(id);
+): readonly UnimplementedCapability[] {
+  const unimplemented: UnimplementedCapability[] = [];
+  for (const [capabilityId, requiredBy] of requiredCapabilities) {
+    const capability = capabilities.get(capabilityId);
     if (capability === undefined || capability.status !== "IMPLEMENTED") {
-      unimplemented.push(id);
+      unimplemented.push({ capabilityId, requiredByDefinitionIds: [...requiredBy] });
     }
   }
   return unimplemented;

@@ -156,8 +156,41 @@ function capability(id: string, status: string): CapabilityDefinition {
   return createCapabilityDefinition({ capabilityId: id, status, description: "d", requiredBy: [] });
 }
 
+function memoryWithEffectActionCapability(id: string, targetActionId: string): MemoryDefinition {
+  return createMemoryDefinition({
+    memoryDefinitionId: id,
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+              actions: [{ effectActionDefinitionId: targetActionId }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities: [],
+    metadata: { displayName: "Memory" },
+  });
+}
+
 describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
-  it("UT-CAT-CAP-001: collects capabilities declared directly on a selected Unit", () => {
+  it("UT-CAT-CAP-001: collects capabilities declared directly on a selected Unit, attributed to that Unit", () => {
     const defs: CatalogDefinitions = {
       units: [unit("UNIT_001", { requiredCapabilities: ["CAP_HEAL"] })],
       skills: [asSkill("SKL_AS1", "ACT_DAMAGE_1"), exSkill("SKL_EX1", 7)],
@@ -167,10 +200,11 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     };
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, ["UNIT_001" as never], []);
-    expect([...required]).toEqual(["CAP_HEAL"]);
+    expect([...required.keys()]).toEqual(["CAP_HEAL"]);
+    expect(required.get("CAP_HEAL" as never)).toEqual(new Set(["UNIT_001"]));
   });
 
-  it("UT-CAT-CAP-002: collects capabilities transitively through Skill and EffectAction references", () => {
+  it("UT-CAT-CAP-002: collects capabilities transitively through Skill and EffectAction references, attributed to the Skill/EffectAction that declared them", () => {
     const defs: CatalogDefinitions = {
       units: [unit("UNIT_001")],
       skills: [
@@ -186,10 +220,14 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     };
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, ["UNIT_001" as never], []);
-    expect(new Set(required)).toEqual(new Set(["CAP_RESOLUTION_BRANCH", "CAP_PARTIAL_PIERCING"]));
+    expect(new Set(required.keys())).toEqual(
+      new Set(["CAP_RESOLUTION_BRANCH", "CAP_PARTIAL_PIERCING"]),
+    );
+    expect(required.get("CAP_RESOLUTION_BRANCH" as never)).toEqual(new Set(["SKL_AS1"]));
+    expect(required.get("CAP_PARTIAL_PIERCING" as never)).toEqual(new Set(["ACT_DAMAGE_1"]));
   });
 
-  it("UT-CAT-CAP-003: collects capabilities from selected Memories", () => {
+  it("UT-CAT-CAP-003: collects capabilities declared directly on a selected Memory, attributed to that Memory", () => {
     const defs: CatalogDefinitions = {
       units: [],
       skills: [],
@@ -199,10 +237,49 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     };
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, [], ["MEM_001" as never]);
-    expect([...required]).toEqual(["CAP_MEMORY_DYNAMIC_EFFECT"]);
+    expect([...required.keys()]).toEqual(["CAP_MEMORY_DYNAMIC_EFFECT"]);
+    expect(required.get("CAP_MEMORY_DYNAMIC_EFFECT" as never)).toEqual(new Set(["MEM_001"]));
   });
 
-  it("UT-CAT-CAP-004: findUnimplementedCapabilities returns only non-IMPLEMENTED capabilities", () => {
+  it("UT-CAT-CAP-007: collects capabilities through a Memory's triggeredEffects EffectAction reference, attributed to the EffectAction (not the Memory)", () => {
+    const defs: CatalogDefinitions = {
+      units: [],
+      skills: [],
+      effectActions: [damageAction("ACT_ATTACK_UP", ["CAP_MEMORY_ACTION"])],
+      memories: [memoryWithEffectActionCapability("MEM_001", "ACT_ATTACK_UP")],
+      capabilities: [capability("CAP_MEMORY_ACTION", "PLANNED")],
+    };
+    const index = buildCatalogIndex(defs);
+    const required = collectRequiredCapabilities(index, [], ["MEM_001" as never]);
+    expect([...required.keys()]).toEqual(["CAP_MEMORY_ACTION"]);
+    expect(required.get("CAP_MEMORY_ACTION" as never)).toEqual(new Set(["ACT_ATTACK_UP"]));
+  });
+
+  it("UT-CAT-CAP-008: merges requiring definition IDs when multiple definitions require the same Capability", () => {
+    const defs: CatalogDefinitions = {
+      units: [
+        unit("UNIT_001", { requiredCapabilities: ["CAP_SHARED"] }),
+        unit("UNIT_002", { active: ["SKL_AS2"], requiredCapabilities: ["CAP_SHARED"] }),
+      ],
+      skills: [
+        asSkill("SKL_AS1", "ACT_DAMAGE_1"),
+        asSkill("SKL_AS2", "ACT_DAMAGE_1"),
+        exSkill("SKL_EX1", 7),
+      ],
+      effectActions: [damageAction("ACT_DAMAGE_1")],
+      memories: [],
+      capabilities: [capability("CAP_SHARED", "PLANNED")],
+    };
+    const index = buildCatalogIndex(defs);
+    const required = collectRequiredCapabilities(
+      index,
+      ["UNIT_001" as never, "UNIT_002" as never],
+      [],
+    );
+    expect(required.get("CAP_SHARED" as never)).toEqual(new Set(["UNIT_001", "UNIT_002"]));
+  });
+
+  it("UT-CAT-CAP-004: findUnimplementedCapabilities returns only non-IMPLEMENTED capabilities, each with its requiring definition IDs", () => {
     const defs: CatalogDefinitions = {
       units: [unit("UNIT_001", { requiredCapabilities: ["CAP_A", "CAP_B", "CAP_C"] })],
       skills: [asSkill("SKL_AS1", "ACT_DAMAGE_1"), exSkill("SKL_EX1", 7)],
@@ -217,7 +294,9 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, ["UNIT_001" as never], []);
     const unimplemented = findUnimplementedCapabilities(required, index.capabilities);
-    expect(new Set(unimplemented)).toEqual(new Set(["CAP_B", "CAP_C"]));
+    expect(new Set(unimplemented.map((u) => u.capabilityId))).toEqual(new Set(["CAP_B", "CAP_C"]));
+    const capB = unimplemented.find((u) => u.capabilityId === "CAP_B");
+    expect(capB?.requiredByDefinitionIds).toEqual(["UNIT_001"]);
   });
 
   it("UT-CAT-CAP-005: a decided Q-* capability marked IMPLEMENTED is not treated as unsupported", () => {
@@ -250,6 +329,6 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     };
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, ["UNIT_001" as never], []);
-    expect([...required]).toEqual(["CAP_HEAL"]);
+    expect([...required.keys()]).toEqual(["CAP_HEAL"]);
   });
 });
