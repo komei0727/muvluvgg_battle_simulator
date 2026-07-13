@@ -2,7 +2,11 @@ import { Ajv } from "ajv";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
-import { battleSimulationResponseSchema, battleSimulationResponseDocSchema } from "./schemas.js";
+import {
+  battleSimulationResponseSchema,
+  battleSimulationResponseDocSchema,
+  battleLogEventResponseDocSchema,
+} from "./schemas.js";
 import type { BattleSimulationResponseBody } from "../../application/http-contract.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import {
@@ -203,9 +207,45 @@ describe("OpenAPI document", () => {
     // TURN_LIMIT_REACHED: it exercises ActionStarted(WAIT)/TurnCompleting/
     // TurnCompleted, which the lethal-damage scenario in
     // state-restoration.test.ts never reaches. Validating both against the
-    // OpenAPI-published doc schema (`battleLogEventDetailsDocSchema`'s
-    // per-event `anyOf`) together covers all 19 M3 event types.
+    // OpenAPI-published doc schema (`battleLogEventResponseDocSchema`'s
+    // per-event-type `oneOf`) together covers all 19 M3 event types.
     const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
+  });
+
+  it("API-OPENAPI-004: rejects an event whose type/details combination is inconsistent, even though details alone matches a different event type's shape (a mismatch AJV previously accepted)", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const mismatched = {
+      sequence: 1,
+      type: "DAMAGE_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: [],
+      // This is a well-formed TurnStarted-shaped details payload, not a
+      // DamageApplied one — the mismatch itself must be rejected.
+      details: { turnNumber: 1 },
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    expect(validate(mismatched)).toBe(false);
+
+    const matched = {
+      ...mismatched,
+      details: {
+        effectActionDefinitionId: "ACT_1",
+        hitIndex: 0,
+        targetUnitId: "enemy:1",
+        calculatedDamage: 10,
+        hitPointDamage: 10,
+        hpBefore: 20,
+        hpAfter: 10,
+        defeated: false,
+      },
+    };
+    expect(validate(matched), JSON.stringify(validate.errors)).toBe(true);
   });
 });

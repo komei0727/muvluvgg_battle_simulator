@@ -274,9 +274,17 @@ function applyDelta(
 
 /**
  * `12_テスト戦略.md`「イベントのstateTransitionIndexが対応差分を指す」:
- * `events[].stateTransitionIndex`が指す`stateTransitions`要素の
- * `causedBySequence`が、参照元イベント自身の`sequence`と一致することを
- * 双方向に検証する。
+ * `events[].stateTransitionIndex`と`stateTransitions[].causedBySequence`の
+ * 対応を双方向に検証する。
+ *
+ * 1. 順方向 — `event.stateTransitionIndex`が指す`stateTransitions`要素の
+ *    `causedBySequence`が、参照元イベント自身の`sequence`と一致する。
+ * 2. 逆方向 — `stateTransitions[i].causedBySequence`と同じ`sequence`を持つ
+ *    イベントが`events`に公開されている場合（SUMMARYなどで原因イベントが
+ *    非公開になることは許容する）、そのイベントの`stateTransitionIndex`が
+ *    `i`を指す。順方向だけの検証では、「原因イベントは公開されているのに
+ *    `stateTransitionIndex`が欠落・別indexを指す」壊れ方を見逃す
+ *    （`stateTransitionIndex`を持たないイベントは単に読み飛ばすだけなので）。
  */
 function requireEventTransitionIndexConsistency(body: BattleSimulationResponseBody): void {
   for (const event of body.events) {
@@ -295,6 +303,22 @@ function requireEventTransitionIndexConsistency(body: BattleSimulationResponseBo
       );
     }
   }
+
+  const eventsBySequence = new Map(body.events.map((event) => [event.sequence, event]));
+  body.stateTransitions.forEach((transition, index) => {
+    const causingEvent = eventsBySequence.get(transition.causedBySequence);
+    if (causingEvent === undefined) {
+      // The causing event is not published at this logLevel — allowed
+      // (`10_API設計.md`「SUMMARYで原因イベントが非公開でも、causedBySequenceは
+      // 元のイベント連番を保持する」）。
+      return;
+    }
+    if (causingEvent.stateTransitionIndex !== index) {
+      throw new Error(
+        `stateTransitions[${index}] is caused by sequence ${transition.causedBySequence}, but that published event's stateTransitionIndex is ${String(causingEvent.stateTransitionIndex)}, not ${index}`,
+      );
+    }
+  });
 }
 
 function reconstructFinalState(body: BattleSimulationResponseBody): BattleStateResponseBody {
@@ -447,6 +471,25 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     };
 
     expect(() => reconstructFinalState(withGap)).toThrow(/stateTransitionIndex/);
+  });
+
+  it("API-STATE-RESTORE-004c: rejects a stateTransitions array where a transition's causedBySequence names a *published* event, but that event's own stateTransitionIndex was dropped (the reverse direction of the event<->transition cross-reference — a forward-only check misses this)", async () => {
+    const body = await runLethalScenario();
+    const ownerIndex = body.events.findIndex((event) => event.stateTransitionIndex !== undefined);
+    expect(ownerIndex).toBeGreaterThanOrEqual(0);
+    const owner = body.events[ownerIndex]!;
+    // The transition still claims `causedBySequence: owner.sequence`, and
+    // `owner` is still present in `events` (not hidden by logLevel) — but its
+    // own `stateTransitionIndex` no longer points back. A reducer that only
+    // walks events[] forward (event -> transition) never notices this,
+    // because it simply skips events with no stateTransitionIndex to follow.
+    const { stateTransitionIndex: _dropped, ...ownerWithoutIndex } = owner;
+    const corrupted = {
+      ...body,
+      events: body.events.map((event, i) => (i === ownerIndex ? ownerWithoutIndex : event)),
+    };
+
+    expect(() => reconstructFinalState(corrupted)).toThrow(/stateTransitionIndex/);
   });
 
   it("API-STATE-RESTORE-005: rejects a transition whose ValueChange.before does not match the Reducer's tracked current value (a corrupted/out-of-order delta that version-continuity alone would not catch)", async () => {

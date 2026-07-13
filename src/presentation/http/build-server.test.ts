@@ -341,6 +341,18 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(response.statusCode).toBe(200);
   });
 
+  it("API-CONTRACT-015c (RFC 9110 §5.6.6): rejects application/json when explicitly excluded via an uppercase `Q=0` parameter name", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+      headers: { accept: "application/json;Q=0" },
+    });
+
+    expect(response.statusCode).toBe(406);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("NOT_ACCEPTABLE");
+  });
+
   it("API-CONTRACT-016 (10_API設計.md「ErrorObject」diagnosticId): an unexpected exception (not an ApplicationError) returns 500 with a diagnosticId, without leaking the exception message", async () => {
     const throwingApp = await buildServer({
       execute: () => {

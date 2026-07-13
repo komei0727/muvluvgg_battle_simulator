@@ -713,33 +713,55 @@ const battleCompletedDetailsSchema = {
   },
 } as const;
 
-const battleLogEventDetailsDocSchema = {
-  anyOf: [
-    battleStartedDetailsSchema,
-    turnNumberOnlyDetailsSchema,
-    resourcesRecoveredDetailsSchema,
-    actionQueueCreatedDetailsSchema,
-    actionStartedDetailsSchema,
-    targetsSelectedDetailsSchema,
-    skillUseStartingDetailsSchema,
-    skillUseStartedDetailsSchema,
-    skillUseCompletedDetailsSchema,
-    hitConfirmedDetailsSchema,
-    criticalCheckResolvedDetailsSchema,
-    damageCalculatedDetailsSchema,
-    damageAppliedDetailsSchema,
-    unitDefeatedDetailsSchema,
-    actorEffectiveActionDetailsSchema,
-    battleCompletedDetailsSchema,
-  ],
+/**
+ * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
+ * から、対応する`details`schemaへのlookup。`ActionCompleting`/
+ * `ActionCompleted`、`TurnStarted`/`TurnCompleting`/`TurnCompleted`は
+ * 構造上同一payloadだが、`type`ごとに別エントリを持つ（`oneOf`側で`type`を
+ * `const`固定するための discriminator は`type`自身であり、`details`の形が
+ * 同じでも判別に問題はない）。
+ */
+const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
+  BATTLE_STARTED: battleStartedDetailsSchema,
+  TURN_STARTED: turnNumberOnlyDetailsSchema,
+  RESOURCES_RECOVERED: resourcesRecoveredDetailsSchema,
+  ACTION_QUEUE_CREATED: actionQueueCreatedDetailsSchema,
+  ACTION_STARTED: actionStartedDetailsSchema,
+  TARGETS_SELECTED: targetsSelectedDetailsSchema,
+  SKILL_USE_STARTING: skillUseStartingDetailsSchema,
+  SKILL_USE_STARTED: skillUseStartedDetailsSchema,
+  SKILL_USE_COMPLETED: skillUseCompletedDetailsSchema,
+  HIT_CONFIRMED: hitConfirmedDetailsSchema,
+  CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
+  DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
+  DAMAGE_APPLIED: damageAppliedDetailsSchema,
+  UNIT_DEFEATED: unitDefeatedDetailsSchema,
+  ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
+  ACTION_COMPLETED: actorEffectiveActionDetailsSchema,
+  TURN_COMPLETING: turnNumberOnlyDetailsSchema,
+  TURN_COMPLETED: turnNumberOnlyDetailsSchema,
+  BATTLE_COMPLETED: battleCompletedDetailsSchema,
 } as const;
 
-const battleLogEventResponseDocSchema = {
-  ...battleLogEventResponseSchema,
-  properties: {
-    ...battleLogEventResponseSchema.properties,
-    details: battleLogEventDetailsDocSchema,
-  },
+/**
+ * `events[].type`と`details`の対応をOpenAPI公開文書へ固定する。`details`だけを
+ * `anyOf`で列挙すると、`type`とは無関係にどれか一つの形へ一致すればよくなり、
+ * 実際には存在しない組み合わせ（例: `type: "DAMAGE_APPLIED"`に
+ * `TurnStarted`の`details`）を検証が通してしまう。ここではイベント全体
+ * （`type`を`const`で固定した各variant）を`oneOf`にすることで、`type`と
+ * `details`の組み合わせ自体を検証対象にする。各variantは`type`の値で
+ * 一意に排他となるため（`details`の形が複数variant間で重複していても）、
+ * `oneOf`が「複数一致で失敗」になることはない。
+ */
+export const battleLogEventResponseDocSchema = {
+  oneOf: Object.entries(EVENT_DETAILS_SCHEMA_BY_TYPE).map(([type, detailsSchema]) => ({
+    ...battleLogEventResponseSchema,
+    properties: {
+      ...battleLogEventResponseSchema.properties,
+      type: { const: type },
+      details: detailsSchema,
+    },
+  })),
 } as const;
 
 /**

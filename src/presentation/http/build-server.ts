@@ -74,8 +74,9 @@ interface AcceptEntry {
 
 /**
  * RFC 7231 `Accept`ヘッダーの`media-range[;q=value]`を単純にパースする。
- * RFC 9110 §8.3.1: media typeのtype/subtypeは大文字小文字を区別しないため、
- * 比較のために小文字へ正規化する（`q`パラメータ名自体は小文字固定のためそのまま）。
+ * RFC 9110 §8.3.1: media typeのtype/subtypeは大文字小文字を区別しない。
+ * RFC 9110 §5.6.6: パラメータ名（`q`）も大文字小文字を区別しない。両方とも
+ * 比較のために小文字へ正規化する。
  */
 function parseAcceptHeader(value: string): readonly AcceptEntry[] {
   return value.split(",").map((entry): AcceptEntry => {
@@ -84,7 +85,7 @@ function parseAcceptHeader(value: string): readonly AcceptEntry[] {
     let q = 1;
     for (const param of params) {
       const [key, rawValue] = param.split("=").map((part) => part.trim());
-      if (key === "q" && rawValue !== undefined) {
+      if (key?.toLowerCase() === "q" && rawValue !== undefined) {
         const parsed = Number(rawValue);
         if (!Number.isNaN(parsed)) {
           q = parsed;
