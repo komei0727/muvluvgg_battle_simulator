@@ -15,9 +15,12 @@ import type { SimulateBattleResult } from "../../application/simulation-result-a
 import { fromApplicationError, toErrorResponseBody } from "./error-response-mapper.js";
 import {
   battleSimulationRequestSchema,
+  battleSimulationRequestDocSchema,
   battleSimulationResponseSchema,
   errorResponseSchema,
 } from "./schemas.js";
+
+const BATTLE_SIMULATIONS_PATH = "/api/v1/battle-simulations";
 
 /**
  * `SimulateBattleUseCase`が要求するインターフェースのうち、Fastifyルートが
@@ -53,12 +56,61 @@ function resolveRequestId(header: string | string[] | undefined): string {
   return randomUUID();
 }
 
+interface AcceptEntry {
+  readonly type: string;
+  readonly subtype: string;
+  readonly q: number;
+}
+
+/** RFC 7231 `Accept`ヘッダーの`media-range[;q=value]`を単純にパースする。 */
+function parseAcceptHeader(value: string): readonly AcceptEntry[] {
+  return value.split(",").map((entry): AcceptEntry => {
+    const [mediaRange = "*/*", ...params] = entry.split(";").map((part) => part.trim());
+    const [type = "*", subtype = "*"] = mediaRange.split("/");
+    let q = 1;
+    for (const param of params) {
+      const [key, rawValue] = param.split("=").map((part) => part.trim());
+      if (key === "q" && rawValue !== undefined) {
+        const parsed = Number(rawValue);
+        if (!Number.isNaN(parsed)) {
+          q = parsed;
+        }
+      }
+    }
+    return { type, subtype, q };
+  });
+}
+
+/**
+ * `10_API設計.md`「HTTPヘッダー」: `Accept`省略時は`application/json`と
+ * みなす。指定されている場合は、最も詳細度の高い一致（完全一致、
+ * 次に"application"のtypeワイルドカード、次に完全ワイルドカード）のq値で
+ * 判定する。単純な部分文字列一致では `Accept: application/json;q=0` や
+ * 完全ワイルドカードだけをq=0にする指定のような明示的な除外を見逃す
+ * （q=0は「受理不可」を意味する、RFC 7231）。
+ */
 function acceptsJson(header: string | string[] | undefined): boolean {
   if (header === undefined) {
     return true;
   }
   const value = Array.isArray(header) ? header.join(",") : header;
-  return value.includes("application/json") || value.includes("*/*");
+  const entries = parseAcceptHeader(value);
+
+  const exact = entries.find((entry) => entry.type === "application" && entry.subtype === "json");
+  if (exact !== undefined) {
+    return exact.q > 0;
+  }
+  const typeWildcard = entries.find(
+    (entry) => entry.type === "application" && entry.subtype === "*",
+  );
+  if (typeWildcard !== undefined) {
+    return typeWildcard.q > 0;
+  }
+  const fullWildcard = entries.find((entry) => entry.type === "*" && entry.subtype === "*");
+  if (fullWildcard !== undefined) {
+    return fullWildcard.q > 0;
+  }
+  return false;
 }
 
 /**
@@ -97,6 +149,17 @@ export async function buildServer(
       info: { title: "muvluvgg-battle-simulator API", version: "1" },
       paths: {},
     },
+    // `10_API設計.md`はOpenAPIへ値域・列挙値の自動検証を要求するが、
+    // `column`/`row`/`logLevel`/`turnLimit`などの値域違反は「422
+    // INVALID_COMMAND」として集約検証したい（`schemas.ts`冒頭の注記）。
+    // ここで公開文書だけ`battleSimulationRequestDocSchema`（値域・列挙値付き）
+    // へ差し替え、実行時validationに使う`route.schema`本体は変更しない。
+    transform: ({ schema, url }) => {
+      if (url === BATTLE_SIMULATIONS_PATH && schema.body !== undefined) {
+        return { schema: { ...schema, body: battleSimulationRequestDocSchema }, url };
+      }
+      return { schema, url };
+    },
   });
 
   app.addHook("onRequest", (request, reply, done) => {
@@ -117,6 +180,11 @@ export async function buildServer(
   app.setErrorHandler<FastifyError | ApplicationError>((error, request, reply) => {
     if (error instanceof ApplicationError) {
       const { status, body } = fromApplicationError(error);
+      if (status >= 500) {
+        // `10_API設計.md`「ErrorObject」diagnosticId: サーバーログと照合できるよう、
+        // レスポンスへ返す診断IDと同じ値でログへも記録する。
+        request.log.error({ diagnosticId: body.error.diagnosticId, err: error });
+      }
       void reply.code(status).send(body);
       return;
     }
@@ -142,8 +210,13 @@ export async function buildServer(
       }
       default: {
         // `10_API設計.md`「情報公開」: スタックトレースや内部パスを返さない。
-        request.log.error(error);
-        void reply.code(500).send(toErrorResponseBody("INTERNAL_INVARIANT_VIOLATION", []));
+        // 「ErrorObject」diagnosticId: 予期しない例外も、生成したIDをレスポンス
+        // とログの双方へ記録し、事後にサーバーログと照合できるようにする。
+        const diagnosticId = randomUUID();
+        request.log.error({ diagnosticId, err: error });
+        void reply
+          .code(500)
+          .send(toErrorResponseBody("INTERNAL_INVARIANT_VIOLATION", [], diagnosticId));
       }
     }
   });

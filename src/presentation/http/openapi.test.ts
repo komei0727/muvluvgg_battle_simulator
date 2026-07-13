@@ -107,6 +107,72 @@ describe("OpenAPI document", () => {
     );
   });
 
+  it("API-OPENAPI-003 (10_API設計.md「必須項目と値域」「列挙値」): the published request schema documents turnLimit's 1-99 range and column/row/logLevel's enums, even though the runtime validator stays loose to keep out-of-range values classified as 422 INVALID_COMMAND", async () => {
+    interface JsonSchemaObject {
+      readonly type?: string;
+      readonly minimum?: number;
+      readonly maximum?: number;
+      readonly enum?: readonly unknown[];
+      readonly items?: JsonSchemaObject;
+      readonly properties?: Readonly<Record<string, JsonSchemaObject>>;
+    }
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly post?: {
+              readonly requestBody?: {
+                readonly content?: {
+                  readonly "application/json"?: { readonly schema?: JsonSchemaObject };
+                };
+              };
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const bodySchema =
+      document.paths?.["/api/v1/battle-simulations"]?.post?.requestBody?.content?.[
+        "application/json"
+      ]?.schema;
+
+    expect(bodySchema?.properties?.["turnLimit"]).toMatchObject({ minimum: 1, maximum: 99 });
+    const positionSchema =
+      bodySchema?.properties?.["allyFormation"]?.properties?.["units"]?.items?.properties?.[
+        "position"
+      ];
+    expect(positionSchema?.properties?.["column"]?.enum).toEqual([0, 1, 2]);
+    expect(positionSchema?.properties?.["row"]?.enum).toEqual(["FRONT", "REAR"]);
+    expect(bodySchema?.properties?.["options"]?.properties?.["logLevel"]?.enum).toEqual([
+      "SUMMARY",
+      "DETAILED",
+      "DIAGNOSTIC",
+    ]);
+
+    // The runtime validator (used by the actual route, not the doc) is unaffected:
+    // an out-of-range turnLimit still reaches Application's `validateCommandShape`
+    // and comes back as 422 INVALID_COMMAND, not 400 MALFORMED_REQUEST.
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 0,
+      },
+    });
+    expect(response.statusCode).toBe(422);
+  });
+
   it("API-OPENAPI-002: a representative 200 response body validates against the generated response schema (10_API設計.md/12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」)", async () => {
     const response = await app.inject({
       method: "POST",

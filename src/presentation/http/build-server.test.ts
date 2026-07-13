@@ -218,9 +218,10 @@ describe("POST /api/v1/battle-simulations", () => {
     const body = response.json<ErrorResponseBody>();
     expect(body.error.code).toBe("INVALID_COMMAND");
     expect(body.error.violations.length).toBeGreaterThan(0);
+    expect(body.error.violations[0]!.path).toBe("/turnLimit");
   });
 
-  it("API-CONTRACT-010: returns 422 DEFINITION_NOT_FOUND for an unknown unitDefinitionId", async () => {
+  it("API-CONTRACT-010: returns 422 DEFINITION_NOT_FOUND for an unknown unitDefinitionId, with an external JSON Pointer path (not the internal Command's dot/`slots` form)", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/battle-simulations",
@@ -233,7 +234,11 @@ describe("POST /api/v1/battle-simulations", () => {
     });
 
     expect(response.statusCode).toBe(422);
-    expect(response.json<ErrorResponseBody>().error.code).toBe("DEFINITION_NOT_FOUND");
+    const body = response.json<ErrorResponseBody>();
+    expect(body.error.code).toBe("DEFINITION_NOT_FOUND");
+    expect(body.error.violations).toEqual([
+      expect.objectContaining({ path: "/allyFormation/units/0/unitDefinitionId" }),
+    ]);
   });
 
   it("API-CONTRACT-011: returns 422 UNSUPPORTED_RULE for a definition requiring an unimplemented Capability", async () => {
@@ -288,5 +293,64 @@ describe("POST /api/v1/battle-simulations", () => {
 
     expect(response.statusCode).toBe(406);
     expect(response.json<ErrorResponseBody>().error.code).toBe("NOT_ACCEPTABLE");
+  });
+
+  it("API-CONTRACT-013: returns 406 NOT_ACCEPTABLE when application/json is explicitly excluded with q=0, not just absent", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+      headers: { accept: "application/json;q=0" },
+    });
+
+    expect(response.statusCode).toBe(406);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("NOT_ACCEPTABLE");
+  });
+
+  it("API-CONTRACT-014: returns 406 NOT_ACCEPTABLE when only the wildcard matches and that wildcard is q=0", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+      headers: { accept: "text/plain, */*;q=0" },
+    });
+
+    expect(response.statusCode).toBe(406);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("NOT_ACCEPTABLE");
+  });
+
+  it("API-CONTRACT-015: accepts application/json when a q=0 entry for a different type coexists with an acceptable */* or application/json entry", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+      headers: { accept: "text/html;q=0, application/json" },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("API-CONTRACT-016 (10_API設計.md「ErrorObject」diagnosticId): an unexpected exception (not an ApplicationError) returns 500 with a diagnosticId, without leaking the exception message", async () => {
+    const throwingApp = await buildServer({
+      execute: () => {
+        throw new Error("unexpected failure with sensitive internal detail");
+      },
+    });
+
+    try {
+      const response = await throwingApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+
+      expect(response.statusCode).toBe(500);
+      const body = response.json<ErrorResponseBody>();
+      expect(body.error.code).toBe("INTERNAL_INVARIANT_VIOLATION");
+      expect(body.error.diagnosticId).toEqual(expect.any(String));
+      expect(JSON.stringify(body)).not.toContain("sensitive internal detail");
+    } finally {
+      await throwingApp.close();
+    }
   });
 });

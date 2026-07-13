@@ -146,20 +146,51 @@ export interface UnitResourcesDeltaResponseBody {
   readonly extraGauge?: ValueChangeBody<number>;
 }
 
+/** `10_API設計.md`「BattleStateDeltaResponse」の`EntityCollectionDelta`。 */
+export interface EntityCollectionDeltaResponseBody {
+  readonly added: readonly unknown[];
+  readonly updated: readonly {
+    readonly id: string;
+    readonly before: unknown;
+    readonly after: unknown;
+  }[];
+  readonly removed: readonly { readonly id: string; readonly before: unknown }[];
+}
+
+/**
+ * `10_API設計.md`「UnitStateDeltaResponse」の全項目。`combatStats`/`shields`/
+ * `subUnits`/`effects`/`cooldowns`/`charge`は対応するDomain機構が実装される
+ * M5〜M8まで、Response Mapperが値を設定することはない
+ * （現行v1のRequest/Response契約を`additionalProperties: false`のまま将来へ
+ * 拡張できるよう、フィールド自体は先に外部契約へ持たせておく）。
+ */
 export interface UnitStateDeltaResponseBody {
   readonly combatStatus?: ValueChangeBody<string>;
   readonly hp?: ValueChangeBody<number>;
   readonly resources?: UnitResourcesDeltaResponseBody;
+  readonly combatStats?: Readonly<Record<string, ValueChangeBody<number>>>;
+  readonly shields?: Readonly<Record<string, ValueChangeBody<number>>>;
+  readonly subUnits?: EntityCollectionDeltaResponseBody;
+  readonly effects?: EntityCollectionDeltaResponseBody;
+  readonly cooldowns?: EntityCollectionDeltaResponseBody;
+  readonly charge?: ValueChangeBody<unknown>;
 }
 
 export interface BattleDeltaResponseBody {
   readonly battleStatus?: ValueChangeBody<string>;
   readonly turnNumber?: ValueChangeBody<number>;
+  readonly cycleNumber?: ValueChangeBody<number>;
+}
+
+export interface ActionQueueDeltaResponseBody {
+  readonly before: readonly ActionReservationResponseBody[];
+  readonly after: readonly ActionReservationResponseBody[];
 }
 
 export interface BattleStateDeltaResponseBody {
   readonly battle?: BattleDeltaResponseBody;
   readonly units?: Readonly<Record<string, UnitStateDeltaResponseBody>>;
+  readonly actionQueue?: ActionQueueDeltaResponseBody;
 }
 
 export interface StateTransitionResponseBody {

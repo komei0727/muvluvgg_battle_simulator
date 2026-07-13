@@ -41,13 +41,14 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
         side: "ALLY",
         position: { column: "LEFT", row: "FRONT" },
         globalCoordinate: { x: 0, y: 2 },
+        // R-NUM-01: 割合はDomain内部で1.0=100%として保持する（`percentage.ts`）。
         combatStats: {
           maximumHp: 100,
           attack: 10,
           defense: 10,
-          criticalRate: 5,
+          criticalRate: 0.05,
           actionSpeed: 10,
-          criticalDamageBonus: 50,
+          criticalDamageBonus: 0.5,
           affinityBonus: 0,
         },
         maximumAp: 3,
@@ -64,9 +65,9 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
           maximumHp: 100,
           attack: 8,
           defense: 8,
-          criticalRate: 5,
+          criticalRate: 0.05,
           actionSpeed: 8,
-          criticalDamageBonus: 50,
+          criticalDamageBonus: 0.5,
           affinityBonus: 0,
         },
         maximumAp: 3,
@@ -163,6 +164,39 @@ describe("toBattleSimulationResponseBody", () => {
     expect(ally.subUnits).toEqual([]);
     expect(ally.effects).toEqual([]);
     expect(ally.cooldowns).toEqual([]);
+  });
+
+  it("API-RESP-006b (R-NUM-01 / 10_API設計.md CombatStatsResponse): converts criticalRate/affinityBonus/criticalDamageBonus from Domain's 1.0=100% ratio to percentage points, while leaving attack/defense/actionSpeed as raw magnitudes", () => {
+    const roster = baseResult().unitRoster;
+    const ally = roster[0]!;
+    const withDistinctRatios = baseResult({
+      unitRoster: [
+        {
+          ...ally,
+          combatStats: {
+            ...ally.combatStats,
+            attack: 123,
+            defense: 45,
+            actionSpeed: 67,
+            criticalRate: 0.1,
+            affinityBonus: 0.25,
+            criticalDamageBonus: 0.5,
+          },
+        },
+        roster[1]!,
+      ],
+    });
+
+    const body = toBattleSimulationResponseBody(withDistinctRatios);
+
+    expect(body.initialState.units[0]!.combatStats).toEqual({
+      attack: 123,
+      defense: 45,
+      actionSpeed: 67,
+      criticalRate: 10,
+      affinityBonus: 25,
+      criticalDamageBonus: 50,
+    });
   });
 
   it("API-RESP-007: maps a BattleLogEvent to BattleLogEventResponseBody, preserving optional fields only when present", () => {

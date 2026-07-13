@@ -21,9 +21,19 @@ import type { BattleUnitId } from "../domain/shared/ids.js";
 const SCHEMA_VERSION = 1;
 
 const REVERSE_COLUMNS: Record<PositionColumn, number> = { LEFT: 0, CENTER: 1, RIGHT: 2 };
+const PERCENTAGE_POINT_SCALE = 100;
 
 function combatStatusOf(hp: number): string {
   return hp === 0 ? "DEFEATED" : "ACTIVE";
+}
+
+/**
+ * R-NUM-01: Domain内部の割合は`1.0 = 100%`で保持する。`10_API設計.md`
+ * 「CombatStatsResponse」はパーセントポイントで返す契約(`criticalRate: 15`は
+ * 15%)のため、公開境界でだけ100倍する。
+ */
+function toPercentagePoints(ratio: number): number {
+  return ratio * PERCENTAGE_POINT_SCALE;
 }
 
 function toUnitStateResponseBody(
@@ -49,10 +59,10 @@ function toUnitStateResponseBody(
     combatStats: {
       attack: roster.combatStats.attack,
       defense: roster.combatStats.defense,
-      criticalRate: roster.combatStats.criticalRate,
+      criticalRate: toPercentagePoints(roster.combatStats.criticalRate),
       actionSpeed: roster.combatStats.actionSpeed,
-      affinityBonus: roster.combatStats.affinityBonus,
-      criticalDamageBonus: roster.combatStats.criticalDamageBonus,
+      affinityBonus: toPercentagePoints(roster.combatStats.affinityBonus),
+      criticalDamageBonus: toPercentagePoints(roster.combatStats.criticalDamageBonus),
     },
     // `10_API設計.md`「BattleUnitStateResponse」: シールド・サブユニット・効果・
     // クールタイムはM5〜M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。

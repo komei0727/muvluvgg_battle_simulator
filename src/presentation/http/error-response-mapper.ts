@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
 import type {
   ApplicationError,
   ApplicationErrorCode,
   Violation,
 } from "../../application/application-error.js";
 import type { ErrorResponseBody, ViolationResponseBody } from "../../application/http-contract.js";
+
+const SERVER_LOG_CORRELATION_STATUS = 500;
 
 /**
  * `10_API設計.md`「ステータスコード対応」に、Fastify境界だけで発生する
@@ -71,19 +74,67 @@ export function httpStatusForErrorCode(code: HttpErrorCode): number {
   return STATUS_BY_CODE[code];
 }
 
-function toViolationResponseBody(violation: Violation): ViolationResponseBody {
+/**
+ * `10_API設計.md`「Inbound Adapterでの変換」で定義される内部⇔外部の名前対応。
+ * `SimulateBattleCommand`の`slots`は外部DTOでは`units`と呼ぶ。
+ */
+const RENAMED_PATH_SEGMENTS: Readonly<Record<string, string>> = { slots: "units" };
+
+const PATH_SEGMENT_PATTERN = /^([A-Za-z0-9_]+)(?:\[(\d+)\])?$/;
+
+function escapeJsonPointerSegment(segment: string): string {
+  return segment.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+/**
+ * `simulate-battle-command.ts`/`simulation-preflight-validator.ts`/
+ * Domainの`DomainValidationError`が使うCommand内部path形式
+ * （ドット区切り、配列は`name[index]`、`slots`表現）を、
+ * `10_API設計.md`「ViolationResponse」が要求するJSON Pointer形式（`/`区切り、
+ * 配列indexは独立segment、`units`表現）へ変換する。
+ *
+ * `logLevel`はCommand上はトップレベルの平坦な項目だが、外部DTOでは
+ * `options.logLevel`にネストされるため、名前の付け替えではなく特別に
+ * 1階層挿入する。
+ */
+export function toExternalViolationPath(internalPath: string): string {
+  if (internalPath === "logLevel") {
+    return "/options/logLevel";
+  }
+
+  const pointerSegments: string[] = [];
+  for (const segment of internalPath.split(".")) {
+    const match = PATH_SEGMENT_PATTERN.exec(segment);
+    if (match === null) {
+      pointerSegments.push(escapeJsonPointerSegment(segment));
+      continue;
+    }
+    const [, name, arrayIndex] = match;
+    const externalName = RENAMED_PATH_SEGMENTS[name!] ?? name!;
+    pointerSegments.push(escapeJsonPointerSegment(externalName));
+    if (arrayIndex !== undefined) {
+      pointerSegments.push(arrayIndex);
+    }
+  }
+  return `/${pointerSegments.join("/")}`;
+}
+
+function toViolationResponseBody(
+  violation: Violation,
+  translatePath: (path: string) => string = (path) => path,
+): ViolationResponseBody {
   return {
-    ...(violation.path !== undefined ? { path: violation.path } : {}),
+    ...(violation.path !== undefined ? { path: translatePath(violation.path) } : {}),
     ...(violation.definitionId !== undefined ? { definitionId: violation.definitionId } : {}),
     ...(violation.ruleId !== undefined ? { ruleId: violation.ruleId } : {}),
     message: violation.reason,
   };
 }
 
-/** `10_API設計.md`「ErrorResponse」: 成功レスポンスとは別の本文形。 */
-export function toErrorResponseBody(
+function buildErrorResponseBody(
   code: HttpErrorCode,
   violations: readonly Violation[],
+  translatePath: (path: string) => string,
   diagnosticId?: string,
 ): ErrorResponseBody {
   return {
@@ -91,20 +142,49 @@ export function toErrorResponseBody(
     error: {
       code,
       message: DEFAULT_MESSAGE_BY_CODE[code],
-      violations: violations.map(toViolationResponseBody),
+      violations: violations.map((violation) => toViolationResponseBody(violation, translatePath)),
       ...(diagnosticId !== undefined ? { diagnosticId } : {}),
     },
   };
 }
 
-/** `ApplicationError`（UseCaseから送出される唯一の失敗形）をHTTPステータス＋本文へ変換する。 */
+/**
+ * `10_API設計.md`「ErrorResponse」: 成功レスポンスとは別の本文形。呼び出し元
+ * （Fastifyのcontent-type/validationエラーなど）が既に外部DTO形式のpathを
+ * 渡す前提のため、ここではpath変換を行わない
+ * （内部Command pathの変換は`fromApplicationError`が担う）。
+ */
+export function toErrorResponseBody(
+  code: HttpErrorCode,
+  violations: readonly Violation[],
+  diagnosticId?: string,
+): ErrorResponseBody {
+  return buildErrorResponseBody(code, violations, (path) => path, diagnosticId);
+}
+
+/**
+ * `ApplicationError`（UseCaseから送出される唯一の失敗形）をHTTPステータス＋
+ * 本文へ変換する。`violations[].path`はCommand内部形式のため、
+ * `toExternalViolationPath`で外部DTOのJSON Pointerへ変換する。
+ *
+ * `10_API設計.md`「ErrorObject」: `diagnosticId`は「サーバーログと照合するID」。
+ * 500（サーバー側の予期しない不変条件違反）はオペレーターがログを辿れる
+ * 必要があるため、`ApplicationError`自身がIDを持たない場合はここで生成する。
+ * 400〜429（クライアント入力由来の既知の違反）は`violations`が原因を
+ * 説明済みであり、ログ照合の必要が薄いためIDを付与しない。
+ */
 export function fromApplicationError(error: ApplicationError): {
   status: number;
   body: ErrorResponseBody;
 } {
   const code: ApplicationErrorCode = error.code;
+  const status = httpStatusForErrorCode(code);
+  const diagnosticId =
+    status === SERVER_LOG_CORRELATION_STATUS
+      ? (error.diagnosticId ?? randomUUID())
+      : error.diagnosticId;
   return {
-    status: httpStatusForErrorCode(code),
-    body: toErrorResponseBody(code, error.violations, error.diagnosticId),
+    status,
+    body: buildErrorResponseBody(code, error.violations, toExternalViolationPath, diagnosticId),
   };
 }

@@ -51,7 +51,10 @@ const simulationOptionsRequestSchema = {
   },
 } as const;
 
-/** `POST /api/v1/battle-simulations`のrequest body schema。 */
+/**
+ * `POST /api/v1/battle-simulations`のrequest body schema（実行時validation用）。
+ * 値域・列挙値をあえて持たない（ファイル冒頭の注記を参照）。
+ */
 export const battleSimulationRequestSchema = {
   type: "object",
   additionalProperties: false,
@@ -61,6 +64,69 @@ export const battleSimulationRequestSchema = {
     enemyFormation: formationRequestSchema,
     turnLimit: { type: "integer" },
     options: simulationOptionsRequestSchema,
+  },
+} as const;
+
+const formationPositionRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["column", "row"],
+  properties: {
+    column: { type: "integer", enum: [0, 1, 2] },
+    row: { type: "string", enum: ["FRONT", "REAR"] },
+  },
+} as const;
+
+const formationUnitRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["unitDefinitionId", "position"],
+  properties: {
+    unitDefinitionId: { type: "string", minLength: 1, maxLength: 256 },
+    position: formationPositionRequestDocSchema,
+  },
+} as const;
+
+const formationRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["units", "memoryDefinitionIds"],
+  properties: {
+    units: { type: "array", items: formationUnitRequestDocSchema, minItems: 1, maxItems: 5 },
+    memoryDefinitionIds: {
+      type: "array",
+      items: { type: "string", minLength: 1, maxLength: 256 },
+      maxItems: 6,
+    },
+  },
+} as const;
+
+const simulationOptionsRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    logLevel: { type: "string", enum: ["SUMMARY", "DETAILED", "DIAGNOSTIC"] },
+  },
+} as const;
+
+/**
+ * `POST /api/v1/battle-simulations`のOpenAPI公開用request body schema。
+ * `10_API設計.md`が明記する値域・列挙値（`turnLimit`の1〜99、`units`の
+ * 1〜5件、`memoryDefinitionIds`の0〜6件、`column`/`row`/`logLevel`の許容値）
+ * を文書へ反映するが、実行時validationには使わない
+ * （`build-server.ts`の`@fastify/swagger`用`transform`でこのschemaへ差し替え、
+ * `422 INVALID_COMMAND`として集約検証したい値域違反が`400`へ先取りされる
+ * ことを避ける）。
+ */
+export const battleSimulationRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["allyFormation", "enemyFormation", "turnLimit"],
+  properties: {
+    allyFormation: formationRequestDocSchema,
+    enemyFormation: formationRequestDocSchema,
+    turnLimit: { type: "integer", minimum: 1, maximum: 99 },
+    options: simulationOptionsRequestDocSchema,
   },
 } as const;
 
@@ -99,8 +165,8 @@ const formationPositionResponseSchema = {
   additionalProperties: false,
   required: ["column", "row"],
   properties: {
-    column: { type: "integer" },
-    row: { type: "string" },
+    column: { type: "integer", enum: [0, 1, 2] },
+    row: { type: "string", enum: ["FRONT", "REAR"] },
   },
 } as const;
 
@@ -178,10 +244,10 @@ const battleUnitStateResponseSchema = {
   properties: {
     battleUnitId: { type: "string" },
     unitDefinitionId: { type: "string" },
-    side: { type: "string" },
+    side: { type: "string", enum: ["ALLY", "ENEMY"] },
     formationPosition: formationPositionResponseSchema,
     coordinate: globalCoordinateResponseSchema,
-    combatStatus: { type: "string" },
+    combatStatus: { type: "string", enum: ["ACTIVE", "DEFEATED"] },
     hp: currentMaximumValueSchema,
     resources: resourceStateResponseSchema,
     combatStats: combatStatsResponseSchema,
@@ -200,7 +266,7 @@ const actionReservationResponseSchema = {
     order: { type: "integer" },
     battleUnitId: { type: "string" },
     actionSpeedAtOrdering: { type: "number" },
-    reservedActionType: { type: "string" },
+    reservedActionType: { type: "string", enum: ["ACTIVE_SKILL", "EXTRA_SKILL"] },
   },
 } as const;
 
@@ -210,7 +276,7 @@ const battleStateResponseSchema = {
   required: ["stateVersion", "battleStatus", "turnNumber", "cycleNumber", "units", "actionQueue"],
   properties: {
     stateVersion: { type: "integer" },
-    battleStatus: { type: "string" },
+    battleStatus: { type: "string", enum: ["READY", "RUNNING", "COMPLETED"] },
     turnNumber: { type: "integer" },
     cycleNumber: { type: "integer" },
     units: { type: "array", items: battleUnitStateResponseSchema },
@@ -223,8 +289,11 @@ const battleResultResponseSchema = {
   additionalProperties: false,
   required: ["outcome", "completionReason", "completedTurn"],
   properties: {
-    outcome: { type: "string" },
-    completionReason: { type: "string" },
+    outcome: { type: "string", enum: ["ALLY_WIN", "ALLY_LOSE"] },
+    completionReason: {
+      type: "string",
+      enum: ["ENEMY_DEFEATED", "ALLY_DEFEATED", "SIMULTANEOUS_DEFEAT", "TURN_LIMIT_REACHED"],
+    },
     completedTurn: { type: "integer" },
   },
 } as const;
@@ -247,7 +316,7 @@ const battleLogEventResponseSchema = {
   properties: {
     sequence: { type: "integer" },
     type: { type: "string" },
-    category: { type: "string" },
+    category: { type: "string", enum: ["FACT", "TIMING", "DIAGNOSTIC"] },
     turnNumber: { type: "integer" },
     cycleNumber: { type: "integer" },
     actionId: { type: "string" },
@@ -260,6 +329,37 @@ const battleLogEventResponseSchema = {
     stateVersionBefore: { type: "integer" },
     stateVersionAfter: { type: "integer" },
     stateTransitionIndex: { type: "integer" },
+  },
+} as const;
+
+/**
+ * `10_API設計.md`「BattleStateDeltaResponse」の`EntityCollectionDelta`。
+ * `subUnits`/`effects`/`cooldowns`のM5〜M8実装まではResponse Mapperが
+ * 値を設定することはないが、`additionalProperties: false`のv1契約が
+ * 将来これらのフィールドを拒否しないよう先に定義しておく。
+ */
+const entityCollectionDeltaResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["added", "updated", "removed"],
+  properties: {
+    added: { type: "array", items: {} },
+    updated: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["id", "before", "after"],
+        properties: { id: { type: "string" }, before: {}, after: {} },
+      },
+    },
+    removed: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["id", "before"],
+        properties: { id: { type: "string" }, before: {} },
+      },
+    },
   },
 } as const;
 
@@ -278,6 +378,17 @@ const unitStateDeltaResponseSchema = {
         extraGauge: valueChangeNumberSchema,
       },
     },
+    combatStats: { type: "object", additionalProperties: valueChangeNumberSchema },
+    shields: { type: "object", additionalProperties: valueChangeNumberSchema },
+    subUnits: entityCollectionDeltaResponseSchema,
+    effects: entityCollectionDeltaResponseSchema,
+    cooldowns: entityCollectionDeltaResponseSchema,
+    charge: {
+      type: "object",
+      additionalProperties: false,
+      required: ["before", "after"],
+      properties: { before: {}, after: {} },
+    },
   },
 } as const;
 
@@ -291,9 +402,19 @@ const battleStateDeltaResponseSchema = {
       properties: {
         battleStatus: valueChangeStringSchema,
         turnNumber: valueChangeNumberSchema,
+        cycleNumber: valueChangeNumberSchema,
       },
     },
     units: { type: "object", additionalProperties: unitStateDeltaResponseSchema },
+    actionQueue: {
+      type: "object",
+      additionalProperties: false,
+      required: ["before", "after"],
+      properties: {
+        before: { type: "array", items: actionReservationResponseSchema },
+        after: { type: "array", items: actionReservationResponseSchema },
+      },
+    },
   },
 } as const;
 
