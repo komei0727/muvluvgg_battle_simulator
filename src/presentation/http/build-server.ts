@@ -17,6 +17,7 @@ import {
   battleSimulationRequestSchema,
   battleSimulationRequestDocSchema,
   battleSimulationResponseSchema,
+  battleSimulationResponseDocSchema,
   errorResponseSchema,
 } from "./schemas.js";
 
@@ -32,13 +33,22 @@ export interface SimulateBattleUseCasePort {
   execute(command: SimulateBattleCommand): SimulateBattleResult;
 }
 
+/**
+ * `10_API設計.md`「ステータスコード対応」の全エラーステータスをOpenAPI文書へ
+ * 登録する。429/503/504は本Issueの範囲（`#12`/`#13`/`#18`）ではまだ実際の
+ * トリガー（レート制限、Worker Pool容量、実行期限）を実装していないが、
+ * 外部契約としては`10_API設計.md`が定義済みのため、Schemaだけ先に固定する。
+ */
 const ERROR_RESPONSES = {
   400: errorResponseSchema,
   406: errorResponseSchema,
   413: errorResponseSchema,
   415: errorResponseSchema,
   422: errorResponseSchema,
+  429: errorResponseSchema,
   500: errorResponseSchema,
+  503: errorResponseSchema,
+  504: errorResponseSchema,
 } as const;
 
 const REQUEST_ID_PATTERN = /^[\x20-\x7E]{1,128}$/;
@@ -62,11 +72,15 @@ interface AcceptEntry {
   readonly q: number;
 }
 
-/** RFC 7231 `Accept`ヘッダーの`media-range[;q=value]`を単純にパースする。 */
+/**
+ * RFC 7231 `Accept`ヘッダーの`media-range[;q=value]`を単純にパースする。
+ * RFC 9110 §8.3.1: media typeのtype/subtypeは大文字小文字を区別しないため、
+ * 比較のために小文字へ正規化する（`q`パラメータ名自体は小文字固定のためそのまま）。
+ */
 function parseAcceptHeader(value: string): readonly AcceptEntry[] {
   return value.split(",").map((entry): AcceptEntry => {
     const [mediaRange = "*/*", ...params] = entry.split(";").map((part) => part.trim());
-    const [type = "*", subtype = "*"] = mediaRange.split("/");
+    const [type = "*", subtype = "*"] = mediaRange.toLowerCase().split("/");
     let q = 1;
     for (const param of params) {
       const [key, rawValue] = param.split("=").map((part) => part.trim());
@@ -154,11 +168,24 @@ export async function buildServer(
     // INVALID_COMMAND」として集約検証したい（`schemas.ts`冒頭の注記）。
     // ここで公開文書だけ`battleSimulationRequestDocSchema`（値域・列挙値付き）
     // へ差し替え、実行時validationに使う`route.schema`本体は変更しない。
+    // レスポンス側も同様に、`events[].details`のイベント種別ごとの構造は
+    // `battleSimulationResponseDocSchema`で公開文書だけ書き足す
+    // （実データがそのまま流れる出力を厳格化して壊さないよう、実行時
+    // serializationは`battleSimulationResponseSchema`のまま変更しない）。
     transform: ({ schema, url }) => {
-      if (url === BATTLE_SIMULATIONS_PATH && schema.body !== undefined) {
-        return { schema: { ...schema, body: battleSimulationRequestDocSchema }, url };
+      if (url !== BATTLE_SIMULATIONS_PATH) {
+        return { schema, url };
       }
-      return { schema, url };
+      return {
+        schema: {
+          ...schema,
+          ...(schema.body !== undefined ? { body: battleSimulationRequestDocSchema } : {}),
+          ...(schema.response !== undefined
+            ? { response: { ...schema.response, 200: battleSimulationResponseDocSchema } }
+            : {}),
+        },
+        url,
+      };
     },
   });
 

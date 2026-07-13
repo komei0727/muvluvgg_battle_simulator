@@ -330,6 +330,17 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(response.statusCode).toBe(200);
   });
 
+  it("API-CONTRACT-015b (RFC 9110 §8.3.1): matches Accept media types case-insensitively", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody(),
+      headers: { accept: "Application/JSON" },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
   it("API-CONTRACT-016 (10_API設計.md「ErrorObject」diagnosticId): an unexpected exception (not an ApplicationError) returns 500 with a diagnosticId, without leaking the exception message", async () => {
     const throwingApp = await buildServer({
       execute: () => {

@@ -2,7 +2,8 @@ import { Ajv } from "ajv";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
-import { battleSimulationResponseSchema } from "./schemas.js";
+import { battleSimulationResponseSchema, battleSimulationResponseDocSchema } from "./schemas.js";
+import type { BattleSimulationResponseBody } from "../../application/http-contract.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import {
   createSkillDefinitionId,
@@ -102,8 +103,10 @@ describe("OpenAPI document", () => {
     const operation = document.paths?.["/api/v1/battle-simulations"]?.post;
     expect(operation).toBeDefined();
     expect(operation?.requestBody).toBeDefined();
+    // `10_API設計.md`「ステータスコード対応」の全ステータス。429/503/504は
+    // 実際のトリガー（#12/#13/#18）が未実装でも、外部契約として文書化する。
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
-      ["200", "400", "406", "413", "415", "422", "500"].sort(),
+      ["200", "400", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
     );
   });
 
@@ -191,10 +194,18 @@ describe("OpenAPI document", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    const body = response.json<BattleSimulationResponseBody>();
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleSimulationResponseSchema);
-    const valid = validate(response.json());
+    expect(validate(body), JSON.stringify(validate.errors)).toBe(true);
 
-    expect(valid, JSON.stringify(validate.errors)).toBe(true);
+    // This scenario has no active skill in the Catalog, so it exhausts
+    // TURN_LIMIT_REACHED: it exercises ActionStarted(WAIT)/TurnCompleting/
+    // TurnCompleted, which the lethal-damage scenario in
+    // state-restoration.test.ts never reaches. Validating both against the
+    // OpenAPI-published doc schema (`battleLogEventDetailsDocSchema`'s
+    // per-event `anyOf`) together covers all 19 M3 event types.
+    const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
+    expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
   });
 });

@@ -77,6 +77,51 @@ export interface GlobalCoordinateResponseBody {
   readonly y: number;
 }
 
+/** `10_API設計.md`「SubUnitStateResponse」。M8まではResponse Mapperが要素を追加することはない。 */
+export interface SubUnitStateResponseBody {
+  readonly subUnitInstanceId: string;
+  readonly subUnitDefinitionId: string;
+  readonly sourceUnitId?: string;
+  readonly durability: CurrentMaximumValueBody;
+  readonly appliedTurnNumber: number;
+  readonly appliedActionId?: string;
+}
+
+/**
+ * `10_API設計.md`「EffectStateResponse」。`value`は効果種別ごとの構造化された
+ * 値で、M7で`effectKindKey`ごとの具体Schemaが定まるまでは未確定のため
+ * 開いたまま(`unknown`)にする。M7まではResponse Mapperが要素を追加することはない。
+ */
+export interface EffectStateResponseBody {
+  readonly effectInstanceId: string;
+  readonly effectDefinitionId: string;
+  readonly sourceUnitId?: string;
+  readonly category: string;
+  readonly effectKindKey: string;
+  readonly stackMode: string;
+  readonly isEffective: boolean;
+  readonly value: unknown;
+  readonly duration?: { readonly unit: string; readonly remaining: number };
+  readonly appliedTurnNumber: number;
+  readonly appliedActionId?: string;
+}
+
+/** `10_API設計.md`「CooldownStateResponse」。M5/M6まではResponse Mapperが要素を追加することはない。 */
+export interface CooldownStateResponseBody {
+  readonly skillDefinitionId: string;
+  readonly unit: string;
+  readonly remaining: number;
+  readonly setAtActionId?: string;
+  readonly setAtTurnNumber: number;
+}
+
+/** `10_API設計.md`「ChargeStateResponse」。M5まではResponse Mapperが値を設定することはない。 */
+export interface ChargeStateResponseBody {
+  readonly skillDefinitionId: string;
+  readonly startedActionId: string;
+  readonly status: string;
+}
+
 /**
  * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`/`effects`/`cooldowns`は
  * 対応するDomain機構がM5〜M8で実装されるまで常に空配列（`未実装機能を仮の値で
@@ -95,9 +140,10 @@ export interface BattleUnitStateResponseBody {
   readonly resources: ResourceStateResponseBody;
   readonly combatStats: CombatStatsResponseBody;
   readonly shields: ShieldStateResponseBody;
-  readonly subUnits: readonly unknown[];
-  readonly effects: readonly unknown[];
-  readonly cooldowns: readonly unknown[];
+  readonly subUnits: readonly SubUnitStateResponseBody[];
+  readonly effects: readonly EffectStateResponseBody[];
+  readonly cooldowns: readonly CooldownStateResponseBody[];
+  readonly charge?: ChargeStateResponseBody;
 }
 
 export interface ActionReservationResponseBody {
