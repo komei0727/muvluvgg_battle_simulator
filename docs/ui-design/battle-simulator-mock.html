@@ -1,0 +1,1811 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Battle Analytics Console — UI Mock</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #07101d;
+        --surface: #0d1929;
+        --surface-2: #111f31;
+        --surface-3: #17273a;
+        --line: #263a50;
+        --line-strong: #36536d;
+        --text: #edf6ff;
+        --muted: #8fa6ba;
+        --ally: #45c8ff;
+        --ally-soft: rgba(69, 200, 255, 0.13);
+        --enemy: #ff6b9a;
+        --enemy-soft: rgba(255, 107, 154, 0.13);
+        --success: #55e6ae;
+        --warning: #ffc861;
+        --danger: #ff7285;
+        --radius: 10px;
+        --shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background:
+          linear-gradient(rgba(43, 87, 122, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(43, 87, 122, 0.06) 1px, transparent 1px),
+          radial-gradient(circle at 15% 0%, rgba(36, 137, 181, 0.14), transparent 32%), var(--bg);
+        background-size:
+          32px 32px,
+          32px 32px,
+          auto,
+          auto;
+        color: var(--text);
+        font-family: Inter, "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+        line-height: 1.5;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--ally);
+        outline-offset: 2px;
+      }
+
+      .app-shell {
+        width: min(1440px, calc(100% - 40px));
+        margin: 0 auto;
+        padding-bottom: 72px;
+      }
+
+      .topbar {
+        position: sticky;
+        z-index: 20;
+        top: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 68px;
+        border-bottom: 1px solid rgba(71, 105, 136, 0.55);
+        background: rgba(7, 16, 29, 0.9);
+        backdrop-filter: blur(14px);
+      }
+
+      .brand {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 1px solid #4a7b9d;
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(69, 200, 255, 0.22), rgba(85, 230, 174, 0.08));
+        color: var(--ally);
+        font:
+          700 13px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: -0.05em;
+      }
+
+      .brand-name {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.08em;
+      }
+
+      .brand-subtitle,
+      .eyebrow,
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .brand-subtitle {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+      }
+
+      .system-state {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .state-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--success);
+        box-shadow: 0 0 12px var(--success);
+      }
+
+      main {
+        padding-top: 34px;
+      }
+
+      .page-heading {
+        display: flex;
+        gap: 28px;
+        align-items: end;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--ally);
+        font-size: 11px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 8px;
+        font-size: clamp(28px, 3.2vw, 46px);
+        line-height: 1.1;
+        letter-spacing: -0.035em;
+      }
+
+      .lead {
+        max-width: 720px;
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .run-id {
+        flex: 0 0 auto;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .panel {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(13, 25, 41, 0.94);
+        box-shadow: var(--shadow);
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 54px;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(17, 31, 49, 0.85);
+      }
+
+      .panel-title {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.04em;
+      }
+
+      .step-number {
+        color: var(--ally);
+        font:
+          700 11px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .panel-meta {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .setup-panel {
+        margin-bottom: 20px;
+      }
+
+      .formation-workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr);
+        gap: 18px;
+        padding: 22px;
+      }
+
+      .side-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .side-heading h3 {
+        margin: 0;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+      }
+
+      .side-badge {
+        padding: 3px 7px;
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        font:
+          700 9px/1.3 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.08em;
+      }
+
+      .ally-text {
+        color: var(--ally);
+      }
+
+      .enemy-text {
+        color: var(--enemy);
+      }
+
+      .formation-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .row-label {
+        grid-column: 1 / -1;
+        margin-top: 4px;
+        color: var(--muted);
+        font:
+          700 9px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+      }
+
+      .unit-slot,
+      .memory-slot {
+        position: relative;
+        overflow: hidden;
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        background: rgba(8, 18, 31, 0.72);
+        cursor: pointer;
+        transition:
+          border-color 150ms ease,
+          background 150ms ease,
+          transform 150ms ease;
+      }
+
+      .unit-slot:hover,
+      .memory-slot:hover {
+        border-color: #5f89aa;
+        background: #102136;
+        transform: translateY(-1px);
+      }
+
+      .unit-slot {
+        min-height: 126px;
+        padding: 0;
+        text-align: left;
+      }
+
+      .unit-slot.filled {
+        border-style: solid;
+      }
+
+      .ally .unit-slot.filled {
+        border-color: rgba(69, 200, 255, 0.48);
+      }
+
+      .enemy .unit-slot.filled {
+        border-color: rgba(255, 107, 154, 0.48);
+      }
+
+      .empty-slot {
+        display: grid;
+        height: 100%;
+        min-height: 124px;
+        place-items: center;
+        color: #688198;
+        font-size: 11px;
+      }
+
+      .empty-plus {
+        display: block;
+        margin-bottom: 6px;
+        color: #7598b3;
+        font: 300 26px/1 sans-serif;
+        text-align: center;
+      }
+
+      .unit-portrait {
+        position: relative;
+        display: grid;
+        height: 67px;
+        place-items: center;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.045), transparent),
+          linear-gradient(135deg, #19324a, #102034);
+        background-position: center;
+        background-size: cover;
+        color: rgba(237, 246, 255, 0.86);
+        font:
+          700 20px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.04em;
+      }
+
+      .unit-portrait::after {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(8, 18, 31, 0.7), transparent 70%);
+        content: "";
+      }
+
+      .unit-copy {
+        padding: 8px 9px 9px;
+      }
+
+      .unit-name {
+        overflow: hidden;
+        margin-bottom: 5px;
+        font-size: 11px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .unit-tags {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        padding: 2px 5px;
+        border-radius: 3px;
+        background: #1c3146;
+        color: #a9bed0;
+        font:
+          600 8px/1.3 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .vs-divider {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        color: #6d8498;
+      }
+
+      .vs-line {
+        width: 1px;
+        height: 68px;
+        background: linear-gradient(transparent, var(--line-strong), transparent);
+      }
+
+      .vs-label {
+        color: #bfd2e3;
+        font:
+          800 16px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .memory-area {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .subheading {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font:
+          700 9px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.13em;
+      }
+
+      .memory-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .memory-slot {
+        aspect-ratio: 1 / 1;
+        padding: 0;
+      }
+
+      .memory-slot.filled {
+        display: grid;
+        border-style: solid;
+        place-items: center;
+        color: #d8e7f4;
+        font:
+          800 10px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .memory-slot .memory-label {
+        position: absolute;
+        right: 2px;
+        bottom: 2px;
+        left: 2px;
+        overflow: hidden;
+        padding: 2px;
+        background: rgba(6, 14, 24, 0.82);
+        font-size: 7px;
+        font-weight: 600;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .parameters {
+        display: grid;
+        grid-template-columns: 160px 200px minmax(260px, 1fr) auto;
+        gap: 14px;
+        align-items: end;
+        padding: 18px 22px 22px;
+        border-top: 1px solid var(--line);
+        background: #0b1726;
+      }
+
+      .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        height: 42px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: #071321;
+        color: var(--text);
+        padding: 0 12px;
+      }
+
+      .endpoint {
+        overflow: hidden;
+        height: 42px;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #091522;
+        color: #7991a5;
+        font:
+          11px/18px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .primary-button,
+      .secondary-button,
+      .ghost-button,
+      .icon-button {
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .primary-button {
+        min-width: 170px;
+        height: 42px;
+        border: 1px solid #5dd9ff;
+        background: linear-gradient(135deg, #159ecf, #187bb7);
+        color: white;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        box-shadow: 0 8px 22px rgba(28, 149, 200, 0.22);
+      }
+
+      .primary-button:hover {
+        filter: brightness(1.09);
+      }
+
+      .primary-button:disabled {
+        cursor: wait;
+        filter: saturate(0.4);
+        opacity: 0.7;
+      }
+
+      .secondary-button,
+      .ghost-button {
+        min-height: 36px;
+        padding: 0 13px;
+        border: 1px solid var(--line-strong);
+        background: #13243a;
+        color: #d6e8f7;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .ghost-button {
+        background: transparent;
+      }
+
+      .results {
+        display: none;
+        margin-top: 24px;
+      }
+
+      .results.visible {
+        display: block;
+        animation: reveal 320ms ease both;
+      }
+
+      @keyframes reveal {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      .outcome-strip {
+        display: grid;
+        grid-template-columns: 1.2fr repeat(3, minmax(120px, 0.55fr)) auto;
+        gap: 1px;
+        border-bottom: 1px solid var(--line);
+        background: var(--line);
+      }
+
+      .outcome-cell {
+        min-height: 84px;
+        padding: 16px 18px;
+        background: #0d1a2a;
+      }
+
+      .outcome-cell .label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font:
+          9px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+      }
+
+      .outcome-value {
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .outcome-main {
+        color: var(--success);
+        font-size: 22px;
+      }
+
+      .outcome-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        background: #0d1a2a;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        padding: 18px;
+      }
+
+      .summary-side {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .summary-side-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 42px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        background: #122238;
+      }
+
+      .summary-side-header strong {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+      }
+
+      .summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      .summary-table th,
+      .summary-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid rgba(38, 58, 80, 0.68);
+        text-align: right;
+      }
+
+      .summary-table th {
+        color: #7890a4;
+        font:
+          700 8px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.08em;
+      }
+
+      .summary-table th:first-child,
+      .summary-table td:first-child {
+        width: 38%;
+        text-align: left;
+      }
+
+      .summary-table td {
+        color: #cbdbea;
+        font:
+          600 11px/1.3 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .summary-table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .summary-unit {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .summary-avatar {
+        display: grid;
+        flex: 0 0 auto;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 4px;
+        background: #1a3249;
+        background-position: center;
+        background-size: cover;
+        color: #bcd3e5;
+        font-size: 9px;
+      }
+
+      .summary-name {
+        overflow: hidden;
+        font-family: Inter, "Noto Sans JP", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .status-alive {
+        color: var(--success);
+      }
+
+      .status-defeated {
+        color: var(--danger);
+      }
+
+      .details-panel {
+        margin-top: 20px;
+      }
+
+      .tab-list {
+        display: flex;
+        gap: 4px;
+        padding: 10px 12px 0;
+        border-bottom: 1px solid var(--line);
+        background: #0d1a2a;
+      }
+
+      .tab-button {
+        min-height: 38px;
+        padding: 0 14px;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .tab-button[aria-selected="true"] {
+        border-bottom-color: var(--ally);
+        color: var(--text);
+      }
+
+      .tab-panel {
+        display: none;
+        min-height: 280px;
+        padding: 18px;
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
+      .event-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .event-row {
+        display: grid;
+        grid-template-columns: 60px 70px 150px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #0a1624;
+        font-size: 11px;
+      }
+
+      .event-seq,
+      .event-turn {
+        color: #7790a5;
+        font:
+          10px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .event-type {
+        color: var(--ally);
+        font:
+          700 9px/1.2 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .transition-table {
+        width: 100%;
+        border-collapse: collapse;
+        font:
+          11px/1.4 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .transition-table th,
+      .transition-table td {
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        color: #b7cada;
+        text-align: left;
+      }
+
+      .transition-table th {
+        color: #7790a5;
+        font-size: 9px;
+      }
+
+      pre {
+        overflow: auto;
+        max-height: 480px;
+        margin: 0;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #050e18;
+        color: #a9c7da;
+        font:
+          10px/1.65 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        white-space: pre-wrap;
+      }
+
+      dialog {
+        width: min(860px, calc(100% - 32px));
+        max-height: min(760px, calc(100vh - 36px));
+        padding: 0;
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        background: #0d1929;
+        color: var(--text);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.58);
+      }
+
+      dialog::backdrop {
+        background: rgba(1, 7, 13, 0.78);
+        backdrop-filter: blur(4px);
+      }
+
+      .dialog-header {
+        position: sticky;
+        z-index: 2;
+        top: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 58px;
+        padding: 0 16px 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: #111f31;
+      }
+
+      .dialog-title {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .icon-button {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--line);
+        background: #0a1725;
+        place-items: center;
+        color: #9cb3c6;
+      }
+
+      .dialog-tools {
+        display: grid;
+        grid-template-columns: 1fr 180px 180px;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .dialog-tools input,
+      .dialog-tools select {
+        height: 39px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: #071321;
+        color: var(--text);
+        padding: 0 11px;
+      }
+
+      .catalog-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        max-height: 520px;
+        overflow: auto;
+        padding: 14px 16px 18px;
+      }
+
+      .catalog-item {
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr) auto;
+        gap: 11px;
+        align-items: center;
+        min-height: 76px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #0a1624;
+      }
+
+      .catalog-image {
+        display: grid;
+        width: 54px;
+        height: 54px;
+        place-items: center;
+        border-radius: 5px;
+        background: linear-gradient(135deg, #214361, #13253a);
+        background-position: center;
+        background-size: cover;
+        color: #cce2f2;
+        font:
+          800 12px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .catalog-name {
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .catalog-id {
+        overflow: hidden;
+        margin-bottom: 6px;
+        color: #658096;
+        font:
+          8px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .select-item {
+        min-width: 58px;
+        height: 30px;
+        border: 1px solid #3c6885;
+        border-radius: 5px;
+        background: #153451;
+        color: #d8f0ff;
+        cursor: pointer;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .remove-item {
+        border-color: #674052;
+        background: #3b2130;
+        color: #ffc1d3;
+      }
+
+      .empty-catalog {
+        grid-column: 1 / -1;
+        padding: 50px 20px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .mock-note {
+        margin-top: 12px;
+        color: #6f879b;
+        font-size: 10px;
+        text-align: right;
+      }
+
+      @media (max-width: 1040px) {
+        .formation-workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .vs-divider {
+          flex-direction: row;
+        }
+
+        .vs-line {
+          width: 25%;
+          height: 1px;
+        }
+
+        .parameters {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .outcome-strip {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .outcome-actions {
+          grid-column: 1 / -1;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .app-shell {
+          width: min(100% - 24px, 1440px);
+        }
+
+        .topbar {
+          min-height: 60px;
+        }
+
+        .system-state,
+        .run-id,
+        .panel-meta {
+          display: none;
+        }
+
+        main {
+          padding-top: 24px;
+        }
+
+        .formation-workspace {
+          padding: 14px;
+        }
+
+        .memory-grid {
+          grid-template-columns: repeat(6, 1fr);
+        }
+
+        .parameters,
+        .summary-grid,
+        .dialog-tools {
+          grid-template-columns: 1fr;
+        }
+
+        .primary-button {
+          width: 100%;
+        }
+
+        .outcome-strip {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .outcome-cell:first-child {
+          grid-column: 1 / -1;
+        }
+
+        .summary-table th:first-child,
+        .summary-table td:first-child {
+          width: 42%;
+        }
+
+        .summary-table th:nth-child(4),
+        .summary-table td:nth-child(4) {
+          display: none;
+        }
+
+        .event-row {
+          grid-template-columns: 46px 52px minmax(0, 1fr);
+        }
+
+        .event-message {
+          grid-column: 1 / -1;
+        }
+
+        .catalog-list {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">BA</div>
+          <div>
+            <p class="brand-name">BATTLE ANALYTICS CONSOLE</p>
+            <p class="brand-subtitle">MUV-LUV GG SIMULATION WORKSPACE</p>
+          </div>
+        </div>
+        <div class="system-state" aria-label="API接続状態">
+          <span class="state-dot"></span>
+          <span class="mono">API READY</span>
+          <span>catalog 2026-06-28.1</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-heading">
+          <div>
+            <p class="eyebrow">Simulation workspace / single run</p>
+            <h1>戦闘条件を構成し、結果を解析する。</h1>
+            <p class="lead">
+              敵味方の編成と実行条件を設定してください。実行結果はユニット別サマリと監査可能なイベントデータに分けて表示します。
+            </p>
+          </div>
+          <div class="run-id mono">DRAFT / NOT EXECUTED</div>
+        </section>
+
+        <section class="panel setup-panel" aria-labelledby="setup-title">
+          <div class="panel-header">
+            <h2 class="panel-title" id="setup-title">
+              <span class="step-number">01</span>
+              戦闘パラメータ
+            </h2>
+            <span class="panel-meta mono">FORMATION / MEMORY / EXECUTION</span>
+          </div>
+
+          <div class="formation-workspace">
+            <section class="formation-side ally" aria-labelledby="ally-title">
+              <div class="side-heading">
+                <h3 id="ally-title" class="ally-text">ALLY FORMATION</h3>
+                <span class="side-badge ally-text">味方</span>
+              </div>
+              <div class="formation-grid" id="ally-formation"></div>
+              <div class="memory-area">
+                <p class="subheading">ALLY MEMORY / 0–6</p>
+                <div class="memory-grid" id="ally-memories"></div>
+              </div>
+            </section>
+
+            <div class="vs-divider" aria-hidden="true">
+              <span class="vs-line"></span>
+              <span class="vs-label">VS</span>
+              <span class="vs-line"></span>
+            </div>
+
+            <section class="formation-side enemy" aria-labelledby="enemy-title">
+              <div class="side-heading">
+                <h3 id="enemy-title" class="enemy-text">ENEMY FORMATION</h3>
+                <span class="side-badge enemy-text">敵</span>
+              </div>
+              <div class="formation-grid" id="enemy-formation"></div>
+              <div class="memory-area">
+                <p class="subheading">ENEMY MEMORY / 0–6</p>
+                <div class="memory-grid" id="enemy-memories"></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="parameters">
+            <div class="field">
+              <label for="turn-limit">ターン上限</label>
+              <input id="turn-limit" type="number" min="1" max="99" value="10" />
+            </div>
+            <div class="field">
+              <label for="log-level">ログレベル</label>
+              <select id="log-level">
+                <option>SUMMARY</option>
+                <option selected>DETAILED</option>
+                <option>DIAGNOSTIC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>API ENDPOINT</label>
+              <div class="endpoint">POST /api/v1/battle-simulations</div>
+            </div>
+            <button class="primary-button" id="simulate-button" type="button">戦闘を開始</button>
+          </div>
+        </section>
+
+        <section class="panel results" id="results" aria-labelledby="results-title">
+          <div class="panel-header">
+            <h2 class="panel-title" id="results-title">
+              <span class="step-number">02</span>
+              戦闘サマリ
+            </h2>
+            <span class="panel-meta mono" id="completed-at">COMPLETED</span>
+          </div>
+
+          <div class="outcome-strip">
+            <div class="outcome-cell">
+              <span class="label">OUTCOME</span>
+              <div class="outcome-value outcome-main">ALLY WIN</div>
+            </div>
+            <div class="outcome-cell">
+              <span class="label">COMPLETION REASON</span>
+              <div class="outcome-value">ENEMY DEFEATED</div>
+            </div>
+            <div class="outcome-cell">
+              <span class="label">COMPLETED TURN</span>
+              <div class="outcome-value mono" id="completed-turn">5 / 10</div>
+            </div>
+            <div class="outcome-cell">
+              <span class="label">BATTLE ID</span>
+              <div class="outcome-value mono" style="font-size: 12px">battle-01J-MOCK-8204</div>
+            </div>
+            <div class="outcome-actions">
+              <button class="ghost-button" id="edit-parameters" type="button">条件を編集</button>
+              <button class="secondary-button" id="rerun" type="button">再実行</button>
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <section class="summary-side">
+              <div class="summary-side-header">
+                <strong class="ally-text">ALLY UNIT SUMMARY</strong>
+                <span class="mono ally-text" style="font-size: 9px">3 ACTIVE</span>
+              </div>
+              <div id="ally-summary"></div>
+            </section>
+            <section class="summary-side">
+              <div class="summary-side-header">
+                <strong class="enemy-text">ENEMY UNIT SUMMARY</strong>
+                <span class="mono enemy-text" style="font-size: 9px">0 ACTIVE</span>
+              </div>
+              <div id="enemy-summary"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel details-panel results" id="details" aria-labelledby="details-title">
+          <div class="panel-header">
+            <h2 class="panel-title" id="details-title">
+              <span class="step-number">03</span>
+              戦闘詳細データ
+            </h2>
+            <span class="panel-meta mono">AUDIT TRAIL / RAW RESPONSE</span>
+          </div>
+          <div class="tab-list" role="tablist" aria-label="戦闘詳細">
+            <button class="tab-button" role="tab" aria-selected="true" data-tab="events">
+              時系列イベント
+            </button>
+            <button class="tab-button" role="tab" aria-selected="false" data-tab="transitions">
+              状態遷移
+            </button>
+            <button class="tab-button" role="tab" aria-selected="false" data-tab="json">
+              レスポンスJSON
+            </button>
+          </div>
+          <div class="tab-panel active" id="events" role="tabpanel">
+            <div class="event-list" id="event-list"></div>
+          </div>
+          <div class="tab-panel" id="transitions" role="tabpanel">
+            <table class="transition-table">
+              <thead>
+                <tr>
+                  <th>VERSION</th>
+                  <th>CAUSED BY</th>
+                  <th>TARGET</th>
+                  <th>DELTA</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0 → 1</td>
+                  <td>#001 BATTLE_STARTED</td>
+                  <td>battle</td>
+                  <td>status: READY → RUNNING</td>
+                </tr>
+                <tr>
+                  <td>8 → 9</td>
+                  <td>#014 DAMAGE_APPLIED</td>
+                  <td>enemy-01</td>
+                  <td>hp: 26,364 → 18,102</td>
+                </tr>
+                <tr>
+                  <td>20 → 21</td>
+                  <td>#032 DAMAGE_APPLIED</td>
+                  <td>enemy-01</td>
+                  <td>hp: 5,190 → 0</td>
+                </tr>
+                <tr>
+                  <td>21 → 22</td>
+                  <td>#033 BATTLE_COMPLETED</td>
+                  <td>battle</td>
+                  <td>status: RUNNING → COMPLETED</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tab-panel" id="json" role="tabpanel">
+            <pre id="json-output"></pre>
+          </div>
+        </section>
+
+        <p class="mock-note">UI DESIGN MOCK / values and results are illustrative</p>
+      </main>
+    </div>
+
+    <dialog id="unit-dialog" aria-labelledby="unit-dialog-title">
+      <div class="dialog-header">
+        <h2 class="dialog-title" id="unit-dialog-title">ユニットを選択</h2>
+        <button
+          class="icon-button"
+          type="button"
+          data-close-dialog="unit-dialog"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <div class="dialog-tools">
+        <input
+          id="unit-search"
+          type="search"
+          placeholder="ユニット名・定義IDで検索"
+          aria-label="ユニットを検索"
+        />
+        <select id="attribute-filter" aria-label="属性で絞り込み">
+          <option value="">すべての属性</option>
+          <option>CUTE</option>
+          <option>SMART</option>
+          <option>SHY</option>
+          <option>AGGRESSIVE</option>
+          <option>COMICAL</option>
+        </select>
+        <select id="role-filter" aria-label="役割で絞り込み">
+          <option value="">すべての役割</option>
+          <option>PHYSICAL_ATTACKER</option>
+          <option>EN_ATTACKER</option>
+          <option>TANK</option>
+          <option>CONTROL</option>
+          <option>SUPPORT</option>
+        </select>
+      </div>
+      <div class="catalog-list" id="unit-list"></div>
+    </dialog>
+
+    <dialog id="memory-dialog" aria-labelledby="memory-dialog-title">
+      <div class="dialog-header">
+        <h2 class="dialog-title" id="memory-dialog-title">メモリーを選択</h2>
+        <button
+          class="icon-button"
+          type="button"
+          data-close-dialog="memory-dialog"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <div class="dialog-tools" style="grid-template-columns: 1fr">
+        <input
+          id="memory-search"
+          type="search"
+          placeholder="メモリー名・定義IDで検索"
+          aria-label="メモリーを検索"
+        />
+      </div>
+      <div class="catalog-list" id="memory-list"></div>
+    </dialog>
+
+    <script>
+      // `imageUrl`へ画像アセットのURLを設定すると、選択一覧・編成カード・結果表へ反映される。
+      const units = [
+        {
+          id: "UNIT_ANIS_TROUBLEMAKER",
+          name: "【愛を求めるトラブルメーカー】アニス・ベネット",
+          shortName: "アニス・ベネット",
+          attribute: "CUTE",
+          role: "CONTROL",
+          aptitude: "FRONT/BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_AOI_ELEGANT",
+          name: "【優雅なる規律の花】生駒葵",
+          shortName: "生駒葵",
+          attribute: "SMART",
+          role: "CONTROL",
+          aptitude: "FRONT/BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_AOI_GUARDIAN",
+          name: "【厳格な規律の守護者】生駒葵",
+          shortName: "生駒葵（守護者）",
+          attribute: "CUTE",
+          role: "TANK",
+          aptitude: "FRONT",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_CHIYURU_MAZE",
+          name: "【博識なメイズの探求者】月ヶ瀬ちゆる",
+          shortName: "月ヶ瀬ちゆる",
+          attribute: "SHY",
+          role: "CONTROL",
+          aptitude: "FRONT/BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_CLARA_SANTA",
+          name: "【聖夜のサンタシンガー】綺羅クララ",
+          shortName: "綺羅クララ",
+          attribute: "SMART",
+          role: "EN_ATTACKER",
+          aptitude: "BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_DOROTHEA_GRACE",
+          name: "【ノーブル・グレイス】ドロテア・カークランド",
+          shortName: "ドロテア",
+          attribute: "COMICAL",
+          role: "PHYSICAL_ATTACKER",
+          aptitude: "FRONT",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_ELENA_MOODMAKER",
+          name: "【心色見つめるムードメーカー】エレーナ・パステルコワ",
+          shortName: "エレーナ",
+          attribute: "CUTE",
+          role: "SUPPORT",
+          aptitude: "BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_EVIE_ECO",
+          name: "【省エネ主義の天才ハッカー】エヴィ・レーナルト",
+          shortName: "エヴィ",
+          attribute: "AGGRESSIVE",
+          role: "TANK",
+          aptitude: "FRONT",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_EVIE_KYONSHI",
+          name: "【キョンシーハッカー】エヴィ・レーナルト",
+          shortName: "エヴィ（キョンシー）",
+          attribute: "SHY",
+          role: "EN_ATTACKER",
+          aptitude: "BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_FEE_ACTOR",
+          name: "【空っぽのアクター】フィー・ドレーゼ",
+          shortName: "フィー・ドレーゼ",
+          attribute: "SHY",
+          role: "EN_ATTACKER",
+          aptitude: "FRONT/BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_FLUTE_INFLUENCER",
+          name: "【ギャルインフルエンサー】フルート・メルヴィル",
+          shortName: "フルート",
+          attribute: "CUTE",
+          role: "SUPPORT",
+          aptitude: "BACK",
+          imageUrl: null,
+        },
+        {
+          id: "UNIT_HARRIET_SAGE",
+          name: "【憎まれ口の大賢者】ハリエット・ミルズ",
+          shortName: "ハリエット",
+          attribute: "SMART",
+          role: "SUPPORT",
+          aptitude: "BACK",
+          imageUrl: null,
+        },
+      ];
+
+      const memories = [
+        { id: "MEM_HARD_WARMUP", name: "ハードな準備運動……？", code: "HW", imageUrl: null },
+        { id: "MEM_HEART_COLOR", name: "心の色", code: "HC", imageUrl: null },
+        { id: "MEM_OJOSAMA_MANNERS", name: "お嬢様直伝マナー講座", code: "OM", imageUrl: null },
+        { id: "MEM_STRANGERS", name: "STRANGERS", code: "ST", imageUrl: null },
+        { id: "MEM_TIMID_REINDEER_EVE", name: "臆病トナカイの聖夜", code: "TR", imageUrl: null },
+        { id: "MEM_WALK_TOGETHER", name: "これからも共に歩むあなたへ", code: "WT", imageUrl: null },
+      ];
+
+      const state = {
+        ally: [units[5], units[6], null, units[4], null, null],
+        enemy: [units[7], null, units[2], null, units[9], null],
+        allyMemories: [memories[1], memories[3], null, null, null, null],
+        enemyMemories: [memories[0], null, null, null, null, null],
+        selection: null,
+      };
+
+      const initials = (name) =>
+        name
+          .replace(/【.*?】/g, "")
+          .trim()
+          .slice(0, 2)
+          .toUpperCase();
+      const imageStyle = (imageUrl) => (imageUrl ? `background-image: url('${imageUrl}')` : "");
+
+      function renderFormation(side) {
+        const container = document.getElementById(`${side}-formation`);
+        const rows = [
+          { label: "FRONT / 前衛", indexes: [0, 1, 2] },
+          { label: "REAR / 後衛", indexes: [3, 4, 5] },
+        ];
+        container.innerHTML = rows
+          .map(
+            (row) => `
+          <div class="row-label">${row.label}</div>
+          ${row.indexes.map((index) => unitSlot(side, index, state[side][index])).join("")}
+        `,
+          )
+          .join("");
+      }
+
+      function unitSlot(side, index, unit) {
+        const position = index < 3 ? "前衛" : "後衛";
+        if (!unit) {
+          return `<button class="unit-slot" type="button" data-unit-slot data-side="${side}" data-index="${index}" aria-label="${position}${(index % 3) + 1}にユニットを追加">
+            <span class="empty-slot"><span><span class="empty-plus">＋</span>UNIT ${String((index % 3) + 1).padStart(2, "0")}</span></span>
+          </button>`;
+        }
+        return `<button class="unit-slot filled" type="button" data-unit-slot data-side="${side}" data-index="${index}" aria-label="${unit.name}を変更">
+          <span class="unit-portrait" style="${imageStyle(unit.imageUrl)}">${unit.imageUrl ? "" : initials(unit.shortName)}</span>
+          <span class="unit-copy">
+            <span class="unit-name">${unit.shortName}</span>
+            <span class="unit-tags"><span class="tag">${unit.attribute}</span><span class="tag">${unit.role}</span></span>
+          </span>
+        </button>`;
+      }
+
+      function renderMemories(side) {
+        const key = `${side}Memories`;
+        document.getElementById(`${side}-memories`).innerHTML = state[key]
+          .map((memory, index) => {
+            if (!memory)
+              return `<button class="memory-slot" type="button" data-memory-slot data-side="${side}" data-index="${index}" aria-label="メモリー${index + 1}を追加"><span class="empty-plus" style="margin: 0; font-size: 18px">＋</span></button>`;
+            return `<button class="memory-slot filled" type="button" data-memory-slot data-side="${side}" data-index="${index}" aria-label="${memory.name}を変更" style="${imageStyle(memory.imageUrl)}">${memory.imageUrl ? "" : memory.code}<span class="memory-label">${memory.name}</span></button>`;
+          })
+          .join("");
+      }
+
+      function renderAll() {
+        renderFormation("ally");
+        renderFormation("enemy");
+        renderMemories("ally");
+        renderMemories("enemy");
+      }
+
+      function renderUnitList() {
+        const query = document.getElementById("unit-search").value.toLowerCase();
+        const attribute = document.getElementById("attribute-filter").value;
+        const role = document.getElementById("role-filter").value;
+        const selected = state.selection
+          ? state[state.selection.side][state.selection.index]
+          : null;
+        const filtered = units.filter(
+          (unit) =>
+            `${unit.name} ${unit.id}`.toLowerCase().includes(query) &&
+            (!attribute || unit.attribute === attribute) &&
+            (!role || unit.role === role),
+        );
+        const remove = selected
+          ? `<article class="catalog-item"><div class="catalog-image">—</div><div><div class="catalog-name">この枠を空にする</div><div class="catalog-id">REMOVE FROM FORMATION</div></div><button class="select-item remove-item" data-remove-unit type="button">解除</button></article>`
+          : "";
+        document.getElementById("unit-list").innerHTML =
+          remove +
+          (filtered.length
+            ? filtered
+                .map(
+                  (unit) => `
+          <article class="catalog-item">
+            <div class="catalog-image" style="${imageStyle(unit.imageUrl)}">${unit.imageUrl ? "" : initials(unit.shortName)}</div>
+            <div>
+              <div class="catalog-name">${unit.name}</div>
+              <div class="catalog-id">${unit.id}</div>
+              <div class="unit-tags"><span class="tag">${unit.attribute}</span><span class="tag">${unit.role}</span><span class="tag">${unit.aptitude}</span></div>
+            </div>
+            <button class="select-item" data-select-unit="${unit.id}" type="button">選択</button>
+          </article>`,
+                )
+                .join("")
+            : `<div class="empty-catalog">条件に一致するユニットがありません。</div>`);
+      }
+
+      function renderMemoryList() {
+        const query = document.getElementById("memory-search").value.toLowerCase();
+        const key = state.selection ? `${state.selection.side}Memories` : "allyMemories";
+        const selected = state.selection ? state[key][state.selection.index] : null;
+        const filtered = memories.filter((memory) =>
+          `${memory.name} ${memory.id}`.toLowerCase().includes(query),
+        );
+        const remove = selected
+          ? `<article class="catalog-item"><div class="catalog-image">—</div><div><div class="catalog-name">この枠を空にする</div><div class="catalog-id">REMOVE FROM MEMORY SET</div></div><button class="select-item remove-item" data-remove-memory type="button">解除</button></article>`
+          : "";
+        document.getElementById("memory-list").innerHTML =
+          remove +
+          filtered
+            .map(
+              (memory) => `
+          <article class="catalog-item">
+            <div class="catalog-image" style="${imageStyle(memory.imageUrl)}">${memory.imageUrl ? "" : memory.code}</div>
+            <div><div class="catalog-name">${memory.name}</div><div class="catalog-id">${memory.id}</div><div class="unit-tags"><span class="tag">MEMORY</span></div></div>
+            <button class="select-item" data-select-memory="${memory.id}" type="button">選択</button>
+          </article>`,
+            )
+            .join("");
+      }
+
+      document.addEventListener("click", (event) => {
+        const unitSlotButton = event.target.closest("[data-unit-slot]");
+        if (unitSlotButton) {
+          state.selection = {
+            side: unitSlotButton.dataset.side,
+            index: Number(unitSlotButton.dataset.index),
+          };
+          renderUnitList();
+          document.getElementById("unit-dialog").showModal();
+          return;
+        }
+        const memorySlotButton = event.target.closest("[data-memory-slot]");
+        if (memorySlotButton) {
+          state.selection = {
+            side: memorySlotButton.dataset.side,
+            index: Number(memorySlotButton.dataset.index),
+          };
+          renderMemoryList();
+          document.getElementById("memory-dialog").showModal();
+          return;
+        }
+        const selectUnit = event.target.closest("[data-select-unit]");
+        if (selectUnit && state.selection) {
+          state[state.selection.side][state.selection.index] = units.find(
+            (unit) => unit.id === selectUnit.dataset.selectUnit,
+          );
+          renderAll();
+          document.getElementById("unit-dialog").close();
+          return;
+        }
+        if (event.target.closest("[data-remove-unit]") && state.selection) {
+          state[state.selection.side][state.selection.index] = null;
+          renderAll();
+          document.getElementById("unit-dialog").close();
+          return;
+        }
+        const selectMemory = event.target.closest("[data-select-memory]");
+        if (selectMemory && state.selection) {
+          state[`${state.selection.side}Memories`][state.selection.index] = memories.find(
+            (memory) => memory.id === selectMemory.dataset.selectMemory,
+          );
+          renderAll();
+          document.getElementById("memory-dialog").close();
+          return;
+        }
+        if (event.target.closest("[data-remove-memory]") && state.selection) {
+          state[`${state.selection.side}Memories`][state.selection.index] = null;
+          renderAll();
+          document.getElementById("memory-dialog").close();
+          return;
+        }
+        const closeButton = event.target.closest("[data-close-dialog]");
+        if (closeButton) document.getElementById(closeButton.dataset.closeDialog).close();
+      });
+
+      ["unit-search", "attribute-filter", "role-filter"].forEach((id) =>
+        document.getElementById(id).addEventListener("input", renderUnitList),
+      );
+      document.getElementById("memory-search").addEventListener("input", renderMemoryList);
+
+      const summaryRows = (side) => {
+        const data =
+          side === "ally"
+            ? [
+                [12832, 5204, 0, "ALIVE"],
+                [7104, 8392, 0, "ALIVE"],
+                [8262, 3140, 0, "ALIVE"],
+              ]
+            : [
+                [5190, 17746, 0, "DEFEATED"],
+                [3128, 6320, 0, "DEFEATED"],
+                [2418, 4132, 0, "DEFEATED"],
+              ];
+        return state[side]
+          .filter(Boolean)
+          .map((unit, index) => ({ unit, values: data[index % data.length] }));
+      };
+
+      function renderSummary(side) {
+        const rows = summaryRows(side);
+        document.getElementById(`${side}-summary`).innerHTML = `<table class="summary-table">
+          <thead><tr><th>UNIT</th><th>DAMAGE</th><th title="被ダメージ">DEFENSE<br />被ダメージ</th><th>HEAL</th><th>STATUS</th></tr></thead>
+          <tbody>${rows
+            .map(
+              ({ unit, values }) => `<tr>
+            <td><div class="summary-unit"><div class="summary-avatar" style="${imageStyle(unit.imageUrl)}">${unit.imageUrl ? "" : initials(unit.shortName)}</div><span class="summary-name">${unit.shortName}</span></div></td>
+            <td>${values[0].toLocaleString()}</td><td>${values[1].toLocaleString()}</td><td>${values[2].toLocaleString()}</td>
+            <td class="${values[3] === "ALIVE" ? "status-alive" : "status-defeated"}">${values[3]}</td>
+          </tr>`,
+            )
+            .join("")}</tbody>
+        </table>`;
+      }
+
+      const events = [
+        [1, "T01", "BATTLE_STARTED", "戦闘を開始しました。行動順を計算します。"],
+        [6, "T01", "ACTION_STARTED", "ドロテアがアクティブスキルを実行しました。"],
+        [9, "T01", "CRITICAL_CHECK", "会心判定: PREVENTED / rate 20.0%"],
+        [14, "T01", "DAMAGE_APPLIED", "エヴィに 8,262 ダメージ。HP 26,364 → 18,102"],
+        [23, "T03", "DAMAGE_APPLIED", "フィーに 7,104 ダメージ。HP 14,020 → 6,916"],
+        [32, "T05", "DAMAGE_APPLIED", "エヴィに 5,190 ダメージ。HP 5,190 → 0"],
+        [33, "T05", "BATTLE_COMPLETED", "敵陣営が全滅しました。ALLY_WIN"],
+      ];
+
+      function renderEvents() {
+        document.getElementById("event-list").innerHTML = events
+          .map(
+            ([seq, turn, type, message]) => `
+          <div class="event-row"><span class="event-seq">#${String(seq).padStart(3, "0")}</span><span class="event-turn">${turn}</span><span class="event-type">${type}</span><span class="event-message">${message}</span></div>
+        `,
+          )
+          .join("");
+      }
+
+      const mockResponse = {
+        schemaVersion: 1,
+        battleId: "battle-01J-MOCK-8204",
+        catalogRevision: "2026-06-28.1",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 5 },
+        initialState: { stateVersion: 0, battleStatus: "READY", turnNumber: 0, units: "[…]" },
+        finalState: { stateVersion: 22, battleStatus: "COMPLETED", turnNumber: 5, units: "[…]" },
+        events: "[…]",
+        stateTransitions: "[…]",
+      };
+
+      function executeSimulation() {
+        const button = document.getElementById("simulate-button");
+        const turnLimit = Math.max(
+          1,
+          Math.min(99, Number(document.getElementById("turn-limit").value) || 10),
+        );
+        button.disabled = true;
+        button.textContent = "実行中…";
+        window.setTimeout(() => {
+          document.getElementById("completed-turn").textContent = `5 / ${turnLimit}`;
+          document.getElementById("completed-at").textContent =
+            `COMPLETED / ${new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+          renderSummary("ally");
+          renderSummary("enemy");
+          document.getElementById("results").classList.add("visible");
+          document.getElementById("details").classList.add("visible");
+          document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+          button.disabled = false;
+          button.textContent = "戦闘を開始";
+        }, 650);
+      }
+
+      document.getElementById("simulate-button").addEventListener("click", executeSimulation);
+      document.getElementById("rerun").addEventListener("click", executeSimulation);
+      document
+        .getElementById("edit-parameters")
+        .addEventListener("click", () =>
+          document
+            .getElementById("setup-title")
+            .scrollIntoView({ behavior: "smooth", block: "start" }),
+        );
+
+      document.querySelectorAll(".tab-button").forEach((button) =>
+        button.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab-button")
+            .forEach((tab) => tab.setAttribute("aria-selected", String(tab === button)));
+          document
+            .querySelectorAll(".tab-panel")
+            .forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
+        }),
+      );
+
+      renderAll();
+      renderEvents();
+      document.getElementById("json-output").textContent = JSON.stringify(mockResponse, null, 2);
+    </script>
+  </body>
+</html>
