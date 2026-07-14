@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { buildServer } from "../presentation/http/build-server.js";
+import type { ReadinessPort } from "../presentation/http/health-routes.js";
 import { parseCatalogManifest } from "../infrastructure/catalog/runtime/catalog-manifest.js";
 import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker-pool.js";
+import { ShutdownState, installShutdownSignalHandlers } from "./shutdown.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「起動」の骨格。Catalog manifestから
@@ -18,8 +20,12 @@ import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker
  * 揉み消さず素直に投げることで、この関数自体をテストで直接呼び出し、
  * 初期化失敗が確かに`reject`されることを検証できる。
  *
- * 構造化ログ・ヘルスチェック・Graceful Shutdownの完成は別Issue（`#12`）の範囲。
- * `SIMULATION_TIMEOUT_MS`・`WORKER_MAX_QUEUE`は`#18`でここから配線した。
+ * `#12`で`/health/live`・`/health/ready`・構造化ログ・Graceful Shutdownを
+ * ここへ配線した。`readiness`は`shutdownState`（Graceful Shutdownステップ1）と
+ * `pool.isHealthy`（稼働中のCatalogリビジョン不一致）の両方を見る——
+ * `SimulationWorkerPool.create`が必要ワーカー数のwarm-upとCatalog検証を
+ * 待ち切ってから返るため、`listen`に到達した時点でこの2つ以外に readiness を
+ * 落とす要因は残らない。
  */
 export async function bootstrap(): Promise<FastifyInstance> {
   const port = Number(process.env["PORT"] ?? "3000");
@@ -29,6 +35,10 @@ export async function bootstrap(): Promise<FastifyInstance> {
   // `11_インフラストラクチャ設計.md`「待機キューを無制限にしない」。Piscina自身の
   // 既定`maxQueue`は`Infinity`のため、未設定でも常に有限値を明示する。
   const workerMaxQueue = Number(process.env["WORKER_MAX_QUEUE"] ?? "100");
+  const logLevel = process.env["LOG_LEVEL"] ?? "info";
+  // `11_インフラストラクチャ設計.md`「設定項目」`SHUTDOWN_GRACE_MS`。Piscina自身の
+  // `closeTimeout`既定値と揃える。
+  const shutdownGraceMs = Number(process.env["SHUTDOWN_GRACE_MS"] ?? "30000");
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
@@ -37,9 +47,29 @@ export async function bootstrap(): Promise<FastifyInstance> {
     catalogDir,
     catalogRevision: manifest.catalogRevision,
     maxQueue: workerMaxQueue,
+    shutdownGraceMs,
   });
 
-  const app = await buildServer(pool, { simulationTimeoutMs });
+  const shutdownState = new ShutdownState();
+  // `11_インフラストラクチャ設計.md`「/health/ready」: シャットダウン開始前、かつ
+  // Workerのcatalogリビジョンが一致（`pool.isHealthy`）している場合だけ成功する。
+  const readiness: ReadinessPort = {
+    isReady: () => !shutdownState.isShuttingDown() && pool.isHealthy,
+  };
+
+  const app = await buildServer(pool, {
+    simulationTimeoutMs,
+    logger: { level: logLevel },
+    readiness,
+    shutdownGate: shutdownState,
+  });
+  installShutdownSignalHandlers({ app, pool, shutdownState });
+
   await app.listen({ port, host });
+  // `11_インフラストラクチャ設計.md`「ログイベント」サーバー起動行の最小field。
+  app.log.info(
+    { catalogRevision: manifest.catalogRevision, workerMaxQueue, simulationTimeoutMs },
+    "muvluvgg-battle-simulator started",
+  );
   return app;
 }

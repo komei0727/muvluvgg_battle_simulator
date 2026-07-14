@@ -4,6 +4,7 @@ import Fastify, {
   type FastifyInstance,
   type FastifyReply,
   type FastifyRequest,
+  type FastifyServerOptions,
 } from "fastify";
 import fastifySwagger from "@fastify/swagger";
 import { toBattleSimulationResponseBody } from "../../application/simulate-battle-response-mapper.js";
@@ -13,6 +14,7 @@ import { SimulationCapacityExceededError } from "../../application/simulation-ca
 import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
 import { fromApplicationError, toErrorResponseBody } from "./error-response-mapper.js";
+import { registerHealthRoutes, type ReadinessPort } from "./health-routes.js";
 import {
   battleSimulationRequestSchema,
   battleSimulationRequestDocSchema,
@@ -66,17 +68,47 @@ const DEFAULT_SIMULATION_TIMEOUT_MS = 30_000;
 // 短時間で解消するため、固定の短い秒数を返す（学習的なbackoff計算は行わない）。
 const CAPACITY_EXCEEDED_RETRY_AFTER_SECONDS = "1";
 
+/**
+ * `11_インフラストラクチャ設計.md`「Graceful Shutdown」ステップ2「新しい
+ * 戦闘リクエストの受付を停止する」だけを担うport。`ReadinessPort`とは意図的に
+ * 分離している——Poolが稼働中のCatalogリビジョン不一致で致命的状態になった
+ * 場合、`/health/ready`は失敗を報告すべきだが、個々のリクエストは従来どおり
+ * `execute()`経由で`500 INVALID_DEFINITION`を返す契約を保つ必要があり
+ * （`simulation-worker-pool-poisoning.integration.test.ts`）、この場合は
+ * ここでの一律拒否対象ではない。
+ */
+export interface ShutdownGatePort {
+  isShuttingDown(): boolean;
+}
+
+const ALWAYS_READY: ReadinessPort = { isReady: () => true };
+const NEVER_SHUTTING_DOWN: ShutdownGatePort = { isShuttingDown: () => false };
+
 export interface BuildServerOptions {
   readonly bodyLimit?: number;
   readonly simulationTimeoutMs?: number;
+  readonly logger?: FastifyServerOptions["logger"];
+  readonly readiness?: ReadinessPort;
+  readonly shutdownGate?: ShutdownGatePort;
 }
 
-function resolveRequestId(header: string | string[] | undefined, fallback: string): string {
+function resolveRequestId(header: string | string[] | undefined): string | undefined {
   const value = Array.isArray(header) ? header[0] : header;
   if (value !== undefined && REQUEST_ID_PATTERN.test(value)) {
     return value;
   }
-  return fallback;
+  return undefined;
+}
+
+/**
+ * Fastifyの`genReqId`。素の`http.IncomingMessage`（Fastifyのrequest wrapper
+ * 構築前）を受け取るため、ヘッダーへ直接アクセスする。ここで解決した値が
+ * `request.id`として全リクエストのライフサイクル（`request.log`の`requestId`
+ * ラベルを含む）に一貫して使われる——`onRequest`フックで改めて解決し直す
+ * 必要がなくなる。
+ */
+function genReqId(request: { headers: Record<string, string | string[] | undefined> }): string {
+  return resolveRequestId(request.headers["x-request-id"]) ?? randomUUID();
 }
 
 interface RequestExecutionState {
@@ -172,8 +204,20 @@ export async function buildServer(
   options: BuildServerOptions = {},
 ): Promise<FastifyInstance> {
   const simulationTimeoutMs = options.simulationTimeoutMs ?? DEFAULT_SIMULATION_TIMEOUT_MS;
+  const readiness = options.readiness ?? ALWAYS_READY;
+  const shutdownGate = options.shutdownGate ?? NEVER_SHUTTING_DOWN;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
+    // `11_インフラストラクチャ設計.md`「構造化ログ」。既定は`false`
+    // （Fastifyの無効ロガーのまま、既存の大半のテストと同じ挙動）。
+    // Composition Root（`bootstrap/index.ts`）が`LOG_LEVEL`から実運用の
+    // pinoロガーを渡す。
+    logger: options.logger ?? false,
+    genReqId,
+    // `requestId`という名前でログへ出す（`11_インフラストラクチャ設計.md`
+    // 「ログ設計」の`requestId`フィールド）。Fastify既定の`reqId`ラベルのままだと
+    // フィールド名がドキュメントの契約と食い違う。
+    requestIdLogLabel: "requestId",
     ajv: {
       customOptions: {
         // 数値文字列を暗黙変換しない（`10_API設計.md`「数値を文字列として送信できない」）。
@@ -217,11 +261,14 @@ export async function buildServer(
     },
   });
 
+  registerHealthRoutes(app, readiness);
+
   app.addHook("onRequest", (request, reply, done) => {
     // `11_インフラストラクチャ設計.md`「メインスレッドの責務」: Request IDの
     // 採番とHTTP切断検知は、後続の`preValidation`やルートハンドラーより前の
-    // 最も早いフックで一度だけ行う。`request.id`はFastify自身が全リクエストへ
-    // 割り当てる一意なIDで、`X-Request-Id`未指定時のfallbackとして安全に使える。
+    // 最も早いフックで一度だけ行う。`request.id`は上の`genReqId`が
+    // （`X-Request-Id`ヘッダー、なければ新規UUID）で解決済みの値そのもの
+    // ——ここで改めて解決し直す必要はない。
     //
     // 切断検知は`reply.raw`（`ServerResponse`）の`close`を見る。`request.raw`
     // （`IncomingMessage`）の`close`はリクエスト本文を読み終えた時点で
@@ -238,7 +285,7 @@ export async function buildServer(
       }
     });
     requestExecutionState.set(request, {
-      requestId: resolveRequestId(request.headers["x-request-id"], request.id),
+      requestId: request.id,
       cancellationController,
     });
 
@@ -336,6 +383,14 @@ export async function buildServer(
       },
     },
     async (request: FastifyRequest<{ Body: BattleSimulationRequestBody }>, reply: FastifyReply) => {
+      // `11_インフラストラクチャ設計.md`「Graceful Shutdown」ステップ2「新しい
+      // 戦闘リクエストの受付を停止する」。UseCaseへ一切到達させず、Pool容量
+      // 超過と同じ`503 CAPACITY_EXCEEDED`として拒否する
+      // （`build-server.test.ts`「shutdownGateが停止中を報告した時点で」参照）。
+      if (shutdownGate.isShuttingDown()) {
+        throw new SimulationCapacityExceededError();
+      }
+
       // `onRequest`が全リクエストで先に実行され`requestExecutionState`へ登録
       // 済みのため、ここでは必ず存在する。
       const { requestId, cancellationController } = requestExecutionState.get(request)!;
@@ -346,6 +401,21 @@ export async function buildServer(
       };
       const result = await useCase.execute(request.body, context);
       const body = toBattleSimulationResponseBody(result);
+      // `11_インフラストラクチャ設計.md`「ログイベント」戦闘完了行の最小field。
+      // `requestId`は`requestIdLogLabel`設定により`request.log`へ自動で
+      // 束縛済みのため、ここで明示的に含める必要はない。
+      request.log.info(
+        {
+          catalogRevision: result.catalogRevision,
+          battleId: result.battleId,
+          outcome: result.outcome,
+          completionReason: result.completionReason,
+          completedTurn: result.completedTurn,
+          eventCount: result.events.length,
+          stateTransitionCount: result.stateTransitions.length,
+        },
+        "battle completed",
+      );
       void reply.code(200).send(body);
     },
   );

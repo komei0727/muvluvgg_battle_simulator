@@ -78,4 +78,52 @@ describe("bootstrap (compiled build)", () => {
       await app.close();
     }
   });
+
+  it("INT-BOOTSTRAP-003 (#12 成果物「Composition RootへのAPI・Pool・Catalog配線」「/health/live」「/health/ready」): the compiled build's /health/live and /health/ready both succeed once bootstrap() has resolved (Pool warm-up already confirmed the Catalog and worker count)", async () => {
+    const port = 34581;
+    process.env["PORT"] = String(port);
+    process.env["HOST"] = "127.0.0.1";
+    process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
+
+    const app = await bootstrap();
+    try {
+      const live = await app.inject({ method: "GET", url: "/health/live" });
+      const ready = await app.inject({ method: "GET", url: "/health/ready" });
+
+      expect(live.statusCode).toBe(200);
+      expect(ready.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("INT-BOOTSTRAP-004 (受け入れ条件「最小縦切りをproduction buildで実行できる」): the compiled build still completes a minimal battle end-to-end through POST /api/v1/battle-simulations", async () => {
+    const port = 34582;
+    process.env["PORT"] = String(port);
+    process.env["HOST"] = "127.0.0.1";
+    process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
+
+    const app = await bootstrap();
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: {
+          allyFormation: {
+            units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+            memoryDefinitionIds: [],
+          },
+          enemyFormation: {
+            units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+            memoryDefinitionIds: [],
+          },
+          turnLimit: 3,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
 });

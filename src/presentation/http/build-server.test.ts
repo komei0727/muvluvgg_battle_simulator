@@ -528,4 +528,57 @@ describe("POST /api/v1/battle-simulations", () => {
       await fullApp.close();
     }
   });
+
+  it("API-CONTRACT-022 (11_インフラストラクチャ設計.md「Graceful Shutdown」ステップ2「新しい戦闘リクエストの受付を停止する」): rejects a new battle request with 503 CAPACITY_EXCEEDED, without ever invoking the UseCase, once shutdownGate reports shutting down", async () => {
+    let executed = false;
+    const shuttingDownApp = await buildServer(
+      {
+        execute: () => {
+          executed = true;
+          return Promise.reject(new ApplicationError("INVALID_COMMAND", [{ reason: "unused" }]));
+        },
+      },
+      { shutdownGate: { isShuttingDown: () => true } },
+    );
+
+    try {
+      const response = await shuttingDownApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json<ErrorResponseBody>().error.code).toBe("CAPACITY_EXCEEDED");
+      expect(response.headers["retry-after"]).toEqual(expect.any(String));
+      expect(executed).toBe(false);
+    } finally {
+      await shuttingDownApp.close();
+    }
+  });
+});
+
+describe("health routes wired through buildServer", () => {
+  it("API-HEALTH-006: registers /health/live and /health/ready, defaulting readiness to true when no ReadinessPort is supplied", async () => {
+    const app = await buildServer(buildTestUseCase());
+    try {
+      const live = await app.inject({ method: "GET", url: "/health/live" });
+      const ready = await app.inject({ method: "GET", url: "/health/ready" });
+
+      expect(live.statusCode).toBe(200);
+      expect(ready.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("API-HEALTH-007 (受け入れ条件「準備未完了時にreadinessが成功しない」): /health/ready reflects a supplied ReadinessPort that reports not ready", async () => {
+    const app = await buildServer(buildTestUseCase(), { readiness: { isReady: () => false } });
+    try {
+      const ready = await app.inject({ method: "GET", url: "/health/ready" });
+      expect(ready.statusCode).toBe(503);
+    } finally {
+      await app.close();
+    }
+  });
 });
