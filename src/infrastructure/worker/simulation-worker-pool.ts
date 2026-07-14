@@ -1,6 +1,7 @@
 import { Piscina } from "piscina";
 import { toApplicationError } from "./worker-contract.js";
 import type { WorkerSimulationResult, WorkerSimulationTask } from "./worker-contract.js";
+import { WorkerErrorCircuitBreaker } from "./worker-error-circuit-breaker.js";
 import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
 import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
@@ -113,6 +114,7 @@ export class SimulationWorkerPoolStartupError extends Error {
 export class SimulationWorkerPool {
   private readonly pool: Piscina<WorkerSimulationTask, WorkerSimulationResult>;
   private readonly catalogRevision: string;
+  private readonly workerErrorCircuitBreaker = new WorkerErrorCircuitBreaker();
   private fatalError: ApplicationError | undefined;
 
   private constructor(options: SimulationWorkerPoolOptions) {
@@ -137,9 +139,13 @@ export class SimulationWorkerPool {
     // `11_インフラストラクチャ設計.md`「ワーカー障害」: 個々のタスクに紐づかない
     // Worker Threadの異常（例: idle中のクラッシュ）を、プロセス全体を落とす
     // 未処理の`error`イベントにしない。Piscina自身が異常Workerを破棄し
-    // 新しいWorkerを補充する。
+    // 新しいWorkerを補充する。「/health/ready」「連続ワーカー障害による
+    // サーキット状態でない」（レビュー指摘）: 補充を繰り返しても収束しない
+    // 連続異常は`workerErrorCircuitBreaker`経由で`isHealthy`へ反映する
+    // （`execute`の成功パスがカウンターをリセットする）。
     this.pool.on("error", (error: unknown) => {
       console.error("SimulationWorkerPool: unhandled Worker Thread error", error);
+      this.workerErrorCircuitBreaker.recordError();
     });
   }
 
@@ -191,11 +197,12 @@ export class SimulationWorkerPool {
 
   /**
    * `11_インフラストラクチャ設計.md`「ヘルスチェック」`/health/ready`
-   * 「ワーカーのCatalogリビジョンが期待値と一致」。稼働中のCatalogリビジョン
-   * 不一致で`fatalError`が立った以降はfalseになる。
+   * 「ワーカーのCatalogリビジョンが期待値と一致」「連続ワーカー障害による
+   * サーキット状態でない」。稼働中のCatalogリビジョン不一致で`fatalError`が
+   * 立った場合、または`workerErrorCircuitBreaker`が開いた場合にfalseになる。
    */
   get isHealthy(): boolean {
-    return this.fatalError === undefined;
+    return this.fatalError === undefined && !this.workerErrorCircuitBreaker.isOpen();
   }
 
   async execute(
@@ -236,6 +243,9 @@ export class SimulationWorkerPool {
     }
 
     if (outcome.ok) {
+      // タスクがWorker経由で正常に完了した——サーキットが開きかけていても
+      // Poolは機能している証拠として連続エラーカウントをリセットする。
+      this.workerErrorCircuitBreaker.recordSuccess();
       return outcome.result;
     }
 
