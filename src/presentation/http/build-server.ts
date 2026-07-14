@@ -271,6 +271,19 @@ export async function buildServer(
       }
 
       if (error instanceof ApplicationError) {
+        // `11_インフラストラクチャ設計.md`「キャンセルと期限」「クライアント切断時
+        // は応答送信を試みない」: 現状`EXECUTION_CANCELLED`は`SimulationWorkerPool`
+        // が`AbortSignal`の中断（`onRequest`の`reply.raw`切断検知経由）を観測した
+        // 場合にだけ送出される。その中断はクライアントが既に切断済みの場合に
+        // 限られる（`reply.raw`の`close`が発火し接続が破棄済みのときだけ中断する
+        // ——正常完了後の`close`では中断しない、上の`onRequest`フック参照）ため、
+        // このコード到達時点で`reply.raw.destroyed`なら送信を試みずに終了する。
+        // 将来、接続が生きたままのサーバー内部キャンセル（Graceful Shutdownなど）
+        // が同じコードを使うようになった場合は、`reply.raw.destroyed`がfalseの
+        // ままとなり、下の通常経路で`503`を返す。
+        if (error.code === "EXECUTION_CANCELLED" && reply.raw.destroyed) {
+          return;
+        }
         const { status, body } = fromApplicationError(error);
         if (status >= 500) {
           // `10_API設計.md`「ErrorObject」diagnosticId: サーバーログと照合できるよう、
