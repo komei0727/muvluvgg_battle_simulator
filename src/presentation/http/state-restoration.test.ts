@@ -4,12 +4,14 @@ import type { FastifyInstance } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
 import { battleSimulationResponseDocSchema } from "./schemas.js";
 import type {
+  BattleSimulationRequestBody,
   BattleSimulationResponseBody,
   BattleStateResponseBody,
   BattleUnitStateResponseBody,
   StateTransitionResponseBody,
   ValueChangeBody,
 } from "../../application/http-contract.js";
+import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import {
   createEffectActionDefinitionId,
@@ -354,11 +356,16 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
     [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],
   ]);
 
-  const useCase: SimulateBattleUseCasePort = new SimulateBattleUseCase({
-    battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
-    battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-    randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
-  });
+  const useCase: SimulateBattleUseCasePort = {
+    execute: (request: BattleSimulationRequestBody) =>
+      Promise.resolve(
+        new SimulateBattleUseCase({
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
+          battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+          randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+        }).execute(toSimulateBattleCommand(request)),
+      ),
+  };
   const app: FastifyInstance = await buildServer(useCase);
 
   try {

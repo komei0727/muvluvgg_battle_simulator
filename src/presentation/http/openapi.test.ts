@@ -7,7 +7,11 @@ import {
   battleSimulationResponseDocSchema,
   battleLogEventResponseDocSchema,
 } from "./schemas.js";
-import type { BattleSimulationResponseBody } from "../../application/http-contract.js";
+import type {
+  BattleSimulationRequestBody,
+  BattleSimulationResponseBody,
+} from "../../application/http-contract.js";
+import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import {
   createSkillDefinitionId,
@@ -64,13 +68,23 @@ class FakeBattleCatalog implements BattleCatalog {
   }
 }
 
+/** `build-server.test.ts`と同様、Worker経由の実体を薄いdirect adapterで代替する。 */
+function toDirectExecutor(useCase: SimulateBattleUseCase): SimulateBattleUseCasePort {
+  return {
+    execute: (request: BattleSimulationRequestBody) =>
+      Promise.resolve(useCase.execute(toSimulateBattleCommand(request))),
+  };
+}
+
 function buildTestUseCase(): SimulateBattleUseCasePort {
   const units = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
-  return new SimulateBattleUseCase({
-    battleCatalog: new FakeBattleCatalog(units),
-    battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-    randomSourceFactory: new SequenceRandomSourceFactory([]),
-  });
+  return toDirectExecutor(
+    new SimulateBattleUseCase({
+      battleCatalog: new FakeBattleCatalog(units),
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+    }),
+  );
 }
 
 describe("OpenAPI document", () => {
