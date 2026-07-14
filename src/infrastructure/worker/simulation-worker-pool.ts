@@ -15,6 +15,8 @@ export interface SimulationWorkerPoolOptions {
   readonly maxQueue?: number;
   /** テスト・結合テストが明示的なworker entryファイルを指すためのfallback。省略時は同ディレクトリの`simulation-worker-entry`。 */
   readonly workerFileUrl?: URL;
+  /** `11_インフラストラクチャ設計.md`「Graceful Shutdown」`shutdown()`が実行中タスクを待つ上限(ms)。省略時はPiscina自身の既定(30000)。 */
+  readonly shutdownGraceMs?: number;
 }
 
 /**
@@ -53,6 +55,19 @@ function isQueueFullError(error: unknown): boolean {
 /** Piscinaの`AbortError`（`piscina/dist/abort.js`）。`name`ゲッターで判別する。 */
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
+}
+
+/**
+ * Piscinaは`close({force:true})`/`destroy()`で強制終了されたWorkerの実行中
+ * タスクを、専用の例外型ではなく固定メッセージの`Error`でrejectする
+ * （`piscina/dist/errors.js`の`Errors.ThreadTermination`。型としては公開
+ * されていない）。`11_インフラストラクチャ設計.md`「Graceful Shutdown」の
+ * 強制キャンセル（ステップ4・6）はクライアント切断時の強制キャンセルと同じ
+ * `EXECUTION_CANCELLED`として扱うため、`isAbortError`と同様にメッセージで
+ * 判別する。
+ */
+function isPoolTerminatingError(error: unknown): boolean {
+  return error instanceof Error && error.message === "Terminating worker thread";
 }
 
 /** warm-up専用のダミーDTO。`expectedCatalogRevision`さえ正しければ、Command検証に
@@ -117,6 +132,7 @@ export class SimulationWorkerPool {
       ...(options.minThreads !== undefined ? { minThreads: options.minThreads } : {}),
       ...(options.maxThreads !== undefined ? { maxThreads: options.maxThreads } : {}),
       ...(options.maxQueue !== undefined ? { maxQueue: options.maxQueue } : {}),
+      ...(options.shutdownGraceMs !== undefined ? { closeTimeout: options.shutdownGraceMs } : {}),
     });
     // `11_インフラストラクチャ設計.md`「ワーカー障害」: 個々のタスクに紐づかない
     // Worker Threadの異常（例: idle中のクラッシュ）を、プロセス全体を落とす
@@ -173,6 +189,15 @@ export class SimulationWorkerPool {
     return pool;
   }
 
+  /**
+   * `11_インフラストラクチャ設計.md`「ヘルスチェック」`/health/ready`
+   * 「ワーカーのCatalogリビジョンが期待値と一致」。稼働中のCatalogリビジョン
+   * 不一致で`fatalError`が立った以降はfalseになる。
+   */
+  get isHealthy(): boolean {
+    return this.fatalError === undefined;
+  }
+
   async execute(
     request: BattleSimulationRequestBody,
     context: SimulationExecutionContext,
@@ -197,10 +222,12 @@ export class SimulationWorkerPool {
         // タスクは一度もWorkerへ投入されていない ── Poolそのものは健全なまま。
         throw new SimulationCapacityExceededError();
       }
-      if (isAbortError(error)) {
+      if (isAbortError(error) || isPoolTerminatingError(error)) {
         // `11_インフラストラクチャ設計.md`「キャンセルと期限」段階2（強制
-        // キャンセル）: HTTP切断やAbortSignalによる強制終了。勝敗結果としては
-        // 返さず、`EXECUTION_CANCELLED`として伝える。
+        // キャンセル）および「Graceful Shutdown」ステップ4・6（未開始タスクの
+        // キャンセル、grace期限後の強制キャンセル）: HTTP切断・AbortSignal・
+        // shutdown()による強制終了のいずれも、勝敗結果としては返さず
+        // `EXECUTION_CANCELLED`として伝える。
         throw new ApplicationError("EXECUTION_CANCELLED", [
           { reason: "the simulation was cancelled before it completed" },
         ]);
@@ -230,5 +257,19 @@ export class SimulationWorkerPool {
 
   async close(): Promise<void> {
     await this.pool.destroy();
+  }
+
+  /**
+   * `11_インフラストラクチャ設計.md`「Graceful Shutdown」ステップ4-7の
+   * Pool側部分。Piscinaの`close({force:true})`は、未開始タスク（キュー・
+   * skipQueue）を即座にreject（ステップ4）してから、実行中タスクの完了を
+   * `closeTimeout`（`shutdownGraceMs`、コンストラクタ参照）まで待ち
+   * （ステップ5）、期限が来ても残っていれば`destroy()`で強制終了する
+   * （ステップ6）。いずれの経路でも待受側は`execute()`の`isPoolTerminatingError`
+   * 判定で`EXECUTION_CANCELLED`を受け取る。`close()`（起動失敗時の即時破棄）
+   * とは異なり、実行中タスクへ完了の機会を与える点が違う。
+   */
+  async shutdown(): Promise<void> {
+    await this.pool.close({ force: true });
   }
 }

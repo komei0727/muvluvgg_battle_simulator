@@ -61,6 +61,24 @@ describe("SimulationWorkerPool — mid-life Catalog revision mismatch poisons th
     });
   });
 
+  it("INT-WORKER-POISON-003 (11_インフラストラクチャ設計.md「ヘルスチェック」「ワーカーのCatalogリビジョンが期待値と一致」): isHealthy flips to false once the Pool observes a mid-life INVALID_DEFINITION, so readiness can reflect it", async () => {
+    pool = await SimulationWorkerPool.create({
+      catalogDir: "unused-by-fixture",
+      catalogRevision: "unused-by-fixture",
+      workerFileUrl: FIXTURE_WORKER_URL,
+      minThreads: 1,
+      maxThreads: 1,
+    });
+
+    expect(pool.isHealthy).toBe(true);
+
+    await expect(pool.execute(MINIMAL_REQUEST, freshContext("req"))).rejects.toMatchObject({
+      code: "INVALID_DEFINITION",
+    });
+
+    expect(pool.isHealthy).toBe(false);
+  });
+
   it("INT-WORKER-POISON-002: close() after a fatal error does not throw (the underlying Pool was already destroyed as part of poisoning)", async () => {
     pool = await SimulationWorkerPool.create({
       catalogDir: "unused-by-fixture",
