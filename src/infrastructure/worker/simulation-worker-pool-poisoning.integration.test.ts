@@ -25,6 +25,10 @@ const MINIMAL_REQUEST = {
   turnLimit: 3,
 };
 
+function freshContext(requestId: string) {
+  return { requestId, deadlineEpochMs: Date.now() + 30_000 };
+}
+
 describe("SimulationWorkerPool — mid-life Catalog revision mismatch poisons the Pool", () => {
   let pool: SimulationWorkerPool | undefined;
 
@@ -42,17 +46,17 @@ describe("SimulationWorkerPool — mid-life Catalog revision mismatch poisons th
       maxThreads: 1,
     });
 
-    await expect(pool.execute(MINIMAL_REQUEST)).rejects.toMatchObject({
+    await expect(pool.execute(MINIMAL_REQUEST, freshContext("req"))).rejects.toMatchObject({
       code: "INVALID_DEFINITION",
     });
 
     // The Pool is now fatal: further calls fail the same way even though the
     // fake Worker would answer identically regardless — this proves the fast
     // path doesn't depend on asking the Worker again.
-    await expect(pool.execute(MINIMAL_REQUEST)).rejects.toMatchObject({
+    await expect(pool.execute(MINIMAL_REQUEST, freshContext("req"))).rejects.toMatchObject({
       code: "INVALID_DEFINITION",
     });
-    await expect(pool.execute(MINIMAL_REQUEST)).rejects.toMatchObject({
+    await expect(pool.execute(MINIMAL_REQUEST, freshContext("req"))).rejects.toMatchObject({
       code: "INVALID_DEFINITION",
     });
   });
@@ -66,7 +70,7 @@ describe("SimulationWorkerPool — mid-life Catalog revision mismatch poisons th
       maxThreads: 1,
     });
 
-    await expect(pool.execute(MINIMAL_REQUEST)).rejects.toMatchObject({
+    await expect(pool.execute(MINIMAL_REQUEST, freshContext("req"))).rejects.toMatchObject({
       code: "INVALID_DEFINITION",
     });
 

@@ -18,13 +18,17 @@ import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker
  * 揉み消さず素直に投げることで、この関数自体をテストで直接呼び出し、
  * 初期化失敗が確かに`reject`されることを検証できる。
  *
- * 構造化ログ・ヘルスチェック・Graceful Shutdown・期限/Pool容量制御の完成は
- * 別Issue（`#12`/`#18`）の範囲。
+ * 構造化ログ・ヘルスチェック・Graceful Shutdownの完成は別Issue（`#12`）の範囲。
+ * `SIMULATION_TIMEOUT_MS`・`WORKER_MAX_QUEUE`は`#18`でここから配線した。
  */
 export async function bootstrap(): Promise<FastifyInstance> {
   const port = Number(process.env["PORT"] ?? "3000");
   const host = process.env["HOST"] ?? "0.0.0.0";
   const catalogDir = process.env["CATALOG_PATH"] ?? "catalog";
+  const simulationTimeoutMs = Number(process.env["SIMULATION_TIMEOUT_MS"] ?? "30000");
+  // `11_インフラストラクチャ設計.md`「待機キューを無制限にしない」。Piscina自身の
+  // 既定`maxQueue`は`Infinity`のため、未設定でも常に有限値を明示する。
+  const workerMaxQueue = Number(process.env["WORKER_MAX_QUEUE"] ?? "100");
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
@@ -32,9 +36,10 @@ export async function bootstrap(): Promise<FastifyInstance> {
   const pool = await SimulationWorkerPool.create({
     catalogDir,
     catalogRevision: manifest.catalogRevision,
+    maxQueue: workerMaxQueue,
   });
 
-  const app = await buildServer(pool);
+  const app = await buildServer(pool, { simulationTimeoutMs });
   await app.listen({ port, host });
   return app;
 }

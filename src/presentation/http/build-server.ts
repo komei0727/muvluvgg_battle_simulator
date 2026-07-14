@@ -9,6 +9,8 @@ import fastifySwagger from "@fastify/swagger";
 import { toBattleSimulationResponseBody } from "../../application/simulate-battle-response-mapper.js";
 import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
+import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
+import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
 import { fromApplicationError, toErrorResponseBody } from "./error-response-mapper.js";
 import {
@@ -23,22 +25,26 @@ const BATTLE_SIMULATIONS_PATH = "/api/v1/battle-simulations";
 
 /**
  * `13_実装計画.md`「M4 API・Worker Walking Skeleton」: ルートハンドラーが呼ぶのは
- * 検証済みDTOを渡して`SimulateBattleResult`を受け取るこの最小portだけ。
- * DTO→Command変換とBattle実行は、実装（`SimulationWorkerPool`）が
- * Worker Threadへ委譲する — HTTPメインスレッドはBattleを直接実行しない
- * （`11_インフラストラクチャ設計.md`「技術的な不変条件」）。presentationは
- * domain/infrastructureを直接importできない（`no-restricted-imports`）ため、
- * 具体クラスではなくapplication層の型だけで表現したportとして受け取る。
+ * 検証済みDTOと実行コンテキストを渡して`SimulateBattleResult`を受け取る
+ * この最小portだけ。DTO→Command変換とBattle実行は、実装
+ * （`SimulationWorkerPool`）がWorker Threadへ委譲する — HTTPメインスレッドは
+ * Battleを直接実行しない（`11_インフラストラクチャ設計.md`「技術的な
+ * 不変条件」）。presentationはdomain/infrastructureを直接importできない
+ * （`no-restricted-imports`）ため、具体クラスではなくapplication層の型だけで
+ * 表現したportとして受け取る。
  */
 export interface SimulateBattleUseCasePort {
-  execute(request: BattleSimulationRequestBody): Promise<SimulateBattleResult>;
+  execute(
+    request: BattleSimulationRequestBody,
+    context: SimulationExecutionContext,
+  ): Promise<SimulateBattleResult>;
 }
 
 /**
  * `10_API設計.md`「ステータスコード対応」の全エラーステータスをOpenAPI文書へ
- * 登録する。429/503/504は本Issueの範囲（`#12`/`#13`/`#18`）ではまだ実際の
- * トリガー（レート制限、Worker Pool容量、実行期限）を実装していないが、
- * 外部契約としては`10_API設計.md`が定義済みのため、Schemaだけ先に固定する。
+ * 登録する。`#18`で503（`CAPACITY_EXCEEDED`/`EXECUTION_CANCELLED`）と504
+ * （`EXECUTION_TIMEOUT`）の実トリガーを接続した。429（利用者別レート制限）は
+ * まだ配備環境側の仕組みが未定のため、外部契約としてSchemaだけ先に固定する。
  */
 const ERROR_RESPONSES = {
   400: errorResponseSchema,
@@ -54,18 +60,36 @@ const ERROR_RESPONSES = {
 
 const REQUEST_ID_PATTERN = /^[\x20-\x7E]{1,128}$/;
 const DEFAULT_BODY_LIMIT_BYTES = 1_048_576; // 1 MiB。`10_API設計.md`「編成入力自体は小さい」ための暫定上限。
+// `11_インフラストラクチャ設計.md`「設定項目」`SIMULATION_TIMEOUT_MS`のデフォルト値。
+const DEFAULT_SIMULATION_TIMEOUT_MS = 30_000;
+// `10_API設計.md`「Retry-Afterを設定できる場合は設定する」。容量超過は通常
+// 短時間で解消するため、固定の短い秒数を返す（学習的なbackoff計算は行わない）。
+const CAPACITY_EXCEEDED_RETRY_AFTER_SECONDS = "1";
 
 export interface BuildServerOptions {
   readonly bodyLimit?: number;
+  readonly simulationTimeoutMs?: number;
 }
 
-function resolveRequestId(header: string | string[] | undefined): string {
+function resolveRequestId(header: string | string[] | undefined, fallback: string): string {
   const value = Array.isArray(header) ? header[0] : header;
   if (value !== undefined && REQUEST_ID_PATTERN.test(value)) {
     return value;
   }
-  return randomUUID();
+  return fallback;
 }
+
+interface RequestExecutionState {
+  readonly requestId: string;
+  readonly cancellationController: AbortController;
+}
+
+/**
+ * `FastifyRequest`をキーにリクエストごとの実行状態を保持する。`decorateRequest`
+ * によるプロパティ拡張の代わりにこの形を選んだのは、`presentation`層内だけで
+ * 完結し、Fastifyの型システムを拡張する`declare module`を要求しないため。
+ */
+const requestExecutionState = new WeakMap<FastifyRequest, RequestExecutionState>();
 
 interface AcceptEntry {
   readonly type: string;
@@ -147,6 +171,7 @@ export async function buildServer(
   useCase: SimulateBattleUseCasePort,
   options: BuildServerOptions = {},
 ): Promise<FastifyInstance> {
+  const simulationTimeoutMs = options.simulationTimeoutMs ?? DEFAULT_SIMULATION_TIMEOUT_MS;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
     ajv: {
@@ -193,6 +218,22 @@ export async function buildServer(
   });
 
   app.addHook("onRequest", (request, reply, done) => {
+    // `11_インフラストラクチャ設計.md`「メインスレッドの責務」: Request IDの
+    // 採番とHTTP切断検知は、後続の`preValidation`やルートハンドラーより前の
+    // 最も早いフックで一度だけ行う。`request.id`はFastify自身が全リクエストへ
+    // 割り当てる一意なIDで、`X-Request-Id`未指定時のfallbackとして安全に使える。
+    // `request.raw`の`close`イベントは、応答完了前にクライアントが切断した
+    // 場合に発火する（正常完了後の切断は`cancellationController`が既に
+    // 用済みのため無害）。
+    const cancellationController = new AbortController();
+    request.raw.once("close", () => {
+      cancellationController.abort();
+    });
+    requestExecutionState.set(request, {
+      requestId: resolveRequestId(request.headers["x-request-id"], request.id),
+      cancellationController,
+    });
+
     if (!acceptsJson(request.headers.accept)) {
       const body = toErrorResponseBody("NOT_ACCEPTABLE", []);
       void reply.code(406).send(body);
@@ -203,53 +244,67 @@ export async function buildServer(
 
   app.addHook("onSend", (request, reply, payload, done) => {
     reply.header("Cache-Control", "no-store");
-    reply.header("X-Request-Id", resolveRequestId(request.headers["x-request-id"]));
+    // `onRequest`が全リクエストで先に実行され`requestExecutionState`へ登録
+    // 済みのため、ここでは必ず存在する。
+    reply.header("X-Request-Id", requestExecutionState.get(request)!.requestId);
     done(null, payload);
   });
 
-  app.setErrorHandler<FastifyError | ApplicationError>((error, request, reply) => {
-    if (error instanceof ApplicationError) {
-      const { status, body } = fromApplicationError(error);
-      if (status >= 500) {
-        // `10_API設計.md`「ErrorObject」diagnosticId: サーバーログと照合できるよう、
-        // レスポンスへ返す診断IDと同じ値でログへも記録する。
-        request.log.error({ diagnosticId: body.error.diagnosticId, err: error });
-      }
-      void reply.code(status).send(body);
-      return;
-    }
-
-    switch (error.code) {
-      case "FST_ERR_CTP_BODY_TOO_LARGE":
-        void reply.code(413).send(toErrorResponseBody("REQUEST_TOO_LARGE", []));
-        return;
-      case "FST_ERR_CTP_INVALID_MEDIA_TYPE":
-        void reply.code(415).send(toErrorResponseBody("UNSUPPORTED_MEDIA_TYPE", []));
-        return;
-      case "FST_ERR_CTP_INVALID_JSON_BODY":
-      case "FST_ERR_CTP_EMPTY_JSON_BODY":
-        void reply.code(400).send(toErrorResponseBody("MALFORMED_REQUEST", []));
-        return;
-      case "FST_ERR_VALIDATION": {
-        const violations = (error.validation ?? []).map((issue) => ({
-          path: issue.instancePath.length > 0 ? issue.instancePath : "/",
-          reason: issue.message ?? "is invalid",
-        }));
-        void reply.code(400).send(toErrorResponseBody("MALFORMED_REQUEST", violations));
-        return;
-      }
-      default: {
-        // `10_API設計.md`「情報公開」: スタックトレースや内部パスを返さない。
-        // 「ErrorObject」diagnosticId: 予期しない例外も、生成したIDをレスポンス
-        // とログの双方へ記録し、事後にサーバーログと照合できるようにする。
-        const diagnosticId = randomUUID();
-        request.log.error({ diagnosticId, err: error });
+  app.setErrorHandler<FastifyError | ApplicationError | SimulationCapacityExceededError>(
+    (error, request, reply) => {
+      if (error instanceof SimulationCapacityExceededError) {
+        // `10_API設計.md`「同時実行とレート制限」「Retry-Afterを設定できる場合は
+        // 設定する」。
         void reply
-          .code(500)
-          .send(toErrorResponseBody("INTERNAL_INVARIANT_VIOLATION", [], diagnosticId));
+          .code(503)
+          .header("Retry-After", CAPACITY_EXCEEDED_RETRY_AFTER_SECONDS)
+          .send(toErrorResponseBody("CAPACITY_EXCEEDED", []));
+        return;
       }
-    }
-  });
+
+      if (error instanceof ApplicationError) {
+        const { status, body } = fromApplicationError(error);
+        if (status >= 500) {
+          // `10_API設計.md`「ErrorObject」diagnosticId: サーバーログと照合できるよう、
+          // レスポンスへ返す診断IDと同じ値でログへも記録する。
+          request.log.error({ diagnosticId: body.error.diagnosticId, err: error });
+        }
+        void reply.code(status).send(body);
+        return;
+      }
+
+      switch (error.code) {
+        case "FST_ERR_CTP_BODY_TOO_LARGE":
+          void reply.code(413).send(toErrorResponseBody("REQUEST_TOO_LARGE", []));
+          return;
+        case "FST_ERR_CTP_INVALID_MEDIA_TYPE":
+          void reply.code(415).send(toErrorResponseBody("UNSUPPORTED_MEDIA_TYPE", []));
+          return;
+        case "FST_ERR_CTP_INVALID_JSON_BODY":
+        case "FST_ERR_CTP_EMPTY_JSON_BODY":
+          void reply.code(400).send(toErrorResponseBody("MALFORMED_REQUEST", []));
+          return;
+        case "FST_ERR_VALIDATION": {
+          const violations = (error.validation ?? []).map((issue) => ({
+            path: issue.instancePath.length > 0 ? issue.instancePath : "/",
+            reason: issue.message ?? "is invalid",
+          }));
+          void reply.code(400).send(toErrorResponseBody("MALFORMED_REQUEST", violations));
+          return;
+        }
+        default: {
+          // `10_API設計.md`「情報公開」: スタックトレースや内部パスを返さない。
+          // 「ErrorObject」diagnosticId: 予期しない例外も、生成したIDをレスポンス
+          // とログの双方へ記録し、事後にサーバーログと照合できるようにする。
+          const diagnosticId = randomUUID();
+          request.log.error({ diagnosticId, err: error });
+          void reply
+            .code(500)
+            .send(toErrorResponseBody("INTERNAL_INVARIANT_VIOLATION", [], diagnosticId));
+        }
+      }
+    },
+  );
 
   app.post(
     "/api/v1/battle-simulations",
@@ -260,7 +315,15 @@ export async function buildServer(
       },
     },
     async (request: FastifyRequest<{ Body: BattleSimulationRequestBody }>, reply: FastifyReply) => {
-      const result = await useCase.execute(request.body);
+      // `onRequest`が全リクエストで先に実行され`requestExecutionState`へ登録
+      // 済みのため、ここでは必ず存在する。
+      const { requestId, cancellationController } = requestExecutionState.get(request)!;
+      const context: SimulationExecutionContext = {
+        requestId,
+        deadlineEpochMs: Date.now() + simulationTimeoutMs,
+        cancellationSignal: cancellationController.signal,
+      };
+      const result = await useCase.execute(request.body, context);
       const body = toBattleSimulationResponseBody(result);
       void reply.code(200).send(body);
     },

@@ -3,10 +3,13 @@
  * Inbound Adapterへ返る唯一の失敗形。ドメインモデルへAPI向けメッセージや
  * HTTPステータスを持たせない。
  *
- * `#16`ではUseCaseが実際に送出するのは `INVALID_COMMAND`、
- * `DEFINITION_NOT_FOUND`、`UNSUPPORTED_RULE` だけであり、残りは
- * `SimulationExecutionGuard`（後続Issue）や将来のドメイン不変条件違反向けに
- * 分類だけを先に確定しておく。
+ * `#16`時点でUseCaseが実際に送出するのは `INVALID_COMMAND`、
+ * `DEFINITION_NOT_FOUND`、`UNSUPPORTED_RULE`。`#18`で協調的な期限確認
+ * （`SimulateBattleUseCase`のターン境界チェック）が`EXECUTION_TIMEOUT`を、
+ * `SimulationWorkerPool`のキャンセル処理が`EXECUTION_CANCELLED`を送出する
+ * ようになった。`EXECUTION_LIMIT_EXCEEDED`と`DOMAIN_RULE_VIOLATION`は
+ * イベント数・PS深度などの実行保護（M6以降）と将来のドメイン不変条件違反
+ * 向けに、分類だけを先に確定しておく。
  */
 export const APPLICATION_ERROR_CODES = [
   "INVALID_COMMAND",

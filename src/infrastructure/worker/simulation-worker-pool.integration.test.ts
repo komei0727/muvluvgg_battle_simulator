@@ -46,6 +46,10 @@ function minimalRequest(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function freshContext(requestId: string, deadlineEpochMs = Date.now() + 30_000) {
+  return { requestId, deadlineEpochMs };
+}
+
 describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => {
   let SimulationWorkerPool: typeof SimulationWorkerPoolClass;
   let SimulationWorkerPoolStartupError: typeof SimulationWorkerPoolStartupErrorClass;
@@ -78,7 +82,7 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
       maxThreads: 1,
     });
 
-    const result = await pool.execute(minimalRequest());
+    const result = await pool.execute(minimalRequest(), freshContext("req-1"));
 
     expect(result.catalogRevision).toBe(CATALOG_REVISION);
     expect(result.outcome).toEqual(expect.any(String));
@@ -115,8 +119,23 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
       maxThreads: 1,
     });
 
-    await expect(pool.execute(minimalRequest({ turnLimit: 0 }))).rejects.toMatchObject({
+    await expect(
+      pool.execute(minimalRequest({ turnLimit: 0 }), freshContext("req-2")),
+    ).rejects.toMatchObject({
       code: "INVALID_COMMAND",
     });
+  });
+
+  it("INT-WORKER-005 (11_インフラストラクチャ設計.md「キャンセルと期限」段階1): a deadline already in the past surfaces as EXECUTION_TIMEOUT through the real compiled Worker, not a battle result", async () => {
+    pool = await SimulationWorkerPool.create({
+      catalogDir: CATALOG_DIR,
+      catalogRevision: CATALOG_REVISION,
+      minThreads: 1,
+      maxThreads: 1,
+    });
+
+    await expect(
+      pool.execute(minimalRequest(), freshContext("req-3", Date.now() - 1_000)),
+    ).rejects.toMatchObject({ code: "EXECUTION_TIMEOUT" });
   });
 });

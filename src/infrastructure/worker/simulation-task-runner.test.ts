@@ -4,6 +4,7 @@ import { createSimulationTaskRunner } from "./simulation-task-runner.js";
 import type { WorkerSimulationTask } from "./worker-contract.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
+import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 
 function fixturePath(...segments: string[]): string {
@@ -44,6 +45,7 @@ describe("createSimulationTaskRunner", () => {
     const runner = createSimulationTaskRunner(catalog, {
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory(Array(50).fill(0.5) as number[]),
+      clock: new ManualClock(Date.now()),
     });
 
     const outcome = runner(buildTask({ expectedCatalogRevision: catalog.catalogRevision }));
@@ -61,6 +63,7 @@ describe("createSimulationTaskRunner", () => {
     const runner = createSimulationTaskRunner(catalog, {
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory(Array(50).fill(0.5) as number[]),
+      clock: new ManualClock(Date.now()),
     });
 
     const outcome = runner(buildTask({ expectedCatalogRevision: "some-other-revision" }));
@@ -77,6 +80,7 @@ describe("createSimulationTaskRunner", () => {
     const runner = createSimulationTaskRunner(catalog, {
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory(Array(50).fill(0.5) as number[]),
+      clock: new ManualClock(Date.now()),
     });
 
     const outcome = runner(
@@ -92,6 +96,25 @@ describe("createSimulationTaskRunner", () => {
     }
   });
 
+  it("UT-TASKRUNNER-005 (11_インフラストラクチャ設計.md「キャンセルと期限」段階1): returns ok:false EXECUTION_TIMEOUT when the injected Clock has already passed task.deadlineEpochMs, without completing the Battle", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const clock = new ManualClock(1_000);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory(Array(50).fill(0.5) as number[]),
+      clock,
+    });
+
+    const outcome = runner(
+      buildTask({ expectedCatalogRevision: catalog.catalogRevision, deadlineEpochMs: 999 }),
+    );
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.error.code).toBe("EXECUTION_TIMEOUT");
+    }
+  });
+
   it("UT-TASKRUNNER-004 (11_インフラストラクチャ設計.md「ワーカー障害」): converts an unexpected non-ApplicationError into a safe INTERNAL_INVARIANT_VIOLATION with a diagnosticId, without leaking the original message", () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
@@ -103,6 +126,7 @@ describe("createSimulationTaskRunner", () => {
           },
         },
         randomSourceFactory: new SequenceRandomSourceFactory(Array(50).fill(0.5) as number[]),
+        clock: new ManualClock(Date.now()),
       });
 
       const outcome = runner(buildTask({ expectedCatalogRevision: catalog.catalogRevision }));

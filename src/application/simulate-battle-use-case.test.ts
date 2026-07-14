@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { SimulateBattleUseCase } from "./simulate-battle-use-case.js";
 import type { SimulateBattleCommand } from "./simulate-battle-command.js";
+import type { SimulationExecutionContext } from "./simulation-execution-context.js";
 import { ApplicationError } from "./application-error.js";
 import { FixedBattleIdGenerator } from "../testing/id/fixed-battle-id-generator.js";
+import { ManualClock } from "../testing/clock/manual-clock.js";
 import { SequenceRandomSourceFactory } from "../testing/random/sequence-random-source-factory.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 import { createCapabilityDefinition } from "../domain/catalog/capability-definition.js";
@@ -171,6 +173,18 @@ function command(overrides: Partial<SimulateBattleCommand> = {}): SimulateBattle
   };
 }
 
+/**
+ * `09_アプリケーション設計.md`「SimulationExecutionContext」。テストが
+ * 期限を意識する必要がない大半のケースでは、`Number.MAX_SAFE_INTEGER`を
+ * `deadlineEpochMs`に使い、`ManualClock`の初期時刻(0)がこれを超えることは
+ * ないため、`#18`の期限チェックが誤って発火しない。
+ */
+function testContext(
+  overrides: Partial<SimulationExecutionContext> = {},
+): SimulationExecutionContext {
+  return { requestId: "test-request", deadlineEpochMs: Number.MAX_SAFE_INTEGER, ...overrides };
+}
+
 const UNITS = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
 
 describe("SimulateBattleUseCase", () => {
@@ -180,9 +194,10 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
     });
 
-    const result = useCase.execute(command({ turnLimit: 3 }));
+    const result = useCase.execute(command({ turnLimit: 3 }), testContext());
 
     expect(result.battleId).toBe(createBattleId("B_1"));
     expect(result.catalogRevision).toBe("rev-1");
@@ -200,10 +215,11 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
     });
 
     try {
-      useCase.execute(command({ turnLimit: 0 }));
+      useCase.execute(command({ turnLimit: 0 }), testContext());
       expect.fail("expected execute to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(ApplicationError);
@@ -218,11 +234,13 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
     });
 
     try {
       useCase.execute(
         command({ allyFormation: { slots: [slot("UNIT_MISSING", 0)], memoryDefinitionIds: [] } }),
+        testContext(),
       );
       expect.fail("expected execute to throw");
     } catch (error) {
@@ -251,6 +269,7 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
     });
 
     try {
@@ -259,6 +278,7 @@ describe("SimulateBattleUseCase", () => {
           allyFormation: { slots: [slot("UNIT_GATED", 0)], memoryDefinitionIds: [] },
           enemyFormation: { slots: [slot("UNIT_GATED", 0)], memoryDefinitionIds: [] },
         }),
+        testContext(),
       );
       expect.fail("expected execute to throw");
     } catch (error) {
@@ -272,9 +292,10 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
     });
 
-    useCase.execute(command());
+    useCase.execute(command(), testContext());
 
     expect(catalog.callCount).toBe(1);
   });
@@ -285,6 +306,7 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
     });
 
     const result = useCase.execute(
@@ -294,6 +316,7 @@ describe("SimulateBattleUseCase", () => {
           memoryDefinitionIds: [],
         },
       }),
+      testContext(),
     );
 
     expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
@@ -340,6 +363,7 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
     });
 
     const result = useCase.execute(
@@ -349,6 +373,7 @@ describe("SimulateBattleUseCase", () => {
           memoryDefinitionIds: [createMemoryDefinitionId("MEM_001")],
         },
       }),
+      testContext(),
     );
 
     expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
@@ -388,6 +413,7 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1", "B_2"]),
       randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+      clock: new ManualClock(0),
     });
     const attackerCommand = command({
       allyFormation: { slots: [slot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
@@ -395,11 +421,45 @@ describe("SimulateBattleUseCase", () => {
       turnLimit: 1,
     });
 
-    useCase.execute(attackerCommand);
+    useCase.execute(attackerCommand, testContext());
 
     // With a shared RandomSource this second call would throw "exhausted" —
     // a fresh RandomSource per Battle means it succeeds identically to the first.
-    expect(() => useCase.execute(attackerCommand)).not.toThrow();
+    expect(() => useCase.execute(attackerCommand, testContext())).not.toThrow();
+  });
+
+  it("UT-USECASE-009 (11_インフラストラクチャ設計.md「キャンセルと期限」: 協調的停止 — SimulationExecutionGuardが安全な内部境界でdeadlineEpochMsを確認する): throws ApplicationError EXECUTION_TIMEOUT before completing the Battle once the Clock has passed the context's deadline, never returning a battle result as if it were a loss", () => {
+    const catalog = new FakeBattleCatalog(UNITS);
+    const clock = new ManualClock(1_000);
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock,
+    });
+
+    try {
+      useCase.execute(command(), testContext({ deadlineEpochMs: 999 }));
+      expect.fail("expected execute to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("EXECUTION_TIMEOUT");
+    }
+  });
+
+  it("UT-USECASE-010: does not time out when the Clock has not yet reached the deadline, even on the very last safe check before COMPLETED", () => {
+    const catalog = new FakeBattleCatalog(UNITS);
+    const clock = new ManualClock(0);
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock,
+    });
+
+    const result = useCase.execute(command({ turnLimit: 3 }), testContext({ deadlineEpochMs: 1 }));
+
+    expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
   });
 
   it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {
@@ -435,6 +495,7 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+      clock: new ManualClock(0),
     });
 
     const result = useCase.execute(
@@ -443,6 +504,7 @@ describe("SimulateBattleUseCase", () => {
         enemyFormation: { slots: [slot("UNIT_001", 0)], memoryDefinitionIds: [] },
         turnLimit: 1,
       }),
+      testContext(),
     );
 
     // Non-lethal attack (UNIT_ATK attack 10 - UNIT_001 defense 10 -> 1 damage
@@ -566,6 +628,7 @@ describe("SimulateBattleUseCase", () => {
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+      clock: new ManualClock(0),
     });
 
     const result = useCase.execute(
@@ -574,6 +637,7 @@ describe("SimulateBattleUseCase", () => {
         enemyFormation: { slots: [slot("UNIT_DEF", 0)], memoryDefinitionIds: [] },
         turnLimit: 5,
       }),
+      testContext(),
     );
 
     expect(result.outcome).toBe("ALLY_WIN");

@@ -6,8 +6,11 @@ import type {
   BattleSimulationResponseBody,
   ErrorResponseBody,
 } from "../../application/http-contract.js";
+import { ApplicationError } from "../../application/application-error.js";
 import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
+import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
+import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
 import { createCapabilityDefinition } from "../../domain/catalog/capability-definition.js";
 import {
   createCapabilityId,
@@ -17,6 +20,7 @@ import {
 } from "../../domain/catalog/catalog-ids.js";
 import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 
@@ -81,8 +85,8 @@ const UNITS = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT
  */
 function toDirectExecutor(useCase: SimulateBattleUseCase): SimulateBattleUseCasePort {
   return {
-    execute: (request: BattleSimulationRequestBody) =>
-      Promise.resolve(useCase.execute(toSimulateBattleCommand(request))),
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
+      Promise.resolve(useCase.execute(toSimulateBattleCommand(request), context)),
   };
 }
 
@@ -92,6 +96,7 @@ function buildTestUseCase(): SimulateBattleUseCasePort {
       battleCatalog: new FakeBattleCatalog(UNITS),
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(Date.now()),
     }),
   );
 }
@@ -280,6 +285,7 @@ describe("POST /api/v1/battle-simulations", () => {
         battleCatalog: new FakeBattleCatalog(units, capabilities),
         battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
         randomSourceFactory: new SequenceRandomSourceFactory([]),
+        clock: new ManualClock(Date.now()),
       }),
     );
     const gatedApp = await buildServer(gatedUseCase);
@@ -393,6 +399,144 @@ describe("POST /api/v1/battle-simulations", () => {
       expect(JSON.stringify(body)).not.toContain("sensitive internal detail");
     } finally {
       await throwingApp.close();
+    }
+  });
+
+  it("API-CONTRACT-017 (11_インフラストラクチャ設計.md「Request IDと期限を含むリクエストコンテキストを生成する」): passes the same X-Request-Id that is echoed on the response into the UseCase port's execution context", async () => {
+    let capturedRequestId: string | undefined;
+    const capturingApp = await buildServer({
+      execute: (_request, context) => {
+        capturedRequestId = context.requestId;
+        return Promise.reject(new ApplicationError("INVALID_COMMAND", [{ reason: "stub" }]));
+      },
+    });
+
+    try {
+      const response = await capturingApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+        headers: { "x-request-id": "client-req-42" },
+      });
+
+      expect(capturedRequestId).toBe("client-req-42");
+      expect(response.headers["x-request-id"]).toBe(capturedRequestId);
+    } finally {
+      await capturingApp.close();
+    }
+  });
+
+  it("API-CONTRACT-018: generates a requestId consistent with the response header when the client sends no X-Request-Id, rather than regenerating an unrelated one for the response", async () => {
+    let capturedRequestId: string | undefined;
+    const capturingApp = await buildServer({
+      execute: (_request, context) => {
+        capturedRequestId = context.requestId;
+        return Promise.reject(new ApplicationError("INVALID_COMMAND", [{ reason: "stub" }]));
+      },
+    });
+
+    try {
+      const response = await capturingApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+
+      expect(capturedRequestId).toEqual(expect.any(String));
+      expect(capturedRequestId).not.toHaveLength(0);
+      expect(response.headers["x-request-id"]).toBe(capturedRequestId);
+    } finally {
+      await capturingApp.close();
+    }
+  });
+
+  it("API-CONTRACT-019 (11_インフラストラクチャ設計.md「設定項目」`SIMULATION_TIMEOUT_MS`): derives deadlineEpochMs from the configured simulationTimeoutMs, roughly Date.now() + simulationTimeoutMs", async () => {
+    let capturedDeadlineEpochMs: number | undefined;
+    const beforeRequest = Date.now();
+    const capturingApp = await buildServer(
+      {
+        execute: (_request, context) => {
+          capturedDeadlineEpochMs = context.deadlineEpochMs;
+          return Promise.reject(new ApplicationError("INVALID_COMMAND", [{ reason: "stub" }]));
+        },
+      },
+      { simulationTimeoutMs: 5_000 },
+    );
+
+    try {
+      await capturingApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+
+      expect(capturedDeadlineEpochMs).toBeGreaterThanOrEqual(beforeRequest + 5_000);
+      expect(capturedDeadlineEpochMs).toBeLessThanOrEqual(Date.now() + 5_000);
+    } finally {
+      await capturingApp.close();
+    }
+  });
+
+  it("API-CONTRACT-020 (11_インフラストラクチャ設計.md「キャンセルと期限」段階2): aborts the cancellationSignal passed to the UseCase port when the client disconnects, and maps the resulting EXECUTION_CANCELLED to 503", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const cancellableApp = await buildServer({
+      execute: (_request, context) =>
+        new Promise((_resolve, reject) => {
+          capturedSignal = context.cancellationSignal;
+          const cancel = () =>
+            reject(
+              new ApplicationError("EXECUTION_CANCELLED", [{ reason: "client disconnected" }]),
+            );
+          // light-my-request's `simulate: { close: true }` emits `close`
+          // synchronously while the request body is still being read, i.e.
+          // before this handler even starts — so by the time we get here the
+          // signal may already be aborted, and `addEventListener("abort", …)`
+          // would never fire for an already-fired event. A production
+          // disconnect happens asynchronously mid-handler instead, so a real
+          // caller relies on the event; this stub covers both orderings.
+          if (context.cancellationSignal?.aborted === true) {
+            cancel();
+          } else {
+            context.cancellationSignal?.addEventListener("abort", cancel);
+          }
+        }),
+    });
+
+    try {
+      const response = await cancellableApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+        simulate: { end: true, split: false, error: false, close: true },
+      });
+
+      expect(capturedSignal?.aborted).toBe(true);
+      expect(response.statusCode).toBe(503);
+      expect(response.json<ErrorResponseBody>().error.code).toBe("EXECUTION_CANCELLED");
+    } finally {
+      await cancellableApp.close();
+    }
+  });
+
+  it("API-CONTRACT-021 (10_API設計.md「Worker Poolの容量不足は503 CAPACITY_EXCEEDEDで拒否する」「Retry-Afterを設定できる場合は設定する」): maps SimulationCapacityExceededError to 503 CAPACITY_EXCEEDED with a Retry-After header", async () => {
+    const fullApp = await buildServer({
+      execute: () => {
+        throw new SimulationCapacityExceededError();
+      },
+    });
+
+    try {
+      const response = await fullApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json<ErrorResponseBody>().error.code).toBe("CAPACITY_EXCEEDED");
+      expect(response.headers["retry-after"]).toEqual(expect.any(String));
+    } finally {
+      await fullApp.close();
     }
   });
 });

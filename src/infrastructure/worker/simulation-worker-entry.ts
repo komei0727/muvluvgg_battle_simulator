@@ -2,6 +2,7 @@ import { workerData } from "node:worker_threads";
 import { createSimulationTaskRunner } from "./simulation-task-runner.js";
 import { UuidBattleIdGenerator } from "../identity/uuid-battle-id-generator.js";
 import { SystemRandomSourceFactory } from "../random/system-random-source.js";
+import { SystemClock } from "../time/system-clock.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
 
 /**
@@ -42,4 +43,5 @@ const catalog = loadCatalogFromDirectory(catalogDir);
 export default createSimulationTaskRunner(catalog, {
   battleIdGenerator: new UuidBattleIdGenerator(),
   randomSourceFactory: new SystemRandomSourceFactory(),
+  clock: new SystemClock(),
 });

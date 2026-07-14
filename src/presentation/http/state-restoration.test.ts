@@ -13,6 +13,7 @@ import type {
 } from "../../application/http-contract.js";
 import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
+import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -24,6 +25,7 @@ import type { SkillDefinition } from "../../domain/catalog/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/target-selector-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 
@@ -357,13 +359,14 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
   ]);
 
   const useCase: SimulateBattleUseCasePort = {
-    execute: (request: BattleSimulationRequestBody) =>
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
       Promise.resolve(
         new SimulateBattleUseCase({
           battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
           battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
           randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
-        }).execute(toSimulateBattleCommand(request)),
+          clock: new ManualClock(Date.now()),
+        }).execute(toSimulateBattleCommand(request), context),
       ),
   };
   const app: FastifyInstance = await buildServer(useCase);
