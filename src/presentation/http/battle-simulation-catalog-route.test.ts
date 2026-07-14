@@ -209,4 +209,68 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json<BattleSimulationCatalogResponseBody>().units).toEqual([]);
   });
+
+  it("HTTP-CATALOG-009 (review: manifestのcatalogRevisionはminLength:1しか検証しないため改行や引用符を含み得る): a catalogRevision containing characters unsafe for a raw ETag header (newline, quote, backslash) still returns 200 with a syntactically valid ETag, and a subsequent request that echoes that exact ETag back is recognized as a match", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      catalogUseCase: fakeCatalogUseCase(fakeCatalogResult({ catalogRevision: 'rev\n"42"\\x' })),
+    });
+
+    const firstResponse = await app.inject({ method: "GET", url: CATALOG_PATH });
+    expect(firstResponse.statusCode).toBe(200);
+    expect(firstResponse.headers["cache-control"]).toBe("public, max-age=300");
+    const etag = firstResponse.headers["etag"];
+    expect(typeof etag).toBe("string");
+    // RFC 9110 §8.8.3 opaque-tag = DQUOTE *etagc DQUOTE, etagc = %x21 / %x23-7E
+    // (no raw DQUOTE, backslash, or control characters inside).
+    expect(etag as string).toMatch(/^"[\x21\x23-\x7E]*"$/);
+
+    const secondResponse = await app.inject({
+      method: "GET",
+      url: CATALOG_PATH,
+      headers: { "if-none-match": etag as string },
+    });
+    expect(secondResponse.statusCode).toBe(304);
+  });
+
+  it("HTTP-CATALOG-010 (review: If-None-Matchはweak comparisonを使う, RFC 9110 §13.1.2): a weak client ETag (W/ prefix) matches the server's strong ETag and returns 304", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      catalogUseCase: fakeCatalogUseCase(fakeCatalogResult({ catalogRevision: "rev-42" })),
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: CATALOG_PATH,
+      headers: { "if-none-match": 'W/"rev-42"' },
+    });
+
+    expect(response.statusCode).toBe(304);
+  });
+
+  it('HTTP-CATALOG-011 (review: opaque-tag内の生カンマで単純split(",")が誤って分割する): a preceding entity-tag containing a raw comma inside its opaque-tag does not corrupt parsing of a later matching tag in the same If-None-Match list', async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      catalogUseCase: fakeCatalogUseCase(fakeCatalogResult({ catalogRevision: "rev-42" })),
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: CATALOG_PATH,
+      headers: { "if-none-match": '"unrelated,tag", "rev-42"' },
+    });
+
+    expect(response.statusCode).toBe(304);
+  });
+
+  it("HTTP-CATALOG-012: a single entity-tag whose opaque-tag contains a comma but does not equal the current ETag is correctly treated as a mismatch (no false-positive 304)", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      catalogUseCase: fakeCatalogUseCase(fakeCatalogResult({ catalogRevision: "rev-42" })),
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: CATALOG_PATH,
+      headers: { "if-none-match": '"rev-42,other"' },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
 });

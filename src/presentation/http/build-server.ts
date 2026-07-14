@@ -182,21 +182,59 @@ function withDocumentedLogFieldNames(
 }
 
 /**
- * `10_API設計.md`「`If-None-Match`が現在のETagと一致する場合は本文なしの304を
- * 返す」。RFC 9110 §8.8.3.2に倣い、カンマ区切りの複数ETagと `*` を許容する。
- * Catalog GETは弱いETagを発行しない（同一revisionの内容を稼働中に変更しない
- * ため強いETagで十分、`11_インフラストラクチャ設計.md`「圧縮の有無でAPI本文や
- * ETagの意味を変えない」）ので、弱いETag(`W/`)比較は行わない。
+ * レビュー指摘: `14_Catalog定義スキーマ.md`のmanifest schemaは`catalogRevision`へ
+ * `minLength: 1`しか強制しないため、改行・引用符・バックスラッシュを含む値も
+ * 有効なCatalogとして通り得る。生のまま`ETag`ヘッダーへ埋め込むと、RFC 9110
+ * §8.8.3の`opaque-tag = DQUOTE *etagc DQUOTE`（`etagc`は`"`・`\`・制御文字を
+ * 含まない）に違反するだけでなく、実際にFastifyの
+ * `FST_ERR_FAILED_ERROR_SERIALIZATION`による意図しない500
+ * （`Cache-Control`・`X-Request-Id`も失われる）を引き起こした。
+ *
+ * `etagc`範囲外の文字だけをUTF-16コードユニット単位で`%XX`へ落とし込み、
+ * 常に構文上安全なopaque-tagを生成する。`encodeURIComponent`は単独サロゲート
+ * を含む文字列で例外を送出し得るため使わない——このopaque-tagは誰にもURIとして
+ * 復号されない内部の不透明値であり、標準的なパーセントエンコーディングへの
+ * 準拠は不要（本プロセス内で自分自身が発行した値と比較するだけなので、
+ * 衝突耐性も不要）。
  */
-function matchesIfNoneMatch(header: string | string[] | undefined, etag: string): boolean {
+function toOpaqueEntityTag(catalogRevision: string): string {
+  return catalogRevision.replace(
+    /[^\x21\x23-\x7E]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).padStart(2, "0")}`,
+  );
+}
+
+/**
+ * `10_API設計.md`「`If-None-Match`が現在のETagと一致する場合は本文なしの304を
+ * 返す」。RFC 9110 §13.1.2: `If-None-Match`は弱い比較(weak comparison)を使う
+ * ——`W/`接頭辞の有無を無視し、opaque-tagの値だけを比較する（レビュー指摘: 現在
+ * 強いETagしか発行しなくても、クライアントが`W/`付きで送ってくる場合を拒否
+ * すべきではない）。
+ *
+ * ヘッダーは`#entity-tag`（カンマ区切りリスト）で、`entity-tag`は
+ * `[ "W/" ] DQUOTE *etagc DQUOTE`。`etagc`は`"`を含まないが、生カンマは含み
+ * 得るため、単純な`split(",")`はopaque-tag内部のカンマを誤って分割し、正当な
+ * ETagを見逃す（レビュー指摘）。ここでは引用符で囲まれた区間だけを正規表現で
+ * 取り出し、カンマの位置に関わらず各`entity-tag`のopaque-tagを正しく分離する。
+ */
+function parseIfNoneMatchOpaqueTags(header: string): readonly string[] {
+  const tags: string[] = [];
+  const pattern = /(?:W\/)?"([^"]*)"/g;
+  for (const match of header.matchAll(pattern)) {
+    tags.push(match[1]!);
+  }
+  return tags;
+}
+
+function matchesIfNoneMatch(header: string | string[] | undefined, opaqueTag: string): boolean {
   if (header === undefined) {
     return false;
   }
   const value = Array.isArray(header) ? header.join(",") : header;
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .some((entry) => entry === "*" || entry === etag);
+  if (value.trim() === "*") {
+    return true;
+  }
+  return parseIfNoneMatchOpaqueTags(value).includes(opaqueTag);
 }
 
 interface RequestExecutionState {
@@ -556,9 +594,10 @@ export async function buildServer(
       // ETag比較で200/304を出し分けるだけ——Catalogファイルの読み込みや
       // Capability計算をリクエストごとに行わない。
       const result = catalogUseCase.execute();
-      const etag = `"${result.catalogRevision}"`;
+      const opaqueTag = toOpaqueEntityTag(result.catalogRevision);
+      const etag = `"${opaqueTag}"`;
       reply.header("ETag", etag);
-      if (matchesIfNoneMatch(request.headers["if-none-match"], etag)) {
+      if (matchesIfNoneMatch(request.headers["if-none-match"], opaqueTag)) {
         // `10_API設計.md`「304では送らない」: Content-Typeを含む本文関連
         // ヘッダーを付けず、空bodyで返す。
         void reply.code(304).send();
