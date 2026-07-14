@@ -42,9 +42,15 @@ interface PositiveIntegerSpec {
 }
 
 /**
- * `raw`が未設定なら既定値を返す。設定されているが有限整数でない、または
- * 範囲外の場合は`violations`へ理由を積んで既定値を返す——呼び出し側は
- * `violations`が空でなければ返り値をすべて捨てて`ConfigError`を送出する。
+ * `raw`が未設定なら既定値を返す。設定されているが安全な整数でない、
+ * 空文字列（前後空白のみを含む）、または範囲外の場合は`violations`へ
+ * 理由を積んで既定値を返す——呼び出し側は`violations`が空でなければ
+ * 返り値をすべて捨てて`ConfigError`を送出する。
+ *
+ * レビュー指摘: `Number("") === 0`のため、空文字列が暗黙に`0`として
+ * 受理されていた。`raw.trim() === ""`を明示的に拒否する。また
+ * `Number.isInteger`は`2 ** 53`超のような安全域外の値も真を返すため、
+ * `Number.isSafeInteger`へ強化する。
  */
 function parsePositiveInteger(
   raw: string | undefined,
@@ -56,7 +62,7 @@ function parsePositiveInteger(
   }
   const value = Number(raw);
   const inRange = value >= spec.min && (spec.max === undefined || value <= spec.max);
-  if (!Number.isFinite(value) || !Number.isInteger(value) || !inRange) {
+  if (raw.trim() === "" || !Number.isSafeInteger(value) || !inRange) {
     const rangeDescription =
       spec.max === undefined
         ? `an integer >= ${spec.min}`
@@ -88,9 +94,14 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     { envVar: "WORKER_MAX_QUEUE", defaultValue: 100, min: 0 },
     violations,
   );
+  // レビュー指摘: この値はPiscinaの`closeTimeout`（`node:timers/promises`の
+  // `setTimeout`）へそのまま渡る。Node.jsのタイマーは32-bit符号付き整数
+  // （最大`2_147_483_647`ms、約24.8日）を超えるとオーバーフローし、
+  // 待機時間が実質1msへ縮む——巨大な値ほど「長く待つ」設定のつもりが
+  // 「即座にタイムアウトする」設定になる。上限を明示して起動時に拒否する。
   const shutdownGraceMs = parsePositiveInteger(
     env["SHUTDOWN_GRACE_MS"],
-    { envVar: "SHUTDOWN_GRACE_MS", defaultValue: 30_000, min: 0 },
+    { envVar: "SHUTDOWN_GRACE_MS", defaultValue: 30_000, min: 0, max: 2_147_483_647 },
     violations,
   );
 

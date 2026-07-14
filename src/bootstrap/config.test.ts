@@ -76,4 +76,21 @@ describe("loadConfig", () => {
       expect((error as Error).message).toContain("WORKER_MAX_QUEUE");
     }
   });
+
+  it('CFG-011 (PRレビュー指摘: Number("") === 0のため空文字列のWORKER_MAX_QUEUEが暗黙に0として受理されていた): throws ConfigError for an empty-string WORKER_MAX_QUEUE instead of silently defaulting to 0', () => {
+    expect(() => loadConfig(envWith({ WORKER_MAX_QUEUE: "" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-012 (PRレビュー指摘: 同上): throws ConfigError for a whitespace-only SHUTDOWN_GRACE_MS", () => {
+    expect(() => loadConfig(envWith({ SHUTDOWN_GRACE_MS: "   " }))).toThrow(ConfigError);
+  });
+
+  it("CFG-013 (PRレビュー指摘: SHUTDOWN_GRACE_MS=2147483648はNode.jsタイマーの32-bit符号付き整数上限を超え、Piscinaのclose待機が実質1msへオーバーフローする): throws ConfigError when SHUTDOWN_GRACE_MS exceeds the 32-bit timer limit", () => {
+    expect(() => loadConfig(envWith({ SHUTDOWN_GRACE_MS: "2147483648" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-014: accepts SHUTDOWN_GRACE_MS at exactly the 32-bit timer limit", () => {
+    const config = loadConfig(envWith({ SHUTDOWN_GRACE_MS: "2147483647" }));
+    expect(config.shutdownGraceMs).toBe(2_147_483_647);
+  });
 });
