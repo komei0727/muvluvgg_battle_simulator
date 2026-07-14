@@ -12,6 +12,7 @@ import type { MemoryDefinition } from "../domain/catalog/memory-definition.js";
 import type { UnitDefinition } from "../domain/catalog/unit-definition.js";
 import type { BattleCatalogDirectory } from "../domain/ports/battle-catalog-directory.js";
 import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
+import { deepFreeze } from "../domain/shared/deep-freeze.js";
 
 export interface BattleSimulationUnitSummary {
   readonly unitDefinitionId: UnitDefinitionId;
@@ -96,7 +97,7 @@ function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogRe
     .map((memory) => projectMemory(memory, snapshot))
     .sort((a, b) => a.memoryDefinitionId.localeCompare(b.memoryDefinitionId));
 
-  return { catalogRevision: snapshot.catalogRevision, units, memories };
+  return deepFreeze({ catalogRevision: snapshot.catalogRevision, units, memories });
 }
 
 /**
@@ -109,8 +110,11 @@ function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogRe
  *
  * `11_インフラストラクチャ設計.md`「Catalog一覧read modelを起動時に1回だけ
  * 構築する」: `loadSnapshot`とprojectionはコンストラクタで1回だけ実行し、
- * `execute()`は同じ不変Resultをそのまま返す — HTTPリクエストのたびに
- * Capability収集・sortをやり直さない。
+ * `execute()`は同じResultをそのまま返す — HTTPリクエストのたびに
+ * Capability収集・sortをやり直さない。全呼び出しが同じResultインスタンスを
+ * 共有するため、`deepFreeze`でResultグラフ全体（`units`/`memories`配列、
+ * 各summary、`unavailableCapabilities`配列）を実行時にも不変化し、
+ * 一呼び出し側の変更が以後の`execute()`結果へ漏れ出さないようにする。
  */
 export class GetBattleSimulationCatalogUseCase {
   private readonly result: BattleSimulationCatalogResult;

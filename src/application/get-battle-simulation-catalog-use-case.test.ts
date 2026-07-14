@@ -204,6 +204,38 @@ describe("GetBattleSimulationCatalogUseCase", () => {
     expect(second).toBe(first);
   });
 
+  it("freezes the shared Result graph so mutation attempts are rejected and later execute() calls stay unaffected", () => {
+    const unit = unitDefinition("UNIT_A");
+    const snapshot = snapshotOf({
+      units: toMap([unit], (u) => u.unitDefinitionId),
+    });
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(snapshot),
+    });
+
+    const result = useCase.execute();
+    const unitSummary = result.units[0]!;
+
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.units)).toBe(true);
+    expect(Object.isFrozen(unitSummary)).toBe(true);
+    expect(Object.isFrozen(unitSummary.unavailableCapabilities)).toBe(true);
+
+    expect(() => (result.units as unknown as unknown[]).push(unitSummary)).toThrow();
+    expect(() => {
+      (result as unknown as Record<string, unknown>).catalogRevision = "mutated";
+    }).toThrow();
+    expect(() => {
+      (unitSummary as unknown as Record<string, unknown>).selectable = false;
+    }).toThrow();
+    expect(() => {
+      (unitSummary.unavailableCapabilities as unknown as unknown[]).push("CAP_X");
+    }).toThrow();
+
+    expect(useCase.execute().units.length).toBe(1);
+    expect(useCase.execute().units[0]!.selectable).toBe(true);
+  });
+
   it("marks a Unit selectable with no unavailableCapabilities when every required Capability is IMPLEMENTED", () => {
     const unit = unitDefinition("UNIT_A", { activeSkillDefinitionIds: ["SKL_A"] });
     const snapshot = snapshotOf({
