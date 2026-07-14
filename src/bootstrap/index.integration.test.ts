@@ -200,4 +200,50 @@ describe("bootstrap (compiled build)", () => {
       await app.close();
     }
   });
+
+  it("INT-BOOTSTRAP-008 (#91 成果物「main threadとWorkerのCatalog revision一致ready check」): the compiled build serves GET /api/v1/battle-simulation-catalog from a main-thread-built read model whose catalogRevision matches the Worker Pool's", async () => {
+    const port = 34586;
+    process.env["PORT"] = String(port);
+    process.env["HOST"] = "127.0.0.1";
+    process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
+
+    const app = await bootstrap();
+    try {
+      const catalogResponse = await app.inject({
+        method: "GET",
+        url: "/api/v1/battle-simulation-catalog",
+      });
+      expect(catalogResponse.statusCode).toBe(200);
+      const catalogBody = catalogResponse.json<{
+        catalogRevision: string;
+        units: readonly { unitDefinitionId: string }[];
+      }>();
+      expect(catalogBody.catalogRevision).toBe("test-minimal.1");
+      expect(catalogBody.units.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_001"]);
+
+      const battleResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: {
+          allyFormation: {
+            units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+            memoryDefinitionIds: [],
+          },
+          enemyFormation: {
+            units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+            memoryDefinitionIds: [],
+          },
+          turnLimit: 3,
+        },
+      });
+      const battleBody = battleResponse.json<{ catalogRevision: string }>();
+      // メインスレッドが構築したCatalog一覧read modelと、Workerが戦闘で使う
+      // Catalogが同じrevisionを指す（`11_インフラストラクチャ設計.md`
+      // 「メインスレッドは起動時にmanifestから期待するcatalogRevisionを読み、
+      // タスクへ含める。ワーカーのリビジョンが一致しない場合...」の裏取り）。
+      expect(catalogBody.catalogRevision).toBe(battleBody.catalogRevision);
+    } finally {
+      await app.close();
+    }
+  });
 });

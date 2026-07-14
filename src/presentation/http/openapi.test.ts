@@ -131,6 +131,29 @@ describe("OpenAPI document", () => {
     );
   });
 
+  it("API-OPENAPI-006 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」/10_API設計.md「GETの200／304」): documents GET /api/v1/battle-simulation-catalog with 200, 304, 406, and 500", () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly get?: {
+              readonly responses?: Readonly<Record<string, unknown>>;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+
+    const operation = document.paths?.["/api/v1/battle-simulation-catalog"]?.get;
+    expect(operation).toBeDefined();
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
+      ["200", "304", "406", "500"].sort(),
+    );
+  });
+
   it("API-OPENAPI-005 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」): documents /health/live (200 only) and /health/ready (200 and 503)", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
