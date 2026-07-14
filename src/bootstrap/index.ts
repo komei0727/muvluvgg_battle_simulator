@@ -6,6 +6,7 @@ import type { ReadinessPort } from "../presentation/http/health-routes.js";
 import { parseCatalogManifest } from "../infrastructure/catalog/runtime/catalog-manifest.js";
 import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker-pool.js";
 import { ShutdownState, installShutdownSignalHandlers } from "./shutdown.js";
+import { resolveDocsEnabled } from "./docs-enabled.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「起動」の骨格。Catalog manifestから
@@ -40,8 +41,9 @@ export async function bootstrap(): Promise<FastifyInstance> {
   // `closeTimeout`既定値と揃える。
   const shutdownGraceMs = Number(process.env["SHUTDOWN_GRACE_MS"] ?? "30000");
   // `11_インフラストラクチャ設計.md`「OpenAPI」「productionではSwagger UIを
-  // 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。
-  const docsEnabled = process.env["NODE_ENV"] !== "production";
+  // 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。判定ロジック
+  // は`docs-enabled.ts`（`docs-enabled.test.ts`が通常のテストスイートで検証）。
+  const docsEnabled = resolveDocsEnabled(process.env["NODE_ENV"]);
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
