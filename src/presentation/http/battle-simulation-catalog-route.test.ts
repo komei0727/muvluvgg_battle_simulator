@@ -273,4 +273,35 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
 
     expect(response.statusCode).toBe(200);
   });
+
+  it("HTTP-CATALOG-013 (review: 異なるCatalog revisionを同じETagへ写像しない): distinct catalogRevision values that previously collided under variable-width %-escaping now produce distinct ETags", async () => {
+    async function etagFor(catalogRevision: string): Promise<string> {
+      const server = await buildServer(UNUSED_BATTLE_USE_CASE, {
+        catalogUseCase: fakeCatalogUseCase(fakeCatalogResult({ catalogRevision })),
+      });
+      try {
+        const response = await server.inject({ method: "GET", url: CATALOG_PATH });
+        return response.headers["etag"] as string;
+      } finally {
+        await server.close();
+      }
+    }
+
+    const collidingPairs: ReadonlyArray<readonly [string, string]> = [
+      // "\n" (U+000A) previously escaped to "%0a", identical to the literal
+      // three-character string "%0a" (all of `%`/`0`/`a` were left as-is).
+      ["\n", "%0a"],
+      // "あ" (U+3042) previously escaped to "%3042", identical to the literal
+      // five-character string "%3042".
+      ["あ", "%3042"],
+      // U+0010 followed by "0" previously escaped+concatenated to "%100",
+      // identical to the literal four-character string "%100".
+      [`${String.fromCharCode(0x10)}0`, "%100"],
+    ];
+
+    for (const [first, second] of collidingPairs) {
+      const [firstEtag, secondEtag] = await Promise.all([etagFor(first), etagFor(second)]);
+      expect(firstEtag).not.toBe(secondEtag);
+    }
+  });
 });
