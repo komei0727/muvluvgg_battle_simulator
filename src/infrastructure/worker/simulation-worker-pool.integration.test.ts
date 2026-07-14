@@ -127,7 +127,7 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
   });
 });
 
-describe("simulation-worker-entry (compiled build, raw Piscina — Worker Thread recycling)", () => {
+describe("simulation-worker-entry (compiled build, raw Piscina — mid-life Catalog revision mismatch does not disrupt the Worker Thread)", () => {
   let rawPool: Piscina<WorkerSimulationTask, WorkerSimulationResult> | undefined;
 
   beforeAll(() => {
@@ -142,19 +142,22 @@ describe("simulation-worker-entry (compiled build, raw Piscina — Worker Thread
     }
   });
 
-  it("INT-WORKER-005 (11_インフラストラクチャ設計.md「Catalogリビジョンの一致」「Workerを再初期化する」): a mid-life Catalog revision mismatch answers the failing task correctly, then recycles the Worker Thread so a later, correctly-addressed task recovers on a fresh thread", async () => {
+  /**
+   * `simulation-worker-entry.ts`のコメント参照: Worker自身が「タスクに応答した
+   * 後、自分を終了させて再初期化させる」方式は、Piscinaが応答受信と同時に
+   * そのWorkerを空きとして扱うため、終了予定Workerへ次のタスクが割り当てられる
+   * 競合を実測で確認し撤回した。ここでは撤回後の挙動 —
+   * 不一致タスクの直後（sleepなし）に正しいタスクを送っても、同じ Worker上で
+   * 確実に成功することを、レビューで再現された条件（即時連続・多数回）で検証する。
+   */
+  it("INT-WORKER-005 (撤回した再初期化アプローチの回帰防止): a mismatched task immediately followed by a correctly-addressed task (no sleep, repeated) always succeeds without a lost/misrouted task, since the Worker Thread is not torn down", async () => {
     rawPool = new Piscina<WorkerSimulationTask, WorkerSimulationResult>({
       filename: distWorkerEntryUrl.href,
       workerData: { catalogDir: CATALOG_DIR },
-      // `simulation-worker-pool.ts`と同じ設定（`atomics: 'disabled'`）を使う。
-      // 既定のsync atomics経路は、応答済みタスクの直後にWorkerが自ら終了する
-      // ケースで未処理の`error`イベントを発生させることを確認済み。
       atomics: "disabled",
       minThreads: 1,
       maxThreads: 1,
     });
-
-    const originalThreadId = rawPool.threads[0]?.threadId;
 
     const mismatchedTask: WorkerSimulationTask = {
       requestId: "mismatch",
@@ -162,24 +165,21 @@ describe("simulation-worker-entry (compiled build, raw Piscina — Worker Thread
       deadlineEpochMs: Date.now() + 30_000,
       expectedCatalogRevision: "mismatched-revision",
     };
-    const mismatchOutcome = await rawPool.run(mismatchedTask);
-    expect(mismatchOutcome).toMatchObject({ ok: false, error: { code: "INVALID_DEFINITION" } });
-
-    // Allow the Worker's deferred `process.exit` (scheduled via `setImmediate`
-    // after answering the task above) to actually terminate the thread and
-    // Piscina to spin up its replacement.
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
     const matchingTask: WorkerSimulationTask = {
       requestId: "recovered",
       request: minimalRequest(),
       deadlineEpochMs: Date.now() + 30_000,
       expectedCatalogRevision: CATALOG_REVISION,
     };
-    const recoveredOutcome = await rawPool.run(matchingTask);
-    expect(recoveredOutcome.ok).toBe(true);
 
-    const recycledThreadId = rawPool.threads[0]?.threadId;
-    expect(recycledThreadId).not.toBe(originalThreadId);
+    for (let i = 0; i < 30; i++) {
+      const mismatchOutcome = await rawPool.run(mismatchedTask);
+      expect(mismatchOutcome).toMatchObject({ ok: false, error: { code: "INVALID_DEFINITION" } });
+
+      // No sleep here on purpose: this is exactly the race the previous
+      // (now-reverted) self-exit approach hit.
+      const recoveredOutcome = await rawPool.run(matchingTask);
+      expect(recoveredOutcome.ok).toBe(true);
+    }
   });
 });

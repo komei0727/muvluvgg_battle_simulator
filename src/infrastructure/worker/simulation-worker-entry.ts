@@ -1,6 +1,5 @@
 import { workerData } from "node:worker_threads";
 import { createSimulationTaskRunner } from "./simulation-task-runner.js";
-import type { WorkerSimulationResult, WorkerSimulationTask } from "./worker-contract.js";
 import { UuidBattleIdGenerator } from "../identity/uuid-battle-id-generator.js";
 import { SystemRandomSourceFactory } from "../random/system-random-source.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
@@ -15,6 +14,21 @@ import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader
  * Composition Rootの一部であり、ドメインルールを持たない薄い接続層に留める。
  * 実際のCatalog読み込み・タスク実行ロジックは単体テスト可能な
  * `simulation-task-runner.ts`へ委譲する。
+ *
+ * 稼働中にリビジョン不一致タスクを検出した場合、このWorkerを自ら終了させて
+ * 再初期化させることは意図的に行わない。Piscinaは「タスク応答を受信した
+ * 時点でWorkerを空き状態にする」ため、応答後に`process.exit`を予約しても、
+ * その終了が実際に走る前に次のタスクが同じ（終了予定の）Workerへ割り当てられ
+ * `worker exited with code: 1`で失敗する競合を実測で確認した
+ * （Piscinaの公開APIには「このタスク限りでWorkerを退役させる」という
+ * 安全な手段がない）。加えて、この1プロセスの生存期間中`catalogDir`の中身は
+ * 変わらない（Catalogホットリロードは非対応、`11_インフラストラクチャ設計.md`
+ * 「Catalogファイルを稼働中に置換するホットリロードは初期スコープに含めない」）
+ * ため、`SimulationWorkerPool.create`のwarm-upが解決済みWorker全数の
+ * リビジョン一致を検証した後は、稼働中に新たな不一致が生じる経路が存在しない
+ * （Piscinaが後から追加起動するWorkerも同じ`catalogDir`を読むため一致する）。
+ * したがって稼働中の不一致は「対象タスクをINVALID_DEFINITIONとして拒否する」
+ * だけで十分であり、確認済みの競合を持つ再初期化は行わない。
  */
 interface SimulationWorkerData {
   readonly catalogDir: string;
@@ -23,32 +37,7 @@ interface SimulationWorkerData {
 const { catalogDir } = workerData as SimulationWorkerData;
 const catalog = loadCatalogFromDirectory(catalogDir);
 
-const runSimulationTask = createSimulationTaskRunner(catalog, {
+export default createSimulationTaskRunner(catalog, {
   battleIdGenerator: new UuidBattleIdGenerator(),
   randomSourceFactory: new SystemRandomSourceFactory(),
 });
-
-/**
- * `11_インフラストラクチャ設計.md`「Catalogリビジョンの一致」: 稼働中に
- * リビジョン不一致が発覚したタスクは拒否した上で、このWorkerを再初期化させる
- * （`process.exit`は`worker_threads`内ではこのスレッドだけを終了させる）。
- * `setImmediate`で1tick遅らせ、Piscinaが現在のタスクの応答を送信し終えて
- * から終了させる — 呼び出し元は正しい`INVALID_DEFINITION`を受け取り、
- * Poolは新しいWorker（再度ディスクからCatalogを読み直す）を補充する。
- * `simulation-task-runner.ts`自体はメインスレッドの単体テストからも
- * 呼ばれるため、`process.exit`はこのWorker専用の薄い接続層にだけ置く。
- *
- * Piscinaの既定`atomics: 'sync'`（`SharedArrayBuffer`+`Atomics.wait`による
- * 低遅延経路）では、応答送信直後にWorkerが自ら終了すると、その終了が
- * どのタスクにも紐づかない未処理の`error`イベントとしてプロセス全体を
- * クラッシュさせることを確認した。`SimulationWorkerPool`側で
- * `atomics: 'disabled'`を指定し、通常の非同期メッセージ経路を使うことで
- * この問題を避けている（詳細は`simulation-worker-pool.ts`）。
- */
-export default function handleSimulationTask(task: WorkerSimulationTask): WorkerSimulationResult {
-  const outcome = runSimulationTask(task);
-  if (!outcome.ok && outcome.error.code === "INVALID_DEFINITION") {
-    setImmediate(() => process.exit(1));
-  }
-  return outcome;
-}

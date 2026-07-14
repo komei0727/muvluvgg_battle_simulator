@@ -68,11 +68,12 @@ export class SimulationWorkerPool {
     this.pool = new Piscina<WorkerSimulationTask, WorkerSimulationResult>({
       filename: (options.workerFileUrl ?? resolveDefaultWorkerFileUrl()).href,
       workerData: { catalogDir: options.catalogDir },
-      // Piscinaの既定`atomics: 'sync'`は`SharedArrayBuffer`+`Atomics.wait`による
-      // 低遅延経路だが、タスク応答直後にWorkerが自ら終了する経路（Catalog
-      // リビジョン不一致時の再初期化、`simulation-worker-entry.ts`参照）と
-      // 相性が悪く、応答済みタスクの終了が未処理の`error`イベントとして
-      // プロセス全体をクラッシュさせることを確認した。通常のメッセージ
+      // Piscinaの既定`atomics: 'sync'`（`SharedArrayBuffer`+`Atomics.wait`による
+      // 低遅延経路）は、応答送信直後にWorkerが自ら終了するケースで、その終了が
+      // どのタスクにも紐づかない未処理の`error`イベントとしてプロセス全体を
+      // クラッシュさせることを確認した（`11_インフラストラクチャ設計.md`
+      // 「ワーカー障害」がWorkerの予期しない終了そのものを許容している以上、
+      // 終了の理由を問わずクラッシュしない経路にしておく）。通常のメッセージ
       // 経路（`disabled`）はBattle実行時間に比べて無視できるレイテンシ増で
       // 済むため、正しさを優先してここを固定する。
       atomics: "disabled",
@@ -90,7 +91,9 @@ export class SimulationWorkerPool {
   }
 
   /**
-   * `warmUpCount`（既定は`minThreads`、最低1）本のwarm-upタスクを実行し、Worker側の
+   * `pool.minThreads`本（Piscinaが実際に解決した最小Worker数。`options.minThreads`
+   * を渡さなかった場合はPiscina自身の既定値が入るため、渡された値ではなく
+   * Piscinaが解決した値を使う）分のwarm-upタスクを実行し、Worker側の
    * Catalog読み込み・検証が成功したこと（モジュール評価が例外なく完了し、
    * `expectedCatalogRevision`が一致すること）を確認してから解決する。
    * Catalogが不正であれば`pool.run`自体が例外で拒否され、リビジョンが
@@ -99,7 +102,7 @@ export class SimulationWorkerPool {
    */
   static async create(options: SimulationWorkerPoolOptions): Promise<SimulationWorkerPool> {
     const pool = new SimulationWorkerPool(options);
-    const warmUpCount = Math.max(options.minThreads ?? 1, 1);
+    const warmUpCount = Math.max(pool.pool.minThreads, 1);
     const warmUpTask: WorkerSimulationTask = {
       requestId: "warmup",
       request: WARM_UP_REQUEST,
