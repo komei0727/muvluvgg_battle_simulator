@@ -136,6 +136,30 @@ const CORS_PREFLIGHT_RESPONSE_HEADERS_DOC = {
 } as const;
 
 /**
+ * PRレビュー指摘（#110 [P2再レビュー]）: preflight requestが実際に送る
+ * `Origin`・`Access-Control-Request-Method`・`Access-Control-Request-Headers`
+ * をOpenAPIのheader parameterとして文書化する（`@fastify/swagger`は
+ * `schema.headers`を`in: "header"`のparameterへ変換する）。
+ */
+const CORS_PREFLIGHT_REQUEST_HEADERS_SCHEMA = {
+  type: "object",
+  properties: {
+    origin: {
+      type: "string",
+      description: "The requesting page's origin. Present on a genuine CORS preflight request.",
+    },
+    "access-control-request-method": {
+      type: "string",
+      description: "The HTTP method the actual request will use (GET or POST).",
+    },
+    "access-control-request-headers": {
+      type: "string",
+      description: "Comma-separated list of headers the actual request will send.",
+    },
+  },
+} as const;
+
+/**
  * `schema.response`の各status codeへ`headers`を差し込む。`transform`が返す
  * schemaはOpenAPI文書生成専用（実行時validation・serializationに使う
  * `route.schema`本体には影響しない）ため、ここで自由に拡張してよい。
@@ -750,8 +774,17 @@ export async function buildServer(
       path,
       {
         schema: {
+          // PRレビュー指摘（#110 [P2再レビュー]）: preflight requestが実際に
+          // 送るheaderをOpenAPIへ文書化する。
+          headers: CORS_PREFLIGHT_REQUEST_HEADERS_SCHEMA,
           response: {
             204: {
+              // PRレビュー指摘（#110 [P2再レビュー]）: `type`を指定しないと
+              // `@fastify/swagger`が本文なしの204へも`content.application/json`
+              // を自動生成し、実際には存在しないbody/Content-Typeを公開して
+              // しまう。`type: "null"`でbodyが無いことを明示し、content生成を
+              // 抑止する。
+              type: "null",
               description:
                 "CORS preflight response — fulfilled by @fastify/cors's onRequest hook before this handler runs for an allowed origin (11_インフラストラクチャ設計.md「CORS」).",
             },

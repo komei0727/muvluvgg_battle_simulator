@@ -211,6 +211,60 @@ describe("OpenAPI document", () => {
     expect(battleHeaders?.["Access-Control-Expose-Headers"]).toBeDefined();
   });
 
+  it("API-OPENAPI-009 (PRレビュー指摘[P2再レビュー]): documents the preflight request headers (Origin, Access-Control-Request-Method, Access-Control-Request-Headers) as header parameters on the OPTIONS operation", () => {
+    interface ParameterDoc {
+      readonly name?: string;
+      readonly in?: string;
+    }
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly options?: {
+              readonly parameters?: readonly ParameterDoc[];
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const parameters = document.paths?.["/api/v1/battle-simulations"]?.options?.parameters ?? [];
+    const headerParamNames = parameters
+      .filter((parameter) => parameter.in === "header")
+      .map((parameter) => parameter.name);
+
+    expect(headerParamNames).toEqual(
+      expect.arrayContaining([
+        "origin",
+        "access-control-request-method",
+        "access-control-request-headers",
+      ]),
+    );
+  });
+
+  it("API-OPENAPI-010 (PRレビュー指摘[P2再レビュー]): the OPTIONS 204 response documents no body/content, matching the actual empty preflight response", () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly options?: {
+              readonly responses?: Readonly<Record<string, { readonly content?: unknown }>>;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const response204 = document.paths?.["/api/v1/battle-simulations"]?.options?.responses?.["204"];
+
+    expect(response204).toBeDefined();
+    expect(response204?.content).toBeUndefined();
+  });
+
   it("API-OPENAPI-005 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」): documents /health/live (200 only) and /health/ready (200 and 503)", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
