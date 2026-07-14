@@ -6,11 +6,9 @@ import Fastify, {
   type FastifyRequest,
 } from "fastify";
 import fastifySwagger from "@fastify/swagger";
-import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { toBattleSimulationResponseBody } from "../../application/simulate-battle-response-mapper.js";
 import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
-import type { SimulateBattleCommand } from "../../application/simulate-battle-command.js";
 import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
 import { fromApplicationError, toErrorResponseBody } from "./error-response-mapper.js";
 import {
@@ -24,13 +22,16 @@ import {
 const BATTLE_SIMULATIONS_PATH = "/api/v1/battle-simulations";
 
 /**
- * `SimulateBattleUseCase`が要求するインターフェースのうち、Fastifyルートが
- * 使う`execute`だけを最小限で切り出す。presentationはdomainを直接import
- * できない（`no-restricted-imports`）ため、具体クラスではなくapplication層の
- * 型だけで表現したportとして受け取る。
+ * `13_実装計画.md`「M4 API・Worker Walking Skeleton」: ルートハンドラーが呼ぶのは
+ * 検証済みDTOを渡して`SimulateBattleResult`を受け取るこの最小portだけ。
+ * DTO→Command変換とBattle実行は、実装（`SimulationWorkerPool`）が
+ * Worker Threadへ委譲する — HTTPメインスレッドはBattleを直接実行しない
+ * （`11_インフラストラクチャ設計.md`「技術的な不変条件」）。presentationは
+ * domain/infrastructureを直接importできない（`no-restricted-imports`）ため、
+ * 具体クラスではなくapplication層の型だけで表現したportとして受け取る。
  */
 export interface SimulateBattleUseCasePort {
-  execute(command: SimulateBattleCommand): SimulateBattleResult;
+  execute(request: BattleSimulationRequestBody): Promise<SimulateBattleResult>;
 }
 
 /**
@@ -131,8 +132,9 @@ function acceptsJson(header: string | string[] | undefined): boolean {
 /**
  * `10_API設計.md`「Fastify injectによる正常・400・413・415・422」他の契約を
  * 満たすFastifyインスタンスを構築する。Catalog・RandomSource・ID生成器の
- * 実配線（Composition Root）は本Issueの範囲外（`#12`/`#13`）とし、ここでは
- * 既に構築済みの`SimulateBattleUseCase`相当のportを受け取るだけにする。
+ * 実配線（Composition Root）は`bootstrap/index.ts`が担い、ここでは既に
+ * 構築済みの`SimulateBattleUseCasePort`（実体は`SimulationWorkerPool`）を
+ * 受け取るだけにする。
  *
  * `@fastify/swagger`の`register`はavvioのbootキューへ積まれるだけで、
  * プラグイン本体（`onRoute`フックの登録）は`.ready()`まで実行されない。
@@ -257,9 +259,8 @@ export async function buildServer(
         response: { 200: battleSimulationResponseSchema, ...ERROR_RESPONSES },
       },
     },
-    (request: FastifyRequest<{ Body: BattleSimulationRequestBody }>, reply: FastifyReply) => {
-      const command = toSimulateBattleCommand(request.body);
-      const result = useCase.execute(command);
+    async (request: FastifyRequest<{ Body: BattleSimulationRequestBody }>, reply: FastifyReply) => {
+      const result = await useCase.execute(request.body);
       const body = toBattleSimulationResponseBody(result);
       void reply.code(200).send(body);
     },

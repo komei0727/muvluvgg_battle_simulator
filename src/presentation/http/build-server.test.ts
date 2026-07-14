@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
 import type {
+  BattleSimulationRequestBody,
   BattleSimulationResponseBody,
   ErrorResponseBody,
 } from "../../application/http-contract.js";
+import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import { createCapabilityDefinition } from "../../domain/catalog/capability-definition.js";
 import {
@@ -71,12 +73,27 @@ class FakeBattleCatalog implements BattleCatalog {
 
 const UNITS = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
 
+/**
+ * `SimulateBattleUseCasePort`はDTOを受け取りWorker Thread経由で実行される
+ * 想定（本番実装は`SimulationWorkerPool`）だが、このHTTP契約テストでは
+ * ルーティング・エラーマッピングだけを検証したいため、同じ変換
+ * （`toSimulateBattleCommand`）をメインスレッド内で直接呼ぶ薄いadapterで代替する。
+ */
+function toDirectExecutor(useCase: SimulateBattleUseCase): SimulateBattleUseCasePort {
+  return {
+    execute: (request: BattleSimulationRequestBody) =>
+      Promise.resolve(useCase.execute(toSimulateBattleCommand(request))),
+  };
+}
+
 function buildTestUseCase(): SimulateBattleUseCasePort {
-  return new SimulateBattleUseCase({
-    battleCatalog: new FakeBattleCatalog(UNITS),
-    battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-    randomSourceFactory: new SequenceRandomSourceFactory([]),
-  });
+  return toDirectExecutor(
+    new SimulateBattleUseCase({
+      battleCatalog: new FakeBattleCatalog(UNITS),
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+    }),
+  );
 }
 
 function validRequestBody(overrides: Record<string, unknown> = {}) {
@@ -258,11 +275,13 @@ describe("POST /api/v1/battle-simulations", () => {
         }),
       ],
     ]);
-    const gatedUseCase = new SimulateBattleUseCase({
-      battleCatalog: new FakeBattleCatalog(units, capabilities),
-      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSourceFactory: new SequenceRandomSourceFactory([]),
-    });
+    const gatedUseCase = toDirectExecutor(
+      new SimulateBattleUseCase({
+        battleCatalog: new FakeBattleCatalog(units, capabilities),
+        battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+        randomSourceFactory: new SequenceRandomSourceFactory([]),
+      }),
+    );
     const gatedApp = await buildServer(gatedUseCase);
     const gatedSlot = {
       units: [{ unitDefinitionId: "UNIT_GATED", position: { column: 0, row: "FRONT" } }],

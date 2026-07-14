@@ -19,6 +19,7 @@ export default defineConfig({
         "src/**/*.e2e.test.ts",
         "src/**/*.load.test.ts",
         "src/main.ts",
+        "src/bootstrap/**",
       ],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },
