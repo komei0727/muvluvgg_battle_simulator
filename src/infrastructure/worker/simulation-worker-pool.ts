@@ -1,9 +1,10 @@
-import { randomUUID } from "node:crypto";
 import { Piscina } from "piscina";
 import { toApplicationError } from "./worker-contract.js";
 import type { WorkerSimulationResult, WorkerSimulationTask } from "./worker-contract.js";
-import type { ApplicationError } from "../../application/application-error.js";
+import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
+import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
+import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
 
 export interface SimulationWorkerPoolOptions {
@@ -28,9 +29,31 @@ function resolveDefaultWorkerFileUrl(): URL {
   return new URL(`./simulation-worker-entry${extension}`, import.meta.url);
 }
 
-// `SIMULATION_TIMEOUT_MS`による実際の期限強制・切断キャンセルは`#18`の範囲。
-// ここではWorkerSimulationTaskの契約を満たすためだけの暫定値を設定する。
-const PROVISIONAL_TASK_DEADLINE_MS = 30_000;
+// warm-upタスク専用の期限。実リクエストの`deadlineEpochMs`は`execute`の
+// `SimulationExecutionContext`（呼び出し側 — `build-server.ts`が`SIMULATION_
+// TIMEOUT_MS`から算出）から受け取るため、この定数は使わない。
+const WARM_UP_TASK_DEADLINE_MS = 30_000;
+
+/**
+ * Piscinaはキュー満杯を専用の例外型ではなく、固定メッセージの`Error`として
+ * `pool.run()`のPromiseをrejectする（`piscina/dist/errors.js`の`Errors`。
+ * 型としては公開されていない）。`maxQueue`が正の値のときは`'Task queue is at
+ * limit'`、`maxQueue: 0`のときは`'No task queue available and all Workers are
+ * busy'`。メッセージ比較でしか判別できないため、両方を許容する。
+ */
+const QUEUE_FULL_ERROR_MESSAGES = new Set([
+  "Task queue is at limit",
+  "No task queue available and all Workers are busy",
+]);
+
+function isQueueFullError(error: unknown): boolean {
+  return error instanceof Error && QUEUE_FULL_ERROR_MESSAGES.has(error.message);
+}
+
+/** Piscinaの`AbortError`（`piscina/dist/abort.js`）。`name`ゲッターで判別する。 */
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
 
 /** warm-up専用のダミーDTO。`expectedCatalogRevision`さえ正しければ、Command検証に
  * 落ちて`ok:false`になってもWorkerのCatalog読み込み成功は確認できる。 */
@@ -120,7 +143,7 @@ export class SimulationWorkerPool {
     const warmUpTask: WorkerSimulationTask = {
       requestId: "warmup",
       request: WARM_UP_REQUEST,
-      deadlineEpochMs: Date.now() + PROVISIONAL_TASK_DEADLINE_MS,
+      deadlineEpochMs: Date.now() + WARM_UP_TASK_DEADLINE_MS,
       expectedCatalogRevision: options.catalogRevision,
     };
 
@@ -150,18 +173,41 @@ export class SimulationWorkerPool {
     return pool;
   }
 
-  async execute(request: BattleSimulationRequestBody): Promise<SimulateBattleResult> {
+  async execute(
+    request: BattleSimulationRequestBody,
+    context: SimulationExecutionContext,
+  ): Promise<SimulateBattleResult> {
     if (this.fatalError !== undefined) {
       throw this.fatalError;
     }
 
     const task: WorkerSimulationTask = {
-      requestId: randomUUID(),
+      requestId: context.requestId,
       request,
-      deadlineEpochMs: Date.now() + PROVISIONAL_TASK_DEADLINE_MS,
+      deadlineEpochMs: context.deadlineEpochMs,
       expectedCatalogRevision: this.catalogRevision,
     };
-    const outcome = await this.pool.run(task);
+
+    let outcome: WorkerSimulationResult;
+    try {
+      outcome = await this.pool.run(task, { signal: context.cancellationSignal ?? null });
+    } catch (error) {
+      if (isQueueFullError(error)) {
+        // `11_インフラストラクチャ設計.md`「待機キューを無制限にしない」:
+        // タスクは一度もWorkerへ投入されていない ── Poolそのものは健全なまま。
+        throw new SimulationCapacityExceededError();
+      }
+      if (isAbortError(error)) {
+        // `11_インフラストラクチャ設計.md`「キャンセルと期限」段階2（強制
+        // キャンセル）: HTTP切断やAbortSignalによる強制終了。勝敗結果としては
+        // 返さず、`EXECUTION_CANCELLED`として伝える。
+        throw new ApplicationError("EXECUTION_CANCELLED", [
+          { reason: "the simulation was cancelled before it completed" },
+        ]);
+      }
+      throw error;
+    }
+
     if (outcome.ok) {
       return outcome.result;
     }

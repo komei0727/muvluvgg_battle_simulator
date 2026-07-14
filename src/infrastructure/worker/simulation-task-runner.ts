@@ -8,12 +8,14 @@ import { ApplicationError } from "../../application/application-error.js";
 import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.js";
+import type { Clock } from "../../domain/ports/clock.js";
 import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
 import type { InMemoryBattleCatalog } from "../catalog/runtime/in-memory-battle-catalog.js";
 
 export interface SimulationTaskRunnerDependencies {
   readonly battleIdGenerator: BattleIdGenerator;
   readonly randomSourceFactory: RandomSourceFactory;
+  readonly clock: Clock;
 }
 
 export type SimulationTaskRunner = (task: WorkerSimulationTask) => WorkerSimulationResult;
@@ -34,6 +36,7 @@ export function createSimulationTaskRunner(
     battleCatalog: catalog,
     battleIdGenerator: dependencies.battleIdGenerator,
     randomSourceFactory: dependencies.randomSourceFactory,
+    clock: dependencies.clock,
   });
 
   return function runSimulationTask(task: WorkerSimulationTask): WorkerSimulationResult {
@@ -55,7 +58,10 @@ export function createSimulationTaskRunner(
 
     try {
       const command = toSimulateBattleCommand(task.request);
-      const result = useCase.execute(command);
+      const result = useCase.execute(command, {
+        requestId: task.requestId,
+        deadlineEpochMs: task.deadlineEpochMs,
+      });
       return { ok: true, result };
     } catch (error) {
       if (error instanceof ApplicationError) {

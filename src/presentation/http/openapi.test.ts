@@ -13,12 +13,14 @@ import type {
 } from "../../application/http-contract.js";
 import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
+import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../domain/catalog/catalog-ids.js";
 import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 
@@ -71,8 +73,8 @@ class FakeBattleCatalog implements BattleCatalog {
 /** `build-server.test.ts`と同様、Worker経由の実体を薄いdirect adapterで代替する。 */
 function toDirectExecutor(useCase: SimulateBattleUseCase): SimulateBattleUseCasePort {
   return {
-    execute: (request: BattleSimulationRequestBody) =>
-      Promise.resolve(useCase.execute(toSimulateBattleCommand(request))),
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
+      Promise.resolve(useCase.execute(toSimulateBattleCommand(request), context)),
   };
 }
 
@@ -83,6 +85,7 @@ function buildTestUseCase(): SimulateBattleUseCasePort {
       battleCatalog: new FakeBattleCatalog(units),
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
       randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(Date.now()),
     }),
   );
 }

@@ -1,5 +1,6 @@
 import { ApplicationError } from "./application-error.js";
 import { toDomainFormationInput } from "./formation-input-mapper.js";
+import type { SimulationExecutionContext } from "./simulation-execution-context.js";
 import {
   assembleSimulationResult,
   type SimulateBattleResult,
@@ -20,6 +21,7 @@ import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/cat
 import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
 import type { BattleIdGenerator } from "../domain/ports/battle-id-generator.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
+import type { Clock } from "../domain/ports/clock.js";
 import type { RandomSourceFactory } from "../domain/ports/random-source-factory.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
 import type { BattleUnitId } from "../domain/shared/ids.js";
@@ -29,6 +31,7 @@ export interface SimulateBattleUseCaseDependencies {
   readonly battleCatalog: BattleCatalog;
   readonly battleIdGenerator: BattleIdGenerator;
   readonly randomSourceFactory: RandomSourceFactory;
+  readonly clock: Clock;
 }
 
 function collectReferencedIds(command: SimulateBattleCommand): {
@@ -99,14 +102,19 @@ export class SimulateBattleUseCase {
   private readonly battleCatalog: BattleCatalog;
   private readonly battleIdGenerator: BattleIdGenerator;
   private readonly randomSourceFactory: RandomSourceFactory;
+  private readonly clock: Clock;
 
   constructor(dependencies: SimulateBattleUseCaseDependencies) {
     this.battleCatalog = dependencies.battleCatalog;
     this.battleIdGenerator = dependencies.battleIdGenerator;
     this.randomSourceFactory = dependencies.randomSourceFactory;
+    this.clock = dependencies.clock;
   }
 
-  execute(command: SimulateBattleCommand): SimulateBattleResult {
+  execute(
+    command: SimulateBattleCommand,
+    context: SimulationExecutionContext,
+  ): SimulateBattleResult {
     const shapeViolations = validateCommandShape(command);
     if (shapeViolations.length > 0) {
       throw new ApplicationError("INVALID_COMMAND", shapeViolations);
@@ -159,6 +167,17 @@ export class SimulateBattleUseCase {
       const unitRoster = captureUnitRoster(battle);
       battle = startBattle(battle, recorder);
       while (battle.status !== "COMPLETED") {
+        // `11_インフラストラクチャ設計.md`「キャンセルと期限」段階1（協調的停止）:
+        // ターン境界（advanceBattle呼び出し前）という安全な内部境界で
+        // deadlineEpochMsを確認する。期限超過を勝敗結果として返さず、
+        // ここまでに確定した状態も一切返さない。
+        if (this.clock.now() >= context.deadlineEpochMs) {
+          throw new ApplicationError("EXECUTION_TIMEOUT", [
+            {
+              reason: `simulation exceeded its deadline (deadlineEpochMs=${context.deadlineEpochMs})`,
+            },
+          ]);
+        }
         battle = advanceBattle(battle, random, recorder);
       }
 
