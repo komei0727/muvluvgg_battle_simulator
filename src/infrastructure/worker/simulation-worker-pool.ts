@@ -2,6 +2,8 @@ import { Piscina } from "piscina";
 import { toApplicationError } from "./worker-contract.js";
 import type { WorkerSimulationResult, WorkerSimulationTask } from "./worker-contract.js";
 import { WorkerErrorCircuitBreaker } from "./worker-error-circuit-breaker.js";
+import { SystemClock } from "../time/system-clock.js";
+import type { Clock } from "../../domain/ports/clock.js";
 import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
 import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
@@ -18,6 +20,8 @@ export interface SimulationWorkerPoolOptions {
   readonly workerFileUrl?: URL;
   /** `11_インフラストラクチャ設計.md`「Graceful Shutdown」`shutdown()`が実行中タスクを待つ上限(ms)。省略時はPiscina自身の既定(30000)。 */
   readonly shutdownGraceMs?: number;
+  /** `workerErrorCircuitBreaker`の時間窓判定に使う`Clock`。省略時は`SystemClock`（実時間）。テストは`ManualClock`を注入して時間窓を決定的に検証する。 */
+  readonly clock?: Clock;
 }
 
 /**
@@ -114,11 +118,14 @@ export class SimulationWorkerPoolStartupError extends Error {
 export class SimulationWorkerPool {
   private readonly pool: Piscina<WorkerSimulationTask, WorkerSimulationResult>;
   private readonly catalogRevision: string;
-  private readonly workerErrorCircuitBreaker = new WorkerErrorCircuitBreaker();
+  private readonly workerErrorCircuitBreaker: WorkerErrorCircuitBreaker;
   private fatalError: ApplicationError | undefined;
 
   private constructor(options: SimulationWorkerPoolOptions) {
     this.catalogRevision = options.catalogRevision;
+    this.workerErrorCircuitBreaker = new WorkerErrorCircuitBreaker(
+      options.clock ?? new SystemClock(),
+    );
     this.pool = new Piscina<WorkerSimulationTask, WorkerSimulationResult>({
       filename: (options.workerFileUrl ?? resolveDefaultWorkerFileUrl()).href,
       workerData: { catalogDir: options.catalogDir },
