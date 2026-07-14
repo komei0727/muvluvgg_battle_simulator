@@ -31,11 +31,14 @@ jobs:
       - name: Build
         run: mise run build
 
+      - name: Worker integration tests
+        run: mise run test:integration
+
+      - name: HTTP + Worker end-to-end tests
+        run: mise run test:e2e
+
       - name: Circular dependency check
         run: mise run check-circular
-
-      # Integration and E2E steps are added here when corresponding tests exist.
-      # (passWithNoTests: false in their configs — adding empty steps would fail.)
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

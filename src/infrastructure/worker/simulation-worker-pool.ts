@@ -1,6 +1,9 @@
 import { Piscina } from "piscina";
 import { toApplicationError } from "./worker-contract.js";
 import type { WorkerSimulationResult, WorkerSimulationTask } from "./worker-contract.js";
+import { WorkerErrorCircuitBreaker } from "./worker-error-circuit-breaker.js";
+import { SystemClock } from "../time/system-clock.js";
+import type { Clock } from "../../domain/ports/clock.js";
 import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
 import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
@@ -17,6 +20,8 @@ export interface SimulationWorkerPoolOptions {
   readonly workerFileUrl?: URL;
   /** `11_インフラストラクチャ設計.md`「Graceful Shutdown」`shutdown()`が実行中タスクを待つ上限(ms)。省略時はPiscina自身の既定(30000)。 */
   readonly shutdownGraceMs?: number;
+  /** `workerErrorCircuitBreaker`の時間窓判定に使う`Clock`。省略時は`SystemClock`（実時間）。テストは`ManualClock`を注入して時間窓を決定的に検証する。 */
+  readonly clock?: Clock;
 }
 
 /**
@@ -113,10 +118,14 @@ export class SimulationWorkerPoolStartupError extends Error {
 export class SimulationWorkerPool {
   private readonly pool: Piscina<WorkerSimulationTask, WorkerSimulationResult>;
   private readonly catalogRevision: string;
+  private readonly workerErrorCircuitBreaker: WorkerErrorCircuitBreaker;
   private fatalError: ApplicationError | undefined;
 
   private constructor(options: SimulationWorkerPoolOptions) {
     this.catalogRevision = options.catalogRevision;
+    this.workerErrorCircuitBreaker = new WorkerErrorCircuitBreaker(
+      options.clock ?? new SystemClock(),
+    );
     this.pool = new Piscina<WorkerSimulationTask, WorkerSimulationResult>({
       filename: (options.workerFileUrl ?? resolveDefaultWorkerFileUrl()).href,
       workerData: { catalogDir: options.catalogDir },
@@ -137,9 +146,16 @@ export class SimulationWorkerPool {
     // `11_インフラストラクチャ設計.md`「ワーカー障害」: 個々のタスクに紐づかない
     // Worker Threadの異常（例: idle中のクラッシュ）を、プロセス全体を落とす
     // 未処理の`error`イベントにしない。Piscina自身が異常Workerを破棄し
-    // 新しいWorkerを補充する。
+    // 新しいWorkerを補充する。「/health/ready」「連続ワーカー障害による
+    // サーキット状態でない」（レビュー指摘）: 補充を繰り返しても収束しない
+    // 連続異常は`workerErrorCircuitBreaker`経由で`isHealthy`へ反映する
+    // （`execute`の正常応答パスがカウンターをリセットする）。実行中タスクを
+    // 抱えたWorkerの異常はこの`error`イベントではなく`execute`側の
+    // `pool.run()` rejectとして届くため、そちらでも同じ`recordError`を呼ぶ
+    // （PRレビュー指摘: idle中の異常しかここでは捕捉できない）。
     this.pool.on("error", (error: unknown) => {
       console.error("SimulationWorkerPool: unhandled Worker Thread error", error);
+      this.workerErrorCircuitBreaker.recordError();
     });
   }
 
@@ -191,11 +207,12 @@ export class SimulationWorkerPool {
 
   /**
    * `11_インフラストラクチャ設計.md`「ヘルスチェック」`/health/ready`
-   * 「ワーカーのCatalogリビジョンが期待値と一致」。稼働中のCatalogリビジョン
-   * 不一致で`fatalError`が立った以降はfalseになる。
+   * 「ワーカーのCatalogリビジョンが期待値と一致」「連続ワーカー障害による
+   * サーキット状態でない」。稼働中のCatalogリビジョン不一致で`fatalError`が
+   * 立った場合、または`workerErrorCircuitBreaker`が開いた場合にfalseになる。
    */
   get isHealthy(): boolean {
-    return this.fatalError === undefined;
+    return this.fatalError === undefined && !this.workerErrorCircuitBreaker.isOpen();
   }
 
   async execute(
@@ -232,8 +249,22 @@ export class SimulationWorkerPool {
           { reason: "the simulation was cancelled before it completed" },
         ]);
       }
+      // PRレビュー指摘: Piscinaはidle中のWorker異常だけを`pool`の`error`
+      // イベントで通知する（コンストラクタの`pool.on("error", ...)`参照）。
+      // 実行中タスクを抱えたWorkerが異常終了した場合は、そのタスクの
+      // `pool.run()`自体がこの`err`でreject される（`error`イベントは
+      // 発火しない）。ここへ到達するのは容量超過・キャンセル・shutdown
+      // のいずれでもない、実際のWorker Thread異常だけなので、サーキットへ
+      // 記録する。
+      this.workerErrorCircuitBreaker.recordError();
       throw error;
     }
+
+    // Workerが`WorkerSimulationResult`を返した時点で、`outcome.ok`の真偽に
+    // 関わらずWorker基盤自体は正常に応答している（`ok:false`はBattle実行の
+    // 業務エラーであり、Worker Threadの異常ではない）。サーキットが開きかけて
+    // いてもPoolは機能している証拠として連続エラーカウントをリセットする。
+    this.workerErrorCircuitBreaker.recordSuccess();
 
     if (outcome.ok) {
       return outcome.result;

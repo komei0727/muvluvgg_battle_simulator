@@ -6,7 +6,7 @@ import type { ReadinessPort } from "../presentation/http/health-routes.js";
 import { parseCatalogManifest } from "../infrastructure/catalog/runtime/catalog-manifest.js";
 import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker-pool.js";
 import { ShutdownState, installShutdownSignalHandlers } from "./shutdown.js";
-import { resolveDocsEnabled } from "./docs-enabled.js";
+import { loadConfig } from "./config.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「起動」の骨格。Catalog manifestから
@@ -23,27 +23,27 @@ import { resolveDocsEnabled } from "./docs-enabled.js";
  *
  * `#12`で`/health/live`・`/health/ready`・構造化ログ・Graceful Shutdownを
  * ここへ配線した。`readiness`は`shutdownState`（Graceful Shutdownステップ1）と
- * `pool.isHealthy`（稼働中のCatalogリビジョン不一致）の両方を見る——
- * `SimulationWorkerPool.create`が必要ワーカー数のwarm-upとCatalog検証を
- * 待ち切ってから返るため、`listen`に到達した時点でこの2つ以外に readiness を
- * 落とす要因は残らない。
+ * `pool.isHealthy`（稼働中のCatalogリビジョン不一致、または連続Worker障害
+ * によるサーキット状態）の両方を見る——`SimulationWorkerPool.create`が
+ * 必要ワーカー数のwarm-upとCatalog検証を待ち切ってから返るため、`listen`に
+ * 到達した時点でこの2つ以外に readiness を落とす要因は残らない。
  */
 export async function bootstrap(): Promise<FastifyInstance> {
-  const port = Number(process.env["PORT"] ?? "3000");
-  const host = process.env["HOST"] ?? "0.0.0.0";
-  const catalogDir = process.env["CATALOG_PATH"] ?? "catalog";
-  const simulationTimeoutMs = Number(process.env["SIMULATION_TIMEOUT_MS"] ?? "30000");
-  // `11_インフラストラクチャ設計.md`「待機キューを無制限にしない」。Piscina自身の
-  // 既定`maxQueue`は`Infinity`のため、未設定でも常に有限値を明示する。
-  const workerMaxQueue = Number(process.env["WORKER_MAX_QUEUE"] ?? "100");
-  const logLevel = process.env["LOG_LEVEL"] ?? "info";
-  // `11_インフラストラクチャ設計.md`「設定項目」`SHUTDOWN_GRACE_MS`。Piscina自身の
-  // `closeTimeout`既定値と揃える。
-  const shutdownGraceMs = Number(process.env["SHUTDOWN_GRACE_MS"] ?? "30000");
-  // `11_インフラストラクチャ設計.md`「OpenAPI」「productionではSwagger UIを
-  // 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。判定ロジック
-  // は`docs-enabled.ts`（`docs-enabled.test.ts`が通常のテストスイートで検証）。
-  const docsEnabled = resolveDocsEnabled(process.env["NODE_ENV"]);
+  // `11_インフラストラクチャ設計.md`「設定管理」「数値変換失敗や矛盾する期限は
+  // 起動エラーにする」（レビュー指摘: 素の`Number()`変換は`SIMULATION_TIMEOUT_MS=abc`
+  // を`NaN`へ、`WORKER_MAX_QUEUE=Infinity`を無制限へ、検証なしで通していた）。
+  // `config.ts`が投げる`ConfigError`はここで捕まえず、そのまま`bootstrap()`の
+  // rejectとして伝播させる——`listen`に到達させず`main.ts`が`process.exit(1)`する。
+  const {
+    port,
+    host,
+    catalogDir,
+    simulationTimeoutMs,
+    workerMaxQueue,
+    shutdownGraceMs,
+    logLevel,
+    docsEnabled,
+  } = loadConfig(process.env);
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
