@@ -161,4 +161,20 @@ describe("loadConfig", () => {
       loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io,," })),
     ).toThrow(ConfigError);
   });
+
+  it('CFG-026 (PRレビュー指摘[P2]): throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (file:///), which would otherwise become the opaque origin "null"', () => {
+    expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "file:///" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-027 (PRレビュー指摘[P2]): throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (mailto:)", () => {
+    expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "mailto:test@example.com" }))).toThrow(
+      ConfigError,
+    );
+  });
+
+  it("CFG-028 (PRレビュー指摘[P2]): throws ConfigError for a CORS_ALLOWED_ORIGINS entry with a trailing slash, which is not an exact scheme+host origin", () => {
+    expect(() =>
+      loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io/" })),
+    ).toThrow(ConfigError);
+  });
 });

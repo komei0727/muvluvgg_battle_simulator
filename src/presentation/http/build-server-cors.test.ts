@@ -18,6 +18,19 @@ import { SequenceRandomSourceFactory } from "../../testing/random/sequence-rando
 const ALLOWED_ORIGIN = "https://komei0727.github.io";
 const DISALLOWED_ORIGIN = "https://evil.example.com";
 
+/**
+ * レビュー指摘（PR #110 [P1]）: `origin`へ配列を渡すだけでは、
+ * `@fastify/cors`は未許可originや`Origin`なしのrequestでも
+ * `Access-Control-Expose-Headers`（および preflightでは
+ * `Access-Control-Allow-Methods`／`Access-Control-Allow-Headers`）を
+ * 無条件に付与してしまう——`Access-Control-Allow-Origin`さえ確認する
+ * だけでは検出できない。`access-control-*`ヘッダーが一つも存在しない
+ * ことを網羅的に確認する。
+ */
+function accessControlHeaderKeys(headers: Record<string, unknown>): readonly string[] {
+  return Object.keys(headers).filter((key) => key.toLowerCase().startsWith("access-control-"));
+}
+
 function unitDefinition(id: string): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
@@ -151,7 +164,7 @@ describe("CORS (10_API設計.md「CORS」、11_インフラストラクチャ設
     expect(allowedMethods).toContain("OPTIONS");
   });
 
-  it("API-CORS-004: a disallowed origin does not receive any Access-Control-Allow-Origin header on a normal request", async () => {
+  it("API-CORS-004: a disallowed origin does not receive any Access-Control-* header on a normal request", async () => {
     app = await buildServer(buildTestUseCase(), { corsAllowedOrigins: [ALLOWED_ORIGIN] });
 
     const response = await app.inject({
@@ -160,10 +173,10 @@ describe("CORS (10_API設計.md「CORS」、11_インフラストラクチャ設
       headers: { origin: DISALLOWED_ORIGIN },
     });
 
-    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(accessControlHeaderKeys(response.headers)).toEqual([]);
   });
 
-  it("API-CORS-005: a request without an Origin header is not rejected and behaves exactly as before (no CORS headers)", async () => {
+  it("API-CORS-005: a request without an Origin header is not rejected and receives no Access-Control-* header", async () => {
     app = await buildServer(buildTestUseCase(), { corsAllowedOrigins: [ALLOWED_ORIGIN] });
 
     const response = await app.inject({
@@ -172,7 +185,38 @@ describe("CORS (10_API設計.md「CORS」、11_インフラストラクチャ設
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(accessControlHeaderKeys(response.headers)).toEqual([]);
+  });
+
+  it("API-CORS-009 (PRレビュー指摘[P1]): a disallowed origin's preflight OPTIONS receives no Access-Control-* header (no Allow-Methods/Allow-Headers leak)", async () => {
+    app = await buildServer(buildTestUseCase(), { corsAllowedOrigins: [ALLOWED_ORIGIN] });
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/battle-simulations",
+      headers: {
+        origin: DISALLOWED_ORIGIN,
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    expect(accessControlHeaderKeys(response.headers)).toEqual([]);
+  });
+
+  it("API-CORS-010 (PRレビュー指摘[P1]): a preflight OPTIONS without an Origin header receives no Access-Control-* header", async () => {
+    app = await buildServer(buildTestUseCase(), { corsAllowedOrigins: [ALLOWED_ORIGIN] });
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/battle-simulations",
+      headers: {
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    expect(accessControlHeaderKeys(response.headers)).toEqual([]);
   });
 
   it("API-CORS-006: browsers can read X-Request-Id, Retry-After, and ETag via Access-Control-Expose-Headers", async () => {

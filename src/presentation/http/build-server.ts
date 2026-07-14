@@ -108,6 +108,51 @@ const CORS_EXPOSED_HEADERS = ["X-Request-Id", "Retry-After", "ETag"];
 const DEFAULT_CORS_ALLOWED_ORIGINS: readonly string[] = [];
 
 /**
+ * PRレビュー指摘（#110 [P3]）: `10_API設計.md`「OpenAPIへの反映」「CORS preflightと
+ * 公開header」がOpenAPI文書へ未反映だった。許可originのCatalog GET・戦闘POSTの
+ * 全response（成功・エラー問わず、CORSの`onRequest`フックがrouting前に無条件で
+ * 付与するため）が実際に持ちうる公開response headerを文書化する。
+ */
+const CORS_RESPONSE_HEADERS_DOC = {
+  "Access-Control-Allow-Origin": {
+    type: "string",
+    description:
+      "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim.",
+  },
+  "Access-Control-Expose-Headers": {
+    type: "string",
+    description: "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests.",
+  },
+} as const;
+
+/** 上記に加え、preflight（`OPTIONS`）だけが返す許可method・許可headerを文書化する。 */
+const CORS_PREFLIGHT_RESPONSE_HEADERS_DOC = {
+  ...CORS_RESPONSE_HEADERS_DOC,
+  "Access-Control-Allow-Methods": { type: "string", description: "GET, POST, OPTIONS." },
+  "Access-Control-Allow-Headers": {
+    type: "string",
+    description: "Content-Type, Accept, X-Request-Id, If-None-Match.",
+  },
+} as const;
+
+/**
+ * `schema.response`の各status codeへ`headers`を差し込む。`transform`が返す
+ * schemaはOpenAPI文書生成専用（実行時validation・serializationに使う
+ * `route.schema`本体には影響しない）ため、ここで自由に拡張してよい。
+ */
+function withResponseHeadersDoc(
+  responses: Record<string, unknown>,
+  headersDoc: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(responses).map(([statusCode, entry]) => [
+      statusCode,
+      { ...(entry as Record<string, unknown>), headers: headersDoc },
+    ]),
+  );
+}
+
+/**
  * `11_インフラストラクチャ設計.md`「Graceful Shutdown」ステップ2「新しい
  * 戦闘リクエストの受付を停止する」だけを担うport。`ReadinessPort`とは意図的に
  * 分離している——Poolが稼働中のCatalogリビジョン不一致で致命的状態になった
@@ -387,12 +432,22 @@ export async function buildServer(
 
   // `11_インフラストラクチャ設計.md`「サーバー生成」「CORSプラグイン」をroute登録前に
   // 設定する。許可originは`corsAllowedOrigins`（`CORS_ALLOWED_ORIGINS`から構築済みの
-  // 完全一致set）が持つ文字列のみ。配列形式の`origin`は`Origin`ヘッダーとの厳密一致
-  // （`===`）でのみ反射し、`Origin`なしのrequest（CLI・health check・server-to-server）
-  // には一切CORSヘッダーを付けず、request自体も拒否しない
-  // （`@fastify/cors`が`origin`不一致時に何もヘッダーを足さず`next()`するだけのため）。
+  // 完全一致set）が持つ文字列のみ。
+  //
+  // PRレビュー指摘（#110 [P1]）: `origin`へ配列をそのまま渡すと、`@fastify/cors`は
+  // origin不一致（未許可origin、`Origin`なし）でも`Access-Control-Expose-Headers`を
+  // 無条件に付与し、preflightでは`Access-Control-Allow-Methods`・
+  // `Access-Control-Allow-Headers`まで付与してしまう
+  // （`addCorsHeaders`が`corsOptions.exposedHeaders`の有無だけで判定するため）。
+  // `origin`を関数にして未許可・`Origin`なしの場合は明示的に`false`を返すことで、
+  // `@fastify/cors`が`resolvedOriginOption === false`を検知しCORS処理全体
+  // （`addCorsHeaders`・preflightの`addPreflightHeaders`）を丸ごとskipするようにする
+  // ——`next()`のみ呼ばれ、request自体は拒否しない。
+  const corsAllowedOriginsSet = new Set(options.corsAllowedOrigins ?? DEFAULT_CORS_ALLOWED_ORIGINS);
   await app.register(fastifyCors, {
-    origin: [...(options.corsAllowedOrigins ?? DEFAULT_CORS_ALLOWED_ORIGINS)],
+    origin: (origin, callback) => {
+      callback(null, origin !== undefined && corsAllowedOriginsSet.has(origin));
+    },
     methods: CORS_ALLOWED_METHODS,
     allowedHeaders: CORS_ALLOWED_REQUEST_HEADERS,
     exposedHeaders: CORS_EXPOSED_HEADERS,
@@ -415,7 +470,27 @@ export async function buildServer(
     // `battleSimulationResponseDocSchema`で公開文書だけ書き足す
     // （実データがそのまま流れる出力を厳格化して壊さないよう、実行時
     // serializationは`battleSimulationResponseSchema`のまま変更しない）。
-    transform: ({ schema, url }) => {
+    transform: ({ schema, url, route }) => {
+      // PRレビュー指摘（#110 [P3]）: 下の`app.options(path, ...)`ループが登録する
+      // 文書専用のOPTIONSルートへ、preflight向けのCORS response headerを
+      // 差し込む。このurlは他分岐（Catalog GET・戦闘POST）とも重なるため、
+      // methodで先に分岐する。
+      if (route.method === "OPTIONS") {
+        return {
+          schema: {
+            ...schema,
+            ...(schema.response !== undefined
+              ? {
+                  response: withResponseHeadersDoc(
+                    schema.response as Record<string, unknown>,
+                    CORS_PREFLIGHT_RESPONSE_HEADERS_DOC,
+                  ),
+                }
+              : {}),
+          },
+          url,
+        };
+      }
       if (url === BATTLE_SIMULATION_CATALOG_PATH) {
         // `10_API設計.md`「304では送らない」: 実行時の`route.schema.response`は
         // 304を持たない（本文がなく`send()`へ渡す値もないため）。公開文書だけ
@@ -426,13 +501,16 @@ export async function buildServer(
             ...schema,
             ...(schema.response !== undefined
               ? {
-                  response: {
-                    ...schema.response,
-                    304: {
-                      description:
-                        "Not Modified — If-None-Match matched the current catalogRevision ETag; no body.",
+                  response: withResponseHeadersDoc(
+                    {
+                      ...schema.response,
+                      304: {
+                        description:
+                          "Not Modified — If-None-Match matched the current catalogRevision ETag; no body.",
+                      },
                     },
-                  },
+                    CORS_RESPONSE_HEADERS_DOC,
+                  ),
                 }
               : {}),
           },
@@ -447,7 +525,12 @@ export async function buildServer(
           ...schema,
           ...(schema.body !== undefined ? { body: battleSimulationRequestDocSchema } : {}),
           ...(schema.response !== undefined
-            ? { response: { ...schema.response, 200: battleSimulationResponseDocSchema } }
+            ? {
+                response: withResponseHeadersDoc(
+                  { ...schema.response, 200: battleSimulationResponseDocSchema },
+                  CORS_RESPONSE_HEADERS_DOC,
+                ),
+              }
             : {}),
         },
         url,
@@ -654,6 +737,32 @@ export async function buildServer(
       void reply.code(200).send(toBattleSimulationCatalogResponseBody(result));
     },
   );
+
+  // PRレビュー指摘（#110 [P3]）: `10_API設計.md`「OpenAPIへの反映」「CORS
+  // preflightと公開header」に対応するため、Catalog GET・戦闘POSTそれぞれの
+  // path向けにOPTIONS operationを文書化専用として登録する。実際のpreflight
+  // 応答は`@fastify/cors`自身の`onRequest`フックがrouting前に完結させる
+  // （許可originなら`reply.send()`まで済ませ、このhandlerへは到達しない）ため、
+  // ここでのhandlerは未許可originや`Origin`なしの稀な経路でのみ実行され、
+  // 実質的にはOpenAPI文書へ「preflightが存在する」ことを反映するためだけに置く。
+  for (const path of [BATTLE_SIMULATIONS_PATH, BATTLE_SIMULATION_CATALOG_PATH]) {
+    app.options(
+      path,
+      {
+        schema: {
+          response: {
+            204: {
+              description:
+                "CORS preflight response — fulfilled by @fastify/cors's onRequest hook before this handler runs for an allowed origin (11_インフラストラクチャ設計.md「CORS」).",
+            },
+          },
+        },
+      },
+      (_request: FastifyRequest, reply: FastifyReply) => {
+        void reply.code(204).send();
+      },
+    );
+  }
 
   app.get("/openapi.json", (_request, reply) => {
     void reply.send(app.swagger());

@@ -112,15 +112,26 @@ function parseCorsAllowedOrigins(raw: string | undefined, violations: string[]):
       continue;
     }
 
-    const isOriginOnly =
-      (url.pathname === "" || url.pathname === "/") &&
-      url.search === "" &&
-      url.hash === "" &&
-      url.username === "" &&
-      url.password === "";
-    if (!isOriginOnly) {
+    // PRレビュー指摘（#110 [P2]）: `file:///`のようなhostを持たないURLは例外を
+    // 投げず、`url.origin`が不透明originを表す文字列`"null"`になる——これを
+    // そのままallowlistへ入れると、sandboxed iframeやローカルファイルなど
+    // 複数の異なるopaque originが送る`Origin: null`を一括で許可してしまう。
+    if (url.hostname === "" || url.origin === "null") {
+      violations.push(`CORS_ALLOWED_ORIGINS entry must have a host: ${JSON.stringify(entry)}`);
+      continue;
+    }
+
+    // PRレビュー指摘（#110 [P2]）: 個別にpath/query/fragment/userinfoを
+    // チェックするだけでは末尾スラッシュ（`https://example.com/`）を見逃す
+    // ——`URL`の`pathname`は末尾スラッシュを`"/"`として正当な値に含めてしまう
+    // ため、path無し扱いになってしまっていた。`url.origin`は仕様上
+    // scheme+host（+port）だけの正規形（末尾スラッシュを含まない）なので、
+    // 入力文字列自体がその正規形と完全一致するかどうかで
+    // path・query・fragment・userinfo・末尾スラッシュ・大小文字揺れを
+    // まとめて検出する。
+    if (url.origin !== entry) {
       violations.push(
-        `CORS_ALLOWED_ORIGINS entry must be scheme+host only, without path, query, fragment, or userinfo: ${JSON.stringify(entry)}`,
+        `CORS_ALLOWED_ORIGINS entry must be an exact scheme+host origin, without a path, query, fragment, userinfo, or trailing slash: ${JSON.stringify(entry)}`,
       );
       continue;
     }

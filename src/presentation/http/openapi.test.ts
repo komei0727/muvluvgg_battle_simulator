@@ -154,6 +154,63 @@ describe("OpenAPI document", () => {
     );
   });
 
+  it("API-OPENAPI-007 (PRレビュー指摘[P3]、10_API設計.md「OpenAPIへの反映」「CORS preflightと公開header」): documents an OPTIONS preflight operation for both CORS-enabled routes", () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly options?: {
+              readonly responses?: Readonly<Record<string, unknown>>;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+
+    expect(document.paths?.["/api/v1/battle-simulations"]?.options).toBeDefined();
+    expect(document.paths?.["/api/v1/battle-simulation-catalog"]?.options).toBeDefined();
+  });
+
+  it("API-OPENAPI-008 (PRレビュー指摘[P3]、10_API設計.md「CORS」「公開response headerはX-Request-Id、Retry-After、ETag」): documents Access-Control-Allow-Origin and Access-Control-Expose-Headers on the successful responses of both CORS-enabled routes", () => {
+    interface HeaderDoc {
+      readonly schema?: { readonly type?: string };
+    }
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly get?: {
+              readonly responses?: Readonly<
+                Record<string, { readonly headers?: Readonly<Record<string, HeaderDoc>> }>
+              >;
+            };
+            readonly post?: {
+              readonly responses?: Readonly<
+                Record<string, { readonly headers?: Readonly<Record<string, HeaderDoc>> }>
+              >;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+
+    const catalogHeaders =
+      document.paths?.["/api/v1/battle-simulation-catalog"]?.get?.responses?.["200"]?.headers;
+    expect(catalogHeaders?.["Access-Control-Allow-Origin"]).toBeDefined();
+    expect(catalogHeaders?.["Access-Control-Expose-Headers"]).toBeDefined();
+
+    const battleHeaders =
+      document.paths?.["/api/v1/battle-simulations"]?.post?.responses?.["200"]?.headers;
+    expect(battleHeaders?.["Access-Control-Allow-Origin"]).toBeDefined();
+    expect(battleHeaders?.["Access-Control-Expose-Headers"]).toBeDefined();
+  });
+
   it("API-OPENAPI-005 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」): documents /health/live (200 only) and /health/ready (200 and 503)", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
