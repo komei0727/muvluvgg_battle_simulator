@@ -6,6 +6,7 @@ import Fastify, {
   type FastifyRequest,
   type FastifyServerOptions,
 } from "fastify";
+import fastifyCors from "@fastify/cors";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 import { toBattleSimulationResponseBody } from "../../application/simulate-battle-response-mapper.js";
@@ -95,6 +96,16 @@ const DEFAULT_SIMULATION_TIMEOUT_MS = 30_000;
 // `10_API設計.md`「Retry-Afterを設定できる場合は設定する」。容量超過は通常
 // 短時間で解消するため、固定の短い秒数を返す（学習的なbackoff計算は行わない）。
 const CAPACITY_EXCEEDED_RETRY_AFTER_SECONDS = "1";
+// `10_API設計.md`「CORS」「許可methodはGET、POST、OPTIONS」「許可request headerは
+// Content-Type、Accept、X-Request-Id、If-None-Match」「公開response headerは
+// X-Request-Id、Retry-After、ETag」。
+const CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"];
+const CORS_ALLOWED_REQUEST_HEADERS = ["Content-Type", "Accept", "X-Request-Id", "If-None-Match"];
+const CORS_EXPOSED_HEADERS = ["X-Request-Id", "Retry-After", "ETag"];
+// `11_インフラストラクチャ設計.md`「設定管理」`CORS_ALLOWED_ORIGINS`未設定時の
+// 既定値。「productionの既定を`*`にしない」ため、空配列（全origin拒否）にする
+// ——`bootstrap/index.ts`が`loadConfig`で検証済みの値を渡す。
+const DEFAULT_CORS_ALLOWED_ORIGINS: readonly string[] = [];
 
 /**
  * `11_インフラストラクチャ設計.md`「Graceful Shutdown」ステップ2「新しい
@@ -132,6 +143,12 @@ export interface BuildServerOptions {
   readonly readiness?: ReadinessPort;
   readonly shutdownGate?: ShutdownGatePort;
   readonly catalogUseCase?: GetBattleSimulationCatalogUseCasePort;
+  /**
+   * `10_API設計.md`「CORS」「productionの許可originは`https://komei0727.github.io`を
+   * 完全一致で設定する」。既定は空配列（全origin拒否）——`bootstrap/index.ts`が
+   * `CORS_ALLOWED_ORIGINS`から検証済みの値を渡す。
+   */
+  readonly corsAllowedOrigins?: readonly string[];
   /**
    * `11_インフラストラクチャ設計.md`「OpenAPI」「productionではSwagger UIを
    * 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。既定は
@@ -368,6 +385,21 @@ export async function buildServer(
     },
   });
 
+  // `11_インフラストラクチャ設計.md`「サーバー生成」「CORSプラグイン」をroute登録前に
+  // 設定する。許可originは`corsAllowedOrigins`（`CORS_ALLOWED_ORIGINS`から構築済みの
+  // 完全一致set）が持つ文字列のみ。配列形式の`origin`は`Origin`ヘッダーとの厳密一致
+  // （`===`）でのみ反射し、`Origin`なしのrequest（CLI・health check・server-to-server）
+  // には一切CORSヘッダーを付けず、request自体も拒否しない
+  // （`@fastify/cors`が`origin`不一致時に何もヘッダーを足さず`next()`するだけのため）。
+  await app.register(fastifyCors, {
+    origin: [...(options.corsAllowedOrigins ?? DEFAULT_CORS_ALLOWED_ORIGINS)],
+    methods: CORS_ALLOWED_METHODS,
+    allowedHeaders: CORS_ALLOWED_REQUEST_HEADERS,
+    exposedHeaders: CORS_EXPOSED_HEADERS,
+    // `10_API設計.md`「credentialsは許可しない」。
+    credentials: false,
+  });
+
   await app.register(fastifySwagger, {
     openapi: {
       openapi: "3.0.3",
@@ -473,8 +505,12 @@ export async function buildServer(
       isCatalogRoute && (reply.statusCode === 200 || reply.statusCode === 304);
     reply.header("Cache-Control", isCacheableCatalogResponse ? "public, max-age=300" : "no-store");
     // `onRequest`が全リクエストで先に実行され`requestExecutionState`へ登録
-    // 済みのため、ここでは必ず存在する。
-    reply.header("X-Request-Id", requestExecutionState.get(request)!.requestId);
+    // 済みのため、通常はここに必ず存在する。ただしCORS preflight（`OPTIONS`）は
+    // `@fastify/cors`自身の`onRequest`フックが`reply.send()`で即座に応答を終える
+    // ため、後続に登録した本フックの`onRequest`ハンドラーへ到達せず、
+    // `requestExecutionState`へ登録されない。`request.id`は`genReqId`により
+    // 同じ値へ解決済みのため、fallbackとして使う。
+    reply.header("X-Request-Id", requestExecutionState.get(request)?.requestId ?? request.id);
     done(null, payload);
   });
 

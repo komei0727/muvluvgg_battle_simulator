@@ -31,6 +31,7 @@ export interface ApplicationConfig {
   readonly shutdownGraceMs: number;
   readonly logLevel: string;
   readonly docsEnabled: boolean;
+  readonly corsAllowedOrigins: readonly string[];
 }
 
 interface PositiveIntegerSpec {
@@ -73,6 +74,67 @@ function parsePositiveInteger(
   return value;
 }
 
+/**
+ * `11_インフラストラクチャ設計.md`「設定管理」`CORS_ALLOWED_ORIGINS`は
+ * 「各要素をtrimし、schemeとhostだけを持つ絶対originとして検証する。path、
+ * query、fragment、userinfo、wildcard、重複を拒否する」。未設定は「CORSを
+ * 許可するoriginがない」を意味する空配列にする（`Origin`なしrequestは
+ * `build-server.ts`のCORSプラグインが別途素通しするため、空配列でも
+ * 既存のCLI/server-to-server呼び出しには影響しない）。
+ */
+function parseCorsAllowedOrigins(raw: string | undefined, violations: string[]): readonly string[] {
+  if (raw === undefined) {
+    return [];
+  }
+  if (raw.trim() === "") {
+    violations.push("CORS_ALLOWED_ORIGINS must not be empty or whitespace-only");
+    return [];
+  }
+
+  const origins: string[] = [];
+  const seen = new Set<string>();
+  for (const rawEntry of raw.split(",")) {
+    const entry = rawEntry.trim();
+    if (entry === "") {
+      violations.push("CORS_ALLOWED_ORIGINS must not contain an empty origin entry");
+      continue;
+    }
+    if (entry === "*") {
+      violations.push(`CORS_ALLOWED_ORIGINS=${JSON.stringify(entry)} must not be a wildcard`);
+      continue;
+    }
+
+    let url: URL;
+    try {
+      url = new URL(entry);
+    } catch {
+      violations.push(`CORS_ALLOWED_ORIGINS contains an invalid origin: ${JSON.stringify(entry)}`);
+      continue;
+    }
+
+    const isOriginOnly =
+      (url.pathname === "" || url.pathname === "/") &&
+      url.search === "" &&
+      url.hash === "" &&
+      url.username === "" &&
+      url.password === "";
+    if (!isOriginOnly) {
+      violations.push(
+        `CORS_ALLOWED_ORIGINS entry must be scheme+host only, without path, query, fragment, or userinfo: ${JSON.stringify(entry)}`,
+      );
+      continue;
+    }
+
+    if (seen.has(url.origin)) {
+      violations.push(`CORS_ALLOWED_ORIGINS contains a duplicate origin: ${JSON.stringify(entry)}`);
+      continue;
+    }
+    seen.add(url.origin);
+    origins.push(url.origin);
+  }
+  return origins;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
   const violations: string[] = [];
 
@@ -105,6 +167,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     violations,
   );
 
+  const corsAllowedOrigins = parseCorsAllowedOrigins(env["CORS_ALLOWED_ORIGINS"], violations);
+
   if (violations.length > 0) {
     throw new ConfigError(violations);
   }
@@ -118,5 +182,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     shutdownGraceMs,
     logLevel: env["LOG_LEVEL"] ?? "info",
     docsEnabled: resolveDocsEnabled(env["NODE_ENV"]),
+    corsAllowedOrigins,
   };
 }
