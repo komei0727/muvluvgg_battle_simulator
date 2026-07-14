@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Piscina } from "piscina";
 import { toApplicationError } from "./worker-contract.js";
 import type { WorkerSimulationResult, WorkerSimulationTask } from "./worker-contract.js";
+import type { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
 import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
 
@@ -58,10 +59,23 @@ export class SimulationWorkerPoolStartupError extends Error {
  * 実際に実行してその完了（またはCatalog不整合による失敗）を待ってから
  * Poolを返すため、呼び出し側（`bootstrap`）は「初期化完了を確認してからlisten」
  * という起動契約を`await`だけで満たせる。
+ *
+ * `11_インフラストラクチャ設計.md`「Catalogリビジョンの一致」: `catalogDir`は
+ * ホットリロード機能こそ提供しないが、稼働中に外部から不正に置換される
+ * 可能性自体をランタイムが防いでいるわけではない。稼働中にWorkerが
+ * リビジョン不一致を報告した場合、その特定のWorkerだけを安全に退役・再起動
+ * する手段はPiscinaの公開APIには存在しない（応答受信と同時にWorkerを空き
+ * 扱いにする挙動と競合することを実測で確認済み）。そのためこのPoolは
+ * 該当タスクを拒否した時点で全体を致命的状態（`fatalError`）へ遷移させ、
+ * 以後の`execute`はWorkerへ問い合わせることなく同じエラーで即座に拒否する。
+ * 個々のWorkerを騙し騙し使い続けて一部のリクエストだけが不定期に失敗する
+ * より、Pool全体を一貫して失敗させる方が運用上の異常検知・復旧（プロセス
+ * 再起動）に直結し安全である。
  */
 export class SimulationWorkerPool {
   private readonly pool: Piscina<WorkerSimulationTask, WorkerSimulationResult>;
   private readonly catalogRevision: string;
+  private fatalError: ApplicationError | undefined;
 
   private constructor(options: SimulationWorkerPoolOptions) {
     this.catalogRevision = options.catalogRevision;
@@ -137,6 +151,10 @@ export class SimulationWorkerPool {
   }
 
   async execute(request: BattleSimulationRequestBody): Promise<SimulateBattleResult> {
+    if (this.fatalError !== undefined) {
+      throw this.fatalError;
+    }
+
     const task: WorkerSimulationTask = {
       requestId: randomUUID(),
       request,
@@ -147,7 +165,21 @@ export class SimulationWorkerPool {
     if (outcome.ok) {
       return outcome.result;
     }
-    throw toApplicationError(outcome.error);
+
+    const error = toApplicationError(outcome.error);
+    if (outcome.error.code === "INVALID_DEFINITION") {
+      // `11_インフラストラクチャ設計.md`「Catalogリビジョンの一致」: 稼働中の
+      // 不一致は安全に復旧できないため、この時点でPoolを致命的状態にする。
+      // 破棄はベストエフォート（すでに致命的なので失敗しても上書きしない）。
+      this.fatalError = error;
+      this.pool.destroy().catch((destroyError: unknown) => {
+        console.error(
+          "SimulationWorkerPool: failed to destroy Pool after a fatal error",
+          destroyError,
+        );
+      });
+    }
+    throw error;
   }
 
   async close(): Promise<void> {

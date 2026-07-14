@@ -21,14 +21,16 @@ import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader
  * その終了が実際に走る前に次のタスクが同じ（終了予定の）Workerへ割り当てられ
  * `worker exited with code: 1`で失敗する競合を実測で確認した
  * （Piscinaの公開APIには「このタスク限りでWorkerを退役させる」という
- * 安全な手段がない）。加えて、この1プロセスの生存期間中`catalogDir`の中身は
- * 変わらない（Catalogホットリロードは非対応、`11_インフラストラクチャ設計.md`
- * 「Catalogファイルを稼働中に置換するホットリロードは初期スコープに含めない」）
- * ため、`SimulationWorkerPool.create`のwarm-upが解決済みWorker全数の
- * リビジョン一致を検証した後は、稼働中に新たな不一致が生じる経路が存在しない
- * （Piscinaが後から追加起動するWorkerも同じ`catalogDir`を読むため一致する）。
- * したがって稼働中の不一致は「対象タスクをINVALID_DEFINITIONとして拒否する」
- * だけで十分であり、確認済みの競合を持つ再初期化は行わない。
+ * 安全な手段がない）。
+ *
+ * Worker単体を安全に再初期化できない以上、稼働中のリビジョン不一致への
+ * 対応は`SimulationWorkerPool`（メインスレッド側、単一スレッドなので
+ * Workerのような競合が起きない）の責務とする。`SimulationWorkerPool.execute`
+ * はリビジョン不一致を観測した時点でPool全体を致命的状態にし、以後の
+ * `execute`はこのWorkerへ問い合わせることなく即座に同じエラーで拒否する
+ * （詳細は`simulation-worker-pool.ts`と`11_インフラストラクチャ設計.md`
+ * 「Catalogリビジョンの一致」）。このモジュール自身は、渡されたタスクの
+ * リビジョンを愚直に比較して結果を返すだけでよい。
  */
 interface SimulationWorkerData {
   readonly catalogDir: string;

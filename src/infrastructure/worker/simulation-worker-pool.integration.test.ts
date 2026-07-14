@@ -1,13 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { Piscina } from "piscina";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type {
   SimulationWorkerPool as SimulationWorkerPoolClass,
   SimulationWorkerPoolStartupError as SimulationWorkerPoolStartupErrorClass,
 } from "./simulation-worker-pool.js";
-import type { WorkerSimulationResult, WorkerSimulationTask } from "./worker-contract.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
 
 /**
@@ -22,10 +20,6 @@ const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const tscBin = fileURLToPath(new URL("../../../node_modules/.bin/tsc", import.meta.url));
 const distPoolUrl = new URL(
   "../../../dist/infrastructure/worker/simulation-worker-pool.js",
-  import.meta.url,
-);
-const distWorkerEntryUrl = new URL(
-  "../../../dist/infrastructure/worker/simulation-worker-entry.js",
   import.meta.url,
 );
 
@@ -124,62 +118,5 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
     await expect(pool.execute(minimalRequest({ turnLimit: 0 }))).rejects.toMatchObject({
       code: "INVALID_COMMAND",
     });
-  });
-});
-
-describe("simulation-worker-entry (compiled build, raw Piscina — mid-life Catalog revision mismatch does not disrupt the Worker Thread)", () => {
-  let rawPool: Piscina<WorkerSimulationTask, WorkerSimulationResult> | undefined;
-
-  beforeAll(() => {
-    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: repoRoot, stdio: "inherit" });
-    expect(existsSync(fileURLToPath(distWorkerEntryUrl))).toBe(true);
-  }, 120_000);
-
-  afterEach(async () => {
-    if (rawPool !== undefined) {
-      await rawPool.destroy();
-      rawPool = undefined;
-    }
-  });
-
-  /**
-   * `simulation-worker-entry.ts`のコメント参照: Worker自身が「タスクに応答した
-   * 後、自分を終了させて再初期化させる」方式は、Piscinaが応答受信と同時に
-   * そのWorkerを空きとして扱うため、終了予定Workerへ次のタスクが割り当てられる
-   * 競合を実測で確認し撤回した。ここでは撤回後の挙動 —
-   * 不一致タスクの直後（sleepなし）に正しいタスクを送っても、同じ Worker上で
-   * 確実に成功することを、レビューで再現された条件（即時連続・多数回）で検証する。
-   */
-  it("INT-WORKER-005 (撤回した再初期化アプローチの回帰防止): a mismatched task immediately followed by a correctly-addressed task (no sleep, repeated) always succeeds without a lost/misrouted task, since the Worker Thread is not torn down", async () => {
-    rawPool = new Piscina<WorkerSimulationTask, WorkerSimulationResult>({
-      filename: distWorkerEntryUrl.href,
-      workerData: { catalogDir: CATALOG_DIR },
-      atomics: "disabled",
-      minThreads: 1,
-      maxThreads: 1,
-    });
-
-    const mismatchedTask: WorkerSimulationTask = {
-      requestId: "mismatch",
-      request: minimalRequest(),
-      deadlineEpochMs: Date.now() + 30_000,
-      expectedCatalogRevision: "mismatched-revision",
-    };
-    const matchingTask: WorkerSimulationTask = {
-      requestId: "recovered",
-      request: minimalRequest(),
-      deadlineEpochMs: Date.now() + 30_000,
-      expectedCatalogRevision: CATALOG_REVISION,
-    };
-
-    for (let i = 0; i < 30; i++) {
-      const mismatchOutcome = await rawPool.run(mismatchedTask);
-      expect(mismatchOutcome).toMatchObject({ ok: false, error: { code: "INVALID_DEFINITION" } });
-
-      // No sleep here on purpose: this is exactly the race the previous
-      // (now-reverted) self-exit approach hit.
-      const recoveredOutcome = await rawPool.run(matchingTask);
-      expect(recoveredOutcome.ok).toBe(true);
-    }
   });
 });
