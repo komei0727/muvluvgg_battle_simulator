@@ -87,6 +87,18 @@ function projectMemory(
   };
 }
 
+function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogResult {
+  const units = [...snapshot.units.values()]
+    .map((unit) => projectUnit(unit, snapshot))
+    .sort((a, b) => a.unitDefinitionId.localeCompare(b.unitDefinitionId));
+
+  const memories = [...snapshot.memories.values()]
+    .map((memory) => projectMemory(memory, snapshot))
+    .sort((a, b) => a.memoryDefinitionId.localeCompare(b.memoryDefinitionId));
+
+  return { catalogRevision: snapshot.catalogRevision, units, memories };
+}
+
 /**
  * `09_アプリケーション設計.md` の `GetBattleSimulationCatalogUseCase`:
  * `BattleCatalogDirectory`から取得した検証済みスナップショットを、
@@ -94,25 +106,21 @@ function projectMemory(
  * `findUnimplementedCapabilities` で選択可否projectionする。Skill、
  * EffectAction、Formula、Condition、triggeredEffectsの完全定義は
  * Resultへ公開しない。
+ *
+ * `11_インフラストラクチャ設計.md`「Catalog一覧read modelを起動時に1回だけ
+ * 構築する」: `loadSnapshot`とprojectionはコンストラクタで1回だけ実行し、
+ * `execute()`は同じ不変Resultをそのまま返す — HTTPリクエストのたびに
+ * Capability収集・sortをやり直さない。
  */
 export class GetBattleSimulationCatalogUseCase {
-  private readonly battleCatalogDirectory: BattleCatalogDirectory;
+  private readonly result: BattleSimulationCatalogResult;
 
   constructor(dependencies: GetBattleSimulationCatalogUseCaseDependencies) {
-    this.battleCatalogDirectory = dependencies.battleCatalogDirectory;
+    const snapshot = dependencies.battleCatalogDirectory.loadSnapshot();
+    this.result = buildResult(snapshot);
   }
 
   execute(): BattleSimulationCatalogResult {
-    const snapshot = this.battleCatalogDirectory.loadSnapshot();
-
-    const units = [...snapshot.units.values()]
-      .map((unit) => projectUnit(unit, snapshot))
-      .sort((a, b) => a.unitDefinitionId.localeCompare(b.unitDefinitionId));
-
-    const memories = [...snapshot.memories.values()]
-      .map((memory) => projectMemory(memory, snapshot))
-      .sort((a, b) => a.memoryDefinitionId.localeCompare(b.memoryDefinitionId));
-
-    return { catalogRevision: snapshot.catalogRevision, units, memories };
+    return this.result;
   }
 }

@@ -138,6 +138,7 @@ function memoryDefinition(
 }
 
 class FakeBattleCatalogDirectory implements BattleCatalogDirectory {
+  callCount = 0;
   private readonly snapshot: BattleCatalogSnapshot;
 
   constructor(snapshot: BattleCatalogSnapshot) {
@@ -145,6 +146,7 @@ class FakeBattleCatalogDirectory implements BattleCatalogDirectory {
   }
 
   loadSnapshot(): BattleCatalogSnapshot {
+    this.callCount++;
     return this.snapshot;
   }
 }
@@ -185,6 +187,21 @@ describe("GetBattleSimulationCatalogUseCase", () => {
     expect(result.catalogRevision).toBe("rev-1");
     expect(result.units.map((u) => u.unitDefinitionId)).toEqual(["UNIT_A", "UNIT_B"]);
     expect(result.memories.map((m) => m.memoryDefinitionId)).toEqual(["MEM_A", "MEM_B"]);
+  });
+
+  it("loads the snapshot and projects the read model only once, reusing it across repeated execute() calls", () => {
+    const unit = unitDefinition("UNIT_A");
+    const snapshot = snapshotOf({
+      units: toMap([unit], (u) => u.unitDefinitionId),
+    });
+    const directory = new FakeBattleCatalogDirectory(snapshot);
+    const useCase = new GetBattleSimulationCatalogUseCase({ battleCatalogDirectory: directory });
+
+    const first = useCase.execute();
+    const second = useCase.execute();
+
+    expect(directory.callCount).toBe(1);
+    expect(second).toBe(first);
   });
 
   it("marks a Unit selectable with no unavailableCapabilities when every required Capability is IMPLEMENTED", () => {
