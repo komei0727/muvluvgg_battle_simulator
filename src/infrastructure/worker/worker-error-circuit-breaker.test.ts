@@ -83,4 +83,29 @@ describe("WorkerErrorCircuitBreaker", () => {
     clock.advance(60_001);
     expect(breaker.isOpen()).toBe(false);
   });
+
+  it("CIRCUIT-009 (PRレビュー指摘: pruneExpiredの境界がコメント『windowMs以内』と食い違っていた): an error recorded exactly windowMs ago is still counted as within the window (inclusive boundary)", () => {
+    const clock = new ManualClock();
+    const breaker = new WorkerErrorCircuitBreaker(clock, 2, 60_000);
+
+    breaker.recordError();
+    clock.advance(60_000);
+    breaker.recordError();
+
+    // 1件目はちょうど`windowMs`前——閉区間`[now - windowMs, now]`に含まれる
+    // ため、まだ時間窓内として数えられ、2件で閾値2に到達する。
+    expect(breaker.isOpen()).toBe(true);
+  });
+
+  it("CIRCUIT-010: an error recorded windowMs + 1ms ago falls just outside the window and is excluded", () => {
+    const clock = new ManualClock();
+    const breaker = new WorkerErrorCircuitBreaker(clock, 2, 60_000);
+
+    breaker.recordError();
+    clock.advance(60_001);
+    breaker.recordError();
+
+    // 1件目は時間窓の外へ押し出され、直近1件だけでは閾値2に届かない。
+    expect(breaker.isOpen()).toBe(false);
+  });
 });

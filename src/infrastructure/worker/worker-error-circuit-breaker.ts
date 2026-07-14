@@ -46,9 +46,14 @@ export class WorkerErrorCircuitBreaker {
     return this.errorTimestamps.length >= this.threshold;
   }
 
-  /** `windowMs`より前に記録された異常を「時間窓の外」として切り捨てる。 */
+  /**
+   * `windowMs`より厳密に前（ちょうど`windowMs`前は含む——閉区間
+   * `[now - windowMs, now]`）に記録された異常を「時間窓の外」として
+   * 切り捨てる（PRレビュー指摘: 以前は`timestamp > cutoff`のみで、
+   * ちょうど`windowMs`前の異常が「以内」という説明に反して除外されていた）。
+   */
   private pruneExpired(): void {
     const cutoff = this.clock.now() - this.windowMs;
-    this.errorTimestamps = this.errorTimestamps.filter((timestamp) => timestamp > cutoff);
+    this.errorTimestamps = this.errorTimestamps.filter((timestamp) => timestamp >= cutoff);
   }
 }
