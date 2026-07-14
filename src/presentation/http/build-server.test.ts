@@ -477,44 +477,33 @@ describe("POST /api/v1/battle-simulations", () => {
     }
   });
 
-  it("API-CONTRACT-020 (11_インフラストラクチャ設計.md「キャンセルと期限」段階2): aborts the cancellationSignal passed to the UseCase port when the client disconnects, and maps the resulting EXECUTION_CANCELLED to 503", async () => {
+  it("API-CONTRACT-020 (regression for a reviewed P1 defect): a normal request that completes successfully never aborts its own cancellationSignal, even though the request body finishes being read well before the response is sent", async () => {
     let capturedSignal: AbortSignal | undefined;
-    const cancellableApp = await buildServer({
-      execute: (_request, context) =>
-        new Promise((_resolve, reject) => {
-          capturedSignal = context.cancellationSignal;
-          const cancel = () =>
-            reject(
-              new ApplicationError("EXECUTION_CANCELLED", [{ reason: "client disconnected" }]),
-            );
-          // light-my-request's `simulate: { close: true }` emits `close`
-          // synchronously while the request body is still being read, i.e.
-          // before this handler even starts — so by the time we get here the
-          // signal may already be aborted, and `addEventListener("abort", …)`
-          // would never fire for an already-fired event. A production
-          // disconnect happens asynchronously mid-handler instead, so a real
-          // caller relies on the event; this stub covers both orderings.
-          if (context.cancellationSignal?.aborted === true) {
-            cancel();
-          } else {
-            context.cancellationSignal?.addEventListener("abort", cancel);
-          }
-        }),
+    const directExecutor = buildTestUseCase();
+    const delayedApp = await buildServer({
+      execute: async (request, context) => {
+        capturedSignal = context.cancellationSignal;
+        // Give the request stream time to fully finish being read (and
+        // therefore `request.raw`'s own `close` event, the signal this
+        // previously — incorrectly — listened on, time to fire) before this
+        // resolves, so a regression back to listening on `request.raw` would
+        // show up as `capturedSignal?.aborted === true` here.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return directExecutor.execute(request, context);
+      },
     });
 
     try {
-      const response = await cancellableApp.inject({
+      const response = await delayedApp.inject({
         method: "POST",
         url: "/api/v1/battle-simulations",
         payload: validRequestBody(),
-        simulate: { end: true, split: false, error: false, close: true },
       });
 
-      expect(capturedSignal?.aborted).toBe(true);
-      expect(response.statusCode).toBe(503);
-      expect(response.json<ErrorResponseBody>().error.code).toBe("EXECUTION_CANCELLED");
+      expect(capturedSignal?.aborted).toBe(false);
+      expect(response.statusCode).toBe(200);
     } finally {
-      await cancellableApp.close();
+      await delayedApp.close();
     }
   });
 

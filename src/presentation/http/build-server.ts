@@ -222,12 +222,20 @@ export async function buildServer(
     // 採番とHTTP切断検知は、後続の`preValidation`やルートハンドラーより前の
     // 最も早いフックで一度だけ行う。`request.id`はFastify自身が全リクエストへ
     // 割り当てる一意なIDで、`X-Request-Id`未指定時のfallbackとして安全に使える。
-    // `request.raw`の`close`イベントは、応答完了前にクライアントが切断した
-    // 場合に発火する（正常完了後の切断は`cancellationController`が既に
-    // 用済みのため無害）。
+    //
+    // 切断検知は`reply.raw`（`ServerResponse`）の`close`を見る。`request.raw`
+    // （`IncomingMessage`）の`close`はリクエスト本文を読み終えた時点で
+    // ほぼ即座に発火し、クライアントが接続を維持しているか否かを問わない
+    // ——実際に`request.raw`で監視すると、切断していない通常リクエストまで
+    // キャンセル扱いになるレグレッションを引き起こした。`reply.raw`の`close`は
+    // 応答の送信が完了する前に接続が終了した場合にだけ意味を持つため、
+    // `!reply.raw.writableEnded`（＝まだ応答を書き終えていない）で正常完了後の
+    // 発火と区別する。
     const cancellationController = new AbortController();
-    request.raw.once("close", () => {
-      cancellationController.abort();
+    reply.raw.once("close", () => {
+      if (!reply.raw.writableEnded) {
+        cancellationController.abort();
+      }
     });
     requestExecutionState.set(request, {
       requestId: resolveRequestId(request.headers["x-request-id"], request.id),
