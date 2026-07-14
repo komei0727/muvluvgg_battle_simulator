@@ -8,12 +8,14 @@ import type { SimulationWorkerPool as SimulationWorkerPoolClass } from "../infra
 import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
- * レイヤー横断の結合テスト（`CLAUDE.md`「レイヤー構成」の`__tests__/`）。
+ * `12_テスト戦略.md`「Main branch」が要求する「HTTP＋WorkerのEnd-to-End」
+ * （`CLAUDE.md`「レイヤー構成」の`__tests__/`に置くレイヤー横断テスト）。
  * `presentation`の`buildServer`と`infrastructure`の実`SimulationWorkerPool`を
  * 実際に接続し、`app.inject`でHTTPリクエストを送って
  * `HTTP → Worker → UseCase → Battle → Response`が実Worker Thread経由で
  * 完結することを検証する（`13_実装計画.md`「curl相当の1リクエストで結果を
- * 取得できる」）。
+ * 取得できる」）。個々のレイヤー結合（Worker単体・Pool単体など）は
+ * `*.integration.test.ts`が担い、ここはHTTP層を含めた縦切り全体だけを見る。
  *
  * `buildServer`・`SimulationWorkerPool`ともにコンパイル済み`dist/`から
  * importする。Workerの`.js`解決がビルド後前提であることに加え
@@ -70,7 +72,7 @@ describe("HTTP -> Worker -> UseCase -> Battle -> Response (real Worker Pool wire
     app = undefined;
   });
 
-  it("INT-HTTP-WORKER-001: a real HTTP POST /api/v1/battle-simulations request completes a minimal battle through an actual Piscina Worker Thread, not the HTTP main thread", async () => {
+  it("E2E-HTTP-WORKER-001: a real HTTP POST /api/v1/battle-simulations request completes a minimal battle through an actual Piscina Worker Thread, not the HTTP main thread", async () => {
     pool = await SimulationWorkerPool.create({
       catalogDir: CATALOG_DIR,
       catalogRevision: CATALOG_REVISION,
@@ -101,7 +103,7 @@ describe("HTTP -> Worker -> UseCase -> Battle -> Response (real Worker Pool wire
     expect(body.result.outcome).toEqual(expect.any(String));
   });
 
-  it("INT-HTTP-WORKER-002: an unsupported/invalid request still surfaces as a normal HTTP error response through the real Worker (not a hung request)", async () => {
+  it("E2E-HTTP-WORKER-002: an unsupported/invalid request still surfaces as a normal HTTP error response through the real Worker (not a hung request)", async () => {
     pool = await SimulationWorkerPool.create({
       catalogDir: CATALOG_DIR,
       catalogRevision: CATALOG_REVISION,
