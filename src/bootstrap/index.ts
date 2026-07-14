@@ -72,7 +72,19 @@ export async function bootstrap(): Promise<FastifyInstance> {
     disposeShutdownSignalHandlers();
   });
 
-  await app.listen({ port, host });
+  try {
+    await app.listen({ port, host });
+  } catch (error) {
+    // レビュー指摘: `listen()`がポート競合などで失敗すると、上の`onClose`
+    // フック（`app.close()`が呼ばれて初めて発火する）は一切実行されない。
+    // ここで明示的に`app.close()`（シグナルリスナーの解除）と`pool.close()`
+    // （`create()`が既に起動済みのWorker Threadの即時破棄——ここではまだ
+    // トラフィックを受けていないため、`shutdown()`の猶予待ちは不要）を行い、
+    // 元のエラーはそのまま再送出して`bootstrap()`の失敗契約を変えない。
+    await app.close();
+    await pool.close();
+    throw error;
+  }
   // `11_インフラストラクチャ設計.md`「ログイベント」サーバー起動行の最小field。
   app.log.info(
     { catalogRevision: manifest.catalogRevision, workerMaxQueue, simulationTimeoutMs },

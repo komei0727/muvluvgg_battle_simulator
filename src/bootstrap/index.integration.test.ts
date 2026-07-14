@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { createConnection } from "node:net";
+import { createConnection, createServer, type Server } from "node:net";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
+import type { SimulationWorkerPool as SimulationWorkerPoolClass } from "../infrastructure/worker/simulation-worker-pool.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「起動」: 初期化に失敗した場合はポートを
@@ -15,6 +16,10 @@ import type { FastifyInstance } from "fastify";
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const tscBin = fileURLToPath(new URL("../../node_modules/.bin/tsc", import.meta.url));
 const distBootstrapUrl = new URL("../../dist/bootstrap/index.js", import.meta.url);
+const distPoolUrl = new URL(
+  "../../dist/infrastructure/worker/simulation-worker-pool.js",
+  import.meta.url,
+);
 
 function fixturePath(...segments: string[]): string {
   return fileURLToPath(
@@ -40,6 +45,7 @@ function assertPortIsClosed(port: number): Promise<void> {
 
 describe("bootstrap (compiled build)", () => {
   let bootstrap: () => Promise<FastifyInstance>;
+  let SimulationWorkerPool: typeof SimulationWorkerPoolClass;
   const originalEnv = { ...process.env };
 
   beforeAll(async () => {
@@ -49,6 +55,14 @@ describe("bootstrap (compiled build)", () => {
       bootstrap: () => Promise<FastifyInstance>;
     };
     bootstrap = compiled.bootstrap;
+    // `bootstrap/index.js`が内部でimportするのと同じモジュール（Nodeの
+    // ESMキャッシュにより同一URLは同一インスタンス）を明示的にimportし、
+    // `SimulationWorkerPool.prototype.close`をspyできるようにする
+    // （INT-BOOTSTRAP-005: listen失敗時にPoolが実際にcloseされることの検証）。
+    const poolModule = (await import(distPoolUrl.href)) as {
+      SimulationWorkerPool: typeof SimulationWorkerPoolClass;
+    };
+    SimulationWorkerPool = poolModule.SimulationWorkerPool;
   }, 120_000);
 
   afterEach(() => {
@@ -124,6 +138,34 @@ describe("bootstrap (compiled build)", () => {
       expect(response.statusCode).toBe(200);
     } finally {
       await app.close();
+    }
+  });
+
+  it("INT-BOOTSTRAP-005 (レビュー指摘: listen失敗時はシグナルハンドラーとWorker Poolが残る): when app.listen() itself fails (e.g. the port is already bound by another process), bootstrap() still disposes the SIGTERM/SIGINT listeners and closes the Worker Pool it already created — not just the earlier Worker-Catalog-init failure path (INT-BOOTSTRAP-001), which fails before any of that is created", async () => {
+    const port = 34583;
+    process.env["PORT"] = String(port);
+    process.env["HOST"] = "127.0.0.1";
+    process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
+
+    const blocker: Server = createServer();
+    await new Promise<void>((resolve, reject) => {
+      blocker.once("error", reject);
+      blocker.listen(port, "127.0.0.1", resolve);
+    });
+
+    const closeSpy = vi.spyOn(SimulationWorkerPool.prototype, "close");
+    const sigtermBefore = process.listenerCount("SIGTERM");
+    const sigintBefore = process.listenerCount("SIGINT");
+
+    try {
+      await expect(bootstrap()).rejects.toBeTruthy();
+
+      expect(process.listenerCount("SIGTERM")).toBe(sigtermBefore);
+      expect(process.listenerCount("SIGINT")).toBe(sigintBefore);
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      closeSpy.mockRestore();
+      await new Promise<void>((resolve) => blocker.close(() => resolve()));
     }
   });
 });
