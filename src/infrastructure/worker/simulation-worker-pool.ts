@@ -142,7 +142,10 @@ export class SimulationWorkerPool {
     // 新しいWorkerを補充する。「/health/ready」「連続ワーカー障害による
     // サーキット状態でない」（レビュー指摘）: 補充を繰り返しても収束しない
     // 連続異常は`workerErrorCircuitBreaker`経由で`isHealthy`へ反映する
-    // （`execute`の成功パスがカウンターをリセットする）。
+    // （`execute`の正常応答パスがカウンターをリセットする）。実行中タスクを
+    // 抱えたWorkerの異常はこの`error`イベントではなく`execute`側の
+    // `pool.run()` rejectとして届くため、そちらでも同じ`recordError`を呼ぶ
+    // （PRレビュー指摘: idle中の異常しかここでは捕捉できない）。
     this.pool.on("error", (error: unknown) => {
       console.error("SimulationWorkerPool: unhandled Worker Thread error", error);
       this.workerErrorCircuitBreaker.recordError();
@@ -239,13 +242,24 @@ export class SimulationWorkerPool {
           { reason: "the simulation was cancelled before it completed" },
         ]);
       }
+      // PRレビュー指摘: Piscinaはidle中のWorker異常だけを`pool`の`error`
+      // イベントで通知する（コンストラクタの`pool.on("error", ...)`参照）。
+      // 実行中タスクを抱えたWorkerが異常終了した場合は、そのタスクの
+      // `pool.run()`自体がこの`err`でreject される（`error`イベントは
+      // 発火しない）。ここへ到達するのは容量超過・キャンセル・shutdown
+      // のいずれでもない、実際のWorker Thread異常だけなので、サーキットへ
+      // 記録する。
+      this.workerErrorCircuitBreaker.recordError();
       throw error;
     }
 
+    // Workerが`WorkerSimulationResult`を返した時点で、`outcome.ok`の真偽に
+    // 関わらずWorker基盤自体は正常に応答している（`ok:false`はBattle実行の
+    // 業務エラーであり、Worker Threadの異常ではない）。サーキットが開きかけて
+    // いてもPoolは機能している証拠として連続エラーカウントをリセットする。
+    this.workerErrorCircuitBreaker.recordSuccess();
+
     if (outcome.ok) {
-      // タスクがWorker経由で正常に完了した——サーキットが開きかけていても
-      // Poolは機能している証拠として連続エラーカウントをリセットする。
-      this.workerErrorCircuitBreaker.recordSuccess();
       return outcome.result;
     }
 
