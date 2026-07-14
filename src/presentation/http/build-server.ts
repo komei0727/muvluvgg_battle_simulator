@@ -9,8 +9,10 @@ import Fastify, {
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 import { toBattleSimulationResponseBody } from "../../application/simulate-battle-response-mapper.js";
+import { toBattleSimulationCatalogResponseBody } from "../../application/battle-simulation-catalog-response-mapper.js";
 import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
+import type { BattleSimulationCatalogResult } from "../../application/get-battle-simulation-catalog-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
@@ -21,10 +23,12 @@ import {
   battleSimulationRequestDocSchema,
   battleSimulationResponseSchema,
   battleSimulationResponseDocSchema,
+  battleSimulationCatalogResponseSchema,
   errorResponseSchema,
 } from "./schemas.js";
 
 const BATTLE_SIMULATIONS_PATH = "/api/v1/battle-simulations";
+const BATTLE_SIMULATION_CATALOG_PATH = "/api/v1/battle-simulation-catalog";
 
 /**
  * `13_実装計画.md`「M4 API・Worker Walking Skeleton」: ルートハンドラーが呼ぶのは
@@ -44,6 +48,18 @@ export interface SimulateBattleUseCasePort {
 }
 
 /**
+ * `GetBattleSimulationCatalogUseCase`（`09_アプリケーション設計.md`）向けの
+ * 最小port。`SimulateBattleUseCasePort`と同じ理由でapplication層の型だけに
+ * 依存する。読み込み済みread modelを返すだけの同期呼び出しであるため、
+ * `SimulateBattleUseCasePort`と異なり`Promise`を返さない
+ * （`11_インフラストラクチャ設計.md`「Catalog一覧read modelを起動時に1回だけ
+ * 構築する」— ハンドラーは既に構築済みのResultを読むだけでよい）。
+ */
+export interface GetBattleSimulationCatalogUseCasePort {
+  execute(): BattleSimulationCatalogResult;
+}
+
+/**
  * `10_API設計.md`「ステータスコード対応」の全エラーステータスをOpenAPI文書へ
  * 登録する。`#18`で503（`CAPACITY_EXCEEDED`/`EXECUTION_CANCELLED`）と504
  * （`EXECUTION_TIMEOUT`）の実トリガーを接続した。429（利用者別レート制限）は
@@ -59,6 +75,17 @@ const ERROR_RESPONSES = {
   500: errorResponseSchema,
   503: errorResponseSchema,
   504: errorResponseSchema,
+} as const;
+
+/**
+ * `GET /api/v1/battle-simulation-catalog`にはbody検証がなく、事前検証由来の
+ * エラー（400/413/415/422/429/503/504）が起こり得ない。共通`onRequest`フックの
+ * `Accept`判定（406）と、共通エラーハンドラーの予期しない例外（500）だけを
+ * 文書化する。
+ */
+const CATALOG_ERROR_RESPONSES = {
+  406: errorResponseSchema,
+  500: errorResponseSchema,
 } as const;
 
 const REQUEST_ID_PATTERN = /^[\x20-\x7E]{1,128}$/;
@@ -84,6 +111,19 @@ export interface ShutdownGatePort {
 
 const ALWAYS_READY: ReadinessPort = { isReady: () => true };
 const NEVER_SHUTTING_DOWN: ShutdownGatePort = { isShuttingDown: () => false };
+/**
+ * `catalogUseCase`省略時の既定値。既存の呼び出し側・テスト（`buildServer(useCase)`
+ * だけを渡すもの）を壊さないよう、空のCatalog一覧を返すno-op portにする
+ * ——`bootstrap/index.ts`は常に実`GetBattleSimulationCatalogUseCase`を渡す。
+ */
+const EMPTY_CATALOG_RESULT: BattleSimulationCatalogResult = {
+  catalogRevision: "",
+  units: [],
+  memories: [],
+};
+const NO_CATALOG: GetBattleSimulationCatalogUseCasePort = {
+  execute: () => EMPTY_CATALOG_RESULT,
+};
 
 export interface BuildServerOptions {
   readonly bodyLimit?: number;
@@ -91,6 +131,7 @@ export interface BuildServerOptions {
   readonly logger?: FastifyServerOptions["logger"];
   readonly readiness?: ReadinessPort;
   readonly shutdownGate?: ShutdownGatePort;
+  readonly catalogUseCase?: GetBattleSimulationCatalogUseCasePort;
   /**
    * `11_インフラストラクチャ設計.md`「OpenAPI」「productionではSwagger UIを
    * 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。既定は
@@ -138,6 +179,24 @@ function withDocumentedLogFieldNames(
     messageKey: "message",
     timestamp: () => `,"timestamp":${Date.now()}`,
   };
+}
+
+/**
+ * `10_API設計.md`「`If-None-Match`が現在のETagと一致する場合は本文なしの304を
+ * 返す」。RFC 9110 §8.8.3.2に倣い、カンマ区切りの複数ETagと `*` を許容する。
+ * Catalog GETは弱いETagを発行しない（同一revisionの内容を稼働中に変更しない
+ * ため強いETagで十分、`11_インフラストラクチャ設計.md`「圧縮の有無でAPI本文や
+ * ETagの意味を変えない」）ので、弱いETag(`W/`)比較は行わない。
+ */
+function matchesIfNoneMatch(header: string | string[] | undefined, etag: string): boolean {
+  if (header === undefined) {
+    return false;
+  }
+  const value = Array.isArray(header) ? header.join(",") : header;
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .some((entry) => entry === "*" || entry === etag);
 }
 
 interface RequestExecutionState {
@@ -235,6 +294,7 @@ export async function buildServer(
   const simulationTimeoutMs = options.simulationTimeoutMs ?? DEFAULT_SIMULATION_TIMEOUT_MS;
   const readiness = options.readiness ?? ALWAYS_READY;
   const shutdownGate = options.shutdownGate ?? NEVER_SHUTTING_DOWN;
+  const catalogUseCase = options.catalogUseCase ?? NO_CATALOG;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
     // `11_インフラストラクチャ設計.md`「構造化ログ」。既定は`false`
@@ -274,6 +334,29 @@ export async function buildServer(
     // （実データがそのまま流れる出力を厳格化して壊さないよう、実行時
     // serializationは`battleSimulationResponseSchema`のまま変更しない）。
     transform: ({ schema, url }) => {
+      if (url === BATTLE_SIMULATION_CATALOG_PATH) {
+        // `10_API設計.md`「304では送らない」: 実行時の`route.schema.response`は
+        // 304を持たない（本文がなく`send()`へ渡す値もないため）。公開文書だけ
+        // ここで304を追加し、「GETの200／304、Schema」契約
+        // （`13_実装計画.md`）を満たす。
+        return {
+          schema: {
+            ...schema,
+            ...(schema.response !== undefined
+              ? {
+                  response: {
+                    ...schema.response,
+                    304: {
+                      description:
+                        "Not Modified — If-None-Match matched the current catalogRevision ETag; no body.",
+                    },
+                  },
+                }
+              : {}),
+          },
+          url,
+        };
+      }
       if (url !== BATTLE_SIMULATIONS_PATH) {
         return { schema, url };
       }
@@ -331,7 +414,14 @@ export async function buildServer(
   });
 
   app.addHook("onSend", (request, reply, payload, done) => {
-    reply.header("Cache-Control", "no-store");
+    // `10_API設計.md`「Cache-Control」: Catalog一覧GETの200/304応答だけ
+    // `public, max-age=300`を返し、それ以外（戦闘POST・全エラー応答、
+    // Catalog GET自身の406/500含む）は`no-store`のままにする
+    // （`Catalog一覧の200/304と戦闘POSTのcache header差異`を混同しない）。
+    const isCatalogRoute = request.url.split("?")[0] === BATTLE_SIMULATION_CATALOG_PATH;
+    const isCacheableCatalogResponse =
+      isCatalogRoute && (reply.statusCode === 200 || reply.statusCode === 304);
+    reply.header("Cache-Control", isCacheableCatalogResponse ? "public, max-age=300" : "no-store");
     // `onRequest`が全リクエストで先に実行され`requestExecutionState`へ登録
     // 済みのため、ここでは必ず存在する。
     reply.header("X-Request-Id", requestExecutionState.get(request)!.requestId);
@@ -450,6 +540,31 @@ export async function buildServer(
         "battle completed",
       );
       void reply.code(200).send(body);
+    },
+  );
+
+  app.get(
+    BATTLE_SIMULATION_CATALOG_PATH,
+    {
+      schema: {
+        response: { 200: battleSimulationCatalogResponseSchema, ...CATALOG_ERROR_RESPONSES },
+      },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => {
+      // `11_インフラストラクチャ設計.md`「`GET /api/v1/battle-simulation-catalog`
+      // のハンドラーは次だけを行う」: 起動時に構築済みのResultを参照し、
+      // ETag比較で200/304を出し分けるだけ——Catalogファイルの読み込みや
+      // Capability計算をリクエストごとに行わない。
+      const result = catalogUseCase.execute();
+      const etag = `"${result.catalogRevision}"`;
+      reply.header("ETag", etag);
+      if (matchesIfNoneMatch(request.headers["if-none-match"], etag)) {
+        // `10_API設計.md`「304では送らない」: Content-Typeを含む本文関連
+        // ヘッダーを付けず、空bodyで返す。
+        void reply.code(304).send();
+        return;
+      }
+      void reply.code(200).send(toBattleSimulationCatalogResponseBody(result));
     },
   );
 

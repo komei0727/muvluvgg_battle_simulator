@@ -4,7 +4,9 @@ import type { FastifyInstance } from "fastify";
 import { buildServer } from "../presentation/http/build-server.js";
 import type { ReadinessPort } from "../presentation/http/health-routes.js";
 import { parseCatalogManifest } from "../infrastructure/catalog/runtime/catalog-manifest.js";
+import { loadBattleCatalogDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker-pool.js";
+import { GetBattleSimulationCatalogUseCase } from "../application/get-battle-simulation-catalog-use-case.js";
 import { ShutdownState, installShutdownSignalHandlers } from "./shutdown.js";
 import { loadConfig } from "./config.js";
 
@@ -48,6 +50,18 @@ export async function bootstrap(): Promise<FastifyInstance> {
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
 
+  // `#91`成果物「メインスレッドとWorkerが同じCatalog revisionをロードしてから
+  // readyとする」: メインスレッド自身もWorkerと同じRead → Hash → Shape →
+  // Resolve → Semanticパイプラインで`catalogDir`を独立に読み込み・検証する
+  // （`loadBattleCatalogDirectory`）。両者は同じディレクトリ・同じmanifestを
+  // 読むため、`catalogRevision`は構成上一致する——下のWorker Pool向け
+  // `manifest.catalogRevision`と同じ値になる。読み込みが失敗すれば
+  // （破損Catalogなど）ここで例外を送出し、`listen`へ到達しない
+  // （Worker初期化失敗時と同じ「ポートを公開しない」契約）。
+  const getBattleSimulationCatalogUseCase = new GetBattleSimulationCatalogUseCase({
+    battleCatalogDirectory: loadBattleCatalogDirectory(catalogDir),
+  });
+
   const pool = await SimulationWorkerPool.create({
     catalogDir,
     catalogRevision: manifest.catalogRevision,
@@ -67,6 +81,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     logger: { level: logLevel },
     readiness,
     shutdownGate: shutdownState,
+    catalogUseCase: getBattleSimulationCatalogUseCase,
     docsEnabled,
   });
   const disposeShutdownSignalHandlers = installShutdownSignalHandlers({ app, pool, shutdownState });

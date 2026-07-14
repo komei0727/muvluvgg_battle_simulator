@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CatalogIntegrityError } from "../../../domain/catalog/catalog-integrity.js";
-import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
+import { loadBattleCatalogDirectory, loadCatalogFromDirectory } from "./catalog-file-loader.js";
 import {
   CatalogFileHashMismatchError,
   UnsupportedCatalogSchemaVersionError,
@@ -123,5 +123,22 @@ describe("loadCatalogFromDirectory", () => {
     const snapshot = catalog.loadSnapshot(["UNIT_MISSING" as never], []);
     expect(snapshot.units.has("UNIT_MISSING" as never)).toBe(false);
     expect(snapshot.units.size).toBe(0);
+  });
+});
+
+describe("loadBattleCatalogDirectory", () => {
+  it("IT-CAT-LOADER-013 (11_インフラストラクチャ設計.md「Catalog一覧read modelを起動時に1回だけ構築する」): loads the whole Catalog into a BattleCatalogDirectory snapshot without requesting specific ids", () => {
+    const directory = loadBattleCatalogDirectory(fixturePath("runtime", "valid", "minimal"));
+    const snapshot = directory.loadSnapshot();
+    expect(snapshot.catalogRevision).toBe("test-minimal.1");
+    expect(snapshot.units.has("UNIT_001" as never)).toBe(true);
+    expect(snapshot.skills.has("SKL_001_AS1" as never)).toBe(true);
+    expect(snapshot.effectActions.has("ACT_DAMAGE_PHYSICAL_100" as never)).toBe(true);
+  });
+
+  it("IT-CAT-LOADER-014: rejects the same invalid Catalogs as loadCatalogFromDirectory (shares the Read → Hash → Shape → Resolve → Semantic pipeline)", () => {
+    expect(() =>
+      loadBattleCatalogDirectory(fixturePath("runtime", "invalid", "dangling-reference")),
+    ).toThrow(CatalogIntegrityError);
   });
 });

@@ -18,6 +18,7 @@ import {
   type CatalogFileName,
 } from "./catalog-manifest.js";
 import { InMemoryBattleCatalog } from "./in-memory-battle-catalog.js";
+import { InMemoryBattleCatalogDirectory } from "./in-memory-battle-catalog-directory.js";
 
 /**
  * Read → Hash → Shape → Resolve → Semantic → Freeze
@@ -52,7 +53,10 @@ function readCatalogJsonArray(catalogDir: string, fileName: CatalogFileName): re
   return parsed;
 }
 
-export function loadCatalogFromDirectory(catalogDir: string): InMemoryBattleCatalog {
+function readCatalogIndex(catalogDir: string): {
+  readonly catalogRevision: string;
+  readonly index: ReturnType<typeof buildCatalogIndex>;
+} {
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
 
@@ -78,7 +82,22 @@ export function loadCatalogFromDirectory(catalogDir: string): InMemoryBattleCata
     ),
   };
 
-  const index = buildCatalogIndex(definitions);
+  return { catalogRevision: manifest.catalogRevision, index: buildCatalogIndex(definitions) };
+}
 
-  return new InMemoryBattleCatalog(manifest.catalogRevision, index);
+export function loadCatalogFromDirectory(catalogDir: string): InMemoryBattleCatalog {
+  const { catalogRevision, index } = readCatalogIndex(catalogDir);
+  return new InMemoryBattleCatalog(catalogRevision, index);
+}
+
+/**
+ * `09_アプリケーション設計.md`/`11_インフラストラクチャ設計.md`の
+ * `BattleCatalogDirectory`: `#91`のGET一覧APIはHTTPメインスレッドで一覧
+ * read modelを構築するため、Workerと同じRead → Hash → Shape → Resolve →
+ * Semanticパイプラインを共有しつつ、`loadCatalogFromDirectory`とは別の
+ * adapter（推移的closureではなく全件を返す）へ包む。
+ */
+export function loadBattleCatalogDirectory(catalogDir: string): InMemoryBattleCatalogDirectory {
+  const { catalogRevision, index } = readCatalogIndex(catalogDir);
+  return new InMemoryBattleCatalogDirectory(catalogRevision, index);
 }

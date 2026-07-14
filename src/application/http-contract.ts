@@ -36,6 +36,35 @@ export interface BattleSimulationRequestBody {
   readonly options?: SimulationOptionsRequestBody;
 }
 
+/** `10_API設計.md`「CatalogUnitSummaryResponse」。 */
+export interface CatalogUnitSummaryResponseBody {
+  readonly unitDefinitionId: string;
+  readonly displayName: string;
+  readonly characterName: string;
+  readonly attribute: string;
+  readonly unitType: string;
+  readonly role: string;
+  readonly positionAptitudes: readonly string[];
+  readonly selectable: boolean;
+  readonly unavailableCapabilities: readonly string[];
+}
+
+/** `10_API設計.md`「CatalogMemorySummaryResponse」。 */
+export interface CatalogMemorySummaryResponseBody {
+  readonly memoryDefinitionId: string;
+  readonly displayName: string;
+  readonly selectable: boolean;
+  readonly unavailableCapabilities: readonly string[];
+}
+
+/** `10_API設計.md`「BattleSimulationCatalogResponse」。 */
+export interface BattleSimulationCatalogResponseBody {
+  readonly schemaVersion: number;
+  readonly catalogRevision: string;
+  readonly units: readonly CatalogUnitSummaryResponseBody[];
+  readonly memories: readonly CatalogMemorySummaryResponseBody[];
+}
+
 export interface ValueChangeBody<T> {
   readonly before: T;
   readonly after: T;
