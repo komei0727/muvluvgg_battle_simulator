@@ -131,6 +131,31 @@ describe("OpenAPI document", () => {
     );
   });
 
+  it("API-OPENAPI-005 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」): documents /health/live (200 only) and /health/ready (200 and 503)", () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly get?: {
+              readonly responses?: Readonly<Record<string, unknown>>;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+
+    const live = document.paths?.["/health/live"]?.get;
+    expect(live).toBeDefined();
+    expect(Object.keys(live?.responses ?? {}).sort()).toEqual(["200"]);
+
+    const ready = document.paths?.["/health/ready"]?.get;
+    expect(ready).toBeDefined();
+    expect(Object.keys(ready?.responses ?? {}).sort()).toEqual(["200", "503"]);
+  });
+
   it("API-OPENAPI-003 (10_API設計.md「必須項目と値域」「列挙値」): the published request schema documents turnLimit's 1-99 range and column/row/logLevel's enums, even though the runtime validator stays loose to keep out-of-range values classified as 422 INVALID_COMMAND", async () => {
     interface JsonSchemaObject {
       readonly type?: string;

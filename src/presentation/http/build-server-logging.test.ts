@@ -140,7 +140,12 @@ describe("structured logging", () => {
       expect(completion?.["requestId"]).toBe("log-req-1");
       expect(completion?.["battleId"]).toBe("B_1");
       expect(completion?.["level"]).toEqual(expect.any(Number));
-      expect(completion?.["time"]).toEqual(expect.any(Number));
+      // `11_インフラストラクチャ設計.md`「ログ設計」の必須field名は`timestamp`・
+      // `message`（Pino既定の`time`・`msg`ではない）。
+      expect(completion?.["timestamp"]).toEqual(expect.any(Number));
+      expect(completion?.["message"]).toBe("battle completed");
+      expect(completion?.["time"]).toBeUndefined();
+      expect(completion?.["msg"]).toBeUndefined();
     } finally {
       await app.close();
     }
@@ -168,6 +173,7 @@ describe("structured logging", () => {
       const errorLog = lines().find((line) => line["diagnosticId"] === diagnosticId);
       expect(errorLog).toBeDefined();
       expect(errorLog?.["requestId"]).toBe("log-req-2");
+      expect(errorLog?.["timestamp"]).toEqual(expect.any(Number));
     } finally {
       await app.close();
     }

@@ -111,6 +111,28 @@ function genReqId(request: { headers: Record<string, string | string[] | undefin
   return resolveRequestId(request.headers["x-request-id"]) ?? randomUUID();
 }
 
+/**
+ * `11_インフラストラクチャ設計.md`「ログ設計」の必須fieldは`timestamp`・
+ * `message`だが、Pinoの既定キーはそれぞれ`time`・`msg`
+ * （`docs/ddd/12_テスト戦略.md`「全ルートと全ステータスにSchemaがある」と同種の
+ * 理由でレビュー指摘済み: 呼び出し側がキー名を個別に意識すると仕様との
+ * ズレを検出できない）。呼び出し側（`bootstrap/index.ts`が渡す実運用設定、
+ * テストが渡す`stream`付き設定）に関わらず、ここ一箇所でキー名を強制する。
+ */
+function withDocumentedLogFieldNames(
+  logger: FastifyServerOptions["logger"],
+): NonNullable<FastifyServerOptions["logger"]> {
+  if (logger === undefined || logger === false) {
+    return false;
+  }
+  const base = logger === true ? {} : logger;
+  return {
+    ...base,
+    messageKey: "message",
+    timestamp: () => `,"timestamp":${Date.now()}`,
+  };
+}
+
 interface RequestExecutionState {
   readonly requestId: string;
   readonly cancellationController: AbortController;
@@ -211,8 +233,8 @@ export async function buildServer(
     // `11_インフラストラクチャ設計.md`「構造化ログ」。既定は`false`
     // （Fastifyの無効ロガーのまま、既存の大半のテストと同じ挙動）。
     // Composition Root（`bootstrap/index.ts`）が`LOG_LEVEL`から実運用の
-    // pinoロガーを渡す。
-    logger: options.logger ?? false,
+    // pinoロガーを渡す。フィールド名は`withDocumentedLogFieldNames`が強制する。
+    logger: withDocumentedLogFieldNames(options.logger),
     genReqId,
     // `requestId`という名前でログへ出す（`11_インフラストラクチャ設計.md`
     // 「ログ設計」の`requestId`フィールド）。Fastify既定の`reqId`ラベルのままだと

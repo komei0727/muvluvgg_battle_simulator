@@ -74,8 +74,15 @@ export async function runGracefulShutdown(deps: GracefulShutdownDeps): Promise<v
  * このレイヤーだけをテストで代替する（実際のOSシグナルは送らず、
  * `process.once`をspyして捕捉したハンドラーを直接呼び出す —
  * `shutdown.test.ts`参照）。
+ *
+ * 返り値のdisposerでリスナーを明示的に外せる。`process.once`はシグナルが
+ * 実際に発火すれば自己解除されるが、シグナルが一度も来ないまま
+ * （テストで`app.close()`を直接呼ぶ場合や、同一プロセス内で`bootstrap()`を
+ * 複数回呼ぶ結合テストなど）このリスナーは残り続ける——`bootstrap/index.ts`
+ * が`app`の`onClose`フックからこのdisposerを呼び、Fastifyインスタンスの
+ * ライフサイクルへ確実に同期させる。
  */
-export function installShutdownSignalHandlers(deps: GracefulShutdownDeps): void {
+export function installShutdownSignalHandlers(deps: GracefulShutdownDeps): () => void {
   let handled = false;
   const handleSignal = (): void => {
     if (handled) {
@@ -94,4 +101,9 @@ export function installShutdownSignalHandlers(deps: GracefulShutdownDeps): void 
 
   process.once("SIGTERM", handleSignal);
   process.once("SIGINT", handleSignal);
+
+  return () => {
+    process.removeListener("SIGTERM", handleSignal);
+    process.removeListener("SIGINT", handleSignal);
+  };
 }

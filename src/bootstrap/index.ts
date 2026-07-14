@@ -63,7 +63,14 @@ export async function bootstrap(): Promise<FastifyInstance> {
     readiness,
     shutdownGate: shutdownState,
   });
-  installShutdownSignalHandlers({ app, pool, shutdownState });
+  const disposeShutdownSignalHandlers = installShutdownSignalHandlers({ app, pool, shutdownState });
+  // レビュー指摘: `process.once`のSIGTERM/SIGINTリスナーは、シグナルが一度も
+  // 発火しないまま`bootstrap()`を複数回呼ぶ（結合テストなど）とプロセスへ
+  // 残り続ける。`app`のライフサイクルへ同期させ、`app.close()`（直接呼び出しと
+  // Graceful Shutdown自身の呼び出しの両方）で確実に解除する。
+  app.addHook("onClose", () => {
+    disposeShutdownSignalHandlers();
+  });
 
   await app.listen({ port, host });
   // `11_インフラストラクチャ設計.md`「ログイベント」サーバー起動行の最小field。

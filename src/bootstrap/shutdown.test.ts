@@ -121,6 +121,18 @@ describe("installShutdownSignalHandlers", () => {
     expect([...captured.keys()].sort()).toEqual(["SIGINT", "SIGTERM"]);
   });
 
+  it("GS-009 (レビュー指摘: bootstrapごとにプロセスシグナルハンドラーが残る): the returned disposer removes exactly the two listeners it installed, so calling bootstrap() repeatedly in one process (e.g. across integration tests) does not accumulate listeners", () => {
+    const captured = captureOnceHandlers();
+    const removeListenerSpy = vi.spyOn(process, "removeListener");
+
+    const dispose = installShutdownSignalHandlers(fakeDeps());
+    const [sigtermHandler, sigintHandler] = [captured.get("SIGTERM"), captured.get("SIGINT")];
+    dispose();
+
+    expect(removeListenerSpy).toHaveBeenCalledWith("SIGTERM", sigtermHandler);
+    expect(removeListenerSpy).toHaveBeenCalledWith("SIGINT", sigintHandler);
+  });
+
   function spyOnExit(): { exited: Promise<void>; exitCode: () => number | undefined } {
     let exitCode: number | undefined;
     const exited = new Promise<void>((resolve) => {
