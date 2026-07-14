@@ -45,6 +45,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     shutdownGraceMs,
     logLevel,
     docsEnabled,
+    corsAllowedOrigins,
   } = loadConfig(process.env);
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
@@ -83,6 +84,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     shutdownGate: shutdownState,
     catalogUseCase: getBattleSimulationCatalogUseCase,
     docsEnabled,
+    corsAllowedOrigins,
   });
   const disposeShutdownSignalHandlers = installShutdownSignalHandlers({ app, pool, shutdownState });
   // レビュー指摘: `process.once`のSIGTERM/SIGINTリスナーは、シグナルが一度も

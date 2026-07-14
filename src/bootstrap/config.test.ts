@@ -93,4 +93,88 @@ describe("loadConfig", () => {
     const config = loadConfig(envWith({ SHUTDOWN_GRACE_MS: "2147483647" }));
     expect(config.shutdownGraceMs).toBe(2_147_483_647);
   });
+
+  it("CFG-015: returns an empty CORS allowlist when CORS_ALLOWED_ORIGINS is unset", () => {
+    const config = loadConfig(envWith({}));
+    expect(config.corsAllowedOrigins).toEqual([]);
+  });
+
+  it("CFG-016: parses a single valid CORS_ALLOWED_ORIGINS origin", () => {
+    const config = loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io" }));
+    expect(config.corsAllowedOrigins).toEqual(["https://komei0727.github.io"]);
+  });
+
+  it("CFG-017: parses comma-separated CORS_ALLOWED_ORIGINS and trims whitespace", () => {
+    const config = loadConfig(
+      envWith({
+        CORS_ALLOWED_ORIGINS: " https://komei0727.github.io , http://localhost:5173 ",
+      }),
+    );
+    expect(config.corsAllowedOrigins).toEqual([
+      "https://komei0727.github.io",
+      "http://localhost:5173",
+    ]);
+  });
+
+  it("CFG-018 (11_インフラストラクチャ設計.md「wildcard、path、重複、不正URLを拒否する」): throws ConfigError for a wildcard CORS_ALLOWED_ORIGINS entry", () => {
+    expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "*" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-019: throws ConfigError when a CORS_ALLOWED_ORIGINS entry has a path", () => {
+    expect(() =>
+      loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io/app" })),
+    ).toThrow(ConfigError);
+  });
+
+  it("CFG-020: throws ConfigError when a CORS_ALLOWED_ORIGINS entry has a query string", () => {
+    expect(() =>
+      loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io?x=1" })),
+    ).toThrow(ConfigError);
+  });
+
+  it("CFG-021: throws ConfigError when a CORS_ALLOWED_ORIGINS entry has userinfo", () => {
+    expect(() =>
+      loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://user:pass@komei0727.github.io" })),
+    ).toThrow(ConfigError);
+  });
+
+  it("CFG-022: throws ConfigError for a duplicate CORS_ALLOWED_ORIGINS entry", () => {
+    expect(() =>
+      loadConfig(
+        envWith({
+          CORS_ALLOWED_ORIGINS: "https://komei0727.github.io,https://komei0727.github.io",
+        }),
+      ),
+    ).toThrow(ConfigError);
+  });
+
+  it("CFG-023: throws ConfigError for a malformed CORS_ALLOWED_ORIGINS entry", () => {
+    expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "not-a-url" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-024: throws ConfigError for a whitespace-only CORS_ALLOWED_ORIGINS", () => {
+    expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "   " }))).toThrow(ConfigError);
+  });
+
+  it("CFG-025: throws ConfigError for an empty CORS_ALLOWED_ORIGINS entry produced by a stray comma", () => {
+    expect(() =>
+      loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io,," })),
+    ).toThrow(ConfigError);
+  });
+
+  it('CFG-026 (PRレビュー指摘[P2]): throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (file:///), which would otherwise become the opaque origin "null"', () => {
+    expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "file:///" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-027 (PRレビュー指摘[P2]): throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (mailto:)", () => {
+    expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "mailto:test@example.com" }))).toThrow(
+      ConfigError,
+    );
+  });
+
+  it("CFG-028 (PRレビュー指摘[P2]): throws ConfigError for a CORS_ALLOWED_ORIGINS entry with a trailing slash, which is not an exact scheme+host origin", () => {
+    expect(() =>
+      loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io/" })),
+    ).toThrow(ConfigError);
+  });
 });
