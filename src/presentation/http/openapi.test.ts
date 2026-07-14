@@ -286,6 +286,38 @@ describe("OpenAPI document", () => {
     ).toBeDefined();
   });
 
+  it('API-OPENAPI-012 (PRレビュー指摘[P2再々々レビュー]): the OPTIONS 400 response documents its actual text/plain body ("Invalid Preflight Request"), not a JSON content type', () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly options?: {
+              readonly responses?: Readonly<
+                Record<
+                  string,
+                  {
+                    readonly content?: Readonly<
+                      Record<string, { readonly schema?: { readonly type?: string } }>
+                    >;
+                  }
+                >
+              >;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const content =
+      document.paths?.["/api/v1/battle-simulations"]?.options?.responses?.["400"]?.content;
+
+    expect(content).toBeDefined();
+    expect(content?.["application/json"]).toBeUndefined();
+    expect(content?.["text/plain"]?.schema?.type).toBe("string");
+  });
+
   it("API-OPENAPI-005 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」): documents /health/live (200 only) and /health/ready (200 and 503)", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<

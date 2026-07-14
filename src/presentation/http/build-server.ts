@@ -174,14 +174,23 @@ const CORS_PREFLIGHT_REQUEST_HEADERS_SCHEMA = {
 const CORS_PREFLIGHT_REQUIRED_HEADERS = ["origin", "access-control-request-method"] as const;
 
 /**
- * 実際の応答は`@fastify/cors`が`reply.status(400).type('text/plain').send(...)`
+ * 実際の応答は`@fastify/cors`が
+ * `reply.status(400).type('text/plain').send('Invalid Preflight Request')`
  * で直接送るため、このhandlerのresponse schemaによるserializationは通らない
- * （`type: "null"`で204と同様、誤った`content.application/json`の自動生成を防ぐ）。
+ * （204と異なり実際に固定文言のtext/plain本文を持つため、ここでは
+ * `type: "null"`を使わず`content`を明示し、`@fastify/swagger`の既定
+ * `application/json`自動生成をこちらの実際の内容で上書きする——
+ * PRレビュー指摘（#110 [P2再々々レビュー]）: `type: "null"`のままだと
+ * 実在するtext/plain本文まで「本文なし」と誤って公開してしまっていた）。
  */
 const CORS_PREFLIGHT_INVALID_REQUEST_RESPONSE_DOC = {
-  type: "null",
   description:
     "Invalid Preflight Request — returned as text/plain by @fastify/cors's onRequest hook (not this handler) when an allowed Origin sends OPTIONS without Access-Control-Request-Method (11_インフラストラクチャ設計.md「CORS」).",
+  content: {
+    "text/plain": {
+      schema: { type: "string", example: "Invalid Preflight Request" },
+    },
+  },
 } as const;
 
 /**
