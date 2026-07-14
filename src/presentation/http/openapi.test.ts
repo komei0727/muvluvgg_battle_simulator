@@ -211,10 +211,11 @@ describe("OpenAPI document", () => {
     expect(battleHeaders?.["Access-Control-Expose-Headers"]).toBeDefined();
   });
 
-  it("API-OPENAPI-009 (PRレビュー指摘[P2再レビュー]): documents the preflight request headers (Origin, Access-Control-Request-Method, Access-Control-Request-Headers) as header parameters on the OPTIONS operation", () => {
+  it("API-OPENAPI-009 (PRレビュー指摘[P2再レビュー]): documents the preflight request headers (Origin, Access-Control-Request-Method, Access-Control-Request-Headers) as header parameters on the OPTIONS operation, with Origin and Access-Control-Request-Method marked required", () => {
     interface ParameterDoc {
       readonly name?: string;
       readonly in?: string;
+      readonly required?: boolean;
     }
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
@@ -231,17 +232,13 @@ describe("OpenAPI document", () => {
 
     const document = app.swagger() as unknown as MinimalOpenApiV3Document;
     const parameters = document.paths?.["/api/v1/battle-simulations"]?.options?.parameters ?? [];
-    const headerParamNames = parameters
-      .filter((parameter) => parameter.in === "header")
-      .map((parameter) => parameter.name);
-
-    expect(headerParamNames).toEqual(
-      expect.arrayContaining([
-        "origin",
-        "access-control-request-method",
-        "access-control-request-headers",
-      ]),
+    const headerParams = new Map(
+      parameters.filter((parameter) => parameter.in === "header").map((p) => [p.name, p]),
     );
+
+    expect(headerParams.get("origin")?.required).toBe(true);
+    expect(headerParams.get("access-control-request-method")?.required).toBe(true);
+    expect(headerParams.get("access-control-request-headers")?.required).toBe(false);
   });
 
   it("API-OPENAPI-010 (PRレビュー指摘[P2再レビュー]): the OPTIONS 204 response documents no body/content, matching the actual empty preflight response", () => {
@@ -263,6 +260,30 @@ describe("OpenAPI document", () => {
 
     expect(response204).toBeDefined();
     expect(response204?.content).toBeUndefined();
+  });
+
+  it("API-OPENAPI-011 (PRレビュー指摘[P2再々レビュー]): documents the 400 Invalid Preflight Request response that @fastify/cors returns for an allowed origin missing Access-Control-Request-Method", () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly options?: {
+              readonly responses?: Readonly<Record<string, unknown>>;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+
+    expect(
+      document.paths?.["/api/v1/battle-simulations"]?.options?.responses?.["400"],
+    ).toBeDefined();
+    expect(
+      document.paths?.["/api/v1/battle-simulation-catalog"]?.options?.responses?.["400"],
+    ).toBeDefined();
   });
 
   it("API-OPENAPI-005 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」): documents /health/live (200 only) and /health/ready (200 and 503)", () => {

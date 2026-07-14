@@ -160,6 +160,31 @@ const CORS_PREFLIGHT_REQUEST_HEADERS_SCHEMA = {
 } as const;
 
 /**
+ * PRレビュー指摘（#110 [P2再々レビュー]）: `@fastify/cors`の`strictPreflight`
+ * （既定true）は、許可originからの`OPTIONS`で`Origin`または
+ * `Access-Control-Request-Method`が欠けている場合、この文書専用routeへ
+ * 到達する前に自身の`onRequest`フック内で`400 Invalid Preflight Request`
+ * （text/plain）を返す。ドキュメント専用の`transform`だけへ`required`を
+ * 適用し、実行時の`route.schema.headers`（このrouteの本来の目的は
+ * 未許可origin／`Origin`なしの稀なfallthroughを204で受けるdoc placeholder）
+ * には影響させない——`required`を実schemaへ入れると、その稀な
+ * fallthrough自体をAJVが400 MALFORMED_REQUESTへ変えてしまい、既存の
+ * 「requestを拒否しない」契約（`API-CORS-010`）の意味が変わる。
+ */
+const CORS_PREFLIGHT_REQUIRED_HEADERS = ["origin", "access-control-request-method"] as const;
+
+/**
+ * 実際の応答は`@fastify/cors`が`reply.status(400).type('text/plain').send(...)`
+ * で直接送るため、このhandlerのresponse schemaによるserializationは通らない
+ * （`type: "null"`で204と同様、誤った`content.application/json`の自動生成を防ぐ）。
+ */
+const CORS_PREFLIGHT_INVALID_REQUEST_RESPONSE_DOC = {
+  type: "null",
+  description:
+    "Invalid Preflight Request — returned as text/plain by @fastify/cors's onRequest hook (not this handler) when an allowed Origin sends OPTIONS without Access-Control-Request-Method (11_インフラストラクチャ設計.md「CORS」).",
+} as const;
+
+/**
  * `schema.response`の各status codeへ`headers`を差し込む。`transform`が返す
  * schemaはOpenAPI文書生成専用（実行時validation・serializationに使う
  * `route.schema`本体には影響しない）ため、ここで自由に拡張してよい。
@@ -503,12 +528,34 @@ export async function buildServer(
         return {
           schema: {
             ...schema,
+            // PRレビュー指摘（#110 [P2再々レビュー]）: `Origin`・
+            // `Access-Control-Request-Method`はdoc上だけ`required`にする
+            // （理由は`CORS_PREFLIGHT_REQUIRED_HEADERS`のコメント参照）。
+            ...(schema.headers !== undefined
+              ? {
+                  headers: {
+                    ...(schema.headers as Record<string, unknown>),
+                    required: CORS_PREFLIGHT_REQUIRED_HEADERS,
+                  },
+                }
+              : {}),
             ...(schema.response !== undefined
               ? {
-                  response: withResponseHeadersDoc(
-                    schema.response as Record<string, unknown>,
-                    CORS_PREFLIGHT_RESPONSE_HEADERS_DOC,
-                  ),
+                  response: {
+                    ...withResponseHeadersDoc(
+                      schema.response as Record<string, unknown>,
+                      CORS_PREFLIGHT_RESPONSE_HEADERS_DOC,
+                    ),
+                    // PRレビュー指摘（#110 [P2再々レビュー]）: 許可originが
+                    // `Access-Control-Request-Method`なしで送った場合の実際の
+                    // 応答（`@fastify/cors`が`addCorsHeaders`実行後・
+                    // `addPreflightHeaders`実行前に返す）を文書化する
+                    // ——`Access-Control-Allow-Methods`／`-Headers`は付かない。
+                    400: {
+                      ...CORS_PREFLIGHT_INVALID_REQUEST_RESPONSE_DOC,
+                      headers: CORS_RESPONSE_HEADERS_DOC,
+                    },
+                  },
                 }
               : {}),
           },
