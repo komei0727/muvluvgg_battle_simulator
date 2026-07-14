@@ -7,6 +7,7 @@ import Fastify, {
   type FastifyServerOptions,
 } from "fastify";
 import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUi from "@fastify/swagger-ui";
 import { toBattleSimulationResponseBody } from "../../application/simulate-battle-response-mapper.js";
 import { ApplicationError } from "../../application/application-error.js";
 import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
@@ -90,6 +91,12 @@ export interface BuildServerOptions {
   readonly logger?: FastifyServerOptions["logger"];
   readonly readiness?: ReadinessPort;
   readonly shutdownGate?: ShutdownGatePort;
+  /**
+   * `11_インフラストラクチャ設計.md`「OpenAPI」「productionではSwagger UIを
+   * 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。既定は
+   * `false`——`bootstrap/index.ts`が`NODE_ENV`から実運用の値を渡す。
+   */
+  readonly docsEnabled?: boolean;
 }
 
 function resolveRequestId(header: string | string[] | undefined): string | undefined {
@@ -282,6 +289,10 @@ export async function buildServer(
       };
     },
   });
+
+  if (options.docsEnabled ?? false) {
+    await app.register(fastifySwaggerUi, { routePrefix: "/docs" });
+  }
 
   registerHealthRoutes(app, readiness);
 

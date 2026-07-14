@@ -39,6 +39,9 @@ export async function bootstrap(): Promise<FastifyInstance> {
   // `11_インフラストラクチャ設計.md`「設定項目」`SHUTDOWN_GRACE_MS`。Piscina自身の
   // `closeTimeout`既定値と揃える。
   const shutdownGraceMs = Number(process.env["SHUTDOWN_GRACE_MS"] ?? "30000");
+  // `11_インフラストラクチャ設計.md`「OpenAPI」「productionではSwagger UIを
+  // 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。
+  const docsEnabled = process.env["NODE_ENV"] !== "production";
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
@@ -62,6 +65,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     logger: { level: logLevel },
     readiness,
     shutdownGate: shutdownState,
+    docsEnabled,
   });
   const disposeShutdownSignalHandlers = installShutdownSignalHandlers({ app, pool, shutdownState });
   // レビュー指摘: `process.once`のSIGTERM/SIGINTリスナーは、シグナルが一度も

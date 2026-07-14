@@ -168,4 +168,36 @@ describe("bootstrap (compiled build)", () => {
       await new Promise<void>((resolve) => blocker.close(() => resolve()));
     }
   });
+
+  it("INT-BOOTSTRAP-006 (#85 受け入れ条件「productionではSwagger UIが既定で無効である」): GET /docs is not registered when NODE_ENV=production", async () => {
+    const port = 34584;
+    process.env["PORT"] = String(port);
+    process.env["HOST"] = "127.0.0.1";
+    process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
+    process.env["NODE_ENV"] = "production";
+
+    const app = await bootstrap();
+    try {
+      const response = await app.inject({ method: "GET", url: "/docs" });
+      expect(response.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("INT-BOOTSTRAP-007 (#85 受け入れ条件「mise run devで起動後、http://localhost:3000/docsからSwagger UIを確認できる」): GET /docs serves the Swagger UI when NODE_ENV is not production", async () => {
+    const port = 34585;
+    process.env["PORT"] = String(port);
+    process.env["HOST"] = "127.0.0.1";
+    process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
+    process.env["NODE_ENV"] = "development";
+
+    const app = await bootstrap();
+    try {
+      const response = await app.inject({ method: "GET", url: "/docs" });
+      expect(response.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
 });

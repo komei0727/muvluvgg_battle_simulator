@@ -582,3 +582,54 @@ describe("health routes wired through buildServer", () => {
     }
   });
 });
+
+describe("Swagger UI docs (#85 受け入れ条件「productionではSwagger UIが既定で無効である」)", () => {
+  it("API-DOCS-001: does not register /docs when docsEnabled is left at its default", async () => {
+    const app = await buildServer(buildTestUseCase());
+    try {
+      const response = await app.inject({ method: "GET", url: "/docs" });
+      expect(response.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("API-DOCS-002: serves the Swagger UI HTML page at /docs when docsEnabled is true", async () => {
+    const app = await buildServer(buildTestUseCase(), { docsEnabled: true });
+    try {
+      const response = await app.inject({ method: "GET", url: "/docs" });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toContain("text/html");
+      expect(response.body).toContain("swagger");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("API-DOCS-003 (受け入れ条件「Swagger UIからPOST /api/v1/battle-simulationsの仕様を確認できる」): the Swagger UI's own OpenAPI document includes POST /api/v1/battle-simulations when docsEnabled is true", async () => {
+    const app = await buildServer(buildTestUseCase(), { docsEnabled: true });
+    try {
+      const response = await app.inject({ method: "GET", url: "/docs/json" });
+      expect(response.statusCode).toBe(200);
+      const document = response.json<{ paths?: Record<string, unknown> }>();
+      expect(document.paths?.["/api/v1/battle-simulations"]).toBeDefined();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("API-DOCS-004 (受け入れ条件「既存のGET /openapi.jsonを壊さない」): GET /openapi.json keeps working the same whether or not docsEnabled is set", async () => {
+    const withoutDocs = await buildServer(buildTestUseCase());
+    const withDocs = await buildServer(buildTestUseCase(), { docsEnabled: true });
+    try {
+      const withoutResponse = await withoutDocs.inject({ method: "GET", url: "/openapi.json" });
+      const withResponse = await withDocs.inject({ method: "GET", url: "/openapi.json" });
+      expect(withoutResponse.statusCode).toBe(200);
+      expect(withResponse.statusCode).toBe(200);
+      expect(withResponse.json()).toEqual(withoutResponse.json());
+    } finally {
+      await withoutDocs.close();
+      await withDocs.close();
+    }
+  });
+});
