@@ -1,0 +1,42 @@
+.image,
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.image {
+  object-fit: cover;
+}
+
+/* 01_UI要求・画面設計.md §9: ユニット画像とメモリー画像は用途別アスペクト比を許容する。 */
+.unit {
+  aspect-ratio: 1 / 1;
+}
+
+.memory {
+  aspect-ratio: 3 / 4;
+}
+
+.fallback {
+  flex-direction: column;
+  gap: 2px;
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.initials {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+}
+
+.typeLabel {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
