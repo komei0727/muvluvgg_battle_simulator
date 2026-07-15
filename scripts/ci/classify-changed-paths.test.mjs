@@ -72,6 +72,16 @@ test("workflow file change runs both gates", () => {
   assert.deepEqual(result, { runApi: true, runUi: true });
 });
 
+test("shared root config change (.prettierrc) runs both gates", () => {
+  const result = classifyChangedPaths([".prettierrc"]);
+  assert.deepEqual(result, { runApi: true, runUi: true });
+});
+
+test("shared root config change (.prettierignore) runs both gates", () => {
+  const result = classifyChangedPaths([".prettierignore"]);
+  assert.deepEqual(result, { runApi: true, runUi: true });
+});
+
 test("mixed API and UI change runs both gates", () => {
   const result = classifyChangedPaths(["apps/api/src/x.ts", "apps/ui/src/y.tsx"]);
   assert.deepEqual(result, { runApi: true, runUi: true });

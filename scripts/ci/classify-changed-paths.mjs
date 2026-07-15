@@ -18,6 +18,8 @@ const SHARED_EXACT_PATHS = new Set([
   "pnpm-workspace.yaml",
   "mise.toml",
   "mise.lock",
+  ".prettierrc",
+  ".prettierignore",
 ]);
 const SHARED_PATH_PREFIXES = [".github/workflows/"];
 

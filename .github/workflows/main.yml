@@ -24,6 +24,16 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
+      - name: Install dependencies
+        run: mise run install
+
+      # Runs here, not in `quality`, because `quality` skips on a UI-only
+      # merge — this job is the only one guaranteed to always run, and
+      # format-check covers the whole repo tree regardless of workspace
+      # (PR #118 review: a UI-only Prettier violation was passing CI).
+      - name: Format check
+        run: mise run format-check
+
       - name: Test the change-classification logic
         run: mise run ci:test
 
@@ -57,9 +67,6 @@ jobs:
 
       - name: Install dependencies
         run: mise run install
-
-      - name: Format check
-        run: mise run format-check
 
       - name: Type check
         run: mise run typecheck
