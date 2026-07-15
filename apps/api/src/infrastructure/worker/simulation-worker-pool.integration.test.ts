@@ -16,7 +16,7 @@ import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader
  * `SimulationWorkerPool`を（`src/`のTSソースではなく）importして実Worker
  * Threadを起動することで、production相当の解決経路を検証する。
  */
-const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
+const apiPackageRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const tscBin = fileURLToPath(new URL("../../../node_modules/.bin/tsc", import.meta.url));
 const distPoolUrl = new URL(
   "../../../dist/infrastructure/worker/simulation-worker-pool.js",
@@ -55,7 +55,7 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
   let SimulationWorkerPoolStartupError: typeof SimulationWorkerPoolStartupErrorClass;
 
   beforeAll(async () => {
-    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: repoRoot, stdio: "inherit" });
+    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: apiPackageRoot, stdio: "inherit" });
     expect(existsSync(fileURLToPath(distPoolUrl))).toBe(true);
     const compiled = (await import(distPoolUrl.href)) as {
       SimulationWorkerPool: typeof SimulationWorkerPoolClass;

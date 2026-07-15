@@ -27,7 +27,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * （src版とdist版で`application-error.ts`が別モジュールとして二重ロード
  * されるため）。二重ロードを避けるため、両方を同じdist配下から揃える。
  */
-const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const apiPackageRoot = fileURLToPath(new URL("../../", import.meta.url));
 const tscBin = fileURLToPath(new URL("../../node_modules/.bin/tsc", import.meta.url));
 const distPoolUrl = new URL(
   "../../dist/infrastructure/worker/simulation-worker-pool.js",
@@ -49,7 +49,7 @@ describe("HTTP -> Worker -> UseCase -> Battle -> Response (real Worker Pool wire
   let buildServer: typeof buildServerFn;
 
   beforeAll(async () => {
-    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: repoRoot, stdio: "inherit" });
+    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: apiPackageRoot, stdio: "inherit" });
     expect(existsSync(fileURLToPath(distPoolUrl))).toBe(true);
     expect(existsSync(fileURLToPath(distBuildServerUrl))).toBe(true);
     const compiledPool = (await import(distPoolUrl.href)) as {
