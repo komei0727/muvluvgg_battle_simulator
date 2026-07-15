@@ -56,11 +56,29 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
     const region = screen.getByText(/実行中/).closest("[aria-live]");
     expect(region).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("shows a dirty indicator for the carried-over previous success while rerunning (UI-CMP-003)", () => {
+    const state: ExecutionState = {
+      status: "submitting",
+      executionId: "exec-2",
+      request: request(),
+      startedAt: 3000,
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
+      previousSuccess: successSnapshot(),
+    };
+    render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
+
+    expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
+    expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });
 });
 
@@ -120,6 +138,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
         diagnosticId: "diag-1",
       },
       requestId: "srv-req-err",
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -135,11 +155,27 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       executionId: "exec-2",
       error: { kind: "CAPACITY", message: "Server busy." },
       previousSuccess: successSnapshot(),
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
     expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
     expect(screen.getByText(/Server busy\./)).toBeInTheDocument();
+  });
+
+  it("shows a dirty indicator for the previous success shown alongside the error (UI-CMP-003)", () => {
+    const state: ExecutionState = {
+      status: "failed",
+      executionId: "exec-2",
+      error: { kind: "CAPACITY", message: "Server busy." },
+      previousSuccess: successSnapshot(),
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
+    };
+    render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
+
+    expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });
 
   it("prompts a catalog reload for a DEFINITION_NOT_FOUND validation error (UI-API-004)", async () => {
@@ -153,6 +189,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
         code: "DEFINITION_NOT_FOUND",
         message: "Definition not found.",
       },
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={onReloadCatalog} />);
 
@@ -167,6 +205,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       status: "failed",
       executionId: "exec-1",
       error: { kind: "VALIDATION", code: "INVALID_COMMAND", message: "Invalid." },
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -175,11 +215,11 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
 });
 
 describe("SubmissionFeedback — cancelled (UI-UC-002)", () => {
-  it("shows a cancellation message", () => {
+  it("shows a cancellation-requested message, not a completed-cancellation claim (P3, §7 UI待機上限)", () => {
     const state: ExecutionState = { status: "cancelled", executionId: "exec-1" };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
-    expect(screen.getByText(/キャンセル/)).toBeInTheDocument();
+    expect(screen.getByText("キャンセルを要求しました。")).toBeInTheDocument();
   });
 
   it("retains the previous success snapshot", () => {
@@ -191,5 +231,16 @@ describe("SubmissionFeedback — cancelled (UI-UC-002)", () => {
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
     expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
+  });
+
+  it("shows a dirty indicator for the previous success shown alongside the cancellation (UI-CMP-003)", () => {
+    const state: ExecutionState = {
+      status: "cancelled",
+      executionId: "exec-2",
+      previousSuccess: successSnapshot(),
+    };
+    render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
+
+    expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });
 });

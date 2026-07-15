@@ -37,13 +37,18 @@ function response(): BattleSimulationResponse {
   };
 }
 
+const allySlotKeys = ["ally:FRONT:0"];
+const enemySlotKeys = ["enemy:FRONT:0"];
+
 describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
-  it("transitions idle -> submitting", () => {
+  it("transitions idle -> submitting, carrying the submission-time slot map", () => {
     const state = executionReducer(createInitialExecutionState(), {
       type: "submissionStarted",
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
 
     expect(state).toEqual({
@@ -51,6 +56,8 @@ describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
   });
 
@@ -61,6 +68,8 @@ describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -73,6 +82,8 @@ describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
       executionId: "exec-2",
       request: request({ turnLimit: 20 }),
       startedAt: 3000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
 
     expect(state.status).toBe("submitting");
@@ -94,6 +105,8 @@ describe("executionReducer — submissionSucceeded (UI-UT-EXEC-002)", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -120,6 +133,8 @@ describe("executionReducer — submissionSucceeded (UI-UT-EXEC-002)", () => {
       executionId: "exec-current",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     const beforeStale = state;
 
@@ -144,6 +159,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -156,6 +173,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
       executionId: "exec-2",
       request: request({ turnLimit: 30 }),
       startedAt: 3000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionFailed",
@@ -169,6 +188,24 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
     expect(state.previousSuccess?.executionId).toBe("exec-1");
   });
 
+  it("carries forward the submission-time slot map, not a recomputed one (UI-API-004)", () => {
+    let state = createInitialExecutionState();
+    state = executionReducer(state, {
+      type: "submissionStarted",
+      executionId: "exec-1",
+      request: request(),
+      startedAt: 1000,
+      allyUnitSlotKeys: ["ally:FRONT:2"],
+      enemyUnitSlotKeys: ["enemy:REAR:1"],
+    });
+    state = executionReducer(state, { type: "submissionFailed", executionId: "exec-1", error });
+
+    expect(state.status).toBe("failed");
+    if (state.status !== "failed") throw new Error("unreachable");
+    expect(state.allyUnitSlotKeys).toEqual(["ally:FRONT:2"]);
+    expect(state.enemyUnitSlotKeys).toEqual(["enemy:REAR:1"]);
+  });
+
   it("ignores a stale executionId", () => {
     let state = createInitialExecutionState();
     state = executionReducer(state, {
@@ -176,6 +213,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
       executionId: "exec-current",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     const beforeStale = state;
 
@@ -193,6 +232,8 @@ describe("executionReducer — submissionCancelled (UI-UT-EXEC-004)", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, { type: "submissionCancelled", executionId: "exec-1" });
 
@@ -206,12 +247,38 @@ describe("executionReducer — submissionCancelled (UI-UT-EXEC-004)", () => {
       executionId: "exec-current",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     const beforeStale = state;
 
     state = executionReducer(state, { type: "submissionCancelled", executionId: "exec-stale" });
 
     expect(state).toEqual(beforeStale);
+  });
+
+  it("is idempotent once already cancelled (P1 regression: late success must not override an explicit cancel)", () => {
+    let state = createInitialExecutionState();
+    state = executionReducer(state, {
+      type: "submissionStarted",
+      executionId: "exec-1",
+      request: request(),
+      startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
+    });
+    state = executionReducer(state, { type: "submissionCancelled", executionId: "exec-1" });
+
+    // A race where the network call actually succeeded despite the abort
+    // must not resurrect the cancelled execution.
+    state = executionReducer(state, {
+      type: "submissionSucceeded",
+      executionId: "exec-1",
+      response: response(),
+      completedAt: 2000,
+    });
+
+    expect(state.status).toBe("cancelled");
   });
 });
 
@@ -227,6 +294,8 @@ describe("selectDisplayedSuccess", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -245,6 +314,8 @@ describe("selectDisplayedSuccess", () => {
       executionId: "exec-1",
       request: request(),
       startedAt: 1000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -257,6 +328,8 @@ describe("selectDisplayedSuccess", () => {
       executionId: "exec-2",
       request: request({ turnLimit: 50 }),
       startedAt: 3000,
+      allyUnitSlotKeys: allySlotKeys,
+      enemyUnitSlotKeys: enemySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionFailed",

@@ -98,4 +98,35 @@ describe("mapServerViolationsToUiViolations (UI-API-004)", () => {
     expect(result[0]?.slotKey).toBe("ally:FRONT:0");
     expect(result[1]?.slotKey).toBe("enemy:FRONT:1");
   });
+
+  it("maps an ally memoryDefinitionIds violation to its memory slotKey (UI-CT-016)", () => {
+    const violations: readonly ViolationResponseBody[] = [
+      { path: "/allyFormation/memoryDefinitionIds/2", message: "Unknown memory." },
+    ];
+
+    const result = mapServerViolationsToUiViolations(violations, allySlotKeys, enemySlotKeys);
+
+    expect(result[0]?.slotKey).toBe("ally:memory:2");
+  });
+
+  it("maps an enemy memoryDefinitionIds violation to its memory slotKey (UI-CT-016)", () => {
+    const violations: readonly ViolationResponseBody[] = [
+      { path: "/enemyFormation/memoryDefinitionIds/0", message: "Unknown memory." },
+    ];
+
+    const result = mapServerViolationsToUiViolations(violations, allySlotKeys, enemySlotKeys);
+
+    expect(result[0]?.slotKey).toBe("enemy:memory:0");
+  });
+
+  it("passes through /options/logLevel without a slotKey", () => {
+    const violations: readonly ViolationResponseBody[] = [
+      { path: "/options/logLevel", message: "Unsupported log level." },
+    ];
+
+    const result = mapServerViolationsToUiViolations(violations, allySlotKeys, enemySlotKeys);
+
+    expect(result[0]?.slotKey).toBeUndefined();
+    expect(result[0]?.path).toBe("/options/logLevel");
+  });
 });

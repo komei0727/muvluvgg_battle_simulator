@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useSimulationExecution } from "./use-simulation-execution.js";
 import type { SimulateOptions } from "./api-client.js";
+import type { SubmitInput } from "./use-simulation-execution.js";
 import type { BattleSimulationRequest } from "../formation/request-mapper.js";
 import type { BattleSimulationResponse, SimulationApiResult } from "./api-contract.js";
 
@@ -18,6 +19,14 @@ function request(overrides: Partial<BattleSimulationRequest> = {}): BattleSimula
     turnLimit: 10,
     options: { logLevel: "DETAILED" },
     ...overrides,
+  };
+}
+
+function submitInput(overrides: Partial<BattleSimulationRequest> = {}): SubmitInput {
+  return {
+    request: request(overrides),
+    allyUnitSlotKeys: ["ally:FRONT:0"],
+    enemyUnitSlotKeys: ["enemy:FRONT:0"],
   };
 }
 
@@ -57,7 +66,7 @@ describe("useSimulationExecution — submit (UI-UT-EXEC-HOOK-001)", () => {
     );
 
     act(() => {
-      result.current.submit(request());
+      result.current.submit(submitInput());
     });
 
     expect(result.current.state.status).toBe("submitting");
@@ -68,7 +77,7 @@ describe("useSimulationExecution — submit (UI-UT-EXEC-HOOK-001)", () => {
     expect(result.current.state).toMatchObject({ status: "succeeded", requestId: "srv-1" });
   });
 
-  it("passes credentials-omitting client options and a generated executionId through the reducer", async () => {
+  it("passes credentials-omitting client options, the submission-time slot map, and a generated executionId", async () => {
     const simulateImpl = vi.fn<
       (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
     >(() => Promise.resolve({ ok: true, response: response() }));
@@ -77,7 +86,7 @@ describe("useSimulationExecution — submit (UI-UT-EXEC-HOOK-001)", () => {
     );
 
     act(() => {
-      result.current.submit(request());
+      result.current.submit(submitInput());
     });
 
     expect(simulateImpl).toHaveBeenCalledTimes(1);
@@ -85,6 +94,11 @@ describe("useSimulationExecution — submit (UI-UT-EXEC-HOOK-001)", () => {
     expect(sentRequest).toEqual(request());
     expect(options.baseUrl).toBe("https://api.example.com");
     expect(options.signal.aborted).toBe(false);
+    expect(result.current.state).toMatchObject({
+      status: "submitting",
+      allyUnitSlotKeys: ["ally:FRONT:0"],
+      enemyUnitSlotKeys: ["enemy:FRONT:0"],
+    });
 
     await waitFor(() => {
       expect(result.current.state.status).toBe("succeeded");
@@ -106,7 +120,7 @@ describe("useSimulationExecution — submit (UI-UT-EXEC-HOOK-001)", () => {
     );
 
     act(() => {
-      result.current.submit(request());
+      result.current.submit(submitInput());
     });
 
     await waitFor(() => {
@@ -117,7 +131,7 @@ describe("useSimulationExecution — submit (UI-UT-EXEC-HOOK-001)", () => {
 });
 
 describe("useSimulationExecution — cancel (UI-UT-EXEC-HOOK-002)", () => {
-  it("aborts the in-flight request and transitions to cancelled once the promise settles", async () => {
+  it("aborts the in-flight request and transitions to cancelled synchronously (UI-AC-006)", () => {
     const pending = deferred<SimulationApiResult>();
     const simulateImpl = vi.fn<
       (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
@@ -127,7 +141,7 @@ describe("useSimulationExecution — cancel (UI-UT-EXEC-HOOK-002)", () => {
     );
 
     act(() => {
-      result.current.submit(request());
+      result.current.submit(submitInput());
     });
     const signal = simulateImpl.mock.calls[0]![1].signal;
     expect(signal.aborted).toBe(false);
@@ -135,12 +149,34 @@ describe("useSimulationExecution — cancel (UI-UT-EXEC-HOOK-002)", () => {
     act(() => {
       result.current.cancel();
     });
-    expect(signal.aborted).toBe(true);
 
-    pending.resolve({ ok: false, error: { kind: "CANCELLED", message: "cancelled" } });
-    await waitFor(() => {
-      expect(result.current.state.status).toBe("cancelled");
+    expect(signal.aborted).toBe(true);
+    expect(result.current.state.status).toBe("cancelled");
+  });
+
+  it("ignores a success response that arrives after cancel() was already called (P1 regression)", async () => {
+    const pending = deferred<SimulationApiResult>();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => pending.promise);
+    const { result } = renderHook(() =>
+      useSimulationExecution("https://api.example.com", { simulateImpl }),
+    );
+
+    act(() => {
+      result.current.submit(submitInput());
     });
+    act(() => {
+      result.current.cancel();
+    });
+    expect(result.current.state.status).toBe("cancelled");
+
+    // Simulate a race: the network call actually completed successfully
+    // despite the local abort.
+    pending.resolve({ ok: true, response: response() });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(result.current.state.status).toBe("cancelled");
   });
 
   it("aborts the in-flight request on unmount", () => {
@@ -153,7 +189,7 @@ describe("useSimulationExecution — cancel (UI-UT-EXEC-HOOK-002)", () => {
     );
 
     act(() => {
-      result.current.submit(request());
+      result.current.submit(submitInput());
     });
     const signal = simulateImpl.mock.calls[0]![1].signal;
 
@@ -178,12 +214,12 @@ describe("useSimulationExecution — stale response guard (UI-CMP-002)", () => {
     );
 
     act(() => {
-      result.current.submit(request());
+      result.current.submit(submitInput());
     });
     const firstSignal = simulateImpl.mock.calls[0]![1].signal;
 
     act(() => {
-      result.current.submit(request({ turnLimit: 42 }));
+      result.current.submit(submitInput({ turnLimit: 42 }));
     });
     expect(firstSignal.aborted).toBe(true);
 

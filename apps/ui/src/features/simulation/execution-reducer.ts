@@ -19,6 +19,11 @@ export type ExecutionState =
       readonly executionId: string;
       readonly request: BattleSimulationRequest;
       readonly startedAt: number;
+      // 送信時点のslot対応表(request-mapper.ts の allyUnitSlotKeys/
+      // enemyUnitSlotKeys)。failedへ引き継ぎ、422 violationsのJSON Pointerを
+      // 現在のdraftではなく送信時のslotへ対応づける(UI-API-004)。
+      readonly allyUnitSlotKeys: readonly string[];
+      readonly enemyUnitSlotKeys: readonly string[];
       readonly previousSuccess?: SuccessfulExecutionSnapshot;
     }
   | {
@@ -34,6 +39,8 @@ export type ExecutionState =
       readonly executionId: string;
       readonly error: UiApiError;
       readonly requestId?: string;
+      readonly allyUnitSlotKeys: readonly string[];
+      readonly enemyUnitSlotKeys: readonly string[];
       readonly previousSuccess?: SuccessfulExecutionSnapshot;
     }
   | {
@@ -48,6 +55,8 @@ export type ExecutionAction =
       readonly executionId: string;
       readonly request: BattleSimulationRequest;
       readonly startedAt: number;
+      readonly allyUnitSlotKeys: readonly string[];
+      readonly enemyUnitSlotKeys: readonly string[];
     }
   | {
       readonly type: "submissionSucceeded";
@@ -98,6 +107,8 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
         executionId: action.executionId,
         request: action.request,
         startedAt: action.startedAt,
+        allyUnitSlotKeys: action.allyUnitSlotKeys,
+        enemyUnitSlotKeys: action.enemyUnitSlotKeys,
         ...(previousSuccess !== undefined ? { previousSuccess } : {}),
       };
     }
@@ -122,6 +133,8 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
         status: "failed",
         executionId: action.executionId,
         error: action.error,
+        allyUnitSlotKeys: state.allyUnitSlotKeys,
+        enemyUnitSlotKeys: state.enemyUnitSlotKeys,
         ...(action.requestId !== undefined ? { requestId: action.requestId } : {}),
         ...(state.previousSuccess !== undefined ? { previousSuccess: state.previousSuccess } : {}),
       };

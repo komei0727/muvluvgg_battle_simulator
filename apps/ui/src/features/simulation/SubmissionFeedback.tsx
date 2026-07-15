@@ -19,7 +19,9 @@ const ERROR_KIND_GUIDANCE: Readonly<Record<UiApiErrorKind, string>> = {
   RATE_LIMIT: "リクエストが多すぎます。しばらく待って再試行してください。",
   CAPACITY: "サーバーが混雑しています。しばらく待って再試行してください。",
   TIMEOUT: "応答がタイムアウトしました。条件を見直すか再試行してください。",
-  CANCELLED: "実行をキャンセルしました。",
+  // UIキャンセルはサーバーで戦闘が確実に停止したことを意味しない
+  // (03_API・データ連携設計.md §7)。
+  CANCELLED: "キャンセルを要求しました。",
   SERVER: "サーバーエラーが発生しました。",
   NETWORK: "APIに到達できませんでした。",
   CORS_OR_NETWORK: "APIに到達できませんでした。ネットワークまたはCORSの問題の可能性があります。",
@@ -42,6 +44,28 @@ function SuccessSummary({ snapshot }: { readonly snapshot: SuccessfulExecutionSn
       </span>
       {requestId !== undefined ? <span>Request ID: {requestId}</span> : null}
     </div>
+  );
+}
+
+// Renders whichever success snapshot is currently on screen, plus the dirty
+// indicator whenever that snapshot no longer matches the live draft — this
+// applies while submitting (rerun), failed, and cancelled alike, not only
+// when the result itself just succeeded (UI-CMP-003).
+function DisplayedSuccess({
+  snapshot,
+  isDirty,
+  label,
+}: {
+  readonly snapshot: SuccessfulExecutionSnapshot;
+  readonly isDirty: boolean;
+  readonly label?: string;
+}) {
+  return (
+    <>
+      {label !== undefined ? <p>{label}</p> : null}
+      <SuccessSummary snapshot={snapshot} />
+      {isDirty ? <p className={styles["dirty"]}>この結果は変更前の条件です。</p> : null}
+    </>
   );
 }
 
@@ -91,7 +115,9 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
     return (
       <div className={`${styles["feedback"]} ${styles["submitting"]}`} aria-live="polite">
         <p>実行中…</p>
-        {displayedSuccess !== undefined ? <SuccessSummary snapshot={displayedSuccess} /> : null}
+        {displayedSuccess !== undefined ? (
+          <DisplayedSuccess snapshot={displayedSuccess} isDirty={isDirty} />
+        ) : null}
       </div>
     );
   }
@@ -100,8 +126,7 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
     return (
       <div className={`${styles["feedback"]} ${styles["succeeded"]}`} aria-live="polite">
         <p>戦闘が完了しました。</p>
-        <SuccessSummary snapshot={{ ...state }} />
-        {isDirty ? <p className={styles["dirty"]}>この結果は変更前の条件です。</p> : null}
+        <DisplayedSuccess snapshot={{ ...state }} isDirty={isDirty} />
       </div>
     );
   }
@@ -109,12 +134,13 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
   if (state.status === "cancelled") {
     return (
       <div className={`${styles["feedback"]} ${styles["cancelled"]}`} aria-live="polite">
-        <p>実行をキャンセルしました。</p>
+        <p>{ERROR_KIND_GUIDANCE.CANCELLED}</p>
         {displayedSuccess !== undefined ? (
-          <>
-            <p>前回成功結果を保持しています。</p>
-            <SuccessSummary snapshot={displayedSuccess} />
-          </>
+          <DisplayedSuccess
+            snapshot={displayedSuccess}
+            isDirty={isDirty}
+            label="前回成功結果を保持しています。"
+          />
         ) : null}
       </div>
     );
@@ -133,10 +159,11 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
         </Button>
       ) : null}
       {displayedSuccess !== undefined ? (
-        <>
-          <p>前回成功結果を保持しています。</p>
-          <SuccessSummary snapshot={displayedSuccess} />
-        </>
+        <DisplayedSuccess
+          snapshot={displayedSuccess}
+          isDirty={isDirty}
+          label="前回成功結果を保持しています。"
+        />
       ) : null}
     </div>
   );

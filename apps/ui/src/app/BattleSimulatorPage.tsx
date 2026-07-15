@@ -67,8 +67,8 @@ export function BattleSimulatorPage({
     execution.state.status === "failed" && execution.state.error.violations !== undefined
       ? mapServerViolationsToUiViolations(
           execution.state.error.violations,
-          requestBuild.ok ? requestBuild.allyUnitSlotKeys : [],
-          requestBuild.ok ? requestBuild.enemyUnitSlotKeys : [],
+          execution.state.allyUnitSlotKeys,
+          execution.state.enemyUnitSlotKeys,
         )
       : [];
   const displayedViolations = [...violations, ...serverViolations];
@@ -126,6 +126,7 @@ export function BattleSimulatorPage({
               logLevel={state.draft.logLevel}
               endpoint={SIMULATION_ENDPOINT}
               disabled={formationDisabled}
+              violations={displayedViolations}
               onTurnLimitChange={(value) => {
                 dispatch({ type: "turnLimitChanged", value });
               }}
@@ -141,7 +142,11 @@ export function BattleSimulatorPage({
               isSubmitting={isSubmitting}
               onSubmit={() => {
                 if (requestBuild.ok) {
-                  execution.submit(requestBuild.request);
+                  execution.submit({
+                    request: requestBuild.request,
+                    allyUnitSlotKeys: requestBuild.allyUnitSlotKeys,
+                    enemyUnitSlotKeys: requestBuild.enemyUnitSlotKeys,
+                  });
                 }
               }}
               onCancel={execution.cancel}

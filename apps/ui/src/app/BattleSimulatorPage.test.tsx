@@ -381,9 +381,9 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
     await user.click(screen.getByRole("button", { name: "キャンセル" }));
 
+    // cancel() transitions to cancelled synchronously (P1): no waitFor needed,
+    // and this also proves a subsequently-arriving CANCELLED result is a no-op.
     expect(capturedSignal?.aborted).toBe(true);
-    await waitFor(() => {
-      expect(screen.getByText(/キャンセルしました/)).toBeInTheDocument();
-    });
+    expect(screen.getByText(/キャンセルを要求しました/)).toBeInTheDocument();
   });
 });

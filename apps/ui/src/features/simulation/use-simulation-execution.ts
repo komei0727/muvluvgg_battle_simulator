@@ -30,9 +30,18 @@ export interface UseSimulationExecutionOptions {
   readonly timeoutMs?: number;
 }
 
+export interface SubmitInput {
+  readonly request: BattleSimulationRequest;
+  // 送信時点のslot対応表。422 violationsのJSON Pointerを、送信後に編集され
+  // 得る現在のdraftではなく、この送信自体が使ったslotへ対応づけるために保持
+  // する(03_API・データ連携設計.md §13, UI-API-004)。
+  readonly allyUnitSlotKeys: readonly string[];
+  readonly enemyUnitSlotKeys: readonly string[];
+}
+
 export interface UseSimulationExecutionResult {
   readonly state: ExecutionState;
-  readonly submit: (request: BattleSimulationRequest) => void;
+  readonly submit: (input: SubmitInput) => void;
   readonly cancel: () => void;
 }
 
@@ -43,21 +52,30 @@ export function useSimulationExecution(
   const simulateImpl = options.simulateImpl ?? defaultSimulate;
   const [state, setState] = useState<ExecutionState>(createInitialExecutionState);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const currentExecutionIdRef = useRef<string | null>(null);
 
   const submit = useCallback(
-    (request: BattleSimulationRequest) => {
+    (input: SubmitInput) => {
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
       const executionId = generateExecutionId();
+      currentExecutionIdRef.current = executionId;
       const startedAt = Date.now();
 
       setState((previous) =>
-        executionReducer(previous, { type: "submissionStarted", executionId, request, startedAt }),
+        executionReducer(previous, {
+          type: "submissionStarted",
+          executionId,
+          request: input.request,
+          startedAt,
+          allyUnitSlotKeys: input.allyUnitSlotKeys,
+          enemyUnitSlotKeys: input.enemyUnitSlotKeys,
+        }),
       );
 
       const requestId = generateRequestId();
-      void simulateImpl(request, {
+      void simulateImpl(input.request, {
         baseUrl,
         signal: controller.signal,
         ...(requestId !== undefined ? { requestId } : {}),
@@ -96,6 +114,17 @@ export function useSimulationExecution(
 
   const cancel = useCallback(() => {
     abortControllerRef.current?.abort();
+    // Transition to cancelled synchronously: abort() does not guarantee the
+    // in-flight promise rejects (or rejects promptly), and a caller-supplied
+    // simulateImpl could still resolve with a success after abort races with
+    // the response. executionReducer's own executionId guard then makes any
+    // later submissionSucceeded/Failed/Cancelled for this id a no-op.
+    const executionId = currentExecutionIdRef.current;
+    if (executionId !== null) {
+      setState((previous) =>
+        executionReducer(previous, { type: "submissionCancelled", executionId }),
+      );
+    }
   }, []);
 
   useEffect(() => {
