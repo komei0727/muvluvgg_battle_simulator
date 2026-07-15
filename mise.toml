@@ -57,6 +57,10 @@ run = "pnpm --filter api run check:circular"
 description = "Build the production container image and run local Docker smoke tests (non-root, PORT/HOST, Catalog/Worker/OpenAPI, SIGTERM)"
 run = "bash scripts/container-smoke-test.sh"
 
+[tasks."ci:test"]
+description = "Test the CI changed-path classification logic (scripts/ci/)"
+run = "node --test scripts/ci/*.test.mjs"
+
 [tasks.check]
 description = "Run all validation tasks"
 depends = [
@@ -70,6 +74,7 @@ depends = [
   "ui:lint",
   "ui:test",
   "ui:build",
+  "ci:test",
 ]
 
 [tasks."ui:typecheck"]

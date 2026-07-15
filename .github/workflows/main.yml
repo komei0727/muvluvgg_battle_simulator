@@ -5,8 +5,60 @@ on:
     branches: [main]
 
 jobs:
+  # Always runs (no workflow-level `on.push.paths` filter) so required
+  # status checks report success/skipped rather than never triggering when
+  # a merge only touches one workspace. Downstream jobs (including the
+  # Cloud Run deploy) read its outputs and skip themselves at the job level
+  # — this avoids creating an unnecessary API revision on a UI-only merge
+  # (PR #118 review). Decision logic: scripts/ci/classify-changed-paths.mjs.
+  changes:
+    name: Detect changed workspaces
+    runs-on: ubuntu-latest
+    outputs:
+      run_api: ${{ steps.classify.outputs.run_api }}
+      run_ui: ${{ steps.classify.outputs.run_ui }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      # Runs here, not in `quality`, because `quality` skips on a UI-only
+      # merge — this job is the only one guaranteed to always run, and
+      # format-check covers the whole repo tree regardless of workspace
+      # (PR #118 review: a UI-only Prettier violation was passing CI).
+      - name: Format check
+        run: mise run format-check
+
+      - name: Test the change-classification logic
+        run: mise run ci:test
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          if [ "$BEFORE_SHA" = "$ZERO_SHA" ] || ! git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
+            # New branch or an unresolvable base (force-push, history
+            # rewrite): fail safe and run both gates rather than guess.
+            echo "run_api=true" >> "$GITHUB_OUTPUT"
+            echo "run_ui=true" >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only "$BEFORE_SHA" "$AFTER_SHA" \
+              | mise exec -- node scripts/ci/classify-changed-paths.mjs \
+              >> "$GITHUB_OUTPUT"
+          fi
+
   quality:
     name: Full Quality Gate
+    needs: changes
+    if: needs.changes.outputs.run_api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,9 +67,6 @@ jobs:
 
       - name: Install dependencies
         run: mise run install
-
-      - name: Format check
-        run: mise run format-check
 
       - name: Type check
         run: mise run typecheck
@@ -48,6 +97,8 @@ jobs:
 
   ui:
     name: UI Quality Gate
+    needs: changes
+    if: needs.changes.outputs.run_ui == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,8 +131,12 @@ jobs:
 
   deploy:
     name: Deploy to Cloud Run
-    needs: [quality, ui]
-    if: github.ref == 'refs/heads/main'
+    needs: [changes, quality, ui]
+    # `needs` on a skipped job does not by itself skip this job (a skipped
+    # dependency is not a failure, so the implicit success() check still
+    # passes) — the run_api check must be explicit, or a UI-only merge
+    # would still deploy an unchanged API image (PR #118 review).
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.run_api == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:

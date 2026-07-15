@@ -5,8 +5,51 @@ on:
     branches: [main]
 
 jobs:
+  # Always runs (no workflow-level `on.pull_request.paths` filter) so that
+  # required status checks report success/skipped rather than never
+  # triggering when a PR only touches one workspace. Downstream jobs read
+  # its outputs and skip themselves at the job level instead — PR #118
+  # review. Decision logic: scripts/ci/classify-changed-paths.mjs.
+  changes:
+    name: Detect changed workspaces
+    runs-on: ubuntu-latest
+    outputs:
+      run_api: ${{ steps.classify.outputs.run_api }}
+      run_ui: ${{ steps.classify.outputs.run_ui }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      # Runs here, not in `quality`, because `quality` skips on a UI-only
+      # change — this job is the only one guaranteed to always run, and
+      # format-check covers the whole repo tree regardless of workspace
+      # (PR #118 review: a UI-only Prettier violation was passing CI).
+      - name: Format check
+        run: mise run format-check
+
+      - name: Test the change-classification logic
+        run: mise run ci:test
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" \
+            | mise exec -- node scripts/ci/classify-changed-paths.mjs \
+            >> "$GITHUB_OUTPUT"
+
   quality:
     name: Quality Gate
+    needs: changes
+    if: needs.changes.outputs.run_api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,9 +58,6 @@ jobs:
 
       - name: Install dependencies
         run: mise run install
-
-      - name: Format check
-        run: mise run format-check
 
       - name: Type check
         run: mise run typecheck
@@ -33,6 +73,8 @@ jobs:
 
   container:
     name: Container Build and Smoke Test
+    needs: changes
+    if: needs.changes.outputs.run_api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +89,8 @@ jobs:
 
   ui:
     name: UI Quality Gate
+    needs: changes
+    if: needs.changes.outputs.run_ui == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
