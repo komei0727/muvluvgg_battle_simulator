@@ -3,7 +3,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { RULE_COVERAGE } from "./rule-coverage.js";
 
-const specPath = fileURLToPath(new URL("../../../docs/ddd/07_戦闘ルール詳細.md", import.meta.url));
+const specPath = fileURLToPath(
+  new URL("../../../../../docs/ddd/07_戦闘ルール詳細.md", import.meta.url),
+);
 
 function extractRuleIdsFromSpec(): string[] {
   const content = readFileSync(specPath, "utf-8");

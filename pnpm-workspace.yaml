@@ -1,6 +1,6 @@
 packages:
-  - "."
-  - "ui"
+  - "apps/api"
+  - "apps/ui"
 
 minimumReleaseAge: 1440
 minimumReleaseAgeStrict: true

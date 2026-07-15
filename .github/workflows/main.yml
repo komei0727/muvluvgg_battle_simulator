@@ -44,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage/
+          path: apps/api/coverage/
 
   deploy:
     name: Deploy to Cloud Run
@@ -105,7 +105,7 @@ jobs:
           SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
         run: |
           curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
-            | mise exec -- pnpm exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
+            | mise exec -- pnpm --filter api exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
             > /tmp/muvluvgg-smoke-simulation-request.json
 
       # smoke test失敗時はここでjobが停止し、以降のtraffic切替・GitHub

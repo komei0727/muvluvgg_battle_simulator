@@ -59,7 +59,7 @@ jobs:
       - name: Build minimal simulation smoke test request
         run: |
           curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
-            | mise exec -- pnpm exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
+            | mise exec -- pnpm --filter api exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
             > /tmp/muvluvgg-rollback-smoke-simulation-request.json
 
       - name: Smoke test the rolled-back service

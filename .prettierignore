@@ -3,5 +3,5 @@ dist/
 coverage/
 pnpm-lock.yaml
 mise.lock
-ui/playwright-report/
-ui/test-results/
+apps/ui/playwright-report/
+apps/ui/test-results/

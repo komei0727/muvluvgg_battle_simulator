@@ -49,7 +49,7 @@ Cloud Runは[Knative v1 manifest互換の`startupProbe`・`livenessProbe`・
 手動deployは[`scripts/cloud-run/03-deploy-service.sh`](../../scripts/cloud-run/03-deploy-service.sh)
 （Node scriptでimageだけ差し替える）を使う。CI（`.github/workflows/main.yml`の`deploy`
 job）は[`scripts/cloud-run/ci-deploy-candidate.sh`](../../scripts/cloud-run/ci-deploy-candidate.sh)
-経由で[`src/infrastructure/deploy/render-cloud-run-manifest-cli.ts`](../../src/infrastructure/deploy/render-cloud-run-manifest-cli.ts)
+経由で[`apps/api/src/infrastructure/deploy/render-cloud-run-manifest-cli.ts`](../../apps/api/src/infrastructure/deploy/render-cloud-run-manifest-cli.ts)
 を使い、image・deterministicなrevision name・`spec.traffic`（既存revision 100%固定
 ＋新revision 0%＋`candidate` tag）を差し込む。詳細は`#106`（`M45-INFRA-002`）と
 [`docs/運用手順.md`](../../docs/運用手順.md)「Cloud Run deploy」を参照。
@@ -82,7 +82,7 @@ gcloud artifacts repositories create muvluvgg-battle-simulator \
   --description="muvluvgg-battle-simulator production container images"
 ```
 
-`src/__tests__/cloud-run-service-config.test.ts`が`service.json`の値を
+`apps/api/src/__tests__/cloud-run-service-config.test.ts`が`service.json`の値を
 `11_インフラストラクチャ設計.md`の初期設定表と自動的に突き合わせる。
 
 手動でのproject準備、image build/push、deploy、smoke test、cleanup有効化は、

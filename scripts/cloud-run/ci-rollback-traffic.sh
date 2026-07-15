@@ -21,7 +21,7 @@ if [ -z "${TARGET_REVISION:-}" ]; then
     --region="$REGION" \
     --project="$PROJECT_ID" \
     --format=json \
-    | TAG_NAME=stable-previous mise exec -- pnpm exec tsx "$REPO_ROOT/src/infrastructure/deploy/resolve-tagged-revision-cli.ts")"
+    | TAG_NAME=stable-previous mise exec -- pnpm --filter api exec tsx "$REPO_ROOT/apps/api/src/infrastructure/deploy/resolve-tagged-revision-cli.ts")"
 
   if [ -z "$TARGET_REVISION" ]; then
     echo "ERROR: stable-previous tagが見つかりません（promoteの実績が1回以下、または既にrollback済み）。" >&2

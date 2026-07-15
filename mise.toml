@@ -16,42 +16,42 @@ run = "pnpm install --frozen-lockfile"
 [tasks.dev]
 description = "Start the development server"
 depends = ["install"]
-run = "pnpm run dev"
+run = "pnpm --filter api run dev"
 
 [tasks.typecheck]
-run = "pnpm run typecheck"
+run = "pnpm --filter api run typecheck"
 
 [tasks.lint]
-run = "pnpm run lint"
+run = "pnpm --filter api run lint"
 
 [tasks.format-check]
 run = "pnpm run format:check"
 
 [tasks.test]
-run = "pnpm run test"
+run = "pnpm --filter api run test"
 
 [tasks."test:coverage"]
 description = "Run unit/scenario/contract tests with coverage report"
-run = "pnpm run test:coverage"
+run = "pnpm --filter api run test:coverage"
 
 [tasks."test:integration"]
 description = "Run Worker and HTTP integration tests"
-run = "pnpm run test:integration"
+run = "pnpm --filter api run test:integration"
 
 [tasks."test:e2e"]
 description = "Run end-to-end tests (HTTP to Worker to Battle)"
-run = "pnpm run test:e2e"
+run = "pnpm --filter api run test:e2e"
 
 [tasks."test:load"]
 description = "Run load and soak tests (nightly / pre-release)"
-run = "pnpm run test:load"
+run = "pnpm --filter api run test:load"
 
 [tasks.build]
-run = "pnpm run build"
+run = "pnpm --filter api run build"
 
 [tasks.check-circular]
 description = "Detect circular dependencies between source files"
-run = "pnpm run check:circular"
+run = "pnpm --filter api run check:circular"
 
 [tasks."test:container"]
 description = "Build the production container image and run local Docker smoke tests (non-root, PORT/HOST, Catalog/Worker/OpenAPI, SIGTERM)"
