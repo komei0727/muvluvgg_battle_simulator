@@ -15,7 +15,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 代表10ユニットは Issue #41 / #46 で production Catalog（`catalog-src/units/`）へ昇格済み。Issue #47 では「先行バッチ」として指定された12ユニット・6 Memory を同水準（`unit.json`/`skills.json`/`effects.json` フル変換）で追加した。Issue #55（Issue #54 Batch A）では既存キャラクターの別バージョンを中心とした8ユニットを同水準で追加した。Issue #59（Issue #54 Batch B）では同一キャラクターの複数バージョン整合性に注意が必要な8ユニット（生駒葵・リリー・ラヴォア・一条白奈・綺羅クララの各2バージョン）を同水準で追加した。Issue #57（Issue #54 Batch C）では所属/チーム系Memoryとの将来整合性に注意が必要な8ユニット（桃園める・シエナ・クラーク・リュシー・ムーアクロフト・朽葉ラミの各2バージョン）を同水準で追加した。Issue #56（Issue #54 Batch D）では戦術/前衛寄りの8ユニット（御剣冥夜・篁唯依・オルガ・ヴォルコワ・榊野ヒイロ・珠瀬壬姫・ノエル・アルエ・タリサ・マナンダル・姜小花）を同水準で追加した。Issue #58（Issue #54 Batch E）では支援/制御/イベント色の強い8ユニット（鳴滝七彩・姫川泉花（クリスマスコーデの参謀）・姫川泉花（自称腹黒の深謀策士）・樋向心香・大賀真桜・榊千鶴・ミリアム・ヘイワード・ルナ・メロウ）を同水準で追加した。Issue #60（Issue #54 Batch F）では残っていた最後の7ユニット（エレーナ・パステルコワ・タチアナ・ドロズドヴァ・ロージー・ヒューズ・波瀬うるう・レイヴェル・ブライトリーフ・ナージャ・ヴォルコワ・ジュリー・ステイシー）を同水準で追加し、`raw/units/` の全件変換が完了した。いずれも本Issueで初変換のキャラクターのため、`characterId`・`unitDefinitionId` を新規採番した。ナージャ・ヴォルコワの `characterId`（`CHAR_NADYA_VOLKOVA`）は、姓を共有する既存ユニット `UNIT_OLGA_VETERAN`（`CHAR_OLGA_VOLKOVA`）とは別キャラクターとして区別した。
 
-`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・32）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（69ユニット・6メモリー）のみを `src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
+`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・32）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（69ユニット・6メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
 
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 

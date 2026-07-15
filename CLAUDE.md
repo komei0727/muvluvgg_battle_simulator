@@ -35,13 +35,14 @@ pnpm install
 | `mise run build`            | TypeScript ビルド (`tsc -p tsconfig.json`)                                 |
 | `mise run check-circular`   | 循環依存検査 (`madge --circular ...`)                                      |
 | `mise run check`            | typecheck・lint・format-check・test・build・check-circular をまとめて実行  |
-| `mise run dev`              | 開発サーバー起動 (install → `tsx watch src/main.ts`)                       |
+| `mise run dev`              | 開発サーバー起動 (install → `tsx watch src/main.ts`、`apps/api/`で実行)    |
 
 ### PR 相当のローカル検証
 
 ```bash
 bash scripts/run-quality-gates.sh
 # 実行順: format-check → typecheck → lint → test:coverage → check-circular
+#         → ui:typecheck → ui:lint → ui:test → ui:build
 ```
 
 ### テスト区分
@@ -67,10 +68,14 @@ bash scripts/run-quality-gates.sh
 - **Lint**: ESLint 10.x + typescript-eslint 8.x
 - **フォーマット**: Prettier 3.x
 
-## レイヤー構成
+## リポジトリ構成
+
+pnpm workspaceで `apps/api`（backend）・`apps/ui`（frontend）を独立したpackageとして持つ。ルート `package.json` はworkspace orchestrationと共通development tooling（Prettier）だけを持ち、各scriptは対応するpackageへ委譲する（`pnpm --filter api run ...` / `pnpm --filter ui run ...`）。
+
+## レイヤー構成（`apps/api/src/`）
 
 ```
-src/
+apps/api/src/
   domain/          # ドメインロジック (Node.js 組み込みモジュール禁止)
   application/     # アプリケーションユースケース
   infrastructure/  # 外部依存の実装

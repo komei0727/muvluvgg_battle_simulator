@@ -10,7 +10,7 @@ const bareBuiltinPattern = `^(${_bareBuiltins})(/|$)`;
 
 /** @type {import('@typescript-eslint/utils').TSESLint.FlatConfig.ConfigArray} */
 export default tseslint.config(
-  { ignores: ["node_modules/**", "dist/**", "coverage/**", "ui/**"] },
+  { ignores: ["node_modules/**", "dist/**", "coverage/**"] },
   js.configs.recommended,
   tseslint.configs.eslintRecommended,
   {

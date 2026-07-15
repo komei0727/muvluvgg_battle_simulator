@@ -13,7 +13,7 @@ import type { SimulationWorkerPool as SimulationWorkerPoolClass } from "../infra
  * pool.integration.test.ts`と同じ理由でビルド後のモジュールを使う）を通して
  * 検証する。
  */
-const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const apiPackageRoot = fileURLToPath(new URL("../../", import.meta.url));
 const tscBin = fileURLToPath(new URL("../../node_modules/.bin/tsc", import.meta.url));
 const distBootstrapUrl = new URL("../../dist/bootstrap/index.js", import.meta.url);
 const distPoolUrl = new URL(
@@ -49,7 +49,7 @@ describe("bootstrap (compiled build)", () => {
   const originalEnv = { ...process.env };
 
   beforeAll(async () => {
-    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: repoRoot, stdio: "inherit" });
+    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: apiPackageRoot, stdio: "inherit" });
     expect(existsSync(fileURLToPath(distBootstrapUrl))).toBe(true);
     const compiled = (await import(distBootstrapUrl.href)) as {
       bootstrap: () => Promise<FastifyInstance>;

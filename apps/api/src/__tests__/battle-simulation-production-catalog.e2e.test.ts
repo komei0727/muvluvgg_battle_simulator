@@ -33,7 +33,7 @@ import { buildSimulationSmokeRequest } from "../infrastructure/deploy/simulation
  * to avoid the dual-module-instance `ApplicationError` mismatch described
  * there.
  */
-const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const apiPackageRoot = fileURLToPath(new URL("../../", import.meta.url));
 const tscBin = fileURLToPath(new URL("../../node_modules/.bin/tsc", import.meta.url));
 const distPoolUrl = new URL(
   "../../dist/infrastructure/worker/simulation-worker-pool.js",
@@ -48,7 +48,7 @@ describe("production Catalog has a selectable unit that actually completes a bat
   let buildServer: typeof buildServerFn;
 
   beforeAll(async () => {
-    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: repoRoot, stdio: "inherit" });
+    execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: apiPackageRoot, stdio: "inherit" });
     expect(existsSync(fileURLToPath(distPoolUrl))).toBe(true);
     expect(existsSync(fileURLToPath(distBuildServerUrl))).toBe(true);
     const compiledPool = (await import(distPoolUrl.href)) as {

@@ -25,7 +25,7 @@ CURRENT_STABLE_REVISION_NAME="$( (gcloud run services describe "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT_ID" \
   --format=json 2>/dev/null || echo '{}') \
-  | TAG_NAME=stable mise exec -- pnpm exec tsx "$REPO_ROOT/src/infrastructure/deploy/resolve-tagged-revision-cli.ts")"
+  | TAG_NAME=stable mise exec -- pnpm --filter api exec tsx "$REPO_ROOT/apps/api/src/infrastructure/deploy/resolve-tagged-revision-cli.ts")"
 echo "CURRENT_STABLE_REVISION_NAME=${CURRENT_STABLE_REVISION_NAME:-<none, first promote>}"
 
 echo "== promote candidate revision to 100% traffic and rotate stable/stable-previous tags atomically =="

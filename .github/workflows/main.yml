@@ -44,11 +44,43 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage/
+          path: apps/api/coverage/
+
+  ui:
+    name: UI Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: UI type check
+        run: mise run ui:typecheck
+
+      - name: UI lint
+        run: mise run ui:lint
+
+      - name: UI unit / component tests
+        run: mise run ui:test
+
+      - name: UI build (GitHub Pages base path)
+        run: mise run ui:build
+        env:
+          VITE_BASE_PATH: /muvluvgg_battle_simulator/
+          VITE_API_BASE_URL: https://ci-build-placeholder.invalid.example
+
+      - name: Install Playwright browser
+        run: pnpm --filter ui exec playwright install --with-deps chromium
+
+      - name: UI end-to-end smoke test
+        run: mise run ui:e2e
 
   deploy:
     name: Deploy to Cloud Run
-    needs: quality
+    needs: [quality, ui]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
@@ -105,7 +137,7 @@ jobs:
           SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
         run: |
           curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
-            | mise exec -- pnpm exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
+            | mise exec -- pnpm --filter api exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
             > /tmp/muvluvgg-smoke-simulation-request.json
 
       # smoke test失敗時はここでjobが停止し、以降のtraffic切替・GitHub

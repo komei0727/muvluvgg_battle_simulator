@@ -1,0 +1,48 @@
+{
+  "name": "@muvluvgg/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.17.0 <25"
+  },
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "validate-catalog": "tsx src/infrastructure/catalog/runtime/validate-catalog-cli.ts",
+    "generate-catalog": "tsx src/infrastructure/catalog/source/generate-catalog-cli.ts",
+    "check-catalog-src": "tsx src/infrastructure/catalog/source/check-catalog-src-cli.ts",
+    "render-cloud-run-manifest": "tsx src/infrastructure/deploy/render-cloud-run-manifest-cli.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --enable-source-maps dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:load": "vitest run --config vitest.load.config.ts",
+    "check:circular": "madge --circular --extensions ts src/ --ts-config tsconfig.json"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "^24.13.2",
+    "@vitest/coverage-v8": "4.1.9",
+    "eslint": "10.5.0",
+    "madge": "^8.0.0",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.62.0",
+    "vitest": "4.1.9"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/swagger-ui": "^6.0.0",
+    "ajv": "^8.20.0",
+    "fastify": "^5.8.5",
+    "piscina": "^5.2.0"
+  }
+}

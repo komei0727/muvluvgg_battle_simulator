@@ -27,25 +27,25 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * synthetic, zero-`requiredCapabilities` unit (tagged
  * `INTERNAL`/`SMOKE_TEST`/`TEMPORARY`) that exists solely so production
  * Catalog has at least one `selectable` unit for the Cloud Run CI/CD
- * post-deploy simulation smoke test (`src/infrastructure/deploy/
+ * post-deploy simulation smoke test (`apps/api/src/infrastructure/deploy/
  * simulation-smoke-request.ts`). It is NOT a raw/ character conversion and
  * is intentionally excluded from the ledger's 69-unit tally in
  * `docs/ddd/15_Unit_Memory変換台帳.md` — remove it once a real converted unit
  * references only `IMPLEMENTED` capabilities.
  */
 
-function repoRootPath(...segments: string[]): string {
+function apiPackageRootPath(...segments: string[]): string {
   return fileURLToPath(new URL(`../../../../${segments.join("/")}`, import.meta.url));
 }
 
 describe("catalog-src/ inventory (Issue #47 ledger)", () => {
   it("IT-CAT-INV-001: catalog-src/ has the 69 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A + 8 from Issue #59 Batch B + 8 from Issue #57 Batch C + 8 from Issue #56 Batch D + 8 from Issue #58 Batch E + 7 from Issue #60 Batch F) plus the 1 synthetic CI smoke-test unit from Issue #106", () => {
-    const source = readCatalogSource(repoRootPath("catalog-src"));
+    const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     expect(source.units.length).toBe(70);
   });
 
   it("IT-CAT-INV-002: catalog-src/ has exactly the 6 converted memories tallied in the ledger (Issue #47 batch)", () => {
-    const source = readCatalogSource(repoRootPath("catalog-src"));
+    const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     expect(source.memories.length).toBe(6);
   });
 });

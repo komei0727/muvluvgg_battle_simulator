@@ -51,7 +51,7 @@ interface CloudRunServiceManifest {
 }
 
 function loadManifest(): CloudRunServiceManifest {
-  const url = new URL("../../deploy/cloud-run/service.json", import.meta.url);
+  const url = new URL("../../../../deploy/cloud-run/service.json", import.meta.url);
   return JSON.parse(readFileSync(url, "utf-8")) as CloudRunServiceManifest;
 }
 

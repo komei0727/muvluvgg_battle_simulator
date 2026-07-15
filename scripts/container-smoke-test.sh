@@ -16,7 +16,7 @@ CANCEL_CONTAINER="muvluvgg-smoke-cancel"
 PROD_PORT=18080
 FIXTURE_PORT=18081
 CANCEL_PORT=18082
-FIXTURE_CATALOG_DIR="$(pwd)/src/infrastructure/catalog/__fixtures__/runtime/valid/minimal"
+FIXTURE_CATALOG_DIR="$(pwd)/apps/api/src/infrastructure/catalog/__fixtures__/runtime/valid/minimal"
 
 # `11_インフラストラクチャ設計.md`「同一ユニット重複と最大編成人数を受理する」
 # （`12_テスト戦略.md`End-to-Endテスト#5）。5対5・99ターン・DIAGNOSTICは
