@@ -5,32 +5,42 @@
 configuration described in
 [`docs/ddd/11_インフラストラクチャ設計.md`](../../docs/ddd/11_インフラストラクチャ設計.md#m45-cloud-run初期設定)。
 
-| フィールド                                              | 値                                                  | 対応する設計値                                             |
-| ------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
-| `metadata.name`                                         | `muvluvgg-battle-simulator-api`                     | Service name                                               |
-| `metadata.annotations["run.googleapis.com/ingress"]`    | `all`                                               | Ingress                                                    |
-| `spec.template.metadata.annotations[...minScale]`       | `0`                                                 | Minimum instances                                          |
-| `spec.template.metadata.annotations[...maxScale]`       | `1`                                                 | Maximum instances                                          |
-| `spec.template.metadata.annotations[...cpu-throttling]` | `true`                                              | Billing: request-based                                     |
-| `spec.template.spec.containerConcurrency`               | `2`                                                 | Container concurrency                                      |
-| `spec.template.spec.timeoutSeconds`                     | `40`                                                | Request timeout                                            |
-| `containers[0].resources.limits.cpu`/`memory`           | `1`/`1Gi`                                           | CPU／Memory                                                |
-| `containers[0].env[WORKER_MAX_QUEUE]`                   | `1`                                                 | `WORKER_MAX_QUEUE`                                         |
-| `containers[0].env[SHUTDOWN_GRACE_MS]`                  | `8000`                                              | `SHUTDOWN_GRACE_MS`                                        |
-| `containers[0].env[CORS_ALLOWED_ORIGINS]`               | `https://komei0727.github.io`                       | CORS allowed origin                                        |
-| `containers[0].startupProbe`                            | `GET /health/live:8080`（1s間隔・失敗60回まで）     | Catalog検証／Worker warm-up完了までtraffic受付を開始しない |
-| `containers[0].livenessProbe`                           | `GET /health/live:8080`（10s間隔・失敗3回で再起動） | プロセスが応答不能になった場合だけ再起動する               |
+| フィールド                                              | 値                                                    | 対応する設計値                                             |
+| ------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------- |
+| `metadata.name`                                         | `muvluvgg-battle-simulator-api`                       | Service name                                               |
+| `metadata.annotations["run.googleapis.com/ingress"]`    | `all`                                                 | Ingress                                                    |
+| `spec.template.metadata.annotations[...minScale]`       | `0`                                                   | Minimum instances                                          |
+| `spec.template.metadata.annotations[...maxScale]`       | `1`                                                   | Maximum instances                                          |
+| `spec.template.metadata.annotations[...cpu-throttling]` | `true`                                                | Billing: request-based                                     |
+| `spec.template.spec.containerConcurrency`               | `2`                                                   | Container concurrency                                      |
+| `spec.template.spec.timeoutSeconds`                     | `40`                                                  | Request timeout                                            |
+| `containers[0].resources.limits.cpu`/`memory`           | `1`/`1Gi`                                             | CPU／Memory                                                |
+| `containers[0].env[WORKER_MAX_QUEUE]`                   | `1`                                                   | `WORKER_MAX_QUEUE`                                         |
+| `containers[0].env[SHUTDOWN_GRACE_MS]`                  | `8000`                                                | `SHUTDOWN_GRACE_MS`                                        |
+| `containers[0].env[CORS_ALLOWED_ORIGINS]`               | `https://komei0727.github.io`                         | CORS allowed origin                                        |
+| `containers[0].startupProbe`                            | `GET /health/live:8080`（1s間隔・失敗60回まで）       | Catalog検証／Worker warm-up完了までtraffic受付を開始しない |
+| `containers[0].livenessProbe`                           | `GET /health/live:8080`（10s間隔・失敗3回で再起動）   | プロセスが応答不能になった場合だけ再起動する               |
+| `containers[0].readinessProbe`                          | `GET /health/ready:8080`（5s間隔・失敗2回で受付停止） | 一時的にtrafficを受けられない状態を再起動なしで反映する    |
 
-Cloud Runは`startupProbe`・`livenessProbe`だけをサポートし、Kubernetesの
-`readinessProbe`に相当する独立フィールドは存在しない——`startupProbe`が
-一度成功した時点でtraffic受付が始まり、以後は`livenessProbe`だけが
-再起動要否を判定する。どちらも`/health/live`を使う理由は
-`11_インフラストラクチャ設計.md`「配備」「`/health/live`をstartup probe候補とし、
-Catalog検証とWorker warm-upが完了するまでHTTP portを公開しない既存起動順を
-維持する」——`listen()`はCatalog検証・Worker warm-up完了後にしか呼ばれないため、
-`/health/live`が応答した時点で両方が既に完了している。`/health/ready`は
-Pool飽和などでも失敗し得るため（`11_インフラストラクチャ設計.md`「ヘルスチェック」）、
-再起動判断には使わない。
+Cloud Runは[Knative v1 manifest互換の`startupProbe`・`livenessProbe`・
+`readinessProbe`をサポートする](https://docs.cloud.google.com/run/docs/configuring/healthchecks#readiness-probes)。
+それぞれ役割が異なる。
+
+- `startupProbe`（`/health/live`）: 最初の成功でtraffic受付が始まる。
+  `11_インフラストラクチャ設計.md`「配備」「`/health/live`をstartup probe候補とし、
+  Catalog検証とWorker warm-upが完了するまでHTTP portを公開しない既存起動順を
+  維持する」——`listen()`自体がwarm-up完了後にしか呼ばれないため、
+  `/health/live`が応答した時点で両方が既に完了している。
+- `livenessProbe`（`/health/live`）: 失敗が続いた場合だけinstanceを再起動する。
+  `/health/live`は「プロセスがHTTP応答可能なら成功する。Catalog障害やPool飽和
+  では失敗しない」（`11_インフラストラクチャ設計.md`「ヘルスチェック」）ため、
+  再起動が必要な致命的状態だけを検出する。
+- `readinessProbe`（`/health/ready`）: 失敗している間だけそのinstanceへの新規
+  traffic送出を止める（再起動はしない）。`/health/ready`は「シャットダウン
+  開始前、かつWorker Poolが健全（稼働中のCatalogリビジョン不一致が未発生）」
+  で成功し、一時的なキュー満杯だけでは失敗しない（`運用手順.md`「ヘルスチェック」）
+  ——Graceful Shutdown開始直後やWorker Poolの致命的状態など、
+  「再起動ではなく新規受付だけを止めたい」状態と直接対応する。
 
 `region`・`project`はKnative Serviceの本文に含まれないため、適用時にコマンド引数
 （またはリソース名の一部）として渡す。`image`フィールドの`${PROJECT_ID}`・

@@ -20,8 +20,9 @@ FIXTURE_CATALOG_DIR="$(pwd)/src/infrastructure/catalog/__fixtures__/runtime/vali
 
 # `11_インフラストラクチャ設計.md`「同一ユニット重複と最大編成人数を受理する」
 # （`12_テスト戦略.md`End-to-Endテスト#5）。5対5・99ターン・DIAGNOSTICは
-# CANCEL_CONTAINERでSIGTERM時点で確実に実行中にするための「computeに数百ms
-# かかる」戦闘として使う（fixture Catalogの`UNIT_001`だけで構成できる）。
+# CANCEL_CONTAINERで複数件同時に投げるための「computeに数百msかかる」戦闘
+# として使う（fixture Catalogの`UNIT_001`だけで構成できる。詳細は後段の
+# `CANCEL_CONCURRENCY`まわりのコメント参照）。
 LARGE_BATTLE_BODY='{
   "allyFormation": {
     "units": [
@@ -82,20 +83,50 @@ expect_status() {
   echo "OK: $label -> $actual"
 }
 
-# `docker inspect -f '{{.State.Running}}'`をpollし、停止までの経過秒数を返す。
+# `docker inspect -f '{{.State.Running}}'`をpollし、`start_epoch`からの経過秒数
+# を返す。呼び出し側が`docker kill`直前に取得した時刻を渡すことで、
+# 「SIGTERM送信からの総停止時間」を計測する（呼び出し時点を起点にすると、
+# SIGTERM送信後の他の検証に費やした時間が計測から漏れる）。
 wait_for_stop_seconds() {
   local container="$1"
-  local timeout_seconds="$2"
-  local start
-  start=$(date +%s)
+  local start_epoch="$2"
+  local timeout_seconds="$3"
   until [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" = "false" ]; do
-    local elapsed=$(( $(date +%s) - start ))
+    local elapsed=$(( $(date +%s) - start_epoch ))
     if [ "$elapsed" -ge "$timeout_seconds" ]; then
-      fail "$container did not stop within ${timeout_seconds}s"
+      fail "$container did not stop within ${timeout_seconds}s of SIGTERM"
     fi
     sleep 0.2
   done
-  echo $(( $(date +%s) - start ))
+  echo $(( $(date +%s) - start_epoch ))
+}
+
+# `docker logs -f --tail 0`で新規ログだけを非同期にwatchし始め、
+# `LOG_WATCHER_PID`（グローバル）へwatcherのPIDを設定する（呼び出し側は
+# `wait_for_log_match`でこのPIDを待つ）。`$(...)`コマンド置換でPIDを返すと
+# 置換自体がsubshellを作り、その中で背景化したjobは呼び出し元shellの子で
+# なくなって`wait`できなくなるため、あえてグローバル変数で受け渡す。
+# 「backgroundで投げたPOSTが実際にFastifyへ到達した」ことを観測してから
+# SIGTERMを送るための同期点として使う——同期なしでは、schedulerの都合で
+# SIGTERMがPOSTのTCP acceptより先行し、接続拒否/resetで`set -e`ごとテストを
+# 偶発的に落とす可能性がある。呼び出し側は、このwatcherがattachし終わる
+# （`--tail 0`が「これ以降のログだけ」を意味するため、attach前に出たログは
+# 拾えない）のを確実に待ってから対象のrequestを送ること。
+start_log_watch() {
+  local container="$1"
+  local pattern="$2"
+  local timeout_seconds="$3"
+  ( timeout "${timeout_seconds}s" bash -c \
+    "docker logs -f --tail 0 '$container' 2>&1 | grep -q -m1 '$pattern'" ) &
+  LOG_WATCHER_PID=$!
+}
+
+wait_for_log_match() {
+  local watcher_pid="$1"
+  local description="$2"
+  if ! wait "$watcher_pid"; then
+    fail "did not observe $description in time"
+  fi
 }
 
 echo "== build (linux/amd64) =="
@@ -137,6 +168,9 @@ echo "== SIGTERM: readiness stops serving immediately, total stop time <= SHUTDO
 # リクエストが不完全な結果を200として返さない」ことは、後段の
 # `CANCEL_CONTAINER`（実際に処理中の接続で検証、socket tear-downと競合しない）
 # で確認する。
+# 総停止時間はSIGTERM送信の直前から計測する（後続のreadiness確認に
+# 費やした時間を漏らさないため——`wait_for_stop_seconds`へ渡す）。
+PROD_SIGTERM_SENT_AT=$(date +%s)
 docker kill --signal=SIGTERM "$PROD_CONTAINER" >/dev/null
 
 READY_FAIL_ATTEMPTS=0
@@ -150,7 +184,7 @@ while [ "$READY_STATUS" = "200" ]; do
 done
 echo "OK: GET /health/ready -> $READY_STATUS (not 200) within $READY_FAIL_ATTEMPTS attempt(s) of SIGTERM"
 
-SIGTERM_ELAPSED=$(wait_for_stop_seconds "$PROD_CONTAINER" 10)
+SIGTERM_ELAPSED=$(wait_for_stop_seconds "$PROD_CONTAINER" "$PROD_SIGTERM_SENT_AT" 10)
 if [ "$SIGTERM_ELAPSED" -gt 9 ]; then
   fail "container took ${SIGTERM_ELAPSED}s to stop after SIGTERM (SHUTDOWN_GRACE_MS=8000 + 1s margin = 9s budget)"
 fi
@@ -185,8 +219,20 @@ fi
 echo "OK: POST /api/v1/battle-simulations -> 200 (compiled Worker resolved and executed a minimal battle)"
 rm -f /tmp/muvluvgg-smoke-simulation.json
 
-echo "== run: SHUTDOWN_GRACE_MS=0 + an in-flight battle, to prove incomplete results are never returned as success =="
-docker run -d --name "$CANCEL_CONTAINER" -p "${CANCEL_PORT}:8080" \
+echo "== run: SHUTDOWN_GRACE_MS=0 + concurrent in-flight battles, to prove incomplete results are never returned as success =="
+# `--cpuset-cpus=0`でNode/Piscinaの`os.availableParallelism()`を1に固定する
+# （実測: single vCPUのcontainerでは`availableParallelism()`が1を返す）。
+# `piscina`の既定`maxThreads`は`availableParallelism * 1.5`のため、これで
+# 同時実行中Workerが高々1〜2本に制限される。5対5・99ターン・DIAGNOSTICの
+# 実戦闘を$CANCEL_CONCURRENCY件同時に投げれば、SIGTERM到達時点で残りは
+# 確実にPiscinaのtask queueで「未開始」のまま待たされる——`shutdown.ts`
+# 「ステップ4」の「未開始タスクを即座にキャンセルする」は計算速度と無関係に
+# 常に成立するため、`grace=0`と組み合わせても「まだ実行中の1件」対「速い
+# 計算がSIGTERM到達より先に終わる」という競合（実際に発生を確認済み）を
+# 避け、「不完全な結果が200として返らない」ことを決定的に検証できる
+# （`INT-WORKER-SHUTDOWN-001`のqueued-task assertionと同じ考え方を
+# container境界で再現する）。
+docker run -d --name "$CANCEL_CONTAINER" --cpuset-cpus="0" -p "${CANCEL_PORT}:8080" \
   -e PORT=8080 \
   -e CATALOG_PATH=/fixtures/catalog \
   -e SHUTDOWN_GRACE_MS=0 \
@@ -194,31 +240,69 @@ docker run -d --name "$CANCEL_CONTAINER" -p "${CANCEL_PORT}:8080" \
   "$IMAGE_TAG" >/dev/null
 wait_for_http "http://localhost:${CANCEL_PORT}/health/ready"
 
-# 5対5・99ターン・DIAGNOSTICは数百ms計算にかかる（fixture Catalogでも計測
-# 済み）——backgroundで起動した直後にSIGTERMを送ることで、`grace=0`と合わせて
-# 「実行中タスクが強制終了され、不完全な結果を200として返さない」ことを
-# 決定的に検証する（`INT-WORKER-SHUTDOWN-002`と同じ考え方をcontainer境界で
-# 再現する。固定200ms遅延fixtureの代わりに、fixture Catalog内で完結する
-# 実戦闘を使う）。
-curl -sS -o /tmp/muvluvgg-smoke-cancelled.json -w '%{http_code}' \
-  -X POST "http://localhost:${CANCEL_PORT}/api/v1/battle-simulations" \
-  -H 'Content-Type: application/json' \
-  -d "$LARGE_BATTLE_BODY" > /tmp/muvluvgg-smoke-cancelled.status &
-CANCEL_CURL_PID=$!
+CANCEL_CONCURRENCY=6
+CANCEL_CURL_PIDS=()
+
+# `--tail 0`は「watcher attach以降のログだけ」を意味するため、必ずPOSTを
+# 送る前にwatcherを起動し、attachが完了するのを待ってからPOSTを送る
+# （逆順だと、attach前にログ出力まで終わってしまい、watcherが恒久的に
+# matchできず`timeout`まで無駄に待つ）。1件目の`incoming request`ログが
+# 見えた時点で、残りも含めて既にFastifyへ到達している可能性が高いため、
+# それ以上待たずただちにSIGTERMを送る。
+start_log_watch "$CANCEL_CONTAINER" '"url":"/api/v1/battle-simulations"' 10
+CANCEL_LOG_WATCHER_PID="$LOG_WATCHER_PID"
+sleep 0.5
+
+for i in $(seq 1 "$CANCEL_CONCURRENCY"); do
+  curl -sS -o "/tmp/muvluvgg-smoke-cancelled-${i}.json" -w '%{http_code}' \
+    -X POST "http://localhost:${CANCEL_PORT}/api/v1/battle-simulations" \
+    -H 'Content-Type: application/json' \
+    -d "$LARGE_BATTLE_BODY" > "/tmp/muvluvgg-smoke-cancelled-${i}.status" &
+  CANCEL_CURL_PIDS+=("$!")
+done
+
+wait_for_log_match "$CANCEL_LOG_WATCHER_PID" "an in-flight battle request reaching Fastify"
+CANCEL_SIGTERM_SENT_AT=$(date +%s)
 docker kill --signal=SIGTERM "$CANCEL_CONTAINER" >/dev/null
-wait "$CANCEL_CURL_PID"
-CANCEL_STATUS=$(cat /tmp/muvluvgg-smoke-cancelled.status)
 
-if [ "$CANCEL_STATUS" = "200" ]; then
-  fail "in-flight battle at SIGTERM time returned HTTP 200 (an incomplete result must never be reported as success): $(cat /tmp/muvluvgg-smoke-cancelled.json)"
-fi
-if [ "$CANCEL_STATUS" != "503" ] || ! grep -q '"code":"EXECUTION_CANCELLED"' /tmp/muvluvgg-smoke-cancelled.json; then
-  fail "in-flight battle at SIGTERM time: expected HTTP 503 with error.code=EXECUTION_CANCELLED, got HTTP $CANCEL_STATUS ($(cat /tmp/muvluvgg-smoke-cancelled.json))"
-fi
-echo "OK: in-flight battle at SIGTERM -> 503 EXECUTION_CANCELLED, not 200 (incomplete results are never returned as success)"
-rm -f /tmp/muvluvgg-smoke-cancelled.json /tmp/muvluvgg-smoke-cancelled.status
+CANCEL_TRANSPORT_FAILURES=0
+for pid in "${CANCEL_CURL_PIDS[@]}"; do
+  wait "$pid" || CANCEL_TRANSPORT_FAILURES=$((CANCEL_TRANSPORT_FAILURES + 1))
+done
 
-CANCEL_ELAPSED=$(wait_for_stop_seconds "$CANCEL_CONTAINER" 5)
+CANCEL_EXECUTION_CANCELLED_COUNT=0
+for i in $(seq 1 "$CANCEL_CONCURRENCY"); do
+  status_file="/tmp/muvluvgg-smoke-cancelled-${i}.status"
+  body_file="/tmp/muvluvgg-smoke-cancelled-${i}.json"
+  status=$(cat "$status_file" 2>/dev/null || echo "")
+  case "$status" in
+    200)
+      if ! grep -q '"result"' "$body_file" 2>/dev/null; then
+        fail "battle #$i returned HTTP 200 without a complete result body (an incomplete result must never be reported as success): $(cat "$body_file" 2>/dev/null)"
+      fi
+      ;;
+    503)
+      if grep -q '"code":"EXECUTION_CANCELLED"' "$body_file" 2>/dev/null; then
+        CANCEL_EXECUTION_CANCELLED_COUNT=$((CANCEL_EXECUTION_CANCELLED_COUNT + 1))
+      fi
+      ;;
+    "" | 000)
+      : # transport-level failure (connection reset/refused) — never a false
+        # success either; already counted via CANCEL_TRANSPORT_FAILURES
+      ;;
+    *)
+      fail "battle #$i: unexpected HTTP $status ($(cat "$body_file" 2>/dev/null))"
+      ;;
+  esac
+  rm -f "$status_file" "$body_file"
+done
+
+if [ "$CANCEL_EXECUTION_CANCELLED_COUNT" -lt 1 ] && [ "$CANCEL_TRANSPORT_FAILURES" -lt 1 ]; then
+  fail "none of the $CANCEL_CONCURRENCY concurrent in-flight battles was force-cancelled (expected at least one still-queued task to be rejected as EXECUTION_CANCELLED once SIGTERM arrived)"
+fi
+echo "OK: $CANCEL_EXECUTION_CANCELLED_COUNT/$CANCEL_CONCURRENCY concurrent in-flight battles -> 503 EXECUTION_CANCELLED at SIGTERM, none returned an incomplete result as 200 ($CANCEL_TRANSPORT_FAILURES transport-level failure(s), also never a false success)"
+
+CANCEL_ELAPSED=$(wait_for_stop_seconds "$CANCEL_CONTAINER" "$CANCEL_SIGTERM_SENT_AT" 5)
 CANCEL_EXIT_CODE=$(docker inspect -f '{{.State.ExitCode}}' "$CANCEL_CONTAINER")
 if [ "$CANCEL_EXIT_CODE" != "0" ]; then
   fail "container exited with code $CANCEL_EXIT_CODE after forced cancellation (expected 0)"

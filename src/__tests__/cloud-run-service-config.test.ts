@@ -43,6 +43,7 @@ interface CloudRunServiceManifest {
           readonly env: readonly EnvVar[];
           readonly startupProbe: HttpProbe;
           readonly livenessProbe: HttpProbe;
+          readonly readinessProbe: HttpProbe;
         }>;
       };
     };
@@ -148,5 +149,16 @@ describe("Cloud Run service manifest", () => {
     const containerPort = container?.ports[0]?.containerPort;
     expect(container?.startupProbe.httpGet.port).toBe(containerPort);
     expect(container?.livenessProbe.httpGet.port).toBe(containerPort);
+    expect(container?.readinessProbe.httpGet.port).toBe(containerPort);
+  });
+
+  it("IT-INFRA-CLOUDRUN-014: stops routing new traffic (without restarting) on /health/ready failure — shutdown, Catalog/Worker mismatch, or a degraded pool", () => {
+    const manifest = loadManifest();
+    const probe = manifest.spec.template.spec.containers[0]?.readinessProbe;
+    expect(probe?.httpGet.path).toBe("/health/ready");
+    expect(probe?.httpGet.port).toBe(8080);
+    expect(probe?.periodSeconds).toBeGreaterThan(0);
+    expect(probe?.timeoutSeconds).toBeGreaterThan(0);
+    expect(probe?.failureThreshold).toBeGreaterThan(0);
   });
 });
