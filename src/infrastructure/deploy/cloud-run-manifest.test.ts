@@ -85,6 +85,7 @@ describe("buildCandidateTrafficTargets", () => {
     const traffic = buildCandidateTrafficTargets({
       newRevisionName: "muvluvgg-battle-simulator-api-abc123",
       previousRevisionName: undefined,
+      stablePreviousRevisionName: undefined,
       tag: "candidate",
     });
     expect(traffic).toEqual([
@@ -92,15 +93,47 @@ describe("buildCandidateTrafficTargets", () => {
     ]);
   });
 
-  it("IT-INFRA-CICD-006: keeps 100 percent on the previous revision and stages the new revision at 0 percent with a tag", () => {
+  it("IT-INFRA-CICD-006: keeps 100 percent on the previous revision (tagged stable) and stages the new revision at 0 percent with a tag", () => {
     const traffic = buildCandidateTrafficTargets({
       newRevisionName: "muvluvgg-battle-simulator-api-abc123",
       previousRevisionName: "muvluvgg-battle-simulator-api-prev",
+      stablePreviousRevisionName: undefined,
       tag: "candidate",
     });
     expect(traffic).toEqual([
-      { revisionName: "muvluvgg-battle-simulator-api-prev", percent: 100 },
+      { revisionName: "muvluvgg-battle-simulator-api-prev", percent: 100, tag: "stable" },
       { revisionName: "muvluvgg-battle-simulator-api-abc123", percent: 0, tag: "candidate" },
+    ]);
+  });
+
+  it("IT-INFRA-CICD-020: re-declares the stable-previous tag on its own revision so `services replace` does not drop it", () => {
+    // `gcloud run services replace`はmanifestのspec.traffic全体を新しいdesired
+    // stateとして適用するため、既存のstable-previous tagをmanifestへ含めないと
+    // deploy attempt（成功・失敗いずれでも）ごとに消えてしまう（PRレビュー指摘
+    // #112 P1、2026-07-15再レビューを踏まえた防御的実装）。
+    const traffic = buildCandidateTrafficTargets({
+      newRevisionName: "muvluvgg-battle-simulator-api-c",
+      previousRevisionName: "muvluvgg-battle-simulator-api-current",
+      stablePreviousRevisionName: "muvluvgg-battle-simulator-api-older",
+      tag: "candidate",
+    });
+    expect(traffic).toEqual([
+      { revisionName: "muvluvgg-battle-simulator-api-current", percent: 100, tag: "stable" },
+      { revisionName: "muvluvgg-battle-simulator-api-older", percent: 0, tag: "stable-previous" },
+      { revisionName: "muvluvgg-battle-simulator-api-c", percent: 0, tag: "candidate" },
+    ]);
+  });
+
+  it("IT-INFRA-CICD-021: omits the stable-previous entry when it is the same revision as previousRevisionName", () => {
+    const traffic = buildCandidateTrafficTargets({
+      newRevisionName: "muvluvgg-battle-simulator-api-c",
+      previousRevisionName: "muvluvgg-battle-simulator-api-current",
+      stablePreviousRevisionName: "muvluvgg-battle-simulator-api-current",
+      tag: "candidate",
+    });
+    expect(traffic).toEqual([
+      { revisionName: "muvluvgg-battle-simulator-api-current", percent: 100, tag: "stable" },
+      { revisionName: "muvluvgg-battle-simulator-api-c", percent: 0, tag: "candidate" },
     ]);
   });
 });

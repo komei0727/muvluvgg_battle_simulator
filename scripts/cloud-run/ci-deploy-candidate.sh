@@ -12,7 +12,8 @@ require_command git
 
 MANIFEST_TEMPLATE="$REPO_ROOT/deploy/cloud-run/service.json"
 RENDERED_MANIFEST="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-candidate.json.XXXXXX")"
-trap 'rm -f "$RENDERED_MANIFEST"' EXIT
+CURRENT_SERVICE_JSON="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-current-service.json.XXXXXX")"
+trap 'rm -f "$RENDERED_MANIFEST" "$CURRENT_SERVICE_JSON"' EXIT
 
 REVISION_SUFFIX="${REVISION_SUFFIX:-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)}"
 REVISION_NAME="${SERVICE}-${REVISION_SUFFIX}"
@@ -21,23 +22,37 @@ TRAFFIC_TAG="${TRAFFIC_TAG:-candidate}"
 print_deploy_context
 echo "REVISION_NAME=$REVISION_NAME"
 
+gcloud run services describe "$SERVICE" \
+  --region="$REGION" \
+  --project="$PROJECT_ID" \
+  --format=json > "$CURRENT_SERVICE_JSON" 2>/dev/null || echo '{}' > "$CURRENT_SERVICE_JSON"
+
 echo "== resolve current production revision (empty on first deploy) =="
 # `status.latestReadyRevisionName`は使わない——失敗して一度もpromoteされて
 # いないcandidateもReadyになり得るため、次回deployでそれへtraffic 100%を
 # 誤って固定してしまう（PRレビュー指摘 #112 P1-1）。`status.traffic`の
 # percent===100 revisionだけを正とする（`resolveCurrentRevisionName`）。
-PREVIOUS_REVISION_NAME="$( (gcloud run services describe "$SERVICE" \
-  --region="$REGION" \
-  --project="$PROJECT_ID" \
-  --format=json 2>/dev/null || echo '{}') \
-  | mise exec -- pnpm exec tsx "$REPO_ROOT/src/infrastructure/deploy/resolve-current-revision-cli.ts")"
+PREVIOUS_REVISION_NAME="$(mise exec -- pnpm exec tsx \
+  "$REPO_ROOT/src/infrastructure/deploy/resolve-current-revision-cli.ts" \
+  < "$CURRENT_SERVICE_JSON")"
 echo "PREVIOUS_REVISION_NAME=${PREVIOUS_REVISION_NAME:-<none, first deploy>}"
+
+echo "== resolve current stable-previous tag (preserved across this deploy attempt) =="
+# `services replace`はspec.traffic全体をこのdeployの新しいdesired stateとして
+# 適用するため、既存のstable-previous tagをmanifestへ明示的に含めないと、
+# deploy attempt（成功・失敗いずれでも）ごとに失われてしまう
+# （PRレビュー指摘 #112 P1、2026-07-15再レビュー）。
+STABLE_PREVIOUS_REVISION_NAME="$(TAG_NAME=stable-previous mise exec -- pnpm exec tsx \
+  "$REPO_ROOT/src/infrastructure/deploy/resolve-tagged-revision-cli.ts" \
+  < "$CURRENT_SERVICE_JSON")"
+echo "STABLE_PREVIOUS_REVISION_NAME=${STABLE_PREVIOUS_REVISION_NAME:-<none>}"
 
 echo "== render Cloud Run manifest (candidate at 0% traffic) =="
 MANIFEST_TEMPLATE_PATH="$MANIFEST_TEMPLATE" \
   IMAGE="$IMAGE" \
   REVISION_NAME="$REVISION_NAME" \
   PREVIOUS_REVISION_NAME="$PREVIOUS_REVISION_NAME" \
+  STABLE_PREVIOUS_REVISION_NAME="$STABLE_PREVIOUS_REVISION_NAME" \
   TRAFFIC_TAG="$TRAFFIC_TAG" \
   mise exec -- pnpm exec tsx "$REPO_ROOT/src/infrastructure/deploy/render-cloud-run-manifest-cli.ts" \
   > "$RENDERED_MANIFEST"

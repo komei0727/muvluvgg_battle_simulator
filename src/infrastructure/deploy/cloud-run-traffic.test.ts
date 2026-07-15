@@ -1,18 +1,20 @@
 /**
- * PRレビュー指摘（#112 review 2026-07-15）への対応:
+ * PRレビュー指摘（#112 review 2026-07-15、2026-07-15再レビュー）への対応:
  * - `status.latestReadyRevisionName`はsmokeに失敗しても未promoteのまま
  *   Readyになり得るため、「現在100% trafficを受けているrevision」の判定には
  *   使えない。`status.traffic`のpercent===100エントリだけを正とする。
- * - rollback先の自動検出は、Revision resourceにはtraffic割当が無いため
- *   Service側の`status.traffic`（現在productionのrevisionと、直近candidateの
- *   tagが指すrevision）を除外してから選ぶ。
+ * - rollback先の自動検出は「直近のReady revision」では選ばない。複数回
+ *   連続でcandidateがsmokeに失敗すると、未promoteの失敗revisionがReadyの
+ *   まま残り、`candidate` tagは常に最新の失敗revisionへ移るため、tagだけの
+ *   除外でも古い失敗revisionを再選択し得る。promote成功時にだけ更新される
+ *   `stable`／`stable-previous` tagで判定する。
  */
 import { describe, expect, it } from "vitest";
 import {
   findRevisionNameByTag,
   resolveCurrentRevisionName,
-  selectRollbackTarget,
-  type RevisionCandidate,
+  STABLE_PREVIOUS_TAG,
+  STABLE_TAG,
 } from "./cloud-run-traffic.js";
 import type { TrafficTarget } from "./cloud-run-manifest.js";
 
@@ -61,31 +63,22 @@ describe("findRevisionNameByTag", () => {
   });
 });
 
-describe("selectRollbackTarget", () => {
-  function revision(name: string, ready: boolean, creationTimestamp: string): RevisionCandidate {
-    return { name, ready, creationTimestamp };
-  }
-
-  it("IT-INFRA-CICD-013: picks the most recent Ready revision that is not excluded", () => {
-    const revisions = [
-      revision("svc-a", true, "2026-07-10T00:00:00Z"),
-      revision("svc-b", true, "2026-07-12T00:00:00Z"),
-      revision("svc-c", true, "2026-07-14T00:00:00Z"),
+describe("rollback target resolution via stable/stable-previous tags", () => {
+  it("IT-INFRA-CICD-013: resolves the rollback target from the stable-previous tag, ignoring untagged Ready revisions", () => {
+    // svc-a was promoted (stable-previous), then svc-d was promoted (stable).
+    // svc-b and svc-c are untagged failed candidates that never got promoted,
+    // but are still Ready and newer than svc-a — a recency-based heuristic
+    // would wrongly pick one of them.
+    const traffic: TrafficTarget[] = [
+      { revisionName: "svc-d", percent: 100, tag: STABLE_TAG },
+      { revisionName: "svc-a", percent: 0, tag: STABLE_PREVIOUS_TAG },
     ];
-    // svc-c is current (100%), svc-b is a failed candidate still tagged "candidate".
-    expect(selectRollbackTarget(revisions, ["svc-c", "svc-b"])).toBe("svc-a");
+    expect(findRevisionNameByTag(traffic, STABLE_PREVIOUS_TAG)).toBe("svc-a");
+    expect(findRevisionNameByTag(traffic, STABLE_TAG)).toBe("svc-d");
   });
 
-  it("IT-INFRA-CICD-014: never returns a not-Ready revision", () => {
-    const revisions = [
-      revision("svc-a", true, "2026-07-10T00:00:00Z"),
-      revision("svc-b", false, "2026-07-14T00:00:00Z"),
-    ];
-    expect(selectRollbackTarget(revisions, [])).toBe("svc-a");
-  });
-
-  it("IT-INFRA-CICD-015: throws when every Ready revision is excluded", () => {
-    const revisions = [revision("svc-a", true, "2026-07-10T00:00:00Z")];
-    expect(() => selectRollbackTarget(revisions, ["svc-a"])).toThrow(/no safe revision/i);
+  it("IT-INFRA-CICD-014: returns undefined when only one promote has ever happened (no rollback history yet)", () => {
+    const traffic: TrafficTarget[] = [{ revisionName: "svc-a", percent: 100, tag: STABLE_TAG }];
+    expect(findRevisionNameByTag(traffic, STABLE_PREVIOUS_TAG)).toBeUndefined();
   });
 });

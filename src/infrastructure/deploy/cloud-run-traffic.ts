@@ -3,7 +3,9 @@
  * rollback先に安全なrevisionはどれかを`status.traffic`（Serviceのみが持つ）
  * から判定する（Revision resourceにはtraffic割当が無い）。
  */
-import type { TrafficTarget } from "./cloud-run-manifest.js";
+import { STABLE_PREVIOUS_TAG, STABLE_TAG, type TrafficTarget } from "./cloud-run-manifest.js";
+
+export { STABLE_PREVIOUS_TAG, STABLE_TAG };
 
 /**
  * `status.traffic`のうち、percentが厳密に100のrevisionだけを「現在の
@@ -37,31 +39,21 @@ export function findRevisionNameByTag(
   return traffic.find((target) => target.tag === tag)?.revisionName;
 }
 
-export interface RevisionCandidate {
-  readonly name: string;
-  readonly ready: boolean;
-  readonly creationTimestamp: string;
-}
-
 /**
- * `exclude`（現在のproduction revision・直近candidateのtagが指すrevisionなど）
- * を除いた、最も新しいReady revisionをrollback先として選ぶ。Ready==trueは
- * Cloud Runのstartup/liveness probe通過を意味するだけでsmoke test成功を
- * 保証しないため、直近の失敗candidateは呼び出し側が`exclude`へ渡すこと。
+ * rollback先の自動検出は「直近のReady revision」では選ばない——Readyは
+ * Cloud Runのstartup/liveness probe通過を意味するだけで、smoke test成功や
+ * promote実績を保証しない。複数回連続でcandidateがsmokeに失敗すると、
+ * 未promoteの失敗revisionがReadyのまま残り、`candidate` tagは常に最新の
+ * 失敗revisionへ移るため、tagだけを見た除外も机上の空論になる
+ * （PRレビュー指摘 #112 P1、2026-07-15 再レビュー）。
+ *
+ * 代わりに、promote成功時にだけ更新される永続的な2つのtagで判定する。
+ * - `stable`: 現在100% trafficを受けている、最後にpromoteされたrevision。
+ * - `stable-previous`: 直前にpromoteされていたrevision（1段階のrollback履歴）。
+ * どちらも`findRevisionNameByTag`で取得する
+ * （`scripts/cloud-run/ci-promote-traffic.sh`が`stable`→`stable-previous`への
+ * rotationを行い、`scripts/cloud-run/ci-rollback-traffic.sh`が`stable-previous`
+ * をrollback先として読む。tag名自体は`cloud-run-manifest.ts`が定義する
+ * ——`ci-deploy-candidate.sh`が`services replace`のたびに両tagを
+ * manifestへ再宣言し、消えないようにする必要があるため）。
  */
-export function selectRollbackTarget(
-  revisions: readonly RevisionCandidate[],
-  exclude: readonly (string | undefined)[],
-): string {
-  const excludeSet = new Set(exclude.filter((name): name is string => name !== undefined));
-  const candidates = revisions
-    .filter((revision) => revision.ready && !excludeSet.has(revision.name))
-    .toSorted(
-      (a, b) => new Date(b.creationTimestamp).getTime() - new Date(a.creationTimestamp).getTime(),
-    );
-  const target = candidates[0];
-  if (target === undefined) {
-    throw new Error("No safe revision found to roll back to (all Ready revisions are excluded)");
-  }
-  return target.name;
-}

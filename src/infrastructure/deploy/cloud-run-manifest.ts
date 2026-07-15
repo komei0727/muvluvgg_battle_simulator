@@ -57,15 +57,29 @@ export function renderCloudRunManifest(
   return rendered;
 }
 
+/** promote成功時にだけ更新される、rollback先を永続的に識別するためのtag名。 */
+export const STABLE_TAG = "stable";
+export const STABLE_PREVIOUS_TAG = "stable-previous";
+
 export interface BuildCandidateTrafficTargetsOptions {
   newRevisionName: string;
   previousRevisionName: string | undefined;
+  /** 現在Serviceの`stable-previous` tagが指すrevision（無ければundefined）。 */
+  stablePreviousRevisionName: string | undefined;
   tag: string;
 }
 
 /**
  * previousRevisionNameが無い（=初回deploy）場合は新revisionへ即100%を割り当てる。
  * それ以外は既存revisionへ100%を固定したまま、新revisionをtag付き0%で追加する。
+ *
+ * `previousRevisionName`には常に`STABLE_TAG`を、`stablePreviousRevisionName`
+ * （既存revisionと異なる場合のみ）には常に`STABLE_PREVIOUS_TAG`を明示的に
+ * 再宣言する。`gcloud run services replace`は`spec.traffic`をそのdeployの
+ * 新しいdesired stateとして丸ごと適用するため、ここで明示しないtagはdeploy
+ * attempt（成功・失敗いずれでも）ごとに失われ得る（PRレビュー指摘 #112 P1、
+ * 2026-07-15再レビュー）。rotation自体（stable→stable-previousへ進める処理）は
+ * `scripts/cloud-run/ci-promote-traffic.sh`がpromote成功時にだけ行う。
  */
 export function buildCandidateTrafficTargets(
   options: BuildCandidateTrafficTargetsOptions,
@@ -73,8 +87,19 @@ export function buildCandidateTrafficTargets(
   if (options.previousRevisionName === undefined) {
     return [{ revisionName: options.newRevisionName, percent: 100 }];
   }
-  return [
-    { revisionName: options.previousRevisionName, percent: 100 },
-    { revisionName: options.newRevisionName, percent: 0, tag: options.tag },
+  const targets: TrafficTarget[] = [
+    { revisionName: options.previousRevisionName, percent: 100, tag: STABLE_TAG },
   ];
+  if (
+    options.stablePreviousRevisionName !== undefined &&
+    options.stablePreviousRevisionName !== options.previousRevisionName
+  ) {
+    targets.push({
+      revisionName: options.stablePreviousRevisionName,
+      percent: 0,
+      tag: STABLE_PREVIOUS_TAG,
+    });
+  }
+  targets.push({ revisionName: options.newRevisionName, percent: 0, tag: options.tag });
+  return targets;
 }
