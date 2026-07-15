@@ -12,3 +12,4 @@ mise run ui:typecheck
 mise run ui:lint
 mise run ui:test
 mise run ui:build
+mise run ci:test
