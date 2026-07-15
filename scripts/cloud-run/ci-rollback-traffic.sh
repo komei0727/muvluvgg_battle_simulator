@@ -33,17 +33,21 @@ fi
 print_deploy_context
 echo "TARGET_REVISION=$TARGET_REVISION"
 
-echo "== roll back: shift 100% traffic to target revision =="
+echo "== roll back: shift traffic, mark target as stable, and clear stable-previous atomically =="
+# --to-revisions・--update-tags・--remove-tagsを1回のupdate-traffic呼び出しに
+# まとめる。traffic切替とtag更新を別呼び出しに分けると、間で失敗した場合に
+# 「新trafficは既にtarget revisionだがstableは旧revisionのまま」という不整合が
+# 残り得る（PRレビュー指摘 #112 P2と同種の懸念）。stable-previousは削除する
+# ——rollback後もstable-previousが残ると、次回の自動rollbackが「現在traffic
+# を受けているrevision」を再び選び、no-opのまま成功扱いになってしまう
+# （PRレビュー指摘 #112 P1、2026-07-15 3回目レビュー）。rollback後、より
+# 過去のrevisionへ更にrollbackしたい場合はTARGET_REVISIONを明示する。
 gcloud run services update-traffic "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT_ID" \
-  --to-revisions="${TARGET_REVISION}=100"
-
-echo "== mark the rolled-back-to revision as stable (keeps future promote's rotation accurate) =="
-gcloud run services update-traffic "$SERVICE" \
-  --region="$REGION" \
-  --project="$PROJECT_ID" \
-  --update-tags="stable=${TARGET_REVISION}"
+  --to-revisions="${TARGET_REVISION}=100" \
+  --update-tags="stable=${TARGET_REVISION}" \
+  --remove-tags="stable-previous"
 
 echo "== verification checkpoint: traffic split =="
 gcloud run services describe "$SERVICE" \
