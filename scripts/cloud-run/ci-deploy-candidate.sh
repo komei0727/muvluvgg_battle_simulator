@@ -21,11 +21,16 @@ TRAFFIC_TAG="${TRAFFIC_TAG:-candidate}"
 print_deploy_context
 echo "REVISION_NAME=$REVISION_NAME"
 
-echo "== resolve previous ready revision (empty on first deploy) =="
-PREVIOUS_REVISION_NAME="$(gcloud run services describe "$SERVICE" \
+echo "== resolve current production revision (empty on first deploy) =="
+# `status.latestReadyRevisionName`は使わない——失敗して一度もpromoteされて
+# いないcandidateもReadyになり得るため、次回deployでそれへtraffic 100%を
+# 誤って固定してしまう（PRレビュー指摘 #112 P1-1）。`status.traffic`の
+# percent===100 revisionだけを正とする（`resolveCurrentRevisionName`）。
+PREVIOUS_REVISION_NAME="$( (gcloud run services describe "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT_ID" \
-  --format='value(status.latestReadyRevisionName)' 2>/dev/null || true)"
+  --format=json 2>/dev/null || echo '{}') \
+  | mise exec -- pnpm exec tsx "$REPO_ROOT/src/infrastructure/deploy/resolve-current-revision-cli.ts")"
 echo "PREVIOUS_REVISION_NAME=${PREVIOUS_REVISION_NAME:-<none, first deploy>}"
 
 echo "== render Cloud Run manifest (candidate at 0% traffic) =="

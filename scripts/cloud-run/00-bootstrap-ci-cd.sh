@@ -58,6 +58,21 @@ gcloud artifacts repositories add-iam-policy-binding "$REPOSITORY" \
   --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
   --role="roles/artifactregistry.writer" >/dev/null
 
+# `deploy/cloud-run/service.json`は`spec.template.spec.serviceAccountName`を
+# 指定していないため、Cloud Runはproject既定のCompute Engine service account
+# をrevisionのruntime identityとして使う。`gcloud run services replace`で
+# revisionを作成・更新するには、deploy用SAがそのruntime identityへ
+# `iam.serviceAccounts.actAs`できる必要がある（`roles/run.developer`には
+# 含まれない）。project全体ではなく、このruntime SAへ限定してActive付与する
+# （PRレビュー指摘 #112 P1-4）。
+RUNTIME_SERVICE_ACCOUNT="${RUNTIME_SERVICE_ACCOUNT:-$(gcloud projects describe "$PROJECT_ID" \
+  --format='value(projectNumber)')-compute@developer.gserviceaccount.com}"
+echo "== grant Service Account User on the Cloud Run runtime identity ($RUNTIME_SERVICE_ACCOUNT) only =="
+gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SERVICE_ACCOUNT" \
+  --project="$PROJECT_ID" \
+  --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
+  --role="roles/iam.serviceAccountUser" >/dev/null
+
 echo "== create Workload Identity Pool (idempotent) =="
 if gcloud iam workload-identity-pools describe "$POOL_ID" \
   --project="$PROJECT_ID" --location=global >/dev/null 2>&1; then

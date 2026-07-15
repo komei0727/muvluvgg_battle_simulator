@@ -96,11 +96,24 @@ jobs:
         id: deploy_candidate
         run: scripts/cloud-run/ci-deploy-candidate.sh
 
+      # 受け入れ条件「最小simulationが成功してからtrafficを確定する」を満たす
+      # ため、candidateのCatalogから選択可能なUnitを見つけてrequestを組み立てる。
+      # 選択可能なUnitが無い場合はここでjobを失敗させる——smoke testを
+      # 黙ってskipしない（PRレビュー指摘 #112 P1-3）。
+      - name: Build minimal simulation smoke test request
+        env:
+          SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
+        run: |
+          curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
+            | mise exec -- pnpm exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
+            > /tmp/muvluvgg-smoke-simulation-request.json
+
       # smoke test失敗時はここでjobが停止し、以降のtraffic切替・GitHub
       # Environment更新は実行されない——新revisionへproduction trafficは流れない。
       - name: Smoke test candidate revision
         env:
           SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
+          SMOKE_SIMULATION_BODY_FILE: /tmp/muvluvgg-smoke-simulation-request.json
         run: scripts/cloud-run/04-smoke-test.sh
 
       - name: Promote candidate revision to 100% traffic

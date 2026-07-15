@@ -8,27 +8,32 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 require_command gcloud
 require_command mise
 
+CANDIDATE_TAG="${TRAFFIC_TAG:-candidate}"
+
 if [ -z "${TARGET_REVISION:-}" ]; then
-  echo "== TARGET_REVISION未指定: 現在100%ではない直近のready revisionを自動検出 =="
-  TARGET_REVISION="$(gcloud run revisions list \
+  echo "== TARGET_REVISION未指定: 現在productionのrevisionと直近candidateのtagを除いた、直近のready revisionを自動検出 =="
+  # Revision resourceにはtraffic割当が無いため、Service側のstatus.trafficから
+  # 「現在100%のrevision」と「候補（`candidate`）tagが指すrevision」を求め、
+  # 両方を除外する（PRレビュー指摘 #112 P1-2: 除外しないと、smokeに失敗した
+  # ばかりの不良candidateが「直近のready revision」として再選択され得る）。
+  SERVICE_JSON="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-rollback-service.json.XXXXXX")"
+  REVISIONS_JSON="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-rollback-revisions.json.XXXXXX")"
+  trap 'rm -f "$SERVICE_JSON" "$REVISIONS_JSON"' EXIT
+
+  gcloud run services describe "$SERVICE" \
+    --region="$REGION" \
+    --project="$PROJECT_ID" \
+    --format=json > "$SERVICE_JSON"
+  gcloud run revisions list \
     --service="$SERVICE" \
     --region="$REGION" \
     --project="$PROJECT_ID" \
-    --format=json | mise exec -- node --input-type=module -e '
-      const chunks = [];
-      for await (const chunk of process.stdin) chunks.push(chunk);
-      const revisions = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-      const ready = revisions
-        .filter((r) => r.status?.conditions?.some((c) => c.type === "Ready" && c.status === "True"))
-        .sort((a, b) => new Date(b.metadata.creationTimestamp) - new Date(a.metadata.creationTimestamp));
-      const current = ready.find((r) => (r.status?.traffic ?? []).some((t) => t.percent === 100));
-      const previous = ready.find((r) => r.metadata.name !== current?.metadata?.name);
-      if (!previous) {
-        console.error("ERROR: no previous ready revision found to roll back to");
-        process.exit(1);
-      }
-      process.stdout.write(previous.metadata.name);
-    ')"
+    --format=json > "$REVISIONS_JSON"
+
+  TARGET_REVISION="$(SERVICE_JSON_PATH="$SERVICE_JSON" \
+    REVISIONS_JSON_PATH="$REVISIONS_JSON" \
+    CANDIDATE_TAG="$CANDIDATE_TAG" \
+    mise exec -- pnpm exec tsx "$REPO_ROOT/src/infrastructure/deploy/resolve-rollback-target-cli.ts")"
 fi
 
 : "${TARGET_REVISION:?rollback先のrevisionを特定できませんでした。TARGET_REVISIONを明示してください}"
