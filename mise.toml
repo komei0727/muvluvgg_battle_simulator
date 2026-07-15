@@ -96,3 +96,6 @@ run = "pnpm --filter ui run build"
 [tasks."ui:e2e"]
 description = "Run apps/ui/ Playwright end-to-end smoke tests"
 run = "pnpm --filter ui run test:e2e"
+
+[tasks."ui:dev"]
+run = "pnpm --filter ui exec vite --port 5173"

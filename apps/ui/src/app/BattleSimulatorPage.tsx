@@ -1,0 +1,161 @@
+import { useMemo, useReducer } from "react";
+import { AppShell } from "../components/AppShell.js";
+import { Panel } from "../components/Panel.js";
+import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelectionDialog.js";
+import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
+import { validateDraft } from "../features/formation/draft-validation.js";
+import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
+import { FormationEditor } from "../features/formation/FormationEditor.js";
+import {
+  createInitialFormationState,
+  formationReducer,
+  MAX_UNITS_PER_SIDE,
+} from "../features/formation/formation-reducer.js";
+import { memorySlotsForSide, slotsForSide } from "../features/formation/types.js";
+import { ValidationSummary } from "../features/formation/ValidationSummary.js";
+import type { UseCatalogLoaderOptions } from "../features/catalog-selection/catalog-loader.js";
+import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
+
+export interface BattleSimulatorPageProps {
+  readonly apiBaseUrl: string;
+  readonly getCatalogImpl?: UseCatalogLoaderOptions["getCatalogImpl"];
+}
+
+const SIMULATION_ENDPOINT = "POST /api/v1/battle-simulations";
+
+export function BattleSimulatorPage({ apiBaseUrl, getCatalogImpl }: BattleSimulatorPageProps) {
+  const catalogLoader = useCatalogLoader(
+    apiBaseUrl,
+    getCatalogImpl !== undefined ? { getCatalogImpl } : {},
+  );
+  const [state, dispatch] = useReducer(formationReducer, undefined, createInitialFormationState);
+  const catalog = catalogLoader.state;
+
+  const violations = useMemo(
+    () => (catalog.status === "ready" ? validateDraft(state.draft, catalog.response) : []),
+    [catalog, state.draft],
+  );
+
+  const formationDisabled = catalog.status !== "ready";
+
+  return (
+    <AppShell>
+      <Panel step="01" title="戦闘パラメータ" meta="FORMATION / MEMORY / EXECUTION">
+        {catalog.status === "loading" ? <p>Catalogを読込中…</p> : null}
+        {catalog.status === "failed" ? (
+          <div role="alert">
+            <p>{catalog.error.message}</p>
+            <button type="button" onClick={catalogLoader.reload}>
+              再読込
+            </button>
+          </div>
+        ) : null}
+
+        {catalog.status === "ready" ? (
+          <>
+            <div>
+              <FormationEditor
+                side="ally"
+                slots={slotsForSide(state.draft, "ally")}
+                memoryDefinitionIds={memorySlotsForSide(state.draft, "ally")}
+                catalog={catalog.response}
+                violations={violations}
+                disabled={formationDisabled}
+                onOpenUnitSelection={(slotKey) => {
+                  dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+                }}
+                onOpenMemorySelection={(side, index) => {
+                  dispatch({ type: "selectionOpened", selection: { kind: "memory", side, index } });
+                }}
+              />
+              <FormationEditor
+                side="enemy"
+                slots={slotsForSide(state.draft, "enemy")}
+                memoryDefinitionIds={memorySlotsForSide(state.draft, "enemy")}
+                catalog={catalog.response}
+                violations={violations}
+                disabled={formationDisabled}
+                onOpenUnitSelection={(slotKey) => {
+                  dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+                }}
+                onOpenMemorySelection={(side, index) => {
+                  dispatch({ type: "selectionOpened", selection: { kind: "memory", side, index } });
+                }}
+              />
+            </div>
+
+            <ExecutionParameterForm
+              turnLimit={state.draft.turnLimit}
+              logLevel={state.draft.logLevel}
+              endpoint={SIMULATION_ENDPOINT}
+              disabled={formationDisabled}
+              onTurnLimitChange={(value) => {
+                dispatch({ type: "turnLimitChanged", value });
+              }}
+              onLogLevelChange={(value) => {
+                dispatch({ type: "logLevelChanged", value });
+              }}
+            />
+
+            <ValidationSummary violations={violations} />
+          </>
+        ) : null}
+      </Panel>
+
+      {catalog.status === "ready" && state.selectionDialog.kind === "unit"
+        ? (() => {
+            const slotKey = state.selectionDialog.slotKey;
+            const slot = [...state.draft.allySlots, ...state.draft.enemySlots].find(
+              (s) => s.slotKey === slotKey,
+            );
+            if (slot === undefined) {
+              return null;
+            }
+            const atCapacity =
+              slotsForSide(state.draft, slot.side).filter((s) => s.unitDefinitionId !== undefined)
+                .length >= MAX_UNITS_PER_SIDE;
+            return (
+              <UnitSelectionDialog
+                units={catalog.response.units}
+                {...(slot.unitDefinitionId !== undefined
+                  ? { currentUnitDefinitionId: slot.unitDefinitionId }
+                  : {})}
+                atCapacity={atCapacity}
+                onSelect={(unitDefinitionId) => {
+                  dispatch({ type: "unitSelected", slotKey, unitDefinitionId });
+                }}
+                onRemove={() => {
+                  dispatch({ type: "unitRemoved", slotKey });
+                }}
+                onClose={() => {
+                  dispatch({ type: "selectionClosed" });
+                }}
+              />
+            );
+          })()
+        : null}
+
+      {catalog.status === "ready" && state.selectionDialog.kind === "memory"
+        ? (() => {
+            const { side, index } = state.selectionDialog;
+            const currentMemoryDefinitionId = memorySlotsForSide(state.draft, side)[index];
+            return (
+              <MemorySelectionDialog
+                memories={catalog.response.memories}
+                {...(currentMemoryDefinitionId !== undefined ? { currentMemoryDefinitionId } : {})}
+                onSelect={(memoryDefinitionId) => {
+                  dispatch({ type: "memorySelected", side, index, memoryDefinitionId });
+                }}
+                onRemove={() => {
+                  dispatch({ type: "memoryRemoved", side, index });
+                }}
+                onClose={() => {
+                  dispatch({ type: "selectionClosed" });
+                }}
+              />
+            );
+          })()
+        : null}
+    </AppShell>
+  );
+}
