@@ -45,3 +45,99 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION || 'asia-northeast1' }}
+      REPOSITORY: ${{ vars.GCP_ARTIFACT_REGISTRY_REPOSITORY || 'muvluvgg-battle-simulator' }}
+      SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE || 'muvluvgg-battle-simulator-api' }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      # Workload Identity Federationで短期credentialを取得する。GitHub Secretsへ
+      # Google Cloud service account JSON keyなどの長期credentialは保存しない
+      # （Issue #106 `M45-INFRA-002`受け入れ条件）。
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # google-github-actions/authだけではgcloud CLI自体は認証済みにならない
+      # （client library向けのADCファイルを出すのみ）ため、setup-gcloudで
+      # gcloud CLIへ同じcredentialを引き継ぐ。
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push image to Artifact Registry
+        id: build
+        run: scripts/cloud-run/02-build-and-push-image.sh
+
+      # 新revisionをtraffic 0%・`candidate` tag付きで作成する。既存traffic
+      # (直前の正常revision）は動かさないため、この時点ではproduction traffic
+      # に一切影響しない。
+      - name: Deploy candidate revision (0% traffic)
+        id: deploy_candidate
+        run: scripts/cloud-run/ci-deploy-candidate.sh
+
+      # smoke test失敗時はここでjobが停止し、以降のtraffic切替・GitHub
+      # Environment更新は実行されない——新revisionへproduction trafficは流れない。
+      - name: Smoke test candidate revision
+        env:
+          SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
+        run: scripts/cloud-run/04-smoke-test.sh
+
+      - name: Promote candidate revision to 100% traffic
+        env:
+          REVISION_NAME: ${{ steps.deploy_candidate.outputs.revision_name }}
+        run: scripts/cloud-run/ci-promote-traffic.sh
+
+      - name: Resolve Catalog revision served by the promoted revision
+        id: catalog_revision
+        env:
+          SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
+        run: |
+          CATALOG_REVISION="$(curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
+            | mise exec -- node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{process.stdout.write(JSON.parse(d).catalogRevision)})')"
+          echo "catalog_revision=$CATALOG_REVISION" >> "$GITHUB_OUTPUT"
+
+      # `gh variable set`はGITHUB_TOKENでは書き込めない（repository/environment
+      # variableのAPIはrepo scopeを要求する）ため、Variables書き込みのみに
+      # 絞ったfine-grained PATを`VARS_ADMIN_TOKEN`として使う
+      # （scripts/cloud-run/README.md参照）。
+      - name: Publish Cloud Run URL to the production GitHub Environment
+        env:
+          GH_TOKEN: ${{ secrets.VARS_ADMIN_TOKEN }}
+        run: |
+          PUBLIC_URL="$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" \
+            --project="$PROJECT_ID" \
+            --format='value(status.url)')"
+          gh variable set VITE_API_BASE_URL --env production --repo "${{ github.repository }}" --body "$PUBLIC_URL"
+
+      - name: Record deploy summary
+        run: |
+          {
+            echo "### Cloud Run deploy"
+            echo "- Git SHA: \`${{ github.sha }}\`"
+            echo "- Image digest: \`${{ steps.build.outputs.image_digest }}\`"
+            echo "- Cloud Run revision: \`${{ steps.deploy_candidate.outputs.revision_name }}\`"
+            echo "- Previous revision: \`${{ steps.deploy_candidate.outputs.previous_revision_name }}\`"
+            echo "- Catalog revision: \`${{ steps.catalog_revision.outputs.catalog_revision }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

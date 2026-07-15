@@ -44,8 +44,15 @@ Cloud Runは[Knative v1 manifest互換の`startupProbe`・`livenessProbe`・
 
 `region`・`project`はKnative Serviceの本文に含まれないため、適用時にコマンド引数
 （またはリソース名の一部）として渡す。`image`フィールドの`${PROJECT_ID}`・
-`${IMAGE_TAG}`はplaceholderであり、デプロイ時にCIが実際の値へ置換する
-（置換方法・deploy workflow自体は`#106`のスコープ）。
+`${IMAGE_TAG}`はplaceholderであり、デプロイ時にCIが実際の値へ置換する。
+
+手動deployは[`scripts/cloud-run/03-deploy-service.sh`](../../scripts/cloud-run/03-deploy-service.sh)
+（Node scriptでimageだけ差し替える）を使う。CI（`.github/workflows/main.yml`の`deploy`
+job）は[`scripts/cloud-run/ci-deploy-candidate.sh`](../../scripts/cloud-run/ci-deploy-candidate.sh)
+経由で[`src/infrastructure/deploy/render-cloud-run-manifest-cli.ts`](../../src/infrastructure/deploy/render-cloud-run-manifest-cli.ts)
+を使い、image・deterministicなrevision name・`spec.traffic`（既存revision 100%固定
+＋新revision 0%＋`candidate` tag）を差し込む。詳細は`#106`（`M45-INFRA-002`）と
+[`docs/運用手順.md`](../../docs/運用手順.md)「Cloud Run deploy」を参照。
 
 ## 適用（デプロイ時のリファレンス）
 

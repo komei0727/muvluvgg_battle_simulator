@@ -3,6 +3,32 @@
 手動デプロイは、動作確認のタイミングごとに次のscriptへ分割する。
 各scriptが成功し、末尾のverification checkpointを確認してから次へ進む。
 
+## CI/CD（`#106` `M45-INFRA-002`）
+
+`.github/workflows/main.yml`の`deploy` jobが、mainへのpush（`quality` job成功後）ごとに
+次を自動実行する。CIからは実行しない一度限りの手動セットアップは`00-`・`00b-`で始まる
+scriptに分離してある。
+
+| Script                                          | 実行者・タイミング                                                | 内容                                                                                                                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `00-bootstrap-ci-cd.sh`                         | project IAM adminが一度だけ手動実行                               | Workload Identity Pool／Provider（このrepository＋`production` GitHub Environmentへ限定）と最小権限deploy service accountを作成する。 |
+| `00b-configure-billing-and-logging.sh`          | Billing Account Administratorが一度だけ手動実行                   | Billing budget alert（50/90/100%閾値）とlog保持期間を設定する。                                                                       |
+| `ci-deploy-candidate.sh`                        | `deploy` job（CI）                                                | 既存revisionへtraffic 100%を固定したまま、新revisionを`candidate` tag・traffic 0%で作成する。                                         |
+| （`04-smoke-test.sh`を`candidate` URLへ再利用） | `deploy` job（CI）                                                | live・ready・Catalog GET・CORSを確認する。失敗時はここでjobが止まり、traffic切替は起きない。                                          |
+| `ci-promote-traffic.sh`                         | `deploy` job（CI、smoke test成功後のみ）                          | `candidate` revisionへtrafficを100%昇格する。                                                                                         |
+| `ci-rollback-traffic.sh`                        | `.github/workflows/rollback-cloud-run.yml`（`workflow_dispatch`） | 指定（または自動検出した直近のready）revisionへtrafficを100%戻す。                                                                    |
+
+`00-bootstrap-ci-cd.sh`の出力（`WORKLOAD_IDENTITY_PROVIDER`・`SERVICE_ACCOUNT_EMAIL`）は、
+このrepositoryの`production` GitHub Environment variableへ`GCP_WORKLOAD_IDENTITY_PROVIDER`・
+`GCP_SERVICE_ACCOUNT_EMAIL`として登録する（`GCP_PROJECT_ID`も併せて登録する）。
+Cloud Run URLをGitHub Environment変数（`VITE_API_BASE_URL`）へ書き込むには、
+Variables書き込みのみに絞ったfine-grained personal access token（repository
+`Variables: write`のみ）を作成し、`VARS_ADMIN_TOKEN` repository secretへ登録する
+（Google Cloudの長期credentialではないため、受け入れ条件「service account JSON keyなどの
+長期Google Cloud credentialを保存しない」には抵触しない）。
+
+## Manual (一度限り／障害対応)
+
 ```bash
 export PROJECT_ID="your-gcp-project-id"
 
@@ -52,5 +78,6 @@ cleanup policyは、このrepositoryの`api` packageを対象に、最新3 versi
 3 versionの合計が無料枠を超えれば料金が発生する。
 
 `gcloud run services replace`はmanifestをserviceへ適用する。この手動手順は
-段階的traffic切替や自動rollbackを実装しない。それらはIssue `#106`
-（`M45-INFRA-002`）のGitHub Actions workflowで扱う。
+段階的traffic切替や自動rollbackを実装しない。それらは本ファイル冒頭の
+「CI/CD」節で説明する`.github/workflows/main.yml`の`deploy` jobと
+`rollback-cloud-run.yml`が扱う（Issue `#106` `M45-INFRA-002`）。
