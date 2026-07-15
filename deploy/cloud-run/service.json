@@ -37,7 +37,19 @@
               { "name": "WORKER_MAX_QUEUE", "value": "1" },
               { "name": "SHUTDOWN_GRACE_MS", "value": "8000" },
               { "name": "CORS_ALLOWED_ORIGINS", "value": "https://komei0727.github.io" }
-            ]
+            ],
+            "startupProbe": {
+              "httpGet": { "path": "/health/live", "port": 8080 },
+              "periodSeconds": 1,
+              "timeoutSeconds": 1,
+              "failureThreshold": 60
+            },
+            "livenessProbe": {
+              "httpGet": { "path": "/health/live", "port": 8080 },
+              "periodSeconds": 10,
+              "timeoutSeconds": 3,
+              "failureThreshold": 3
+            }
           }
         ]
       }

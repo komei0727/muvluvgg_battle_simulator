@@ -12,12 +12,43 @@ cd "$(dirname "$0")/.."
 IMAGE_TAG="muvluvgg-battle-simulator-api:smoke-test"
 PROD_CONTAINER="muvluvgg-smoke-prod-catalog"
 FIXTURE_CONTAINER="muvluvgg-smoke-fixture-catalog"
+CANCEL_CONTAINER="muvluvgg-smoke-cancel"
 PROD_PORT=18080
 FIXTURE_PORT=18081
+CANCEL_PORT=18082
 FIXTURE_CATALOG_DIR="$(pwd)/src/infrastructure/catalog/__fixtures__/runtime/valid/minimal"
 
+# `11_インフラストラクチャ設計.md`「同一ユニット重複と最大編成人数を受理する」
+# （`12_テスト戦略.md`End-to-Endテスト#5）。5対5・99ターン・DIAGNOSTICは
+# CANCEL_CONTAINERでSIGTERM時点で確実に実行中にするための「computeに数百ms
+# かかる」戦闘として使う（fixture Catalogの`UNIT_001`だけで構成できる）。
+LARGE_BATTLE_BODY='{
+  "allyFormation": {
+    "units": [
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "FRONT" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 1, "row": "FRONT" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 2, "row": "FRONT" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "REAR" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 1, "row": "REAR" } }
+    ],
+    "memoryDefinitionIds": []
+  },
+  "enemyFormation": {
+    "units": [
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "FRONT" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 1, "row": "FRONT" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 2, "row": "FRONT" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "REAR" } },
+      { "unitDefinitionId": "UNIT_001", "position": { "column": 1, "row": "REAR" } }
+    ],
+    "memoryDefinitionIds": []
+  },
+  "turnLimit": 99,
+  "options": { "logLevel": "DIAGNOSTIC" }
+}'
+
 cleanup() {
-  docker rm -f "$PROD_CONTAINER" "$FIXTURE_CONTAINER" >/dev/null 2>&1 || true
+  docker rm -f "$PROD_CONTAINER" "$FIXTURE_CONTAINER" "$CANCEL_CONTAINER" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -31,7 +62,7 @@ wait_for_http() {
   local attempts=0
   until curl -sS -o /dev/null "$url" 2>/dev/null; do
     attempts=$((attempts + 1))
-    if [ "$attempts" -ge 30 ]; then
+    if [ "$attempts" -ge 60 ]; then
       fail "timed out waiting for $url"
     fi
     sleep 0.5
@@ -51,10 +82,26 @@ expect_status() {
   echo "OK: $label -> $actual"
 }
 
+# `docker inspect -f '{{.State.Running}}'`をpollし、停止までの経過秒数を返す。
+wait_for_stop_seconds() {
+  local container="$1"
+  local timeout_seconds="$2"
+  local start
+  start=$(date +%s)
+  until [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" = "false" ]; do
+    local elapsed=$(( $(date +%s) - start ))
+    if [ "$elapsed" -ge "$timeout_seconds" ]; then
+      fail "$container did not stop within ${timeout_seconds}s"
+    fi
+    sleep 0.2
+  done
+  echo $(( $(date +%s) - start ))
+}
+
 echo "== build (linux/amd64) =="
 docker build --platform linux/amd64 -t "$IMAGE_TAG" .
 
-echo "== run: baked-in production Catalog =="
+echo "== run: baked-in production Catalog (SHUTDOWN_GRACE_MS=8000, matches Cloud Run config) =="
 docker run -d --name "$PROD_CONTAINER" -p "${PROD_PORT}:8080" \
   -e PORT=8080 \
   -e WORKER_MAX_QUEUE=1 \
@@ -76,22 +123,42 @@ expect_status "GET /api/v1/battle-simulation-catalog (baked-in Catalog resolves)
 expect_status "GET /openapi.json (always public)" "http://localhost:${PROD_PORT}/openapi.json" 200
 expect_status "GET /docs (Swagger UI disabled in production)" "http://localhost:${PROD_PORT}/docs" 404
 
-echo "== SIGTERM: readiness fails immediately, process exits within SHUTDOWN_GRACE_MS =="
+echo "== SIGTERM: readiness stops serving immediately, total stop time <= SHUTDOWN_GRACE_MS(8s) + margin =="
+# `shutdown.ts`「ステップ3」はapp.close()を即座に呼び、Fastify(Node 18.2+)は
+# 既定でidle keep-alive接続も強制close対象にする。そのため、SIGTERM後に
+# 「新しいTCP接続」で`GET /health/ready`や`POST`を送ると、
+# アプリケーションの`shutdownGate.isShuttingDown()`（503 CAPACITY_EXCEEDED、
+# `build-server.test.ts`「API-CONTRACT-022」が`app.inject()`で決定的に検証
+# 済み）へ到達する前に、listening socket自体のtear-downと競合して
+# 接続拒否／resetになり得る——これは不具合ではなく「新しいリクエストを
+# 受け付けない」ことの別の現れ方である。よってcontainer境界のsmoke testでは
+# 「非200 or 接続失敗のどちらかに確実になる」ことだけを検証し、具体的な
+# HTTP statusはアプリケーション層の既存契約テストに委ねる。「実行中だった
+# リクエストが不完全な結果を200として返さない」ことは、後段の
+# `CANCEL_CONTAINER`（実際に処理中の接続で検証、socket tear-downと競合しない）
+# で確認する。
 docker kill --signal=SIGTERM "$PROD_CONTAINER" >/dev/null
-SIGTERM_START=$(date +%s)
-until [ "$(docker inspect -f '{{.State.Running}}' "$PROD_CONTAINER" 2>/dev/null)" = "false" ]; do
-  ELAPSED=$(( $(date +%s) - SIGTERM_START ))
-  if [ "$ELAPSED" -ge 10 ]; then
-    fail "container did not stop within 10s of SIGTERM (SHUTDOWN_GRACE_MS=8000)"
+
+READY_FAIL_ATTEMPTS=0
+READY_STATUS=200
+while [ "$READY_STATUS" = "200" ]; do
+  READY_FAIL_ATTEMPTS=$((READY_FAIL_ATTEMPTS + 1))
+  if [ "$READY_FAIL_ATTEMPTS" -gt 20 ]; then
+    fail "GET /health/ready still returned 200 after SIGTERM (readiness did not stop serving immediately)"
   fi
-  sleep 0.5
+  READY_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' "http://localhost:${PROD_PORT}/health/ready" 2>/dev/null) || READY_STATUS="000"
 done
-SIGTERM_ELAPSED=$(( $(date +%s) - SIGTERM_START ))
+echo "OK: GET /health/ready -> $READY_STATUS (not 200) within $READY_FAIL_ATTEMPTS attempt(s) of SIGTERM"
+
+SIGTERM_ELAPSED=$(wait_for_stop_seconds "$PROD_CONTAINER" 10)
+if [ "$SIGTERM_ELAPSED" -gt 9 ]; then
+  fail "container took ${SIGTERM_ELAPSED}s to stop after SIGTERM (SHUTDOWN_GRACE_MS=8000 + 1s margin = 9s budget)"
+fi
 EXIT_CODE=$(docker inspect -f '{{.State.ExitCode}}' "$PROD_CONTAINER")
 if [ "$EXIT_CODE" != "0" ]; then
   fail "container exited with code $EXIT_CODE after SIGTERM (expected 0)"
 fi
-echo "OK: SIGTERM -> graceful exit 0 in ${SIGTERM_ELAPSED}s (<= SHUTDOWN_GRACE_MS=8s + margin)"
+echo "OK: SIGTERM -> graceful exit 0 in ${SIGTERM_ELAPSED}s (<= SHUTDOWN_GRACE_MS=8s + 1s margin)"
 
 echo "== run: bind-mounted minimal Catalog fixture (selectable units) for an end-to-end simulation =="
 docker run -d --name "$FIXTURE_CONTAINER" -p "${FIXTURE_PORT}:8080" \
@@ -108,14 +175,8 @@ SIMULATION_STATUS=$(curl -sS -o /tmp/muvluvgg-smoke-simulation.json -w '%{http_c
   -X POST "http://localhost:${FIXTURE_PORT}/api/v1/battle-simulations" \
   -H 'Content-Type: application/json' \
   -d '{
-    "allyFormation": {
-      "units": [{ "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "FRONT" } }],
-      "memoryDefinitionIds": []
-    },
-    "enemyFormation": {
-      "units": [{ "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "FRONT" } }],
-      "memoryDefinitionIds": []
-    },
+    "allyFormation": { "units": [{ "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "FRONT" } }], "memoryDefinitionIds": [] },
+    "enemyFormation": { "units": [{ "unitDefinitionId": "UNIT_001", "position": { "column": 0, "row": "FRONT" } }], "memoryDefinitionIds": [] },
     "turnLimit": 3
   }')
 if [ "$SIMULATION_STATUS" != "200" ]; then
@@ -123,5 +184,45 @@ if [ "$SIMULATION_STATUS" != "200" ]; then
 fi
 echo "OK: POST /api/v1/battle-simulations -> 200 (compiled Worker resolved and executed a minimal battle)"
 rm -f /tmp/muvluvgg-smoke-simulation.json
+
+echo "== run: SHUTDOWN_GRACE_MS=0 + an in-flight battle, to prove incomplete results are never returned as success =="
+docker run -d --name "$CANCEL_CONTAINER" -p "${CANCEL_PORT}:8080" \
+  -e PORT=8080 \
+  -e CATALOG_PATH=/fixtures/catalog \
+  -e SHUTDOWN_GRACE_MS=0 \
+  -v "${FIXTURE_CATALOG_DIR}:/fixtures/catalog:ro" \
+  "$IMAGE_TAG" >/dev/null
+wait_for_http "http://localhost:${CANCEL_PORT}/health/ready"
+
+# 5対5・99ターン・DIAGNOSTICは数百ms計算にかかる（fixture Catalogでも計測
+# 済み）——backgroundで起動した直後にSIGTERMを送ることで、`grace=0`と合わせて
+# 「実行中タスクが強制終了され、不完全な結果を200として返さない」ことを
+# 決定的に検証する（`INT-WORKER-SHUTDOWN-002`と同じ考え方をcontainer境界で
+# 再現する。固定200ms遅延fixtureの代わりに、fixture Catalog内で完結する
+# 実戦闘を使う）。
+curl -sS -o /tmp/muvluvgg-smoke-cancelled.json -w '%{http_code}' \
+  -X POST "http://localhost:${CANCEL_PORT}/api/v1/battle-simulations" \
+  -H 'Content-Type: application/json' \
+  -d "$LARGE_BATTLE_BODY" > /tmp/muvluvgg-smoke-cancelled.status &
+CANCEL_CURL_PID=$!
+docker kill --signal=SIGTERM "$CANCEL_CONTAINER" >/dev/null
+wait "$CANCEL_CURL_PID"
+CANCEL_STATUS=$(cat /tmp/muvluvgg-smoke-cancelled.status)
+
+if [ "$CANCEL_STATUS" = "200" ]; then
+  fail "in-flight battle at SIGTERM time returned HTTP 200 (an incomplete result must never be reported as success): $(cat /tmp/muvluvgg-smoke-cancelled.json)"
+fi
+if [ "$CANCEL_STATUS" != "503" ] || ! grep -q '"code":"EXECUTION_CANCELLED"' /tmp/muvluvgg-smoke-cancelled.json; then
+  fail "in-flight battle at SIGTERM time: expected HTTP 503 with error.code=EXECUTION_CANCELLED, got HTTP $CANCEL_STATUS ($(cat /tmp/muvluvgg-smoke-cancelled.json))"
+fi
+echo "OK: in-flight battle at SIGTERM -> 503 EXECUTION_CANCELLED, not 200 (incomplete results are never returned as success)"
+rm -f /tmp/muvluvgg-smoke-cancelled.json /tmp/muvluvgg-smoke-cancelled.status
+
+CANCEL_ELAPSED=$(wait_for_stop_seconds "$CANCEL_CONTAINER" 5)
+CANCEL_EXIT_CODE=$(docker inspect -f '{{.State.ExitCode}}' "$CANCEL_CONTAINER")
+if [ "$CANCEL_EXIT_CODE" != "0" ]; then
+  fail "container exited with code $CANCEL_EXIT_CODE after forced cancellation (expected 0)"
+fi
+echo "OK: SHUTDOWN_GRACE_MS=0 -> graceful exit 0 in ${CANCEL_ELAPSED}s"
 
 echo "== all container smoke checks passed =="

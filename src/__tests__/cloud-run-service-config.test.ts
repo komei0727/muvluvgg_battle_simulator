@@ -12,6 +12,13 @@ interface EnvVar {
   readonly value: string;
 }
 
+interface HttpProbe {
+  readonly httpGet: { readonly path: string; readonly port: number };
+  readonly periodSeconds: number;
+  readonly timeoutSeconds: number;
+  readonly failureThreshold: number;
+}
+
 interface CloudRunServiceManifest {
   readonly apiVersion: string;
   readonly kind: string;
@@ -34,6 +41,8 @@ interface CloudRunServiceManifest {
             readonly limits: { readonly cpu: string; readonly memory: string };
           };
           readonly env: readonly EnvVar[];
+          readonly startupProbe: HttpProbe;
+          readonly livenessProbe: HttpProbe;
         }>;
       };
     };
@@ -111,5 +120,33 @@ describe("Cloud Run service manifest", () => {
   it("IT-INFRA-CLOUDRUN-010: runs production mode so Swagger UI stays disabled", () => {
     const manifest = loadManifest();
     expect(envValue(manifest, "NODE_ENV")).toBe("production");
+  });
+
+  it("IT-INFRA-CLOUDRUN-011: gates traffic behind a startupProbe on /health/live so Catalog/Worker warm-up must finish first", () => {
+    const manifest = loadManifest();
+    const probe = manifest.spec.template.spec.containers[0]?.startupProbe;
+    expect(probe?.httpGet.path).toBe("/health/live");
+    expect(probe?.httpGet.port).toBe(8080);
+    expect(probe?.periodSeconds).toBeGreaterThan(0);
+    expect(probe?.timeoutSeconds).toBeGreaterThan(0);
+    expect(probe?.failureThreshold).toBeGreaterThan(0);
+  });
+
+  it("IT-INFRA-CLOUDRUN-012: restarts only on liveness failure (/health/live), never on transient readiness/pool saturation", () => {
+    const manifest = loadManifest();
+    const probe = manifest.spec.template.spec.containers[0]?.livenessProbe;
+    expect(probe?.httpGet.path).toBe("/health/live");
+    expect(probe?.httpGet.port).toBe(8080);
+    expect(probe?.periodSeconds).toBeGreaterThan(0);
+    expect(probe?.timeoutSeconds).toBeGreaterThan(0);
+    expect(probe?.failureThreshold).toBeGreaterThan(0);
+  });
+
+  it("IT-INFRA-CLOUDRUN-013: probes target the same port the container listens on", () => {
+    const manifest = loadManifest();
+    const container = manifest.spec.template.spec.containers[0];
+    const containerPort = container?.ports[0]?.containerPort;
+    expect(container?.startupProbe.httpGet.port).toBe(containerPort);
+    expect(container?.livenessProbe.httpGet.port).toBe(containerPort);
   });
 });
