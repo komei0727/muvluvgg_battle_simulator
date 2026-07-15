@@ -77,3 +77,7 @@ gcloud artifacts repositories create muvluvgg-battle-simulator \
 
 `src/__tests__/cloud-run-service-config.test.ts`が`service.json`の値を
 `11_インフラストラクチャ設計.md`の初期設定表と自動的に突き合わせる。
+
+手動でのproject準備、image build/push、deploy、smoke test、cleanup有効化は、
+動作確認のタイミングごとに分割した
+[`scripts/cloud-run/README.md`](../../scripts/cloud-run/README.md)を参照する。
