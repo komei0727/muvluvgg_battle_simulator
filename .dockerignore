@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.git
+.github
+.claude
+docs
+raw
+catalog-src
+scripts
+*.md
+.env
+.env.*
+mise.toml
+mise.lock
+mise.local.toml
+mise.local.lock

@@ -53,6 +53,10 @@ run = "pnpm run build"
 description = "Detect circular dependencies between source files"
 run = "pnpm run check:circular"
 
+[tasks."test:container"]
+description = "Build the production container image and run local Docker smoke tests (non-root, PORT/HOST, Catalog/Worker/OpenAPI, SIGTERM)"
+run = "bash scripts/container-smoke-test.sh"
+
 [tasks.check]
 description = "Run all validation tasks"
 depends = ["typecheck", "lint", "format-check", "test", "build", "check-circular"]

@@ -20,21 +20,22 @@ pnpm install
 
 `mise.toml` に以下のタスクが定義されている。品質チェックはこれらを使うこと。
 
-| タスク                      | 説明                                                                      |
-| --------------------------- | ------------------------------------------------------------------------- |
-| `mise run install`          | `pnpm install --frozen-lockfile`                                          |
-| `mise run typecheck`        | TypeScript 型検査 (`tsc --noEmit`)                                        |
-| `mise run lint`             | ESLint (`eslint . --max-warnings=0`)                                      |
-| `mise run format-check`     | Prettier フォーマット確認                                                 |
-| `mise run test`             | Unit / Scenario / Contract テスト実行（integration・e2e・load を除く）    |
-| `mise run test:coverage`    | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                       |
-| `mise run test:integration` | Worker・HTTP 統合テスト実行（`*.integration.test.ts`）                    |
-| `mise run test:e2e`         | End-to-End テスト実行（`*.e2e.test.ts`）                                  |
-| `mise run test:load`        | 負荷・耐久テスト実行（`*.load.test.ts`、タイムアウト 5 分）               |
-| `mise run build`            | TypeScript ビルド (`tsc -p tsconfig.json`)                                |
-| `mise run check-circular`   | 循環依存検査 (`madge --circular ...`)                                     |
-| `mise run check`            | typecheck・lint・format-check・test・build・check-circular をまとめて実行 |
-| `mise run dev`              | 開発サーバー起動 (install → `tsx watch src/main.ts`)                      |
+| タスク                      | 説明                                                                       |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `mise run install`          | `pnpm install --frozen-lockfile`                                           |
+| `mise run typecheck`        | TypeScript 型検査 (`tsc --noEmit`)                                         |
+| `mise run lint`             | ESLint (`eslint . --max-warnings=0`)                                       |
+| `mise run format-check`     | Prettier フォーマット確認                                                  |
+| `mise run test`             | Unit / Scenario / Contract テスト実行（integration・e2e・load を除く）     |
+| `mise run test:coverage`    | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                        |
+| `mise run test:integration` | Worker・HTTP 統合テスト実行（`*.integration.test.ts`）                     |
+| `mise run test:e2e`         | End-to-End テスト実行（`*.e2e.test.ts`）                                   |
+| `mise run test:load`        | 負荷・耐久テスト実行（`*.load.test.ts`、タイムアウト 5 分）                |
+| `mise run test:container`   | production containerをbuildし、local Docker smoke testを実行（Docker必須） |
+| `mise run build`            | TypeScript ビルド (`tsc -p tsconfig.json`)                                 |
+| `mise run check-circular`   | 循環依存検査 (`madge --circular ...`)                                      |
+| `mise run check`            | typecheck・lint・format-check・test・build・check-circular をまとめて実行  |
+| `mise run dev`              | 開発サーバー起動 (install → `tsx watch src/main.ts`)                       |
 
 ### PR 相当のローカル検証
 
