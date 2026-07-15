@@ -21,6 +21,10 @@ export interface FormationEditorProps {
 
 const ROWS: readonly UiRow[] = ["FRONT", "REAR"];
 const COLUMNS: readonly UiColumn[] = [0, 1, 2];
+const ROW_LABELS: Readonly<Record<UiRow, string>> = {
+  FRONT: "FRONT / 前衛",
+  REAR: "REAR / 後衛",
+};
 
 function slotAt(
   slots: readonly FormationSlotInput[],
@@ -67,28 +71,33 @@ export function FormationEditor({
       <div className={styles["grid"]}>
         {ROWS.map((row) => (
           <div key={row} className={styles["rowGroup"]}>
-            {COLUMNS.map((column) => {
-              const slot = slotAt(slots, row, column);
-              if (slot === undefined) {
-                return null;
-              }
-              const unit = catalog.units.find((u) => u.unitDefinitionId === slot.unitDefinitionId);
-              return (
-                <UnitSlot
-                  key={slot.slotKey}
-                  row={row}
-                  column={column}
-                  {...(unit !== undefined ? { unit } : {})}
-                  aptitudeWarning={hasAptitudeWarningFor(violations, slot.slotKey)}
-                  hasError={hasErrorFor(violations, slot.slotKey)}
-                  disabled={disabled}
-                  {...(imageMap !== undefined ? { imageMap } : {})}
-                  onOpen={() => {
-                    onOpenUnitSelection(slot.slotKey);
-                  }}
-                />
-              );
-            })}
+            <p className={styles["rowLabel"]}>{ROW_LABELS[row]}</p>
+            <div className={styles["rowSlots"]}>
+              {COLUMNS.map((column) => {
+                const slot = slotAt(slots, row, column);
+                if (slot === undefined) {
+                  return null;
+                }
+                const unit = catalog.units.find(
+                  (u) => u.unitDefinitionId === slot.unitDefinitionId,
+                );
+                return (
+                  <UnitSlot
+                    key={slot.slotKey}
+                    row={row}
+                    column={column}
+                    {...(unit !== undefined ? { unit } : {})}
+                    aptitudeWarning={hasAptitudeWarningFor(violations, slot.slotKey)}
+                    hasError={hasErrorFor(violations, slot.slotKey)}
+                    disabled={disabled}
+                    {...(imageMap !== undefined ? { imageMap } : {})}
+                    onOpen={() => {
+                      onOpenUnitSelection(slot.slotKey);
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>

@@ -47,6 +47,28 @@ describe("FormationEditor", () => {
     expect(screen.getAllByRole("button", { name: /メモリー\d+を追加/ })).toHaveLength(6);
   });
 
+  // Review (PR #119): FRONT/REAR was only distinguishable via each slot's
+  // accessible name, not visually. docs/ui-design/01_UI要求・画面設計.md §5.1
+  // requires a visible "FRONT / 前衛" / "REAR / 後衛" row heading.
+  it("shows a visible FRONT/REAR row heading, not just accessible names", () => {
+    const draft = createInitialDraft();
+    render(
+      <FormationEditor
+        side="ally"
+        slots={draft.allySlots}
+        memoryDefinitionIds={draft.allyMemoryDefinitionIds}
+        catalog={catalog()}
+        violations={[]}
+        disabled={false}
+        onOpenUnitSelection={vi.fn()}
+        onOpenMemorySelection={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("FRONT / 前衛")).toBeInTheDocument();
+    expect(screen.getByText("REAR / 後衛")).toBeInTheDocument();
+  });
+
   it("resolves the catalog unit for a filled slot and shows its display name", () => {
     const draft = createInitialDraft();
     const slotKey = slotKeyOf("ally", "FRONT", 0);
