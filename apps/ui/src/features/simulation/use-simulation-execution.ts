@@ -37,6 +37,8 @@ export interface SubmitInput {
   // する(03_API・データ連携設計.md §13, UI-API-004)。
   readonly allyUnitSlotKeys: readonly string[];
   readonly enemyUnitSlotKeys: readonly string[];
+  readonly allyMemorySlotKeys: readonly string[];
+  readonly enemyMemorySlotKeys: readonly string[];
 }
 
 export interface UseSimulationExecutionResult {
@@ -71,6 +73,8 @@ export function useSimulationExecution(
           startedAt,
           allyUnitSlotKeys: input.allyUnitSlotKeys,
           enemyUnitSlotKeys: input.enemyUnitSlotKeys,
+          allyMemorySlotKeys: input.allyMemorySlotKeys,
+          enemyMemorySlotKeys: input.enemyMemorySlotKeys,
         }),
       );
 

@@ -58,6 +58,8 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: [],
       enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -73,6 +75,8 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
       startedAt: 3000,
       allyUnitSlotKeys: [],
       enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
       previousSuccess: successSnapshot(),
     };
     render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
@@ -140,6 +144,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       requestId: "srv-req-err",
       allyUnitSlotKeys: [],
       enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -157,6 +163,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       previousSuccess: successSnapshot(),
       allyUnitSlotKeys: [],
       enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -172,6 +180,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       previousSuccess: successSnapshot(),
       allyUnitSlotKeys: [],
       enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
 
@@ -191,6 +201,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       },
       allyUnitSlotKeys: [],
       enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={onReloadCatalog} />);
 
@@ -207,6 +219,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       error: { kind: "VALIDATION", code: "INVALID_COMMAND", message: "Invalid." },
       allyUnitSlotKeys: [],
       enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 

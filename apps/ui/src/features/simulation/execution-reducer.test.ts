@@ -39,6 +39,8 @@ function response(): BattleSimulationResponse {
 
 const allySlotKeys = ["ally:FRONT:0"];
 const enemySlotKeys = ["enemy:FRONT:0"];
+const allyMemorySlotKeys = ["ally:memory:0"];
+const enemyMemorySlotKeys = ["enemy:memory:0"];
 
 describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
   it("transitions idle -> submitting, carrying the submission-time slot map", () => {
@@ -49,6 +51,8 @@ describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
 
     expect(state).toEqual({
@@ -58,6 +62,8 @@ describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
   });
 
@@ -70,6 +76,8 @@ describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -84,6 +92,8 @@ describe("executionReducer — submissionStarted (UI-UT-EXEC-001)", () => {
       startedAt: 3000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
 
     expect(state.status).toBe("submitting");
@@ -107,6 +117,8 @@ describe("executionReducer — submissionSucceeded (UI-UT-EXEC-002)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -135,6 +147,8 @@ describe("executionReducer — submissionSucceeded (UI-UT-EXEC-002)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     const beforeStale = state;
 
@@ -161,6 +175,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -175,6 +191,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
       startedAt: 3000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionFailed",
@@ -197,6 +215,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: ["ally:FRONT:2"],
       enemyUnitSlotKeys: ["enemy:REAR:1"],
+      allyMemorySlotKeys: ["ally:memory:4"],
+      enemyMemorySlotKeys: ["enemy:memory:5"],
     });
     state = executionReducer(state, { type: "submissionFailed", executionId: "exec-1", error });
 
@@ -204,6 +224,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
     if (state.status !== "failed") throw new Error("unreachable");
     expect(state.allyUnitSlotKeys).toEqual(["ally:FRONT:2"]);
     expect(state.enemyUnitSlotKeys).toEqual(["enemy:REAR:1"]);
+    expect(state.allyMemorySlotKeys).toEqual(["ally:memory:4"]);
+    expect(state.enemyMemorySlotKeys).toEqual(["enemy:memory:5"]);
   });
 
   it("ignores a stale executionId", () => {
@@ -215,6 +237,8 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     const beforeStale = state;
 
@@ -234,6 +258,8 @@ describe("executionReducer — submissionCancelled (UI-UT-EXEC-004)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, { type: "submissionCancelled", executionId: "exec-1" });
 
@@ -249,6 +275,8 @@ describe("executionReducer — submissionCancelled (UI-UT-EXEC-004)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     const beforeStale = state;
 
@@ -266,6 +294,8 @@ describe("executionReducer — submissionCancelled (UI-UT-EXEC-004)", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, { type: "submissionCancelled", executionId: "exec-1" });
 
@@ -296,6 +326,8 @@ describe("selectDisplayedSuccess", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -316,6 +348,8 @@ describe("selectDisplayedSuccess", () => {
       startedAt: 1000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionSucceeded",
@@ -330,6 +364,8 @@ describe("selectDisplayedSuccess", () => {
       startedAt: 3000,
       allyUnitSlotKeys: allySlotKeys,
       enemyUnitSlotKeys: enemySlotKeys,
+      allyMemorySlotKeys: allyMemorySlotKeys,
+      enemyMemorySlotKeys: enemyMemorySlotKeys,
     });
     state = executionReducer(state, {
       type: "submissionFailed",

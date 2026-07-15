@@ -69,6 +69,8 @@ export function BattleSimulatorPage({
           execution.state.error.violations,
           execution.state.allyUnitSlotKeys,
           execution.state.enemyUnitSlotKeys,
+          execution.state.allyMemorySlotKeys,
+          execution.state.enemyMemorySlotKeys,
         )
       : [];
   const displayedViolations = [...violations, ...serverViolations];
@@ -146,6 +148,8 @@ export function BattleSimulatorPage({
                     request: requestBuild.request,
                     allyUnitSlotKeys: requestBuild.allyUnitSlotKeys,
                     enemyUnitSlotKeys: requestBuild.enemyUnitSlotKeys,
+                    allyMemorySlotKeys: requestBuild.allyMemorySlotKeys,
+                    enemyMemorySlotKeys: requestBuild.enemyMemorySlotKeys,
                   });
                 }
               }}

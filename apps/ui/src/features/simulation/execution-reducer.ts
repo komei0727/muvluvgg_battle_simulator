@@ -20,10 +20,13 @@ export type ExecutionState =
       readonly request: BattleSimulationRequest;
       readonly startedAt: number;
       // 送信時点のslot対応表(request-mapper.ts の allyUnitSlotKeys/
-      // enemyUnitSlotKeys)。failedへ引き継ぎ、422 violationsのJSON Pointerを
-      // 現在のdraftではなく送信時のslotへ対応づける(UI-API-004)。
+      // enemyUnitSlotKeys/allyMemorySlotKeys/enemyMemorySlotKeys)。failedへ
+      // 引き継ぎ、422 violationsのJSON Pointerを現在のdraftではなく送信時の
+      // slotへ対応づける(UI-API-004)。
       readonly allyUnitSlotKeys: readonly string[];
       readonly enemyUnitSlotKeys: readonly string[];
+      readonly allyMemorySlotKeys: readonly string[];
+      readonly enemyMemorySlotKeys: readonly string[];
       readonly previousSuccess?: SuccessfulExecutionSnapshot;
     }
   | {
@@ -41,6 +44,8 @@ export type ExecutionState =
       readonly requestId?: string;
       readonly allyUnitSlotKeys: readonly string[];
       readonly enemyUnitSlotKeys: readonly string[];
+      readonly allyMemorySlotKeys: readonly string[];
+      readonly enemyMemorySlotKeys: readonly string[];
       readonly previousSuccess?: SuccessfulExecutionSnapshot;
     }
   | {
@@ -57,6 +62,8 @@ export type ExecutionAction =
       readonly startedAt: number;
       readonly allyUnitSlotKeys: readonly string[];
       readonly enemyUnitSlotKeys: readonly string[];
+      readonly allyMemorySlotKeys: readonly string[];
+      readonly enemyMemorySlotKeys: readonly string[];
     }
   | {
       readonly type: "submissionSucceeded";
@@ -109,6 +116,8 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
         startedAt: action.startedAt,
         allyUnitSlotKeys: action.allyUnitSlotKeys,
         enemyUnitSlotKeys: action.enemyUnitSlotKeys,
+        allyMemorySlotKeys: action.allyMemorySlotKeys,
+        enemyMemorySlotKeys: action.enemyMemorySlotKeys,
         ...(previousSuccess !== undefined ? { previousSuccess } : {}),
       };
     }
@@ -135,6 +144,8 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
         error: action.error,
         allyUnitSlotKeys: state.allyUnitSlotKeys,
         enemyUnitSlotKeys: state.enemyUnitSlotKeys,
+        allyMemorySlotKeys: state.allyMemorySlotKeys,
+        enemyMemorySlotKeys: state.enemyMemorySlotKeys,
         ...(action.requestId !== undefined ? { requestId: action.requestId } : {}),
         ...(state.previousSuccess !== undefined ? { previousSuccess: state.previousSuccess } : {}),
       };
