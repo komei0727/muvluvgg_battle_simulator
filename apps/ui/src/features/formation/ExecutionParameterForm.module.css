@@ -35,6 +35,17 @@
   opacity: 0.6;
 }
 
+.field input[aria-invalid="true"],
+.field select[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.fieldError {
+  margin: 6px 0 0;
+  color: var(--color-danger);
+  font-size: 10px;
+}
+
 .notice {
   margin: 6px 0 0;
   color: var(--color-warning);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildBattleSimulationRequest } from "./request-mapper.js";
-import { createInitialDraft, slotKeyOf } from "./types.js";
+import { createInitialDraft, memorySlotKeyOf, slotKeyOf } from "./types.js";
 import type { BattleDraft } from "./types.js";
 
 function withUnit(
@@ -174,6 +174,50 @@ describe("buildBattleSimulationRequest — memories", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.request.allyFormation.memoryDefinitionIds).toEqual(["MEM_B", "MEM_A"]);
+  });
+});
+
+describe("buildBattleSimulationRequest — memory slot key backreference (UI-UT-REQ-008)", () => {
+  it("index-aligns memorySlotKeys with the compressed memoryDefinitionIds array, not the original UI index", () => {
+    const draft: BattleDraft = {
+      ...baseDraft(),
+      // Only UI memory slot index 2 is filled: the API array compresses this
+      // to memoryDefinitionIds[0], so the backreference must point at index 2
+      // (memorySlotKeyOf("ally", 2)), not memorySlotKeyOf("ally", 0).
+      allyMemoryDefinitionIds: [
+        undefined,
+        undefined,
+        "MEM_SPARSE",
+        undefined,
+        undefined,
+        undefined,
+      ],
+    };
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.memoryDefinitionIds).toEqual(["MEM_SPARSE"]);
+    expect(result.allyMemorySlotKeys).toEqual([memorySlotKeyOf("ally", 2)]);
+  });
+
+  it("index-aligns memorySlotKeys for multiple sparse memory slots on both sides", () => {
+    const draft: BattleDraft = {
+      ...baseDraft(),
+      allyMemoryDefinitionIds: [undefined, "MEM_B", undefined, "MEM_A", undefined, undefined],
+      enemyMemoryDefinitionIds: [undefined, undefined, undefined, undefined, undefined, "MEM_E"],
+    };
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.allyMemorySlotKeys).toEqual([
+      memorySlotKeyOf("ally", 1),
+      memorySlotKeyOf("ally", 3),
+    ]);
+    expect(result.enemyMemorySlotKeys).toEqual([memorySlotKeyOf("enemy", 5)]);
   });
 });
 

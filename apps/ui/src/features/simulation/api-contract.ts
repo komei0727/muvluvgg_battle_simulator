@@ -87,3 +87,66 @@ export type CatalogApiResult =
       readonly error: UiApiError;
       readonly requestId?: string;
     };
+
+// Mirrors docs/ddd/10_API設計.md 「成功レスポンス」/「戦闘状態」. Only the
+// shape response-validator.ts checks (per 03_API・データ連携設計.md §9) is
+// narrowed; unknown nested properties are preserved via index signatures so a
+// future field addition on the server doesn't get stripped by this mirror.
+export interface BattleResultResponse {
+  readonly outcome: string;
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly [key: string]: unknown;
+}
+
+export interface BattleUnitStateResponse {
+  readonly battleUnitId: string;
+  readonly unitDefinitionId: string;
+  readonly side: string;
+  readonly combatStatus: string;
+  readonly hp: {
+    readonly current: number;
+    readonly maximum: number;
+    readonly [key: string]: unknown;
+  };
+  readonly [key: string]: unknown;
+}
+
+export interface BattleStateResponse {
+  readonly units: readonly BattleUnitStateResponse[];
+  readonly [key: string]: unknown;
+}
+
+export interface BattleLogEventResponse {
+  readonly type: string;
+  readonly [key: string]: unknown;
+}
+
+export interface StateTransitionResponse {
+  readonly [key: string]: unknown;
+}
+
+export interface BattleSimulationResponse {
+  readonly schemaVersion: number;
+  readonly battleId: string;
+  readonly catalogRevision: string;
+  readonly result: BattleResultResponse;
+  readonly initialState: BattleStateResponse;
+  readonly finalState: BattleStateResponse;
+  readonly events: readonly BattleLogEventResponse[];
+  readonly stateTransitions: readonly StateTransitionResponse[];
+}
+
+export type SimulationApiResult =
+  | {
+      readonly ok: true;
+      readonly response: BattleSimulationResponse;
+      readonly requestId?: string;
+    }
+  | {
+      readonly ok: false;
+      readonly status?: number;
+      readonly error: UiApiError;
+      readonly requestId?: string;
+      readonly retryAfterSeconds?: number;
+    };

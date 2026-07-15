@@ -39,17 +39,40 @@ function kindByStatus(status: number): UiApiErrorKind {
   return "SERVER";
 }
 
+// 各violation entryとdiagnosticIdのshapeも検証する。1件でも不正なら envelope
+// 全体を無効とし、呼び出し側はstatus基準のgenericなUiApiErrorへfallbackする
+// (SubmissionFeedbackが不正なmessage/pathをそのまま描画して例外にならないようにする)。
+function isValidViolation(value: unknown): value is ViolationResponseBody {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const violation = value as Record<string, unknown>;
+  if (typeof violation["message"] !== "string") {
+    return false;
+  }
+  const optionalStringFields = ["path", "definitionId", "ruleId"] as const;
+  return optionalStringFields.every((field) => {
+    const fieldValue = violation[field];
+    return fieldValue === undefined || typeof fieldValue === "string";
+  });
+}
+
 function isErrorResponseBody(body: unknown): body is ErrorResponseBody {
   if (typeof body !== "object" || body === null) {
     return false;
   }
   const error = (body as { error?: unknown }).error;
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const violations = (error as { violations?: unknown }).violations;
+  const diagnosticId = (error as { diagnosticId?: unknown }).diagnosticId;
   return (
-    typeof error === "object" &&
-    error !== null &&
     typeof (error as { code?: unknown }).code === "string" &&
     typeof (error as { message?: unknown }).message === "string" &&
-    Array.isArray((error as { violations?: unknown }).violations)
+    Array.isArray(violations) &&
+    violations.every(isValidViolation) &&
+    (diagnosticId === undefined || typeof diagnosticId === "string")
   );
 }
 

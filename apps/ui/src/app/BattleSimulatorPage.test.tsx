@@ -1,12 +1,16 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { SimulateOptions } from "../features/simulation/api-client.js";
 import type { GetCatalogOptions } from "../features/simulation/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
+  BattleSimulationResponse,
   CatalogApiResult,
+  SimulationApiResult,
 } from "../features/simulation/api-contract.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
+import type { BattleSimulationRequest } from "../features/formation/request-mapper.js";
 
 function catalogResponse(): BattleSimulationCatalogResponse {
   return {
@@ -194,5 +198,192 @@ describe("BattleSimulatorPage — formation editing once the catalog is ready", 
     await user.click(screen.getAllByRole("button", { name: "後衛3にユニットを追加" })[0]!);
 
     expect(screen.getByText("1陣営に設定できるユニットは5体までです。")).toBeInTheDocument();
+  });
+});
+
+function simulationResponse(): BattleSimulationResponse {
+  return {
+    schemaVersion: 1,
+    battleId: "battle-01J",
+    catalogRevision: "rev-1",
+    result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+    initialState: { units: [] },
+    finalState: { units: [] },
+    events: [],
+    stateTransitions: [],
+  };
+}
+
+async function setUpMinimalFormation(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: /ALLY FORMATION/ })).toBeInTheDocument();
+  });
+  await user.click(screen.getAllByRole("button", { name: "前衛1にユニットを追加" })[0]!);
+  await user.click(screen.getByRole("button", { name: "アルファを選択" }));
+  await user.click(screen.getByRole("button", { name: "前衛1にユニットを追加" }));
+  await user.click(screen.getByRole("button", { name: "アルファを選択" }));
+}
+
+describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
+  it("submits the built request and shows the success feedback", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    expect(simulateImpl).toHaveBeenCalledTimes(1);
+    const [sentRequest, options] = simulateImpl.mock.calls[0]!;
+    expect(sentRequest.allyFormation.units).toEqual([
+      { unitDefinitionId: "UNIT_A", position: { column: 0, row: "FRONT" } },
+    ]);
+    expect(options.baseUrl).toBe("https://api.example.com");
+
+    await waitFor(() => {
+      expect(screen.getByText(/戦闘が完了しました/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
+  });
+
+  it("disables the start button while submitting and shows a cancel button", async () => {
+    const user = userEvent.setup();
+    let resolveSimulate!: (result: SimulationApiResult) => void;
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(
+      () =>
+        new Promise((resolve) => {
+          resolveSimulate = resolve;
+        }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    expect(screen.getByRole("button", { name: "実行中…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeInTheDocument();
+
+    resolveSimulate({ ok: true, response: simulationResponse() });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "戦闘を開始" })).toBeInTheDocument();
+    });
+  });
+
+  it("shows a structured error with code and requestId on failure, keeping the request unretried", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        status: 503,
+        requestId: "srv-req-err",
+        error: { kind: "CAPACITY", message: "Server busy.", code: "CAPACITY_EXCEEDED" },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Server busy\./)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/CAPACITY_EXCEEDED/)).toBeInTheDocument();
+    expect(screen.getByText(/srv-req-err/)).toBeInTheDocument();
+    expect(simulateImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("prompts and performs a catalog reload on a DEFINITION_NOT_FOUND failure (UI-API-004)", async () => {
+    const user = userEvent.setup();
+    const getCatalogImpl = vi
+      .fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>()
+      .mockResolvedValue({ ok: true, response: catalogResponse() });
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        error: {
+          kind: "VALIDATION",
+          code: "DEFINITION_NOT_FOUND",
+          message: "Definition not found.",
+          violations: [{ path: "/allyFormation/units/0/unitDefinitionId", message: "gone" }],
+        },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={getCatalogImpl}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Catalogを再読込/ })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /Catalogを再読込/ }));
+
+    await waitFor(() => {
+      expect(getCatalogImpl).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("cancels an in-flight submission via the cancel button", async () => {
+    const user = userEvent.setup();
+    let capturedSignal: AbortSignal | undefined;
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >((_req, options) => {
+      capturedSignal = options.signal;
+      return new Promise<SimulationApiResult>((_resolve, reject) => {
+        options.signal.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      }).catch(() => ({ ok: false, error: { kind: "CANCELLED", message: "cancelled" } }));
+    });
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    // cancel() transitions to cancelled synchronously (P1): no waitFor needed,
+    // and this also proves a subsequently-arriving CANCELLED result is a no-op.
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(screen.getByText(/キャンセルを要求しました/)).toBeInTheDocument();
   });
 });

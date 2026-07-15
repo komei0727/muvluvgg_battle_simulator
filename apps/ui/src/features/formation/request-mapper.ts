@@ -1,7 +1,8 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §4-5 (coordinate conversion
 // and request generation rules).
 
-import type { BattleDraft, FormationSlotInput, LogLevel, UiColumn, UiRow } from "./types.js";
+import { memorySlotKeyOf } from "./types.js";
+import type { BattleDraft, FormationSlotInput, LogLevel, Side, UiColumn, UiRow } from "./types.js";
 
 export interface BattleSimulationUnitRequest {
   readonly unitDefinitionId: string;
@@ -26,6 +27,12 @@ export type RequestBuildResult =
       readonly request: BattleSimulationRequest;
       readonly allyUnitSlotKeys: readonly string[];
       readonly enemyUnitSlotKeys: readonly string[];
+      // memoryDefinitionIds is compressed (empty slots removed), so its API
+      // array index does not equal the UI memory slot index. These arrays are
+      // index-aligned with the compressed array instead, mirroring
+      // allyUnitSlotKeys/enemyUnitSlotKeys (UI-API-004).
+      readonly allyMemorySlotKeys: readonly string[];
+      readonly enemyMemorySlotKeys: readonly string[];
     }
   | { readonly ok: false };
 
@@ -40,9 +47,11 @@ function apiRowForUiRow(row: UiRow): UiRow {
 interface BuiltFormation {
   readonly formation: FormationRequest;
   readonly unitSlotKeys: readonly string[];
+  readonly memorySlotKeys: readonly string[];
 }
 
 function buildFormation(
+  side: Side,
   slots: readonly FormationSlotInput[],
   memoryDefinitionIds: readonly (string | undefined)[],
 ): BuiltFormation {
@@ -55,15 +64,23 @@ function buildFormation(
     return rowDiff !== 0 ? rowDiff : a.column - b.column;
   });
 
+  const filledMemories = memoryDefinitionIds
+    .map((memoryDefinitionId, index) => ({ memoryDefinitionId, index }))
+    .filter(
+      (entry): entry is { memoryDefinitionId: string; index: number } =>
+        entry.memoryDefinitionId !== undefined,
+    );
+
   return {
     formation: {
       units: sorted.map((slot) => ({
         unitDefinitionId: slot.unitDefinitionId,
         position: { column: slot.column, row: apiRowForUiRow(slot.row) },
       })),
-      memoryDefinitionIds: memoryDefinitionIds.filter((id): id is string => id !== undefined),
+      memoryDefinitionIds: filledMemories.map((entry) => entry.memoryDefinitionId),
     },
     unitSlotKeys: sorted.map((slot) => slot.slotKey),
+    memorySlotKeys: filledMemories.map((entry) => memorySlotKeyOf(side, entry.index)),
   };
 }
 
@@ -72,8 +89,8 @@ export function buildBattleSimulationRequest(draft: BattleDraft): RequestBuildRe
     return { ok: false };
   }
 
-  const ally = buildFormation(draft.allySlots, draft.allyMemoryDefinitionIds);
-  const enemy = buildFormation(draft.enemySlots, draft.enemyMemoryDefinitionIds);
+  const ally = buildFormation("ally", draft.allySlots, draft.allyMemoryDefinitionIds);
+  const enemy = buildFormation("enemy", draft.enemySlots, draft.enemyMemoryDefinitionIds);
 
   return {
     ok: true,
@@ -85,5 +102,7 @@ export function buildBattleSimulationRequest(draft: BattleDraft): RequestBuildRe
     },
     allyUnitSlotKeys: ally.unitSlotKeys,
     enemyUnitSlotKeys: enemy.unitSlotKeys,
+    allyMemorySlotKeys: ally.memorySlotKeys,
+    enemyMemorySlotKeys: enemy.memorySlotKeys,
   };
 }

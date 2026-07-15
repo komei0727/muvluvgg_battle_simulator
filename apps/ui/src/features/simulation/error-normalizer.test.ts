@@ -184,4 +184,83 @@ describe("normalizeHttpErrorResponse", () => {
 
     expect(result.kind).toBe("SERVER");
   });
+
+  // P2 regression: a malformed violation entry must not reach SubmissionFeedback
+  // and crash there — normalizeHttpErrorResponse must reject the whole
+  // envelope and fall back to the status-based generic error instead.
+  it("falls back to a status-based mapping when a violation entry is null", () => {
+    const result = normalizeHttpErrorResponse({
+      status: 422,
+      body: {
+        schemaVersion: 1,
+        error: { code: "INVALID_COMMAND", message: "Invalid.", violations: [null] },
+      },
+    });
+
+    expect(result.kind).toBe("SERVER");
+    expect(result.violations).toBeUndefined();
+  });
+
+  it("falls back to a status-based mapping when a violation's message is not a string", () => {
+    const result = normalizeHttpErrorResponse({
+      status: 422,
+      body: {
+        schemaVersion: 1,
+        error: {
+          code: "INVALID_COMMAND",
+          message: "Invalid.",
+          violations: [{ path: "/turnLimit", message: 42 }],
+        },
+      },
+    });
+
+    expect(result.kind).toBe("SERVER");
+  });
+
+  it("falls back to a status-based mapping when a violation's path is not a string", () => {
+    const result = normalizeHttpErrorResponse({
+      status: 422,
+      body: {
+        schemaVersion: 1,
+        error: {
+          code: "INVALID_COMMAND",
+          message: "Invalid.",
+          violations: [{ path: 1, message: "x" }],
+        },
+      },
+    });
+
+    expect(result.kind).toBe("SERVER");
+  });
+
+  it("falls back to a status-based mapping when diagnosticId is not a string", () => {
+    const result = normalizeHttpErrorResponse({
+      status: 500,
+      body: {
+        schemaVersion: 1,
+        error: {
+          code: "INTERNAL_INVARIANT_VIOLATION",
+          message: "Unexpected.",
+          violations: [],
+          diagnosticId: 12345,
+        },
+      },
+    });
+
+    expect(result.kind).toBe("SERVER");
+    expect(result.diagnosticId).toBeUndefined();
+  });
+
+  it("accepts a violation with only a message, omitting optional fields", () => {
+    const result = normalizeHttpErrorResponse({
+      status: 422,
+      body: {
+        schemaVersion: 1,
+        error: { code: "INVALID_COMMAND", message: "Invalid.", violations: [{ message: "x" }] },
+      },
+    });
+
+    expect(result.kind).toBe("VALIDATION");
+    expect(result.violations).toEqual([{ message: "x" }]);
+  });
 });

@@ -116,4 +116,69 @@ describe("ExecutionParameterForm", () => {
     expect(screen.getByLabelText("ターン上限")).toBeDisabled();
     expect(screen.getByLabelText("ログレベル")).toBeDisabled();
   });
+
+  it("marks the turn limit input invalid and shows the message for a /turnLimit violation (UI-API-004, UI-CT-016)", () => {
+    render(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="DETAILED"
+        endpoint="POST /api/v1/battle-simulations"
+        disabled={false}
+        violations={[
+          {
+            path: "/turnLimit",
+            code: "SERVER_VIOLATION",
+            message: "上限は99以下です。",
+            severity: "error",
+          },
+        ]}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("ターン上限")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("上限は99以下です。")).toBeInTheDocument();
+  });
+
+  it("marks the log level select invalid and shows the message for an /options/logLevel violation", () => {
+    render(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="DETAILED"
+        endpoint="POST /api/v1/battle-simulations"
+        disabled={false}
+        violations={[
+          {
+            path: "/options/logLevel",
+            code: "SERVER_VIOLATION",
+            message: "対応していないログレベルです。",
+            severity: "error",
+          },
+        ]}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("ログレベル")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("対応していないログレベルです。")).toBeInTheDocument();
+  });
+
+  it("does not mark inputs invalid when there are no matching violations", () => {
+    render(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="DETAILED"
+        endpoint="POST /api/v1/battle-simulations"
+        disabled={false}
+        violations={[]}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("ターン上限")).toHaveAttribute("aria-invalid", "false");
+    expect(screen.getByLabelText("ログレベル")).toHaveAttribute("aria-invalid", "false");
+  });
 });
