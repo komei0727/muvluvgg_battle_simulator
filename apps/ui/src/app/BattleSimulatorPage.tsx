@@ -3,7 +3,7 @@ import { AppShell } from "../components/AppShell.js";
 import { Panel } from "../components/Panel.js";
 import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelectionDialog.js";
 import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
-import { validateDraft } from "../features/formation/draft-validation.js";
+import { selectCanSubmit, validateDraft } from "../features/formation/draft-validation.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
 import { FormationEditor } from "../features/formation/FormationEditor.js";
 import {
@@ -11,32 +11,69 @@ import {
   formationReducer,
   MAX_UNITS_PER_SIDE,
 } from "../features/formation/formation-reducer.js";
+import { buildBattleSimulationRequest } from "../features/formation/request-mapper.js";
+import { SubmitControls } from "../features/formation/SubmitControls.js";
 import { memorySlotsForSide, slotsForSide } from "../features/formation/types.js";
 import { ValidationSummary } from "../features/formation/ValidationSummary.js";
 import type { UseCatalogLoaderOptions } from "../features/catalog-selection/catalog-loader.js";
 import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
+import {
+  selectDisplayedSuccess,
+  selectIsResultDirty,
+} from "../features/simulation/execution-reducer.js";
+import { SubmissionFeedback } from "../features/simulation/SubmissionFeedback.js";
+import type { UseSimulationExecutionOptions } from "../features/simulation/use-simulation-execution.js";
+import { useSimulationExecution } from "../features/simulation/use-simulation-execution.js";
+import { mapServerViolationsToUiViolations } from "../features/simulation/violation-mapper.js";
 
 export interface BattleSimulatorPageProps {
   readonly apiBaseUrl: string;
   readonly getCatalogImpl?: UseCatalogLoaderOptions["getCatalogImpl"];
+  readonly simulateImpl?: UseSimulationExecutionOptions["simulateImpl"];
 }
 
 const SIMULATION_ENDPOINT = "POST /api/v1/battle-simulations";
 
-export function BattleSimulatorPage({ apiBaseUrl, getCatalogImpl }: BattleSimulatorPageProps) {
+export function BattleSimulatorPage({
+  apiBaseUrl,
+  getCatalogImpl,
+  simulateImpl,
+}: BattleSimulatorPageProps) {
   const catalogLoader = useCatalogLoader(
     apiBaseUrl,
     getCatalogImpl !== undefined ? { getCatalogImpl } : {},
   );
   const [state, dispatch] = useReducer(formationReducer, undefined, createInitialFormationState);
   const catalog = catalogLoader.state;
+  const execution = useSimulationExecution(
+    apiBaseUrl,
+    simulateImpl !== undefined ? { simulateImpl } : {},
+  );
 
   const violations = useMemo(
     () => (catalog.status === "ready" ? validateDraft(state.draft, catalog.response) : []),
     [catalog, state.draft],
   );
+  const requestBuild = useMemo(() => buildBattleSimulationRequest(state.draft), [state.draft]);
+  const isSubmitting = execution.state.status === "submitting";
+  const canSubmit = catalog.status === "ready" && requestBuild.ok && selectCanSubmit(violations);
 
-  const formationDisabled = catalog.status !== "ready";
+  const displayedSuccess = selectDisplayedSuccess(execution.state);
+  const isDirty = requestBuild.ok
+    ? selectIsResultDirty(requestBuild.request, displayedSuccess?.request)
+    : displayedSuccess !== undefined;
+
+  const serverViolations =
+    execution.state.status === "failed" && execution.state.error.violations !== undefined
+      ? mapServerViolationsToUiViolations(
+          execution.state.error.violations,
+          requestBuild.ok ? requestBuild.allyUnitSlotKeys : [],
+          requestBuild.ok ? requestBuild.enemyUnitSlotKeys : [],
+        )
+      : [];
+  const displayedViolations = [...violations, ...serverViolations];
+
+  const formationDisabled = catalog.status !== "ready" || isSubmitting;
 
   return (
     <AppShell>
@@ -59,7 +96,7 @@ export function BattleSimulatorPage({ apiBaseUrl, getCatalogImpl }: BattleSimula
                 slots={slotsForSide(state.draft, "ally")}
                 memoryDefinitionIds={memorySlotsForSide(state.draft, "ally")}
                 catalog={catalog.response}
-                violations={violations}
+                violations={displayedViolations}
                 disabled={formationDisabled}
                 onOpenUnitSelection={(slotKey) => {
                   dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
@@ -73,7 +110,7 @@ export function BattleSimulatorPage({ apiBaseUrl, getCatalogImpl }: BattleSimula
                 slots={slotsForSide(state.draft, "enemy")}
                 memoryDefinitionIds={memorySlotsForSide(state.draft, "enemy")}
                 catalog={catalog.response}
-                violations={violations}
+                violations={displayedViolations}
                 disabled={formationDisabled}
                 onOpenUnitSelection={(slotKey) => {
                   dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
@@ -98,9 +135,26 @@ export function BattleSimulatorPage({ apiBaseUrl, getCatalogImpl }: BattleSimula
             />
 
             <ValidationSummary violations={violations} />
+
+            <SubmitControls
+              canSubmit={canSubmit}
+              isSubmitting={isSubmitting}
+              onSubmit={() => {
+                if (requestBuild.ok) {
+                  execution.submit(requestBuild.request);
+                }
+              }}
+              onCancel={execution.cancel}
+            />
           </>
         ) : null}
       </Panel>
+
+      <SubmissionFeedback
+        state={execution.state}
+        isDirty={isDirty}
+        onReloadCatalog={catalogLoader.reload}
+      />
 
       {catalog.status === "ready" && state.selectionDialog.kind === "unit"
         ? (() => {

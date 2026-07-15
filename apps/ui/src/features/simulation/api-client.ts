@@ -1,15 +1,20 @@
-import type { CatalogApiResult } from "./api-contract.js";
+import type { CatalogApiResult, SimulationApiResult } from "./api-contract.js";
 import {
   normalizeHttpErrorResponse,
   normalizeRequestException,
   parseRetryAfterSeconds,
 } from "./error-normalizer.js";
-import { validateCatalogResponse } from "./response-validator.js";
+import { validateCatalogResponse, validateSimulationResponse } from "./response-validator.js";
+import type { BattleSimulationRequest } from "../formation/request-mapper.js";
 
 const CATALOG_PATH = "/api/v1/battle-simulation-catalog";
 // docs/ui-design/03_API・データ連携設計.md §7: 「一覧GETには10秒のUI待機上限を
 // 設け、戦闘実行用AbortControllerと共有しない」。
 const DEFAULT_TIMEOUT_MS = 10_000;
+const SIMULATION_PATH = "/api/v1/battle-simulations";
+// docs/ui-design/03_API・データ連携設計.md §7: 「UIは35秒を既定のクライアント
+// 待機上限とし、API側が構造化504を返す余地を残す」。
+const SIMULATION_DEFAULT_TIMEOUT_MS = 35_000;
 
 export interface GetCatalogOptions {
   readonly baseUrl: string;
@@ -139,6 +144,88 @@ export async function getCatalog(options: GetCatalogOptions): Promise<CatalogApi
         body,
         ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
       }),
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export interface SimulateOptions {
+  readonly baseUrl: string;
+  readonly signal: AbortSignal;
+  readonly requestId?: string;
+  readonly timeoutMs?: number;
+  readonly fetchImpl?: typeof fetch;
+}
+
+function simulationRequestHeaders(options: SimulateOptions): Headers {
+  const headers = new Headers({ "Content-Type": "application/json", Accept: "application/json" });
+  if (options.requestId !== undefined) {
+    headers.set("X-Request-Id", options.requestId);
+  }
+  return headers;
+}
+
+// docs/ui-design/03_API・データ連携設計.md §2.3, §7: 戦闘POSTは cache:
+// "no-store"、credentials: "omit" とし、自動retryしない(このcallerはfetchを
+// 一度だけ呼ぶ。呼び出し側のretryも別issueで扱う)。
+export async function simulate(
+  request: BattleSimulationRequest,
+  options: SimulateOptions,
+): Promise<SimulationApiResult> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const timeoutController = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    timeoutController.abort();
+  }, options.timeoutMs ?? SIMULATION_DEFAULT_TIMEOUT_MS);
+  const combinedSignal = AbortSignal.any([options.signal, timeoutController.signal]);
+
+  try {
+    let response: Response;
+    try {
+      response = await fetchImpl(`${options.baseUrl}${SIMULATION_PATH}`, {
+        method: "POST",
+        headers: simulationRequestHeaders(options),
+        credentials: "omit",
+        cache: "no-store",
+        body: JSON.stringify(request),
+        signal: combinedSignal,
+      });
+    } catch (error) {
+      return { ok: false, error: normalizeRequestException(error, { timedOut }) };
+    }
+
+    const requestIdHeader = response.headers.get("X-Request-Id");
+    const requestIdField = requestIdHeader !== null ? { requestId: requestIdHeader } : {};
+
+    let body: unknown;
+    try {
+      body = await parseJsonBody(response);
+    } catch (error) {
+      return { ok: false, error: normalizeRequestException(error, { timedOut }) };
+    }
+
+    if (response.status === 200) {
+      const validation = validateSimulationResponse(body);
+      if (!validation.ok) {
+        return { ok: false, status: 200, ...requestIdField, error: validation.error };
+      }
+      return { ok: true, response: validation.response, ...requestIdField };
+    }
+
+    const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("Retry-After"));
+    return {
+      ok: false,
+      status: response.status,
+      ...requestIdField,
+      error: normalizeHttpErrorResponse({
+        status: response.status,
+        body,
+        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+      }),
+      ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
     };
   } finally {
     clearTimeout(timeoutId);

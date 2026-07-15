@@ -1,5 +1,6 @@
 import type {
   BattleSimulationCatalogResponse,
+  BattleSimulationResponse,
   CatalogMemorySummary,
   CatalogUnitSummary,
   UiApiError,
@@ -126,5 +127,92 @@ export function validateCatalogResponse(body: unknown): CatalogValidationResult 
       units,
       memories,
     },
+  };
+}
+
+// docs/ui-design/03_API・データ連携設計.md §9: 戦闘成功レスポンスの検証.
+// 必須shapeだけを確認し、未知の任意プロパティ・イベントtype・列挙値は許容する
+// (OpenAPI全体を厳格に再実装して将来の追加を拒否しない)。
+
+export type SimulationValidationResult =
+  | { readonly ok: true; readonly response: BattleSimulationResponse }
+  | { readonly ok: false; readonly error: UiApiError };
+
+function simulationMismatch(message: string): SimulationValidationResult {
+  return { ok: false, error: { kind: "RESPONSE_CONTRACT_MISMATCH", message } };
+}
+
+function isValidResult(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["outcome"]) &&
+    isNonEmptyString(value["completionReason"]) &&
+    typeof value["completedTurn"] === "number"
+  );
+}
+
+function isValidHp(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value["current"] === "number" && typeof value["maximum"] === "number";
+}
+
+function isValidBattleUnit(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["battleUnitId"]) &&
+    isNonEmptyString(value["unitDefinitionId"]) &&
+    isNonEmptyString(value["side"]) &&
+    isNonEmptyString(value["combatStatus"]) &&
+    isValidHp(value["hp"])
+  );
+}
+
+function isValidBattleState(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const units = value["units"];
+  return Array.isArray(units) && units.every(isValidBattleUnit);
+}
+
+export function validateSimulationResponse(body: unknown): SimulationValidationResult {
+  if (!isRecord(body)) {
+    return simulationMismatch("Simulation response body is not a JSON object.");
+  }
+
+  if (typeof body["schemaVersion"] !== "number") {
+    return simulationMismatch("Simulation response schemaVersion is not a number.");
+  }
+  if (!isNonEmptyString(body["battleId"])) {
+    return simulationMismatch("Simulation response battleId is missing or empty.");
+  }
+  if (!isNonEmptyString(body["catalogRevision"])) {
+    return simulationMismatch("Simulation response catalogRevision is missing or empty.");
+  }
+  if (!isValidResult(body["result"])) {
+    return simulationMismatch("Simulation response result is malformed.");
+  }
+  if (!isValidBattleState(body["initialState"])) {
+    return simulationMismatch("Simulation response initialState.units is malformed.");
+  }
+  if (!isValidBattleState(body["finalState"])) {
+    return simulationMismatch("Simulation response finalState.units is malformed.");
+  }
+  if (!Array.isArray(body["events"])) {
+    return simulationMismatch("Simulation response events is not an array.");
+  }
+  if (!Array.isArray(body["stateTransitions"])) {
+    return simulationMismatch("Simulation response stateTransitions is not an array.");
+  }
+
+  return {
+    ok: true,
+    response: body as unknown as BattleSimulationResponse,
   };
 }
