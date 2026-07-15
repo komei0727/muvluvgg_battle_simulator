@@ -59,24 +59,35 @@ run = "bash scripts/container-smoke-test.sh"
 
 [tasks.check]
 description = "Run all validation tasks"
-depends = ["typecheck", "lint", "format-check", "test", "build", "check-circular"]
+depends = [
+  "typecheck",
+  "lint",
+  "format-check",
+  "test",
+  "build",
+  "check-circular",
+  "ui:typecheck",
+  "ui:lint",
+  "ui:test",
+  "ui:build",
+]
 
 [tasks."ui:typecheck"]
-description = "Type-check the ui/ workspace"
+description = "Type-check the apps/ui/ workspace"
 run = "pnpm --filter ui run typecheck"
 
 [tasks."ui:lint"]
-description = "Lint the ui/ workspace"
+description = "Lint the apps/ui/ workspace"
 run = "pnpm --filter ui run lint"
 
 [tasks."ui:test"]
-description = "Run ui/ unit and component tests"
+description = "Run apps/ui/ unit and component tests"
 run = "pnpm --filter ui run test"
 
 [tasks."ui:build"]
-description = "Build the ui/ workspace for production"
+description = "Build the apps/ui/ workspace for production"
 run = "pnpm --filter ui run build"
 
 [tasks."ui:e2e"]
-description = "Run ui/ Playwright end-to-end smoke tests"
+description = "Run apps/ui/ Playwright end-to-end smoke tests"
 run = "pnpm --filter ui run test:e2e"

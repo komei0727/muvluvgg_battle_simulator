@@ -7,8 +7,30 @@
   },
   "packageManager": "pnpm@11.8.0",
   "scripts": {
+    "dev": "pnpm --filter api run dev",
+    "start": "pnpm --filter api run start",
+    "build": "pnpm --filter api run build",
+    "typecheck": "pnpm --filter api run typecheck",
+    "lint": "pnpm --filter api run lint",
+    "lint:fix": "pnpm --filter api run lint:fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter api run test",
+    "test:watch": "pnpm --filter api run test:watch",
+    "test:coverage": "pnpm --filter api run test:coverage",
+    "test:integration": "pnpm --filter api run test:integration",
+    "test:e2e": "pnpm --filter api run test:e2e",
+    "test:load": "pnpm --filter api run test:load",
+    "check:circular": "pnpm --filter api run check:circular",
+    "validate-catalog": "pnpm --filter api run validate-catalog",
+    "generate-catalog": "pnpm --filter api run generate-catalog",
+    "check-catalog-src": "pnpm --filter api run check-catalog-src",
+    "render-cloud-run-manifest": "pnpm --filter api run render-cloud-run-manifest",
+    "ui:typecheck": "pnpm --filter ui run typecheck",
+    "ui:lint": "pnpm --filter ui run lint",
+    "ui:test": "pnpm --filter ui run test",
+    "ui:build": "pnpm --filter ui run build",
+    "ui:e2e": "pnpm --filter ui run test:e2e"
   },
   "devDependencies": {
     "prettier": "3.8.4"
