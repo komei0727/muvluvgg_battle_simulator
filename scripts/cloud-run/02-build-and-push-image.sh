@@ -9,7 +9,8 @@ print_deploy_context
 echo "== build and push image with Cloud Build =="
 gcloud builds submit "$REPO_ROOT" \
   --project="$PROJECT_ID" \
-  --tag="$IMAGE"
+  --tag="$IMAGE" \
+  --suppress-logs
 
 echo "== verification checkpoint: pushed image =="
 gcloud artifacts docker images describe "$IMAGE" \
