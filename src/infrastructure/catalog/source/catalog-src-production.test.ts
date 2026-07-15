@@ -118,6 +118,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_RAVEL_MODEL",
         "UNIT_NADYA_SUCCESSOR",
         "UNIT_JULIE_SNOW",
+        // Issue #106（synthetic, zero-requiredCapabilities CI smoke-test unit）
+        "UNIT_CI_SMOKE_TEST",
       ].sort(),
     );
   });

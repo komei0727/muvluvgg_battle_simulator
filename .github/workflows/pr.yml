@@ -30,3 +30,17 @@ jobs:
 
       - name: Circular dependency check
         run: mise run check-circular
+
+  container:
+    name: Container Build and Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Production container build and local Docker smoke test
+        run: mise run test:container

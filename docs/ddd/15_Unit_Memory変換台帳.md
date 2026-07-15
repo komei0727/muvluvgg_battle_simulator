@@ -19,6 +19,12 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 
+### Issue #106: 台帳外の合成Unit（`UNIT_CI_SMOKE_TEST`）
+
+`catalog-src/units/UNIT_CI_SMOKE_TEST/` は `raw/units/` のキャラクター変換ではない。全29件の`capabilities.json`が`PLANNED`のため、実在キャラクターUnitは1件も`selectable`にならず、Cloud Run CI/CDのpost-deploy simulation smoke test（`docs/運用手順.md`「Cloud Run deploy」）が実行不能だった問題への対応として、`requiredCapabilities`を一切参照しない合成Unit（Active 1・EX 1、Passiveなし、`metadata.tags: ["INTERNAL","SMOKE_TEST","TEMPORARY"]`）を追加した（PR #112レビュー、2026-07-15）。
+
+この台帳の69件（`raw/units/`変換）・`catalog-src-inventory.test.ts`の69件アサーション（`IT-CAT-INV-001`のraw/変換キャラクター数）には含めない。`catalog-src/`のunit directory総数は70件になる。実在キャラクターUnitが`IMPLEMENTED`済みcapabilityだけで`selectable`になり次第、このUnitを削除しCatalog revisionを再生成すること——削除条件・削除手順は`#113`で追跡する。
+
 ## Unit 変換台帳
 
 | raw/units/ ファイル                                  | unitDefinitionId           | characterId              | ステータス                                               |

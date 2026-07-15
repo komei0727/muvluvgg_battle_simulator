@@ -833,6 +833,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_CI_SMOKE_TEST_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": ["INTERNAL", "SMOKE_TEST", "TEMPORARY"] }
+  },
+  {
     "effectActionDefinitionId": "ACT_CLARA_SANTA_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.332 } },

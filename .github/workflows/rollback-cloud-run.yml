@@ -1,0 +1,76 @@
+name: Rollback Cloud Run Traffic
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_revision:
+        description: "Rollback先のCloud Run revision名（空欄なら`stable-previous` tagが指す直前のpromote済みrevisionを自動検出）"
+        required: false
+        default: ""
+
+jobs:
+  rollback:
+    name: Roll back production traffic
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION || 'asia-northeast1' }}
+      REPOSITORY: ${{ vars.GCP_ARTIFACT_REGISTRY_REPOSITORY || 'muvluvgg-battle-simulator' }}
+      SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE || 'muvluvgg-battle-simulator-api' }}
+      TARGET_REVISION: ${{ inputs.target_revision }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Shift 100% traffic to the target revision
+        run: scripts/cloud-run/ci-rollback-traffic.sh
+
+      - name: Resolve service URL
+        run: |
+          SERVICE_URL="$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" \
+            --project="$PROJECT_ID" \
+            --format='value(status.url)')"
+          echo "SERVICE_URL=$SERVICE_URL" >> "$GITHUB_ENV"
+
+      # Issue #106受け入れ条件「直前の正常revisionへrollbackし、再smoke testできる」
+      # と運用手順「最小simulationを確認する」を満たすため、main deployと同様に
+      # rollback先のCatalogから選択可能なUnitを探しrequestを組み立てる。
+      # 選択可能なUnitが無い場合はここでjobを失敗させる——simulation smoke
+      # testを黙ってskipしない（PRレビュー指摘 #112 P1、2026-07-15再レビュー）。
+      - name: Build minimal simulation smoke test request
+        run: |
+          curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
+            | mise exec -- pnpm exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
+            > /tmp/muvluvgg-rollback-smoke-simulation-request.json
+
+      - name: Smoke test the rolled-back service
+        env:
+          SMOKE_SIMULATION_BODY_FILE: /tmp/muvluvgg-rollback-smoke-simulation-request.json
+        run: scripts/cloud-run/04-smoke-test.sh
+
+      - name: Record rollback summary
+        run: |
+          {
+            echo "### Cloud Run rollback"
+            echo "- Rolled back to: \`${{ env.TARGET_REVISION }}\` (empty = auto-detected)"
+            echo "- Triggered by: \`${{ github.actor }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

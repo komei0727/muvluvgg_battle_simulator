@@ -12,6 +12,7 @@
     "validate-catalog": "tsx src/infrastructure/catalog/runtime/validate-catalog-cli.ts",
     "generate-catalog": "tsx src/infrastructure/catalog/source/generate-catalog-cli.ts",
     "check-catalog-src": "tsx src/infrastructure/catalog/source/check-catalog-src-cli.ts",
+    "render-cloud-run-manifest": "tsx src/infrastructure/deploy/render-cloud-run-manifest-cli.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node --enable-source-maps dist/main.js",
     "typecheck": "tsc --noEmit",

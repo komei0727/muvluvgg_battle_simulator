@@ -172,6 +172,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_CI_SMOKE_TEST",
+    "attribute": "COMICAL",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 1000,
+      "attack": 100,
+      "defense": 50,
+      "criticalRate": 0.1,
+      "actionSpeed": 100,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_CI_SMOKE_TEST_AS1"],
+    "passiveSkillDefinitionIds": [],
+    "extraSkillDefinitionId": "SKL_CI_SMOKE_TEST_EX",
+    "requiredCapabilities": [],
+    "metadata": {
+      "displayName": "CI Smoke Test Unit",
+      "characterName": "CI Smoke Test",
+      "characterId": "CHAR_CI_SMOKE_TEST",
+      "affiliations": [],
+      "tags": ["INTERNAL", "SMOKE_TEST", "TEMPORARY"]
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_CLARA_SANTA",
     "attribute": "SMART",
     "unitType": "ENERGY",
