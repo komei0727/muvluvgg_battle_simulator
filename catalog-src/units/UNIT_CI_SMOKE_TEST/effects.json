@@ -1,0 +1,12 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_CI_SMOKE_TEST_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.0 }
+    },
+    "requiredCapabilities": [],
+    "metadata": { "tags": ["INTERNAL", "SMOKE_TEST", "TEMPORARY"] }
+  }
+]
