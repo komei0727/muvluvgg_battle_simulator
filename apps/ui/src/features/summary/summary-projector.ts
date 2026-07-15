@@ -1,0 +1,155 @@
+// Mirrors docs/ui-design/03_API・データ連携設計.md §10 (表示用Roster), §11
+// (サマリ集計), §11.4 (Adapter registry). DAMAGE/DEFENSE come from
+// DAMAGE_APPLIED.details.hitPointDamage, never calculatedDamage
+// (01_UI要求・画面設計.md §7.2). HEAL stays 0 until the M7 heal event
+// contract exists (03 §11.3).
+
+import type {
+  BattleLogEventResponse,
+  BattleSimulationCatalogResponse,
+  BattleSimulationResponse,
+} from "../simulation/api-contract.js";
+
+export interface RosterEntry {
+  readonly battleUnitId: string;
+  readonly unitDefinitionId: string;
+  readonly side: string;
+  readonly displayName: string;
+}
+
+export interface UnitBattleSummary {
+  readonly battleUnitId: string;
+  readonly damageDealt: number;
+  readonly damageTaken: number;
+  readonly healingDone: number;
+  readonly combatStatus: string;
+  readonly finalHp: number;
+  readonly maximumHp: number;
+}
+
+export interface SummaryRow {
+  readonly roster: RosterEntry;
+  readonly summary: UnitBattleSummary;
+}
+
+export interface SummaryProjection {
+  readonly allyRows: readonly SummaryRow[];
+  readonly enemyRows: readonly SummaryRow[];
+  readonly hasProjectionWarning: boolean;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+// docs/ui-design/03_API・データ連携設計.md §10「表示用Roster」の生成手順:
+// initialState.units を入力順で走査し、Catalog未解決なら
+// displayName = unitDefinitionId とする。
+export function selectRoster(
+  response: BattleSimulationResponse,
+  catalog: BattleSimulationCatalogResponse,
+): readonly RosterEntry[] {
+  const catalogByDefinitionId = new Map(
+    catalog.units.map((unit) => [unit.unitDefinitionId, unit] as const),
+  );
+
+  return response.initialState.units.map((unit) => {
+    const definition = catalogByDefinitionId.get(unit.unitDefinitionId);
+    return {
+      battleUnitId: unit.battleUnitId,
+      unitDefinitionId: unit.unitDefinitionId,
+      side: unit.side,
+      displayName: definition?.displayName ?? unit.unitDefinitionId,
+    };
+  });
+}
+
+interface MutableSummaryAccumulator {
+  readonly damageDealt: Map<string, number>;
+  readonly damageTaken: Map<string, number>;
+  warned: boolean;
+}
+
+function addTo(map: Map<string, number>, key: string, amount: number): void {
+  map.set(key, (map.get(key) ?? 0) + amount);
+}
+
+// docs/ui-design/03_API・データ連携設計.md §11.4「Adapter registry」。
+// sourceUnitId欠落、targetUnitId不明、details shape不正の場合はそのイベント
+// を集計から除外し、警告フラグだけ立てる(UI-UT-SUM-009)。
+function applyDamageApplied(
+  event: BattleLogEventResponse,
+  accumulator: MutableSummaryAccumulator,
+): void {
+  const sourceUnitId = event["sourceUnitId"];
+  const details = event["details"];
+  if (typeof sourceUnitId !== "string" || !isRecord(details)) {
+    accumulator.warned = true;
+    return;
+  }
+  const targetUnitId = details["targetUnitId"];
+  const hitPointDamage = details["hitPointDamage"];
+  if (typeof targetUnitId !== "string" || !isFiniteNonNegative(hitPointDamage)) {
+    accumulator.warned = true;
+    return;
+  }
+  addTo(accumulator.damageDealt, sourceUnitId, hitPointDamage);
+  addTo(accumulator.damageTaken, targetUnitId, hitPointDamage);
+}
+
+type SummaryEventAdapter = (
+  event: BattleLogEventResponse,
+  accumulator: MutableSummaryAccumulator,
+) => void;
+
+const summaryAdapters: Readonly<Record<string, SummaryEventAdapter>> = {
+  DAMAGE_APPLIED: applyDamageApplied,
+  // M7: HEAL_APPLIED等、API契約確定後に追加(03 §11.3)。
+};
+
+export function selectBattleSummary(
+  response: BattleSimulationResponse,
+  catalog: BattleSimulationCatalogResponse,
+): SummaryProjection {
+  const roster = selectRoster(response, catalog);
+  const finalUnitsById = new Map(
+    response.finalState.units.map((unit) => [unit.battleUnitId, unit] as const),
+  );
+
+  const accumulator: MutableSummaryAccumulator = {
+    damageDealt: new Map(),
+    damageTaken: new Map(),
+    warned: false,
+  };
+  for (const event of response.events) {
+    const adapter = summaryAdapters[event.type];
+    adapter?.(event, accumulator);
+  }
+
+  const allyRows: SummaryRow[] = [];
+  const enemyRows: SummaryRow[] = [];
+  for (const entry of roster) {
+    const finalUnit = finalUnitsById.get(entry.battleUnitId);
+    const summary: UnitBattleSummary = {
+      battleUnitId: entry.battleUnitId,
+      damageDealt: accumulator.damageDealt.get(entry.battleUnitId) ?? 0,
+      damageTaken: accumulator.damageTaken.get(entry.battleUnitId) ?? 0,
+      healingDone: 0,
+      combatStatus: finalUnit?.combatStatus ?? "UNKNOWN",
+      finalHp: finalUnit?.hp.current ?? 0,
+      maximumHp: finalUnit?.hp.maximum ?? 0,
+    };
+    const row: SummaryRow = { roster: entry, summary };
+    if (entry.side === "ENEMY") {
+      enemyRows.push(row);
+    } else {
+      allyRows.push(row);
+    }
+  }
+
+  return { allyRows, enemyRows, hasProjectionWarning: accumulator.warned };
+}
