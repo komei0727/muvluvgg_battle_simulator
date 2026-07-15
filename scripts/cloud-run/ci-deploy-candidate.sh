@@ -13,7 +13,8 @@ require_command git
 MANIFEST_TEMPLATE="$REPO_ROOT/deploy/cloud-run/service.json"
 RENDERED_MANIFEST="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-candidate.json.XXXXXX")"
 CURRENT_SERVICE_JSON="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-current-service.json.XXXXXX")"
-trap 'rm -f "$RENDERED_MANIFEST" "$CURRENT_SERVICE_JSON"' EXIT
+DESCRIBE_STDERR="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-describe-stderr.XXXXXX")"
+trap 'rm -f "$RENDERED_MANIFEST" "$CURRENT_SERVICE_JSON" "$DESCRIBE_STDERR"' EXIT
 
 REVISION_SUFFIX="${REVISION_SUFFIX:-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)}"
 REVISION_NAME="${SERVICE}-${REVISION_SUFFIX}"
@@ -22,12 +23,16 @@ TRAFFIC_TAG="${TRAFFIC_TAG:-candidate}"
 print_deploy_context
 echo "REVISION_NAME=$REVISION_NAME"
 
-gcloud run services describe "$SERVICE" \
+if ! gcloud run services describe "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT_ID" \
-  --format=json > "$CURRENT_SERVICE_JSON" 2>/dev/null || echo '{}' > "$CURRENT_SERVICE_JSON"
+  --format=json > "$CURRENT_SERVICE_JSON" 2>"$DESCRIBE_STDERR"; then
+  echo '{}' > "$CURRENT_SERVICE_JSON"
+  echo "WARNING: gcloud run services describe failed for service '$SERVICE':" >&2
+  cat "$DESCRIBE_STDERR" >&2
+fi
 
-echo "== resolve current production revision (empty on first deploy) =="
+echo "== resolve current production revision =="
 # `status.latestReadyRevisionName`は使わない——失敗して一度もpromoteされて
 # いないcandidateもReadyになり得るため、次回deployでそれへtraffic 100%を
 # 誤って固定してしまう（PRレビュー指摘 #112 P1-1）。`status.traffic`の
@@ -35,7 +40,23 @@ echo "== resolve current production revision (empty on first deploy) =="
 PREVIOUS_REVISION_NAME="$(mise exec -- pnpm exec tsx \
   "$REPO_ROOT/src/infrastructure/deploy/resolve-current-revision-cli.ts" \
   < "$CURRENT_SERVICE_JSON")"
-echo "PREVIOUS_REVISION_NAME=${PREVIOUS_REVISION_NAME:-<none, first deploy>}"
+
+# CIは初回Cloud Run deployを行わない——最初のrevisionは
+# scripts/cloud-run/03-deploy-service.sh（一度限りの手動セットアップ）で
+# 事前に作成済みの前提。describeの失敗（上記WARNING）やservice未作成を
+# 「初回deploy」として扱い、未smoke-testの新revisionへ即100% trafficを流す
+# ことは、Issue #106の安全条件「smoke test成功後にのみtrafficを確定する」に
+# 反するため、fail closedでここを停止する（PRレビュー指摘 #112、
+# 2026-07-15、5回目）。
+if [ -z "$PREVIOUS_REVISION_NAME" ]; then
+  echo "ERROR: 現在100% trafficを受けている既存revisionを特定できませんでした。" >&2
+  echo "        service '$SERVICE' が未作成なら、先にscripts/cloud-run/03-deploy-service.sh" >&2
+  echo "        （一度限りの手動セットアップ、scripts/cloud-run/README.md「Manual」参照）を" >&2
+  echo "        実行してください。describe自体が失敗した場合は上記WARNINGを確認し、" >&2
+  echo "        GCP側の一時的な問題でないか調査してください。" >&2
+  exit 1
+fi
+echo "PREVIOUS_REVISION_NAME=$PREVIOUS_REVISION_NAME"
 
 echo "== resolve current stable-previous tag (preserved across this deploy attempt) =="
 # `services replace`はspec.traffic全体をこのdeployの新しいdesired stateとして
@@ -89,13 +110,13 @@ fi
 
 echo
 echo "REVISION_NAME=$REVISION_NAME"
-echo "PREVIOUS_REVISION_NAME=${PREVIOUS_REVISION_NAME:-}"
+echo "PREVIOUS_REVISION_NAME=$PREVIOUS_REVISION_NAME"
 echo "CANDIDATE_URL=$CANDIDATE_URL"
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   {
     echo "revision_name=$REVISION_NAME"
-    echo "previous_revision_name=${PREVIOUS_REVISION_NAME:-}"
+    echo "previous_revision_name=$PREVIOUS_REVISION_NAME"
     echo "candidate_url=$CANDIDATE_URL"
     echo "image=$IMAGE"
   } >> "$GITHUB_OUTPUT"

@@ -81,16 +81,22 @@ describe("renderCloudRunManifest", () => {
 });
 
 describe("buildCandidateTrafficTargets", () => {
-  it("IT-INFRA-CICD-005: pins 100 percent to the new revision when no previous revision exists (bootstrap)", () => {
-    const traffic = buildCandidateTrafficTargets({
-      newRevisionName: "muvluvgg-battle-simulator-api-abc123",
-      previousRevisionName: undefined,
-      stablePreviousRevisionName: undefined,
-      tag: "candidate",
-    });
-    expect(traffic).toEqual([
-      { revisionName: "muvluvgg-battle-simulator-api-abc123", percent: 100 },
-    ]);
+  it("IT-INFRA-CICD-005: rejects bootstrap (no known previous revision) rather than granting the new revision 100% traffic immediately", () => {
+    // PRレビュー指摘 #112（2026-07-15、5回目）: CIは初回Cloud Run deployを
+    // 行わない——最初のrevisionはscripts/cloud-run/03-deploy-service.shの
+    // 一度限りの手動セットアップで事前に作成されている前提。`describe`の
+    // 一時的失敗やservice未作成をbootstrapとして扱い、未smoke-testの
+    // 新revisionへ即100% trafficを流すことは、Issue #106の安全条件
+    // 「smoke test成功後にのみtrafficを確定する」に反するため、fail closedで
+    // 拒否する。
+    expect(() =>
+      buildCandidateTrafficTargets({
+        newRevisionName: "muvluvgg-battle-simulator-api-abc123",
+        previousRevisionName: undefined,
+        stablePreviousRevisionName: undefined,
+        tag: "candidate",
+      }),
+    ).toThrow(/current production revision/i);
   });
 
   it("IT-INFRA-CICD-006: keeps 100 percent on the previous revision (tagged stable) and stages the new revision at 0 percent with a tag", () => {

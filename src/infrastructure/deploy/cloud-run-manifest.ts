@@ -70,8 +70,16 @@ export interface BuildCandidateTrafficTargetsOptions {
 }
 
 /**
- * previousRevisionNameが無い（=初回deploy）場合は新revisionへ即100%を割り当てる。
- * それ以外は既存revisionへ100%を固定したまま、新revisionをtag付き0%で追加する。
+ * 既存revisionへ100%を固定したまま、新revisionをtag付き0%で追加する。
+ *
+ * `previousRevisionName`が無い場合（=現在100% trafficを受けている既存
+ * revisionを特定できない）はbootstrapとして新revisionへ即100%を割り当てず、
+ * 例外を投げてfail closedする——CIは初回Cloud Run deployを行わない前提
+ * （最初のrevisionは`scripts/cloud-run/03-deploy-service.sh`の一度限りの
+ * 手動セットアップで事前に作成済み）のため、`gcloud run services describe`
+ * の一時的失敗やservice未作成をbootstrapと誤認し、未smoke-testの新revision
+ * へtrafficを流すことは、Issue #106の安全条件に反する
+ * （PRレビュー指摘 #112、2026-07-15、5回目）。
  *
  * `previousRevisionName`には常に`STABLE_TAG`を、`stablePreviousRevisionName`
  * （既存revisionと異なる場合のみ）には常に`STABLE_PREVIOUS_TAG`を明示的に
@@ -85,7 +93,11 @@ export function buildCandidateTrafficTargets(
   options: BuildCandidateTrafficTargetsOptions,
 ): TrafficTarget[] {
   if (options.previousRevisionName === undefined) {
-    return [{ revisionName: options.newRevisionName, percent: 100 }];
+    throw new Error(
+      "Cannot resolve the current production revision (no revision at 100% traffic). " +
+        "Refusing to deploy a candidate with immediate 100% traffic — CI never performs the " +
+        "first-ever Cloud Run deploy; run scripts/cloud-run/03-deploy-service.sh once manually first.",
+    );
   }
   const targets: TrafficTarget[] = [
     { revisionName: options.previousRevisionName, percent: 100, tag: STABLE_TAG },
