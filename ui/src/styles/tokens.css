@@ -1,0 +1,36 @@
+/*
+ * Design tokens transcribed from the adopted mock
+ * (docs/ui-design/05_非機能・アクセシビリティ設計.md §3).
+ * The mock itself stays a design reference only, never a runtime dependency.
+ */
+:root {
+  color-scheme: dark;
+  --color-bg: #07101d;
+  --color-surface: #0d1929;
+  --color-surface-raised: #111f31;
+  --color-surface-strong: #17273a;
+  --color-border: #263a50;
+  --color-border-strong: #36536d;
+  --color-text: #edf6ff;
+  --color-text-muted: #8fa6ba;
+  --color-ally: #45c8ff;
+  --color-ally-soft: rgba(69, 200, 255, 0.13);
+  --color-enemy: #ff6b9a;
+  --color-enemy-soft: rgba(255, 107, 154, 0.13);
+  --color-success: #55e6ae;
+  --color-warning: #ffc861;
+  --color-danger: #ff7285;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  /* 4px spacing scale (05_非機能・アクセシビリティ設計.md §3 Spacing) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+}

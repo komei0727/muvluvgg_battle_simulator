@@ -12,3 +12,6 @@ mise.local.lock
 AGENTS.md
 
 raw/
+
+ui/playwright-report/
+ui/test-results/
