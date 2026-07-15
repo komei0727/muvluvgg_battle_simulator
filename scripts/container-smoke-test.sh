@@ -83,22 +83,33 @@ expect_status() {
   echo "OK: $label -> $actual"
 }
 
-# `docker inspect -f '{{.State.Running}}'`をpollし、`start_epoch`からの経過秒数
-# を返す。呼び出し側が`docker kill`直前に取得した時刻を渡すことで、
-# 「SIGTERM送信からの総停止時間」を計測する（呼び出し時点を起点にすると、
-# SIGTERM送信後の他の検証に費やした時間が計測から漏れる）。
-wait_for_stop_seconds() {
+# ミリ秒精度のUnix epoch時刻を返す。macOS標準の`date`は`%N`（ナノ秒）を
+# サポートせず秒精度しか取れないため、`mise exec -- node`の`Date.now()`を
+# 使う（`CLAUDE.md`「node/pnpmはmise exec --を前置」——`docker`と並ぶ
+# 既存の必須依存であり、新規の外部依存を追加しない）。
+now_ms() {
+  mise exec -- node -e 'process.stdout.write(String(Date.now()))'
+}
+
+# `docker inspect -f '{{.State.Running}}'`をpollし、`start_ms`（`docker kill`
+# 直前に`now_ms`で取得した時刻）からの経過ミリ秒を返す。呼び出し時点を起点に
+# すると、SIGTERM送信後の他の検証に費やした時間が計測から漏れるため、
+# 呼び出し側が明示的に起点を渡す。pollループ自体は`safety_timeout_iterations`
+# （0.1s刻み）で無限ループを防ぐだけの安全網であり、実際の合否判定は
+# 呼び出し側が返り値のミリ秒を`SHUTDOWN_GRACE_MS`と突き合わせて行う。
+wait_for_stop_ms() {
   local container="$1"
-  local start_epoch="$2"
-  local timeout_seconds="$3"
+  local start_ms="$2"
+  local safety_timeout_iterations="$3"
+  local iterations=0
   until [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" = "false" ]; do
-    local elapsed=$(( $(date +%s) - start_epoch ))
-    if [ "$elapsed" -ge "$timeout_seconds" ]; then
-      fail "$container did not stop within ${timeout_seconds}s of SIGTERM"
+    iterations=$((iterations + 1))
+    if [ "$iterations" -ge "$safety_timeout_iterations" ]; then
+      fail "$container did not stop within a reasonable time of SIGTERM (safety timeout)"
     fi
-    sleep 0.2
+    sleep 0.1
   done
-  echo $(( $(date +%s) - start_epoch ))
+  echo $(( $(now_ms) - start_ms ))
 }
 
 # `docker logs -f --tail 0`で新規ログだけを非同期にwatchし始め、
@@ -115,15 +126,32 @@ wait_for_stop_seconds() {
 start_log_watch() {
   local container="$1"
   local pattern="$2"
-  local timeout_seconds="$3"
-  ( timeout "${timeout_seconds}s" bash -c \
-    "docker logs -f --tail 0 '$container' 2>&1 | grep -q -m1 '$pattern'" ) &
+  # レビュー指摘（timeout除去）を反映するにあたり、`( docker logs -f | grep
+  # -q -m1 )`を本shellの子subshellとして直接pipeすると（`set -euo pipefail`
+  # 環境下）matchが一切通知されない現象を実機で確認した——`bash -c "..."`で
+  # 新しいbashへ切り出すと安定して動く。原因を厳密に切り分けるより、動作
+  # 確認済みの構成を維持する。
+  ( bash -c "docker logs -f --tail 0 '$container' 2>&1 | grep -q -m1 '$pattern'" ) &
   LOG_WATCHER_PID=$!
 }
 
+# `timeout`（GNU coreutils）はmacOS標準に含まれないため使わず、`kill -0`
+# によるpollだけでタイムアウトを実装する。マッチ成立時はwatcherの
+# subshellが自然終了するため`kill -0`が失敗し、ループを抜けて`wait`で
+# 終了コード（`grep -q -m1`の成否）を回収する。
 wait_for_log_match() {
   local watcher_pid="$1"
   local description="$2"
+  local timeout_seconds="$3"
+  local iterations=0
+  local max_iterations=$((timeout_seconds * 5))
+  while kill -0 "$watcher_pid" 2>/dev/null; do
+    iterations=$((iterations + 1))
+    if [ "$iterations" -ge "$max_iterations" ]; then
+      fail "did not observe $description within ${timeout_seconds}s"
+    fi
+    sleep 0.2
+  done
   if ! wait "$watcher_pid"; then
     fail "did not observe $description in time"
   fi
@@ -169,8 +197,8 @@ echo "== SIGTERM: readiness stops serving immediately, total stop time <= SHUTDO
 # `CANCEL_CONTAINER`（実際に処理中の接続で検証、socket tear-downと競合しない）
 # で確認する。
 # 総停止時間はSIGTERM送信の直前から計測する（後続のreadiness確認に
-# 費やした時間を漏らさないため——`wait_for_stop_seconds`へ渡す）。
-PROD_SIGTERM_SENT_AT=$(date +%s)
+# 費やした時間を漏らさないため——`wait_for_stop_ms`へ渡す）。
+PROD_SIGTERM_SENT_AT_MS=$(now_ms)
 docker kill --signal=SIGTERM "$PROD_CONTAINER" >/dev/null
 
 READY_FAIL_ATTEMPTS=0
@@ -184,15 +212,20 @@ while [ "$READY_STATUS" = "200" ]; do
 done
 echo "OK: GET /health/ready -> $READY_STATUS (not 200) within $READY_FAIL_ATTEMPTS attempt(s) of SIGTERM"
 
-SIGTERM_ELAPSED=$(wait_for_stop_seconds "$PROD_CONTAINER" "$PROD_SIGTERM_SENT_AT" 10)
-if [ "$SIGTERM_ELAPSED" -gt 9 ]; then
-  fail "container took ${SIGTERM_ELAPSED}s to stop after SIGTERM (SHUTDOWN_GRACE_MS=8000 + 1s margin = 9s budget)"
+# 受け入れ条件は「SIGTERM後8秒以内」（`SHUTDOWN_GRACE_MS=8000`と一致）。
+# 500msは`now_ms`自体の呼び出しコスト（`mise exec -- node`の起動）と
+# pollループの粒度（0.1s）による計測誤差だけを許容する幅であり、
+# 実際のgrace期間へ追加の猶予を与えるものではない。
+PROD_STOP_BUDGET_MS=8500
+SIGTERM_ELAPSED_MS=$(wait_for_stop_ms "$PROD_CONTAINER" "$PROD_SIGTERM_SENT_AT_MS" 150)
+if [ "$SIGTERM_ELAPSED_MS" -gt "$PROD_STOP_BUDGET_MS" ]; then
+  fail "container took ${SIGTERM_ELAPSED_MS}ms to stop after SIGTERM (budget: ${PROD_STOP_BUDGET_MS}ms = SHUTDOWN_GRACE_MS 8000ms + 500ms measurement margin)"
 fi
 EXIT_CODE=$(docker inspect -f '{{.State.ExitCode}}' "$PROD_CONTAINER")
 if [ "$EXIT_CODE" != "0" ]; then
   fail "container exited with code $EXIT_CODE after SIGTERM (expected 0)"
 fi
-echo "OK: SIGTERM -> graceful exit 0 in ${SIGTERM_ELAPSED}s (<= SHUTDOWN_GRACE_MS=8s + 1s margin)"
+echo "OK: SIGTERM -> graceful exit 0 in ${SIGTERM_ELAPSED_MS}ms (budget: ${PROD_STOP_BUDGET_MS}ms)"
 
 echo "== run: bind-mounted minimal Catalog fixture (selectable units) for an end-to-end simulation =="
 docker run -d --name "$FIXTURE_CONTAINER" -p "${FIXTURE_PORT}:8080" \
@@ -246,10 +279,10 @@ CANCEL_CURL_PIDS=()
 # `--tail 0`は「watcher attach以降のログだけ」を意味するため、必ずPOSTを
 # 送る前にwatcherを起動し、attachが完了するのを待ってからPOSTを送る
 # （逆順だと、attach前にログ出力まで終わってしまい、watcherが恒久的に
-# matchできず`timeout`まで無駄に待つ）。1件目の`incoming request`ログが
+# matchできずtimeoutまで無駄に待つ）。1件目の`incoming request`ログが
 # 見えた時点で、残りも含めて既にFastifyへ到達している可能性が高いため、
 # それ以上待たずただちにSIGTERMを送る。
-start_log_watch "$CANCEL_CONTAINER" '"url":"/api/v1/battle-simulations"' 10
+start_log_watch "$CANCEL_CONTAINER" '"url":"/api/v1/battle-simulations"'
 CANCEL_LOG_WATCHER_PID="$LOG_WATCHER_PID"
 sleep 0.5
 
@@ -261,8 +294,8 @@ for i in $(seq 1 "$CANCEL_CONCURRENCY"); do
   CANCEL_CURL_PIDS+=("$!")
 done
 
-wait_for_log_match "$CANCEL_LOG_WATCHER_PID" "an in-flight battle request reaching Fastify"
-CANCEL_SIGTERM_SENT_AT=$(date +%s)
+wait_for_log_match "$CANCEL_LOG_WATCHER_PID" "an in-flight battle request reaching Fastify" 10
+CANCEL_SIGTERM_SENT_AT_MS=$(now_ms)
 docker kill --signal=SIGTERM "$CANCEL_CONTAINER" >/dev/null
 
 CANCEL_TRANSPORT_FAILURES=0
@@ -297,16 +330,21 @@ for i in $(seq 1 "$CANCEL_CONCURRENCY"); do
   rm -f "$status_file" "$body_file"
 done
 
-if [ "$CANCEL_EXECUTION_CANCELLED_COUNT" -lt 1 ] && [ "$CANCEL_TRANSPORT_FAILURES" -lt 1 ]; then
-  fail "none of the $CANCEL_CONCURRENCY concurrent in-flight battles was force-cancelled (expected at least one still-queued task to be rejected as EXECUTION_CANCELLED once SIGTERM arrived)"
+# transport failure（接続拒否/reset）だけでは「Poolが未開始タスクを
+# キャンセルした」ことを一度も観測できていない——`200`と誤認されない証跡には
+# なるが、目的の検証としては不十分なため、少なくとも1件の明示的な
+# `503 EXECUTION_CANCELLED`を必須とする。transport failureは補足情報として
+# 件数だけ報告する。
+if [ "$CANCEL_EXECUTION_CANCELLED_COUNT" -lt 1 ]; then
+  fail "none of the $CANCEL_CONCURRENCY concurrent in-flight battles was explicitly force-cancelled as 503 EXECUTION_CANCELLED (expected at least one still-queued task to be rejected once SIGTERM arrived; got $CANCEL_TRANSPORT_FAILURES transport-level failure(s) only)"
 fi
-echo "OK: $CANCEL_EXECUTION_CANCELLED_COUNT/$CANCEL_CONCURRENCY concurrent in-flight battles -> 503 EXECUTION_CANCELLED at SIGTERM, none returned an incomplete result as 200 ($CANCEL_TRANSPORT_FAILURES transport-level failure(s), also never a false success)"
+echo "OK: $CANCEL_EXECUTION_CANCELLED_COUNT/$CANCEL_CONCURRENCY concurrent in-flight battles -> 503 EXECUTION_CANCELLED at SIGTERM, none returned an incomplete result as 200 ($CANCEL_TRANSPORT_FAILURES transport-level failure(s), informational only)"
 
-CANCEL_ELAPSED=$(wait_for_stop_seconds "$CANCEL_CONTAINER" "$CANCEL_SIGTERM_SENT_AT" 5)
+CANCEL_ELAPSED_MS=$(wait_for_stop_ms "$CANCEL_CONTAINER" "$CANCEL_SIGTERM_SENT_AT_MS" 100)
 CANCEL_EXIT_CODE=$(docker inspect -f '{{.State.ExitCode}}' "$CANCEL_CONTAINER")
 if [ "$CANCEL_EXIT_CODE" != "0" ]; then
   fail "container exited with code $CANCEL_EXIT_CODE after forced cancellation (expected 0)"
 fi
-echo "OK: SHUTDOWN_GRACE_MS=0 -> graceful exit 0 in ${CANCEL_ELAPSED}s"
+echo "OK: SHUTDOWN_GRACE_MS=0 -> graceful exit 0 in ${CANCEL_ELAPSED_MS}ms"
 
 echo "== all container smoke checks passed =="
