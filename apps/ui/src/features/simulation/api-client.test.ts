@@ -48,6 +48,22 @@ describe("getCatalog", () => {
     expect(init.credentials).toBe("omit");
   });
 
+  // docs/ui-design/03_API・データ連携設計.md §2.3: 一覧GETはHTTP cache/ETagを
+  // 利用し、no-storeは戦闘POST専用(apps/api/.../build-server.ts: catalog 200/304
+  // はCache-Control: public, max-age=300を返す)。
+  it("does not disable the browser HTTP cache for the catalog GET", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, validCatalogBody));
+
+    await getCatalog({
+      baseUrl: "https://api.example.com",
+      signal: new AbortController().signal,
+      fetchImpl: fetchMock,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.cache).not.toBe("no-store");
+  });
+
   it("omits the X-Request-Id header when no requestId is supplied", async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, validCatalogBody));
 

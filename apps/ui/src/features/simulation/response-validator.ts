@@ -24,6 +24,18 @@ function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+const POSITION_APTITUDES = ["FRONT", "BACK"];
+
+// apps/api/src/presentation/http/schemas.ts の catalogUnitSummaryResponseSchema:
+// positionAptitudes は FRONT/BACK のみを許容する enum で、1件以上必須。
+function isPositionAptitudes(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => typeof item === "string" && POSITION_APTITUDES.includes(item))
+  );
+}
+
 function hasValidAvailability(value: Record<string, unknown>): boolean {
   const { selectable, unavailableCapabilities } = value;
   if (typeof selectable !== "boolean" || !isStringArray(unavailableCapabilities)) {
@@ -43,7 +55,7 @@ function isValidUnit(value: unknown): value is CatalogUnitSummary {
     isNonEmptyString(value["attribute"]) &&
     isNonEmptyString(value["unitType"]) &&
     isNonEmptyString(value["role"]) &&
-    isStringArray(value["positionAptitudes"]) &&
+    isPositionAptitudes(value["positionAptitudes"]) &&
     hasValidAvailability(value)
   );
 }

@@ -102,6 +102,30 @@ describe("validateCatalogResponse", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("rejects a unit with an empty positionAptitudes array", () => {
+    const result = validateCatalogResponse(
+      validResponse({ units: [validUnit({ positionAptitudes: [] })] }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a unit with a positionAptitudes value outside FRONT/BACK", () => {
+    const result = validateCatalogResponse(
+      validResponse({ units: [validUnit({ positionAptitudes: ["FRONT", "SIDE"] })] }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts a unit with both FRONT and BACK aptitudes", () => {
+    const result = validateCatalogResponse(
+      validResponse({ units: [validUnit({ positionAptitudes: ["FRONT", "BACK"] })] }),
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
   it("rejects a unit missing displayName", () => {
     const { displayName: _displayName, ...withoutDisplayName } = validUnit();
     const result = validateCatalogResponse(validResponse({ units: [withoutDisplayName] }));

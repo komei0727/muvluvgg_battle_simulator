@@ -55,7 +55,10 @@ export async function getCatalog(options: GetCatalogOptions): Promise<CatalogApi
       method: "GET",
       headers: requestHeaders(options),
       credentials: "omit",
-      cache: "no-store",
+      // docs/ui-design/03_API・データ連携設計.md §2.3: 一覧GETはHTTP
+      // cache/ETagを利用する(no-storeは戦闘POST専用)。Catalog 200/304は
+      // Cache-Control: public, max-age=300を返すため、既定のcache modeで
+      // ブラウザキャッシュを再利用させる。
       signal: combinedSignal,
     });
   } catch (error) {

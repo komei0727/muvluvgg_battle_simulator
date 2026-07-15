@@ -27,9 +27,12 @@ export function DefinitionImage({
   typeLabel,
   imageMap,
 }: DefinitionImageProps) {
-  const [failed, setFailed] = useState(false);
+  // Tracks the specific src that failed, rather than a plain boolean, so a
+  // later src change (e.g. selecting a different definition) is not treated
+  // as still-failed.
+  const [failedSrc, setFailedSrc] = useState<string | undefined>(undefined);
   const src = imageMap?.[definitionId];
-  const showImage = !failed && src !== undefined && src.length > 0;
+  const showImage = src !== undefined && src.length > 0 && src !== failedSrc;
 
   if (showImage) {
     return (
@@ -38,7 +41,7 @@ export function DefinitionImage({
         alt={displayName}
         className={`${styles["image"] ?? ""} ${styles[kind] ?? ""}`}
         onError={() => {
-          setFailed(true);
+          setFailedSrc(src);
         }}
       />
     );
