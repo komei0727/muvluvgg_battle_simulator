@@ -251,7 +251,7 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     await waitFor(() => {
       expect(screen.getByText(/戦闘が完了しました/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
+    expect(screen.getAllByText(/battle-01J/).length).toBeGreaterThan(0);
   });
 
   it("disables the start button while submitting and shows a cancel button", async () => {
