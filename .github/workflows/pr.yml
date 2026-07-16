@@ -121,6 +121,14 @@ jobs:
       - name: UI end-to-end smoke test
         run: mise run ui:e2e
 
+      # Visual regression baselines are Linux-only (see
+      # apps/ui/e2e/visual-regression.spec.ts), so this runs as its own step
+      # against the same ubuntu-latest runner the baselines were captured on,
+      # separate from the platform-portable "UI end-to-end smoke test" step
+      # above that a contributor also runs locally via `mise run ui:e2e`.
+      - name: UI visual regression test
+        run: mise run ui:e2e:visual
+
       # Diagnostic-only: lets a maintainer download actual/diff screenshots
       # after a visual-regression failure (missing/changed baseline) without
       # rerunning locally. Playwright's own report already ships the

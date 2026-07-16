@@ -15,12 +15,22 @@ import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 // judged against), not on a contributor's local OS, because Chromium's text
 // anti-aliasing rendering is not pixel-identical across platforms. See the
 // PR description for the generation procedure.
+//
+// Every test title carries an "@visual" tag: `pnpm run test:e2e` (the
+// default local/CI functional command) excludes it via --grep-invert, and
+// `pnpm run test:e2e:visual` (CI-only, see .github/workflows/pr.yml) selects
+// it via --grep. Without this split, a contributor running the default
+// command on macOS/Windows would always fail here for lacking a
+// -chromium-darwin.png/-chromium-win32.png baseline that was never meant to
+// exist (review: PR #124).
 
 test.beforeEach(async ({ page }) => {
   await mockCatalog(page, { status: 200, body: catalogFixture });
 });
 
-test("desktop (1440x900) idle formation screen matches the visual baseline", async ({ page }) => {
+test("desktop (1440x900) idle formation screen matches the visual baseline @visual", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("./");
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
@@ -31,7 +41,9 @@ test("desktop (1440x900) idle formation screen matches the visual baseline", asy
   });
 });
 
-test("desktop (1440x900) battle result screen matches the visual baseline", async ({ page }) => {
+test("desktop (1440x900) battle result screen matches the visual baseline @visual", async ({
+  page,
+}) => {
   await mockSimulationSequence(page, [{ status: 200, body: battleSuccessFixture }]);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("./");
@@ -45,7 +57,9 @@ test("desktop (1440x900) battle result screen matches the visual baseline", asyn
   });
 });
 
-test("mobile (390x844) idle formation screen matches the visual baseline", async ({ page }) => {
+test("mobile (390x844) idle formation screen matches the visual baseline @visual", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();

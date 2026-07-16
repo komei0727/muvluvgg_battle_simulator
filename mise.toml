@@ -94,8 +94,12 @@ description = "Build the apps/ui/ workspace for production"
 run = "pnpm --filter ui run build"
 
 [tasks."ui:e2e"]
-description = "Run apps/ui/ Playwright end-to-end smoke tests"
+description = "Run apps/ui/ Playwright end-to-end smoke tests (excludes @visual: platform-portable, safe on any local OS)"
 run = "pnpm --filter ui run test:e2e"
+
+[tasks."ui:e2e:visual"]
+description = "Run apps/ui/ Playwright visual regression tests (@visual only; baselines are Linux-only, CI-use is expected)"
+run = "pnpm --filter ui run test:e2e:visual"
 
 [tasks."ui:dev"]
 run = "pnpm --filter ui exec vite --port 5173"

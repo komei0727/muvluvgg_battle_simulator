@@ -15,7 +15,8 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test --grep-invert @visual",
+    "test:e2e:visual": "playwright test --grep @visual"
   },
   "dependencies": {
     "react": "19.2.7",
