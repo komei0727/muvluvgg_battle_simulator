@@ -50,6 +50,15 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
   --role="roles/cloudbuild.builds.editor" \
   --condition=None >/dev/null
+# `.github/workflows/pages-live-smoke-cold-start.yml`が`gcloud logging read`で
+# Cloud Runの起動ログ("muvluvgg-battle-simulator started")を検索し、live smoke
+# testが実際に新規instance起動(cold start)を発生させたことを確認するために必要
+# （`logging.logEntries.list`）。`roles/run.developer`には含まれない
+# （PRレビュー指摘 #125 3回目レビュー P1）。
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
+  --role="roles/logging.viewer" \
+  --condition=None >/dev/null
 
 echo "== grant Artifact Registry write access scoped to the repository only =="
 gcloud artifacts repositories add-iam-policy-binding "$REPOSITORY" \

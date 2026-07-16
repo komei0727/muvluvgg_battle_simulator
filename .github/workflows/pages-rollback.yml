@@ -25,8 +25,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       contents: read
+      # 別workflow run(`source_run_id`)のartifactを`actions/download-artifact`
+      # でdownloadするには、GITHUB_TOKENに`actions: read`が必要
+      # （未指定のpermissionは`none`になるため、明示しないと403になる。
+      # PRレビュー指摘 #125 3回目レビュー P1）。
+      actions: read
       pages: write
       id-token: write
+    # 通常deploy(`main.yml`の`pages-deploy`)と同じgroupで排他する——rollbackと
+    # 通常deployが同時に走ると、後から完了した方でPagesが上書きされ、rollback
+    # 直後に問題のあるdeployで再上書きされ得る（PRレビュー指摘 #125 3回目
+    # レビュー P2）。
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
     steps:
       # rebuildを一切行わない——ここでdownloadした内容がそのままdeployされる。
       - name: Download previously built Pages content

@@ -73,18 +73,32 @@ jobs:
       # 上のlive smoke testが実際にcold startを引き起こしたことの直接証拠になる
       # ——見つからない場合は既にwarm instanceだったということなので、cold start
       # を検証できなかったとしてjobを失敗させる（Issue #99受け入れ条件）。
+      #
+      # Cloud Loggingには取り込み遅延があるため、Playwright終了直後の1回だけの
+      # 検索では、実際はcold startが成功していてもログがまだ検索可能になって
+      # おらず誤ってjobを失敗させ得る。最大5分（20秒間隔×15回）poll/retryし、
+      # それでも見つからない場合だけ失敗とする（PRレビュー指摘 #125 3回目
+      # レビュー P2）。
       - name: Verify the live smoke test actually triggered a cold start
         env:
           START_TIME: ${{ steps.window.outputs.start_time }}
         run: |
-          MATCHES="$(gcloud logging read \
-            "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$SERVICE\" AND jsonPayload.msg=\"muvluvgg-battle-simulator started\" AND timestamp>=\"$START_TIME\"" \
-            --project="$PROJECT_ID" \
-            --format="value(timestamp)" \
-            --freshness=1d \
-            --limit=5)"
+          FILTER="resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$SERVICE\" AND jsonPayload.msg=\"muvluvgg-battle-simulator started\" AND timestamp>=\"$START_TIME\""
+          MATCHES=""
+          for attempt in $(seq 1 15); do
+            MATCHES="$(gcloud logging read "$FILTER" \
+              --project="$PROJECT_ID" \
+              --format="value(timestamp)" \
+              --freshness=1d \
+              --limit=5)"
+            if [ -n "$MATCHES" ]; then
+              break
+            fi
+            echo "startup log not visible yet (attempt $attempt/15) — Cloud Logging ingestion delay, retrying in 20s"
+            sleep 20
+          done
           if [ -z "$MATCHES" ]; then
-            echo "::error::live smoke test実行中にCloud Runの新規instance起動ログ(\"muvluvgg-battle-simulator started\")が見つからなかった。cold startが発生していない(既にwarm instanceだった)可能性が高く、Issue #99の受け入れ条件を確認できていない。"
+            echo "::error::live smoke test実行中にCloud Runの新規instance起動ログ(\"muvluvgg-battle-simulator started\")が5分待っても見つからなかった。cold startが発生していない(既にwarm instanceだった)可能性が高く、Issue #99の受け入れ条件を確認できていない。"
             exit 1
           fi
           echo "Cold start confirmed — startup log timestamps within the test window:"
