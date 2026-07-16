@@ -4,6 +4,14 @@
   padding-bottom: 72px;
 }
 
+/* docs/ui-design/05_非機能・アクセシビリティ設計.md §4 「<= 760px」:
+   page左右marginを12pxとする(UI-NFR-002/003)。 */
+@media (max-width: 760px) {
+  .shell {
+    width: min(1440px, calc(100% - 24px));
+  }
+}
+
 .topbar {
   position: sticky;
   z-index: 20;

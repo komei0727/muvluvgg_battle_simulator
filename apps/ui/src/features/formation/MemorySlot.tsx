@@ -38,6 +38,9 @@ export function MemorySlot({
       disabled={disabled}
       aria-label={accessibleName}
     >
+      <span className={styles["index"]} aria-hidden="true">
+        {index + 1}
+      </span>
       {memory === undefined ? (
         <span className={styles["plus"]} aria-hidden="true">
           ＋

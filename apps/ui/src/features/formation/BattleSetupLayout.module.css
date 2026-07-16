@@ -1,0 +1,46 @@
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.vsDivider {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--color-text-muted);
+}
+
+.vsLine {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--color-border-strong), transparent);
+}
+
+.vsLabel {
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* docs/ui-design/05_非機能・アクセシビリティ設計.md §4 「>= 1041px」: 味方、
+   VS、敵を横3列に配置する。 */
+@media (min-width: 1041px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .vsDivider {
+    flex-direction: column;
+  }
+
+  .vsLine {
+    width: 1px;
+    height: 68px;
+  }
+}

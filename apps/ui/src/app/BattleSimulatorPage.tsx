@@ -4,6 +4,7 @@ import { Panel } from "../components/Panel.js";
 import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelectionDialog.js";
 import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
 import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
+import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
 import { selectCanSubmit, validateDraft } from "../features/formation/draft-validation.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
 import { FormationEditor } from "../features/formation/FormationEditor.js";
@@ -94,36 +95,46 @@ export function BattleSimulatorPage({
 
         {catalog.status === "ready" ? (
           <>
-            <div>
-              <FormationEditor
-                side="ally"
-                slots={slotsForSide(state.draft, "ally")}
-                memoryDefinitionIds={memorySlotsForSide(state.draft, "ally")}
-                catalog={catalog.response}
-                violations={displayedViolations}
-                disabled={formationDisabled}
-                onOpenUnitSelection={(slotKey) => {
-                  dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
-                }}
-                onOpenMemorySelection={(side, index) => {
-                  dispatch({ type: "selectionOpened", selection: { kind: "memory", side, index } });
-                }}
-              />
-              <FormationEditor
-                side="enemy"
-                slots={slotsForSide(state.draft, "enemy")}
-                memoryDefinitionIds={memorySlotsForSide(state.draft, "enemy")}
-                catalog={catalog.response}
-                violations={displayedViolations}
-                disabled={formationDisabled}
-                onOpenUnitSelection={(slotKey) => {
-                  dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
-                }}
-                onOpenMemorySelection={(side, index) => {
-                  dispatch({ type: "selectionOpened", selection: { kind: "memory", side, index } });
-                }}
-              />
-            </div>
+            <BattleSetupLayout
+              ally={
+                <FormationEditor
+                  side="ally"
+                  slots={slotsForSide(state.draft, "ally")}
+                  memoryDefinitionIds={memorySlotsForSide(state.draft, "ally")}
+                  catalog={catalog.response}
+                  violations={displayedViolations}
+                  disabled={formationDisabled}
+                  onOpenUnitSelection={(slotKey) => {
+                    dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+                  }}
+                  onOpenMemorySelection={(side, index) => {
+                    dispatch({
+                      type: "selectionOpened",
+                      selection: { kind: "memory", side, index },
+                    });
+                  }}
+                />
+              }
+              enemy={
+                <FormationEditor
+                  side="enemy"
+                  slots={slotsForSide(state.draft, "enemy")}
+                  memoryDefinitionIds={memorySlotsForSide(state.draft, "enemy")}
+                  catalog={catalog.response}
+                  violations={displayedViolations}
+                  disabled={formationDisabled}
+                  onOpenUnitSelection={(slotKey) => {
+                    dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+                  }}
+                  onOpenMemorySelection={(side, index) => {
+                    dispatch({
+                      type: "selectionOpened",
+                      selection: { kind: "memory", side, index },
+                    });
+                  }}
+                />
+              }
+            />
 
             <ExecutionParameterForm
               turnLimit={state.draft.turnLimit}

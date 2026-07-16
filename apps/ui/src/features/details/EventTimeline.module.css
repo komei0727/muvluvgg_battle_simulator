@@ -1,6 +1,14 @@
+/* docs/ui-design/05_非機能・アクセシビリティ設計.md §4: 詳細tabは横scroll可能
+   にし、ラベルを省略しない。横スクロールはこの内部に限定し、page全体には
+   発生させない。 */
+.scrollArea {
+  overflow-x: auto;
+}
+
 .list {
   margin: 0;
   padding: 0;
+  min-width: 620px;
   list-style: none;
 }
 

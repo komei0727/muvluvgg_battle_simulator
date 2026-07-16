@@ -8,6 +8,21 @@
   padding: 18px 22px 22px;
 }
 
+/* docs/ui-design/05_非機能・アクセシビリティ設計.md §4 「761px–1040px」:
+   parameterを2列へ折り返す。 */
+@media (max-width: 1040px) {
+  .parameters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .parameters {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+}
+
 .field label,
 .endpointLabel {
   display: block;

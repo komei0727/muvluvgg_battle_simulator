@@ -24,10 +24,24 @@
   color: var(--color-enemy);
 }
 
+/* docs/ui-design/05_非機能・アクセシビリティ設計.md §4: summaryは横scrollまた
+   は優先列表示を使う。DAMAGE/DEFENSE/STATUSは非表示にしない。HEALは横scroll
+   先でもよい。横スクロールはこの内部に限定する。 */
+.scrollArea {
+  overflow-x: auto;
+}
+
 .table {
   width: 100%;
+  min-width: 420px;
   border-collapse: collapse;
   table-layout: fixed;
+}
+
+@media (max-width: 760px) {
+  .heal {
+    display: none;
+  }
 }
 
 .table th,

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { API_BASE_URL } from "./e2e/support/constants.js";
 
 // Mirrors the GitHub Pages project-site path (02_フロントエンドアーキテクチャ設計.md §6.1).
 // The Pages deploy workflow (Issue #99) will source this from CI configuration;
@@ -24,9 +25,10 @@ export default defineConfig({
     timeout: 60_000,
     env: {
       VITE_BASE_PATH: basePath,
-      // Not a real endpoint: this foundation shell never calls the API yet
-      // (Issue #94 adds the Catalog client), so only URL validity matters here.
-      VITE_API_BASE_URL: "https://e2e-preview.invalid.example",
+      // Never a real endpoint: every spec mocks this origin via page.route
+      // (e2e/support/mock-api.ts). A single webServer/build means every spec
+      // shares this one baked-in base URL — it cannot vary per test file.
+      VITE_API_BASE_URL: API_BASE_URL,
     },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],

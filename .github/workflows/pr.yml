@@ -120,3 +120,15 @@ jobs:
 
       - name: UI end-to-end smoke test
         run: mise run ui:e2e
+
+      # Diagnostic-only: lets a maintainer download actual/diff screenshots
+      # after a visual-regression failure (missing/changed baseline) without
+      # rerunning locally. Playwright's own report already ships the
+      # comparison images under test-results/; nothing here gates the job.
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/ui/test-results/
+          retention-days: 7
