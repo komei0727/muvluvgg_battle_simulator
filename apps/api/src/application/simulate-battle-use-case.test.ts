@@ -61,6 +61,30 @@ function unitDefinition(
   };
 }
 
+/** `unitDefinition`の`extraSkillDefinitionId`（"SKL_EX"）が参照するEXスキル。EXゲージは満タンにならないため実際には使用されない。 */
+function exSkillDefinition(id: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "EX",
+    cost: { resource: "EX_GAUGE", amount: 100 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
+const EX_SKILLS = new Map([[createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")]]);
+
 class FakeBattleCatalog implements BattleCatalog {
   callCount = 0;
   private readonly units: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
@@ -75,7 +99,7 @@ class FakeBattleCatalog implements BattleCatalog {
     memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition> = new Map(),
     capabilities: BattleCatalogSnapshot["capabilities"] = new Map(),
     catalogRevision = "rev-1",
-    skills: ReadonlyMap<SkillDefinitionId, SkillDefinition> = new Map(),
+    skills: ReadonlyMap<SkillDefinitionId, SkillDefinition> = EX_SKILLS,
     effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition> = new Map(),
   ) {
     this.units = units;
@@ -394,6 +418,7 @@ describe("SimulateBattleUseCase", () => {
       [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
     ]);
     const skills = new Map([
+      ...EX_SKILLS,
       [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
     ]);
     const effectActions = new Map([
@@ -478,6 +503,7 @@ describe("SimulateBattleUseCase", () => {
       [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
     ]);
     const skills = new Map([
+      ...EX_SKILLS,
       [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
     ]);
     const effectActions = new Map([
@@ -537,11 +563,12 @@ describe("SimulateBattleUseCase", () => {
       expect(event.rootSequence).toBe(parent!.rootSequence);
     }
 
-    // The full M3 event catalog except UnitDefeated (this attack is
-    // non-lethal by design, to also exercise TurnCompleting/TurnCompleted/
-    // turn-limit completion in the same run) is exercised by this one
-    // non-lethal-attack + mandatory-WAIT + turn-limit-completion battle.
-    // UnitDefeated is covered separately below by the lethal-path test.
+    // The full M3 event catalog plus ActionWaited (M5/issue #20) except
+    // UnitDefeated (this attack is non-lethal by design, to also exercise
+    // TurnCompleting/TurnCompleted/turn-limit completion in the same run) is
+    // exercised by this one non-lethal-attack + mandatory-WAIT +
+    // turn-limit-completion battle. UnitDefeated is covered separately below
+    // by the lethal-path test.
     // `type` is the design's UPPER_SNAKE_CASE public form of the internal eventType.
     expect(new Set(events.map((e) => e.type))).toEqual(
       new Set([
@@ -550,6 +577,7 @@ describe("SimulateBattleUseCase", () => {
         "RESOURCES_RECOVERED",
         "ACTION_QUEUE_CREATED",
         "ACTION_STARTED",
+        "ACTION_WAITED",
         "TARGETS_SELECTED",
         "SKILL_USE_STARTING",
         "SKILL_USE_STARTED",
@@ -611,6 +639,7 @@ describe("SimulateBattleUseCase", () => {
       [createUnitDefinitionId("UNIT_DEF"), defenderUnit],
     ]);
     const skills = new Map([
+      ...EX_SKILLS,
       [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
     ]);
     const effectActions = new Map([

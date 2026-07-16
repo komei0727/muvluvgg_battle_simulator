@@ -8,6 +8,7 @@ import {
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../domain/catalog/catalog-ids.js";
+import type { SkillDefinition } from "../../domain/catalog/skill-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { ManualClock } from "../../testing/clock/manual-clock.js";
@@ -69,6 +70,28 @@ function unitDefinition(id: string): UnitDefinition {
   };
 }
 
+/** `unitDefinition`の`extraSkillDefinitionId`（"SKL_EX"）が参照するEXスキル。EXゲージは満タンにならないため実際には使用されない。 */
+function exSkillDefinition(id: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "EX",
+    cost: { resource: "EX_GAUGE", amount: 100 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
 class FakeBattleCatalog implements BattleCatalog {
   private readonly units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>;
 
@@ -80,7 +103,7 @@ class FakeBattleCatalog implements BattleCatalog {
     return {
       catalogRevision: "rev-log-1",
       units: this.units,
-      skills: new Map(),
+      skills: new Map([[createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")]]),
       effectActions: new Map(),
       memories: new Map(),
       capabilities: new Map(),

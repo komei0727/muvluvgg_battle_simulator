@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectAsCandidate } from "./action-selection-policy.js";
+import { isExUsable, selectAsCandidate } from "./action-selection-policy.js";
 import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
 import type { BattlePartyMember } from "./battle-party.js";
 import { createBattleUnitId } from "../shared/ids.js";
@@ -150,5 +150,32 @@ describe("selectAsCandidate", () => {
     expect(() => selectAsCandidate([conditional], actor, [actor, enemy])).toThrow(
       DomainValidationError,
     );
+  });
+});
+
+describe("isExUsable", () => {
+  it("UT-R-ACT-01-EX-001: usable when the EX skill has at least one resolvable target", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const exSkill = asSkill("SKL_EX", 0);
+
+    expect(isExUsable(exSkill, actor, [actor, enemy])).toBe(true);
+  });
+
+  it("UT-R-ACT-01-EX-002 (Q-BTL-06): unusable when the EX skill has no resolvable target", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const exSkill = asSkill("SKL_EX", 0);
+
+    expect(isExUsable(exSkill, actor, [actor])).toBe(false);
+  });
+
+  it("UT-R-ACT-01-EX-003: throws for an unsupported activationCondition kind (ConditionEvaluator is M7 scope)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const exSkill = asSkill("SKL_EX", 0, {
+      activationCondition: { kind: "MARKER_PRESENT", markerId: "MARKER_X" } as never,
+    });
+
+    expect(() => isExUsable(exSkill, actor, [actor, enemy])).toThrow(DomainValidationError);
   });
 });

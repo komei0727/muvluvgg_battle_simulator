@@ -4,7 +4,7 @@ import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from
 import type { BattleDefinitions } from "./battle-definitions.js";
 import type { BattlePartyMember } from "./battle-party.js";
 import { EventRecorder } from "./events/event-recorder.js";
-import { createActionPoint } from "./resource-gauge.js";
+import { createActionPoint, createExtraGauge, createHitPoint } from "./resource-gauge.js";
 import { createBattleId, createBattleUnitId } from "../shared/ids.js";
 import {
   createEffectActionDefinitionId,
@@ -33,6 +33,9 @@ function unit(
     maximumHp?: number;
     actionSpeed?: number;
     limits?: Partial<BattleUnitResourceLimits>;
+    currentAp?: number;
+    currentExtraGauge?: number;
+    currentHp?: number;
   } = {},
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
@@ -59,7 +62,15 @@ function unit(
     ...overrides.limits,
   };
   const built = createBattleUnit(member, side, limits);
-  return { ...built, currentAp: createActionPoint(limits.maximumAp, limits.maximumAp) };
+  return {
+    ...built,
+    currentAp: createActionPoint(overrides.currentAp ?? limits.maximumAp, limits.maximumAp),
+    currentExtraGauge: createExtraGauge(overrides.currentExtraGauge ?? 0, limits.maximumExtraGauge),
+    currentHp: createHitPoint(
+      overrides.currentHp ?? member.combatStats.maximumHp,
+      member.combatStats.maximumHp,
+    ),
+  };
 }
 
 const ENEMY_ALL: TargetSelectorDefinition = {
@@ -149,11 +160,48 @@ function attackSkill(
   };
 }
 
+function exSkill(
+  effectActionId: string,
+  gaugeAmount: number,
+  selector: TargetSelectorDefinition = ENEMY_ALL,
+): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(`SKL_EX_${effectActionId}`),
+    skillType: "EX",
+    cost: { resource: "EX_GAUGE", amount: gaugeAmount },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector }],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Ex", tags: [] },
+  };
+}
+
 function definitionsOf(
   activeSkillsByUnit: ReadonlyMap<UnitDefinitionId, readonly SkillDefinition[]>,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  exSkillByUnit: ReadonlyMap<UnitDefinitionId, SkillDefinition> = new Map(),
 ): BattleDefinitions {
-  return { activeSkillsByUnit, effectActions };
+  return { activeSkillsByUnit, exSkillByUnit, effectActions };
 }
 
 const NO_SKILLS: BattleDefinitions = definitionsOf(new Map(), new Map());
@@ -204,6 +252,18 @@ describe("resolveActionPhase", () => {
     expect(result.enemyUnits[0]!.currentAp).toBe(0);
     expect(result.allyUnits[0]!.currentHp).toBe(ally.currentHp);
     expect(result.enemyUnits[0]!.currentHp).toBe(enemy.currentHp);
+
+    // 06_戦闘状態遷移.md「待機」#1: 実効行動WAIT確定後にActionWaitedを発行する。
+    const waited = ctx.recorder
+      .getEvents()
+      .filter((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited.length).toBeGreaterThan(0);
+    expect(waited[0]!.payload).toEqual({
+      actorUnitId: ally.battleUnitId,
+      waitReason: "NO_USABLE_ACTIVE_SKILL",
+      consumedResource: "AP",
+      consumedAmount: 1,
+    });
   });
 
   it("UT-ACTION-PHASE-002: a usable AS skill consumes its AP cost and applies DAMAGE to the target", () => {
@@ -308,27 +368,98 @@ describe("resolveActionPhase", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-ACTION-PHASE-005: throws when a queue reservation is EX (M6 scope)", () => {
-    const ally = unit("ALLY_1", "ALLY", { limits: { maximumAp: 1, maximumExtraGauge: 0 } });
-    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+  it("UT-ACTION-PHASE-005 (R-ACT-01 #5 / R-ACT-03 EX行): a reserved EX skill consumes the full EX gauge (not AP) and applies DAMAGE to the target", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_EX_ATTACKER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_EX_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 0, maximumExtraGauge: 50 },
+      currentExtraGauge: 50,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 10,
+      maximumHp: 100,
+      limits: { maximumAp: 0 },
+    });
+    const effectAction = damageEffectAction("ACT_EX_ATTACK");
+    const definitions = definitionsOf(
+      new Map(),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+      new Map([[unitDefinitionId, exSkill("ACT_EX_ATTACK", 50)]]),
+    );
     const random = new SequenceRandomSource([]);
 
     const ctx = actionPhaseContext();
-    expect(() =>
-      resolveActionPhase(
-        [ally],
-        [enemy],
-        NO_SKILLS,
-        random,
-        ctx.recorder,
-        ctx.turnNumber,
-        ctx.turnRootEventId,
-        ctx.turnScopeParentEventId,
-      ),
-    ).toThrow(DomainValidationError);
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(0);
+    expect(result.allyUnits[0]!.currentAp).toBe(0); // EX does not consume AP (R-ACT-03).
+    expect(result.enemyUnits[0]!.currentHp).toBe(80);
+
+    const actionStarted = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionStarted" && e.sourceUnitId === ally.battleUnitId)!;
+    expect(actionStarted.payload).toMatchObject({
+      reservedActionType: "EX",
+      effectiveActionType: "EX",
+      exBefore: 50,
+      exAfter: 0,
+    });
   });
 
-  it("UT-ACTION-PHASE-006 (Q-BTL-04/06_戦闘状態遷移.md 戦闘不能者の除去): a reservation for a unit defeated earlier in the same queue is skipped, not processed", () => {
+  it("UT-ACTION-PHASE-006 (Q-BTL-06): a reserved EX skill with no resolvable target WAITs, draining the full EX gauge instead of AP", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_EX_LONELY");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_EX_LONELY",
+      limits: { maximumAp: 0, maximumExtraGauge: 50 },
+      currentExtraGauge: 50,
+    });
+    // The only enemy is already defeated, so the EX skill's enemy-target
+    // selector (R-TGT-01 #2 excludes defeated units) resolves to zero candidates.
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, currentHp: 0 });
+    const definitions = definitionsOf(
+      new Map(),
+      new Map(),
+      new Map([[unitDefinitionId, exSkill("ACT_EX_UNUSED", 50)]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(0);
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId)!;
+    expect(waited.payload).toEqual({
+      actorUnitId: ally.battleUnitId,
+      waitReason: "EX_UNUSABLE",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 50,
+    });
+  });
+
+  it("UT-ACTION-PHASE-007 (Q-BTL-04/06_戦闘状態遷移.md 戦闘不能者の除去): a reservation for a unit defeated earlier in the same queue is skipped, not processed, and emits ActionReservationRemoved", () => {
     const attackerDefId = createUnitDefinitionId("UNIT_ATTACKER");
     // ALLY_1 acts first (highest actionSpeed) and one-shots ENEMY_1, whose own
     // reservation (also an attacker) comes later in the same queue. ENEMY_2
@@ -379,9 +510,22 @@ describe("resolveActionPhase", () => {
     )!;
     // The reservation was discarded outright, not consumed as a WAIT either.
     expect(updatedDoomed.currentAp).toBe(1);
+
+    // 06_戦闘状態遷移.md「戦闘不能者の除去」: 除去はActionCompleted直後に即時発行される。
+    const removed = ctx.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "ActionReservationRemoved" &&
+          e.sourceUnitId === createBattleUnitId("ENEMY_1"),
+      )!;
+    expect(removed.payload).toEqual({
+      battleUnitId: createBattleUnitId("ENEMY_1"),
+      reason: "DEFEATED",
+    });
   });
 
-  it("UT-ACTION-PHASE-007 (defense-in-depth: R-ACT-03 now forbids cost 0 at Catalog validation, but this constructs a BattleDefinitions directly, bypassing createCost/JSON Schema): a 0-AP-cost AS that never depletes its user's AP is bounded by a cycle-count safety guard instead of looping until the (very large) target HP is exhausted", () => {
+  it("UT-ACTION-PHASE-008 (defense-in-depth: R-ACT-03 now forbids cost 0 at Catalog validation, but this constructs a BattleDefinitions directly, bypassing createCost/JSON Schema): a 0-AP-cost AS that never depletes its user's AP is bounded by a cycle-count safety guard instead of looping until the (very large) target HP is exhausted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_FREE_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_FREE_ATTACKER",

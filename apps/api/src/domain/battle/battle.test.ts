@@ -59,7 +59,11 @@ function unitWithStats(
   );
 }
 
-const NO_SKILLS: BattleDefinitions = { activeSkillsByUnit: new Map(), effectActions: new Map() };
+const NO_SKILLS: BattleDefinitions = {
+  activeSkillsByUnit: new Map(),
+  exSkillByUnit: new Map(),
+  effectActions: new Map(),
+};
 const NO_RANDOM = () => new SequenceRandomSource([]);
 const recorder = () => new EventRecorder(createBattleId("B_1"));
 
@@ -142,7 +146,7 @@ function attackerDefinitions(): BattleDefinitions {
   const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
     [effectAction.effectActionDefinitionId, effectAction],
   ]);
-  return { activeSkillsByUnit, effectActions };
+  return { activeSkillsByUnit, exSkillByUnit: new Map(), effectActions };
 }
 
 /**
@@ -198,7 +202,7 @@ function mutuallyLethalDefinitions(): BattleDefinitions {
     [enemyEffectAction.effectActionDefinitionId, enemyEffectAction],
     [selfEffectAction.effectActionDefinitionId, selfEffectAction],
   ]);
-  return { activeSkillsByUnit, effectActions };
+  return { activeSkillsByUnit, exSkillByUnit: new Map(), effectActions };
 }
 
 describe("createBattle", () => {
