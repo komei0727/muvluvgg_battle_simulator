@@ -181,6 +181,37 @@ function isValidBattleState(value: unknown): boolean {
   return Array.isArray(units) && units.every(isValidBattleUnit);
 }
 
+function battleUnitIdOf(unit: unknown): string | undefined {
+  if (!isRecord(unit)) {
+    return undefined;
+  }
+  const battleUnitId = unit["battleUnitId"];
+  return typeof battleUnitId === "string" ? battleUnitId : undefined;
+}
+
+// docs/ui-design/03_API・データ連携設計.md §10 rule 5: finalに存在しない
+// unitは契約不一致とする。呼び出し時点でinitialState/finalStateの shape は
+// isValidBattleState で検証済みだが、両者の対応関係はここでしか検証できない
+// ため、ここで200成功レスポンス自体を拒否する(UIの表示層まで壊れた状態を
+// 通過させない)。
+function hasMatchingFinalStateUnits(initialState: unknown, finalState: unknown): boolean {
+  if (!isRecord(initialState) || !isRecord(finalState)) {
+    return false;
+  }
+  const initialUnits = initialState["units"];
+  const finalUnits = finalState["units"];
+  if (!Array.isArray(initialUnits) || !Array.isArray(finalUnits)) {
+    return false;
+  }
+  const finalBattleUnitIds = new Set(
+    finalUnits.map(battleUnitIdOf).filter((id): id is string => id !== undefined),
+  );
+  return initialUnits.every((unit) => {
+    const battleUnitId = battleUnitIdOf(unit);
+    return battleUnitId !== undefined && finalBattleUnitIds.has(battleUnitId);
+  });
+}
+
 export function validateSimulationResponse(body: unknown): SimulationValidationResult {
   if (!isRecord(body)) {
     return simulationMismatch("Simulation response body is not a JSON object.");
@@ -203,6 +234,11 @@ export function validateSimulationResponse(body: unknown): SimulationValidationR
   }
   if (!isValidBattleState(body["finalState"])) {
     return simulationMismatch("Simulation response finalState.units is malformed.");
+  }
+  if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
+    return simulationMismatch(
+      "Simulation response finalState is missing a battleUnitId present in initialState.",
+    );
   }
   if (!Array.isArray(body["events"])) {
     return simulationMismatch("Simulation response events is not an array.");

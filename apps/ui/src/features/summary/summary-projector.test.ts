@@ -8,18 +8,6 @@ import type {
   BattleUnitStateResponse,
 } from "../simulation/api-contract.js";
 
-// selectBattleSummary returns a Result so a roster/finalState contract
-// mismatch can be reported explicitly (03_API・データ連携設計.md §10 rule 5)
-// instead of rendering fabricated UNKNOWN/0 rows. Tests that expect success
-// unwrap through this helper; tests that expect failure call the function
-// directly.
-function projectionOf(result: ReturnType<typeof selectBattleSummary>): SummaryProjection {
-  if (!result.ok) {
-    throw new Error(`expected an ok projection but got: ${result.error.message}`);
-  }
-  return result.projection;
-}
-
 function catalogWith(
   units: BattleSimulationCatalogResponse["units"],
 ): BattleSimulationCatalogResponse {
@@ -173,7 +161,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     const allySummary = projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1");
     expect(allySummary?.summary.damageDealt).toBe(30);
@@ -204,7 +192,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     const enemySummary = projection.enemyRows.find((row) => row.roster.battleUnitId === "enemy:1");
     expect(enemySummary?.summary.damageTaken).toBe(30);
@@ -236,7 +224,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     const allySummary = projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1");
     expect(allySummary?.summary.damageDealt).toBe(20);
@@ -273,7 +261,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     expect(
       projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1")?.summary.damageDealt,
@@ -295,7 +283,7 @@ describe("selectBattleSummary", () => {
       events: [],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     const summary = projection.allyRows[0]?.summary;
     expect(summary?.damageDealt).toBe(0);
@@ -313,7 +301,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
   });
@@ -335,7 +323,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     const summary = projection.allyRows[0]?.summary;
     expect(summary?.combatStatus).toBe("DEFEATED");
@@ -356,7 +344,7 @@ describe("selectBattleSummary", () => {
     });
 
     expect(() => selectBattleSummary(response, catalog)).not.toThrow();
-    expect(projectionDamage(projectionOf(selectBattleSummary(response, catalog)))).toBe(0);
+    expect(projectionDamage(selectBattleSummary(response, catalog))).toBe(0);
   });
 
   it("excludes a malformed DAMAGE_APPLIED event from aggregation and reports a warning (UI-UT-SUM-009)", () => {
@@ -379,7 +367,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
     expect(projection.hasProjectionWarning).toBe(true);
@@ -405,7 +393,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
     expect(projection.hasProjectionWarning).toBe(true);
@@ -431,7 +419,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     expect(projection.enemyRows[0]?.summary.damageTaken).toBe(0);
     expect(projection.hasProjectionWarning).toBe(true);
@@ -459,28 +447,10 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = projectionOf(selectBattleSummary(response, catalog));
+    const projection = selectBattleSummary(response, catalog);
 
     expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
     expect(projection.hasProjectionWarning).toBe(true);
-  });
-
-  it("returns a contract-mismatch error when finalState is missing a unit present in the initialState roster (03_API・データ連携設計.md §10 rule 5)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [],
-    });
-
-    const result = selectBattleSummary(response, catalog);
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
-      expect(result.error.message).toContain("ally:1");
-    }
   });
 });
 

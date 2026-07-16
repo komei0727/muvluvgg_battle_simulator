@@ -65,22 +65,6 @@ describe("BattleSummarySection", () => {
     expect(screen.getByText("ENEMY UNIT SUMMARY")).toBeInTheDocument();
   });
 
-  it("shows a contract-mismatch error instead of a fabricated summary when finalState is missing a roster unit", () => {
-    const responseMissingFinalUnit: BattleSimulationResponse = {
-      ...response,
-      finalState: { units: [] },
-    };
-
-    render(
-      <BattleSummarySection response={responseMissingFinalUnit} catalog={catalog} turnLimit={10} />,
-    );
-
-    expect(screen.getByRole("alert")).toHaveTextContent("レスポンスの形式が想定と異なります。");
-    expect(screen.queryByText("ALLY UNIT SUMMARY")).not.toBeInTheDocument();
-    // OutcomeStrip data doesn't depend on the roster/finalState correspondence.
-    expect(screen.getByText("ALLY WIN / 味方勝利")).toBeInTheDocument();
-  });
-
   it("shows a projection warning banner when a DAMAGE_APPLIED event could not be aggregated", () => {
     const responseWithMalformedEvent: BattleSimulationResponse = {
       ...response,
