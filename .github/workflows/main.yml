@@ -251,13 +251,18 @@ jobs:
     name: Build UI for GitHub Pages
     needs: [changes, quality, ui, deploy]
     # `deploy`同様、`needs`の暗黙のsuccess()は依存jobがskipでも真になる
-    # （PR #118 review、上のコメント参照）ため、run_ui・ui成功・deployの
-    # 成功/skip許容を明示条件にする。
+    # （PR #118 review、上のコメント参照）ため、run_ui・ui成功・quality/deployの
+    # 成功/skip許容を明示条件にする。`quality`が失敗すると`deploy`はdependency
+    # failureで`skipped`になり、run_api=='false'によるUI-only mergeの正常な
+    # `skipped`と区別がつかない——`needs.quality.result`も明示チェックしない
+    # 限り、Full Quality Gate失敗commitでもui成功だけでPagesへ公開されてしまう
+    # （PR #125レビュー指摘 P1）。
     if: |
       always() &&
       github.ref == 'refs/heads/main' &&
       needs.changes.outputs.run_ui == 'true' &&
       needs.ui.result == 'success' &&
+      (needs.quality.result == 'success' || needs.quality.result == 'skipped') &&
       (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
     runs-on: ubuntu-latest
     environment: production
@@ -286,6 +291,21 @@ jobs:
           VITE_BASE_PATH: /muvluvgg_battle_simulator/
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
           VITE_BUILD_REVISION: ${{ github.sha }}
+
+      # GitHub Pages(Actions配備)には過去artifactを直接再適用する公式rollback
+      # 手順がないため、「revertしてbuildし直す」ことが実質唯一の経路になる
+      # （運用手順.md「GitHub Pages rollback」）。rebuildが実際に前回成功時と
+      # 同じ内容かどうかを目視以外で確認できるよう、決定的なcontent digestを
+      # 記録する——ファイル名にはchunk hashが含まれるためbuild入力が同じなら
+      # 再現されるはずで、一致しなければVITE_API_BASE_URLなどbuild入力の差分を
+      # 疑える（PRレビュー指摘 #125 P2）。
+      - name: Record Pages artifact digest
+        working-directory: apps/ui/dist
+        run: |
+          DIGEST="$(find . -type f | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)"
+          echo "### GitHub Pages artifact" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Git SHA: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Content digest: \`$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -319,10 +339,15 @@ jobs:
         uses: actions/deploy-pages@v4
 
   # 06_UIテスト戦略.md §9「Live API E2Eは初期は別job」——他のjobはこのjobの
-  # 成否を待たない。失敗を無視せず、job statusとして可視化する
-  # （Issue #99受け入れ条件「scale-to-zero後のcold startを含むlive smoke test」）。
+  # 成否を待たない。失敗を無視せず、job statusとして可視化する。
+  #
+  # このjobはdeploy直後に実行されるため、`deploy`（API）が実行された回は直前の
+  # Catalog／simulation smoke testでCloud Run instanceが既にwarmになっており、
+  # scale-to-zero後のcold startは実証できない（PRレビュー指摘 #125 P2）。
+  # cold start自体の検証は`.github/workflows/pages-live-smoke-cold-start.yml`
+  # （深夜cronでidle時間を確保した別workflow）が担う。
   pages-smoke:
-    name: Deployed Pages live smoke test
+    name: Deployed Pages live smoke test (post-deploy correctness)
     needs: pages-deploy
     if: needs.pages-deploy.result == 'success'
     runs-on: ubuntu-latest
