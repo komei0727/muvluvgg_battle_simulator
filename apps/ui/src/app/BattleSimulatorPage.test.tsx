@@ -251,7 +251,46 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     await waitFor(() => {
       expect(screen.getByText(/戦闘が完了しました/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
+    expect(screen.getAllByText(/battle-01J/).length).toBeGreaterThan(0);
+  });
+
+  it("shows a failed execution instead of a fabricated success when the response fails contract validation (review: PR #123 finalState/roster contract mismatch)", async () => {
+    // validateSimulationResponse (response-validator.ts) rejects a 200 body
+    // whose finalState is missing a battleUnitId present in initialState
+    // before the reducer ever reaches "succeeded" (simulation-response-
+    // validator.test.ts covers that rule directly). This test guards the
+    // page-level consequence: such a failure must not show a completed
+    // battle summary or details section.
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        error: {
+          kind: "RESPONSE_CONTRACT_MISMATCH",
+          message:
+            "Simulation response finalState is missing a battleUnitId present in initialState.",
+        },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("レスポンスの形式が想定と異なります。")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/戦闘が完了しました/)).not.toBeInTheDocument();
+    expect(screen.queryByText("ALLY UNIT SUMMARY")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "時系列イベント" })).not.toBeInTheDocument();
   });
 
   it("disables the start button while submitting and shows a cancel button", async () => {

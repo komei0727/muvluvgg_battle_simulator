@@ -152,6 +152,33 @@ describe("validateSimulationResponse", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("rejects when finalState is missing a battleUnitId present in initialState (03_API・データ連携設計.md §10 rule 5)", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        finalState: validState({ units: [validUnit({ battleUnitId: "ally:2" })] }),
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+    }
+  });
+
+  it("accepts when finalState has extra units beyond the initialState roster", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        finalState: validState({
+          units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "ally:2" })],
+        }),
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
   it("rejects a unit with a malformed hp shape", () => {
     const result = validateSimulationResponse(
       validResponse({ initialState: validState({ units: [validUnit({ hp: { current: 1 } })] }) }),
