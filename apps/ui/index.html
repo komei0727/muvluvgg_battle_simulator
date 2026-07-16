@@ -3,6 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      05_非機能・アクセシビリティ設計.md §11 CSP推奨値: GitHub Pagesはresponse
+      headerを設定できないため、HTML meta CSPを使う。Vite buildはinline
+      script/styleを生成しない構成のため 'unsafe-inline' は含めない。
+      connect-srcの追加originはVite組み込みのHTML env置換(VITE_API_BASE_URL)で、
+      buildごとの実際のCloud Run service URLへ静的に展開される(動的文字列連結はしない)。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' %VITE_API_BASE_URL%; object-src 'none'; base-uri 'self'; form-action 'self';"
+    />
+    <meta
+      name="description"
+      content="Muv-Luv GG Battle Simulatorの戦闘条件設定・実行・結果分析ワークスペース。"
+    />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <title>Battle Analytics Console</title>
   </head>
   <body>

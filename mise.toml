@@ -101,5 +101,9 @@ run = "pnpm --filter ui run test:e2e"
 description = "Run apps/ui/ Playwright visual regression tests (@visual only; baselines are Linux-only, CI-use is expected)"
 run = "pnpm --filter ui run test:e2e:visual"
 
+[tasks."ui:e2e:live"]
+description = "Run apps/ui/ Playwright live smoke tests against a deployed GitHub Pages origin and Cloud Run API (requires LIVE_PAGES_URL/LIVE_API_BASE_URL; main-branch deploy only, never part of `mise run check`)"
+run = "pnpm --filter ui run test:e2e:live"
+
 [tasks."ui:dev"]
 run = "pnpm --filter ui exec vite --port 5173"

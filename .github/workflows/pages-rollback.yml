@@ -1,0 +1,119 @@
+name: Roll Back GitHub Pages
+
+# `actions/deploy-pages`は常にその回のworkflow runがuploadしたPages artifactを
+# deployするため、単純な「過去のworkflow runを再実行する」操作は保存済み
+# artifactの再配備にならず、現在のbuild入力で再buildしてしまう
+# (`main.yml`の`pages-build`が埋め込む`VITE_BUILD_REVISION`(=`github.sha`)は
+# revert commitで必ず変わるため、rebuildしたcontentは前回成功時と一致しない
+# ——PRレビュー指摘 #125 再レビューP2)。このworkflowは`main.yml`の`pages-build`
+# が`pages-dist` artifact(retention-days: 90)として保持した「実際に前回
+# deployされた静的ファイルそのもの」をrebuildなしでdownload・再deployする。
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "復元元とするmain.ymlのrun ID(GitHub ActionsのURL末尾の数値。pages-buildジョブが成功しpages-dist artifactを残しているrunを指定する)"
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    name: Redeploy a previously built Pages artifact
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      # 別workflow run(`source_run_id`)のartifactを`actions/download-artifact`
+      # でdownloadするには、GITHUB_TOKENに`actions: read`が必要
+      # （未指定のpermissionは`none`になるため、明示しないと403になる。
+      # PRレビュー指摘 #125 3回目レビュー P1）。
+      actions: read
+      pages: write
+      id-token: write
+    # 通常deploy(`main.yml`の`pages-deploy`)と同じgroupで排他する——rollbackと
+    # 通常deployが同時に走ると、後から完了した方でPagesが上書きされ、rollback
+    # 直後に問題のあるdeployで再上書きされ得る（PRレビュー指摘 #125 3回目
+    # レビュー P2）。
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    steps:
+      # concurrency groupの共有は同時実行を防ぐだけで、順序は保証しない——
+      # rollback開始前に別のmain.yml runが既にpages-buildまで進んでいれば、
+      # そのrunはrollback完了後にpages-deployへ進み、復元した内容を上書きし
+      # 得る。main.ymlはAPI／UI両方を扱う共有workflowのため、in-flight runを
+      # 自動cancelするとpages-deployと無関係なCloud Run deployまで巻き添えに
+      # してしまう——そのため自動cancelはせず、fail closedで人間の判断を挟む
+      # （PRレビュー指摘 #125 4回目レビュー P2）。
+      - name: Ensure no competing Pages pipeline is already in flight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # `gh run list --status=X --status=Y`は複数指定してもORにならず、
+          # 最後に指定した値だけが実際にrequestされ、in_progress runを
+          # 見逃していた（PRレビュー指摘 #125 5回目レビュー）。`queued`／
+          # `in_progress`だけでなく`waiting`／`requested`／`pending`等の
+          # 非完了状態も取りこぼさないよう、statusでの絞り込みはせず取得後に
+          # `status != "completed"`をjqで判定する。
+          IN_FLIGHT="$(gh run list --repo "${{ github.repository }}" --workflow=main.yml \
+            --branch=main --limit=50 \
+            --json databaseId,url,status \
+            --jq '.[] | select(.status != "completed") | "\(.databaseId) \(.status) \(.url)"')"
+          if [ -n "$IN_FLIGHT" ]; then
+            echo "::error::main.ymlのrunがまだ実行中／待機中です。そのrunがpages-deployまで進むと、この後のrollbackを上書きし得ます。完了を待つか、Pagesに影響しないAPI-onlyの変更であることを確認してから再度rollbackを実行してください:"
+            echo "$IN_FLIGHT"
+            exit 1
+          fi
+
+      # rebuildを一切行わない——ここでdownloadした内容がそのままdeployされる。
+      - name: Download previously built Pages content
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: apps/ui/dist
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact (rehydrated from source_run_id, no rebuild)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/ui/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # 事前チェックとdeployの間にも別runが割り込む余地は残るため
+      # （concurrency groupは順序を保証しない）、deploy直後にも一度確認し、
+      # 検出した場合は上書きの可能性を明示的に警告する——完全な排他は
+      # main.yml側を変更しない限り保証できないため、ここでは「検証する
+      # 仕組み」として可視化する（PRレビュー指摘 #125 4回目レビュー P2）。
+      - name: Warn if a competing Pages pipeline started during this rollback
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 上のpre-checkと同じ理由で、statusでの絞り込みはせずjqで
+          # `status != "completed"`を判定する（PRレビュー指摘 #125 5回目
+          # レビュー）。
+          IN_FLIGHT="$(gh run list --repo "${{ github.repository }}" --workflow=main.yml \
+            --branch=main --limit=50 \
+            --json databaseId,url,status \
+            --jq '.[] | select(.status != "completed") | "\(.databaseId) \(.status) \(.url)"')"
+          if [ -n "$IN_FLIGHT" ]; then
+            echo "::warning::このrollbackの実行中に開始されたmain.yml runがあります。pages-deployまで進むと、今復元した内容を上書きする可能性があります。完了後にdeployed Pagesの内容(UI build revision)を確認し、上書きされていれば再度rollbackを実行してください:"
+            echo "$IN_FLIGHT"
+          fi
+
+      - name: Record rollback summary
+        run: |
+          {
+            echo "### GitHub Pages rollback"
+            echo "- Restored from main.yml run: \`${{ inputs.source_run_id }}\`"
+            echo "- Deployed URL: \`${{ steps.deployment.outputs.page_url }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

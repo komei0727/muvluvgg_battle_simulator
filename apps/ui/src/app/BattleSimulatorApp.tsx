@@ -4,6 +4,7 @@ import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
 
 export interface BattleSimulatorAppProps {
   readonly apiBaseUrlResult: ApiBaseUrlResult;
+  readonly buildRevision?: string;
   readonly getCatalogImpl?: UseCatalogLoaderOptions["getCatalogImpl"];
 }
 
@@ -12,7 +13,11 @@ const CONFIG_ERROR_MESSAGE =
 
 // Simulation execution (submit/cancel/rerun) and result display are
 // delivered by later M4.5 UI issues (#96-#97).
-export function BattleSimulatorApp({ apiBaseUrlResult, getCatalogImpl }: BattleSimulatorAppProps) {
+export function BattleSimulatorApp({
+  apiBaseUrlResult,
+  buildRevision,
+  getCatalogImpl,
+}: BattleSimulatorAppProps) {
   if (!apiBaseUrlResult.ok) {
     return <p role="alert">{CONFIG_ERROR_MESSAGE}</p>;
   }
@@ -20,6 +25,7 @@ export function BattleSimulatorApp({ apiBaseUrlResult, getCatalogImpl }: BattleS
   return (
     <BattleSimulatorPage
       apiBaseUrl={apiBaseUrlResult.url}
+      {...(buildRevision !== undefined ? { buildRevision } : {})}
       {...(getCatalogImpl !== undefined ? { getCatalogImpl } : {})}
     />
   );

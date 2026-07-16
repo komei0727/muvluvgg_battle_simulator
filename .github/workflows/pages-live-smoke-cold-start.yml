@@ -1,0 +1,121 @@
+name: Deployed Pages Live Smoke Test (Cold Start)
+
+# `main.yml`の`pages-smoke`はdeploy直後に実行されるため、直前のCatalog／
+# simulation smoke testでCloud Run instanceが既にwarmであり、Issue #99の
+# 「scale-to-zero後のcold startを含むlive smoke testが成功する」を実証しない
+# （PRレビュー指摘 #125 P2）。Cloud Run(min instances 0)はtraffic途絶から
+# 十分な時間が経てばscale-to-zeroするため、mainへの通常のdeploy／push活動から
+# 独立した時刻に実行する——ただし、cron時刻はscale-to-zeroの可能性を高めるだけで、
+# 外部trafficや直前の手動操作でinstanceが既にwarmだった場合と結果から区別できない
+# （PRレビュー指摘 #125 再レビューP2）。そのため、live smoke test前後でCloud Run
+# 側のstartup logを直接確認し、このtest requestが実際に新規instance起動を
+# 発生させたことを検証する。startup logが見つからなければcold startが起きて
+# いないと判断しjobを失敗させる——「時刻的にcold startのはず」ではなく
+# 「cold startが起きたことを確認できた」場合だけ成功とする。
+on:
+  schedule:
+    # 04:00 JST — 深夜帯はdeploy／手動操作によるtrafficがほぼ無く、Cloud Runが
+    # scale-to-zeroしている可能性が高い時間帯を狙う（あくまでheuristic。実際に
+    # cold startしたかどうかは下のstartup log検証で確認する）。
+    - cron: "0 19 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  cold-start-smoke:
+    name: Live smoke test against a cold-started Cloud Run instance
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE || 'muvluvgg-battle-simulator-api' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Install Playwright browser
+        run: pnpm --filter ui exec playwright install --with-deps chromium
+
+      # startup log検証(下)にgcloud loggingを使うため、Cloud Run deployと同じ
+      # Workload Identity Federationで認証する（長期credentialは使わない）。
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Record test window start
+        id: window
+        run: echo "start_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      # GitHub PagesのURL自体はdeployごとに変わらないため、`vars`ではなく
+      # project pageの既知path(02_フロントエンドアーキテクチャ設計.md §6.1、
+      # CORS_ALLOWED_ORIGINSの`https://komei0727.github.io`と同じorigin)を使う。
+      #
+      # LIVE_SMOKE_RETRIES=0: CIの既定retry(1回)を許すと、cold instanceへの
+      # 最初のattemptがtimeout等で失敗しても、instanceがwarmになった2回目の
+      # attemptで成功してしまう——startup logはtest window内に残るため下の
+      # 検証もpassし、job全体がgreenになるが、実際には「cold startを含む
+      # 最初のrequestの成功」を検証できていない（PRレビュー指摘 #125 4回目
+      # レビュー P1）。このjobでは最初のattempt自体の成否だけを見る。
+      - name: Live smoke test against deployed Pages + Cloud Run API (expect cold start)
+        run: mise run ui:e2e:live
+        env:
+          LIVE_PAGES_URL: https://komei0727.github.io/muvluvgg_battle_simulator/
+          LIVE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          LIVE_SMOKE_RETRIES: "0"
+
+      # `apps/api/src/bootstrap/index.ts`が`listen()`直後に1回だけ出す
+      # "muvluvgg-battle-simulator started"ログは、プロセス起動(=新規instance
+      # 起動)のたびにしか出ない。test window開始後にこのログが記録されていれば、
+      # 上のlive smoke testが実際にcold startを引き起こしたことの直接証拠になる
+      # ——見つからない場合は既にwarm instanceだったということなので、cold start
+      # を検証できなかったとしてjobを失敗させる（Issue #99受け入れ条件）。
+      #
+      # Cloud Loggingには取り込み遅延があるため、Playwright終了直後の1回だけの
+      # 検索では、実際はcold startが成功していてもログがまだ検索可能になって
+      # おらず誤ってjobを失敗させ得る。最大5分（20秒間隔×15回）poll/retryし、
+      # それでも見つからない場合だけ失敗とする（PRレビュー指摘 #125 3回目
+      # レビュー P2）。
+      - name: Verify the live smoke test actually triggered a cold start
+        env:
+          START_TIME: ${{ steps.window.outputs.start_time }}
+        run: |
+          FILTER="resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$SERVICE\" AND jsonPayload.msg=\"muvluvgg-battle-simulator started\" AND timestamp>=\"$START_TIME\""
+          MATCHES=""
+          for attempt in $(seq 1 15); do
+            MATCHES="$(gcloud logging read "$FILTER" \
+              --project="$PROJECT_ID" \
+              --format="value(timestamp)" \
+              --freshness=1d \
+              --limit=5)"
+            if [ -n "$MATCHES" ]; then
+              break
+            fi
+            echo "startup log not visible yet (attempt $attempt/15) — Cloud Logging ingestion delay, retrying in 20s"
+            sleep 20
+          done
+          if [ -z "$MATCHES" ]; then
+            echo "::error::live smoke test実行中にCloud Runの新規instance起動ログ(\"muvluvgg-battle-simulator started\")が5分待っても見つからなかった。cold startが発生していない(既にwarm instanceだった)可能性が高く、Issue #99の受け入れ条件を確認できていない。"
+            exit 1
+          fi
+          echo "Cold start confirmed — startup log timestamps within the test window:"
+          echo "$MATCHES"
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-cold-start-smoke-report
+          path: apps/ui/test-results/
+          retention-days: 7

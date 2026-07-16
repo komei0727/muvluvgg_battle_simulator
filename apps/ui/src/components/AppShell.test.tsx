@@ -43,4 +43,14 @@ describe("AppShell", () => {
 
     expect(screen.queryByLabelText("API接続状態")).not.toBeInTheDocument();
   });
+
+  it("renders the UI build revision in the footer landmark", () => {
+    render(
+      <AppShell buildRevision="abc1234">
+        <p>content</p>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("abc1234");
+  });
 });
