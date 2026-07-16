@@ -14,7 +14,12 @@
 
 .row {
   display: grid;
-  grid-template-columns: 60px 50px 140px 90px 90px 1fr 50px;
+  /* type is unbounded on the right (minmax(..., max-content)) rather than a
+     fixed track: 05_非機能・アクセシビリティ設計.md §4 requires detail-tab
+     labels never be truncated, only reachable via the .scrollArea's
+     horizontal scroll — an unknown/future event type longer than 140px must
+     push later columns aside instead of visually overlapping them. */
+  grid-template-columns: 60px 50px minmax(140px, max-content) 90px 90px 1fr 50px;
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
