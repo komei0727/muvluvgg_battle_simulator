@@ -416,6 +416,77 @@ describe("resolveActionPhase", () => {
     });
   });
 
+  it("UT-ACTION-PHASE-005B (SCN-BTL-004 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it (PR #127 review [P2])", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_EX_THEN_AS");
+    // AP is 1 (not consumed by EX) and the EX gauge starts full: cycle 1 must
+    // reserve EX (R-ORD-03), and only after the gauge drains does cycle 2's
+    // fresh queue re-evaluate the reservation as AS (Q-EX-03/SCN-BTL-004).
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_EX_THEN_AS",
+      attack: 30,
+      limits: { maximumAp: 1, maximumExtraGauge: 50 },
+      currentExtraGauge: 50,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 0,
+      maximumHp: 1000,
+      limits: { maximumAp: 0 },
+    });
+    const exEffectAction = damageEffectAction("ACT_EX_ATTACK");
+    const asEffectAction = damageEffectAction("ACT_AS_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_AS_ATTACK", 1)]]]),
+      new Map([
+        [exEffectAction.effectActionDefinitionId, exEffectAction],
+        [asEffectAction.effectActionDefinitionId, asEffectAction],
+      ]),
+      new Map([[unitDefinitionId, exSkill("ACT_EX_ATTACK", 50)]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(0);
+    expect(result.allyUnits[0]!.currentAp).toBe(0); // consumed by the AS use in cycle 2.
+    expect(result.enemyUnits[0]!.currentHp).toBe(1000 - 30 - 30); // one EX hit + one AS hit.
+
+    const events = ctx.recorder.getEvents();
+
+    const queuesCreated = events.filter((e) => e.eventType === "ActionQueueCreated");
+    expect(queuesCreated.map((e) => e.payload.cycleNumber)).toEqual([1, 2]);
+    expect(
+      queuesCreated.map(
+        (e) =>
+          e.payload.reservations.find((r) => r.battleUnitId === ally.battleUnitId)
+            ?.reservedActionKind,
+      ),
+    ).toEqual(["EX", "AS"]);
+
+    const actionsStarted = events
+      .filter((e) => e.eventType === "ActionStarted")
+      .filter((e) => e.sourceUnitId === ally.battleUnitId);
+    expect(
+      actionsStarted.map((e) => ({
+        cycleNumber: e.cycleNumber,
+        reservedActionType: e.payload.reservedActionType,
+        effectiveActionType: e.payload.effectiveActionType,
+      })),
+    ).toEqual([
+      { cycleNumber: 1, reservedActionType: "EX", effectiveActionType: "EX" },
+      { cycleNumber: 2, reservedActionType: "AS", effectiveActionType: "AS" },
+    ]);
+  });
+
   it("UT-ACTION-PHASE-006 (Q-BTL-06): a reserved EX skill with no resolvable target WAITs, draining the full EX gauge instead of AP", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_EX_LONELY");
     const ally = unit("ALLY_1", "ALLY", {
