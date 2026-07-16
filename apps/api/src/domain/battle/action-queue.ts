@@ -15,15 +15,20 @@ export interface ActionQueue {
 }
 
 /**
- * R-ORD-01（部分実装）: APが1以上、またはEXゲージが満タンのユニットをキュー
- * 生成対象とする。発動待ちのチャージ効果はまだ存在しないため対象外
- * （`06_戦闘状態遷移.md`「キュー生成対象」）。
+ * R-ORD-01（部分実装）: APが1以上、EXゲージが満タン、または発動待ちのチャージ
+ * 効果を持つユニットをキュー生成対象とする。凍結などによる発動阻害はStunned/
+ * Frozenが未実装（M7）のため、チャージを持つユニットは常に阻害されていない
+ * ものとして扱う（`06_戦闘状態遷移.md`「キュー生成対象」）。
  */
 function isQueueEligible(unit: BattleUnit): boolean {
   if (isDefeated(unit)) {
     return false;
   }
-  return unit.currentAp >= 1 || unit.currentExtraGauge >= unit.maximumExtraGauge;
+  return (
+    unit.currentAp >= 1 ||
+    unit.currentExtraGauge >= unit.maximumExtraGauge ||
+    unit.charge !== undefined
+  );
 }
 
 /** ActionQueue内の`ActionReservation`が持つ予約行動種別（`05_ドメインモデル.md`）。 */
@@ -44,4 +49,29 @@ export function createActionQueue(units: readonly BattleUnit[]): ActionQueue {
       reservedActionKind: reservedActionKindOf(unit),
     })),
   };
+}
+
+/**
+ * `06_戦闘状態遷移.md`「速度変化による並べ替え」(R-ORD-04 土台): 与えられた
+ * `remaining`(未行動者だけの予約一覧)を、`units`が持つ現在の行動速度で
+ * `R-ORD-02`により並べ直す。R-ORD-03「速度変化による並べ替えでも予約を変更
+ * しない」に従い、各エントリの`reservedActionKind`は変更しない。`remaining`に
+ * 含まれないユニットは、たとえ`units`に存在しても対象にしない（既に行動済み・
+ * 除去済みのユニットを再導入しないため）。呼び出し側（速度変化を検出する
+ * EffectAction、M7）が実際に速度が変わった場合だけ呼び出すことを想定した
+ * 純粋関数で、この関数自体は変更の有無を判定しない。
+ */
+export function reorderRemainingQueue(
+  remaining: readonly ActionReservation[],
+  units: readonly BattleUnit[],
+): readonly ActionReservation[] {
+  const kindByUnitId = new Map(
+    remaining.map((entry) => [entry.battleUnitId, entry.reservedActionKind]),
+  );
+  const remainingUnits = units.filter((unit) => kindByUnitId.has(unit.battleUnitId));
+  const ordered = sortByActionOrder(remainingUnits);
+  return ordered.map((unit) => ({
+    battleUnitId: unit.battleUnitId,
+    reservedActionKind: kindByUnitId.get(unit.battleUnitId)!,
+  }));
 }

@@ -2,6 +2,7 @@ import type { ActionId, DomainEventId, ResolutionScopeId, SkillUseId } from "./e
 import type { StateDelta } from "./state-delta.js";
 import type { BattleOutcome, CompletionReason } from "../victory-policy.js";
 import type { ReservedActionKind } from "../action-queue.js";
+import type { CooldownUnit } from "../../catalog/skill-definition.js";
 import type { Side } from "../side.js";
 import type { CriticalMode, DamageType, ResourceKind } from "../../catalog/catalog-enums.js";
 import type { EffectActionDefinitionId, SkillDefinitionId } from "../../catalog/catalog-ids.js";
@@ -58,6 +59,11 @@ export interface TargetBindingSelection {
   readonly selectedTargetUnitIds: readonly BattleUnitId[];
 }
 
+export interface ActionOrderEntry {
+  readonly battleUnitId: BattleUnitId;
+  readonly actionSpeed: number;
+}
+
 /** eventTypeごとのpayload定義。`08_ドメインイベント.md`の各イベント表「主なpayload」に対応する。 */
 export interface BattleDomainEventPayloadMap {
   readonly BattleStarted: {
@@ -74,6 +80,11 @@ export interface BattleDomainEventPayloadMap {
   readonly ActionReservationRemoved: {
     readonly battleUnitId: BattleUnitId;
     readonly reason: ActionReservationRemovalReason;
+  };
+  /** R-ORD-04: 未行動者だけを新しい行動速度順に並べ直す。予約種別(AS/EX)は変更しない。 */
+  readonly ActionQueueReordered: {
+    readonly before: readonly ActionOrderEntry[];
+    readonly after: readonly ActionOrderEntry[];
   };
   readonly ActionStarted: {
     readonly actorUnitId: BattleUnitId;
@@ -167,6 +178,40 @@ export interface BattleDomainEventPayloadMap {
   readonly ActionCompleted: {
     readonly actorUnitId: BattleUnitId;
     readonly effectiveActionType: EffectiveActionType;
+  };
+  /** R-SKL-04: スキル使用開始時にクールタイムを設定する（`cooldown.count`が0のスキルでは発行しない）。 */
+  readonly CooldownStarted: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly unit: CooldownUnit;
+    readonly initialRemaining: number;
+  };
+  /** R-SKL-04: 設定した行動・ターンの終了時には減らさず、次回以降の行動・ターン終了で1ずつ減らす。 */
+  readonly CooldownReduced: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly unit: CooldownUnit;
+    readonly before: number;
+    readonly after: number;
+  };
+  /** R-SKL-04: 残数が0になった時。 */
+  readonly CooldownCompleted: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly unit: CooldownUnit;
+  };
+  /** R-SKL-05: チャージ開始をコスト消費・クールタイム設定に続く1つの行動として完了する。 */
+  readonly ChargeStarted: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly startedActionId: ActionId;
+  };
+  /** R-SKL-05: チャージ効果発動。チャージ開始とは別の1つの行動として完了する。 */
+  readonly ChargeReleased: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly chargeStartActionId: ActionId;
+    readonly releaseActionId: ActionId;
   };
   readonly TurnCompleting: { readonly turnNumber: number };
   readonly TurnCompleted: { readonly turnNumber: number };

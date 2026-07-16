@@ -17,7 +17,7 @@ import {
 import type { FormationPosition } from "./formation-input.js";
 import { toGlobalCoordinate } from "./global-coordinate.js";
 import type { Side } from "./side.js";
-import type { SkillDefinition } from "../catalog/skill-definition.js";
+import type { Cooldown, SkillDefinition } from "../catalog/skill-definition.js";
 import type { TargetSelectorDefinition } from "../catalog/target-selector-definition.js";
 import type { EffectActionDefinition } from "../catalog/effect-action-definition.js";
 import { DomainValidationError } from "../shared/errors.js";
@@ -128,6 +128,7 @@ function attackSkill(
   effectActionId: string,
   apCost = 1,
   selector: TargetSelectorDefinition = ENEMY_ALL,
+  cooldown: Cooldown = { unit: "ACTION", count: 0 },
 ): SkillDefinition {
   return {
     skillDefinitionId: createSkillDefinitionId(`SKL_${effectActionId}`),
@@ -147,7 +148,7 @@ function attackSkill(
         },
       ],
     },
-    cooldown: { unit: "ACTION", count: 0 },
+    cooldown,
     traits: {
       priorityAttack: false,
       simultaneousActivationLimited: false,
@@ -193,6 +194,47 @@ function exSkill(
     },
     requiredCapabilities: [],
     metadata: { displayName: "Ex", tags: [] },
+  };
+}
+
+function chargeSkill(
+  effectActionId: string,
+  apCost = 1,
+  selector: TargetSelectorDefinition = ENEMY_ALL,
+  cooldown: Cooldown = { unit: "ACTION", count: 0 },
+): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(`SKL_CHARGE_${effectActionId}`),
+    skillType: "AS",
+    cost: { resource: "AP", amount: apCost },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+          },
+        ],
+      },
+    },
+    cooldown,
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Charge", tags: [] },
   };
 }
 
@@ -631,5 +673,291 @@ describe("resolveActionPhase", () => {
         ctx.turnScopeParentEventId,
       ),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-ACTION-PHASE-009 (R-SKL-04): using a skill with an ACTION-unit cooldown sets it, and CooldownStarted is not emitted for the default count-0 fixture skills", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_COOLDOWN");
+    const skill = attackSkill("ACT_CD_ATTACK", 1, ENEMY_ALL, { unit: "ACTION", count: 2 });
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_COOLDOWN",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 0 });
+    const effectAction = damageEffectAction("ACT_CD_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const cooldownEntry = result.allyUnits[0]!.cooldowns[skill.skillDefinitionId];
+    expect(cooldownEntry).toMatchObject({ unit: "ACTION", remaining: 2 });
+    expect(typeof cooldownEntry?.setActionId).toBe("string");
+
+    const started = ctx.recorder
+      .getEvents()
+      .filter((e) => e.eventType === "CooldownStarted" && e.sourceUnitId === ally.battleUnitId);
+    expect(started).toHaveLength(1);
+    expect(started[0]!.payload).toMatchObject({
+      skillDefinitionId: skill.skillDefinitionId,
+      unit: "ACTION",
+      initialRemaining: 2,
+    });
+  });
+
+  it("UT-ACTION-PHASE-010 (R-SKL-04): does not emit CooldownStarted for a skill whose cooldown.count is 0", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_NO_COOLDOWN");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_NO_COOLDOWN",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 0 });
+    const effectAction = damageEffectAction("ACT_NO_CD_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_NO_CD_ATTACK", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.cooldowns).toEqual({});
+    expect(ctx.recorder.getEvents().filter((e) => e.eventType === "CooldownStarted")).toHaveLength(
+      0,
+    );
+  });
+
+  it("UT-ACTION-PHASE-011 (R-SKL-04): does not decrement a cooldown set during the same action, but decrements it at the end of the actor's next own action", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_COOLDOWN_DECREMENT");
+    // apCost 2 with 3 starting AP: cycle 1 affords the skill (sets
+    // remaining=1, no decrement this same action). Cycle 2 only has 1 AP
+    // left, so the skill (cooldown gating is M7 scope; this is purely an AP
+    // shortfall) is unaffordable and the unit WAITs instead - but
+    // ActionCompleting still runs the decrement for the actor's own
+    // cooldowns regardless of what action they took this cycle.
+    const skill = attackSkill("ACT_CD2_ATTACK", 2, ENEMY_ALL, { unit: "ACTION", count: 1 });
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_COOLDOWN_DECREMENT",
+      limits: { maximumAp: 3 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 0,
+      maximumHp: 1000,
+      limits: { maximumAp: 0 },
+    });
+    const effectAction = damageEffectAction("ACT_CD2_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const cooldownEntry = result.allyUnits[0]!.cooldowns[skill.skillDefinitionId];
+    expect(cooldownEntry).toMatchObject({ unit: "ACTION", remaining: 0 });
+    expect(typeof cooldownEntry?.setActionId).toBe("string");
+
+    const reduced = ctx.recorder
+      .getEvents()
+      .filter((e) => e.eventType === "CooldownReduced" && e.sourceUnitId === ally.battleUnitId);
+    expect(reduced).toHaveLength(1);
+    expect(reduced[0]!.payload).toMatchObject({
+      skillDefinitionId: skill.skillDefinitionId,
+      before: 1,
+      after: 0,
+    });
+    expect(
+      ctx.recorder
+        .getEvents()
+        .filter((e) => e.eventType === "CooldownCompleted" && e.sourceUnitId === ally.battleUnitId),
+    ).toHaveLength(1);
+  });
+
+  it("UT-ACTION-PHASE-012 (R-SKL-05): selecting a CHARGE skill starts a charge (consumes cost, no effects yet) as one action, and the next action opportunity releases it as a separate action with distinct ActionIds", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const skill = chargeSkill("ACT_CHARGE_HIT", 1);
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CHARGER",
+      attack: 30,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 0, maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_CHARGE_HIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // Cost consumed once at charge start; release consumes nothing.
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.allyUnits[0]!.charge).toBeUndefined();
+    expect(result.enemyUnits[0]!.currentHp).toBe(1000 - 30);
+
+    const events = ctx.recorder.getEvents();
+    const chargeStarted = events.filter((e) => e.eventType === "ChargeStarted");
+    const chargeReleased = events.filter((e) => e.eventType === "ChargeReleased");
+    expect(chargeStarted).toHaveLength(1);
+    expect(chargeReleased).toHaveLength(1);
+    expect(chargeStarted[0]!.payload).toMatchObject({
+      actorUnitId: ally.battleUnitId,
+      skillDefinitionId: skill.skillDefinitionId,
+    });
+    expect(chargeReleased[0]!.payload).toMatchObject({
+      actorUnitId: ally.battleUnitId,
+      skillDefinitionId: skill.skillDefinitionId,
+    });
+
+    // Charge start and release are distinct actions (R-SKL-05: "チャージ開始とは別の一つの行動").
+    const startActionId = chargeStarted[0]!.actionId;
+    const releaseActionId = chargeReleased[0]!.actionId;
+    expect(startActionId).toBeDefined();
+    expect(releaseActionId).toBeDefined();
+    expect(startActionId).not.toBe(releaseActionId);
+
+    const actionsCompleted = events
+      .filter((e) => e.eventType === "ActionCompleted")
+      .filter((e) => e.sourceUnitId === ally.battleUnitId);
+    expect(actionsCompleted.map((e) => e.payload.effectiveActionType)).toEqual([
+      "AS",
+      "CHARGE_RELEASE",
+    ]);
+  });
+
+  it("UT-ACTION-PHASE-013 (R-SKL-05): charge start sets the original skill's cooldown, scoped to the charge-start action; the release action (a later action for this actor) then decrements it like any other own-action-end", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER_CD");
+    const skill = chargeSkill("ACT_CHARGE_CD_HIT", 1, ENEMY_ALL, { unit: "ACTION", count: 2 });
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CHARGER_CD",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 0, maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_CHARGE_CD_HIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const started = events.filter((e) => e.eventType === "CooldownStarted");
+    expect(started).toHaveLength(1);
+    expect(started[0]!.payload).toMatchObject({
+      skillDefinitionId: skill.skillDefinitionId,
+      unit: "ACTION",
+      initialRemaining: 2,
+    });
+    // The charge-release action is itself a later own-action-end for this
+    // actor, so it decrements the cooldown set during the earlier
+    // charge-start action (R-SKL-04 COMPLETING runs on every action).
+    const reduced = events.filter((e) => e.eventType === "CooldownReduced");
+    expect(reduced).toHaveLength(1);
+    expect(reduced[0]!.payload).toMatchObject({
+      skillDefinitionId: skill.skillDefinitionId,
+      before: 2,
+      after: 1,
+    });
+    const cooldownEntry = result.allyUnits[0]!.cooldowns[skill.skillDefinitionId];
+    expect(cooldownEntry).toMatchObject({ unit: "ACTION", remaining: 1 });
+    expect(typeof cooldownEntry?.setActionId).toBe("string");
+  });
+
+  it("UT-ACTION-PHASE-014 (R-SKL-05): repeated charge start+release cycles (2 cycles per AP spent, instead of 1) do not trip the cycle-count safety guard", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_REPEAT_CHARGER");
+    // No cooldown, so the same CHARGE skill is immediately selectable again
+    // after each release. 2 AP means 2 full charge/release pairs = 4 cycles,
+    // which exceeds the pre-charge bound (maximumAp total + 1 = 3).
+    const skill = chargeSkill("ACT_REPEAT_CHARGE", 1);
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_REPEAT_CHARGER",
+      attack: 10,
+      limits: { maximumAp: 2 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 0,
+      maximumHp: 1000,
+      limits: { maximumAp: 0 },
+    });
+    const effectAction = damageEffectAction("ACT_REPEAT_CHARGE");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.enemyUnits[0]!.currentHp).toBe(1000 - 10 - 10);
+    expect(ctx.recorder.getEvents().filter((e) => e.eventType === "ChargeReleased")).toHaveLength(
+      2,
+    );
   });
 });

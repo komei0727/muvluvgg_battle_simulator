@@ -1,5 +1,6 @@
 import type { BattleStateSnapshot, BattleUnitSnapshot } from "./battle-state-snapshot.js";
-import type { StateDelta, UnitStateDelta, ValueChange } from "./state-delta.js";
+import type { CooldownState, StateDelta, UnitStateDelta, ValueChange } from "./state-delta.js";
+import type { SkillDefinitionId } from "../../catalog/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
@@ -29,12 +30,40 @@ function applyUnitDelta(
   if (delta.extraGauge !== undefined) {
     assertBeforeMatches(`${path}.extraGauge`, unit.extraGauge, delta.extraGauge);
   }
+  const cooldowns = applyCooldownDeltas(`${path}.cooldowns`, unit.cooldowns, delta.cooldowns);
+  if (delta.charge !== undefined) {
+    assertBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
+  }
+  const nextCharge = delta.charge !== undefined ? delta.charge.after : unit.charge;
   return {
     hp: delta.hp?.after ?? unit.hp,
     ap: delta.ap?.after ?? unit.ap,
     pp: delta.pp?.after ?? unit.pp,
     extraGauge: delta.extraGauge?.after ?? unit.extraGauge,
+    ...(cooldowns !== undefined ? { cooldowns } : {}),
+    ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
   };
+}
+
+/** R-SKL-04: 変更されたスキルのクールタイムだけを既存の`cooldowns`へ差分適用する。 */
+function applyCooldownDeltas(
+  path: string,
+  current: Readonly<Record<SkillDefinitionId, CooldownState>> | undefined,
+  deltas: UnitStateDelta["cooldowns"],
+): Readonly<Record<SkillDefinitionId, CooldownState>> | undefined {
+  if (deltas === undefined) {
+    return current;
+  }
+  const next: Record<SkillDefinitionId, CooldownState> = { ...current };
+  for (const [skillDefinitionId, change] of Object.entries(deltas) as [
+    SkillDefinitionId,
+    { readonly unit: CooldownState["unit"] } & ValueChange<number>,
+  ][]) {
+    const existing = next[skillDefinitionId];
+    assertBeforeMatches(`${path}[${skillDefinitionId}]`, existing?.remaining ?? 0, change);
+    next[skillDefinitionId] = { unit: change.unit, remaining: change.after };
+  }
+  return next;
 }
 
 /**

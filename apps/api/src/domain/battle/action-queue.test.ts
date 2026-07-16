@@ -1,12 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { createActionQueue } from "./action-queue.js";
+import { createActionQueue, reorderRemainingQueue } from "./action-queue.js";
 import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
 import type { BattlePartyMember } from "./battle-party.js";
+import { createActionId } from "./events/event-ids.js";
 import { createBattleUnitId } from "../shared/ids.js";
-import { createUnitDefinitionId } from "../catalog/catalog-ids.js";
+import { createSkillDefinitionId, createUnitDefinitionId } from "../catalog/catalog-ids.js";
+import type { SkillDefinition } from "../catalog/skill-definition.js";
 import type { FormationPosition } from "./formation-input.js";
 import { toGlobalCoordinate } from "./global-coordinate.js";
 import type { Side } from "./side.js";
+
+const CHARGE_SKILL: SkillDefinition = {
+  skillDefinitionId: createSkillDefinitionId("SKL_CHARGE"),
+  skillType: "AS",
+  cost: { resource: "AP", amount: 1 },
+  activationCondition: { kind: "TRUE" },
+  triggers: [],
+  resolution: {
+    kind: "CHARGE",
+    targetBindings: [],
+    steps: [],
+    chargeRelease: { targetBindings: [], steps: [] },
+  },
+  cooldown: { unit: "ACTION", count: 0 },
+  traits: {
+    priorityAttack: false,
+    simultaneousActivationLimited: false,
+    exclusiveActivationGroupId: null,
+    accuracy: { guaranteedHit: false },
+    piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+  },
+  requiredCapabilities: [],
+  metadata: { displayName: "Charge", tags: [] },
+};
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -85,6 +111,20 @@ describe("createActionQueue", () => {
     ]);
   });
 
+  it("UT-ACTION-QUEUE-007 (R-ORD-01 #3 部分実装: 気絶・凍結による阻害は対象外): a unit with 0 AP and a non-full EX gauge is still queue-eligible (as AS) while a charge is pending release", () => {
+    const charging = unit("CHARGING", "ALLY", 10, {
+      currentAp: 0,
+      currentExtraGauge: 0,
+      charge: { skill: CHARGE_SKILL, startedActionId: createActionId("B_1:action:1") },
+    });
+
+    const queue = createActionQueue([charging]);
+
+    expect(queue.entries).toEqual([
+      { battleUnitId: createBattleUnitId("CHARGING"), reservedActionKind: "AS" },
+    ]);
+  });
+
   it("UT-ACTION-QUEUE-006: registers each eligible unit exactly once", () => {
     const a = unit("A", "ALLY", 10, { currentAp: 3 });
     const b = unit("B", "ENEMY", 10, { currentAp: 3 });
@@ -94,5 +134,46 @@ describe("createActionQueue", () => {
 
     expect(queue.entries).toHaveLength(2);
     expect(new Set(queue.entries.map((e) => e.battleUnitId)).size).toBe(2);
+  });
+});
+
+describe("reorderRemainingQueue", () => {
+  it("UT-ACTION-QUEUE-008 (R-ORD-04 土台 / SCN-BTL-003): re-sorts entries by each unit's current action speed, preserving reservedActionKind", () => {
+    const wasSlow = unit("WAS_SLOW", "ALLY", 5, { currentAp: 3 });
+    const wasFast = unit("WAS_FAST", "ALLY", 20, { currentAp: 3, currentExtraGauge: 100 });
+    const entries = createActionQueue([wasSlow, wasFast]).entries;
+    expect(entries.map((e) => e.battleUnitId)).toEqual([
+      createBattleUnitId("WAS_FAST"),
+      createBattleUnitId("WAS_SLOW"),
+    ]);
+
+    // Speed changed after queue creation: WAS_SLOW is now faster.
+    const nowFast = { ...wasSlow, combatStats: { ...wasSlow.combatStats, actionSpeed: 30 } };
+    const nowSlow = { ...wasFast, combatStats: { ...wasFast.combatStats, actionSpeed: 1 } };
+
+    const reordered = reorderRemainingQueue(entries, [nowFast, nowSlow]);
+
+    expect(reordered.map((e) => e.battleUnitId)).toEqual([
+      createBattleUnitId("WAS_SLOW"),
+      createBattleUnitId("WAS_FAST"),
+    ]);
+    // R-ORD-03: reservedActionKind is untouched by reordering (WAS_FAST kept its EX reservation).
+    expect(reordered.map((e) => e.reservedActionKind)).toEqual(["AS", "EX"]);
+  });
+
+  it("UT-ACTION-QUEUE-009 (R-ORD-04): reorders only the given (unacted/remaining) entries, ignoring units absent from the entry list even if present in `units`", () => {
+    const remaining = unit("REMAINING", "ALLY", 5, { currentAp: 3 });
+    const alreadyActed = unit("ALREADY_ACTED", "ALLY", 20, { currentAp: 3 });
+    const entries = createActionQueue([remaining]).entries;
+
+    // `alreadyActed` is in the current unit roster (e.g. it already took its
+    // action this cycle) but must not be reintroduced by reordering.
+    const reordered = reorderRemainingQueue(entries, [remaining, alreadyActed]);
+
+    expect(reordered.map((e) => e.battleUnitId)).toEqual([createBattleUnitId("REMAINING")]);
+  });
+
+  it("UT-ACTION-QUEUE-010: an empty entry list reorders to itself", () => {
+    expect(reorderRemainingQueue([], [])).toEqual([]);
   });
 });

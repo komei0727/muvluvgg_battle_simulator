@@ -1,6 +1,6 @@
 import type { BattleUnit } from "./battle-unit.js";
 import { resolveTargets } from "./target-selection-policy.js";
-import type { EffectStepDefinition } from "../catalog/effect-sequence.js";
+import type { EffectSequence, EffectStepDefinition } from "../catalog/effect-sequence.js";
 import type { EffectActionDefinition } from "../catalog/effect-action-definition.js";
 import type { TargetReference } from "../catalog/references.js";
 import type { SkillDefinition } from "../catalog/skill-definition.js";
@@ -90,22 +90,15 @@ function resolveActionStep(
  * `effectActions` に存在しないEffectActionDefinitionIdは、Catalog preflightの
  * 不変条件違反として例外を投げる（1ヒット成功として扱わない）。
  */
-export function resolveSkillOrder(
-  skill: SkillDefinition,
+function resolveEffectSequence(
+  sequence: EffectSequence,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
 ): readonly ResolvedEffectApplication[] {
-  if (skill.resolution.kind !== "IMMEDIATE") {
-    throw new DomainValidationError(
-      "skill.resolution.kind",
-      `kind "${skill.resolution.kind}" is not supported by this basic SkillResolutionService (charge behavior is M7 scope)`,
-    );
-  }
-
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   const resolvedBindings = new Map<TargetBindingId, readonly BattleUnit[]>();
-  for (const binding of skill.resolution.targetBindings) {
+  for (const binding of sequence.targetBindings) {
     resolvedBindings.set(
       binding.targetBindingId,
       resolveTargets(binding.selector, actor, allUnits),
@@ -114,7 +107,7 @@ export function resolveSkillOrder(
 
   const results: ResolvedEffectApplication[] = [];
   // R-SKL-01 #2: stepsを定義順に解決する。
-  for (const step of skill.resolution.steps) {
+  for (const step of sequence.steps) {
     if (step.kind !== "ACTION") {
       throw new DomainValidationError(
         "step.kind",
@@ -130,4 +123,39 @@ export function resolveSkillOrder(
     results.push(...resolveActionStep(step, resolvedBindings, actor, effectActions));
   }
   return results;
+}
+
+export function resolveSkillOrder(
+  skill: SkillDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): readonly ResolvedEffectApplication[] {
+  if (skill.resolution.kind !== "IMMEDIATE") {
+    throw new DomainValidationError(
+      "skill.resolution.kind",
+      `kind "${skill.resolution.kind}" is not supported by this basic SkillResolutionService (charge start/release is handled separately, see resolveChargeReleaseOrder)`,
+    );
+  }
+  return resolveEffectSequence(skill.resolution, actor, allUnits, effectActions);
+}
+
+/**
+ * R-SKL-05: チャージ効果発動時、`SkillResolutionDefinition`の`chargeRelease`
+ * EffectSequence（CHARGE開始時の`steps`とは独立）を、`resolveSkillOrder`と
+ * 同じ定義順解決（R-SKL-01〜03の基本形）で処理する。
+ */
+export function resolveChargeReleaseOrder(
+  skill: SkillDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): readonly ResolvedEffectApplication[] {
+  if (skill.resolution.kind !== "CHARGE") {
+    throw new DomainValidationError(
+      "skill.resolution.kind",
+      `kind "${skill.resolution.kind}" has no chargeRelease sequence (only CHARGE skills do)`,
+    );
+  }
+  return resolveEffectSequence(skill.resolution.chargeRelease, actor, allUnits, effectActions);
 }

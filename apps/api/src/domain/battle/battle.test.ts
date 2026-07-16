@@ -433,4 +433,55 @@ describe("advanceBattle", () => {
       completedTurn: 1,
     });
   });
+
+  it("UT-BATTLE-013 (R-SKL-04 ターン単位): does not decrement a TURN-unit cooldown set on the current turn, but decrements it at the next turn's end", () => {
+    const cooldownSkillId = createSkillDefinitionId("SKL_TURN_COOLDOWN");
+    let battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [
+          unit("ally:1", "ALLY", {
+            cooldowns: { [cooldownSkillId]: { unit: "TURN", remaining: 2, setTurnNumber: 1 } },
+          }),
+        ],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        NO_SKILLS,
+      ),
+      recorder(),
+    );
+
+    const turn1Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn1Recorder);
+
+    expect(battle.allyUnits[0]!.cooldowns[cooldownSkillId]).toEqual({
+      unit: "TURN",
+      remaining: 2,
+      setTurnNumber: 1,
+    });
+    expect(turn1Recorder.getEvents().filter((e) => e.eventType === "CooldownReduced")).toHaveLength(
+      0,
+    );
+
+    const turn2Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn2Recorder);
+
+    expect(battle.allyUnits[0]!.cooldowns[cooldownSkillId]).toEqual({
+      unit: "TURN",
+      remaining: 1,
+      setTurnNumber: 1,
+    });
+    const reduced = turn2Recorder.getEvents().filter((e) => e.eventType === "CooldownReduced");
+    expect(reduced).toHaveLength(1);
+    expect(reduced[0]!.payload).toMatchObject({
+      actorUnitId: battle.allyUnits[0]!.battleUnitId,
+      skillDefinitionId: cooldownSkillId,
+      unit: "TURN",
+      before: 2,
+      after: 1,
+    });
+    expect(
+      turn2Recorder.getEvents().filter((e) => e.eventType === "CooldownCompleted"),
+    ).toHaveLength(0);
+  });
 });

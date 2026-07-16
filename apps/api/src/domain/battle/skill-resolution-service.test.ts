@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSkillOrder } from "./skill-resolution-service.js";
+import { resolveChargeReleaseOrder, resolveSkillOrder } from "./skill-resolution-service.js";
 import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
 import type { BattlePartyMember } from "./battle-party.js";
 import { createBattleUnitId } from "../shared/ids.js";
@@ -400,6 +400,63 @@ describe("resolveSkillOrder", () => {
     });
 
     expect(() => resolveSkillOrder(skill, actor, [actor], new Map())).toThrow(
+      DomainValidationError,
+    );
+  });
+});
+
+describe("resolveChargeReleaseOrder", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-008 (R-SKL-05): resolves the chargeRelease EffectSequence's targetBindings and steps, independently of the CHARGE resolution's own (unused) steps", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const hit = damageAction("ACT_RELEASE_HIT");
+    const effectActions = new Map([[hit.effectActionDefinitionId, hit]]);
+    const skill = skillOf({
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+          },
+        ],
+      },
+    });
+
+    const plan = resolveChargeReleaseOrder(skill, actor, [actor, enemy], effectActions);
+
+    expect(plan).toEqual([
+      {
+        targetBattleUnitId: enemy.battleUnitId,
+        effectActionDefinitionId: hit.effectActionDefinitionId,
+        hitIndex: 1,
+      },
+    ]);
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-009: throws for an IMMEDIATE skill (chargeRelease only exists on CHARGE resolution)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId("ACT_NOOP") }],
+        },
+      ],
+    });
+
+    expect(() => resolveChargeReleaseOrder(skill, actor, [actor], new Map())).toThrow(
       DomainValidationError,
     );
   });
