@@ -70,3 +70,13 @@
 .main {
   padding-top: 34px;
 }
+
+.footer {
+  margin-top: 40px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}

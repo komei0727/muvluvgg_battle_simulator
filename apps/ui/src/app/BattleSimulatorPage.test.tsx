@@ -50,6 +50,20 @@ function readyGetCatalogImpl() {
   );
 }
 
+describe("BattleSimulatorPage — build revision", () => {
+  it("passes the buildRevision prop through to the AppShell footer", () => {
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        buildRevision="deadbeef"
+      />,
+    );
+
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("deadbeef");
+  });
+});
+
 describe("BattleSimulatorPage — catalog loading", () => {
   it("shows a loading indication and keeps formation slots disabled while the catalog is loading", () => {
     const getCatalogImpl = vi.fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>(

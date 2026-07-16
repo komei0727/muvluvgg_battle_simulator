@@ -241,3 +241,113 @@ jobs:
             echo "- Previous revision: \`${{ steps.deploy_candidate.outputs.previous_revision_name }}\`"
             echo "- Catalog revision: \`${{ steps.catalog_revision.outputs.catalog_revision }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # `deploy`（API）が既にCloud Run service URLを`production` GitHub Environmentの
+  # `VITE_API_BASE_URL`へ書き込んでいる（運用手順.md「Cloud Run deploy」）ため、
+  # このjobは`environment: production`で同じ変数を読むだけでよい——UI-only
+  # mergeでは`deploy`がskipされるが、そのときも直近のCloud Run deployで書き込み
+  # 済みの値がそのまま`production` environmentに残っているため利用できる。
+  pages-build:
+    name: Build UI for GitHub Pages
+    needs: [changes, quality, ui, deploy]
+    # `deploy`同様、`needs`の暗黙のsuccess()は依存jobがskipでも真になる
+    # （PR #118 review、上のコメント参照）ため、run_ui・ui成功・deployの
+    # 成功/skip許容を明示条件にする。
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.run_ui == 'true' &&
+      needs.ui.result == 'success' &&
+      (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      # `VITE_API_BASE_URL`は`production` environmentの実際のCloud Run service
+      # URL（`deploy` jobが書き込み済み）。CIの`ui`job（placeholder URL）とは
+      # 別のbuildであり、index.htmlのCSP `connect-src`もこの値へ静的に展開される
+      # （05_非機能・アクセシビリティ設計.md §11）。
+      - name: UI build (GitHub Pages, live API base URL)
+        run: mise run ui:build
+        env:
+          VITE_BASE_PATH: /muvluvgg_battle_simulator/
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_BUILD_REVISION: ${{ github.sha }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/ui/dist
+
+  pages-deploy:
+    name: Deploy to GitHub Pages
+    needs: pages-build
+    # 上と同じ理由でskipを明示的に伝播させる——pages-buildがskipされた場合、
+    # 既定のsuccess()はなお真になり得るため、artifactが存在しないままdeployを
+    # 試みてしまう。
+    if: needs.pages-build.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    # 連続pushでdeployが競合しないようにする。GitHub Pages公式テンプレートの
+    # 既定と同じ設定（cancel-in-progress: falseで進行中のdeployを打ち切らない）。
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # 06_UIテスト戦略.md §9「Live API E2Eは初期は別job」——他のjobはこのjobの
+  # 成否を待たない。失敗を無視せず、job statusとして可視化する
+  # （Issue #99受け入れ条件「scale-to-zero後のcold startを含むlive smoke test」）。
+  pages-smoke:
+    name: Deployed Pages live smoke test
+    needs: pages-deploy
+    if: needs.pages-deploy.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Install Playwright browser
+        run: pnpm --filter ui exec playwright install --with-deps chromium
+
+      - name: Live smoke test against deployed Pages + Cloud Run API
+        run: mise run ui:e2e:live
+        env:
+          LIVE_PAGES_URL: ${{ needs.pages-deploy.outputs.page_url }}
+          LIVE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-live-smoke-report
+          path: apps/ui/test-results/
+          retention-days: 7

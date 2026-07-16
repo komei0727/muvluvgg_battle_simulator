@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Battle Analytics Console">
+  <rect width="32" height="32" rx="6" fill="#07101d" />
+  <rect x="1" y="1" width="30" height="30" rx="5" fill="none" stroke="#263a50" stroke-width="1" />
+  <text x="16" y="21" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" font-weight="700" fill="#45c8ff">BA</text>
+</svg>

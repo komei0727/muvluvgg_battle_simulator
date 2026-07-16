@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test --grep-invert @visual",
-    "test:e2e:visual": "playwright test --grep @visual"
+    "test:e2e:visual": "playwright test --grep @visual",
+    "test:e2e:live": "playwright test --config=playwright.live.config.ts"
   },
   "dependencies": {
     "react": "19.2.7",

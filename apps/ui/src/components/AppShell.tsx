@@ -1,14 +1,19 @@
 import type { ReactNode } from "react";
+import { resolveBuildRevision } from "../lib/build-info.js";
 import styles from "./AppShell.module.css";
 
 export interface AppShellProps {
   readonly systemStatus?: ReactNode;
+  readonly buildRevision?: string;
   readonly children: ReactNode;
 }
 
 // Mirrors the adopted mock's topbar/app-shell structure without copying its
 // markup as a runtime dependency (02_フロントエンドアーキテクチャ設計.md §10).
-export function AppShell({ systemStatus, children }: AppShellProps) {
+// The footer surfaces the UI build revision alongside the API Catalog
+// revision/Request ID already shown elsewhere on the page
+// (05_非機能・アクセシビリティ設計.md §13, Issue #99 完了条件).
+export function AppShell({ systemStatus, buildRevision, children }: AppShellProps) {
   return (
     <div className={styles["shell"]}>
       <header className={styles["topbar"]}>
@@ -28,6 +33,7 @@ export function AppShell({ systemStatus, children }: AppShellProps) {
         ) : null}
       </header>
       <main className={styles["main"]}>{children}</main>
+      <footer className={styles["footer"]}>UI build: {resolveBuildRevision(buildRevision)}</footer>
     </div>
   );
 }

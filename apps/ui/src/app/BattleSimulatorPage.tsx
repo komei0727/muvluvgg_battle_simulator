@@ -31,6 +31,7 @@ import { BattleSummarySection } from "../features/summary/BattleSummarySection.j
 
 export interface BattleSimulatorPageProps {
   readonly apiBaseUrl: string;
+  readonly buildRevision?: string;
   readonly getCatalogImpl?: UseCatalogLoaderOptions["getCatalogImpl"];
   readonly simulateImpl?: UseSimulationExecutionOptions["simulateImpl"];
 }
@@ -39,6 +40,7 @@ const SIMULATION_ENDPOINT = "POST /api/v1/battle-simulations";
 
 export function BattleSimulatorPage({
   apiBaseUrl,
+  buildRevision,
   getCatalogImpl,
   simulateImpl,
 }: BattleSimulatorPageProps) {
@@ -81,7 +83,7 @@ export function BattleSimulatorPage({
   const formationDisabled = catalog.status !== "ready" || isSubmitting;
 
   return (
-    <AppShell>
+    <AppShell {...(buildRevision !== undefined ? { buildRevision } : {})}>
       <Panel step="01" title="戦闘パラメータ" meta="FORMATION / MEMORY / EXECUTION">
         {catalog.status === "loading" ? <p>Catalogを読込中…</p> : null}
         {catalog.status === "failed" ? (
