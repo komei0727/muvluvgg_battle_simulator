@@ -292,20 +292,23 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
           VITE_BUILD_REVISION: ${{ github.sha }}
 
-      # GitHub Pages(Actions配備)には過去artifactを直接再適用する公式rollback
-      # 手順がないため、「revertしてbuildし直す」ことが実質唯一の経路になる
-      # （運用手順.md「GitHub Pages rollback」）。rebuildが実際に前回成功時と
-      # 同じ内容かどうかを目視以外で確認できるよう、決定的なcontent digestを
-      # 記録する——ファイル名にはchunk hashが含まれるためbuild入力が同じなら
-      # 再現されるはずで、一致しなければVITE_API_BASE_URLなどbuild入力の差分を
-      # 疑える（PRレビュー指摘 #125 P2）。
-      - name: Record Pages artifact digest
-        working-directory: apps/ui/dist
-        run: |
-          DIGEST="$(find . -type f | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)"
-          echo "### GitHub Pages artifact" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Git SHA: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Content digest: \`$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+      # rollbackのために、実際にbuildした静的ファイルそのものを長期保持する。
+      # `VITE_BUILD_REVISION`(=`github.sha`)がbundleへ埋め込まれる以上、revert
+      # commitは異なるSHAを持つため再buildしたcontentは前回成功時と一致し得ず、
+      # digest比較によるrollback検証は原理的に成立しない
+      # （実測: 同一sourceでもVITE_BUILD_REVISIONだけが異なるとdist全体の
+      # digestが変わることをPRレビューで確認済み——PRレビュー指摘 #125
+      # 再レビューP2）。そのため「再buildして同一性を確認する」のではなく、
+      # 「rebuildせずこのartifactをそのまま将来再deployできるようにする」方針へ
+      # 変更する。`pages-rollback.yml`がこの`pages-dist` artifactを
+      # `run-id`指定でdownloadし、rebuildなしでそのままdeployする
+      # （運用手順.md「GitHub Pages rollback」）。
+      - name: Retain built Pages content for rollback
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-dist
+          path: apps/ui/dist
+          retention-days: 90
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

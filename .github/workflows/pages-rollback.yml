@@ -1,0 +1,58 @@
+name: Roll Back GitHub Pages
+
+# `actions/deploy-pages`は常にその回のworkflow runがuploadしたPages artifactを
+# deployするため、単純な「過去のworkflow runを再実行する」操作は保存済み
+# artifactの再配備にならず、現在のbuild入力で再buildしてしまう
+# (`main.yml`の`pages-build`が埋め込む`VITE_BUILD_REVISION`(=`github.sha`)は
+# revert commitで必ず変わるため、rebuildしたcontentは前回成功時と一致しない
+# ——PRレビュー指摘 #125 再レビューP2)。このworkflowは`main.yml`の`pages-build`
+# が`pages-dist` artifact(retention-days: 90)として保持した「実際に前回
+# deployされた静的ファイルそのもの」をrebuildなしでdownload・再deployする。
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "復元元とするmain.ymlのrun ID(GitHub ActionsのURL末尾の数値。pages-buildジョブが成功しpages-dist artifactを残しているrunを指定する)"
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    name: Redeploy a previously built Pages artifact
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      # rebuildを一切行わない——ここでdownloadした内容がそのままdeployされる。
+      - name: Download previously built Pages content
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: apps/ui/dist
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact (rehydrated from source_run_id, no rebuild)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/ui/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Record rollback summary
+        run: |
+          {
+            echo "### GitHub Pages rollback"
+            echo "- Restored from main.yml run: \`${{ inputs.source_run_id }}\`"
+            echo "- Deployed URL: \`${{ steps.deployment.outputs.page_url }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
