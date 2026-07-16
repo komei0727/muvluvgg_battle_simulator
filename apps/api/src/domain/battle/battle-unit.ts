@@ -1,6 +1,8 @@
 import type { Attribute } from "../catalog/catalog-enums.js";
 import type { UnitDefinitionId } from "../catalog/catalog-ids.js";
 import type { UnitDefinition } from "../catalog/unit-definition.js";
+import type { ActiveCharge } from "./charge-state.js";
+import type { CooldownMap } from "./cooldown-state.js";
 import {
   createActionPoint,
   createExtraGauge,
@@ -36,6 +38,10 @@ export interface BattleUnit {
   readonly maximumAp: number;
   readonly maximumPp: number;
   readonly maximumExtraGauge: number;
+  /** R-SKL-04: スキルごとのクールタイム状態。SkillDefinitionIdをキーとする。 */
+  readonly cooldowns: CooldownMap;
+  /** R-SKL-05: 発動待ちのチャージ。同時に1つだけ持てる。 */
+  readonly charge?: ActiveCharge;
 }
 
 export interface BattleUnitResourceLimits {
@@ -65,6 +71,7 @@ export function createBattleUnit(
     maximumAp: limits.maximumAp,
     maximumPp: limits.maximumPp,
     maximumExtraGauge: limits.maximumExtraGauge,
+    cooldowns: {},
   };
 }
 

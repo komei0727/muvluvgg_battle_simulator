@@ -1,11 +1,11 @@
-import type { BattleResultSnapshot } from "./state-delta.js";
+import type { BattleResultSnapshot, ChargeState, CooldownState } from "./state-delta.js";
 import type { Battle } from "../battle.js";
 import type { BattleStatus } from "../battle-status.js";
 import type { FormationPosition } from "../formation-input.js";
 import type { GlobalCoordinate } from "../global-coordinate.js";
 import type { Side } from "../side.js";
 import type { CombatStats } from "../starting-combat-stats.js";
-import type { UnitDefinitionId } from "../../catalog/catalog-ids.js";
+import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 export type { BattleResultSnapshot } from "./state-delta.js";
@@ -15,6 +15,9 @@ export interface BattleUnitSnapshot {
   readonly ap: number;
   readonly pp: number;
   readonly extraGauge: number;
+  /** 空でない場合だけ持つ(`captureBattleState`はクールタイムが1件も無いユニットへ`{}`を書かない)。 */
+  readonly cooldowns?: Readonly<Record<SkillDefinitionId, CooldownState>>;
+  readonly charge?: ChargeState;
 }
 
 /**
@@ -33,11 +36,26 @@ export interface BattleStateSnapshot {
 export function captureBattleState(battle: Battle): BattleStateSnapshot {
   const units: Record<BattleUnitId, BattleUnitSnapshot> = {};
   for (const unit of [...battle.allyUnits, ...battle.enemyUnits]) {
+    const cooldownIds = Object.keys(unit.cooldowns) as SkillDefinitionId[];
+    const cooldowns: Record<SkillDefinitionId, CooldownState> = {};
+    for (const skillDefinitionId of cooldownIds) {
+      const entry = unit.cooldowns[skillDefinitionId]!;
+      cooldowns[skillDefinitionId] = { unit: entry.unit, remaining: entry.remaining };
+    }
     units[unit.battleUnitId] = {
       hp: unit.currentHp,
       ap: unit.currentAp,
       pp: unit.currentPp,
       extraGauge: unit.currentExtraGauge,
+      ...(cooldownIds.length > 0 ? { cooldowns } : {}),
+      ...(unit.charge !== undefined
+        ? {
+            charge: {
+              skillDefinitionId: unit.charge.skill.skillDefinitionId,
+              startedActionId: unit.charge.startedActionId,
+            },
+          }
+        : {}),
     };
   }
   return {

@@ -2,6 +2,8 @@ import { resolveActionPhase } from "./action-phase-resolver.js";
 import type { BattleDefinitions } from "./battle-definitions.js";
 import type { BattleStatus } from "./battle-status.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "./battle-unit.js";
+import { decrementTurnCooldowns } from "./cooldown-state.js";
+import type { DomainEventId, ResolutionScopeId } from "./events/event-ids.js";
 import type { EventRecorder } from "./events/event-recorder.js";
 import type { ResourceRecoveryEntry } from "./events/domain-event.js";
 import type { StateDelta, UnitStateDelta } from "./events/state-delta.js";
@@ -113,6 +115,85 @@ function buildResourceRecovery(
 }
 
 /**
+ * `06_戦闘状態遷移.md` TURN_ENDING #2-4: PS連鎖完了後（M6未実装のため`TurnCompleting`
+ * 直後）に、現在のターンより前に設定されたターン単位クールタイムを全ユニットで
+ * 1減らす。現在のターンで設定されたものは対象外（`decrementTurnCooldowns`が判定）。
+ */
+function applyTurnCooldownDecrements(
+  units: readonly BattleUnit[],
+  currentTurnNumber: number,
+  recorder: EventRecorder,
+  turnNumber: number,
+  resolutionScopeId: ResolutionScopeId,
+  rootEventId: DomainEventId,
+  parentEventId: DomainEventId,
+): { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId } {
+  let working = units;
+  let lastEventId = parentEventId;
+  for (const unit of units) {
+    const decrement = decrementTurnCooldowns(unit.cooldowns, currentTurnNumber);
+    if (decrement.changes.length === 0) {
+      continue;
+    }
+    working = working.map((u) =>
+      u.battleUnitId === unit.battleUnitId ? { ...u, cooldowns: decrement.cooldowns } : u,
+    );
+    for (const change of decrement.changes) {
+      const reduced = recorder.record({
+        eventType: "CooldownReduced",
+        category: "FACT",
+        turnNumber,
+        cycleNumber: 0,
+        resolutionScopeId,
+        parentEventId: lastEventId,
+        rootEventId,
+        sourceUnitId: unit.battleUnitId,
+        payload: {
+          actorUnitId: unit.battleUnitId,
+          skillDefinitionId: change.skillDefinitionId,
+          unit: change.unit,
+          before: change.before,
+          after: change.after,
+        },
+        stateDelta: {
+          units: {
+            [unit.battleUnitId]: {
+              cooldowns: {
+                [change.skillDefinitionId]: {
+                  unit: change.unit,
+                  before: change.before,
+                  after: change.after,
+                },
+              },
+            },
+          },
+        },
+      });
+      lastEventId = reduced.eventId;
+      if (change.after === 0) {
+        const completed = recorder.record({
+          eventType: "CooldownCompleted",
+          category: "FACT",
+          turnNumber,
+          cycleNumber: 0,
+          resolutionScopeId,
+          parentEventId: lastEventId,
+          rootEventId,
+          sourceUnitId: unit.battleUnitId,
+          payload: {
+            actorUnitId: unit.battleUnitId,
+            skillDefinitionId: change.skillDefinitionId,
+            unit: change.unit,
+          },
+        });
+        lastEventId = completed.eventId;
+      }
+    }
+  }
+  return { units: working, lastEventId };
+}
+
+/**
  * Battle集約の主要操作: advance。1回の呼び出しでTURN_STARTING〜TURN_ENDINGを
  * 進め、R-END-01の2つの判定タイミング区分（行動外のトップレベル解決スコープ
  * 完了後＝ターン開始・終了／ユニットの1行動完了後＝`resolveActionPhase`内部）を
@@ -206,13 +287,32 @@ export function advanceBattle(
     resolutionScopeId: turnEndScope,
     payload: { turnNumber: nextTurnNumber },
   });
+
+  // R-SKL-04 TURN_ENDING #2-4: ターン単位クールタイムを全ユニットで1減らす
+  // （現在のターンで設定されたものを除く）。
+  const cooldownDecrement = applyTurnCooldownDecrements(
+    [...actionPhase.allyUnits, ...actionPhase.enemyUnits],
+    nextTurnNumber,
+    recorder,
+    nextTurnNumber,
+    turnEndScope,
+    turnCompleting.eventId,
+    turnCompleting.eventId,
+  );
+  const cooldownById = new Map(cooldownDecrement.units.map((u) => [u.battleUnitId, u]));
+  const progressedWithCooldown: Battle = {
+    ...progressed,
+    allyUnits: actionPhase.allyUnits.map((u) => cooldownById.get(u.battleUnitId) ?? u),
+    enemyUnits: actionPhase.enemyUnits.map((u) => cooldownById.get(u.battleUnitId) ?? u),
+  };
+
   recorder.record({
     eventType: "TurnCompleted",
     category: "FACT",
     turnNumber: nextTurnNumber,
     cycleNumber: 0,
     resolutionScopeId: turnEndScope,
-    parentEventId: turnCompleting.eventId,
+    parentEventId: cooldownDecrement.lastEventId,
     rootEventId: turnCompleting.eventId,
     payload: { turnNumber: nextTurnNumber },
   });
@@ -223,10 +323,10 @@ export function advanceBattle(
     turnLimitReached: isFinalTurn(turnState),
   });
   if (afterTurnEnd !== undefined) {
-    return complete(progressed, afterTurnEnd, recorder);
+    return complete(progressedWithCooldown, afterTurnEnd, recorder);
   }
 
-  return progressed;
+  return progressedWithCooldown;
 }
 
 /** BattleCompletedを発行する。勝敗確定契機が複数あるため、単一の親イベントには紐付けずルート化する。 */

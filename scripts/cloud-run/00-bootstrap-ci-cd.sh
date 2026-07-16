@@ -67,6 +67,30 @@ gcloud artifacts repositories add-iam-policy-binding "$REPOSITORY" \
   --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
   --role="roles/artifactregistry.writer" >/dev/null
 
+# `gcloud builds submit`が暗黙にproject既定のCompute Engine SA（roles/editor）を
+# 選ばないよう、Docker imageのbuild/push専用SAを作る。標準のCloud Build実行
+# roleだけを付与し、deploy用SAにはこのidentityに対するactAsだけを許可する。
+echo "== create dedicated Cloud Build service account (idempotent) =="
+if gcloud iam service-accounts describe "$BUILD_SERVICE_ACCOUNT_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
+  echo "service account already exists: $BUILD_SERVICE_ACCOUNT_EMAIL"
+else
+  gcloud iam service-accounts create "$BUILD_SERVICE_ACCOUNT_ID" \
+    --project="$PROJECT_ID" \
+    --display-name="Cloud Build image builder"
+fi
+
+echo "== grant Cloud Build execution role to the dedicated build identity =="
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${BUILD_SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/cloudbuild.builds.builder" \
+  --condition=None >/dev/null
+
+echo "== grant Service Account User on the Cloud Build identity ($BUILD_SERVICE_ACCOUNT_EMAIL) only =="
+gcloud iam service-accounts add-iam-policy-binding "$BUILD_SERVICE_ACCOUNT_EMAIL" \
+  --project="$PROJECT_ID" \
+  --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
+  --role="roles/iam.serviceAccountUser" >/dev/null
+
 # `deploy/cloud-run/service.json`の`spec.template.spec.serviceAccountName`が
 # 指すruntime identity。project既定のCompute Engine SA（既定でroles/editorを
 # 持つ）をpublicly-invokable（allUsers）なcontainerのruntime identityにしない
@@ -134,11 +158,14 @@ echo
 echo "== verification checkpoint =="
 echo "WORKLOAD_IDENTITY_PROVIDER=$PROVIDER_RESOURCE"
 echo "SERVICE_ACCOUNT_EMAIL=$DEPLOY_SA_EMAIL"
+echo "BUILD_SERVICE_ACCOUNT_EMAIL=$BUILD_SERVICE_ACCOUNT_EMAIL"
 echo "RUNTIME_SERVICE_ACCOUNT_EMAIL=$RUNTIME_SERVICE_ACCOUNT_EMAIL"
 echo
 echo "NEXT: WORKLOAD_IDENTITY_PROVIDER / SERVICE_ACCOUNT_EMAILを、GitHub repositoryの"
 echo "      '$GITHUB_ENVIRONMENT' Environment variableへ GCP_WORKLOAD_IDENTITY_PROVIDER /"
 echo "      GCP_SERVICE_ACCOUNT_EMAIL として登録してください（secretではない）。"
+echo "      BUILD_SERVICE_ACCOUNT_EMAILはCloud Buildの実行identityとしてbuildのたびに"
+echo "      自動で使われるため、GitHub Environment variableへの登録は不要です。"
 echo "      RUNTIME_SERVICE_ACCOUNT_EMAILはCloud Run serviceのruntime identityとして"
 echo "      deployのたびに自動で使われるため、GitHub Environment variableへの登録は不要です。"
 echo "      既に稼働中のCloud Run serviceがある場合、次回deployで自動的にこのruntime SAへ"
