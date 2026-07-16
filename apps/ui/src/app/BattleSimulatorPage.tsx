@@ -3,7 +3,6 @@ import { AppShell } from "../components/AppShell.js";
 import { Panel } from "../components/Panel.js";
 import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelectionDialog.js";
 import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
-import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
 import { selectCanSubmit, validateDraft } from "../features/formation/draft-validation.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
 import { FormationEditor } from "../features/formation/FormationEditor.js";
@@ -26,7 +25,6 @@ import { SubmissionFeedback } from "../features/simulation/SubmissionFeedback.js
 import type { UseSimulationExecutionOptions } from "../features/simulation/use-simulation-execution.js";
 import { useSimulationExecution } from "../features/simulation/use-simulation-execution.js";
 import { mapServerViolationsToUiViolations } from "../features/simulation/violation-mapper.js";
-import { BattleSummarySection } from "../features/summary/BattleSummarySection.js";
 
 export interface BattleSimulatorPageProps {
   readonly apiBaseUrl: string;
@@ -166,24 +164,6 @@ export function BattleSimulatorPage({
         isDirty={isDirty}
         onReloadCatalog={catalogLoader.reload}
       />
-
-      {displayedSuccess !== undefined ? (
-        <>
-          <Panel step="02" title="戦闘サマリ" meta="OUTCOME / ROSTER">
-            <BattleSummarySection
-              response={displayedSuccess.response}
-              {...(catalog.status === "ready" ? { catalog: catalog.response } : {})}
-              turnLimit={displayedSuccess.request.turnLimit}
-            />
-          </Panel>
-          <Panel step="03" title="戦闘詳細データ" meta="AUDIT TRAIL / RAW RESPONSE">
-            <BattleDetailsSection
-              response={displayedSuccess.response}
-              {...(catalog.status === "ready" ? { catalog: catalog.response } : {})}
-            />
-          </Panel>
-        </>
-      ) : null}
 
       {catalog.status === "ready" && state.selectionDialog.kind === "unit"
         ? (() => {
