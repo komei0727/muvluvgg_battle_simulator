@@ -6,10 +6,12 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 require_command gcloud
 
 print_deploy_context
-echo "== build and push image with Cloud Build =="
+echo "== build and push image with dedicated Cloud Build service account =="
 gcloud builds submit "$REPO_ROOT" \
   --project="$PROJECT_ID" \
-  --tag="$IMAGE" \
+  --config="$REPO_ROOT/deploy/cloud-build/build-image.yaml" \
+  --substitutions="_IMAGE=$IMAGE" \
+  --service-account="projects/${PROJECT_ID}/serviceAccounts/${BUILD_SERVICE_ACCOUNT_EMAIL}" \
   --suppress-logs
 
 echo "== verification checkpoint: pushed image =="

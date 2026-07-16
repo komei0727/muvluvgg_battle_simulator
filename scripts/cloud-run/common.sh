@@ -15,6 +15,11 @@ IMAGE_TAG="${IMAGE_TAG:-$(git -C "$REPO_ROOT" rev-parse HEAD)}"
 REGISTRY_ROOT="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}"
 IMAGE="${REGISTRY_ROOT}/api:${IMAGE_TAG}"
 
+# Docker imageをbuild/pushするCloud Build専用identity。
+# project既定のCompute Engine SA（既定でroles/editor）をbuild実行に使わない。
+BUILD_SERVICE_ACCOUNT_ID="${BUILD_SERVICE_ACCOUNT_ID:-battle-sim-cloud-builder}"
+BUILD_SERVICE_ACCOUNT_EMAIL="${BUILD_SERVICE_ACCOUNT_EMAIL:-${BUILD_SERVICE_ACCOUNT_ID}@${PROJECT_ID}.iam.gserviceaccount.com}"
+
 # publicly-invokable(allUsers)なCloud Run containerのruntime identity。
 # project既定のCompute Engine SA(既定でroles/editor)へ委ねない専用SAで、
 # project IAM roleは付与しない(00-bootstrap-ci-cd.shが作成するP1レビュー指摘対応)。
@@ -37,5 +42,6 @@ print_deploy_context() {
   echo "REPOSITORY=$REPOSITORY"
   echo "SERVICE=$SERVICE"
   echo "IMAGE=$IMAGE"
+  echo "BUILD_SERVICE_ACCOUNT_EMAIL=$BUILD_SERVICE_ACCOUNT_EMAIL"
   echo "RUNTIME_SERVICE_ACCOUNT_EMAIL=$RUNTIME_SERVICE_ACCOUNT_EMAIL"
 }
