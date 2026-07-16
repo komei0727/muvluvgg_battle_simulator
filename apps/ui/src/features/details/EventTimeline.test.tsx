@@ -100,6 +100,35 @@ describe("EventTimeline", () => {
     expect(screen.getAllByRole("button", { name: /TURN_STARTED/ })).toHaveLength(55);
   });
 
+  it("always shows the envelope's source and targets independently of the formatter summary text (§8.1)", () => {
+    // TURN_STARTED's formatter summary ("ターンNを開始しました。") never
+    // mentions units, so this is the only place these names can appear.
+    const events = [
+      baseEvent({
+        sequence: 1,
+        type: "TURN_STARTED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: { turnNumber: 1 },
+      }),
+    ];
+
+    render(<EventTimeline events={events} roster={rosterIndex} />);
+
+    const row = screen.getByRole("button", { name: /TURN_STARTED/ });
+    expect(row).toHaveTextContent("エー");
+    expect(row).toHaveTextContent("ビー");
+  });
+
+  it("shows a dash for source/targets when the envelope has neither (§8.1)", () => {
+    const events = [baseEvent({ sequence: 1, type: "BATTLE_STARTED", details: { turnLimit: 10 } })];
+
+    render(<EventTimeline events={events} roster={rosterIndex} />);
+
+    const row = screen.getByRole("button", { name: /BATTLE_STARTED/ });
+    expect(within(row).getAllByText("-").length).toBeGreaterThanOrEqual(2);
+  });
+
   it("offers a jump action to the owning state transition when stateTransitionIndex is present", async () => {
     const user = userEvent.setup();
     const onJumpToTransition = vi.fn();

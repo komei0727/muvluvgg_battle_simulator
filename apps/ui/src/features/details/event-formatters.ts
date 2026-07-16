@@ -22,7 +22,7 @@ export function buildRosterIndex(roster: readonly RosterEntry[]): RosterIndex {
   return new Map(roster.map((entry) => [entry.battleUnitId, entry] as const));
 }
 
-function nameOf(roster: RosterIndex, battleUnitId: string): string {
+export function resolveDisplayName(roster: RosterIndex, battleUnitId: string): string {
   return roster.get(battleUnitId)?.displayName ?? battleUnitId;
 }
 
@@ -51,8 +51,8 @@ function formatDamageApplied(
   ) {
     return undefined;
   }
-  const sourceName = nameOf(roster, sourceUnitId);
-  const targetName = nameOf(roster, details["targetUnitId"]);
+  const sourceName = resolveDisplayName(roster, sourceUnitId);
+  const targetName = resolveDisplayName(roster, details["targetUnitId"]);
   return {
     title: event.type,
     summary: `${sourceName} → ${targetName} に ${details["hitPointDamage"]} ダメージ。HP ${details["hpBefore"]} → ${details["hpAfter"]}`,
@@ -71,7 +71,7 @@ function formatUnitDefeated(
   }
   return {
     title: event.type,
-    summary: `${nameOf(roster, details["unitId"])}が戦闘不能になりました。`,
+    summary: `${resolveDisplayName(roster, details["unitId"])}が戦闘不能になりました。`,
     details,
     severity: "negative",
   };
@@ -117,7 +117,7 @@ function formatActionStarted(
   }
   return {
     title: event.type,
-    summary: `${nameOf(roster, details["actorUnitId"])}が行動を開始しました（${details["effectiveActionType"]}）。`,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}が行動を開始しました（${details["effectiveActionType"]}）。`,
     details,
     severity: "neutral",
   };
@@ -152,12 +152,13 @@ const eventFormatters: Readonly<Record<string, EventFormatter>> = {
 function genericFallback(event: BattleLogEventResponse, roster: RosterIndex): EventPresentation {
   const sourceUnitId = event["sourceUnitId"];
   const targetUnitIds = event["targetUnitIds"];
-  const sourceName = typeof sourceUnitId === "string" ? nameOf(roster, sourceUnitId) : "-";
+  const sourceName =
+    typeof sourceUnitId === "string" ? resolveDisplayName(roster, sourceUnitId) : "-";
   const targetNames =
     Array.isArray(targetUnitIds) && targetUnitIds.length > 0
       ? targetUnitIds
           .filter((id): id is string => typeof id === "string")
-          .map((id) => nameOf(roster, id))
+          .map((id) => resolveDisplayName(roster, id))
           .join(", ")
       : "-";
   return {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "../../components/Button.js";
-import { formatEvent } from "./event-formatters.js";
+import { formatEvent, resolveDisplayName } from "./event-formatters.js";
 import type { RosterIndex } from "./event-formatters.js";
 import type { BattleLogEventResponse } from "../simulation/api-contract.js";
 import styles from "./EventTimeline.module.css";
@@ -13,9 +13,35 @@ export interface EventTimelineProps {
 
 const INITIAL_VISIBLE_COUNT = 50;
 const LOAD_MORE_STEP = 50;
+const NO_VALUE_PLACEHOLDER = "-";
 
 function numberOf(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
+}
+
+function stringOf(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+// docs/ui-design/01_UI要求・画面設計.md §8.1: source/targetsは共通envelope
+// から常に独立して表示する。formatterのsummary文言がunitに触れないevent
+// type(TURN_STARTEDなど)でも監査情報を欠かさない。
+function sourceLabelOf(event: BattleLogEventResponse, roster: RosterIndex): string {
+  const sourceUnitId = stringOf(event["sourceUnitId"]);
+  return sourceUnitId !== undefined
+    ? resolveDisplayName(roster, sourceUnitId)
+    : NO_VALUE_PLACEHOLDER;
+}
+
+function targetsLabelOf(event: BattleLogEventResponse, roster: RosterIndex): string {
+  const targetUnitIds = event["targetUnitIds"];
+  if (!Array.isArray(targetUnitIds) || targetUnitIds.length === 0) {
+    return NO_VALUE_PLACEHOLDER;
+  }
+  const names = targetUnitIds
+    .filter((id): id is string => typeof id === "string")
+    .map((id) => resolveDisplayName(roster, id));
+  return names.length > 0 ? names.join(", ") : NO_VALUE_PLACEHOLDER;
 }
 
 // docs/ui-design/01_UI要求・画面設計.md §8.1: `sequence`昇順で表示し、欠番を
@@ -75,6 +101,8 @@ export function EventTimeline({ events, roster, onJumpToTransition }: EventTimel
                   T{turnNumber}/{cycleNumber}
                 </span>
                 <span className={styles["type"]}>{presentation.title}</span>
+                <span className={styles["source"]}>{sourceLabelOf(event, roster)}</span>
+                <span className={styles["targets"]}>{targetsLabelOf(event, roster)}</span>
                 <span>{presentation.summary}</span>
                 <span>v{stateVersionAfter ?? "-"}</span>
               </button>

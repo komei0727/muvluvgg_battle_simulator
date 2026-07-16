@@ -6,7 +6,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: 60px 50px 160px 1fr 60px;
+  grid-template-columns: 60px 50px 140px 90px 90px 1fr 50px;
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
@@ -27,6 +27,14 @@
 .type {
   color: var(--color-ally);
   font-weight: 700;
+}
+
+.source,
+.targets {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .expanded {

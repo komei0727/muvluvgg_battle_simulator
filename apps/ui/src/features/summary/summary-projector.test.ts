@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { selectBattleSummary, selectRoster } from "./summary-projector.js";
+import type { SummaryProjection } from "./summary-projector.js";
 import type {
   BattleLogEventResponse,
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
   BattleUnitStateResponse,
 } from "../simulation/api-contract.js";
+
+// selectBattleSummary returns a Result so a roster/finalState contract
+// mismatch can be reported explicitly (03_API・データ連携設計.md §10 rule 5)
+// instead of rendering fabricated UNKNOWN/0 rows. Tests that expect success
+// unwrap through this helper; tests that expect failure call the function
+// directly.
+function projectionOf(result: ReturnType<typeof selectBattleSummary>): SummaryProjection {
+  if (!result.ok) {
+    throw new Error(`expected an ok projection but got: ${result.error.message}`);
+  }
+  return result.projection;
+}
 
 function catalogWith(
   units: BattleSimulationCatalogResponse["units"],
@@ -160,7 +173,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     const allySummary = projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1");
     expect(allySummary?.summary.damageDealt).toBe(30);
@@ -191,7 +204,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     const enemySummary = projection.enemyRows.find((row) => row.roster.battleUnitId === "enemy:1");
     expect(enemySummary?.summary.damageTaken).toBe(30);
@@ -223,7 +236,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     const allySummary = projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1");
     expect(allySummary?.summary.damageDealt).toBe(20);
@@ -260,7 +273,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     expect(
       projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1")?.summary.damageDealt,
@@ -282,7 +295,7 @@ describe("selectBattleSummary", () => {
       events: [],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     const summary = projection.allyRows[0]?.summary;
     expect(summary?.damageDealt).toBe(0);
@@ -300,7 +313,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
   });
@@ -322,7 +335,7 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     const summary = projection.allyRows[0]?.summary;
     expect(summary?.combatStatus).toBe("DEFEATED");
@@ -343,7 +356,7 @@ describe("selectBattleSummary", () => {
     });
 
     expect(() => selectBattleSummary(response, catalog)).not.toThrow();
-    expect(projectionDamage(selectBattleSummary(response, catalog))).toBe(0);
+    expect(projectionDamage(projectionOf(selectBattleSummary(response, catalog)))).toBe(0);
   });
 
   it("excludes a malformed DAMAGE_APPLIED event from aggregation and reports a warning (UI-UT-SUM-009)", () => {
@@ -366,14 +379,112 @@ describe("selectBattleSummary", () => {
       ],
     });
 
-    const projection = selectBattleSummary(response, catalog);
+    const projection = projectionOf(selectBattleSummary(response, catalog));
 
     expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
     expect(projection.hasProjectionWarning).toBe(true);
   });
+
+  it("excludes a DAMAGE_APPLIED event whose target isn't part of the roster and warns, without crediting the source (review: unknown targetUnitId)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      events: [
+        damageAppliedEvent({
+          sequence: 1,
+          sourceUnitId: "ally:1",
+          targetUnitIds: ["enemy:ghost"],
+          targetUnitId: "enemy:ghost",
+          hitPointDamage: 30,
+        }),
+      ],
+    });
+
+    const projection = projectionOf(selectBattleSummary(response, catalog));
+
+    expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
+    expect(projection.hasProjectionWarning).toBe(true);
+  });
+
+  it("excludes a DAMAGE_APPLIED event whose source isn't part of the roster and warns, without crediting the target (review: unknown sourceUnitId)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
+      ],
+      events: [
+        damageAppliedEvent({
+          sequence: 1,
+          sourceUnitId: "ally:ghost",
+          targetUnitIds: ["enemy:1"],
+          targetUnitId: "enemy:1",
+          hitPointDamage: 30,
+        }),
+      ],
+    });
+
+    const projection = projectionOf(selectBattleSummary(response, catalog));
+
+    expect(projection.enemyRows[0]?.summary.damageTaken).toBe(0);
+    expect(projection.hasProjectionWarning).toBe(true);
+  });
+
+  it("rejects a non-integer hitPointDamage as malformed rather than aggregating a rounded display value (review: fractional hitPointDamage)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
+      ],
+      events: [
+        damageAppliedEvent({
+          sequence: 1,
+          sourceUnitId: "ally:1",
+          targetUnitIds: ["enemy:1"],
+          targetUnitId: "enemy:1",
+          hitPointDamage: 1.23456,
+        }),
+      ],
+    });
+
+    const projection = projectionOf(selectBattleSummary(response, catalog));
+
+    expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
+    expect(projection.hasProjectionWarning).toBe(true);
+  });
+
+  it("returns a contract-mismatch error when finalState is missing a unit present in the initialState roster (03_API・データ連携設計.md §10 rule 5)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      finalUnits: [],
+    });
+
+    const result = selectBattleSummary(response, catalog);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+      expect(result.error.message).toContain("ally:1");
+    }
+  });
 });
 
-function projectionDamage(projection: ReturnType<typeof selectBattleSummary>): number {
+function projectionDamage(projection: SummaryProjection): number {
   return [...projection.allyRows, ...projection.enemyRows].reduce(
     (total, row) => total + row.summary.damageDealt,
     0,

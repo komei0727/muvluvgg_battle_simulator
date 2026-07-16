@@ -26,7 +26,7 @@ const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
 // 一時的に「ready」でない場合(reload中など)もdisplayNameがunitDefinitionId
 // へfallbackするだけで表示自体は継続する。
 export function BattleSummarySection({ response, catalog, turnLimit }: BattleSummarySectionProps) {
-  const projection = useMemo(
+  const result = useMemo(
     () => selectBattleSummary(response, catalog ?? EMPTY_CATALOG),
     [response, catalog],
   );
@@ -39,15 +39,23 @@ export function BattleSummarySection({ response, catalog, turnLimit }: BattleSum
         battleId={response.battleId}
         catalogRevision={response.catalogRevision}
       />
-      {projection.hasProjectionWarning ? (
+      {!result.ok ? (
         <p className={styles["warning"]} role="alert">
-          一部イベントを集計できませんでした。
+          レスポンスの形式が想定と異なります。
         </p>
-      ) : null}
-      <div className={styles["grid"]}>
-        <UnitSummaryTable side="ally" rows={projection.allyRows} />
-        <UnitSummaryTable side="enemy" rows={projection.enemyRows} />
-      </div>
+      ) : (
+        <>
+          {result.projection.hasProjectionWarning ? (
+            <p className={styles["warning"]} role="alert">
+              一部イベントを集計できませんでした。
+            </p>
+          ) : null}
+          <div className={styles["grid"]}>
+            <UnitSummaryTable side="ally" rows={result.projection.allyRows} />
+            <UnitSummaryTable side="enemy" rows={result.projection.enemyRows} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

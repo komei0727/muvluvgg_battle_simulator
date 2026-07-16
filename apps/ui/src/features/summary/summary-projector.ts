@@ -8,6 +8,7 @@ import type {
   BattleLogEventResponse,
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
+  UiApiError,
 } from "../simulation/api-contract.js";
 
 export interface RosterEntry {
@@ -38,12 +39,22 @@ export interface SummaryProjection {
   readonly hasProjectionWarning: boolean;
 }
 
+// selectBattleSummary can fail outright when finalState doesn't correspond to
+// the initialState roster (see the contract-mismatch check below), so it
+// returns a Result instead of always producing a projection.
+export type SummaryProjectionResult =
+  | { readonly ok: true; readonly projection: SummaryProjection }
+  | { readonly ok: false; readonly error: UiApiError };
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isFiniteNonNegative(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+// API契約上hitPointDamageはintegerである(apps/api/src/presentation/http/
+// schemas.ts damageAppliedDetailsSchema)。小数を受理すると表示側の
+// toLocaleString()が丸めて誤った値を見せるため、ここでも整数だけ受理する。
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 // docs/ui-design/03_API・データ連携設計.md §10「表示用Roster」の生成手順:
@@ -71,6 +82,7 @@ export function selectRoster(
 interface MutableSummaryAccumulator {
   readonly damageDealt: Map<string, number>;
   readonly damageTaken: Map<string, number>;
+  readonly validBattleUnitIds: ReadonlySet<string>;
   warned: boolean;
 }
 
@@ -80,7 +92,9 @@ function addTo(map: Map<string, number>, key: string, amount: number): void {
 
 // docs/ui-design/03_API・データ連携設計.md §11.4「Adapter registry」。
 // sourceUnitId欠落、targetUnitId不明、details shape不正の場合はそのイベント
-// を集計から除外し、警告フラグだけ立てる(UI-UT-SUM-009)。
+// を集計から除外し、警告フラグだけ立てる(UI-UT-SUM-009)。sourceUnitId/
+// targetUnitIdがRosterに存在しない場合も同様に除外する。片側だけ加算する
+// と対応するDEFENSE/DAMAGEが欠けたまま警告なしに見えてしまうため。
 function applyDamageApplied(
   event: BattleLogEventResponse,
   accumulator: MutableSummaryAccumulator,
@@ -93,7 +107,14 @@ function applyDamageApplied(
   }
   const targetUnitId = details["targetUnitId"];
   const hitPointDamage = details["hitPointDamage"];
-  if (typeof targetUnitId !== "string" || !isFiniteNonNegative(hitPointDamage)) {
+  if (typeof targetUnitId !== "string" || !isNonNegativeInteger(hitPointDamage)) {
+    accumulator.warned = true;
+    return;
+  }
+  if (
+    !accumulator.validBattleUnitIds.has(sourceUnitId) ||
+    !accumulator.validBattleUnitIds.has(targetUnitId)
+  ) {
     accumulator.warned = true;
     return;
   }
@@ -114,15 +135,29 @@ const summaryAdapters: Readonly<Record<string, SummaryEventAdapter>> = {
 export function selectBattleSummary(
   response: BattleSimulationResponse,
   catalog: BattleSimulationCatalogResponse,
-): SummaryProjection {
+): SummaryProjectionResult {
   const roster = selectRoster(response, catalog);
   const finalUnitsById = new Map(
     response.finalState.units.map((unit) => [unit.battleUnitId, unit] as const),
   );
 
+  // docs/ui-design/03_API・データ連携設計.md §10 rule 5: finalに存在しない
+  // unitは契約不一致とする。UNKNOWN/0へfallbackして正常に見せない。
+  const missingFromFinalState = roster.find((entry) => !finalUnitsById.has(entry.battleUnitId));
+  if (missingFromFinalState !== undefined) {
+    return {
+      ok: false,
+      error: {
+        kind: "RESPONSE_CONTRACT_MISMATCH",
+        message: `finalState is missing battleUnitId "${missingFromFinalState.battleUnitId}" present in initialState.`,
+      },
+    };
+  }
+
   const accumulator: MutableSummaryAccumulator = {
     damageDealt: new Map(),
     damageTaken: new Map(),
+    validBattleUnitIds: new Set(roster.map((entry) => entry.battleUnitId)),
     warned: false,
   };
   for (const event of response.events) {
@@ -133,15 +168,17 @@ export function selectBattleSummary(
   const allyRows: SummaryRow[] = [];
   const enemyRows: SummaryRow[] = [];
   for (const entry of roster) {
-    const finalUnit = finalUnitsById.get(entry.battleUnitId);
+    // Non-null: the contract-mismatch check above already guarantees every
+    // roster battleUnitId exists in finalUnitsById.
+    const finalUnit = finalUnitsById.get(entry.battleUnitId)!;
     const summary: UnitBattleSummary = {
       battleUnitId: entry.battleUnitId,
       damageDealt: accumulator.damageDealt.get(entry.battleUnitId) ?? 0,
       damageTaken: accumulator.damageTaken.get(entry.battleUnitId) ?? 0,
       healingDone: 0,
-      combatStatus: finalUnit?.combatStatus ?? "UNKNOWN",
-      finalHp: finalUnit?.hp.current ?? 0,
-      maximumHp: finalUnit?.hp.maximum ?? 0,
+      combatStatus: finalUnit.combatStatus,
+      finalHp: finalUnit.hp.current,
+      maximumHp: finalUnit.hp.maximum,
     };
     const row: SummaryRow = { roster: entry, summary };
     if (entry.side === "ENEMY") {
@@ -151,5 +188,8 @@ export function selectBattleSummary(
     }
   }
 
-  return { allyRows, enemyRows, hasProjectionWarning: accumulator.warned };
+  return {
+    ok: true,
+    projection: { allyRows, enemyRows, hasProjectionWarning: accumulator.warned },
+  };
 }
