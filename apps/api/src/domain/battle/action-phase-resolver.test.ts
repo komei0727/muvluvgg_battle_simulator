@@ -416,11 +416,12 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-005B (SCN-BTL-004 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it (PR #127 review [P2])", () => {
+  it("UT-ACTION-PHASE-005B (Q-EX-04 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it (PR #127 review [P2])", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_EX_THEN_AS");
     // AP is 1 (not consumed by EX) and the EX gauge starts full: cycle 1 must
     // reserve EX (R-ORD-03), and only after the gauge drains does cycle 2's
-    // fresh queue re-evaluate the reservation as AS (Q-EX-03/SCN-BTL-004).
+    // fresh queue re-evaluate the reservation as AS (Q-EX-04: EX使用後にAPが
+    // 残れば次の行動順QueueでASを使用できる).
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_EX_THEN_AS",
       attack: 30,
