@@ -40,6 +40,26 @@ jobs:
       group: pages-deploy
       cancel-in-progress: false
     steps:
+      # concurrency groupの共有は同時実行を防ぐだけで、順序は保証しない——
+      # rollback開始前に別のmain.yml runが既にpages-buildまで進んでいれば、
+      # そのrunはrollback完了後にpages-deployへ進み、復元した内容を上書きし
+      # 得る。main.ymlはAPI／UI両方を扱う共有workflowのため、in-flight runを
+      # 自動cancelするとpages-deployと無関係なCloud Run deployまで巻き添えに
+      # してしまう——そのため自動cancelはせず、fail closedで人間の判断を挟む
+      # （PRレビュー指摘 #125 4回目レビュー P2）。
+      - name: Ensure no competing Pages pipeline is already in flight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IN_FLIGHT="$(gh run list --repo "${{ github.repository }}" --workflow=main.yml \
+            --branch=main --status=in_progress --status=queued \
+            --json databaseId,url --jq '.[] | "\(.databaseId) \(.url)"')"
+          if [ -n "$IN_FLIGHT" ]; then
+            echo "::error::main.ymlのrunがまだ実行中／待機中です。そのrunがpages-deployまで進むと、この後のrollbackを上書きし得ます。完了を待つか、Pagesに影響しないAPI-onlyの変更であることを確認してから再度rollbackを実行してください:"
+            echo "$IN_FLIGHT"
+            exit 1
+          fi
+
       # rebuildを一切行わない——ここでdownloadした内容がそのままdeployされる。
       - name: Download previously built Pages content
         uses: actions/download-artifact@v4
@@ -60,6 +80,24 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # 事前チェックとdeployの間にも別runが割り込む余地は残るため
+      # （concurrency groupは順序を保証しない）、deploy直後にも一度確認し、
+      # 検出した場合は上書きの可能性を明示的に警告する——完全な排他は
+      # main.yml側を変更しない限り保証できないため、ここでは「検証する
+      # 仕組み」として可視化する（PRレビュー指摘 #125 4回目レビュー P2）。
+      - name: Warn if a competing Pages pipeline started during this rollback
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IN_FLIGHT="$(gh run list --repo "${{ github.repository }}" --workflow=main.yml \
+            --branch=main --status=in_progress --status=queued \
+            --json databaseId,url --jq '.[] | "\(.databaseId) \(.url)"')"
+          if [ -n "$IN_FLIGHT" ]; then
+            echo "::warning::このrollbackの実行中に開始されたmain.yml runがあります。pages-deployまで進むと、今復元した内容を上書きする可能性があります。完了後にdeployed Pagesの内容(UI build revision)を確認し、上書きされていれば再度rollbackを実行してください:"
+            echo "$IN_FLIGHT"
+          fi
 
       - name: Record rollback summary
         run: |

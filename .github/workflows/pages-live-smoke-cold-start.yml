@@ -61,11 +61,19 @@ jobs:
       # GitHub PagesのURL自体はdeployごとに変わらないため、`vars`ではなく
       # project pageの既知path(02_フロントエンドアーキテクチャ設計.md §6.1、
       # CORS_ALLOWED_ORIGINSの`https://komei0727.github.io`と同じorigin)を使う。
+      #
+      # LIVE_SMOKE_RETRIES=0: CIの既定retry(1回)を許すと、cold instanceへの
+      # 最初のattemptがtimeout等で失敗しても、instanceがwarmになった2回目の
+      # attemptで成功してしまう——startup logはtest window内に残るため下の
+      # 検証もpassし、job全体がgreenになるが、実際には「cold startを含む
+      # 最初のrequestの成功」を検証できていない（PRレビュー指摘 #125 4回目
+      # レビュー P1）。このjobでは最初のattempt自体の成否だけを見る。
       - name: Live smoke test against deployed Pages + Cloud Run API (expect cold start)
         run: mise run ui:e2e:live
         env:
           LIVE_PAGES_URL: https://komei0727.github.io/muvluvgg_battle_simulator/
           LIVE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          LIVE_SMOKE_RETRIES: "0"
 
       # `apps/api/src/bootstrap/index.ts`が`listen()`直後に1回だけ出す
       # "muvluvgg-battle-simulator started"ログは、プロセス起動(=新規instance

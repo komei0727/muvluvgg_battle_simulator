@@ -14,11 +14,22 @@ if (!pagesUrl || !process.env["LIVE_API_BASE_URL"]) {
   );
 }
 
+// The post-deploy correctness job (`pages-smoke` in main.yml) benefits from a
+// CI retry for ordinary flakiness. The cold-start job
+// (pages-live-smoke-cold-start.yml) must not: if the first request to a cold
+// instance times out and Playwright's default CI retry re-runs the test
+// against the now-warm instance, the run reports success even though the
+// actual acceptance criterion — a cold-started instance serving the request —
+// was never met (PRレビュー指摘 #125 4回目レビュー P1). That workflow sets
+// LIVE_SMOKE_RETRIES=0 to force the first attempt to be the only attempt.
+const retriesOverride = process.env["LIVE_SMOKE_RETRIES"];
+const retries = retriesOverride !== undefined ? Number(retriesOverride) : process.env["CI"] ? 1 : 0;
+
 export default defineConfig({
   testDir: "./e2e-live",
   fullyParallel: false,
   forbidOnly: !!process.env["CI"],
-  retries: process.env["CI"] ? 1 : 0,
+  retries,
   workers: 1,
   reporter: "list",
   // Cloud Run scale-to-zero cold start (min instances 0) plus Catalog/Worker
