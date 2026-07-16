@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { assembleSimulationResult } from "./simulation-result-assembler.js";
 import { ApplicationError } from "./application-error.js";
 import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
-import { createDomainEventId } from "../domain/battle/events/event-ids.js";
+import { createActionId, createDomainEventId } from "../domain/battle/events/event-ids.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createBattleId } from "../domain/shared/ids.js";
+import { createSkillDefinitionId } from "../domain/catalog/catalog-ids.js";
+import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 
@@ -239,5 +240,103 @@ describe("assembleSimulationResult", () => {
       expect(error).toBeInstanceOf(ApplicationError);
       expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
     }
+  });
+
+  it("UT-RESULT-ASSEMBLER-009 (R-SKL-05 / regression PR#128 review [P1]): restores a real ChargeStarted->ChargeReleased StateDelta sequence without INTERNAL_INVARIANT_VIOLATION, even though each event independently builds its own ChargeState payload object", () => {
+    const UNIT_A = createBattleUnitId("unit-a");
+    const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
+    const startedActionId = createActionId("battle-1:action:1");
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1: battleStatus READY->RUNNING.
+    const actionStarted = recorder.record({
+      eventType: "ActionStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId: startedActionId,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: UNIT_A,
+      payload: {
+        actorUnitId: UNIT_A,
+        reservedActionType: "AS",
+        effectiveActionType: "AS",
+        apBefore: 1,
+        apAfter: 0,
+        exBefore: 0,
+        exAfter: 0,
+      },
+      stateDelta: { units: { [UNIT_A]: { ap: { before: 1, after: 0 } } } }, // version 1->2.
+    });
+    // Mirrors `resolveChargeStart`: builds its own ChargeState object literal.
+    recorder.record({
+      eventType: "ChargeStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId: startedActionId,
+      resolutionScopeId: actionStarted.resolutionScopeId,
+      parentEventId: actionStarted.eventId,
+      rootEventId: actionStarted.eventId,
+      sourceUnitId: UNIT_A,
+      payload: { actorUnitId: UNIT_A, skillDefinitionId, startedActionId },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            charge: { before: undefined, after: { skillDefinitionId, startedActionId } },
+          },
+        },
+      },
+    }); // version 2->3.
+    const releaseActionId = createActionId("battle-1:action:2");
+    recorder.record({
+      eventType: "ChargeReleased",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 2,
+      actionId: releaseActionId,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: UNIT_A,
+      payload: {
+        actorUnitId: UNIT_A,
+        skillDefinitionId,
+        chargeStartActionId: startedActionId,
+        releaseActionId,
+      },
+      stateDelta: {
+        // Mirrors `resolveChargeRelease`: an independently-built ChargeState
+        // object, structurally identical to ChargeStarted's `.after` but not
+        // the same reference.
+        units: {
+          [UNIT_A]: {
+            charge: { before: { skillDefinitionId, startedActionId }, after: undefined },
+          },
+        },
+      },
+    }); // version 3->4.
+
+    const initialState = {
+      status: "READY" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+    };
+    const finalState = {
+      status: "RUNNING" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0 } },
+    };
+
+    const result = assembleSimulationResult({
+      battleId: BATTLE_ID,
+      catalogRevision: "rev-1",
+      logLevel: "DETAILED",
+      result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+      initialState,
+      finalState,
+      events: recorder.getEvents(),
+      unitRoster: [],
+    });
+
+    expect(result.stateTransitions).toHaveLength(4);
   });
 });

@@ -105,7 +105,10 @@ function damageEffectAction(id: string): EffectActionDefinition {
   };
 }
 
-function attackSkill(effectActionId: string): SkillDefinition {
+function attackSkill(
+  effectActionId: string,
+  cooldown: SkillDefinition["cooldown"] = { unit: "ACTION", count: 0 },
+): SkillDefinition {
   return {
     skillDefinitionId: createSkillDefinitionId(`SKL_${effectActionId}`),
     skillType: "AS",
@@ -124,7 +127,7 @@ function attackSkill(effectActionId: string): SkillDefinition {
         },
       ],
     },
-    cooldown: { unit: "ACTION", count: 0 },
+    cooldown,
     traits: {
       priorityAttack: false,
       simultaneousActivationLimited: false,
@@ -483,5 +486,38 @@ describe("advanceBattle", () => {
     expect(
       turn2Recorder.getEvents().filter((e) => e.eventType === "CooldownCompleted"),
     ).toHaveLength(0);
+  });
+
+  it("UT-BATTLE-014 (R-SKL-04 ターン単位 / regression PR#128 review [P1]): an actual AS use with a TURN-unit cooldown records the setting scope as `setTurnNumber` (not `setActionId`), so it is not decremented at the end of the same turn it was set", () => {
+    const skill = attackSkill("ACT_TURN_CD", { unit: "TURN", count: 2 });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[createUnitDefinitionId("UNIT_001"), [skill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [createEffectActionDefinitionId("ACT_TURN_CD"), damageEffectAction("ACT_TURN_CD")],
+      ]),
+    };
+    const battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      recorder(),
+    );
+
+    const advanced = advanceBattle(battle, NO_RANDOM(), recorder());
+
+    // A bug here (using `{ actionId }` as the cooldown-setting scope
+    // regardless of `cooldown.unit`) would record `setActionId` instead,
+    // causing `decrementTurnCooldowns` to treat this as "not set this turn"
+    // and decrement it to `remaining: 1` within this very same TURN_ENDING.
+    expect(advanced.allyUnits[0]!.cooldowns[skill.skillDefinitionId]).toEqual({
+      unit: "TURN",
+      remaining: 2,
+      setTurnNumber: 1,
+    });
   });
 });

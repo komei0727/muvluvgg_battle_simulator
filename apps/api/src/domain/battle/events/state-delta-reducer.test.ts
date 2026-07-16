@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { applyStateDelta, reduceStateDeltas } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 import type { StateDelta } from "./state-delta.js";
+import { createActionId } from "./event-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
+import { createSkillDefinitionId } from "../../catalog/catalog-ids.js";
 
 const UNIT_A = createBattleUnitId("unit-a");
 const UNIT_B = createBattleUnitId("unit-b");
@@ -115,6 +117,69 @@ describe("applyStateDelta", () => {
     };
 
     expect(() => applyStateDelta(alreadyCompleted, delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-017 (R-SKL-05 / regression PR#128 review [P1]): a ChargeStarted->ChargeReleased StateDelta pair restores correctly even though `before`/`after` are structurally-equal but distinct ChargeState object instances (as real events produce, since each event builds its own payload object)", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
+    const startedActionId = createActionId("battle-1:action:1");
+
+    const chargeStarted: StateDelta = {
+      units: {
+        [UNIT_A]: {
+          charge: {
+            before: undefined,
+            // A fresh object literal, structurally equal to but not the same
+            // reference as the one used by the release delta below.
+            after: { skillDefinitionId, startedActionId },
+          },
+        },
+      },
+    };
+    const afterStart = applyStateDelta(initialState(), chargeStarted);
+    expect(afterStart.units[UNIT_A]!.charge).toEqual({ skillDefinitionId, startedActionId });
+
+    const chargeReleased: StateDelta = {
+      units: {
+        [UNIT_A]: {
+          charge: {
+            // Deliberately a distinct object instance with the same values,
+            // matching how `resolveChargeRelease` independently constructs
+            // this payload from `charge.skillDefinitionId`/`startedActionId`.
+            before: { skillDefinitionId, startedActionId },
+            after: undefined,
+          },
+        },
+      },
+    };
+
+    const afterRelease = applyStateDelta(afterStart, chargeReleased);
+    expect(afterRelease.units[UNIT_A]!.charge).toBeUndefined();
+  });
+
+  it("UT-STATE-REDUCER-018: throws when a charge delta's `before` does not match the current charge (structural mismatch, not just reference)", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
+    const withCharge: BattleStateSnapshot = {
+      ...initialState(),
+      units: {
+        ...initialState().units,
+        [UNIT_A]: {
+          ...initialState().units[UNIT_A]!,
+          charge: { skillDefinitionId, startedActionId: createActionId("battle-1:action:1") },
+        },
+      },
+    };
+    const delta: StateDelta = {
+      units: {
+        [UNIT_A]: {
+          charge: {
+            before: { skillDefinitionId, startedActionId: createActionId("battle-1:action:2") },
+            after: undefined,
+          },
+        },
+      },
+    };
+
+    expect(() => applyStateDelta(withCharge, delta)).toThrow(DomainValidationError);
   });
 
   it("UT-STATE-REDUCER-016: carries an already-set result forward across a delta that does not touch it", () => {

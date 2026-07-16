@@ -239,17 +239,23 @@ interface CooldownStartResult {
 /**
  * R-SKL-04: スキル使用開始時（AS/EX/チャージ開始のいずれも）にクールタイムを
  * 設定する。`skill.cooldown.count`が0のスキルはCOOLING状態へ遷移しないため
- * `CooldownStarted`を発行しない（`startCooldown`が既に判定済み）。
+ * `CooldownStarted`を発行しない（`startCooldown`が既に判定済み）。設定scope
+ * は`skill.cooldown.unit`により行動単位(`actionId`)またはターン単位
+ * (`turnNumber`)を選ぶ（PR#128レビュー[P1]: 呼び出し側が`unit`を無視して常に
+ * `actionId`を渡すと、TURN単位クールタイムが設定ターン末に誤って減算される）。
  */
 function recordCooldownStart(
   recorder: EventRecorder,
   context: CooldownStartContext,
   cooldowns: CooldownMap,
   skill: SkillDefinition,
-  scope: { readonly actionId: ActionId } | { readonly turnNumber: number },
   parentEventId: DomainEventId,
   rootEventId: DomainEventId,
 ): CooldownStartResult {
+  const scope: { readonly actionId: ActionId } | { readonly turnNumber: number } =
+    skill.cooldown.unit === "TURN"
+      ? { turnNumber: context.turnNumber }
+      : { actionId: context.actionId };
   const result = startCooldown(cooldowns, skill.skillDefinitionId, skill.cooldown, scope);
   if (skill.cooldown.count === 0) {
     return { cooldowns: result.cooldowns, lastEventId: parentEventId };
@@ -483,7 +489,6 @@ function resolveSkillUse(
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
     actorAfterCost.cooldowns,
     skill,
-    { actionId },
     skillUseStarting.eventId,
     actionStarted.eventId,
   );
@@ -630,7 +635,6 @@ function resolveChargeStart(
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
     actorAfterCost.cooldowns,
     skill,
-    { actionId },
     actionStarted.eventId,
     actionStarted.eventId,
   );

@@ -1,5 +1,11 @@
 import type { BattleStateSnapshot, BattleUnitSnapshot } from "./battle-state-snapshot.js";
-import type { CooldownState, StateDelta, UnitStateDelta, ValueChange } from "./state-delta.js";
+import type {
+  ChargeState,
+  CooldownState,
+  StateDelta,
+  UnitStateDelta,
+  ValueChange,
+} from "./state-delta.js";
 import type { SkillDefinitionId } from "../../catalog/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -9,6 +15,32 @@ function assertBeforeMatches<T>(path: string, current: T, change: ValueChange<T>
     throw new DomainValidationError(
       path,
       `delta.before (${String(change.before)}) does not match the current value (${String(current)}); the delta sequence is dropped, reordered, or duplicated`,
+    );
+  }
+}
+
+/**
+ * `charge`は毎回新しいオブジェクトとして構築される複合値（`ChargeStarted.after`
+ * と`ChargeReleased.before`は同じ内容でも別インスタンス）のため、`assertBeforeMatches`
+ * の参照同一性（`!==`）比較では正常な開始→発動イベント列でも誤って不一致と
+ * 判定してしまう（PR#128レビュー[P1]）。フィールド単位の構造比較で判定する。
+ */
+function sameChargeState(a: ChargeState | undefined, b: ChargeState | undefined): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return a.skillDefinitionId === b.skillDefinitionId && a.startedActionId === b.startedActionId;
+}
+
+function assertChargeBeforeMatches(
+  path: string,
+  current: ChargeState | undefined,
+  change: ValueChange<ChargeState | undefined>,
+): void {
+  if (!sameChargeState(current, change.before)) {
+    throw new DomainValidationError(
+      path,
+      `delta.before (${JSON.stringify(change.before)}) does not match the current value (${JSON.stringify(current)}); the delta sequence is dropped, reordered, or duplicated`,
     );
   }
 }
@@ -32,7 +64,7 @@ function applyUnitDelta(
   }
   const cooldowns = applyCooldownDeltas(`${path}.cooldowns`, unit.cooldowns, delta.cooldowns);
   if (delta.charge !== undefined) {
-    assertBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
+    assertChargeBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
   }
   const nextCharge = delta.charge !== undefined ? delta.charge.after : unit.charge;
   return {
