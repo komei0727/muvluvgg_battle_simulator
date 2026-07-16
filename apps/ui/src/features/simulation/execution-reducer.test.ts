@@ -3,8 +3,10 @@ import {
   createInitialExecutionState,
   executionReducer,
   selectDisplayedSuccess,
+  selectIsCatalogRevisionMismatch,
   selectIsResultDirty,
 } from "./execution-reducer.js";
+import type { SuccessfulExecutionSnapshot } from "./execution-reducer.js";
 import type { BattleSimulationRequest } from "../formation/request-mapper.js";
 import type { BattleSimulationResponse, UiApiError } from "./api-contract.js";
 
@@ -388,5 +390,32 @@ describe("selectIsResultDirty (UI-CMP-003)", () => {
 
   it("is false when there is no displayed success yet", () => {
     expect(selectIsResultDirty(request(), undefined)).toBe(false);
+  });
+});
+
+describe("selectIsCatalogRevisionMismatch (Issue #96 P1)", () => {
+  function snapshot(): SuccessfulExecutionSnapshot {
+    return {
+      executionId: "exec-1",
+      request: request(),
+      response: response(),
+      completedAt: 1000,
+    };
+  }
+
+  it("is false when there is no displayed success yet", () => {
+    expect(selectIsCatalogRevisionMismatch(undefined, "rev-1")).toBe(false);
+  });
+
+  it("is true (blocked, not un-blocked) while the catalog is reloading/failed and its revision is unconfirmed (PR review: stale result must not reappear mid-reload)", () => {
+    expect(selectIsCatalogRevisionMismatch(snapshot(), undefined)).toBe(true);
+  });
+
+  it("is false when the displayed success's revision matches the held catalog's revision", () => {
+    expect(selectIsCatalogRevisionMismatch(snapshot(), "rev-1")).toBe(false);
+  });
+
+  it("is true when the displayed success ran against a different catalog revision", () => {
+    expect(selectIsCatalogRevisionMismatch(snapshot(), "rev-2")).toBe(true);
   });
 });

@@ -34,6 +34,7 @@ interface CloudRunServiceManifest {
       readonly spec: {
         readonly containerConcurrency: number;
         readonly timeoutSeconds: number;
+        readonly serviceAccountName?: string;
         readonly containers: ReadonlyArray<{
           readonly image: string;
           readonly ports: ReadonlyArray<{ readonly containerPort: number }>;
@@ -116,6 +117,16 @@ describe("Cloud Run service manifest", () => {
     const requestTimeoutMs = manifest.spec.template.spec.timeoutSeconds * 1000;
     expect(simulationTimeoutMs).toBeGreaterThan(0);
     expect(simulationTimeoutMs).toBeLessThan(requestTimeoutMs);
+  });
+
+  it("IT-INFRA-CLOUDRUN-010b: declares a dedicated runtime service account rather than relying on the project default Compute Engine SA (P1 security review)", () => {
+    // service.jsonが`serviceAccountName`を指定しないと、Cloud Runはproject既定の
+    // Compute Engine SA(既定でroles/editorを持つ)をallUsersへ公開されたcontainer
+    // のruntime identityとして使ってしまう。専用の最小権限runtime SAを常に明示する。
+    const manifest = loadManifest();
+    const serviceAccountName = manifest.spec.template.spec.serviceAccountName;
+    expect(serviceAccountName).toBeDefined();
+    expect(serviceAccountName).not.toMatch(/-compute@developer\.gserviceaccount\.com$/);
   });
 
   it("IT-INFRA-CLOUDRUN-010: runs production mode so Swagger UI stays disabled", () => {

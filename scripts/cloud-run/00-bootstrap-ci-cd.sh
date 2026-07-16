@@ -67,17 +67,28 @@ gcloud artifacts repositories add-iam-policy-binding "$REPOSITORY" \
   --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
   --role="roles/artifactregistry.writer" >/dev/null
 
-# `deploy/cloud-run/service.json`は`spec.template.spec.serviceAccountName`を
-# 指定していないため、Cloud Runはproject既定のCompute Engine service account
-# をrevisionのruntime identityとして使う。`gcloud run services replace`で
-# revisionを作成・更新するには、deploy用SAがそのruntime identityへ
-# `iam.serviceAccounts.actAs`できる必要がある（`roles/run.developer`には
-# 含まれない）。project全体ではなく、このruntime SAへ限定してActive付与する
-# （PRレビュー指摘 #112 P1-4）。
-RUNTIME_SERVICE_ACCOUNT="${RUNTIME_SERVICE_ACCOUNT:-$(gcloud projects describe "$PROJECT_ID" \
-  --format='value(projectNumber)')-compute@developer.gserviceaccount.com}"
-echo "== grant Service Account User on the Cloud Run runtime identity ($RUNTIME_SERVICE_ACCOUNT) only =="
-gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SERVICE_ACCOUNT" \
+# `deploy/cloud-run/service.json`の`spec.template.spec.serviceAccountName`が
+# 指すruntime identity。project既定のCompute Engine SA（既定でroles/editorを
+# 持つ）をpublicly-invokable（allUsers）なcontainerのruntime identityにしない
+# ため、project IAM roleを一切付与しない専用SAを作る。apps/apiのruntimeコードは
+# Google Cloud APIを呼ばないため、この最小権限（ゼロroles）で十分
+# （P1レビュー指摘: 侵害時にProject Editor相当のcredentialを奪われる経路を断つ）。
+echo "== create dedicated Cloud Run runtime service account with zero project roles (idempotent) =="
+if gcloud iam service-accounts describe "$RUNTIME_SERVICE_ACCOUNT_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
+  echo "service account already exists: $RUNTIME_SERVICE_ACCOUNT_EMAIL"
+else
+  gcloud iam service-accounts create "$RUNTIME_SERVICE_ACCOUNT_ID" \
+    --project="$PROJECT_ID" \
+    --display-name="Cloud Run API runtime identity, zero project IAM roles (P1 security review)"
+fi
+
+# `gcloud run services replace`でこのruntime SAをrevisionへ割り当てるには、
+# deploy用SAがそのruntime identityへ`iam.serviceAccounts.actAs`できる必要が
+# ある（`roles/run.developer`には含まれない）。project全体ではなく、この
+# runtime SAへ限定してActive付与する（PRレビュー指摘 #112 P1-4を踏襲、
+# 対象を既定Compute Engine SAから専用runtime SAへ変更）。
+echo "== grant Service Account User on the Cloud Run runtime identity ($RUNTIME_SERVICE_ACCOUNT_EMAIL) only =="
+gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SERVICE_ACCOUNT_EMAIL" \
   --project="$PROJECT_ID" \
   --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
   --role="roles/iam.serviceAccountUser" >/dev/null
@@ -123,7 +134,13 @@ echo
 echo "== verification checkpoint =="
 echo "WORKLOAD_IDENTITY_PROVIDER=$PROVIDER_RESOURCE"
 echo "SERVICE_ACCOUNT_EMAIL=$DEPLOY_SA_EMAIL"
+echo "RUNTIME_SERVICE_ACCOUNT_EMAIL=$RUNTIME_SERVICE_ACCOUNT_EMAIL"
 echo
-echo "NEXT: 上記2つの値を、GitHub repositoryの '$GITHUB_ENVIRONMENT' Environment variableへ"
-echo "      GCP_WORKLOAD_IDENTITY_PROVIDER / GCP_SERVICE_ACCOUNT_EMAIL として登録してください（secretではない）。"
+echo "NEXT: WORKLOAD_IDENTITY_PROVIDER / SERVICE_ACCOUNT_EMAILを、GitHub repositoryの"
+echo "      '$GITHUB_ENVIRONMENT' Environment variableへ GCP_WORKLOAD_IDENTITY_PROVIDER /"
+echo "      GCP_SERVICE_ACCOUNT_EMAIL として登録してください（secretではない）。"
+echo "      RUNTIME_SERVICE_ACCOUNT_EMAILはCloud Run serviceのruntime identityとして"
+echo "      deployのたびに自動で使われるため、GitHub Environment variableへの登録は不要です。"
+echo "      既に稼働中のCloud Run serviceがある場合、次回deployで自動的にこのruntime SAへ"
+echo "      切り替わります（03-deploy-service.sh／ci-deploy-candidate.shがmanifestへ設定）。"
 echo "      続けて billing budget alert とlog保持期間の設定に scripts/cloud-run/README.md を参照してください。"

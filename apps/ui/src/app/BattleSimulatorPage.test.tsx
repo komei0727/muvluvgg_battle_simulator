@@ -409,6 +409,135 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     });
   });
 
+  it("blocks the result panels and prompts a catalog reload when the response ran against a different catalog revision (Issue #96 P1)", async () => {
+    const user = userEvent.setup();
+    const getCatalogImpl = vi
+      .fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>()
+      .mockResolvedValue({ ok: true, response: catalogResponse() });
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: true,
+        response: { ...simulationResponse(), catalogRevision: "rev-2" },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={getCatalogImpl}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Catalogが更新されたため/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/battle-01J/)).not.toBeInTheDocument();
+    expect(screen.queryByText("ALLY UNIT SUMMARY")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "時系列イベント" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Catalogを再読込/ }));
+    await waitFor(() => {
+      expect(getCatalogImpl).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('keeps the stale mismatched result hidden while the reload it triggered is still pending (PR review: leaving catalog.status !== "ready" must not un-block display)', async () => {
+    const user = userEvent.setup();
+    let resolveSecondCatalogGet!: (result: CatalogApiResult) => void;
+    const getCatalogImpl = vi
+      .fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>()
+      .mockResolvedValueOnce({ ok: true, response: catalogResponse() })
+      .mockImplementationOnce(
+        () =>
+          new Promise<CatalogApiResult>((resolve) => {
+            resolveSecondCatalogGet = resolve;
+          }),
+      );
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: true,
+        response: { ...simulationResponse(), catalogRevision: "rev-2" },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={getCatalogImpl}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+    await waitFor(() => {
+      expect(screen.getByText(/Catalogが更新されたため/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /Catalogを再読込/ }));
+    await waitFor(() => {
+      expect(getCatalogImpl).toHaveBeenCalledTimes(2);
+    });
+
+    // The second GET is still in flight (catalog.status === "loading"), so the
+    // revision cannot yet be confirmed to match. The stale result must stay
+    // hidden rather than reappearing just because status left "ready".
+    expect(screen.queryByText(/battle-01J/)).not.toBeInTheDocument();
+    expect(screen.queryByText("ALLY UNIT SUMMARY")).not.toBeInTheDocument();
+    expect(screen.getByText(/Catalogが更新されたため/)).toBeInTheDocument();
+
+    resolveSecondCatalogGet({ ok: true, response: catalogResponse() });
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /ALLY FORMATION/ })).toBeInTheDocument();
+    });
+    // Reloaded catalog is still "rev-1" while the stale result ran against
+    // "rev-2": still mismatched, still hidden.
+    expect(screen.queryByText(/battle-01J/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the stale mismatched result hidden after the reload it triggered fails (PR review)", async () => {
+    const user = userEvent.setup();
+    const getCatalogImpl = vi
+      .fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>()
+      .mockResolvedValueOnce({ ok: true, response: catalogResponse() })
+      .mockResolvedValueOnce({ ok: false, error: { kind: "SERVER", message: "boom" } });
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: true,
+        response: { ...simulationResponse(), catalogRevision: "rev-2" },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={getCatalogImpl}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+    await waitFor(() => {
+      expect(screen.getByText(/Catalogが更新されたため/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /Catalogを再読込/ }));
+    await waitFor(() => {
+      expect(getCatalogImpl).toHaveBeenCalledTimes(2);
+    });
+
+    // The reload failed (catalog.status === "failed"), so the revision is
+    // still unconfirmed. The stale result must stay hidden.
+    expect(screen.queryByText(/battle-01J/)).not.toBeInTheDocument();
+    expect(screen.queryByText("ALLY UNIT SUMMARY")).not.toBeInTheDocument();
+  });
+
   it("cancels an in-flight submission via the cancel button", async () => {
     const user = userEvent.setup();
     let capturedSignal: AbortSignal | undefined;

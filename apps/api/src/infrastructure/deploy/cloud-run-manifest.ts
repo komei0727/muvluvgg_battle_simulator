@@ -30,6 +30,7 @@ export interface KnativeServiceManifest {
         containerConcurrency: number;
         timeoutSeconds: number;
         containers: KnativeContainer[];
+        serviceAccountName?: string;
       };
     };
     traffic?: TrafficTarget[];
@@ -41,6 +42,11 @@ export interface RenderCloudRunManifestOptions {
   image: string;
   revisionName: string;
   traffic: TrafficTarget[];
+  // 専用runtime service account(project IAM roleなし)を明示する。
+  // 未指定のまま`gcloud run services replace`すると、Cloud Runはproject既定の
+  // Compute Engine SA(既定でroles/editorを持つ)をruntime identityとして使う。
+  // 本serviceはallUsersへ公開されているため、指定を必須にする(P1レビュー指摘)。
+  serviceAccountName: string;
 }
 
 export function renderCloudRunManifest(
@@ -53,6 +59,7 @@ export function renderCloudRunManifest(
   }
   container.image = options.image;
   rendered.spec.template.metadata.name = options.revisionName;
+  rendered.spec.template.spec.serviceAccountName = options.serviceAccountName;
   rendered.spec.traffic = options.traffic;
   return rendered;
 }
