@@ -407,8 +407,8 @@ describe("selectIsCatalogRevisionMismatch (Issue #96 P1)", () => {
     expect(selectIsCatalogRevisionMismatch(undefined, "rev-1")).toBe(false);
   });
 
-  it("is false when the catalog has not finished loading (revision unknown)", () => {
-    expect(selectIsCatalogRevisionMismatch(snapshot(), undefined)).toBe(false);
+  it("is true (blocked, not un-blocked) while the catalog is reloading/failed and its revision is unconfirmed (PR review: stale result must not reappear mid-reload)", () => {
+    expect(selectIsCatalogRevisionMismatch(snapshot(), undefined)).toBe(true);
   });
 
   it("is false when the displayed success's revision matches the held catalog's revision", () => {
