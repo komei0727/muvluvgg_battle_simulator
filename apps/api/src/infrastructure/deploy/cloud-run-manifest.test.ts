@@ -37,6 +37,7 @@ describe("renderCloudRunManifest", () => {
       image: "asia-northeast1-docker.pkg.dev/p/r/api:abc123",
       revisionName: "muvluvgg-battle-simulator-api-abc123",
       traffic: [{ revisionName: "muvluvgg-battle-simulator-api-abc123", percent: 100 }],
+      serviceAccountName: "runtime@p.iam.gserviceaccount.com",
     });
     expect(rendered.spec.template.spec.containers[0]?.image).toBe(
       "asia-northeast1-docker.pkg.dev/p/r/api:abc123",
@@ -49,6 +50,7 @@ describe("renderCloudRunManifest", () => {
       image: "img:tag",
       revisionName: "muvluvgg-battle-simulator-api-abc123",
       traffic: [{ revisionName: "muvluvgg-battle-simulator-api-abc123", percent: 100 }],
+      serviceAccountName: "runtime@p.iam.gserviceaccount.com",
     });
     expect(rendered.spec.template.metadata.name).toBe("muvluvgg-battle-simulator-api-abc123");
   });
@@ -63,8 +65,22 @@ describe("renderCloudRunManifest", () => {
       image: "img:tag",
       revisionName: "muvluvgg-battle-simulator-api-abc123",
       traffic,
+      serviceAccountName: "runtime@p.iam.gserviceaccount.com",
     });
     expect(rendered.spec.traffic).toEqual(traffic);
+  });
+
+  it("IT-INFRA-CICD-022: sets a dedicated runtime service account, never leaving it unset for the project default Compute Engine SA (P1 security review)", () => {
+    const rendered = renderCloudRunManifest({
+      template: minimalTemplate(),
+      image: "img:tag",
+      revisionName: "muvluvgg-battle-simulator-api-abc123",
+      traffic: [{ revisionName: "muvluvgg-battle-simulator-api-abc123", percent: 100 }],
+      serviceAccountName: "battle-sim-api-runtime@p.iam.gserviceaccount.com",
+    });
+    expect(rendered.spec.template.spec.serviceAccountName).toBe(
+      "battle-sim-api-runtime@p.iam.gserviceaccount.com",
+    );
   });
 
   it("IT-INFRA-CICD-004: does not mutate the input template", () => {
@@ -75,6 +91,7 @@ describe("renderCloudRunManifest", () => {
       image: "img:tag",
       revisionName: "muvluvgg-battle-simulator-api-abc123",
       traffic: [{ revisionName: "muvluvgg-battle-simulator-api-abc123", percent: 100 }],
+      serviceAccountName: "runtime@p.iam.gserviceaccount.com",
     });
     expect(template).toEqual(snapshot);
   });

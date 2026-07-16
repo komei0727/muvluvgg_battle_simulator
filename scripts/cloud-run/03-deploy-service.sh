@@ -12,12 +12,13 @@ trap 'rm -f "$RENDERED_MANIFEST"' EXIT
 
 print_deploy_context
 echo "== render Cloud Run manifest =="
-export IMAGE SERVICE
+export IMAGE SERVICE RUNTIME_SERVICE_ACCOUNT_EMAIL
 mise exec -- node --input-type=module -e '
   import { readFileSync } from "node:fs";
   const manifest = JSON.parse(readFileSync(process.argv[1], "utf8"));
   manifest.metadata.name = process.env.SERVICE;
   manifest.spec.template.spec.containers[0].image = process.env.IMAGE;
+  manifest.spec.template.spec.serviceAccountName = process.env.RUNTIME_SERVICE_ACCOUNT_EMAIL;
   process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
 ' "$MANIFEST_TEMPLATE" > "$RENDERED_MANIFEST"
 

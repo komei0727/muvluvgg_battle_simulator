@@ -7,6 +7,9 @@ import styles from "./SubmissionFeedback.module.css";
 export interface SubmissionFeedbackProps {
   readonly state: ExecutionState;
   readonly isDirty: boolean;
+  // Issue #96 P1レビュー指摘: 表示中の成功snapshotが、現在保持しているCatalog
+  // とは異なるrevisionで実行された結果であることを示す(selectIsCatalogRevisionMismatch)。
+  readonly catalogRevisionMismatch?: boolean;
   readonly onReloadCatalog: () => void;
 }
 
@@ -32,6 +35,9 @@ function isCatalogRevisionMismatch(error: UiApiError): boolean {
   return error.kind === "VALIDATION" && error.code === "DEFINITION_NOT_FOUND";
 }
 
+const CATALOG_REVISION_MISMATCH_MESSAGE =
+  "Catalogが更新されたため、この結果は表示できません。再読込してユニット・Memoryの選択を確認してください。";
+
 function SuccessSummary({ snapshot }: { readonly snapshot: SuccessfulExecutionSnapshot }) {
   const { response, requestId } = snapshot;
   return (
@@ -50,16 +56,34 @@ function SuccessSummary({ snapshot }: { readonly snapshot: SuccessfulExecutionSn
 // Renders whichever success snapshot is currently on screen, plus the dirty
 // indicator whenever that snapshot no longer matches the live draft — this
 // applies while submitting (rerun), failed, and cancelled alike, not only
-// when the result itself just succeeded (UI-CMP-003).
+// when the result itself just succeeded (UI-CMP-003). When the snapshot was
+// produced by a Catalog revision that no longer matches the one currently
+// held (Issue #96 P1), the result itself must not render — only a reload
+// prompt — since the snapshot's definitionIds may resolve to different
+// display data than what actually ran.
 function DisplayedSuccess({
   snapshot,
   isDirty,
   label,
+  catalogRevisionMismatch,
+  onReloadCatalog,
 }: {
   readonly snapshot: SuccessfulExecutionSnapshot;
   readonly isDirty: boolean;
   readonly label?: string;
+  readonly catalogRevisionMismatch: boolean;
+  readonly onReloadCatalog: () => void;
 }) {
+  if (catalogRevisionMismatch) {
+    return (
+      <>
+        <p>{CATALOG_REVISION_MISMATCH_MESSAGE}</p>
+        <Button variant="secondary" onClick={onReloadCatalog}>
+          Catalogを再読込
+        </Button>
+      </>
+    );
+  }
   return (
     <>
       {label !== undefined ? <p>{label}</p> : null}
@@ -104,7 +128,12 @@ function ErrorDetail({
 // docs/ui-design/01_UI要求・画面設計.md §6 (実行状態), 03_API・データ連携設計.md
 // §13 (エラー正規化), 05_非機能・アクセシビリティ設計.md §6 (aria-live="polite"
 // で実行状態とエラー概要を通知、緊急でない失敗にrole="alert"を乱用しない)。
-export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: SubmissionFeedbackProps) {
+export function SubmissionFeedback({
+  state,
+  isDirty,
+  catalogRevisionMismatch = false,
+  onReloadCatalog,
+}: SubmissionFeedbackProps) {
   const displayedSuccess = selectDisplayedSuccess(state);
 
   if (state.status === "idle") {
@@ -116,7 +145,12 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
       <div className={`${styles["feedback"]} ${styles["submitting"]}`} aria-live="polite">
         <p>実行中…</p>
         {displayedSuccess !== undefined ? (
-          <DisplayedSuccess snapshot={displayedSuccess} isDirty={isDirty} />
+          <DisplayedSuccess
+            snapshot={displayedSuccess}
+            isDirty={isDirty}
+            catalogRevisionMismatch={catalogRevisionMismatch}
+            onReloadCatalog={onReloadCatalog}
+          />
         ) : null}
       </div>
     );
@@ -126,7 +160,12 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
     return (
       <div className={`${styles["feedback"]} ${styles["succeeded"]}`} aria-live="polite">
         <p>戦闘が完了しました。</p>
-        <DisplayedSuccess snapshot={{ ...state }} isDirty={isDirty} />
+        <DisplayedSuccess
+          snapshot={{ ...state }}
+          isDirty={isDirty}
+          catalogRevisionMismatch={catalogRevisionMismatch}
+          onReloadCatalog={onReloadCatalog}
+        />
       </div>
     );
   }
@@ -140,6 +179,8 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
             snapshot={displayedSuccess}
             isDirty={isDirty}
             label="前回成功結果を保持しています。"
+            catalogRevisionMismatch={catalogRevisionMismatch}
+            onReloadCatalog={onReloadCatalog}
           />
         ) : null}
       </div>
@@ -163,6 +204,8 @@ export function SubmissionFeedback({ state, isDirty, onReloadCatalog }: Submissi
           snapshot={displayedSuccess}
           isDirty={isDirty}
           label="前回成功結果を保持しています。"
+          catalogRevisionMismatch={catalogRevisionMismatch}
+          onReloadCatalog={onReloadCatalog}
         />
       ) : null}
     </div>

@@ -228,6 +228,80 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
   });
 });
 
+describe("SubmissionFeedback — Catalog revision mismatch (Issue #96 P1)", () => {
+  it("blocks the success result and prompts a catalog reload instead of showing it", async () => {
+    const user = userEvent.setup();
+    const onReloadCatalog = vi.fn();
+    const state: ExecutionState = {
+      status: "succeeded",
+      executionId: "exec-1",
+      request: request(),
+      response: response(),
+      completedAt: 1000,
+    };
+    render(
+      <SubmissionFeedback
+        state={state}
+        isDirty={false}
+        catalogRevisionMismatch={true}
+        onReloadCatalog={onReloadCatalog}
+      />,
+    );
+
+    expect(screen.getByText(/Catalogが更新されたため/)).toBeInTheDocument();
+    expect(screen.queryByText(/rev-1/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/battle-01J/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Catalogを再読込/ }));
+    expect(onReloadCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks a stale previous success carried into a failed state", () => {
+    const state: ExecutionState = {
+      status: "failed",
+      executionId: "exec-2",
+      error: { kind: "CAPACITY", message: "Server busy." },
+      previousSuccess: successSnapshot(),
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
+    };
+    render(
+      <SubmissionFeedback
+        state={state}
+        isDirty={false}
+        catalogRevisionMismatch={true}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Catalogが更新されたため/)).toBeInTheDocument();
+    expect(screen.queryByText(/battle-01J/)).not.toBeInTheDocument();
+  });
+
+  it("does not block the result when there is no mismatch", () => {
+    const state: ExecutionState = {
+      status: "succeeded",
+      executionId: "exec-1",
+      request: request(),
+      response: response(),
+      completedAt: 1000,
+    };
+    render(
+      <SubmissionFeedback
+        state={state}
+        isDirty={false}
+        catalogRevisionMismatch={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
+    expect(screen.queryByText(/Catalogが更新されたため/)).not.toBeInTheDocument();
+  });
+});
+
 describe("SubmissionFeedback — cancelled (UI-UC-002)", () => {
   it("shows a cancellation-requested message, not a completed-cancellation claim (P3, §7 UI待機上限)", () => {
     const state: ExecutionState = { status: "cancelled", executionId: "exec-1" };

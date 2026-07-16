@@ -181,3 +181,19 @@ export function selectIsResultDirty(
   }
   return JSON.stringify(latestRequest) !== JSON.stringify(displayedSuccessRequest);
 }
+
+// Issue #96 受け入れ条件「Catalog revision不一致時に再取得・再選択を促す」。
+// Catalog GETと戦闘POSTの間にサーバー側Catalogが切り替わった場合、
+// definitionIdがまだ新Catalogに存在すればDEFINITION_NOT_FOUNDにならず成功
+// responseが返る。その場合でも、保持中のCatalog(表示名・選択可否の解決元)
+// とresponse.catalogRevisionが異なるなら、その結果は今表示しているCatalog
+// と矛盾するため成功結果として表示してはならない。
+export function selectIsCatalogRevisionMismatch(
+  displayedSuccess: SuccessfulExecutionSnapshot | undefined,
+  catalogRevision: string | undefined,
+): boolean {
+  if (displayedSuccess === undefined || catalogRevision === undefined) {
+    return false;
+  }
+  return displayedSuccess.response.catalogRevision !== catalogRevision;
+}

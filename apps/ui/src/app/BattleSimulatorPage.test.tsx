@@ -409,6 +409,43 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     });
   });
 
+  it("blocks the result panels and prompts a catalog reload when the response ran against a different catalog revision (Issue #96 P1)", async () => {
+    const user = userEvent.setup();
+    const getCatalogImpl = vi
+      .fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>()
+      .mockResolvedValue({ ok: true, response: catalogResponse() });
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: true,
+        response: { ...simulationResponse(), catalogRevision: "rev-2" },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={getCatalogImpl}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Catalogが更新されたため/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/battle-01J/)).not.toBeInTheDocument();
+    expect(screen.queryByText("ALLY UNIT SUMMARY")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "時系列イベント" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Catalogを再読込/ }));
+    await waitFor(() => {
+      expect(getCatalogImpl).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("cancels an in-flight submission via the cancel button", async () => {
     const user = userEvent.setup();
     let capturedSignal: AbortSignal | undefined;

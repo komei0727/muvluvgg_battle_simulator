@@ -21,6 +21,7 @@ import type { UseCatalogLoaderOptions } from "../features/catalog-selection/cata
 import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
 import {
   selectDisplayedSuccess,
+  selectIsCatalogRevisionMismatch,
   selectIsResultDirty,
 } from "../features/simulation/execution-reducer.js";
 import { SubmissionFeedback } from "../features/simulation/SubmissionFeedback.js";
@@ -67,6 +68,10 @@ export function BattleSimulatorPage({
   const isDirty = requestBuild.ok
     ? selectIsResultDirty(requestBuild.request, displayedSuccess?.request)
     : displayedSuccess !== undefined;
+  const catalogRevisionMismatch = selectIsCatalogRevisionMismatch(
+    displayedSuccess,
+    catalog.status === "ready" ? catalog.response.catalogRevision : undefined,
+  );
 
   const serverViolations =
     execution.state.status === "failed" && execution.state.error.violations !== undefined
@@ -177,10 +182,11 @@ export function BattleSimulatorPage({
       <SubmissionFeedback
         state={execution.state}
         isDirty={isDirty}
+        catalogRevisionMismatch={catalogRevisionMismatch}
         onReloadCatalog={catalogLoader.reload}
       />
 
-      {displayedSuccess !== undefined ? (
+      {displayedSuccess !== undefined && !catalogRevisionMismatch ? (
         <>
           <Panel step="02" title="戦闘サマリ" meta="OUTCOME / ROSTER">
             <BattleSummarySection
