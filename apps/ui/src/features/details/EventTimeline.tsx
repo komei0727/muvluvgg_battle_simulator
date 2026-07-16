@@ -74,61 +74,63 @@ export function EventTimeline({ events, roster, onJumpToTransition }: EventTimel
           {events.length}件中{visible.length}件を表示
         </span>
       ) : null}
-      <ul className={styles["list"]}>
-        {visible.map((event) => {
-          const sequence = numberOf(event["sequence"]) ?? 0;
-          const turnNumber = numberOf(event["turnNumber"]) ?? 0;
-          const cycleNumber = numberOf(event["cycleNumber"]) ?? 0;
-          const stateVersionAfter = numberOf(event["stateVersionAfter"]);
-          const stateTransitionIndex = numberOf(event["stateTransitionIndex"]);
-          const parentSequence = numberOf(event["parentSequence"]);
-          const rootSequence = numberOf(event["rootSequence"]);
-          const presentation = formatEvent(event, roster);
-          const isExpanded = expandedSequences.has(sequence);
+      <div className={styles["scrollArea"]}>
+        <ul className={styles["list"]}>
+          {visible.map((event) => {
+            const sequence = numberOf(event["sequence"]) ?? 0;
+            const turnNumber = numberOf(event["turnNumber"]) ?? 0;
+            const cycleNumber = numberOf(event["cycleNumber"]) ?? 0;
+            const stateVersionAfter = numberOf(event["stateVersionAfter"]);
+            const stateTransitionIndex = numberOf(event["stateTransitionIndex"]);
+            const parentSequence = numberOf(event["parentSequence"]);
+            const rootSequence = numberOf(event["rootSequence"]);
+            const presentation = formatEvent(event, roster);
+            const isExpanded = expandedSequences.has(sequence);
 
-          return (
-            <li key={sequence}>
-              <button
-                type="button"
-                className={styles["row"]}
-                aria-expanded={isExpanded}
-                onClick={() => {
-                  toggle(sequence);
-                }}
-              >
-                <span className={styles["sequence"]}>#{String(sequence).padStart(3, "0")}</span>
-                <span>
-                  T{turnNumber}/{cycleNumber}
-                </span>
-                <span className={styles["type"]}>{presentation.title}</span>
-                <span className={styles["source"]}>{sourceLabelOf(event, roster)}</span>
-                <span className={styles["targets"]}>{targetsLabelOf(event, roster)}</span>
-                <span>{presentation.summary}</span>
-                <span>v{stateVersionAfter ?? "-"}</span>
-              </button>
-              {isExpanded ? (
-                <div className={styles["expanded"]}>
-                  <p>
-                    parentSequence: {parentSequence ?? "-"} / rootSequence: {rootSequence ?? "-"}
-                  </p>
-                  <pre>{JSON.stringify(presentation.details, null, 2)}</pre>
-                  {stateTransitionIndex !== undefined && onJumpToTransition !== undefined ? (
-                    <Button
-                      variant="ghost"
-                      className={styles["jumpButton"]}
-                      onClick={() => {
-                        onJumpToTransition(stateTransitionIndex);
-                      }}
-                    >
-                      状態遷移 #{stateTransitionIndex + 1} を見る
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+            return (
+              <li key={sequence}>
+                <button
+                  type="button"
+                  className={styles["row"]}
+                  aria-expanded={isExpanded}
+                  onClick={() => {
+                    toggle(sequence);
+                  }}
+                >
+                  <span className={styles["sequence"]}>#{String(sequence).padStart(3, "0")}</span>
+                  <span>
+                    T{turnNumber}/{cycleNumber}
+                  </span>
+                  <span className={styles["type"]}>{presentation.title}</span>
+                  <span className={styles["source"]}>{sourceLabelOf(event, roster)}</span>
+                  <span className={styles["targets"]}>{targetsLabelOf(event, roster)}</span>
+                  <span>{presentation.summary}</span>
+                  <span>v{stateVersionAfter ?? "-"}</span>
+                </button>
+                {isExpanded ? (
+                  <div className={styles["expanded"]}>
+                    <p>
+                      parentSequence: {parentSequence ?? "-"} / rootSequence: {rootSequence ?? "-"}
+                    </p>
+                    <pre>{JSON.stringify(presentation.details, null, 2)}</pre>
+                    {stateTransitionIndex !== undefined && onJumpToTransition !== undefined ? (
+                      <Button
+                        variant="ghost"
+                        className={styles["jumpButton"]}
+                        onClick={() => {
+                          onJumpToTransition(stateTransitionIndex);
+                        }}
+                      >
+                        状態遷移 #{stateTransitionIndex + 1} を見る
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
       {visibleCount < sorted.length ? (
         <div className={styles["loadMore"]}>
           <Button

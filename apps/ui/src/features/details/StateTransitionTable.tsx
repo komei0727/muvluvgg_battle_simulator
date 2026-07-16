@@ -62,66 +62,68 @@ export function StateTransitionTable({ transitions, highlightedIndex }: StateTra
   }
 
   return (
-    <table className={styles["table"]}>
-      <thead>
-        <tr>
-          <th scope="col">VERSION</th>
-          <th scope="col">CAUSED BY</th>
-          <th scope="col">TARGET</th>
-          <th scope="col">DELTA</th>
-        </tr>
-      </thead>
-      <tbody>
-        {transitions.map((transition, index) => {
-          const stateVersionBefore = transition["stateVersionBefore"];
-          const stateVersionAfter = transition["stateVersionAfter"];
-          const causedBySequence = transition["causedBySequence"];
-          const delta = transition["delta"];
-          const isJsonMode = jsonModeIndices.has(index);
+    <div className={styles["scrollArea"]}>
+      <table className={styles["table"]}>
+        <thead>
+          <tr>
+            <th scope="col">VERSION</th>
+            <th scope="col">CAUSED BY</th>
+            <th scope="col">TARGET</th>
+            <th scope="col">DELTA</th>
+          </tr>
+        </thead>
+        <tbody>
+          {transitions.map((transition, index) => {
+            const stateVersionBefore = transition["stateVersionBefore"];
+            const stateVersionAfter = transition["stateVersionAfter"];
+            const causedBySequence = transition["causedBySequence"];
+            const delta = transition["delta"];
+            const isJsonMode = jsonModeIndices.has(index);
 
-          return (
-            <tr
-              key={index}
-              ref={(element) => {
-                if (element) {
-                  rowRefs.current.set(index, element);
-                } else {
-                  rowRefs.current.delete(index);
-                }
-              }}
-              className={index === highlightedIndex ? styles["highlighted"] : undefined}
-              {...(index === highlightedIndex ? { "data-highlighted": "true" } : {})}
-            >
-              <td className={styles["mono"]}>
-                {String(stateVersionBefore)} → {String(stateVersionAfter)}
-              </td>
-              <td className={styles["mono"]}>#{String(causedBySequence)}</td>
-              <td className={styles["mono"]}>{targetOf(delta)}</td>
-              <td>
-                {isJsonMode ? (
-                  <pre>{JSON.stringify(delta, null, 2)}</pre>
-                ) : (
-                  <ul>
-                    {flattenDelta(delta).map((line) => (
-                      <li key={line.path} className={styles["deltaLine"]}>
-                        {line.path}: {line.text}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    toggleJsonMode(index);
-                  }}
-                >
-                  {isJsonMode ? "ツリー表示" : "JSON表示"}
-                </Button>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+            return (
+              <tr
+                key={index}
+                ref={(element) => {
+                  if (element) {
+                    rowRefs.current.set(index, element);
+                  } else {
+                    rowRefs.current.delete(index);
+                  }
+                }}
+                className={index === highlightedIndex ? styles["highlighted"] : undefined}
+                {...(index === highlightedIndex ? { "data-highlighted": "true" } : {})}
+              >
+                <td className={styles["mono"]}>
+                  {String(stateVersionBefore)} → {String(stateVersionAfter)}
+                </td>
+                <td className={styles["mono"]}>#{String(causedBySequence)}</td>
+                <td className={styles["mono"]}>{targetOf(delta)}</td>
+                <td>
+                  {isJsonMode ? (
+                    <pre>{JSON.stringify(delta, null, 2)}</pre>
+                  ) : (
+                    <ul>
+                      {flattenDelta(delta).map((line) => (
+                        <li key={line.path} className={styles["deltaLine"]}>
+                          {line.path}: {line.text}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      toggleJsonMode(index);
+                    }}
+                  >
+                    {isJsonMode ? "ツリー表示" : "JSON表示"}
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

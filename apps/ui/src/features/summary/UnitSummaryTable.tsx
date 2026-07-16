@@ -38,38 +38,42 @@ export function UnitSummaryTable({ side, rows, imageMap }: UnitSummaryTableProps
       {rows.length === 0 ? (
         <p className={styles["empty"]}>ユニットがいません。</p>
       ) : (
-        <table className={styles["table"]}>
-          <thead>
-            <tr>
-              <th scope="col">UNIT</th>
-              <th scope="col">DAMAGE</th>
-              <th scope="col">DEFENSE / 被ダメージ</th>
-              <th scope="col">HEAL</th>
-              <th scope="col">STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ roster, summary }) => (
-              <tr key={roster.battleUnitId}>
-                <td>
-                  <div className={styles["unit"]}>
-                    <DefinitionImage
-                      definitionId={roster.unitDefinitionId}
-                      displayName={roster.displayName}
-                      kind="unit"
-                      {...(imageMap !== undefined ? { imageMap } : {})}
-                    />
-                    <span className={styles["name"]}>{roster.displayName}</span>
-                  </div>
-                </td>
-                <td>{summary.damageDealt.toLocaleString()}</td>
-                <td>{summary.damageTaken.toLocaleString()}</td>
-                <td>{summary.healingDone.toLocaleString()}</td>
-                <td className={statusClassName(summary.combatStatus)}>{summary.combatStatus}</td>
+        <div className={styles["scrollArea"]}>
+          <table className={styles["table"]}>
+            <thead>
+              <tr>
+                <th scope="col">UNIT</th>
+                <th scope="col">DAMAGE</th>
+                <th scope="col">DEFENSE / 被ダメージ</th>
+                <th scope="col" className={styles["heal"]}>
+                  HEAL
+                </th>
+                <th scope="col">STATUS</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map(({ roster, summary }) => (
+                <tr key={roster.battleUnitId}>
+                  <td>
+                    <div className={styles["unit"]}>
+                      <DefinitionImage
+                        definitionId={roster.unitDefinitionId}
+                        displayName={roster.displayName}
+                        kind="unit"
+                        {...(imageMap !== undefined ? { imageMap } : {})}
+                      />
+                      <span className={styles["name"]}>{roster.displayName}</span>
+                    </div>
+                  </td>
+                  <td>{summary.damageDealt.toLocaleString()}</td>
+                  <td>{summary.damageTaken.toLocaleString()}</td>
+                  <td className={styles["heal"]}>{summary.healingDone.toLocaleString()}</td>
+                  <td className={statusClassName(summary.combatStatus)}>{summary.combatStatus}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
