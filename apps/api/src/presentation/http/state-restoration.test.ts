@@ -97,6 +97,28 @@ function attackSkill(id: string, effectActionId: string): SkillDefinition {
   };
 }
 
+/** `unitDefinition`の`extraSkillDefinitionId`（"SKL_EX"）が参照するEXスキル。EXゲージは満タンにならないため実際には使用されない。 */
+function exSkillDefinition(id: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "EX",
+    cost: { resource: "EX_GAUGE", amount: 100 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
 function damageEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "DAMAGE",
@@ -353,6 +375,7 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
   ]);
   const skills = new Map([
     [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
+    [createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")],
   ]);
   const effectActions = new Map([
     [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],

@@ -8,7 +8,7 @@ export type ActionSelectionResult =
   | { readonly kind: "WAIT" };
 
 /** R-TGT-01 #4: 各targetBindingが1体以上の候補を持つかどうかで判定する。 */
-function hasResolvableTargets(
+export function hasResolvableTargets(
   skill: SkillDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
@@ -54,4 +54,24 @@ export function selectAsCandidate(
     }
   }
   return { kind: "WAIT" };
+}
+
+/**
+ * R-ACT-01 #5（EX予約）: EXはコスト（AP・クールタイム）判定を持たず（`R-ACT-03`
+ * 「EX: EXゲージ全量、APは消費しない」、予約時点でゲージは既に満タン確定）、
+ * 対象候補の有無だけが発動可否を左右する（`Q-BTL-06`「EXを使用できない場合は
+ * EXゲージを全量消費して待機する」）。
+ */
+export function isExUsable(
+  exSkill: SkillDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+): boolean {
+  if (exSkill.activationCondition.kind !== "TRUE") {
+    throw new DomainValidationError(
+      "exSkill.activationCondition",
+      `kind "${exSkill.activationCondition.kind}" is not supported by this basic ActionSelectionPolicy (ConditionEvaluator is M7 scope)`,
+    );
+  }
+  return hasResolvableTargets(exSkill, actor, allUnits);
 }

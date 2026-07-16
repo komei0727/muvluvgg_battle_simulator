@@ -86,9 +86,33 @@ function buildActiveSkillsByUnit(
   return result;
 }
 
+/**
+ * `BattleDefinitions`の`exSkillByUnit`を、`UnitDefinition.extraSkillDefinitionId`
+ * とスキル定義のクロージャから構築する（R-ORD-03のEX予約が使用する）。
+ * `loadSnapshot`の推移閉包契約により欠落は起こらない前提だが、防御的に検出する。
+ */
+function buildExSkillByUnit(
+  units: BattleCatalogSnapshot["units"],
+  skills: BattleCatalogSnapshot["skills"],
+): ReadonlyMap<UnitDefinitionId, SkillDefinition> {
+  const result = new Map<UnitDefinitionId, SkillDefinition>();
+  for (const [unitDefinitionId, unitDefinition] of units) {
+    const exSkill = skills.get(unitDefinition.extraSkillDefinitionId);
+    if (exSkill === undefined) {
+      throw new DomainValidationError(
+        `units[${unitDefinitionId}].extraSkillDefinitionId`,
+        `references a SkillDefinitionId absent from the loaded Catalog snapshot: "${unitDefinition.extraSkillDefinitionId}"`,
+      );
+    }
+    result.set(unitDefinitionId, exSkill);
+  }
+  return result;
+}
+
 function buildBattleDefinitions(snapshot: BattleCatalogSnapshot): BattleDefinitions {
   return {
     activeSkillsByUnit: buildActiveSkillsByUnit(snapshot.units, snapshot.skills),
+    exSkillByUnit: buildExSkillByUnit(snapshot.units, snapshot.skills),
     effectActions: snapshot.effectActions,
   };
 }

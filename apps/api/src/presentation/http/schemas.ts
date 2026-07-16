@@ -430,8 +430,9 @@ const battleLogEventResponseSchema = {
 } as const;
 
 /**
- * `08_ドメインイベント.md`の`BattleDomainEventPayloadMap`（M3が発行する19
- * イベント種別）を外部`details`形へ写した、OpenAPI公開専用のschema群。
+ * `08_ドメインイベント.md`の`BattleDomainEventPayloadMap`（M3の19種別に
+ * `ActionWaited`/`ActionReservationRemoved`（M5/issue #20）を加えた21種別）を
+ * 外部`details`形へ写した、OpenAPI公開専用のschema群。
  * `type`（イベント種別）は`details`の兄弟プロパティであり、OpenAPI 3.0.3の
  * `discriminator`は対象schema内部のプロパティしか判別に使えないため、ここでは
  * `oneOf`ではなく`anyOf`で列挙する（`ActionCompleting`/`ActionCompleted`、
@@ -516,6 +517,16 @@ const actionQueueCreatedDetailsSchema = {
   },
 } as const;
 
+const actionReservationRemovedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "reason"],
+  properties: {
+    battleUnitId: { type: "string" },
+    reason: { type: "string", enum: ["DEFEATED"] },
+  },
+} as const;
+
 const actionStartedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -537,6 +548,18 @@ const actionStartedDetailsSchema = {
     exBefore: { type: "integer", minimum: 0 },
     exAfter: { type: "integer", minimum: 0 },
     waitReason: { type: "string" },
+  },
+} as const;
+
+const actionWaitedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "waitReason", "consumedResource", "consumedAmount"],
+  properties: {
+    actorUnitId: { type: "string" },
+    waitReason: { type: "string" },
+    consumedResource: { type: "string", enum: ["AP", "PP", "EX_GAUGE"] },
+    consumedAmount: { type: "integer", minimum: 0 },
   },
 } as const;
 
@@ -726,7 +749,9 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   TURN_STARTED: turnNumberOnlyDetailsSchema,
   RESOURCES_RECOVERED: resourcesRecoveredDetailsSchema,
   ACTION_QUEUE_CREATED: actionQueueCreatedDetailsSchema,
+  ACTION_RESERVATION_REMOVED: actionReservationRemovedDetailsSchema,
   ACTION_STARTED: actionStartedDetailsSchema,
+  ACTION_WAITED: actionWaitedDetailsSchema,
   TARGETS_SELECTED: targetsSelectedDetailsSchema,
   SKILL_USE_STARTING: skillUseStartingDetailsSchema,
   SKILL_USE_STARTED: skillUseStartedDetailsSchema,

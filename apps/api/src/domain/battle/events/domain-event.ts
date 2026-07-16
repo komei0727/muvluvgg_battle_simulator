@@ -50,6 +50,9 @@ export interface ActionReservationEntry {
 
 export type EffectiveActionType = "AS" | "EX" | "WAIT" | "CHARGE_RELEASE";
 
+/** `06_戦闘状態遷移.md`「戦闘不能者の除去」: M5時点で予約を除去する原因はこれだけ。 */
+export type ActionReservationRemovalReason = "DEFEATED";
+
 export interface TargetBindingSelection {
   readonly targetBindingId: string;
   readonly selectedTargetUnitIds: readonly BattleUnitId[];
@@ -68,6 +71,10 @@ export interface BattleDomainEventPayloadMap {
     readonly cycleNumber: number;
     readonly reservations: readonly ActionReservationEntry[];
   };
+  readonly ActionReservationRemoved: {
+    readonly battleUnitId: BattleUnitId;
+    readonly reason: ActionReservationRemovalReason;
+  };
   readonly ActionStarted: {
     readonly actorUnitId: BattleUnitId;
     readonly reservedActionType: ReservedActionKind;
@@ -77,6 +84,12 @@ export interface BattleDomainEventPayloadMap {
     readonly exBefore: number;
     readonly exAfter: number;
     readonly waitReason?: string;
+  };
+  readonly ActionWaited: {
+    readonly actorUnitId: BattleUnitId;
+    readonly waitReason: string;
+    readonly consumedResource: ResourceKind;
+    readonly consumedAmount: number;
   };
   readonly TargetsSelected: {
     readonly skillDefinitionId: SkillDefinitionId;
@@ -166,7 +179,10 @@ export interface BattleDomainEventPayloadMap {
 
 export type BattleDomainEventType = keyof BattleDomainEventPayloadMap;
 
-/** `08_ドメインイベント.md`が定義するM3の全19イベントを表す判別共用体。 */
+/**
+ * `08_ドメインイベント.md`が定義するイベントの判別共用体。M3の19種別に加え、
+ * M5（issue #20）が`ActionWaited`/`ActionReservationRemoved`を追加する。
+ */
 export type BattleDomainEvent = {
   readonly [Type in BattleDomainEventType]: DomainEventEnvelope & {
     readonly eventType: Type;

@@ -12,5 +12,7 @@ import type { SkillDefinition } from "../catalog/skill-definition.js";
 export interface BattleDefinitions {
   /** `UnitDefinition.activeSkillDefinitionIds` を解決済みの `SkillDefinition` へ展開したもの。 */
   readonly activeSkillsByUnit: ReadonlyMap<UnitDefinitionId, readonly SkillDefinition[]>;
+  /** `UnitDefinition.extraSkillDefinitionId` を解決済みの `SkillDefinition` へ展開したもの（R-ORD-03のEX予約が使用する）。 */
+  readonly exSkillByUnit: ReadonlyMap<UnitDefinitionId, SkillDefinition>;
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
 }

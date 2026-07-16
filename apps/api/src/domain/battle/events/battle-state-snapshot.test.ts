@@ -38,6 +38,7 @@ describe("captureBattleState", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const battle = createBattle(createBattleId("battle-1"), [ally], [enemy], createTurnLimit(3), {
       activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
       effectActions: new Map(),
     });
 
@@ -60,7 +61,7 @@ describe("captureUnitRoster", () => {
       [ally1, ally2],
       [enemy1],
       createTurnLimit(3),
-      { activeSkillsByUnit: new Map(), effectActions: new Map() },
+      { activeSkillsByUnit: new Map(), exSkillByUnit: new Map(), effectActions: new Map() },
     );
 
     const roster = captureUnitRoster(battle);
