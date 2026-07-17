@@ -43,8 +43,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // API契約上hitPointDamageはintegerである(apps/api/src/presentation/http/
-// schemas.ts damageAppliedDetailsSchema)。小数を受理すると表示側の
-// toLocaleString()が丸めて誤った値を見せるため、ここでも整数だけ受理する。
+// schemas/battle-log/battle-log-schema.ts damageAppliedDetailsSchema)。
+// 小数を受理すると表示側のtoLocaleString()が丸めて誤った値を見せるため、
+// ここでも整数だけ受理する。
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
