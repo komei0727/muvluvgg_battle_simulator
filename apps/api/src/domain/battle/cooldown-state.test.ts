@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   decrementActionCooldowns,
   decrementTurnCooldowns,
+  manipulateCooldown,
   startCooldown,
   type CooldownMap,
 } from "./cooldown-state.js";
@@ -202,5 +203,132 @@ describe("decrementTurnCooldowns", () => {
 
     expect(result.cooldowns).toEqual({});
     expect(result.changes).toEqual([]);
+  });
+});
+
+describe("manipulateCooldown", () => {
+  it("UT-COOLDOWN-014: RESET sets a cooling skill's remaining to 0 and reports the change", () => {
+    const cooldowns = startCooldown(
+      {},
+      SKL_A,
+      { unit: "ACTION", count: 4 },
+      { actionId: ACTION_1 },
+    ).cooldowns;
+
+    const result = manipulateCooldown(cooldowns, SKL_A, "RESET");
+
+    expect(result.cooldowns[SKL_A]!.remaining).toBe(0);
+    expect(result.change).toEqual({
+      skillDefinitionId: SKL_A,
+      unit: "ACTION",
+      before: 4,
+      after: 0,
+    });
+  });
+
+  it("UT-COOLDOWN-015: REDUCE decreases remaining by the given amount and reports the change", () => {
+    const cooldowns = startCooldown(
+      {},
+      SKL_A,
+      { unit: "ACTION", count: 4 },
+      { actionId: ACTION_1 },
+    ).cooldowns;
+
+    const result = manipulateCooldown(cooldowns, SKL_A, "REDUCE", 1);
+
+    expect(result.cooldowns[SKL_A]!.remaining).toBe(3);
+    expect(result.change).toEqual({
+      skillDefinitionId: SKL_A,
+      unit: "ACTION",
+      before: 4,
+      after: 3,
+    });
+  });
+
+  it("UT-COOLDOWN-016: REDUCE never drops remaining below 0", () => {
+    const cooldowns = startCooldown(
+      {},
+      SKL_A,
+      { unit: "ACTION", count: 1 },
+      { actionId: ACTION_1 },
+    ).cooldowns;
+
+    const result = manipulateCooldown(cooldowns, SKL_A, "REDUCE", 5);
+
+    expect(result.cooldowns[SKL_A]!.remaining).toBe(0);
+    expect(result.change).toEqual({
+      skillDefinitionId: SKL_A,
+      unit: "ACTION",
+      before: 1,
+      after: 0,
+    });
+  });
+
+  it("UT-COOLDOWN-017: RESET on an unregistered (READY) skill is a no-op with no reported change", () => {
+    const result = manipulateCooldown({}, SKL_A, "RESET");
+
+    expect(result.cooldowns).toEqual({});
+    expect(result.change).toBeUndefined();
+  });
+
+  it("UT-COOLDOWN-018: REDUCE on an unregistered (READY) skill is a no-op with no reported change", () => {
+    const result = manipulateCooldown({}, SKL_A, "REDUCE", 1);
+
+    expect(result.cooldowns).toEqual({});
+    expect(result.change).toBeUndefined();
+  });
+
+  it("UT-COOLDOWN-019: RESET on an already-READY (remaining 0) skill is a no-op with no reported change", () => {
+    let cooldowns = startCooldown(
+      {},
+      SKL_A,
+      { unit: "ACTION", count: 1 },
+      { actionId: ACTION_1 },
+    ).cooldowns;
+    cooldowns = decrementActionCooldowns(cooldowns, ACTION_2).cooldowns;
+    expect(cooldowns[SKL_A]!.remaining).toBe(0);
+
+    const result = manipulateCooldown(cooldowns, SKL_A, "RESET");
+
+    expect(result.change).toBeUndefined();
+    expect(result.cooldowns[SKL_A]!.remaining).toBe(0);
+  });
+
+  it("UT-COOLDOWN-020: leaves other skills' cooldowns untouched", () => {
+    let cooldowns = startCooldown(
+      {},
+      SKL_A,
+      { unit: "ACTION", count: 4 },
+      { actionId: ACTION_1 },
+    ).cooldowns;
+    cooldowns = startCooldown(
+      cooldowns,
+      SKL_B,
+      { unit: "TURN", count: 2 },
+      { turnNumber: 1 },
+    ).cooldowns;
+
+    const result = manipulateCooldown(cooldowns, SKL_A, "RESET");
+
+    expect(result.cooldowns[SKL_B]).toEqual({ unit: "TURN", remaining: 2, setTurnNumber: 1 });
+  });
+
+  it("UT-COOLDOWN-021: RESET applies even to a cooldown set in the current action/turn scope (manipulation is not natural decay)", () => {
+    const cooldowns = startCooldown(
+      {},
+      SKL_A,
+      { unit: "ACTION", count: 4 },
+      { actionId: ACTION_1 },
+    ).cooldowns;
+
+    const result = manipulateCooldown(cooldowns, SKL_A, "RESET");
+
+    expect(result.cooldowns[SKL_A]!.remaining).toBe(0);
+    expect(result.change).toEqual({
+      skillDefinitionId: SKL_A,
+      unit: "ACTION",
+      before: 4,
+      after: 0,
+    });
   });
 });

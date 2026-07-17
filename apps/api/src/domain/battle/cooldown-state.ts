@@ -75,6 +75,43 @@ export function decrementTurnCooldowns(
   );
 }
 
+export type CooldownManipulationOperation = "RESET" | "REDUCE";
+
+/**
+ * Issue #129 `COOLDOWN_MANIPULATION`: 他スキルのクールタイムをリセット・短縮する
+ * 純粋な状態操作。R-SKL-04の設定scope判定（自身の行動/ターン終了時の自然減算）
+ * とは独立した明示的操作のため、`setActionId`/`setTurnNumber`は考慮せず、対象が
+ * 現在の行動/ターンで設定されていても適用する。READY/未登録のスキル
+ * （エントリ不在、または`remaining`が既に0）への操作は残数不変のためno-opとし、
+ * `change`を返さない。
+ */
+export function manipulateCooldown(
+  cooldowns: CooldownMap,
+  targetSkillDefinitionId: SkillDefinitionId,
+  operation: CooldownManipulationOperation,
+  amount?: number,
+): { readonly cooldowns: CooldownMap; readonly change?: CooldownChange } {
+  const entry = cooldowns[targetSkillDefinitionId];
+  if (entry === undefined || entry.remaining === 0) {
+    return { cooldowns };
+  }
+  const before = entry.remaining;
+  const after = operation === "RESET" ? 0 : Math.max(0, before - (amount ?? 0));
+  if (after === before) {
+    return { cooldowns };
+  }
+  const change: CooldownChange = {
+    skillDefinitionId: targetSkillDefinitionId,
+    unit: entry.unit,
+    before,
+    after,
+  };
+  return {
+    cooldowns: { ...cooldowns, [targetSkillDefinitionId]: { ...entry, remaining: after } },
+    change,
+  };
+}
+
 function decrementCooldowns(
   cooldowns: CooldownMap,
   unit: CooldownUnit,

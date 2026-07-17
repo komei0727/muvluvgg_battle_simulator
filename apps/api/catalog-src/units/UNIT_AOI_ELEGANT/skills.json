@@ -25,12 +25,17 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_CD_RESET" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "衣擦れの調べ", "tags": [] }
   },
   {

@@ -58,6 +58,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_CD_RESET",
+    "kind": "COOLDOWN_MANIPULATION",
+    "payload": { "targetSkillDefinitionId": "SKL_MERU_FLATSPIN_PS1", "operation": "RESET" },
+    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },

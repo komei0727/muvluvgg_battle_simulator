@@ -3,7 +3,9 @@ import { resolveActionPhase } from "./action-phase-resolver.js";
 import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
 import type { BattleDefinitions } from "./battle-definitions.js";
 import type { BattlePartyMember } from "./battle-party.js";
+import type { BattleStateSnapshot } from "./events/battle-state-snapshot.js";
 import { EventRecorder } from "./events/event-recorder.js";
+import { reduceStateDeltas } from "./events/state-delta-reducer.js";
 import { createActionPoint, createExtraGauge, createHitPoint } from "./resource-gauge.js";
 import { createBattleId, createBattleUnitId } from "../shared/ids.js";
 import {
@@ -235,6 +237,62 @@ function chargeSkill(
     },
     requiredCapabilities: [],
     metadata: { displayName: "Charge", tags: [] },
+  };
+}
+
+function cooldownManipulationEffectAction(
+  id: string,
+  targetSkillDefinitionId: string,
+  operation: "RESET" | "REDUCE",
+  amount?: number,
+): EffectActionDefinition {
+  return {
+    kind: "COOLDOWN_MANIPULATION",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      targetSkillDefinitionId: createSkillDefinitionId(targetSkillDefinitionId),
+      operation,
+      ...(amount !== undefined ? { amount } : {}),
+    },
+  };
+}
+
+/** SELF-targeted skill with no targetBindings, so it is always resolvable regardless of enemy presence. */
+function cooldownManipulationSkill(
+  effectActionId: string,
+  apCost = 1,
+  cooldown: Cooldown = { unit: "ACTION", count: 0 },
+): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(`SKL_${effectActionId}`),
+    skillType: "AS",
+    cost: { resource: "AP", amount: apCost },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+    cooldown,
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "CooldownManipulation", tags: [] },
   };
 }
 
@@ -958,6 +1016,237 @@ describe("resolveActionPhase", () => {
     expect(result.enemyUnits[0]!.currentHp).toBe(1000 - 10 - 10);
     expect(ctx.recorder.getEvents().filter((e) => e.eventType === "ChargeReleased")).toHaveLength(
       2,
+    );
+  });
+
+  it("UT-ACTION-PHASE-015 (Issue #129 COOLDOWN_MANIPULATION): RESET sets a cooling target skill's remaining to 0 and emits CooldownReduced+CooldownCompleted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_RESET");
+    const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_RESET");
+    const skill = cooldownManipulationSkill("ACT_CD_RESET", 1);
+    const effectAction = cooldownManipulationEffectAction(
+      "ACT_CD_RESET",
+      "SKL_TARGET_RESET",
+      "RESET",
+    );
+    const allyBase = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CD_MANIP_RESET",
+      limits: { maximumAp: 1 },
+    });
+    const ally: BattleUnit = {
+      ...allyBase,
+      cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.cooldowns[targetSkillDefinitionId]).toMatchObject({
+      unit: "ACTION",
+      remaining: 0,
+    });
+    const reduced = ctx.recorder
+      .getEvents()
+      .filter((e) => e.eventType === "CooldownReduced" && e.sourceUnitId === ally.battleUnitId);
+    expect(reduced).toHaveLength(1);
+    expect(reduced[0]!.payload).toMatchObject({
+      actorUnitId: ally.battleUnitId,
+      skillDefinitionId: targetSkillDefinitionId,
+      before: 3,
+      after: 0,
+    });
+    expect(
+      ctx.recorder
+        .getEvents()
+        .filter((e) => e.eventType === "CooldownCompleted" && e.sourceUnitId === ally.battleUnitId),
+    ).toHaveLength(1);
+  });
+
+  it("UT-ACTION-PHASE-016 (Issue #129 COOLDOWN_MANIPULATION): REDUCE decreases a target skill's remaining by the given amount without completing it", () => {
+    // TURN-unit target skill: isolates REDUCE from R-SKL-04's own per-ACTION
+    // natural decay (which only touches the actor's ACTION-unit cooldowns at
+    // ActionCompleting and would otherwise also decrement this entry by 1).
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_REDUCE");
+    const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_REDUCE");
+    const skill = cooldownManipulationSkill("ACT_CD_REDUCE", 1);
+    const effectAction = cooldownManipulationEffectAction(
+      "ACT_CD_REDUCE",
+      "SKL_TARGET_REDUCE",
+      "REDUCE",
+      1,
+    );
+    const allyBase = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CD_MANIP_REDUCE",
+      limits: { maximumAp: 1 },
+    });
+    const ally: BattleUnit = {
+      ...allyBase,
+      cooldowns: { [targetSkillDefinitionId]: { unit: "TURN", remaining: 4 } },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.cooldowns[targetSkillDefinitionId]).toMatchObject({
+      unit: "TURN",
+      remaining: 3,
+    });
+    const reduced = ctx.recorder
+      .getEvents()
+      .filter((e) => e.eventType === "CooldownReduced" && e.sourceUnitId === ally.battleUnitId);
+    expect(reduced).toHaveLength(1);
+    expect(reduced[0]!.payload).toMatchObject({ before: 4, after: 3 });
+    expect(
+      ctx.recorder
+        .getEvents()
+        .filter((e) => e.eventType === "CooldownCompleted" && e.sourceUnitId === ally.battleUnitId),
+    ).toHaveLength(0);
+  });
+
+  it("UT-ACTION-PHASE-017 (Issue #129 COOLDOWN_MANIPULATION): manipulating a READY/unregistered target skill is a no-op and emits no CooldownReduced", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_NOOP");
+    const skill = cooldownManipulationSkill("ACT_CD_NOOP", 1);
+    const effectAction = cooldownManipulationEffectAction(
+      "ACT_CD_NOOP",
+      "SKL_TARGET_NOT_REGISTERED",
+      "RESET",
+    );
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CD_MANIP_NOOP",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.cooldowns).toEqual({});
+    expect(
+      ctx.recorder
+        .getEvents()
+        .filter((e) => e.eventType === "CooldownReduced" && e.sourceUnitId === ally.battleUnitId),
+    ).toHaveLength(0);
+  });
+
+  it("UT-ACTION-PHASE-018 (Issue #129 COOLDOWN_MANIPULATION, PR#130 review): an independent Reducer replaying CooldownReduced/CooldownCompleted StateDelta from an initial snapshot reconstructs the same final cooldowns as the live engine", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_RESTORE");
+    const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_RESTORE");
+    const skill = cooldownManipulationSkill("ACT_CD_RESTORE", 1);
+    const effectAction = cooldownManipulationEffectAction(
+      "ACT_CD_RESTORE",
+      "SKL_TARGET_RESTORE",
+      "RESET",
+    );
+    const allyBase = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CD_MANIP_RESTORE",
+      limits: { maximumAp: 1 },
+    });
+    const ally: BattleUnit = {
+      ...allyBase,
+      cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const initialState: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: ctx.turnNumber,
+      units: {
+        [ally.battleUnitId]: {
+          hp: ally.currentHp,
+          ap: ally.currentAp,
+          pp: ally.currentPp,
+          extraGauge: ally.currentExtraGauge,
+          cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
+        },
+        [enemy.battleUnitId]: {
+          hp: enemy.currentHp,
+          ap: enemy.currentAp,
+          pp: enemy.currentPp,
+          extraGauge: enemy.currentExtraGauge,
+        },
+      },
+    };
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // Sanity check: this action does reach 0 and emits both events (the
+    // scenario the review asked to prove StateDelta-restorable).
+    expect(ctx.recorder.getEvents().filter((e) => e.eventType === "CooldownReduced")).toHaveLength(
+      1,
+    );
+    expect(
+      ctx.recorder.getEvents().filter((e) => e.eventType === "CooldownCompleted"),
+    ).toHaveLength(1);
+
+    const deltas = ctx.recorder
+      .getEvents()
+      .map((e) => e.stateDelta)
+      .filter((delta): delta is NonNullable<typeof delta> => delta !== undefined);
+    const restored = reduceStateDeltas(initialState, deltas);
+
+    expect(restored.units[ally.battleUnitId]!.cooldowns).toEqual({
+      [targetSkillDefinitionId]: { unit: "ACTION", remaining: 0 },
+    });
+    expect(restored.units[ally.battleUnitId]!.cooldowns![targetSkillDefinitionId]!.remaining).toBe(
+      result.allyUnits[0]!.cooldowns[targetSkillDefinitionId]!.remaining,
     );
   });
 });

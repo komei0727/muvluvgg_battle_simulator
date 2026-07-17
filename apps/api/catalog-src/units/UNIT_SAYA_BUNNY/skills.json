@@ -30,12 +30,17 @@
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_MARKER" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_CD_RESET" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "バニー＆ベット", "tags": [] }
   },
   {

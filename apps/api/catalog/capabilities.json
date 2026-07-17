@@ -36,6 +36,12 @@
     "requiredBy": []
   },
   {
+    "capabilityId": "CAP_COOLDOWN_MANIPULATION",
+    "status": "IMPLEMENTED",
+    "description": "他スキルのクールタイム短縮・リセット",
+    "requiredBy": []
+  },
+  {
     "capabilityId": "CAP_COVER_DAMAGE",
     "status": "PLANNED",
     "description": "肩代わり",

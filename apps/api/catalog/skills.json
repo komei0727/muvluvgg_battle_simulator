@@ -231,12 +231,17 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_CD_RESET" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "衣擦れの調べ", "tags": [] }
   },
   {
@@ -836,13 +841,16 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_MOCHI" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_CD_RESET" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_MOCHI" }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "餅つき、よいしょ～！", "tags": [] }
   },
   {
@@ -937,6 +945,7 @@
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_HEAL" },
             { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_CD_RESET" },
             { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_MOCHI" }
           ]
         }
@@ -944,7 +953,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "お清め", "tags": [] },
     "triggers": [
       {
@@ -8027,12 +8036,53 @@
             { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_DAMAGE" },
             { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_AP_DOWN" }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "OR",
+            "conditions": [
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "STUN"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "FREEZE"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "BLIND"
+              }
+            ]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_CD_RESET" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MOD",
+      "CAP_EFFECT_CONDITION",
+      "CAP_COOLDOWN_MANIPULATION"
+    ],
     "metadata": { "displayName": "フラットスピン", "tags": [] }
   },
   {
@@ -10729,12 +10779,17 @@
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_MARKER" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_CD_RESET" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "バニー＆ベット", "tags": [] }
   },
   {

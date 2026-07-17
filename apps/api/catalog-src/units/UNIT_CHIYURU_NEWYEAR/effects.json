@@ -19,6 +19,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_CD_RESET",
+    "kind": "COOLDOWN_MANIPULATION",
+    "payload": { "targetSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_AS1", "operation": "RESET" },
+    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_MOCHI",
     "kind": "APPLY_MARKER",
     "payload": {
@@ -151,6 +158,13 @@
       "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_CD_RESET",
+    "kind": "COOLDOWN_MANIPULATION",
+    "payload": { "targetSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_AS1", "operation": "RESET" },
+    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "tags": [] }
   },
   {

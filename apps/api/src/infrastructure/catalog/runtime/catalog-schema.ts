@@ -196,6 +196,7 @@ export const effectActionDefinitionSchema = {
         "APPLY_COVER",
         "APPLY_REFLECT",
         "APPLY_SUBUNIT",
+        "COOLDOWN_MANIPULATION",
       ],
     },
     payload: looseObject,

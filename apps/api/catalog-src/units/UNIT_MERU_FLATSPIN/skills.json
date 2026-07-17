@@ -90,12 +90,53 @@
             { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_DAMAGE" },
             { "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_AP_DOWN" }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "OR",
+            "conditions": [
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "STUN"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "FREEZE"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+                "field": "HAS_STATUS",
+                "op": "EQ",
+                "value": "BLIND"
+              }
+            ]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_CD_RESET" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MOD",
+      "CAP_EFFECT_CONDITION",
+      "CAP_COOLDOWN_MANIPULATION"
+    ],
     "metadata": { "displayName": "フラットスピン", "tags": [] }
   },
   {

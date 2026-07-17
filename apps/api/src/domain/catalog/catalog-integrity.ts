@@ -35,6 +35,8 @@ export const VIOLATION_RULES = [
   "UNKNOWN_CAPABILITY",
   "UNKNOWN_EVENT_TYPE",
   "EVENT_CATEGORY_MISMATCH",
+  "UNOWNED_SKILL_REFERENCE",
+  "MISSING_REQUIRED_CAPABILITY",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -236,6 +238,7 @@ function validateSkillReference(
 function validateUnit(
   unit: UnitDefinition,
   skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
@@ -279,6 +282,13 @@ function validateUnit(
     capabilities,
     violations,
   );
+
+  const ownedSkillIds = new Set<SkillDefinitionId>([
+    ...unit.activeSkillDefinitionIds,
+    ...unit.passiveSkillDefinitionIds,
+    unit.extraSkillDefinitionId,
+  ]);
+  checkCooldownManipulationOwnership(unit, ownedSkillIds, skills, effectActions, violations);
 }
 
 function validateSkill(
@@ -315,6 +325,7 @@ function validateSkill(
 function validateEffectAction(
   effectAction: EffectActionDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
@@ -329,12 +340,75 @@ function validateEffectAction(
       }
     }
   }
+  // Issue #129: COOLDOWN_MANIPULATIONの対象スキル存在チェック。所有者一致は
+  // `checkCooldownManipulationOwnership`（Unit視点でのみ判定可能）が担う。
+  if (effectAction.kind === "COOLDOWN_MANIPULATION") {
+    if (!skills.has(effectAction.payload.targetSkillDefinitionId)) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "DANGLING_REFERENCE",
+        message: `COOLDOWN_MANIPULATION payload.targetSkillDefinitionId references undefined SkillDefinition "${effectAction.payload.targetSkillDefinitionId}"`,
+      });
+    }
+    // Issue #129レビュー[P2]: `14_Catalog定義スキーマ.md`は`CAP_COOLDOWN_MANIPULATION`を
+    // requiredCapabilitiesへ含めることを必須としているが、`checkRequiredCapabilities`は
+    // 列挙済みCapabilityの存在有無しか検証しないため、指定漏れ自体は別途検証する。
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_COOLDOWN_MANIPULATION")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message: `COOLDOWN_MANIPULATION must declare "CAP_COOLDOWN_MANIPULATION" in requiredCapabilities`,
+      });
+    }
+  }
   checkRequiredCapabilities(
     effectAction.requiredCapabilities,
     effectAction.effectActionDefinitionId,
     capabilities,
     violations,
   );
+}
+
+/**
+ * Issue #129 「所有関係をpreflightで検証する」: Unitが所有するAS/PS/EXから
+ * 到達可能な`COOLDOWN_MANIPULATION`が、同じUnitが所有するスキルだけを対象に
+ * できることを検証する。対象スキルの存在自体は`validateEffectAction`の
+ * `DANGLING_REFERENCE`が既に担うため、ここでは「存在するが他Unit所有」の
+ * ケースだけを扱う。
+ */
+function checkCooldownManipulationOwnership(
+  unit: UnitDefinition,
+  ownedSkillIds: ReadonlySet<SkillDefinitionId>,
+  skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const skillId of ownedSkillIds) {
+    const skill = skills.get(skillId);
+    if (skill === undefined) {
+      continue;
+    }
+    const refs = [
+      ...collectEffectActionReferences(skill.resolution.steps),
+      ...(skill.resolution.kind === "CHARGE"
+        ? collectEffectActionReferences(skill.resolution.chargeRelease.steps)
+        : []),
+    ];
+    for (const ref of refs) {
+      const effectAction = effectActions.get(ref.effectActionDefinitionId);
+      if (effectAction?.kind !== "COOLDOWN_MANIPULATION") {
+        continue;
+      }
+      const targetSkillDefinitionId = effectAction.payload.targetSkillDefinitionId;
+      if (skills.has(targetSkillDefinitionId) && !ownedSkillIds.has(targetSkillDefinitionId)) {
+        violations.push({
+          targetId: unit.unitDefinitionId,
+          rule: "UNOWNED_SKILL_REFERENCE",
+          message: `EffectAction "${effectAction.effectActionDefinitionId}" (COOLDOWN_MANIPULATION) targets SkillDefinition "${targetSkillDefinitionId}", which is not owned by unit "${unit.unitDefinitionId}"`,
+        });
+      }
+    }
+  }
 }
 
 function validateMemory(
@@ -385,13 +459,13 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
   );
 
   for (const effectAction of effectActions.values()) {
-    validateEffectAction(effectAction, effectActions, capabilities, violations);
+    validateEffectAction(effectAction, effectActions, skills, capabilities, violations);
   }
   for (const skill of skills.values()) {
     validateSkill(skill, effectActions, capabilities, violations);
   }
   for (const unit of units.values()) {
-    validateUnit(unit, skills, capabilities, violations);
+    validateUnit(unit, skills, effectActions, capabilities, violations);
   }
   for (const memory of memories.values()) {
     validateMemory(memory, effectActions, capabilities, violations);
