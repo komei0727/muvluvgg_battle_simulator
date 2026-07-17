@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createEffectActionDefinition } from "./effect-action-definition.js";
+import { createEffectActionDefinition } from "./effect-action-definition-factory.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 describe("EffectActionDefinition", () => {

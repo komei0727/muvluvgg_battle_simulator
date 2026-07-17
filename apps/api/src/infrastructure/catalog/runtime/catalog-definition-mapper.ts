@@ -4,11 +4,11 @@ import {
   type CapabilityDefinition,
   type CapabilityDefinitionInput,
 } from "../../../domain/catalog/capability/capability-definition.js";
-import {
-  createEffectActionDefinition,
-  type EffectActionDefinition,
-  type EffectActionDefinitionInput,
+import type {
+  EffectActionDefinition,
+  EffectActionDefinitionInput,
 } from "../../../domain/catalog/definitions/effect-action-definition.js";
+import { createEffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition-factory.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,

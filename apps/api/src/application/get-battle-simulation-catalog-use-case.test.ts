@@ -4,10 +4,8 @@ import { GetBattleSimulationCatalogUseCase } from "./get-battle-simulation-catal
 import { runPreflight } from "./simulation-preflight-validator.js";
 import type { SimulateBattleCommand } from "./simulate-battle-command.js";
 import { createCapabilityDefinition } from "../domain/catalog/capability/capability-definition.js";
-import {
-  createEffectActionDefinition,
-  type EffectActionDefinition,
-} from "../domain/catalog/definitions/effect-action-definition.js";
+import type { EffectActionDefinition } from "../domain/catalog/definitions/effect-action-definition.js";
+import { createEffectActionDefinition } from "../domain/catalog/definitions/effect-action-definition-factory.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,

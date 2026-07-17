@@ -8,10 +8,8 @@ import {
   CatalogIntegrityError,
   type CatalogDefinitions,
 } from "./catalog-integrity.js";
-import {
-  createEffectActionDefinition,
-  type EffectActionDefinition,
-} from "../definitions/effect-action-definition.js";
+import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
+import { createEffectActionDefinition } from "../definitions/effect-action-definition-factory.js";
 import { createMemoryDefinition } from "../definitions/memory-definition.js";
 import { createSkillDefinition, type SkillDefinition } from "../definitions/skill-definition.js";
 import { createUnitDefinition, type UnitDefinition } from "../definitions/unit-definition.js";
