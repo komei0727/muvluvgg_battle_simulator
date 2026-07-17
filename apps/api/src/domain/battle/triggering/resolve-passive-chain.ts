@@ -34,22 +34,35 @@ export interface PassiveActivationCompletion {
 }
 
 /**
- * PSの発動処理（#34/#73が実装）が`resolvePassiveChain`へ差し出す、1件の
- * EffectAction/EffectStepぶんの解決結果。`events`はその効果が発行したドメイン
- * イベント（0件以上、発生順）。効果解決数Guardは、この`PassiveActivationStep`を
- * `yield`で受け取った時点で直ちに1件としてカウントする — `events`に含まれる
- * イベントが新たなPS候補を誘発し、その連鎖をどれだけ深く即時解決することになって
- * も、このカウントは連鎖の深さに影響されない。もし「イベントを`yield`した後、
- * 別の`yield`で効果解決を報告する」という2段階の契約にすると、最初の`yield`が
- * 誘発した子PS連鎖を解決している間は後段の`yield`へ決して到達できず
- * （子PSもまた同じパターンで自分の子を誘発し続けるため）、再帰的なPS連鎖では
- * 効果解決数Guardが実質的に機能しなくなる。1つの`yield`へ「効果解決」と
- * 「その効果が発行したイベント」をまとめることで、Guardのカウントを常に
- * イベント処理（＝連鎖の再帰）より先に確定させる。
+ * PSの発動処理（#34/#73が実装）が`resolvePassiveChain`へ差し出す、1件分の途中
+ * 経過。2種類ある。
+ *
+ * - `TIMING_EVENT`: `EffectActionStarting`・`UnitBeingAttacked`・
+ *   `DamageWillBeApplied`のような、EffectActionが実際に解決する前に発行される
+ *   TIMINGイベント（`08_ドメインイベント.md`のイベント分類）。まだ効果は解決して
+ *   いない（PSの反応でEffectAction自体が中断・再計算されうる）ため、効果解決数
+ *   Guardをカウントしない。`resolvePassiveChain`はイベントを即座に候補解決し、
+ *   `.next()`で再開する。
+ * - `EFFECT_RESOLVED`: 1つのEffectAction/EffectStepの解決完了と、それが発行した
+ *   事後ドメインイベント（`events`、0件以上、発生順、`DamageCalculated`・
+ *   `DamageApplied`のようなFACTイベント）をまとめて報告する。効果解決数Guardは、
+ *   この`yield`を受け取った時点で直ちに1件としてカウントする — `events`が
+ *   新たなPS候補を誘発し、その連鎖をどれだけ深く即時解決することになっても、
+ *   このカウントは連鎖の深さに影響されない。
+ *
+ * 「効果解決」と「その効果が発行した事後イベント」を`EFFECT_RESOLVED`という
+ * 1つの`yield`へまとめるのは、もし「イベントを`yield`した後、別の`yield`で
+ * 効果解決を報告する」という2段階の契約にすると、最初の`yield`が誘発した子PS
+ * 連鎖を解決している間は後段の`yield`へ決して到達できず（子PSもまた同じ
+ * パターンで自分の子を誘発し続けるため）、再帰的なPS連鎖では効果解決数Guardが
+ * 実質的に機能しなくなるため。`TIMING_EVENT`はこの問題を再発させない —
+ * TIMINGイベントに反応したPS自身の効果は、それ自身の`EFFECT_RESOLVED`で
+ * カウントされる（未解決のTIMINGイベントの連鎖という形でカウントを回避する
+ * ことはできない。カウントされるのは常に「実際に解決した効果」の数）。
  */
-export interface PassiveActivationStep {
-  readonly events: readonly TriggerCandidateEvent[];
-}
+export type PassiveActivationStep =
+  | { readonly kind: "TIMING_EVENT"; readonly event: TriggerCandidateEvent }
+  | { readonly kind: "EFFECT_RESOLVED"; readonly events: readonly TriggerCandidateEvent[] };
 
 /**
  * PSの発動処理は、上記`PassiveActivationStep`を`yield`するジェネレータとして
@@ -175,9 +188,10 @@ function resolveTopGroup(
 }
 
 /**
- * `generator`を完了まで駆動する。`yield`のたびに効果解決数Guardを直ちに
- * 確認してから、そのstepが発行したイベントを発生順に`resolveEvent`で解決する
- * （各イベントの候補連鎖を次のイベントへ進む前に完全に解決する）。
+ * `generator`を完了まで駆動する。`TIMING_EVENT`はGuardをカウントせずそのまま
+ * 候補解決へ回す。`EFFECT_RESOLVED`は受け取った直後に効果解決数Guardを確認して
+ * から、`events`を発生順に`resolveEvent`で解決する（各イベントの候補連鎖を
+ * 次のイベントへ進む前に完全に解決する）。
  */
 function driveActivation(
   candidate: PassiveCandidate,
@@ -192,6 +206,14 @@ function driveActivation(
         state.interruptedCandidates.push(candidate);
       }
       return undefined;
+    }
+
+    if (step.value.kind === "TIMING_EVENT") {
+      const violation = resolveEvent(step.value.event, state, deps);
+      if (violation !== undefined) {
+        return violation;
+      }
+      continue;
     }
 
     state.effectsResolved += 1;
@@ -218,13 +240,19 @@ function driveActivation(
  *   ネストした解決から親グループへ戻った直後の次候補も同じ経路を通るため、
  *   「TIMINGイベント後に親処理の前提を再検証する」不変条件を満たす。
  * - R-PS-05 #1 / R-PS-07: 発動直前に`recordActivation`でguardへ記録し、再入を防ぐ。
- * - R-PS-06: `activate`が`yield`するイベントごとに、その候補連鎖を完全に解決して
- *   から`yield`元のジェネレータを再開する。これにより「親の効果A→子PS→親の効果B」
+ * - R-PS-06: `activate`が`yield`するイベント（`TIMING_EVENT`単体、または
+ *   `EFFECT_RESOLVED`の`events`）ごとに、その候補連鎖を完全に解決してから
+ *   `yield`元のジェネレータを再開する。これにより「親の効果A→子PS→親の効果B」
  *   の順序を実際のEffectSequence解決と同じ粒度で保証する。
- * - 効果解決数Guardは`yield`のたびに、そのイベント群を処理する前に直ちに
- *   カウント・判定する。これにより、各PSの効果が次のPSを即座に誘発し続ける
- *   再帰的な連鎖でもGuardが機能する（イベント処理より後にカウントする設計だと、
- *   カウントへ到達する前に連鎖が深くなり続け、深度Guardにしか頼れなくなる）。
+ * - 効果解決数Guardは`EFFECT_RESOLVED`を受け取るたびに、その`events`を処理する
+ *   前に直ちにカウント・判定する。これにより、各PSの効果が次のPSを即座に誘発し
+ *   続ける再帰的な連鎖でもGuardが機能する（イベント処理より後にカウントする
+ *   設計だと、カウントへ到達する前に連鎖が深くなり続け、深度Guardにしか頼れ
+ *   なくなる）。`TIMING_EVENT`（EffectAction解決前のTIMINGイベント、まだ効果が
+ *   解決していないためPSの反応でEffectAction自体が中断・再計算されうる）は
+ *   カウントしない。TIMINGイベントに反応したPS自身の効果は、そのPS自身の
+ *   `EFFECT_RESOLVED`で別途カウントされるため、未解決のTIMINGイベント連鎖で
+ *   カウントを回避することはできない。
  *
  * イベント因果関係について: `TriggerCandidateEvent`は照合専用の最小形であり、
  * `DomainEventId`・`sequence`・`parentEventId`・`rootEventId`を持たない

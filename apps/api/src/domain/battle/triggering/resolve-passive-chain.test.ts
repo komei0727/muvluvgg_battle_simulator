@@ -3,6 +3,7 @@ import {
   resolvePassiveChain,
   type PassiveActivation,
   type PassiveActivationCompletion,
+  type PassiveActivationStep,
   type PassiveChainDependencies,
 } from "./resolve-passive-chain.js";
 import { createEmptyPassiveActivationGuard, hasActivated } from "./passive-activation-guard.js";
@@ -93,6 +94,16 @@ function event(eventType: string): TriggerCandidateEvent {
 
 const DONE: PassiveActivationCompletion = { interrupted: false };
 
+/** A resolved-effect step carrying the (possibly empty) events it produced. */
+function resolvedStep(events: readonly TriggerCandidateEvent[] = []): PassiveActivationStep {
+  return { kind: "EFFECT_RESOLVED", events };
+}
+
+/** A pre-application TIMING step (uncounted by the effects guard). */
+function timingStep(triggerEvent: TriggerCandidateEvent): PassiveActivationStep {
+  return { kind: "TIMING_EVENT", event: triggerEvent };
+}
+
 /**
  * Builds a `PassiveActivation` that completes immediately without yielding any
  * step. Implemented as a plain iterator rather than `function*` because
@@ -162,11 +173,11 @@ describe("resolvePassiveChain", () => {
         order.push(candidate.skillDefinition.skillDefinitionId);
         seenEvents[candidate.skillDefinition.skillDefinitionId] = evt;
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          yield { events: [eventFromA] };
+          yield resolvedStep([eventFromA]);
         } else if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
-          yield { events: [eventFromB] };
+          yield resolvedStep([eventFromB]);
         } else {
-          yield { events: [] };
+          yield resolvedStep();
         }
         return DONE;
       },
@@ -218,9 +229,9 @@ describe("resolvePassiveChain", () => {
       activate: function* (candidate) {
         if (candidate.skillDefinition.skillDefinitionId === skillParent.skillDefinitionId) {
           order.push("PARENT_EFFECT_A");
-          yield { events: [effectAEvent] };
+          yield resolvedStep([effectAEvent]);
           order.push("PARENT_EFFECT_B");
-          yield { events: [effectBEvent] };
+          yield resolvedStep([effectBEvent]);
           order.push("PARENT_DONE");
           return DONE;
         }
@@ -258,7 +269,7 @@ describe("resolvePassiveChain", () => {
       activate: function* (candidate) {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          yield { events: [eventFromA] };
+          yield resolvedStep([eventFromA]);
         }
         return DONE;
       },
@@ -307,7 +318,7 @@ describe("resolvePassiveChain", () => {
       },
       getCurrentUnit: () => owner,
       activate: function* () {
-        yield { events: [event("NEXT")] };
+        yield resolvedStep([event("NEXT")]);
         return DONE;
       },
       limits: { maxPassiveDepth: 3, maxEffectsPerScope: 1000 },
@@ -330,7 +341,7 @@ describe("resolvePassiveChain", () => {
       getCurrentUnit: () => owner,
       activate: function* () {
         for (let i = 0; i < 5; i += 1) {
-          yield { events: [] };
+          yield resolvedStep();
         }
         return DONE;
       },
@@ -340,20 +351,15 @@ describe("resolvePassiveChain", () => {
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
   });
 
-  it("UT-GUARD-007: several domain events from a single EffectAction are each checked for PS candidates but counted as exactly one resolved effect", () => {
-    // Mirrors a real damage EffectAction, which can emit UnitBeingAttacked,
-    // DamageWillBeApplied, DamageCalculated, and DamageApplied for one single
-    // effect: all four are bundled into the same yielded step, so they are
-    // each checked for PS candidates but counted as exactly one resolved effect.
+  it("UT-GUARD-007: post-application domain events from a single EffectAction are each checked for PS candidates but counted as exactly one resolved effect", () => {
+    // Mirrors a real damage EffectAction: DamageCalculated and DamageApplied
+    // (FACT category, post-application) are bundled into the same resolved
+    // step, so they are each checked for PS candidates but counted as exactly
+    // one resolved effect.
     const owner = unit("A");
     const candidate = candidateOf(owner, skillOf("SKL_MULTI_EVENT"));
     const detectedEventTypes: string[] = [];
-    const damageEvents = [
-      event("UnitBeingAttacked"),
-      event("DamageWillBeApplied"),
-      event("DamageCalculated"),
-      event("DamageApplied"),
-    ];
+    const postApplicationEvents = [event("DamageCalculated"), event("DamageApplied")];
 
     function run(limits: PassiveChainDependencies["limits"]) {
       return resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
@@ -363,7 +369,7 @@ describe("resolvePassiveChain", () => {
         },
         getCurrentUnit: () => owner,
         activate: function* () {
-          yield { events: damageEvents };
+          yield resolvedStep(postApplicationEvents);
           return DONE;
         },
         limits,
@@ -376,7 +382,7 @@ describe("resolvePassiveChain", () => {
       reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED",
     });
     expect(detectedEventTypes).toEqual(
-      expect.arrayContaining(damageEvents.map((e) => e.eventType)),
+      expect.arrayContaining(postApplicationEvents.map((e) => e.eventType)),
     );
   });
 
@@ -400,7 +406,7 @@ describe("resolvePassiveChain", () => {
       },
       getCurrentUnit: () => owner,
       activate: function* () {
-        yield { events: [event("NEXT")] };
+        yield resolvedStep([event("NEXT")]);
         return DONE;
       },
       // Depth is generous; only the effects guard should be able to stop this.
@@ -408,6 +414,67 @@ describe("resolvePassiveChain", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
+  });
+
+  it("UT-GUARD-009: a pre-application TIMING event lets a reactive PS cancel the EffectAction, which is then not counted as a resolved effect", () => {
+    // Models EffectActionStarting (a TIMING event per 08_ドメインイベント.md):
+    // a reactive PS (e.g. an evade/shield PS) intervenes before the attacking
+    // EffectAction resolves, and the attacker's generator observes this and
+    // decides not to resolve/count the cancelled action at all (no
+    // EFFECT_RESOLVED step is yielded for it). Only the reactive PS's own
+    // effect should be counted.
+    const attacker = unit("ATTACKER");
+    const defender = unit("DEFENDER");
+    const skillAttack = skillOf("SKL_ATTACK");
+    const skillEvade = skillOf("SKL_EVADE");
+    const candAttack = candidateOf(attacker, skillAttack);
+    const candEvade = candidateOf(defender, skillEvade);
+
+    const rootEvent = event("ROOT");
+    const startingEvent = event("EffectActionStarting");
+    const activatedSkillIds: string[] = [];
+
+    function run(limits: PassiveChainDependencies["limits"]) {
+      return resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+        detectCandidates: (evt) => {
+          if (evt.eventType === rootEvent.eventType) {
+            return [candAttack];
+          }
+          if (evt.eventType === startingEvent.eventType) {
+            return [candEvade];
+          }
+          return [];
+        },
+        getCurrentUnit: (id) => (id === attacker.battleUnitId ? attacker : defender),
+        activate: function* (candidate) {
+          activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
+          if (candidate.skillDefinition.skillDefinitionId === skillAttack.skillDefinitionId) {
+            yield timingStep(startingEvent);
+            // The reactive evade PS (resolved above, synchronously, before this
+            // generator resumes) cancelled this EffectAction: it never resolves,
+            // so no EFFECT_RESOLVED step is yielded for it at all.
+            return DONE;
+          }
+          // The reactive evade PS resolves its own single effect.
+          yield resolvedStep();
+          return DONE;
+        },
+        limits,
+      });
+    }
+
+    // If the cancelled attack were (incorrectly) counted, this generous-but-tight
+    // limit of exactly 1 would be exceeded by the evade PS's own effect.
+    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 1 }).ok).toBe(true);
+    // If the evade PS's own effect were (incorrectly) never counted at all, this
+    // zero limit would not trip.
+    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 0 })).toEqual({
+      ok: false,
+      reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED",
+    });
+    expect(activatedSkillIds).toEqual(
+      expect.arrayContaining([skillAttack.skillDefinitionId, skillEvade.skillDefinitionId]),
+    );
   });
 
   it("UT-R-PS-05-001: an interrupted activation is surfaced without aborting the rest of the chain", () => {
@@ -458,7 +525,7 @@ describe("resolvePassiveChain", () => {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
           unitD = { ...unitD, currentHp: 0 };
-          yield { events: [eventFromA] };
+          yield resolvedStep([eventFromA]);
         }
         return DONE;
       },
@@ -550,11 +617,11 @@ describe("resolvePassiveChain", () => {
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
           const effectFromA = recordAndWrap(causeEvent);
           groupsByEvent.set(effectFromA, [candB]);
-          yield { events: [effectFromA] };
+          yield resolvedStep([effectFromA]);
         } else if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
           const effectFromB = recordAndWrap(causeEvent);
           groupsByEvent.set(effectFromB, [candC]);
-          yield { events: [effectFromB] };
+          yield resolvedStep([effectFromB]);
         }
         return DONE;
       },
