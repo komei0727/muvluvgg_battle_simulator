@@ -36,6 +36,7 @@ export const VIOLATION_RULES = [
   "UNKNOWN_EVENT_TYPE",
   "EVENT_CATEGORY_MISMATCH",
   "UNOWNED_SKILL_REFERENCE",
+  "MISSING_REQUIRED_CAPABILITY",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -341,15 +342,24 @@ function validateEffectAction(
   }
   // Issue #129: COOLDOWN_MANIPULATIONの対象スキル存在チェック。所有者一致は
   // `checkCooldownManipulationOwnership`（Unit視点でのみ判定可能）が担う。
-  if (
-    effectAction.kind === "COOLDOWN_MANIPULATION" &&
-    !skills.has(effectAction.payload.targetSkillDefinitionId)
-  ) {
-    violations.push({
-      targetId: effectAction.effectActionDefinitionId,
-      rule: "DANGLING_REFERENCE",
-      message: `COOLDOWN_MANIPULATION payload.targetSkillDefinitionId references undefined SkillDefinition "${effectAction.payload.targetSkillDefinitionId}"`,
-    });
+  if (effectAction.kind === "COOLDOWN_MANIPULATION") {
+    if (!skills.has(effectAction.payload.targetSkillDefinitionId)) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "DANGLING_REFERENCE",
+        message: `COOLDOWN_MANIPULATION payload.targetSkillDefinitionId references undefined SkillDefinition "${effectAction.payload.targetSkillDefinitionId}"`,
+      });
+    }
+    // Issue #129レビュー[P2]: `14_Catalog定義スキーマ.md`は`CAP_COOLDOWN_MANIPULATION`を
+    // requiredCapabilitiesへ含めることを必須としているが、`checkRequiredCapabilities`は
+    // 列挙済みCapabilityの存在有無しか検証しないため、指定漏れ自体は別途検証する。
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_COOLDOWN_MANIPULATION")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message: `COOLDOWN_MANIPULATION must declare "CAP_COOLDOWN_MANIPULATION" in requiredCapabilities`,
+      });
+    }
   }
   checkRequiredCapabilities(
     effectAction.requiredCapabilities,

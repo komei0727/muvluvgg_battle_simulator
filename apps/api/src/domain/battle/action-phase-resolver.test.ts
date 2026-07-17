@@ -3,7 +3,9 @@ import { resolveActionPhase } from "./action-phase-resolver.js";
 import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
 import type { BattleDefinitions } from "./battle-definitions.js";
 import type { BattlePartyMember } from "./battle-party.js";
+import type { BattleStateSnapshot } from "./events/battle-state-snapshot.js";
 import { EventRecorder } from "./events/event-recorder.js";
+import { reduceStateDeltas } from "./events/state-delta-reducer.js";
 import { createActionPoint, createExtraGauge, createHitPoint } from "./resource-gauge.js";
 import { createBattleId, createBattleUnitId } from "../shared/ids.js";
 import {
@@ -1167,5 +1169,84 @@ describe("resolveActionPhase", () => {
         .getEvents()
         .filter((e) => e.eventType === "CooldownReduced" && e.sourceUnitId === ally.battleUnitId),
     ).toHaveLength(0);
+  });
+
+  it("UT-ACTION-PHASE-018 (Issue #129 COOLDOWN_MANIPULATION, PR#130 review): an independent Reducer replaying CooldownReduced/CooldownCompleted StateDelta from an initial snapshot reconstructs the same final cooldowns as the live engine", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_RESTORE");
+    const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_RESTORE");
+    const skill = cooldownManipulationSkill("ACT_CD_RESTORE", 1);
+    const effectAction = cooldownManipulationEffectAction(
+      "ACT_CD_RESTORE",
+      "SKL_TARGET_RESTORE",
+      "RESET",
+    );
+    const allyBase = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CD_MANIP_RESTORE",
+      limits: { maximumAp: 1 },
+    });
+    const ally: BattleUnit = {
+      ...allyBase,
+      cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const initialState: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: ctx.turnNumber,
+      units: {
+        [ally.battleUnitId]: {
+          hp: ally.currentHp,
+          ap: ally.currentAp,
+          pp: ally.currentPp,
+          extraGauge: ally.currentExtraGauge,
+          cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
+        },
+        [enemy.battleUnitId]: {
+          hp: enemy.currentHp,
+          ap: enemy.currentAp,
+          pp: enemy.currentPp,
+          extraGauge: enemy.currentExtraGauge,
+        },
+      },
+    };
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // Sanity check: this action does reach 0 and emits both events (the
+    // scenario the review asked to prove StateDelta-restorable).
+    expect(ctx.recorder.getEvents().filter((e) => e.eventType === "CooldownReduced")).toHaveLength(
+      1,
+    );
+    expect(
+      ctx.recorder.getEvents().filter((e) => e.eventType === "CooldownCompleted"),
+    ).toHaveLength(1);
+
+    const deltas = ctx.recorder
+      .getEvents()
+      .map((e) => e.stateDelta)
+      .filter((delta): delta is NonNullable<typeof delta> => delta !== undefined);
+    const restored = reduceStateDeltas(initialState, deltas);
+
+    expect(restored.units[ally.battleUnitId]!.cooldowns).toEqual({
+      [targetSkillDefinitionId]: { unit: "ACTION", remaining: 0 },
+    });
+    expect(restored.units[ally.battleUnitId]!.cooldowns![targetSkillDefinitionId]!.remaining).toBe(
+      result.allyUnits[0]!.cooldowns[targetSkillDefinitionId]!.remaining,
+    );
   });
 });

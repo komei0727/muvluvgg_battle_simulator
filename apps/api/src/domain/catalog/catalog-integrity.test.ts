@@ -146,13 +146,14 @@ function cooldownManipulationAction(
   id: string,
   targetSkillDefinitionId: string,
   operation: "RESET" | "REDUCE" = "RESET",
+  requiredCapabilities: readonly string[] = ["CAP_COOLDOWN_MANIPULATION"],
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
       kind: "COOLDOWN_MANIPULATION",
       payload: { targetSkillDefinitionId, operation },
-      requiredCapabilities: [],
+      requiredCapabilities,
     },
     "effectAction",
   );
@@ -554,10 +555,37 @@ describe("buildCatalogIndex", () => {
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_CD_RESET")],
       effectActions: [...defs.effectActions, cooldownManipulationAction("ACT_CD_RESET", "SKL_AS1")],
+      capabilities: [capability("CAP_COOLDOWN_MANIPULATION")],
     };
 
     const index = buildCatalogIndex(withOwned);
 
     expect(index.effectActions.get("ACT_CD_RESET" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-020: rejects a COOLDOWN_MANIPULATION missing the required CAP_COOLDOWN_MANIPULATION capability (Issue #129 review)", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_CD_RESET")],
+      effectActions: [
+        ...defs.effectActions,
+        cooldownManipulationAction("ACT_CD_RESET", "SKL_AS1", "RESET", []),
+      ],
+      capabilities: [capability("CAP_COOLDOWN_MANIPULATION")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_CD_RESET",
+        ),
+      ).toBe(true);
+    }
   });
 });
