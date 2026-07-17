@@ -7,10 +7,8 @@ import {
   buildCatalogIndex,
   type CatalogDefinitions,
 } from "../../../domain/catalog/integrity/catalog-integrity.js";
-import {
-  createEffectActionDefinition,
-  type EffectActionDefinition,
-} from "../../../domain/catalog/definitions/effect-action-definition.js";
+import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
+import { createEffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition-factory.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createCapabilityDefinition } from "../capability/capability-definition.js";
-import { createEffectActionDefinition } from "./effect-action-definition.js";
+import { createEffectActionDefinition } from "./effect-action-definition-factory.js";
 import { createUnitDefinition } from "./unit-definition.js";
 
 describe("Converted Definitions are immutable", () => {
