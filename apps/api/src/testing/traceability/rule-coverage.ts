@@ -436,12 +436,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "PROPERTY"],
   },
-  // R-PS-03「同時発動制限」は`simultaneousActivationLimited`/`exclusiveActivationGroupId`
-  // による候補の1件絞り込みを要求するが、その絞り込みは`PassiveResolutionStack`と共に
-  // Issue #21（[M6] PS即時連鎖・同時発動制限・実行Guardを実装する）が実装する。#19は
-  // 候補検出・順序付けまでで、13_実装計画.md「後続依存を持つルールは完了計上しない」
-  // に従い台帳上は未完了のままとする。
-  { ruleId: "R-PS-03", testCaseIds: [], kinds: [] },
+  // R-PS-03「同時発動制限」+`exclusiveActivationGroupId`排他グループ（#21:
+  // `applySimultaneousActivationLimit`）。
+  {
+    ruleId: "R-PS-03",
+    testCaseIds: [
+      "UT-R-PS-03-001",
+      "UT-R-PS-03-002",
+      "UT-R-PS-03-003",
+      "UT-R-PS-03-004",
+      "UT-R-PS-03-005",
+      "UT-R-PS-03-006",
+      "UT-R-PS-03-007",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
   {
     ruleId: "R-PS-04",
     testCaseIds: [
@@ -456,19 +465,41 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
-  // R-PS-05〜R-PS-07はPassiveResolutionStackによる実際の発動・即時連鎖・再入防止の
-  // 統合を要し、Issue #21のスコープ。R-PS-07の「発動済み集合」自体は#19で
-  // PassiveActivationGuardとして実装し、候補検出(R-PS-01)・発動直前再確認(R-PS-04)
-  // の除外条件として使っているが、実際の発動時にguardへ記録する経路は#21が
-  // 実装するため、ルール自体の完了はそちらへ計上する。
-  { ruleId: "R-PS-05", testCaseIds: [], kinds: [] },
-  { ruleId: "R-PS-06", testCaseIds: [], kinds: [] },
-  { ruleId: "R-PS-07", testCaseIds: [], kinds: [] },
-  // R-PS-08「先制攻撃」: 候補順序（先制攻撃を通常候補より先に処理し、複数ある場合は
-  // R-PS-02を適用する）はUT-R-PS-08-001〜003で検証済みだが、ルール本文の「発動条件、
-  // 発動直前確認、同時発動制限、1解決スコープ1回制限を無視しない」のうち同時発動制限
-  // (R-PS-03)はIssue #21のスコープのため、台帳上は未完了のままとする。
-  { ruleId: "R-PS-08", testCaseIds: [], kinds: [] },
+  // R-PS-05〜R-PS-07: `resolvePassiveChain`（#21）が`PassiveResolutionStack`で
+  // 実際の発動・即時連鎖・再入防止を統合する。R-PS-05は発動直前のguard記録
+  // （PP消費・EXゲージ増加・`PassiveActivated`/`PassiveResolved`はPP/EX/Cooldownを
+  // 統合する#34のスコープ）とSkill中断接続（`interrupted`結果の伝播）まで。
+  {
+    ruleId: "R-PS-05",
+    testCaseIds: ["UT-R-PS-06-007", "UT-R-PS-07-001", "UT-R-PS-05-001"],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
+  {
+    ruleId: "R-PS-06",
+    testCaseIds: [
+      "UT-R-PS-06-001",
+      "UT-R-PS-06-002",
+      "UT-R-PS-06-003",
+      "UT-R-PS-06-004",
+      "UT-R-PS-06-005",
+      "UT-R-PS-06-006",
+      "UT-R-PS-06-007",
+    ],
+    kinds: ["POSITIVE", "SCENARIO"],
+  },
+  {
+    ruleId: "R-PS-07",
+    testCaseIds: ["UT-R-PS-04-007", "UT-R-PS-06-007", "UT-R-PS-07-001"],
+    kinds: ["POSITIVE", "NEGATIVE"],
+  },
+  // R-PS-08「先制攻撃」: 候補順序はUT-R-PS-08-001〜003（#19）で検証済み。同時発動制限
+  // (R-PS-03)との統合はUT-R-PS-03-003（先制候補が同時発動制限内でも優先される）で
+  // 検証し、これで完了計上する。
+  {
+    ruleId: "R-PS-08",
+    testCaseIds: ["UT-R-PS-08-001", "UT-R-PS-08-002", "UT-R-PS-08-003", "UT-R-PS-03-003"],
+    kinds: ["POSITIVE", "PROPERTY"],
+  },
 
   // MEM: Memory発動
   { ruleId: "R-MEM-01", testCaseIds: [], kinds: [] },
