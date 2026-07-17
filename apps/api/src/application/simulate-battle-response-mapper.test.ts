@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { CooldownStateResponseBody } from "./http-contract.js";
 import { toBattleSimulationResponseBody } from "./simulate-battle-response-mapper.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
 import { createActionId } from "../domain/battle/events/event-ids.js";
@@ -365,6 +366,37 @@ describe("toBattleSimulationResponseBody", () => {
     ).toThrow(/setActionId/);
   });
 
+  it("API-RESP-010C (M5 review round 4 [P3] fix): throws instead of silently dropping the opposite-side scope field when a Domain cooldown has both setActionId and setTurnNumber set (unit ACTION with a stray setTurnNumber)", () => {
+    expect(() =>
+      toBattleSimulationResponseBody(
+        baseResult({
+          finalState: {
+            status: "COMPLETED",
+            currentTurn: 1,
+            result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+            units: {
+              [ALLY_ID]: {
+                hp: 90,
+                ap: 1,
+                pp: 0,
+                extraGauge: 5,
+                cooldowns: {
+                  [SKL_A]: {
+                    unit: "ACTION",
+                    remaining: 2,
+                    setActionId: ACTION_1,
+                    setTurnNumber: 3,
+                  },
+                },
+              },
+              [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+            },
+          },
+        }),
+      ),
+    ).toThrow(/setTurnNumber/);
+  });
+
   it("API-RESP-011 (P1 fix): maps a StateTransition's cooldowns delta into an EntityCollectionDelta (added/updated/removed derived from remaining crossing zero) and charge into a ValueChange with null for the unset side", () => {
     const body = toBattleSimulationResponseBody(
       baseResult({
@@ -428,5 +460,21 @@ describe("toBattleSimulationResponseBody", () => {
       before: { skillDefinitionId: "SKL_D", startedActionId: "action-2", status: "CHARGING" },
       after: null,
     });
+  });
+
+  it("API-RESP-010D (M5 review round 4 [P3] fix): CooldownStateResponseBody rejects a value with both setAtActionId and setAtTurnNumber at the type level, even through an intermediate variable (not just via excess-property-check on a literal)", () => {
+    const both = {
+      skillDefinitionId: "SKL_1",
+      unit: "ACTION" as const,
+      remaining: 1,
+      setAtActionId: "a-1",
+      setAtTurnNumber: 1,
+    };
+
+    // @ts-expect-error `setAtTurnNumber` is `never` on the ACTION variant, so this
+    // assignment must fail even though `both` isn't an object literal (the
+    // excess-property-check bypass the round 4 review found).
+    const rejected: CooldownStateResponseBody = both;
+    expect(rejected.unit).toBe("ACTION");
   });
 });

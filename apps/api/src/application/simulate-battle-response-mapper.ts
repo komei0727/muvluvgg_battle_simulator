@@ -50,7 +50,9 @@ function toPercentagePoints(ratio: number): number {
  * `setAtTurnNumber`のどちらか一方だけを持つdiscriminated unionを構築する。
  * Domainの`CooldownState`はこのXORをコンパイル時には強制しない（`unit`と
  * `setActionId`/`setTurnNumber`が独立したoptionalフィールドのため）ので、ここで
- * 実行時に検証する。
+ * 実行時に検証する。反対側のscopeフィールドが同時に存在する場合も、黙って
+ * 捨てて正常化するのではなく例外にする（M5レビュー4巡目[P3]: Domain不変条件が
+ * 破れているサインを握りつぶさない）。
  */
 function toCooldownStateResponseBody(
   skillDefinitionId: string,
@@ -60,6 +62,11 @@ function toCooldownStateResponseBody(
     if (state.setActionId === undefined) {
       throw new Error(
         `cooldowns["${skillDefinitionId}"] has unit "ACTION" but no setActionId (violates the ACTION/TURN setting-scope XOR)`,
+      );
+    }
+    if (state.setTurnNumber !== undefined) {
+      throw new Error(
+        `cooldowns["${skillDefinitionId}"] has unit "ACTION" but also has setTurnNumber (violates the ACTION/TURN setting-scope XOR)`,
       );
     }
     return {
@@ -72,6 +79,11 @@ function toCooldownStateResponseBody(
   if (state.setTurnNumber === undefined) {
     throw new Error(
       `cooldowns["${skillDefinitionId}"] has unit "TURN" but no setTurnNumber (violates the ACTION/TURN setting-scope XOR)`,
+    );
+  }
+  if (state.setActionId !== undefined) {
+    throw new Error(
+      `cooldowns["${skillDefinitionId}"] has unit "TURN" but also has setActionId (violates the ACTION/TURN setting-scope XOR)`,
     );
   }
   return {

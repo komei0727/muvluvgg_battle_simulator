@@ -140,8 +140,11 @@ export interface EffectStateResponseBody {
  * `unit`(ACTION/TURN)に応じてどちらか一方だけ存在する（Domainの`CooldownEntry`と
  * 同じXOR。`state-delta.ts`の`CooldownState`コメント参照）。discriminated union
  * にすることで、両方欠落・両方存在という不正な組み合わせをコンパイル時に防ぐ
- * （M5レビュー3巡目[P2]）。`remaining`は残数があるスキルだけを返す契約のため
- * 1以上。
+ * （M5レビュー3巡目[P2]）。反対側フィールドを`?: never`にしているのは、
+ * オブジェクトリテラル直書き以外（変数経由の代入）でもexcess property check を
+ * 回避できないようにするため（M5レビュー4巡目[P3]: `never`が無いと構造的部分型
+ * 付けにより両方のフィールドを持つ値も代入できてしまう）。`remaining`は残数が
+ * あるスキルだけを返す契約のため1以上。
  */
 export type CooldownStateResponseBody =
   | {
@@ -149,12 +152,14 @@ export type CooldownStateResponseBody =
       readonly unit: "ACTION";
       readonly remaining: number;
       readonly setAtActionId: string;
+      readonly setAtTurnNumber?: never;
     }
   | {
       readonly skillDefinitionId: string;
       readonly unit: "TURN";
       readonly remaining: number;
       readonly setAtTurnNumber: number;
+      readonly setAtActionId?: never;
     };
 
 /** `10_API設計.md`「ChargeStateResponse」。`status`はM5時点でCHARGING以外の値を取り得ない（RELEASE_READY/HELD_BY_FREEZEはM6/M7で追加されるイベント発行後に初めて成立する）。 */
