@@ -3,11 +3,11 @@ import type {
   ApplicationError,
   ApplicationErrorCode,
   Violation,
-} from "../../application/contracts/application-error.js";
+} from "../../../../application/contracts/application-error.js";
 import type {
   ErrorResponseBody,
   ViolationResponseBody,
-} from "../../application/contracts/error.js";
+} from "../../../../application/contracts/error.js";
 
 const SERVER_LOG_CORRELATION_STATUS = 500;
 

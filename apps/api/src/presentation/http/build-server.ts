@@ -17,8 +17,11 @@ import type { BattleSimulationCatalogResult } from "../../application/catalog/ge
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
-import { fromApplicationError, toErrorResponseBody } from "./error-response-mapper.js";
-import { registerHealthRoutes, type ReadinessPort } from "./health-routes.js";
+import {
+  fromApplicationError,
+  toErrorResponseBody,
+} from "./protocol/error-response/error-response-mapper.js";
+import { registerHealthRoutes, type ReadinessPort } from "./routes/health-routes.js";
 import {
   battleSimulationRequestSchema,
   battleSimulationRequestDocSchema,
