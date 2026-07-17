@@ -1,8 +1,5 @@
 import type { FormationPositionInput, SimulateBattleCommand } from "./simulate-battle-command.js";
-import type {
-  BattleSimulationRequestBody,
-  FormationRequestBody,
-} from "../contracts/http-contract.js";
+import type { BattleSimulationRequestBody, FormationRequestBody } from "../contracts/simulation.js";
 import type {
   MemoryDefinitionId,
   UnitDefinitionId,

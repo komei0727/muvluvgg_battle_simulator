@@ -2,7 +2,6 @@ import type { BattleLogEvent } from "../observation/battle-log-event.js";
 import type { StateTransition } from "../observation/battle-observation.js";
 import type {
   ActionReservationResponseBody,
-  BattleLogEventResponseBody,
   BattleSimulationResponseBody,
   BattleStateDeltaResponseBody,
   BattleStateResponseBody,
@@ -12,7 +11,8 @@ import type {
   EntityCollectionDeltaResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
-} from "../contracts/http-contract.js";
+} from "../contracts/simulation.js";
+import type { BattleLogEventResponseBody } from "../contracts/battle-log.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
 import type {
   BattleUnitRosterEntry,

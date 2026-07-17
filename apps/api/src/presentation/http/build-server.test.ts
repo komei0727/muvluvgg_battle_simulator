@@ -4,8 +4,8 @@ import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
 import type {
   BattleSimulationRequestBody,
   BattleSimulationResponseBody,
-  ErrorResponseBody,
-} from "../../application/contracts/http-contract.js";
+} from "../../application/contracts/simulation.js";
+import type { ErrorResponseBody } from "../../application/contracts/error.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";

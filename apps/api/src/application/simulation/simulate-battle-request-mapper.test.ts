@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toSimulateBattleCommand } from "./simulate-battle-request-mapper.js";
-import type { BattleSimulationRequestBody } from "../contracts/http-contract.js";
+import type { BattleSimulationRequestBody } from "../contracts/simulation.js";
 
 function requestBody(
   overrides: Partial<BattleSimulationRequestBody> = {},

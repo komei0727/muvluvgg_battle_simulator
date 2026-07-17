@@ -12,7 +12,7 @@ import fastifySwaggerUi from "@fastify/swagger-ui";
 import { toBattleSimulationResponseBody } from "../../application/simulation/simulate-battle-response-mapper.js";
 import { toBattleSimulationCatalogResponseBody } from "../../application/catalog/battle-simulation-catalog-response-mapper.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
-import type { BattleSimulationRequestBody } from "../../application/contracts/http-contract.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/simulation.js";
 import type { BattleSimulationCatalogResult } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";

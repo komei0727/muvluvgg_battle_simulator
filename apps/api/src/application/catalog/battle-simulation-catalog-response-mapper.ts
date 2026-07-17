@@ -1,4 +1,4 @@
-import type { BattleSimulationCatalogResponseBody } from "../contracts/http-contract.js";
+import type { BattleSimulationCatalogResponseBody } from "../contracts/catalog.js";
 import type { BattleSimulationCatalogResult } from "./get-battle-simulation-catalog-use-case.js";
 
 const SCHEMA_VERSION = 1;

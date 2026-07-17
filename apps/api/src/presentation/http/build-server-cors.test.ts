@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
-import type { BattleSimulationRequestBody } from "../../application/contracts/http-contract.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/simulation.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";

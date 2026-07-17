@@ -14,7 +14,7 @@ import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/ba
 import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
-import type { BattleSimulationRequestBody } from "../../application/contracts/http-contract.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/simulation.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「ログ設計」の最小field

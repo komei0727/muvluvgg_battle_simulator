@@ -5,7 +5,7 @@ import {
   type GetBattleSimulationCatalogUseCasePort,
   type SimulateBattleUseCasePort,
 } from "./build-server.js";
-import type { BattleSimulationCatalogResponseBody } from "../../application/contracts/http-contract.js";
+import type { BattleSimulationCatalogResponseBody } from "../../application/contracts/catalog.js";
 import type { BattleSimulationCatalogResult } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
 
 const CATALOG_PATH = "/api/v1/battle-simulation-catalog";

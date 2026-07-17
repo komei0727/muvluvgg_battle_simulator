@@ -1,3 +1,5 @@
+import type { BattleLogEventResponseBody } from "./battle-log.js";
+
 /**
  * `10_API設計.md`の外部JSON契約と同じ形の、ブランド型を含まないプレーンな型群。
  * Presentation層（Fastify JSON Schema・ルートハンドラ）はこのファイルだけを
@@ -8,6 +10,8 @@
  * 持たない。DTO↔Command / Result↔Responseの変換は
  * `simulate-battle-request-mapper.ts` / `simulate-battle-response-mapper.ts`
  * が担う。
+ *
+ * Simulateリクエスト/レスポンス関連の外部契約型を持つ。
  */
 
 export interface FormationPositionRequestBody {
@@ -34,35 +38,6 @@ export interface BattleSimulationRequestBody {
   readonly enemyFormation: FormationRequestBody;
   readonly turnLimit: number;
   readonly options?: SimulationOptionsRequestBody;
-}
-
-/** `10_API設計.md`「CatalogUnitSummaryResponse」。 */
-export interface CatalogUnitSummaryResponseBody {
-  readonly unitDefinitionId: string;
-  readonly displayName: string;
-  readonly characterName: string;
-  readonly attribute: string;
-  readonly unitType: string;
-  readonly role: string;
-  readonly positionAptitudes: readonly string[];
-  readonly selectable: boolean;
-  readonly unavailableCapabilities: readonly string[];
-}
-
-/** `10_API設計.md`「CatalogMemorySummaryResponse」。 */
-export interface CatalogMemorySummaryResponseBody {
-  readonly memoryDefinitionId: string;
-  readonly displayName: string;
-  readonly selectable: boolean;
-  readonly unavailableCapabilities: readonly string[];
-}
-
-/** `10_API設計.md`「BattleSimulationCatalogResponse」。 */
-export interface BattleSimulationCatalogResponseBody {
-  readonly schemaVersion: number;
-  readonly catalogRevision: string;
-  readonly units: readonly CatalogUnitSummaryResponseBody[];
-  readonly memories: readonly CatalogMemorySummaryResponseBody[];
 }
 
 export interface ValueChangeBody<T> {
@@ -215,24 +190,6 @@ export interface BattleResultResponseBody {
   readonly completedTurn: number;
 }
 
-export interface BattleLogEventResponseBody {
-  readonly sequence: number;
-  readonly type: string;
-  readonly category: string;
-  readonly turnNumber: number;
-  readonly cycleNumber: number;
-  readonly actionId?: string;
-  readonly skillUseId?: string;
-  readonly parentSequence?: number;
-  readonly rootSequence: number;
-  readonly sourceUnitId?: string;
-  readonly targetUnitIds: readonly string[];
-  readonly details: unknown;
-  readonly stateVersionBefore: number;
-  readonly stateVersionAfter: number;
-  readonly stateTransitionIndex?: number;
-}
-
 export interface UnitResourcesDeltaResponseBody {
   readonly ap?: ValueChangeBody<number>;
   readonly pp?: ValueChangeBody<number>;
@@ -302,23 +259,4 @@ export interface BattleSimulationResponseBody {
   readonly finalState: BattleStateResponseBody;
   readonly events: readonly BattleLogEventResponseBody[];
   readonly stateTransitions: readonly StateTransitionResponseBody[];
-}
-
-export interface ViolationResponseBody {
-  readonly path?: string;
-  readonly definitionId?: string;
-  readonly ruleId?: string;
-  readonly message: string;
-}
-
-export interface ErrorObjectResponseBody {
-  readonly code: string;
-  readonly message: string;
-  readonly violations: readonly ViolationResponseBody[];
-  readonly diagnosticId?: string;
-}
-
-export interface ErrorResponseBody {
-  readonly schemaVersion: number;
-  readonly error: ErrorObjectResponseBody;
 }

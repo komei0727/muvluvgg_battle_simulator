@@ -7,7 +7,7 @@ import type {
 import type {
   ErrorResponseBody,
   ViolationResponseBody,
-} from "../../application/contracts/http-contract.js";
+} from "../../application/contracts/error.js";
 
 const SERVER_LOG_CORRELATION_STATUS = 500;
 

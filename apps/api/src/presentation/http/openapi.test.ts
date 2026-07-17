@@ -11,7 +11,7 @@ import {
 import type {
   BattleSimulationRequestBody,
   BattleSimulationResponseBody,
-} from "../../application/contracts/http-contract.js";
+} from "../../application/contracts/simulation.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
