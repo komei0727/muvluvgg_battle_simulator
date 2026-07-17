@@ -1,12 +1,17 @@
 /**
- * UT-MOD-001 through UT-MOD-022
+ * UT-MOD-001 through UT-MOD-028
  * Verifies that the ESLint `no-restricted-imports` rules enforce the Domain-internal
- * module boundaries fixed by `#132` (04_境界づけられたコンテキスト.md「モジュール依存規則」).
+ * module boundaries fixed by `#132` (04_境界づけられたコンテキスト.md「モジュール依存規則」),
+ * and that no stray production file reappears directly under `domain/battle` or
+ * `application` (the flattening `#132` exists to prevent).
  * Mirrors the approach in layer-boundary.test.ts: type-checked rules are disabled so
  * that lintText works with virtual file paths, since no-restricted-imports is
  * syntax-only and does not need type information.
  */
 import { ESLint, type Linter } from "eslint";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import tseslint from "typescript-eslint";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -26,6 +31,24 @@ function violationsOf(results: ESLint.LintResult[], ruleId: string): Linter.Lint
 async function lint(code: string, filePath: string): Promise<Linter.LintMessage[]> {
   const results = await eslint.lintText(code, { filePath });
   return violationsOf(results, "no-restricted-imports");
+}
+
+// `no-restricted-imports` governs import statements, not file placement, so it cannot stop a
+// stray file from reappearing directly under `domain/battle` or `application` (the flattening
+// `#132` was created to undo). This walks the real directory tree instead.
+function assertOnlyDirectories(dirPath: string, allowedNames: readonly string[]): void {
+  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      throw new Error(
+        `${dirPath} must not contain a loose file ("${entry.name}"); every file must live inside one of its recognized submodules: ${allowedNames.join(", ")}.`,
+      );
+    }
+    if (!allowedNames.includes(entry.name)) {
+      throw new Error(
+        `${dirPath} contains an unrecognized subdirectory "${entry.name}"; expected one of: ${allowedNames.join(", ")}.`,
+      );
+    }
+  }
 }
 
 describe("Module boundary — domain/catalog", () => {
@@ -177,6 +200,40 @@ describe("Module boundary — domain/battle/effects and domain/battle/combat", (
   });
 });
 
+describe("Module boundary — domain/battle/triggering (parallel sibling node under lifecycle)", () => {
+  it("UT-MOD-023: battle/triggering cannot import from battle/effects (parallel sibling, mutual ban)", async () => {
+    const violations = await lint(
+      "import type {} from '../effects/applied-effect.js';\n",
+      "src/domain/battle/triggering/bad.ts",
+    );
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("UT-MOD-024: battle/effects cannot import from battle/triggering (parallel sibling, mutual ban)", async () => {
+    const violations = await lint(
+      "import type {} from '../triggering/passive-trigger-matcher.js';\n",
+      "src/domain/battle/effects/bad.ts",
+    );
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("UT-MOD-025: battle/triggering cannot import from battle/combat", async () => {
+    const violations = await lint(
+      "import type {} from '../combat/damage-calculator.js';\n",
+      "src/domain/battle/triggering/bad.ts",
+    );
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("UT-MOD-026: battle/combat cannot import from battle/triggering (existing rule, confirmed alongside 023-025)", async () => {
+    const violations = await lint(
+      "import type {} from '../triggering/passive-trigger-matcher.js';\n",
+      "src/domain/battle/combat/bad.ts",
+    );
+    expect(violations.length).toBeGreaterThan(0);
+  });
+});
+
 describe("Module boundary — reverse dependency on battle/lifecycle", () => {
   it("UT-MOD-017: battle/action cannot import from battle/lifecycle", async () => {
     const violations = await lint(
@@ -261,5 +318,38 @@ describe("Module boundary — presentation cannot depend on domain directly", ()
       "src/presentation/http/routes/bad.ts",
     );
     expect(violations.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Module boundary — no stray top-level files under domain/battle or application (#132 flattening guard)", () => {
+  const srcDir = fileURLToPath(new URL("..", import.meta.url));
+
+  it("UT-MOD-027: domain/battle contains only recognized submodule directories", () => {
+    expect(() =>
+      assertOnlyDirectories(join(srcDir, "domain", "battle"), [
+        "model",
+        "outcome",
+        "targeting",
+        "action",
+        "skill",
+        "events",
+        "combat",
+        "lifecycle",
+        "triggering",
+        "effects",
+      ]),
+    ).not.toThrow();
+  });
+
+  it("UT-MOD-028: application contains only recognized submodule directories", () => {
+    expect(() =>
+      assertOnlyDirectories(join(srcDir, "application"), [
+        "simulation",
+        "catalog",
+        "observation",
+        "contracts",
+        "shared",
+      ]),
+    ).not.toThrow();
   });
 });

@@ -260,9 +260,9 @@ export default tseslint.config(
     ignores: ["src/domain/battle/effects/**/*.test.ts", "src/domain/battle/effects/**/*.spec.ts"],
     rules: {
       "no-restricted-imports": domainRestrictedImports({
-        regex: "(^|.+\\/)(combat|lifecycle|formation)(\\/|$)",
+        regex: "(^|.+\\/)(combat|triggering|lifecycle|formation)(\\/|$)",
         message:
-          "domain/battle/effects must not depend on domain/battle/combat (mutual ban), domain/battle/lifecycle, or domain/formation.",
+          "domain/battle/effects must not depend on domain/battle/combat (mutual ban), domain/battle/triggering (parallel sibling node under lifecycle, mutual ban), domain/battle/lifecycle, or domain/formation.",
       }),
     },
   },
@@ -274,9 +274,9 @@ export default tseslint.config(
     ],
     rules: {
       "no-restricted-imports": domainRestrictedImports({
-        regex: "(^|.+\\/)(lifecycle|formation)(\\/|$)",
+        regex: "(^|.+\\/)(effects|combat|lifecycle|formation)(\\/|$)",
         message:
-          "domain/battle/triggering must not depend on domain/battle/lifecycle or domain/formation.",
+          "domain/battle/triggering must not depend on domain/battle/effects (parallel sibling node under lifecycle, mutual ban), domain/battle/combat, domain/battle/lifecycle, or domain/formation.",
       }),
     },
   },
