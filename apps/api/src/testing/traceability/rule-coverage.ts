@@ -465,15 +465,19 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
-  // R-PS-05〜R-PS-07: `resolvePassiveChain`（#21）が`PassiveResolutionStack`で
-  // 実際の発動・即時連鎖・再入防止を統合する。R-PS-05は発動直前のguard記録
-  // （PP消費・EXゲージ増加・`PassiveActivated`/`PassiveResolved`はPP/EX/Cooldownを
-  // 統合する#34のスコープ）とSkill中断接続（`interrupted`結果の伝播）まで。
-  {
-    ruleId: "R-PS-05",
-    testCaseIds: ["UT-R-PS-06-007", "UT-R-PS-07-001", "UT-R-PS-05-001"],
-    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
-  },
+  // R-PS-05「発動と再入防止」は6ステップ（発動済み集合への記録、PP消費とEX増加、
+  // クールタイム設定、`PassiveActivated`発行、EffectSequence解決、`PassiveResolved`
+  // 発行）を要求する。#21が実装したのは#1（`resolvePassiveChain`内の
+  // `recordActivation`呼び出し）とSkill中断結果の接続点（`interruptedCandidates`）
+  // だけで、PP消費・EX増加・Cooldown設定・イベント発行は#34のスコープ。
+  // 13_実装計画.md「後続依存を持つルールは完了計上しない」に従い、#34完了まで
+  // 台帳上は未完了のままとする。
+  { ruleId: "R-PS-05", testCaseIds: [], kinds: [] },
+  // R-PS-06「新規候補の即時処理」: `resolvePassiveChain`（#21）は`activate`が
+  // 効果解決の途中で`yield`するたびに、その候補連鎖を完全に解決してから元の
+  // ジェネレータを再開する。これにより「親の効果A→子PS→親の効果B」の順序
+  // （UT-R-PS-06-008）を、PSがEffectSequence全体を終えてからしか新規候補を
+  // 報告できない設計では表現できなかった粒度で満たす。
   {
     ruleId: "R-PS-06",
     testCaseIds: [
@@ -484,6 +488,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-06-005",
       "UT-R-PS-06-006",
       "UT-R-PS-06-007",
+      "UT-R-PS-06-008",
     ],
     kinds: ["POSITIVE", "SCENARIO"],
   },

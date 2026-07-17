@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolvePassiveChain, type PassiveActivationOutcome } from "./resolve-passive-chain.js";
+import {
+  resolvePassiveChain,
+  type PassiveActivation,
+  type PassiveActivationCompletion,
+} from "./resolve-passive-chain.js";
 import { createEmptyPassiveActivationGuard, hasActivated } from "./passive-activation-guard.js";
 import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidate.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
@@ -84,7 +88,26 @@ function event(eventType: string): TriggerCandidateEvent {
   return { eventType, category: "FACT", payload: {} };
 }
 
-const NO_OP_OUTCOME: PassiveActivationOutcome = { generatedEvents: [], interrupted: false };
+const DONE: PassiveActivationCompletion = { interrupted: false };
+
+/**
+ * Builds a `PassiveActivation` that completes immediately without yielding any
+ * event. Implemented as a plain iterator rather than `function*` because
+ * `eslint(require-yield)` rejects a generator function whose body never
+ * yields, and several fakes below legitimately model a PS with zero effects.
+ */
+function completedActivation(completion: PassiveActivationCompletion): PassiveActivation {
+  let done = false;
+  return {
+    next: () => {
+      if (done) {
+        throw new Error("completedActivation generator already consumed");
+      }
+      done = true;
+      return { done: true, value: completion };
+    },
+  };
+}
 
 describe("resolvePassiveChain", () => {
   it("UT-R-PS-06-007 / SCN-BTL-007: a 3+ stage immediate chain resolves depth-first and returns to the parent group for its remaining candidate", () => {
@@ -102,6 +125,10 @@ describe("resolvePassiveChain", () => {
     const candD = candidateOf(unitD, skillD);
 
     const order: string[] = [];
+    // Records which event each candidate was actually activated against, so this
+    // test also proves per-level causality: a nested candidate must be threaded
+    // through the specific event that produced it, not the root event.
+    const seenEvents: Record<string, TriggerCandidateEvent> = {};
     const units = new Map<BattleUnitId, BattleUnit>([
       [unitA.battleUnitId, unitA],
       [unitB.battleUnitId, unitB],
@@ -128,20 +155,25 @@ describe("resolvePassiveChain", () => {
         }
         return found;
       },
-      activate: (candidate) => {
+      activate: function* (candidate, evt) {
         order.push(candidate.skillDefinition.skillDefinitionId);
+        seenEvents[candidate.skillDefinition.skillDefinitionId] = evt;
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          return { generatedEvents: [eventFromA], interrupted: false };
+          yield eventFromA;
         }
         if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
-          return { generatedEvents: [eventFromB], interrupted: false };
+          yield eventFromB;
         }
-        return NO_OP_OUTCOME;
+        return DONE;
       },
       limits: GENEROUS_LIMITS,
     });
 
     expect(order).toEqual(["SKL_A", "SKL_B", "SKL_C", "SKL_D"]);
+    expect(seenEvents.SKL_A).toBe(rootEvent);
+    expect(seenEvents.SKL_B).toBe(eventFromA);
+    expect(seenEvents.SKL_C).toBe(eventFromB);
+    expect(seenEvents.SKL_D).toBe(rootEvent);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(
@@ -151,6 +183,51 @@ describe("resolvePassiveChain", () => {
         hasActivated(result.activationGuard, unitD.battleUnitId, skillD.skillDefinitionId),
       ).toBe(true);
     }
+  });
+
+  it("UT-R-PS-06-008: a child PS triggered mid-EffectSequence resolves before the parent's remaining effects, not after the parent completes", () => {
+    // Reproduces the parent-effect-A -> child-PS -> parent-effect-B ordering
+    // that a real EffectSequence resolver (#73) will drive through this port:
+    // the parent's own generator must not be allowed to reach effect B until
+    // the child PS chain triggered by effect A has fully resolved.
+    const unitParent = unit("PARENT");
+    const unitChild = unit("CHILD");
+    const skillParent = skillOf("SKL_PARENT");
+    const skillChild = skillOf("SKL_CHILD");
+    const candParent = candidateOf(unitParent, skillParent);
+    const candChild = candidateOf(unitChild, skillChild);
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+    const effectAEvent = event("EFFECT_A");
+    const effectBEvent = event("EFFECT_B");
+
+    const groupsByEvent = new Map<string, PassiveCandidateGroup>([
+      [rootEvent.eventType, [candParent]],
+      [effectAEvent.eventType, [candChild]],
+      [effectBEvent.eventType, []],
+    ]);
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => groupsByEvent.get(evt.eventType) ?? [],
+      getCurrentUnit: (id) => (id === unitParent.battleUnitId ? unitParent : unitChild),
+      activate: function* (candidate) {
+        if (candidate.skillDefinition.skillDefinitionId === skillParent.skillDefinitionId) {
+          order.push("PARENT_EFFECT_A");
+          yield effectAEvent;
+          order.push("PARENT_EFFECT_B");
+          yield effectBEvent;
+          order.push("PARENT_DONE");
+          return DONE;
+        }
+        order.push("CHILD_ACTIVATED");
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(order).toEqual(["PARENT_EFFECT_A", "CHILD_ACTIVATED", "PARENT_EFFECT_B", "PARENT_DONE"]);
+    expect(result.ok).toBe(true);
   });
 
   it("UT-R-PS-07-001: the same BattleUnit + PS is not activated twice within one resolution scope, even if a naive detector re-surfaces it", () => {
@@ -174,12 +251,12 @@ describe("resolvePassiveChain", () => {
     const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
       detectCandidates: (evt) => groupsByEvent.get(evt.eventType) ?? [],
       getCurrentUnit: (id) => (id === unitA.battleUnitId ? unitA : unitB),
-      activate: (candidate) => {
+      activate: function* (candidate) {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          return { generatedEvents: [eventFromA], interrupted: false };
+          yield eventFromA;
         }
-        return NO_OP_OUTCOME;
+        return DONE;
       },
       limits: GENEROUS_LIMITS,
     });
@@ -204,7 +281,7 @@ describe("resolvePassiveChain", () => {
       getCurrentUnit: (id) => (id === unitA.battleUnitId ? unitA : unitB),
       activate: (candidate) => {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
-        return NO_OP_OUTCOME;
+        return completedActivation(DONE);
       },
       limits: GENEROUS_LIMITS,
     });
@@ -225,21 +302,33 @@ describe("resolvePassiveChain", () => {
         return [candidateOf(owner, skillOf(`SKL_${counter}`))];
       },
       getCurrentUnit: () => owner,
-      activate: () => ({ generatedEvents: [event("NEXT")], interrupted: false }),
+      activate: function* () {
+        yield event("NEXT");
+        return DONE;
+      },
       limits: { maxPassiveDepth: 3, maxEffectsPerScope: 100 },
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_PASSIVE_DEPTH_EXCEEDED" });
   });
 
-  it("UT-GUARD-006: too many flat candidates in one scope stop with a structured MAX_EFFECTS_PER_SCOPE_EXCEEDED result", () => {
+  it("UT-GUARD-006: too many resolved effects in one scope stop with a structured MAX_EFFECTS_PER_SCOPE_EXCEEDED result, counted per effect rather than per PS activation", () => {
     const owner = unit("A");
-    const flatGroup = [1, 2, 3, 4, 5].map((n) => candidateOf(owner, skillOf(`SKL_${n}`)));
+    // A single PS candidate whose own EffectSequence resolves 5 effects (5 yields),
+    // none of which trigger further PS candidates. The old (buggy) design counted
+    // one "effect" per PS activation and would never have caught this.
+    const skill = skillOf("SKL_MANY_EFFECTS");
+    const candidate = candidateOf(owner, skill);
 
     const result = resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
-      detectCandidates: () => flatGroup,
+      detectCandidates: (evt) => (evt.eventType === "ROOT" ? [candidate] : []),
       getCurrentUnit: () => owner,
-      activate: () => NO_OP_OUTCOME,
+      activate: function* () {
+        for (let i = 0; i < 5; i += 1) {
+          yield event(`EFFECT_${i}`);
+        }
+        return DONE;
+      },
       limits: { maxPassiveDepth: 10, maxEffectsPerScope: 3 },
     });
 
@@ -257,12 +346,12 @@ describe("resolvePassiveChain", () => {
     const result = resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
       detectCandidates: () => [candA, candB],
       getCurrentUnit: (id) => (id === unitA.battleUnitId ? unitA : unitB),
-      activate: (candidate) => {
-        if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          return { generatedEvents: [], interrupted: true };
-        }
-        return NO_OP_OUTCOME;
-      },
+      activate: (candidate) =>
+        completedActivation(
+          candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId
+            ? { interrupted: true }
+            : DONE,
+        ),
       limits: GENEROUS_LIMITS,
     });
 
@@ -290,13 +379,13 @@ describe("resolvePassiveChain", () => {
     const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
       detectCandidates: (evt) => (evt.eventType === rootEvent.eventType ? [candA, candD] : []),
       getCurrentUnit: (id) => (id === unitA.battleUnitId ? unitA : unitD),
-      activate: (candidate) => {
+      activate: function* (candidate) {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
           unitD = { ...unitD, currentHp: 0 };
-          return { generatedEvents: [eventFromA], interrupted: false };
+          yield eventFromA;
         }
-        return NO_OP_OUTCOME;
+        return DONE;
       },
       limits: GENEROUS_LIMITS,
     });
@@ -308,5 +397,17 @@ describe("resolvePassiveChain", () => {
         hasActivated(result.activationGuard, candD.unit.battleUnitId, skillD.skillDefinitionId),
       ).toBe(false);
     }
+  });
+
+  it("smoke: a candidate whose activation completes immediately generates no follow-ups", () => {
+    const owner = unit("A");
+    const candidate = candidateOf(owner, skillOf("SKL_A"));
+    const result = resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => (evt.eventType === "ROOT" ? [candidate] : []),
+      getCurrentUnit: () => owner,
+      activate: () => completedActivation(DONE),
+      limits: GENEROUS_LIMITS,
+    });
+    expect(result.ok).toBe(true);
   });
 });
