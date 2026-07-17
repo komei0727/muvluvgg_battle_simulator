@@ -1,5 +1,5 @@
 /**
- * UT-MOD-001 through UT-MOD-020
+ * UT-MOD-001 through UT-MOD-022
  * Verifies that the ESLint `no-restricted-imports` rules enforce the Domain-internal
  * module boundaries fixed by `#132` (04_境界づけられたコンテキスト.md「モジュール依存規則」).
  * Mirrors the approach in layer-boundary.test.ts: type-checked rules are disabled so
