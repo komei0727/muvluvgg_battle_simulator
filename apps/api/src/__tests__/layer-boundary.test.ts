@@ -27,7 +27,7 @@ function violationsOf(results: ESLint.LintResult[], ruleId: string): Linter.Lint
 describe("Layer boundary — domain", () => {
   it("UT-LAYER-001: domain cannot import from infrastructure", async () => {
     const results = await eslint.lintText(
-      "import type {} from '../../infrastructure/index.js';\n",
+      "import type {} from '../../infrastructure/repos/sentinel.js';\n",
       { filePath: "src/domain/value-objects/bad.ts" },
     );
     const violations = violationsOf(results, "no-restricted-imports");
@@ -35,9 +35,12 @@ describe("Layer boundary — domain", () => {
   });
 
   it("UT-LAYER-002: domain cannot import from application", async () => {
-    const results = await eslint.lintText("import type {} from '../../application/index.js';\n", {
-      filePath: "src/domain/value-objects/bad.ts",
-    });
+    const results = await eslint.lintText(
+      "import type {} from '../../application/simulation/sentinel.js';\n",
+      {
+        filePath: "src/domain/value-objects/bad.ts",
+      },
+    );
     const violations = violationsOf(results, "no-restricted-imports");
     expect(violations.length).toBeGreaterThan(0);
   });
@@ -83,7 +86,7 @@ describe("Layer boundary — domain", () => {
 describe("Layer boundary — application", () => {
   it("UT-LAYER-005: application cannot import from infrastructure", async () => {
     const results = await eslint.lintText(
-      "import type {} from '../../infrastructure/index.js';\n",
+      "import type {} from '../../infrastructure/repos/sentinel.js';\n",
       { filePath: "src/application/use-cases/bad.ts" },
     );
     const violations = violationsOf(results, "no-restricted-imports");
@@ -91,9 +94,12 @@ describe("Layer boundary — application", () => {
   });
 
   it("UT-LAYER-006: application CAN import from domain", async () => {
-    const results = await eslint.lintText("import type {} from '../../domain/index.js';\n", {
-      filePath: "src/application/use-cases/ok.ts",
-    });
+    const results = await eslint.lintText(
+      "import type {} from '../../domain/battle/model/sentinel.js';\n",
+      {
+        filePath: "src/application/use-cases/ok.ts",
+      },
+    );
     const violations = violationsOf(results, "no-restricted-imports");
     expect(violations).toHaveLength(0);
   });
@@ -101,9 +107,12 @@ describe("Layer boundary — application", () => {
 
 describe("Layer boundary — presentation", () => {
   it("UT-LAYER-009: presentation cannot import from domain", async () => {
-    const results = await eslint.lintText("import type {} from '../../domain/index.js';\n", {
-      filePath: "src/presentation/handlers/bad.ts",
-    });
+    const results = await eslint.lintText(
+      "import type {} from '../../domain/battle/model/sentinel.js';\n",
+      {
+        filePath: "src/presentation/handlers/bad.ts",
+      },
+    );
     const violations = violationsOf(results, "no-restricted-imports");
     expect(violations.length).toBeGreaterThan(0);
   });
@@ -131,9 +140,9 @@ describe("Layer boundary — bootstrap", () => {
   it("UT-LAYER-007: bootstrap CAN import from all layers", async () => {
     const results = await eslint.lintText(
       [
-        "import type {} from '../domain/index.js';",
-        "import type {} from '../application/index.js';",
-        "import type {} from '../infrastructure/index.js';",
+        "import type {} from '../domain/battle/model/sentinel.js';",
+        "import type {} from '../application/simulation/sentinel.js';",
+        "import type {} from '../infrastructure/repos/sentinel.js';",
         "import type {} from '../presentation/index.js';",
       ].join("\n") + "\n",
       { filePath: "src/bootstrap/composition-root.ts" },
