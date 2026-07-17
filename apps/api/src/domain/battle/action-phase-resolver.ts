@@ -7,6 +7,7 @@ import { decrementActionCooldowns, startCooldown, type CooldownMap } from "./coo
 import { applyDamageAction } from "./damage-application-service.js";
 import type { ActionId, DomainEventId, ResolutionScopeId, SkillUseId } from "./events/event-ids.js";
 import type { EventRecorder } from "./events/event-recorder.js";
+import type { StateDelta } from "./events/state-delta.js";
 import { createActionPoint, createExtraGauge } from "./resource-gauge.js";
 import { resolveTargets } from "./target-selection-policy.js";
 import {
@@ -206,6 +207,11 @@ interface ActionCompletionResult {
  * 行動単位クールタイムのうち、現在の行動より前に設定されたものを1減らす
  * （現在の行動で設定されたものは対象外、`decrementActionCooldowns`が判定する）。
  * 戻り値の`completedEventId`は`ActionReservationRemoved`の連鎖に使う。
+ *
+ * `closingStateDelta`（省略可）は`ActionCompleting`自身が所有する追加の状態差分
+ * （`06_戦闘状態遷移.md`「チャージ効果発動」#4のチャージ状態終了など、効果解決
+ * より後に観測されるべき差分）。`ActionCompleting`は元々delta無しのTIMING
+ * イベントだが、この用途では`stateDelta`を持つ。
  */
 function recordActionCompletion(
   recorder: EventRecorder,
@@ -213,6 +219,7 @@ function recordActionCompletion(
   effectiveActionType: ResolvableEffectiveActionType,
   triggeringEventId: DomainEventId,
   units: readonly BattleUnit[],
+  closingStateDelta?: StateDelta,
 ): ActionCompletionResult {
   const actionCompleting = recorder.record({
     eventType: "ActionCompleting",
@@ -225,6 +232,7 @@ function recordActionCompletion(
     rootEventId: context.rootEventId,
     sourceUnitId: context.actorId,
     payload: { actorUnitId: context.actorId, effectiveActionType },
+    ...(closingStateDelta !== undefined ? { stateDelta: closingStateDelta } : {}),
   });
 
   const actor = requireUnit(units, context.actorId);
@@ -366,6 +374,9 @@ function recordCooldownStart(
               unit: skill.cooldown.unit,
               before: result.before,
               after: skill.cooldown.count,
+              ...("actionId" in scope
+                ? { setActionId: scope.actionId }
+                : { setTurnNumber: scope.turnNumber }),
             },
           },
         },
@@ -862,19 +873,9 @@ function resolveChargeRelease(
       chargeStartActionId: charge.startedActionId,
       releaseActionId: actionId,
     },
-    stateDelta: {
-      units: {
-        [actorId]: {
-          charge: {
-            before: {
-              skillDefinitionId: skill.skillDefinitionId,
-              startedActionId: charge.startedActionId,
-            },
-            after: undefined,
-          },
-        },
-      },
-    },
+    // `06_戦闘状態遷移.md`「チャージ効果発動」: `ChargeReleased`はトリガー
+    // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後の
+    // `ActionCompleting`が所有する（下記`closingStateDelta`）。
   });
 
   working = applyEffectActionGroups(plan, working, {
@@ -893,8 +894,11 @@ function resolveChargeRelease(
   });
 
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
-  // （とPS解決、M6）の後（PR#131レビュー[P2]: 効果解決前に終了すると、M6でPS解決が
-  // 入った時に所有者のPSが「チャージ中ではない」と誤判定しうる）。
+  // （とPS解決、M6）の後（M5レビュー2巡目[P2]: 内部の`working`だけでなく、公開
+  // される`stateTransitions`上でも効果解決後に観測される必要があるため、
+  // 終了の状態差分自体を`ChargeReleased`ではなく`ActionCompleting`（効果解決の
+  // 後に発行される）へ持たせる。M6でPS解決が入った時に所有者のPSが
+  // 「チャージ中ではない」と誤判定するのを防ぐ）。
   working = working.map((u) => {
     if (u.battleUnitId !== actorId) {
       return u;
@@ -916,6 +920,19 @@ function resolveChargeRelease(
     "CHARGE_RELEASE",
     chargeReleased.eventId,
     working,
+    {
+      units: {
+        [actorId]: {
+          charge: {
+            before: {
+              skillDefinitionId: skill.skillDefinitionId,
+              startedActionId: charge.startedActionId,
+            },
+            after: undefined,
+          },
+        },
+      },
+    },
   );
 
   return {

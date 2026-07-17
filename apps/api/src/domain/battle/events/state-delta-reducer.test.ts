@@ -196,6 +196,50 @@ describe("applyStateDelta", () => {
       completedTurn: 1,
     });
   });
+
+  it("UT-STATE-REDUCER-019 (M5 review round 2 [P1] fix): a CooldownStarted->CooldownReduced delta pair restores unit/remaining/setActionId, carrying the ACTION-scope forward across a later delta that omits it", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_CD");
+    const setActionId = createActionId("battle-1:action:1");
+
+    const started = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          cooldowns: { [skillDefinitionId]: { unit: "ACTION", before: 0, after: 2, setActionId } },
+        },
+      },
+    });
+    expect(started.units[UNIT_A]!.cooldowns).toEqual({
+      [skillDefinitionId]: { unit: "ACTION", remaining: 2, setActionId },
+    });
+
+    // CooldownReduced does not resend the setting scope (it doesn't change).
+    const reduced = applyStateDelta(started, {
+      units: {
+        [UNIT_A]: { cooldowns: { [skillDefinitionId]: { unit: "ACTION", before: 2, after: 1 } } },
+      },
+    });
+    expect(reduced.units[UNIT_A]!.cooldowns).toEqual({
+      [skillDefinitionId]: { unit: "ACTION", remaining: 1, setActionId },
+    });
+  });
+
+  it("UT-STATE-REDUCER-020 (M5 review round 2 [P1] fix): a TURN-unit CooldownStarted delta carries setTurnNumber (not setActionId)", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_CD_TURN");
+
+    const started = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          cooldowns: {
+            [skillDefinitionId]: { unit: "TURN", before: 0, after: 3, setTurnNumber: 2 },
+          },
+        },
+      },
+    });
+
+    expect(started.units[UNIT_A]!.cooldowns).toEqual({
+      [skillDefinitionId]: { unit: "TURN", remaining: 3, setTurnNumber: 2 },
+    });
+  });
 });
 
 describe("reduceStateDeltas", () => {

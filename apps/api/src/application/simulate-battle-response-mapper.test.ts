@@ -353,7 +353,7 @@ describe("toBattleSimulationResponseBody", () => {
               units: {
                 [ALLY_ID]: {
                   cooldowns: {
-                    [SKL_A]: { unit: "ACTION", before: 0, after: 2 },
+                    [SKL_A]: { unit: "ACTION", before: 0, after: 2, setActionId: ACTION_1 },
                     [SKL_B]: { unit: "TURN", before: 2, after: 1 },
                     [SKL_C]: { unit: "ACTION", before: 1, after: 0 },
                   },
@@ -385,16 +385,23 @@ describe("toBattleSimulationResponseBody", () => {
     );
 
     expect(body.stateTransitions[0]!.delta.units!["ally:1"]!.cooldowns).toEqual({
-      added: [{ skillDefinitionId: "SKL_A", unit: "ACTION", remaining: 2 }],
+      added: [
+        {
+          skillDefinitionId: "SKL_A",
+          unit: "ACTION",
+          remaining: 2,
+          setAtActionId: "action-1",
+        },
+      ],
       updated: [{ id: "SKL_B", before: 2, after: 1 }],
       removed: [{ id: "SKL_C", before: 1 }],
     });
     expect(body.stateTransitions[0]!.delta.units!["ally:1"]!.charge).toEqual({
       before: null,
-      after: { skillDefinitionId: "SKL_D", startedActionId: "action-2" },
+      after: { skillDefinitionId: "SKL_D", startedActionId: "action-2", status: "CHARGING" },
     });
     expect(body.stateTransitions[1]!.delta.units!["ally:1"]!.charge).toEqual({
-      before: { skillDefinitionId: "SKL_D", startedActionId: "action-2" },
+      before: { skillDefinitionId: "SKL_D", startedActionId: "action-2", status: "CHARGING" },
       after: null,
     });
   });

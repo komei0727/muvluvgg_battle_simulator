@@ -167,10 +167,13 @@ function toBattleLogEventResponseBody(event: BattleLogEvent): BattleLogEventResp
 
 /**
  * `10_API設計.md`「UnitStateDeltaResponse.cooldowns」(`EntityCollectionDelta`)。
- * Domainの`cooldowns`差分は`{unit, before, after}`のremaining変化しか運ばないため、
- * `10_API設計.md`「BattleUnitStateResponse.cooldowns」の「残数があるスキルだけを返す」
- * 規則をここでも適用し、可視状態への出入りから`added`/`updated`/`removed`を導出する
- * （before===0で新規出現=`added`、after===0で消滅=`removed`、それ以外は`updated`）。
+ * `10_API設計.md`「BattleUnitStateResponse.cooldowns」の「残数があるスキルだけを
+ * 返す」規則をここでも適用し、可視状態への出入りから`added`/`updated`/`removed`を
+ * 導出する（before===0で新規出現=`added`、after===0で消滅=`removed`、それ以外は
+ * `updated`）。`added`は`CooldownStateResponseBody`と同じ完全な形（`setAtActionId`/
+ * `setAtTurnNumber`を含む）で持たせ、`stateTransitions`単体（`events`のlogLevel
+ * フィルタに依存しない）から`finalState`を厳密に復元できるようにする
+ * （`10_API設計.md`「差分の適用」`reconstructedFinalState === finalState`）。
  */
 function toCooldownEntityCollectionDeltaResponseBody(
   cooldowns: UnitStateDelta["cooldowns"],
@@ -183,7 +186,13 @@ function toCooldownEntityCollectionDeltaResponseBody(
   const removed: { id: string; before: unknown }[] = [];
   for (const [skillDefinitionId, change] of Object.entries(cooldowns)) {
     if (change.before === 0) {
-      added.push({ skillDefinitionId, unit: change.unit, remaining: change.after });
+      added.push({
+        skillDefinitionId,
+        unit: change.unit,
+        remaining: change.after,
+        ...(change.setActionId !== undefined ? { setAtActionId: change.setActionId } : {}),
+        ...(change.setTurnNumber !== undefined ? { setAtTurnNumber: change.setTurnNumber } : {}),
+      });
     } else if (change.after === 0) {
       removed.push({ id: skillDefinitionId, before: change.before });
     } else {
@@ -196,7 +205,10 @@ function toCooldownEntityCollectionDeltaResponseBody(
 /**
  * `10_API設計.md`「UnitStateDeltaResponse.charge」(`ValueChange`)。「値がなくなった
  * ことを表す必要がある場合だけ`after: null`を使用する」規則に従い、Domainの
- * `undefined`(未チャージ)を`null`へ明示的に変換する。
+ * `undefined`(未チャージ)を`null`へ明示的に変換する。`status`はM5時点で
+ * `CHARGING`以外の値を取り得ない定数のため、`toChargeStateResponseBody`と同じ値を
+ * ここでも補い、`ChargeStateResponseBody`と同じ完全な形にする(`reconstructedFinalState
+ * === finalState`)。
  */
 function toChargeValueChangeResponseBody(
   charge: UnitStateDelta["charge"],
@@ -210,6 +222,7 @@ function toChargeValueChangeResponseBody(
         ? {
             skillDefinitionId: charge.before.skillDefinitionId,
             startedActionId: charge.before.startedActionId,
+            status: "CHARGING",
           }
         : null,
     after:
@@ -217,6 +230,7 @@ function toChargeValueChangeResponseBody(
         ? {
             skillDefinitionId: charge.after.skillDefinitionId,
             startedActionId: charge.after.startedActionId,
+            status: "CHARGING",
           }
         : null,
   };

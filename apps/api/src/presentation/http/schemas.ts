@@ -293,11 +293,15 @@ const effectStateResponseSchema = {
   },
 } as const;
 
-/** `10_API設計.md`「CooldownStateResponse」。 */
+/**
+ * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
+ * `unit`に応じてどちらか一方だけ存在するため、どちらも必須にしない
+ * (`http-contract.ts`の`CooldownStateResponseBody`コメント参照)。
+ */
 const cooldownStateResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["skillDefinitionId", "unit", "remaining", "setAtTurnNumber"],
+  required: ["skillDefinitionId", "unit", "remaining"],
   properties: {
     skillDefinitionId: { type: "string" },
     unit: { type: "string", enum: ["ACTION", "TURN"] },

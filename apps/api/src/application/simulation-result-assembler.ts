@@ -47,10 +47,10 @@ export interface AssembleSimulationResultInput {
 }
 
 /**
- * `unit`/`remaining`（独立Reducerが`StateDelta`から復元できる項目）だけを比較する。
- * `setActionId`/`setTurnNumber`はBattle集約から直接captureする現在値限定の注釈で
- * あり`UnitStateDelta.cooldowns`には運ばれないため（`state-delta.ts`の`CooldownState`
- * コメント参照）、比較対象に含めるとReducer復元状態との不一致を誤検出する。
+ * `unit`/`remaining`/`setActionId`/`setTurnNumber`を比較する。いずれも独立Reducerが
+ * `StateDelta`だけから復元できる項目（`setActionId`/`setTurnNumber`は`CooldownStarted`
+ * のdeltaが運び、以降の変更でReducerが保持する。`state-delta.ts`の`UnitStateDelta.cooldowns`
+ * コメント参照）。
  */
 function cooldownStatesEqual(
   a: Readonly<Record<SkillDefinitionId, CooldownState>> | undefined,
@@ -63,7 +63,13 @@ function cooldownStatesEqual(
   }
   return aEntries.every(([skillDefinitionId, state]) => {
     const other = bCooldowns[skillDefinitionId];
-    return other !== undefined && state.unit === other.unit && state.remaining === other.remaining;
+    return (
+      other !== undefined &&
+      state.unit === other.unit &&
+      state.remaining === other.remaining &&
+      state.setActionId === other.setActionId &&
+      state.setTurnNumber === other.setTurnNumber
+    );
   });
 }
 

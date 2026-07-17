@@ -470,4 +470,82 @@ describe("assembleSimulationResult", () => {
     expect(error).toBeInstanceOf(ApplicationError);
     expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
   });
+
+  it("UT-RESULT-ASSEMBLER-012 (M5 review round 2 [P1] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's cooldown setActionId disagrees with the CooldownStarted delta's setActionId (setActionId/setTurnNumber are now delta-tracked, not exempted from restoration)", () => {
+    const UNIT_A = createBattleUnitId("unit-a");
+    const skillDefinitionId = createSkillDefinitionId("SKL_CD");
+    const recordedActionId = createActionId("battle-1:action:1");
+    const claimedActionId = createActionId("battle-1:action:9");
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1.
+    recorder.record({
+      eventType: "CooldownStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: UNIT_A,
+      payload: { actorUnitId: UNIT_A, skillDefinitionId, unit: "ACTION", initialRemaining: 2 },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            cooldowns: {
+              [skillDefinitionId]: {
+                unit: "ACTION",
+                before: 0,
+                after: 2,
+                setActionId: recordedActionId,
+              },
+            },
+          },
+        },
+      },
+    }); // version 1->2.
+
+    const initialState = {
+      status: "READY" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+    };
+    // Claims a different setActionId than the one the delta actually recorded.
+    const finalState = {
+      status: "RUNNING" as const,
+      currentTurn: 0,
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          cooldowns: {
+            [skillDefinitionId]: {
+              unit: "ACTION" as const,
+              remaining: 2,
+              setActionId: claimedActionId,
+            },
+          },
+        },
+      },
+    };
+
+    let error: unknown;
+    try {
+      assembleSimulationResult({
+        battleId: BATTLE_ID,
+        catalogRevision: "rev-1",
+        logLevel: "DETAILED",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+        initialState,
+        finalState,
+        events: recorder.getEvents(),
+        unitRoster: [],
+      });
+      expect.unreachable("expected assembleSimulationResult to throw");
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBeInstanceOf(ApplicationError);
+    expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+  });
 });

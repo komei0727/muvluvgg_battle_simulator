@@ -1,16 +1,18 @@
 // Mirrors docs/ui-design/07_UI実装・拡張計画.md §9 (M5 行動ライフサイクル拡張):
 // cooldown/chargeをbattleUnitId単位で追跡する。apps/api/src/application/
 // simulate-battle-response-mapper.ts の finalState.units[].cooldowns/charge
-// はM5時点でも常に空/未設定のスタブのため(cooldownsは`[]`固定、chargeは
-// キーごと省略)、finalStateから読むのではなく、events[]のCOOLDOWN_*/
-// CHARGE_*をsequence順に走査して再構築する。AP/EXはfinalState.resourcesが
-// 既に正しく埋まっているため、そこから直接読む。
+// はM5実装後、Domainの実値を返す(cooldownsは残数>0のスキルだけの配列)。
+// `finalState`はlogLevelに関わらず常に完全（`captureBattleState`はlogLevelを
+// 見ない）なので、これを正本として読む(PR #131レビューで露呈したSUMMARYログの
+// 「不明」表示問題は、finalStateを使う限りそもそも発生しない)。
 //
-// logLevel=SUMMARYではapps/api/src/application/battle-log-projection.tsの
-// SUMMARY_EVENT_TYPESにCooldown*/Charge*が含まれず、これらのeventがそもそも
-// events[]へ含まれない(PR #131レビュー指摘)。この場合cooldowns/chargeが
-// 空になるのは「実際に無い」のか「SUMMARYログでは分からない」のか区別できない
-// ため、`cooldownChargeKnown`で呼び出し側に不明であることを伝える。
+// `cooldowns`はM5以降の契約で必須配列（空でも`[]`）のため、その有無で
+// finalStateがM5以降の形かどうかを判別できる。`cooldowns`キー自体が無い
+// unit(M5より前に録取したUI fixture)だけ、events[]のCOOLDOWN_*/CHARGE_*を
+// sequence順に走査するfallbackへ回す。fallback経路では、
+// logLevel=SUMMARYだとapps/api/src/application/battle-log-projection.tsの
+// SUMMARY_EVENT_TYPESにCooldown*/Charge*が含まれずevents[]へ載らないため、
+// `cooldownChargeKnown`で呼び出し側に不明であることを伝える。
 
 import type { RosterEntry } from "../summary/summary-projector.js";
 import type { LogLevel } from "../formation/types.js";
@@ -65,6 +67,41 @@ function readResourceValue(resources: unknown, key: string): ResourceValue | und
     return undefined;
   }
   return { current: value["current"], maximum: value["maximum"] };
+}
+
+/** `finalUnit["cooldowns"]`がM5以降の契約通りの配列であれば、要素を`UnitCooldownState`へ変換して返す。配列でなければ(M5より前のfixture)`undefined`。 */
+function readCooldownsFromFinalState(finalUnit: unknown): readonly UnitCooldownState[] | undefined {
+  if (!isRecord(finalUnit) || !Array.isArray(finalUnit["cooldowns"])) {
+    return undefined;
+  }
+  const cooldowns: UnitCooldownState[] = [];
+  for (const entry of finalUnit["cooldowns"]) {
+    if (
+      isRecord(entry) &&
+      typeof entry["skillDefinitionId"] === "string" &&
+      typeof entry["unit"] === "string" &&
+      typeof entry["remaining"] === "number"
+    ) {
+      cooldowns.push({
+        skillDefinitionId: entry["skillDefinitionId"],
+        unit: entry["unit"],
+        remaining: entry["remaining"],
+      });
+    }
+  }
+  return cooldowns;
+}
+
+/** `finalUnit["charge"]`（`10_API設計.md`「ChargeStateResponse」）を`UnitChargeState`へ変換する。チャージ中でなければ`undefined`。 */
+function readChargeFromFinalState(finalUnit: unknown): UnitChargeState | undefined {
+  if (!isRecord(finalUnit)) {
+    return undefined;
+  }
+  const charge = finalUnit["charge"];
+  if (!isRecord(charge) || typeof charge["skillDefinitionId"] !== "string") {
+    return undefined;
+  }
+  return { skillDefinitionId: charge["skillDefinitionId"] };
 }
 
 interface MutableUnitAccumulator {
@@ -184,8 +221,9 @@ const actionStateAdapters: Readonly<Record<string, ActionStateEventAdapter>> = {
 };
 
 // docs/ui-design/07_UI実装・拡張計画.md §9完了条件「cooldown/charge状態を
-// battleUnitId単位で追跡できる」。roster順で1エントリずつ返し、events由来の
-// 情報が無いunitはcooldowns: []・charge: undefinedになる(M4 fixture後方互換)。
+// battleUnitId単位で追跡できる」。roster順で1エントリずつ返す。`finalState`が
+// M5以降の形（`cooldowns`が配列）を持つunitはそれを正本として使い、
+// 持たないunit(M5より前のUI fixture)だけevents[]からの再構築へfallbackする。
 export function selectUnitActionStates(
   response: BattleSimulationResponse,
   roster: readonly RosterEntry[],
@@ -204,23 +242,30 @@ export function selectUnitActionStates(
     adapter?.(event, byUnit);
   }
 
-  const cooldownChargeKnown = logLevel !== "SUMMARY";
-
   return roster.map((entry) => {
     const finalUnit = finalUnitsById.get(entry.battleUnitId);
     const resources = finalUnit?.["resources"];
-    const accumulator = byUnit.get(entry.battleUnitId);
     const ap = readResourceValue(resources, "ap");
     const extraGauge = readResourceValue(resources, "extraGauge");
+
+    const cooldownsFromFinalState = readCooldownsFromFinalState(finalUnit);
+    // `finalState`はlogLevelに関わらず常に完全なので、そこから読めた時点で
+    // 不明な点はない。events[]へのfallback時だけSUMMARYログの間引きが影響する。
+    const cooldownChargeKnown = cooldownsFromFinalState !== undefined || logLevel !== "SUMMARY";
+    const accumulator = byUnit.get(entry.battleUnitId);
     const cooldowns =
-      accumulator !== undefined
+      cooldownsFromFinalState ??
+      (accumulator !== undefined
         ? [...accumulator.cooldowns.entries()].map(([skillDefinitionId, state]) => ({
             skillDefinitionId,
             unit: state.unit,
             remaining: state.remaining,
           }))
-        : [];
-    const charge = accumulator?.charge;
+        : []);
+    const charge =
+      cooldownsFromFinalState !== undefined
+        ? readChargeFromFinalState(finalUnit)
+        : accumulator?.charge;
     return {
       battleUnitId: entry.battleUnitId,
       ...(ap !== undefined ? { ap } : {}),

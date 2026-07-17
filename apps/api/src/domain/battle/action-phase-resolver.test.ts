@@ -773,6 +773,13 @@ describe("resolveActionPhase", () => {
       unit: "ACTION",
       initialRemaining: 2,
     });
+    // M5 review round 2 [P1] fix: the setting scope (setActionId, matching
+    // R-SKL-04's "same action" decrement rule) must ride along in the
+    // stateDelta itself so `stateTransitions` alone (independent of any
+    // logLevel-filtered `events[]`) can restore it.
+    expect(
+      started[0]!.stateDelta?.units?.[ally.battleUnitId]?.cooldowns?.[skill.skillDefinitionId],
+    ).toMatchObject({ setActionId: cooldownEntry!.setActionId });
   });
 
   it("UT-ACTION-PHASE-010 (R-SKL-04): does not emit CooldownStarted for a skill whose cooldown.count is 0", () => {
@@ -925,6 +932,70 @@ describe("resolveActionPhase", () => {
       "AS",
       "CHARGE_RELEASE",
     ]);
+  });
+
+  it("UT-ACTION-PHASE-012B (06_戦闘状態遷移.md「チャージ効果発動」#1-4 / M5レビュー2巡目[P2] fix): the charge-clearing StateDelta is observed after effect resolution, not on ChargeReleased itself — ChargeReleased carries no delta of its own, and the terminating delta is owned by the ActionCompleting that follows DamageApplied", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const skill = chargeSkill("ACT_CHARGE_HIT", 1);
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CHARGER",
+      attack: 30,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 0, maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_CHARGE_HIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const chargeStarted = events.find((e) => e.eventType === "ChargeStarted")!;
+    const chargeReleased = events.find((e) => e.eventType === "ChargeReleased")!;
+    expect(chargeReleased.stateDelta).toBeUndefined();
+    expect(chargeReleased.stateVersionBefore).toBe(chargeReleased.stateVersionAfter);
+
+    const damageApplied = events.find((e) => e.eventType === "DamageApplied")!;
+    // The ActionCompleting that follows the CHARGE_RELEASE action (not the
+    // earlier AS action's) owns the charge-clearing delta.
+    const actionCompletings = events.filter(
+      (e) => e.eventType === "ActionCompleting" && e.sourceUnitId === ally.battleUnitId,
+    );
+    const closingCompleting = actionCompletings.find(
+      (e) => e.stateDelta?.units?.[ally.battleUnitId]?.charge !== undefined,
+    )!;
+    expect(closingCompleting).toBeDefined();
+    expect(closingCompleting.stateDelta).toEqual({
+      units: {
+        [ally.battleUnitId]: {
+          charge: {
+            before: {
+              skillDefinitionId: skill.skillDefinitionId,
+              startedActionId: chargeStarted.actionId,
+            },
+            after: undefined,
+          },
+        },
+      },
+    });
+    // Observed strictly after the damage effect it guarded (06_戦闘状態遷移.md
+    // 「チャージ効果発動」: 効果解決→PS解決の後にチャージ状態を終了する).
+    expect(closingCompleting.stateVersionBefore).toBeGreaterThanOrEqual(
+      damageApplied.stateVersionAfter,
+    );
   });
 
   it("UT-ACTION-PHASE-013 (R-SKL-05): charge start sets the original skill's cooldown, scoped to the charge-start action; the release action (a later action for this actor) then decrements it like any other own-action-end", () => {

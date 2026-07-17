@@ -77,7 +77,11 @@ function applyUnitDelta(
   };
 }
 
-/** R-SKL-04: 変更されたスキルのクールタイムだけを既存の`cooldowns`へ差分適用する。 */
+/**
+ * R-SKL-04: 変更されたスキルのクールタイムだけを既存の`cooldowns`へ差分適用する。
+ * `setActionId`/`setTurnNumber`は初回設定時のdeltaだけが持つため、以降の変更
+ * （`setActionId`/`setTurnNumber`を含まないdelta）では既存値をそのまま引き継ぐ。
+ */
 function applyCooldownDeltas(
   path: string,
   current: Readonly<Record<SkillDefinitionId, CooldownState>> | undefined,
@@ -89,11 +93,22 @@ function applyCooldownDeltas(
   const next: Record<SkillDefinitionId, CooldownState> = { ...current };
   for (const [skillDefinitionId, change] of Object.entries(deltas) as [
     SkillDefinitionId,
-    { readonly unit: CooldownState["unit"] } & ValueChange<number>,
+    {
+      readonly unit: CooldownState["unit"];
+      readonly setActionId?: CooldownState["setActionId"];
+      readonly setTurnNumber?: CooldownState["setTurnNumber"];
+    } & ValueChange<number>,
   ][]) {
     const existing = next[skillDefinitionId];
     assertBeforeMatches(`${path}[${skillDefinitionId}]`, existing?.remaining ?? 0, change);
-    next[skillDefinitionId] = { unit: change.unit, remaining: change.after };
+    const setActionId = change.setActionId ?? existing?.setActionId;
+    const setTurnNumber = change.setTurnNumber ?? existing?.setTurnNumber;
+    next[skillDefinitionId] = {
+      unit: change.unit,
+      remaining: change.after,
+      ...(setActionId !== undefined ? { setActionId } : {}),
+      ...(setTurnNumber !== undefined ? { setTurnNumber } : {}),
+    };
   }
   return next;
 }
