@@ -2,7 +2,7 @@ import { Ajv } from "ajv";
 import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
-import { battleSimulationResponseDocSchema } from "./schemas.js";
+import { battleSimulationResponseDocSchema } from "./schemas/simulation/simulation-schema.js";
 import type {
   BattleSimulationRequestBody,
   BattleSimulationResponseBody,

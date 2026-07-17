@@ -24,9 +24,9 @@ import {
   battleSimulationRequestDocSchema,
   battleSimulationResponseSchema,
   battleSimulationResponseDocSchema,
-  battleSimulationCatalogResponseSchema,
-  errorResponseSchema,
-} from "./schemas.js";
+} from "./schemas/simulation/simulation-schema.js";
+import { battleSimulationCatalogResponseSchema } from "./schemas/catalog/catalog-schema.js";
+import { errorResponseSchema } from "./schemas/error/error-schema.js";
 
 const BATTLE_SIMULATIONS_PATH = "/api/v1/battle-simulations";
 const BATTLE_SIMULATION_CATALOG_PATH = "/api/v1/battle-simulation-catalog";

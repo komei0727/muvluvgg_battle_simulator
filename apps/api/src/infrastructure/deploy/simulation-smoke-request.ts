@@ -36,7 +36,8 @@ export interface SmokeSimulationRequest {
 }
 
 // Catalogの`positionAptitudes`（"FRONT"|"BACK"）と、formation POSTの
-// `position.row`（"FRONT"|"REAR"）はschemaが異なる（presentation/http/schemas.ts）。
+// `position.row`（"FRONT"|"REAR"）はschemaが異なる
+// （presentation/http/schemas/catalog・presentation/http/schemas/simulation）。
 const ROW_BY_APTITUDE: Record<CatalogPositionAptitude, "FRONT" | "REAR"> = {
   FRONT: "FRONT",
   BACK: "REAR",

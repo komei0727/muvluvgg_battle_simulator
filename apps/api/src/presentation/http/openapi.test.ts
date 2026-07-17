@@ -5,9 +5,9 @@ import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
 import {
   battleSimulationResponseSchema,
   battleSimulationResponseDocSchema,
-  battleLogEventResponseDocSchema,
   cooldownStateResponseSchema,
-} from "./schemas.js";
+} from "./schemas/simulation/simulation-schema.js";
+import { battleLogEventResponseDocSchema } from "./schemas/battle-log/battle-log-schema.js";
 import type {
   BattleSimulationRequestBody,
   BattleSimulationResponseBody,

@@ -1,0 +1,483 @@
+export const battleLogEventResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "sequence",
+    "type",
+    "category",
+    "turnNumber",
+    "cycleNumber",
+    "rootSequence",
+    "targetUnitIds",
+    "details",
+    "stateVersionBefore",
+    "stateVersionAfter",
+  ],
+  properties: {
+    sequence: { type: "integer", minimum: 1 },
+    type: { type: "string" },
+    category: { type: "string", enum: ["FACT", "TIMING", "DIAGNOSTIC"] },
+    turnNumber: { type: "integer", minimum: 0, maximum: 99 },
+    cycleNumber: { type: "integer", minimum: 0 },
+    actionId: { type: "string" },
+    skillUseId: { type: "string" },
+    parentSequence: { type: "integer", minimum: 1 },
+    rootSequence: { type: "integer", minimum: 1 },
+    sourceUnitId: { type: "string" },
+    targetUnitIds: { type: "array", items: { type: "string" } },
+    details: {},
+    stateVersionBefore: { type: "integer", minimum: 0 },
+    stateVersionAfter: { type: "integer", minimum: 0 },
+    stateTransitionIndex: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+/**
+ * `08_ドメインイベント.md`の`BattleDomainEventPayloadMap`（M3の19種別に、M5
+ * （`13_実装計画.md`「M5 行動ライフサイクル」）が追加する`ActionWaited`/
+ * `ActionReservationRemoved`/`ActionQueueReordered`/`CooldownStarted`/
+ * `CooldownReduced`/`CooldownCompleted`/`ChargeStarted`/`ChargeReleased`の
+ * 8種別を加えた27種別）を外部`details`形へ写した、OpenAPI公開専用のschema群。
+ * `type`（イベント種別）は`details`の兄弟プロパティであり、OpenAPI 3.0.3の
+ * `discriminator`は対象schema内部のプロパティしか判別に使えないため、ここでは
+ * `oneOf`ではなく`anyOf`で列挙する（`ActionCompleting`/`ActionCompleted`、
+ * `TurnStarted`/`TurnCompleting`/`TurnCompleted`は構造上同一payloadを持ち、
+ * `oneOf`だと「複数一致で失敗」になってしまうため）。
+ *
+ * 実行時の`route.schema.response`はこの詳細schemaを使わず`details: {}`の
+ * ままにする（`build-server.ts`の`transform`で公開文書だけこちらへ差し替える）。
+ * `details`は実データがそのまま流れる出力であり、モデル化を誤ると実際の
+ * レスポンスを壊しかねないため、実行時の直列化を安全側（無制約）に保ったまま
+ * 文書だけを正本へ近づける。
+ */
+const resourceRecoveryEntryDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "apBefore", "apAfter", "ppBefore", "ppAfter"],
+  properties: {
+    battleUnitId: { type: "string" },
+    apBefore: { type: "integer", minimum: 0 },
+    apAfter: { type: "integer", minimum: 0 },
+    ppBefore: { type: "integer", minimum: 0 },
+    ppAfter: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const actionReservationEntryDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "reservedActionKind", "actionSpeed"],
+  properties: {
+    battleUnitId: { type: "string" },
+    reservedActionKind: { type: "string", enum: ["AS", "EX"] },
+    actionSpeed: { type: "number" },
+  },
+} as const;
+
+const targetBindingSelectionDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["targetBindingId", "selectedTargetUnitIds"],
+  properties: {
+    targetBindingId: { type: "string" },
+    selectedTargetUnitIds: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
+const EFFECTIVE_ACTION_TYPE_ENUM = ["AS", "EX", "WAIT", "CHARGE_RELEASE"] as const;
+
+const battleStartedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["turnLimit", "allySlotCount", "enemySlotCount"],
+  properties: {
+    turnLimit: { type: "integer", minimum: 1, maximum: 99 },
+    allySlotCount: { type: "integer", minimum: 1, maximum: 5 },
+    enemySlotCount: { type: "integer", minimum: 1, maximum: 5 },
+  },
+} as const;
+
+/** `TurnStarted`/`TurnCompleting`/`TurnCompleted`は同一payload形。 */
+const turnNumberOnlyDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["turnNumber"],
+  properties: { turnNumber: { type: "integer", minimum: 1, maximum: 99 } },
+} as const;
+
+const resourcesRecoveredDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["units"],
+  properties: { units: { type: "array", items: resourceRecoveryEntryDetailsSchema } },
+} as const;
+
+const actionQueueCreatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["cycleNumber", "reservations"],
+  properties: {
+    cycleNumber: { type: "integer", minimum: 1 },
+    reservations: { type: "array", items: actionReservationEntryDetailsSchema },
+  },
+} as const;
+
+const actionReservationRemovedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "reason"],
+  properties: {
+    battleUnitId: { type: "string" },
+    reason: { type: "string", enum: ["DEFEATED"] },
+  },
+} as const;
+
+const actionStartedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "actorUnitId",
+    "reservedActionType",
+    "effectiveActionType",
+    "apBefore",
+    "apAfter",
+    "exBefore",
+    "exAfter",
+  ],
+  properties: {
+    actorUnitId: { type: "string" },
+    reservedActionType: { type: "string", enum: ["AS", "EX"] },
+    effectiveActionType: { type: "string", enum: EFFECTIVE_ACTION_TYPE_ENUM },
+    apBefore: { type: "integer", minimum: 0 },
+    apAfter: { type: "integer", minimum: 0 },
+    exBefore: { type: "integer", minimum: 0 },
+    exAfter: { type: "integer", minimum: 0 },
+    waitReason: { type: "string" },
+  },
+} as const;
+
+const actionWaitedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "waitReason", "consumedResource", "consumedAmount"],
+  properties: {
+    actorUnitId: { type: "string" },
+    waitReason: { type: "string" },
+    consumedResource: { type: "string", enum: ["AP", "PP", "EX_GAUGE"] },
+    consumedAmount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const targetsSelectedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "bindings"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    bindings: { type: "array", items: targetBindingSelectionDetailsSchema },
+  },
+} as const;
+
+const RESOURCE_KIND_ENUM = ["AP", "PP", "EX_GAUGE"] as const;
+
+const skillUseStartingDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "actorUnitId", "targetUnitIds", "costResource", "costAmount"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    actorUnitId: { type: "string" },
+    targetUnitIds: { type: "array", items: { type: "string" } },
+    costResource: { type: "string", enum: RESOURCE_KIND_ENUM },
+    costAmount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const skillUseStartedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "costResource", "costAmount"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    costResource: { type: "string", enum: RESOURCE_KIND_ENUM },
+    costAmount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const skillUseCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "resolvedStepCount", "targetUnitIds"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    resolvedStepCount: { type: "integer", minimum: 0 },
+    targetUnitIds: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
+const hitConfirmedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "effectActionDefinitionId", "hitIndex", "targetUnitId"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+  },
+} as const;
+
+const criticalCheckResolvedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["mode", "baseCriticalRate", "effectiveCriticalRate", "result"],
+  properties: {
+    mode: { type: "string", enum: ["NORMAL", "GUARANTEED", "PREVENTED"] },
+    // R-CRT-01: クランプ前の値のため0-100へは制限しない（`percentage.ts`）。
+    baseCriticalRate: { type: "number" },
+    effectiveCriticalRate: { type: "number" },
+    result: { type: "boolean" },
+  },
+} as const;
+
+const DAMAGE_TYPE_ENUM = ["PHYSICAL", "EN"] as const;
+
+const damageCalculatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "skillDefinitionId",
+    "effectActionDefinitionId",
+    "hitIndex",
+    "targetUnitId",
+    "attackerAttack",
+    "defenderDefense",
+    "effectiveDefense",
+    "defenseIgnoreRate",
+    "skillPower",
+    "attributeMultiplier",
+    "criticalMultiplier",
+    "actionDamageMultiplier",
+    "preTruncationDamage",
+    "finalDamage",
+    "damageType",
+  ],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+    attackerAttack: { type: "number" },
+    defenderDefense: { type: "number" },
+    effectiveDefense: { type: "number" },
+    defenseIgnoreRate: { type: "number" },
+    skillPower: { type: "number" },
+    attributeMultiplier: { type: "number" },
+    criticalMultiplier: { type: "number" },
+    actionDamageMultiplier: { type: "number" },
+    preTruncationDamage: { type: "number" },
+    finalDamage: { type: "integer", minimum: 0 },
+    damageType: { type: "string", enum: DAMAGE_TYPE_ENUM },
+  },
+} as const;
+
+const damageAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectActionDefinitionId",
+    "hitIndex",
+    "targetUnitId",
+    "calculatedDamage",
+    "hitPointDamage",
+    "hpBefore",
+    "hpAfter",
+    "defeated",
+  ],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+    calculatedDamage: { type: "integer", minimum: 0 },
+    hitPointDamage: { type: "integer", minimum: 0 },
+    hpBefore: { type: "integer", minimum: 0 },
+    hpAfter: { type: "integer", minimum: 0 },
+    defeated: { type: "boolean" },
+  },
+} as const;
+
+const unitDefeatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["unitId", "causeEventId"],
+  properties: {
+    unitId: { type: "string" },
+    causeEventId: { type: "string" },
+  },
+} as const;
+
+/** `ActionCompleting`/`ActionCompleted`は同一payload形。 */
+const actorEffectiveActionDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "effectiveActionType"],
+  properties: {
+    actorUnitId: { type: "string" },
+    effectiveActionType: { type: "string", enum: EFFECTIVE_ACTION_TYPE_ENUM },
+  },
+} as const;
+
+const battleCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["outcome", "completionReason", "completedTurn"],
+  properties: {
+    outcome: { type: "string", enum: ["ALLY_WIN", "ALLY_LOSE"] },
+    completionReason: {
+      type: "string",
+      enum: ["ENEMY_DEFEATED", "ALLY_DEFEATED", "SIMULTANEOUS_DEFEAT", "TURN_LIMIT_REACHED"],
+    },
+    completedTurn: { type: "integer", minimum: 1, maximum: 99 },
+  },
+} as const;
+
+const COOLDOWN_UNIT_ENUM = ["ACTION", "TURN"] as const;
+
+const cooldownStartedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "unit", "initialRemaining"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    unit: { type: "string", enum: COOLDOWN_UNIT_ENUM },
+    initialRemaining: { type: "integer", minimum: 1 },
+  },
+} as const;
+
+const cooldownReducedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "unit", "before", "after"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    unit: { type: "string", enum: COOLDOWN_UNIT_ENUM },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const cooldownCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "unit"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    unit: { type: "string", enum: COOLDOWN_UNIT_ENUM },
+  },
+} as const;
+
+const chargeStartedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "startedActionId"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    startedActionId: { type: "string" },
+  },
+} as const;
+
+const chargeReleasedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "chargeStartActionId", "releaseActionId"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    chargeStartActionId: { type: "string" },
+    releaseActionId: { type: "string" },
+  },
+} as const;
+
+const actionOrderEntryDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "actionSpeed"],
+  properties: {
+    battleUnitId: { type: "string" },
+    actionSpeed: { type: "number" },
+  },
+} as const;
+
+/** R-ORD-04: `ActionQueueReordered`。未実装で欠落していた(EVENT_DETAILS_SCHEMA_BY_TYPEレビュー指摘に付随して発見)。 */
+const actionQueueReorderedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["before", "after"],
+  properties: {
+    before: { type: "array", items: actionOrderEntryDetailsSchema },
+    after: { type: "array", items: actionOrderEntryDetailsSchema },
+  },
+} as const;
+
+/**
+ * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
+ * から、対応する`details`schemaへのlookup。`ActionCompleting`/
+ * `ActionCompleted`、`TurnStarted`/`TurnCompleting`/`TurnCompleted`は
+ * 構造上同一payloadだが、`type`ごとに別エントリを持つ（`oneOf`側で`type`を
+ * `const`固定するための discriminator は`type`自身であり、`details`の形が
+ * 同じでも判別に問題はない）。
+ */
+const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
+  BATTLE_STARTED: battleStartedDetailsSchema,
+  TURN_STARTED: turnNumberOnlyDetailsSchema,
+  RESOURCES_RECOVERED: resourcesRecoveredDetailsSchema,
+  ACTION_QUEUE_CREATED: actionQueueCreatedDetailsSchema,
+  ACTION_RESERVATION_REMOVED: actionReservationRemovedDetailsSchema,
+  ACTION_QUEUE_REORDERED: actionQueueReorderedDetailsSchema,
+  ACTION_STARTED: actionStartedDetailsSchema,
+  ACTION_WAITED: actionWaitedDetailsSchema,
+  TARGETS_SELECTED: targetsSelectedDetailsSchema,
+  SKILL_USE_STARTING: skillUseStartingDetailsSchema,
+  SKILL_USE_STARTED: skillUseStartedDetailsSchema,
+  SKILL_USE_COMPLETED: skillUseCompletedDetailsSchema,
+  HIT_CONFIRMED: hitConfirmedDetailsSchema,
+  CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
+  DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
+  DAMAGE_APPLIED: damageAppliedDetailsSchema,
+  UNIT_DEFEATED: unitDefeatedDetailsSchema,
+  ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
+  ACTION_COMPLETED: actorEffectiveActionDetailsSchema,
+  COOLDOWN_STARTED: cooldownStartedDetailsSchema,
+  COOLDOWN_REDUCED: cooldownReducedDetailsSchema,
+  COOLDOWN_COMPLETED: cooldownCompletedDetailsSchema,
+  CHARGE_STARTED: chargeStartedDetailsSchema,
+  CHARGE_RELEASED: chargeReleasedDetailsSchema,
+  TURN_COMPLETING: turnNumberOnlyDetailsSchema,
+  TURN_COMPLETED: turnNumberOnlyDetailsSchema,
+  BATTLE_COMPLETED: battleCompletedDetailsSchema,
+} as const;
+
+/**
+ * `events[].type`と`details`の対応をOpenAPI公開文書へ固定する。`details`だけを
+ * `anyOf`で列挙すると、`type`とは無関係にどれか一つの形へ一致すればよくなり、
+ * 実際には存在しない組み合わせ（例: `type: "DAMAGE_APPLIED"`に
+ * `TurnStarted`の`details`）を検証が通してしまう。ここではイベント全体
+ * （`type`を`const`で固定した各variant）を`oneOf`にすることで、`type`と
+ * `details`の組み合わせ自体を検証対象にする。各variantは`type`の値で
+ * 一意に排他となるため（`details`の形が複数variant間で重複していても）、
+ * `oneOf`が「複数一致で失敗」になることはない。
+ */
+export const battleLogEventResponseDocSchema = {
+  oneOf: Object.entries(EVENT_DETAILS_SCHEMA_BY_TYPE).map(([type, detailsSchema]) => ({
+    ...battleLogEventResponseSchema,
+    properties: {
+      ...battleLogEventResponseSchema.properties,
+      type: { const: type },
+      details: detailsSchema,
+    },
+  })),
+} as const;

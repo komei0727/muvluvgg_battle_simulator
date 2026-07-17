@@ -3,7 +3,7 @@ import {
   healthLiveResponseSchema,
   healthReadyResponseSchema,
   healthNotReadyResponseSchema,
-} from "./schemas.js";
+} from "./schemas/health/health-schema.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「ヘルスチェック」`/health/ready`が要求する
