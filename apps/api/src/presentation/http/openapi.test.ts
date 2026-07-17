@@ -8,10 +8,8 @@ import {
   cooldownStateResponseSchema,
 } from "./schemas/simulation/simulation-schema.js";
 import { battleLogEventResponseDocSchema } from "./schemas/battle-log/battle-log-schema.js";
-import type {
-  BattleSimulationRequestBody,
-  BattleSimulationResponseBody,
-} from "../../application/contracts/simulation.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
+import type { BattleSimulationResponseBody } from "../../application/contracts/response.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";

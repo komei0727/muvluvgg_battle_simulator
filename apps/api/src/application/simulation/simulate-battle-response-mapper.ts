@@ -11,7 +11,7 @@ import type {
   EntityCollectionDeltaResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
-} from "../contracts/simulation.js";
+} from "../contracts/response.js";
 import type { BattleLogEventResponseBody } from "../contracts/battle-log.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
 import type {

@@ -5,7 +5,7 @@ import { WorkerErrorCircuitBreaker } from "./worker-error-circuit-breaker.js";
 import { SystemClock } from "../time/system-clock.js";
 import type { Clock } from "../../domain/ports/clock.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
-import type { BattleSimulationRequestBody } from "../../application/contracts/simulation.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";

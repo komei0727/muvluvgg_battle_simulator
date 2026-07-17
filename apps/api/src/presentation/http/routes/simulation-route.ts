@@ -3,7 +3,7 @@ import { toBattleSimulationResponseBody } from "../../../application/simulation/
 import { SimulationCapacityExceededError } from "../../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../../application/simulation/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../../application/simulation/simulation-result-assembler.js";
-import type { BattleSimulationRequestBody } from "../../../application/contracts/simulation.js";
+import type { BattleSimulationRequestBody } from "../../../application/contracts/request.js";
 import {
   battleSimulationRequestSchema,
   battleSimulationResponseSchema,

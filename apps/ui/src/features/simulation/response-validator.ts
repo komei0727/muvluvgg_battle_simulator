@@ -27,7 +27,7 @@ function isStringArray(value: unknown): value is readonly string[] {
 
 const POSITION_APTITUDES = ["FRONT", "BACK"];
 
-// apps/api/src/presentation/http/schemas.ts の catalogUnitSummaryResponseSchema:
+// apps/api/src/presentation/http/schemas/catalog/catalog-schema.ts の catalogUnitSummaryResponseSchema:
 // positionAptitudes は FRONT/BACK のみを許容する enum で、1件以上必須。
 function isPositionAptitudes(value: unknown): value is readonly string[] {
   return (

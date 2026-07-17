@@ -3,7 +3,7 @@ import {
   type ApplicationErrorCode,
   type Violation,
 } from "../../application/contracts/application-error.js";
-import type { BattleSimulationRequestBody } from "../../application/contracts/simulation.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
 
 /**

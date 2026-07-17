@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
 import { battleSimulationResponseDocSchema } from "./schemas/simulation/simulation-schema.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 import type {
-  BattleSimulationRequestBody,
   BattleSimulationResponseBody,
   BattleStateResponseBody,
   BattleUnitStateResponseBody,
@@ -13,7 +13,7 @@ import type {
   StateTransitionResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
-} from "../../application/contracts/simulation.js";
+} from "../../application/contracts/response.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
