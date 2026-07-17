@@ -430,9 +430,11 @@ const battleLogEventResponseSchema = {
 } as const;
 
 /**
- * `08_ドメインイベント.md`の`BattleDomainEventPayloadMap`（M3の19種別に
- * `ActionWaited`/`ActionReservationRemoved`（M5/issue #20）を加えた21種別）を
- * 外部`details`形へ写した、OpenAPI公開専用のschema群。
+ * `08_ドメインイベント.md`の`BattleDomainEventPayloadMap`（M3の19種別に、M5
+ * （`13_実装計画.md`「M5 行動ライフサイクル」）が追加する`ActionWaited`/
+ * `ActionReservationRemoved`/`ActionQueueReordered`/`CooldownStarted`/
+ * `CooldownReduced`/`CooldownCompleted`/`ChargeStarted`/`ChargeReleased`の
+ * 8種別を加えた27種別）を外部`details`形へ写した、OpenAPI公開専用のschema群。
  * `type`（イベント種別）は`details`の兄弟プロパティであり、OpenAPI 3.0.3の
  * `discriminator`は対象schema内部のプロパティしか判別に使えないため、ここでは
  * `oneOf`ではなく`anyOf`で列挙する（`ActionCompleting`/`ActionCompleted`、
@@ -736,6 +738,88 @@ const battleCompletedDetailsSchema = {
   },
 } as const;
 
+const COOLDOWN_UNIT_ENUM = ["ACTION", "TURN"] as const;
+
+const cooldownStartedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "unit", "initialRemaining"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    unit: { type: "string", enum: COOLDOWN_UNIT_ENUM },
+    initialRemaining: { type: "integer", minimum: 1 },
+  },
+} as const;
+
+const cooldownReducedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "unit", "before", "after"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    unit: { type: "string", enum: COOLDOWN_UNIT_ENUM },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const cooldownCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "unit"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    unit: { type: "string", enum: COOLDOWN_UNIT_ENUM },
+  },
+} as const;
+
+const chargeStartedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "startedActionId"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    startedActionId: { type: "string" },
+  },
+} as const;
+
+const chargeReleasedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "chargeStartActionId", "releaseActionId"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    chargeStartActionId: { type: "string" },
+    releaseActionId: { type: "string" },
+  },
+} as const;
+
+const actionOrderEntryDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "actionSpeed"],
+  properties: {
+    battleUnitId: { type: "string" },
+    actionSpeed: { type: "number" },
+  },
+} as const;
+
+/** R-ORD-04: `ActionQueueReordered`。未実装で欠落していた(EVENT_DETAILS_SCHEMA_BY_TYPEレビュー指摘に付随して発見)。 */
+const actionQueueReorderedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["before", "after"],
+  properties: {
+    before: { type: "array", items: actionOrderEntryDetailsSchema },
+    after: { type: "array", items: actionOrderEntryDetailsSchema },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -750,6 +834,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   RESOURCES_RECOVERED: resourcesRecoveredDetailsSchema,
   ACTION_QUEUE_CREATED: actionQueueCreatedDetailsSchema,
   ACTION_RESERVATION_REMOVED: actionReservationRemovedDetailsSchema,
+  ACTION_QUEUE_REORDERED: actionQueueReorderedDetailsSchema,
   ACTION_STARTED: actionStartedDetailsSchema,
   ACTION_WAITED: actionWaitedDetailsSchema,
   TARGETS_SELECTED: targetsSelectedDetailsSchema,
@@ -763,6 +848,11 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   UNIT_DEFEATED: unitDefeatedDetailsSchema,
   ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
   ACTION_COMPLETED: actorEffectiveActionDetailsSchema,
+  COOLDOWN_STARTED: cooldownStartedDetailsSchema,
+  COOLDOWN_REDUCED: cooldownReducedDetailsSchema,
+  COOLDOWN_COMPLETED: cooldownCompletedDetailsSchema,
+  CHARGE_STARTED: chargeStartedDetailsSchema,
+  CHARGE_RELEASED: chargeReleasedDetailsSchema,
   TURN_COMPLETING: turnNumberOnlyDetailsSchema,
   TURN_COMPLETED: turnNumberOnlyDetailsSchema,
   BATTLE_COMPLETED: battleCompletedDetailsSchema,

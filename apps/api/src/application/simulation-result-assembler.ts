@@ -9,8 +9,10 @@ import type {
   BattleUnitRosterEntry,
 } from "../domain/battle/events/battle-state-snapshot.js";
 import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
-import { reduceStateDeltas } from "../domain/battle/events/state-delta-reducer.js";
+import { reduceStateDeltas, sameChargeState } from "../domain/battle/events/state-delta-reducer.js";
+import type { CooldownState } from "../domain/battle/events/state-delta.js";
 import type { BattleOutcome, CompletionReason } from "../domain/battle/victory-policy.js";
+import type { SkillDefinitionId } from "../domain/catalog/catalog-ids.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
 import type { BattleId, BattleUnitId } from "../domain/shared/ids.js";
 
@@ -44,11 +46,39 @@ export interface AssembleSimulationResultInput {
   readonly unitRoster: readonly BattleUnitRosterEntry[];
 }
 
+/**
+ * `unit`/`remaining`（独立Reducerが`StateDelta`から復元できる項目）だけを比較する。
+ * `setActionId`/`setTurnNumber`はBattle集約から直接captureする現在値限定の注釈で
+ * あり`UnitStateDelta.cooldowns`には運ばれないため（`state-delta.ts`の`CooldownState`
+ * コメント参照）、比較対象に含めるとReducer復元状態との不一致を誤検出する。
+ */
+function cooldownStatesEqual(
+  a: Readonly<Record<SkillDefinitionId, CooldownState>> | undefined,
+  b: Readonly<Record<SkillDefinitionId, CooldownState>> | undefined,
+): boolean {
+  const aEntries = Object.entries(a ?? {}) as [SkillDefinitionId, CooldownState][];
+  const bCooldowns = b ?? {};
+  if (aEntries.length !== Object.keys(bCooldowns).length) {
+    return false;
+  }
+  return aEntries.every(([skillDefinitionId, state]) => {
+    const other = bCooldowns[skillDefinitionId];
+    return other !== undefined && state.unit === other.unit && state.remaining === other.remaining;
+  });
+}
+
 function unitSnapshotsEqual(
   a: BattleStateSnapshot["units"][BattleUnitId],
   b: BattleStateSnapshot["units"][BattleUnitId],
 ): boolean {
-  return a.hp === b.hp && a.ap === b.ap && a.pp === b.pp && a.extraGauge === b.extraGauge;
+  return (
+    a.hp === b.hp &&
+    a.ap === b.ap &&
+    a.pp === b.pp &&
+    a.extraGauge === b.extraGauge &&
+    cooldownStatesEqual(a.cooldowns, b.cooldowns) &&
+    sameChargeState(a.charge, b.charge)
+  );
 }
 
 function resultsEqual(

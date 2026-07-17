@@ -135,16 +135,20 @@ export interface EffectStateResponseBody {
   readonly appliedActionId?: string;
 }
 
-/** `10_API設計.md`「CooldownStateResponse」。M5/M6まではResponse Mapperが要素を追加することはない。 */
+/**
+ * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
+ * `unit`(ACTION/TURN)に応じてどちらか一方だけ存在する（Domainの`CooldownEntry`と
+ * 同じXOR。`state-delta.ts`の`CooldownState`コメント参照）。
+ */
 export interface CooldownStateResponseBody {
   readonly skillDefinitionId: string;
   readonly unit: string;
   readonly remaining: number;
   readonly setAtActionId?: string;
-  readonly setAtTurnNumber: number;
+  readonly setAtTurnNumber?: number;
 }
 
-/** `10_API設計.md`「ChargeStateResponse」。M5まではResponse Mapperが値を設定することはない。 */
+/** `10_API設計.md`「ChargeStateResponse」。`status`はM5時点でCHARGING以外の値を取り得ない（RELEASE_READY/HELD_BY_FREEZEはM6/M7で追加されるイベント発行後に初めて成立する）。 */
 export interface ChargeStateResponseBody {
   readonly skillDefinitionId: string;
   readonly startedActionId: string;
@@ -152,11 +156,11 @@ export interface ChargeStateResponseBody {
 }
 
 /**
- * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`/`effects`/`cooldowns`は
- * 対応するDomain機構がM5〜M8で実装されるまで常に空配列（`未実装機能を仮の値で
- * 成功扱いにしない`の対象は「実際には効いていない補正を有効な値で偽装する」
- * ことであり、「まだ何も付与されていない」ことを表す空配列は事実そのもの）。
- * `charge`は仕様上チャージ中だけ存在するため、未実装の間は常に省略する。
+ * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`/`effects`は対応するDomain
+ * 機構がM7〜M8で実装されるまで常に空配列（`未実装機能を仮の値で成功扱いにしない`
+ * の対象は「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
+ * 付与されていない」ことを表す空配列は事実そのもの）。`cooldowns`/`charge`はM5で
+ * 実装済みのDomain状態（`BattleUnitSnapshot`）をそのまま反映する。
  */
 export interface BattleUnitStateResponseBody {
   readonly battleUnitId: string;

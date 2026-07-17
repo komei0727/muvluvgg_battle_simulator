@@ -13,10 +13,18 @@ export interface ValueChange<T> {
 /** `Battle.result`と同じ形。`battle.js`からの循環importを避けるため独立に定義する。 */
 export type BattleResultSnapshot = VictoryResult & { readonly completedTurn: number };
 
-/** `06_戦闘状態遷移.md`「クールタイム状態」の外部公開形。設定scope(`setActionId`等)は内部bookkeeping専用のため含めない。 */
+/**
+ * `06_戦闘状態遷移.md`「クールタイム状態」の外部公開形。`setActionId`/`setTurnNumber`は
+ * 「設定した同じ行動・ターンでは減算しない」(R-SKL-04)の設定scopeを、`unit`に応じて
+ * どちらか一方だけ持つ（`cooldown-state.ts`の`CooldownEntry`と同じXOR）。値の復元は
+ * StateDeltaを経由せずBattle集約から直接captureする現在値限定の注釈であり、
+ * `UnitStateDelta.cooldowns`（差分から独立Reducerで復元する対象）には含めない。
+ */
 export interface CooldownState {
   readonly unit: CooldownUnit;
   readonly remaining: number;
+  readonly setActionId?: ActionId;
+  readonly setTurnNumber?: number;
 }
 
 /** `06_戦闘状態遷移.md`「チャージ状態」の外部公開形。 */

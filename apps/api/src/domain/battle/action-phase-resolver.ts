@@ -877,15 +877,6 @@ function resolveChargeRelease(
     },
   });
 
-  // R-SKL-05 #4: チャージ状態を終了する（効果解決前に、以降の解決対象からは除く）。
-  working = working.map((u) => {
-    if (u.battleUnitId !== actorId) {
-      return u;
-    }
-    const { charge: _charge, ...withoutCharge } = u;
-    return withoutCharge;
-  });
-
   working = applyEffectActionGroups(plan, working, {
     definitions,
     actorId,
@@ -899,6 +890,17 @@ function resolveChargeRelease(
     rootEventId: actionStarted.eventId,
     parentEventId: chargeReleased.eventId,
     skillDefinitionId: skill.skillDefinitionId,
+  });
+
+  // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
+  // （とPS解決、M6）の後（PR#131レビュー[P2]: 効果解決前に終了すると、M6でPS解決が
+  // 入った時に所有者のPSが「チャージ中ではない」と誤判定しうる）。
+  working = working.map((u) => {
+    if (u.battleUnitId !== actorId) {
+      return u;
+    }
+    const { charge: _charge, ...withoutCharge } = u;
+    return withoutCharge;
   });
 
   const completion = recordActionCompletion(

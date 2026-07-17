@@ -25,7 +25,7 @@ function assertBeforeMatches<T>(path: string, current: T, change: ValueChange<T>
  * の参照同一性（`!==`）比較では正常な開始→発動イベント列でも誤って不一致と
  * 判定してしまう（PR#128レビュー[P1]）。フィールド単位の構造比較で判定する。
  */
-function sameChargeState(a: ChargeState | undefined, b: ChargeState | undefined): boolean {
+export function sameChargeState(a: ChargeState | undefined, b: ChargeState | undefined): boolean {
   if (a === undefined || b === undefined) {
     return a === b;
   }
