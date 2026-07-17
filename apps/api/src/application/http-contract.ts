@@ -138,15 +138,24 @@ export interface EffectStateResponseBody {
 /**
  * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
  * `unit`(ACTION/TURN)に応じてどちらか一方だけ存在する（Domainの`CooldownEntry`と
- * 同じXOR。`state-delta.ts`の`CooldownState`コメント参照）。
+ * 同じXOR。`state-delta.ts`の`CooldownState`コメント参照）。discriminated union
+ * にすることで、両方欠落・両方存在という不正な組み合わせをコンパイル時に防ぐ
+ * （M5レビュー3巡目[P2]）。`remaining`は残数があるスキルだけを返す契約のため
+ * 1以上。
  */
-export interface CooldownStateResponseBody {
-  readonly skillDefinitionId: string;
-  readonly unit: string;
-  readonly remaining: number;
-  readonly setAtActionId?: string;
-  readonly setAtTurnNumber?: number;
-}
+export type CooldownStateResponseBody =
+  | {
+      readonly skillDefinitionId: string;
+      readonly unit: "ACTION";
+      readonly remaining: number;
+      readonly setAtActionId: string;
+    }
+  | {
+      readonly skillDefinitionId: string;
+      readonly unit: "TURN";
+      readonly remaining: number;
+      readonly setAtTurnNumber: number;
+    };
 
 /** `10_API設計.md`「ChargeStateResponse」。`status`はM5時点でCHARGING以外の値を取り得ない（RELEASE_READY/HELD_BY_FREEZEはM6/M7で追加されるイベント発行後に初めて成立する）。 */
 export interface ChargeStateResponseBody {

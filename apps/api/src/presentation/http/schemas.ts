@@ -295,20 +295,35 @@ const effectStateResponseSchema = {
 
 /**
  * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
- * `unit`に応じてどちらか一方だけ存在するため、どちらも必須にしない
- * (`http-contract.ts`の`CooldownStateResponseBody`コメント参照)。
+ * `unit`に応じてどちらか一方だけを必須にするXOR制約を`oneOf`で強制する
+ * （両方欠落・両方存在は不正。M5レビュー3巡目[P2]）。`remaining`は残数がある
+ * スキルだけを返す契約のため`minimum: 1`。
  */
-const cooldownStateResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["skillDefinitionId", "unit", "remaining"],
-  properties: {
-    skillDefinitionId: { type: "string" },
-    unit: { type: "string", enum: ["ACTION", "TURN"] },
-    remaining: { type: "integer", minimum: 0 },
-    setAtActionId: { type: "string" },
-    setAtTurnNumber: { type: "integer", minimum: 0 },
-  },
+export const cooldownStateResponseSchema = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["skillDefinitionId", "unit", "remaining", "setAtActionId"],
+      properties: {
+        skillDefinitionId: { type: "string" },
+        unit: { const: "ACTION" },
+        remaining: { type: "integer", minimum: 1 },
+        setAtActionId: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["skillDefinitionId", "unit", "remaining", "setAtTurnNumber"],
+      properties: {
+        skillDefinitionId: { type: "string" },
+        unit: { const: "TURN" },
+        remaining: { type: "integer", minimum: 1 },
+        setAtTurnNumber: { type: "integer", minimum: 0 },
+      },
+    },
+  ],
 } as const;
 
 /** `10_API設計.md`「ChargeStateResponse」。 */

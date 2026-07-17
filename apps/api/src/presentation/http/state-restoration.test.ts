@@ -616,8 +616,10 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     const cooldown = chargerFinal!.cooldowns[0]!;
     expect(cooldown.unit).toBe("ACTION");
     expect(cooldown.remaining).toBe(1);
+    if (cooldown.unit !== "ACTION") {
+      throw new Error("expected an ACTION-unit cooldown");
+    }
     expect(typeof cooldown.setAtActionId).toBe("string");
-    expect(cooldown.setAtTurnNumber).toBeUndefined();
     expect(chargerFinal?.charge).toBeUndefined(); // released by the end of the battle.
     const defenderFinal = body.finalState.units.find((u) => u.unitDefinitionId === "UNIT_DEF");
     expect(defenderFinal?.hp.current).toBeLessThan(1000); // the charge release actually hit.

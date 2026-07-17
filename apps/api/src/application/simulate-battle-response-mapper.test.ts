@@ -341,6 +341,30 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
+  it("API-RESP-010B (M5 review round 3 [P2] fix): throws instead of silently producing an invalid CooldownStateResponse when a Domain cooldown's unit/setActionId/setTurnNumber XOR is violated (ACTION unit missing setActionId)", () => {
+    expect(() =>
+      toBattleSimulationResponseBody(
+        baseResult({
+          finalState: {
+            status: "COMPLETED",
+            currentTurn: 1,
+            result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+            units: {
+              [ALLY_ID]: {
+                hp: 90,
+                ap: 1,
+                pp: 0,
+                extraGauge: 5,
+                cooldowns: { [SKL_A]: { unit: "ACTION", remaining: 2 } },
+              },
+              [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+            },
+          },
+        }),
+      ),
+    ).toThrow(/setActionId/);
+  });
+
   it("API-RESP-011 (P1 fix): maps a StateTransition's cooldowns delta into an EntityCollectionDelta (added/updated/removed derived from remaining crossing zero) and charge into a ValueChange with null for the unset side", () => {
     const body = toBattleSimulationResponseBody(
       baseResult({

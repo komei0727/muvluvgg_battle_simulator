@@ -6,6 +6,7 @@ import {
   battleSimulationResponseSchema,
   battleSimulationResponseDocSchema,
   battleLogEventResponseDocSchema,
+  cooldownStateResponseSchema,
 } from "./schemas.js";
 import type {
   BattleSimulationRequestBody,
@@ -550,5 +551,39 @@ describe("OpenAPI document", () => {
     );
 
     expect(declaredTypes).toEqual(expectedTypes);
+  });
+
+  it("API-OPENAPI-006 (M5 review round 3 [P2] fix): cooldownStateResponseSchema enforces the ACTION/TURN setting-scope XOR (10_API設計.md CooldownStateResponse) — accepts exactly one matching scope field, rejects both missing, both present, or a mismatched scope field", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(cooldownStateResponseSchema);
+
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1, setAtActionId: "a-1" }),
+    ).toBe(true);
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "TURN", remaining: 1, setAtTurnNumber: 3 }),
+    ).toBe(true);
+
+    // Both missing.
+    expect(validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1 })).toBe(false);
+    // Both present.
+    expect(
+      validate({
+        skillDefinitionId: "SKL_1",
+        unit: "ACTION",
+        remaining: 1,
+        setAtActionId: "a-1",
+        setAtTurnNumber: 3,
+      }),
+    ).toBe(false);
+    // Mismatched: ACTION with the TURN-shaped field.
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1, setAtTurnNumber: 3 }),
+    ).toBe(false);
+    // remaining: 0 would never be returned (finalState lists only active
+    // cooldowns), so the schema rejects it too.
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 0, setAtActionId: "a-1" }),
+    ).toBe(false);
   });
 });

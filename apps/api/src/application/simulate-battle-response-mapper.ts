@@ -45,6 +45,43 @@ function toPercentagePoints(ratio: number): number {
   return ratio * PERCENTAGE_POINT_SCALE;
 }
 
+/**
+ * `10_API設計.md`「CooldownStateResponse」: `unit`に応じて`setAtActionId`/
+ * `setAtTurnNumber`のどちらか一方だけを持つdiscriminated unionを構築する。
+ * Domainの`CooldownState`はこのXORをコンパイル時には強制しない（`unit`と
+ * `setActionId`/`setTurnNumber`が独立したoptionalフィールドのため）ので、ここで
+ * 実行時に検証する。
+ */
+function toCooldownStateResponseBody(
+  skillDefinitionId: string,
+  state: CooldownState,
+): CooldownStateResponseBody {
+  if (state.unit === "ACTION") {
+    if (state.setActionId === undefined) {
+      throw new Error(
+        `cooldowns["${skillDefinitionId}"] has unit "ACTION" but no setActionId (violates the ACTION/TURN setting-scope XOR)`,
+      );
+    }
+    return {
+      skillDefinitionId,
+      unit: "ACTION",
+      remaining: state.remaining,
+      setAtActionId: state.setActionId,
+    };
+  }
+  if (state.setTurnNumber === undefined) {
+    throw new Error(
+      `cooldowns["${skillDefinitionId}"] has unit "TURN" but no setTurnNumber (violates the ACTION/TURN setting-scope XOR)`,
+    );
+  }
+  return {
+    skillDefinitionId,
+    unit: "TURN",
+    remaining: state.remaining,
+    setAtTurnNumber: state.setTurnNumber,
+  };
+}
+
 /** `10_API設計.md`「BattleUnitStateResponse.cooldowns」: 残数があるスキルクールタイムだけを返す。 */
 function toCooldownStateResponseBodies(
   cooldowns: BattleUnitSnapshot["cooldowns"],
@@ -54,13 +91,7 @@ function toCooldownStateResponseBodies(
   }
   return (Object.entries(cooldowns) as [SkillDefinitionId, CooldownState][])
     .filter(([, state]) => state.remaining > 0)
-    .map(([skillDefinitionId, state]) => ({
-      skillDefinitionId,
-      unit: state.unit,
-      remaining: state.remaining,
-      ...(state.setActionId !== undefined ? { setAtActionId: state.setActionId } : {}),
-      ...(state.setTurnNumber !== undefined ? { setAtTurnNumber: state.setTurnNumber } : {}),
-    }));
+    .map(([skillDefinitionId, state]) => toCooldownStateResponseBody(skillDefinitionId, state));
 }
 
 /** `10_API設計.md`「ChargeStateResponse.status」: M5時点のDomainはCHARGING以外の状態を生成しない。 */
@@ -186,13 +217,14 @@ function toCooldownEntityCollectionDeltaResponseBody(
   const removed: { id: string; before: unknown }[] = [];
   for (const [skillDefinitionId, change] of Object.entries(cooldowns)) {
     if (change.before === 0) {
-      added.push({
-        skillDefinitionId,
-        unit: change.unit,
-        remaining: change.after,
-        ...(change.setActionId !== undefined ? { setAtActionId: change.setActionId } : {}),
-        ...(change.setTurnNumber !== undefined ? { setAtTurnNumber: change.setTurnNumber } : {}),
-      });
+      added.push(
+        toCooldownStateResponseBody(skillDefinitionId, {
+          unit: change.unit,
+          remaining: change.after,
+          ...(change.setActionId !== undefined ? { setActionId: change.setActionId } : {}),
+          ...(change.setTurnNumber !== undefined ? { setTurnNumber: change.setTurnNumber } : {}),
+        }),
+      );
     } else if (change.after === 0) {
       removed.push({ id: skillDefinitionId, before: change.before });
     } else {
