@@ -18,6 +18,7 @@ import {
   popTop,
   pushCandidateGroups,
   withTopCandidates,
+  type PassiveResolutionStack,
 } from "./passive-resolution-stack.js";
 import { applySimultaneousActivationLimit } from "./passive-simultaneous-activation-limit.js";
 import { reconfirmPassiveCandidate } from "./reconfirm-passive-candidate.js";
@@ -33,29 +34,30 @@ export interface PassiveActivationCompletion {
 }
 
 /**
- * PSの発動処理（#34/#73が実装）が`resolvePassiveChain`へ差し出す1件分の途中経過。
- * 1つのEffectAction/EffectStepは、PS照合が必要なドメインイベントを0件以上
- * （`EVENT`）発行したのち、そのEffectAction自身の解決完了を1回だけ（`EFFECT_RESOLVED`）
- * 報告する。両者を分離するのは、1つの効果が複数のドメインイベントを発行しうる
- * ため（例: ダメージ系EffectActionは`UnitBeingAttacked`・`DamageWillBeApplied`・
- * `DamageCalculated`・`DamageApplied`の4件を発行しうる）。もし発行イベント数を
- * そのまま効果解決数としてカウントすると、1効果が複数効果として過大計上されて
- * しまう。`EVENT`はPS候補検出だけに使い、Guardの「1解決スコープ内の効果解決数」
- * （`09_アプリケーション設計.md`/`11_インフラストラクチャ設計.md`）は`EFFECT_RESOLVED`
- * の回数だけを数える。
+ * PSの発動処理（#34/#73が実装）が`resolvePassiveChain`へ差し出す、1件の
+ * EffectAction/EffectStepぶんの解決結果。`events`はその効果が発行したドメイン
+ * イベント（0件以上、発生順）。効果解決数Guardは、この`PassiveActivationStep`を
+ * `yield`で受け取った時点で直ちに1件としてカウントする — `events`に含まれる
+ * イベントが新たなPS候補を誘発し、その連鎖をどれだけ深く即時解決することになって
+ * も、このカウントは連鎖の深さに影響されない。もし「イベントを`yield`した後、
+ * 別の`yield`で効果解決を報告する」という2段階の契約にすると、最初の`yield`が
+ * 誘発した子PS連鎖を解決している間は後段の`yield`へ決して到達できず
+ * （子PSもまた同じパターンで自分の子を誘発し続けるため）、再帰的なPS連鎖では
+ * 効果解決数Guardが実質的に機能しなくなる。1つの`yield`へ「効果解決」と
+ * 「その効果が発行したイベント」をまとめることで、Guardのカウントを常に
+ * イベント処理（＝連鎖の再帰）より先に確定させる。
  */
-export type PassiveActivationStep =
-  | { readonly kind: "EVENT"; readonly event: TriggerCandidateEvent }
-  | { readonly kind: "EFFECT_RESOLVED" };
+export interface PassiveActivationStep {
+  readonly events: readonly TriggerCandidateEvent[];
+}
 
 /**
  * PSの発動処理は、上記`PassiveActivationStep`を`yield`するジェネレータとして
- * 提供される。R-SKL-01系「1つのEffectAction適用後に発生したイベントからPS
- * またはMemory triggeredEffectsが候補になった場合、直ちに解決してから次の
- * actionへ進む」を満たすため、`resolvePassiveChain`は`EVENT`の`yield`のたびに
- * その候補連鎖を完全に解決してから`.next()`で再開する。つまり親のEffectSequence
- * は、そこから生じた子PS連鎖の解決が終わるまで次のstepへ進まない。全stepを
- * 解決し終えたら`return`で`PassiveActivationCompletion`を返す。
+ * 提供される。`resolvePassiveChain`は`yield`のたびに効果解決数Guardを確認した
+ * 直後、その`events`それぞれについて誘発された候補連鎖を（発生順に）完全に
+ * 解決してから`.next()`で再開する。つまり親のEffectSequenceは、そこから生じた
+ * 子PS連鎖の解決が終わるまで次のstepへ進まない（R-PS-06「親の効果A→子PS→親の
+ * 効果B」）。全stepを解決し終えたら`return`で`PassiveActivationCompletion`を返す。
  *
  * `resolvePassiveChain`が実際に呼び出すのは`next()`だけなので、標準の`Generator`
  * 全体ではなく、この最小限のプル型イテレータ形状だけを契約とする。`function*`で
@@ -101,6 +103,112 @@ function detectLimitedCandidates(
   return applySimultaneousActivationLimit(deps.detectCandidates(event)).kept;
 }
 
+/** `resolvePassiveChain`の再帰呼び出し全体で共有する可変状態。 */
+interface ChainState {
+  guard: PassiveActivationGuard;
+  effectsResolved: number;
+  readonly interruptedCandidates: PassiveCandidate[];
+  /** `05_ドメインモデル.md`「PassiveCandidateStack」（本Issueでは「PassiveResolutionStack」）。
+   * 制御フロー自体はJSの呼び出しスタックによる再帰で駆動するが、各階層で
+   * push/popし、観測可能な状態として保つ。 */
+  stack: PassiveResolutionStack;
+}
+
+/**
+ * `event`の候補グループを検出し、スタック先頭へ積んで完全に解決してからpopする。
+ * PS深度Guardはpush直後、候補処理を始める前に確認する。
+ */
+function resolveEvent(
+  event: TriggerCandidateEvent,
+  state: ChainState,
+  deps: PassiveChainDependencies,
+): PassiveChainLimitViolationReason | undefined {
+  const candidates = detectLimitedCandidates(event, deps);
+  state.stack = pushCandidateGroups(state.stack, [{ event, candidates }]);
+
+  const depthCheck = checkPassiveDepth(depthOf(state.stack), deps.limits);
+  if (!depthCheck.ok) {
+    return depthCheck.reason;
+  }
+
+  const violation = resolveTopGroup(state, deps);
+  state.stack = popTop(state.stack);
+  return violation;
+}
+
+/**
+ * スタック先頭グループの候補を先頭から順に処理する。R-PS-04の再確認は候補を
+ * 処理する直前に必ず行うため、ネストした解決から戻った直後の次候補もここを
+ * 通り、「TIMINGイベント後に親処理の前提を再検証する」不変条件を満たす。
+ */
+function resolveTopGroup(
+  state: ChainState,
+  deps: PassiveChainDependencies,
+): PassiveChainLimitViolationReason | undefined {
+  const top = peekTop(state.stack);
+  if (top === undefined) {
+    return undefined;
+  }
+  const [next, ...restCandidates] = top.candidates;
+  if (next === undefined) {
+    return undefined;
+  }
+  state.stack = withTopCandidates(state.stack, restCandidates);
+
+  const currentUnit = deps.getCurrentUnit(next.unit.battleUnitId);
+  const reconfirmation = reconfirmPassiveCandidate(next, currentUnit, top.event, state.guard);
+  if (reconfirmation.ok) {
+    state.guard = recordActivation(
+      state.guard,
+      currentUnit.battleUnitId,
+      next.skillDefinition.skillDefinitionId,
+    );
+    const activatedCandidate: PassiveCandidate = { ...next, unit: currentUnit };
+    const generator = deps.activate(activatedCandidate, top.event);
+    const violation = driveActivation(activatedCandidate, generator, state, deps);
+    if (violation !== undefined) {
+      return violation;
+    }
+  }
+
+  return resolveTopGroup(state, deps);
+}
+
+/**
+ * `generator`を完了まで駆動する。`yield`のたびに効果解決数Guardを直ちに
+ * 確認してから、そのstepが発行したイベントを発生順に`resolveEvent`で解決する
+ * （各イベントの候補連鎖を次のイベントへ進む前に完全に解決する）。
+ */
+function driveActivation(
+  candidate: PassiveCandidate,
+  generator: PassiveActivation,
+  state: ChainState,
+  deps: PassiveChainDependencies,
+): PassiveChainLimitViolationReason | undefined {
+  while (true) {
+    const step = generator.next();
+    if (step.done) {
+      if (step.value.interrupted) {
+        state.interruptedCandidates.push(candidate);
+      }
+      return undefined;
+    }
+
+    state.effectsResolved += 1;
+    const effectsCheck = checkEffectsResolvedCount(state.effectsResolved, deps.limits);
+    if (!effectsCheck.ok) {
+      return effectsCheck.reason;
+    }
+
+    for (const event of step.value.events) {
+      const violation = resolveEvent(event, state, deps);
+      if (violation !== undefined) {
+        return violation;
+      }
+    }
+  }
+}
+
 /**
  * `05_ドメインモデル.md`「PassiveCandidateStack」（本Issueでは「PassiveResolutionStack」）
  * が表す、PS即時連鎖の解決アルゴリズム本体。
@@ -110,13 +218,13 @@ function detectLimitedCandidates(
  *   ネストした解決から親グループへ戻った直後の次候補も同じ経路を通るため、
  *   「TIMINGイベント後に親処理の前提を再検証する」不変条件を満たす。
  * - R-PS-05 #1 / R-PS-07: 発動直前に`recordActivation`でguardへ記録し、再入を防ぐ。
- * - R-PS-06: `activate`が`EVENT`を`yield`するたびに、そのイベントの候補連鎖を
- *   スタック先頭に積んで完全に解決してから、`yield`元のジェネレータを`.next()`で
- *   再開する。これにより「親の効果A→子PS→親の効果B」の順序（子PSが親の残り効果
- *   より先に解決される）を実際のEffectSequence解決と同じ粒度で保証する。
- * - 効果解決数Guardは`activate`が`EFFECT_RESOLVED`を`yield`するたびに1件として
- *   スコープ全体で累積カウントする。1つの効果が複数の`EVENT`を発行しても、
- *   `EFFECT_RESOLVED`を1回`yield`する限り1件としてしかカウントされない。
+ * - R-PS-06: `activate`が`yield`するイベントごとに、その候補連鎖を完全に解決して
+ *   から`yield`元のジェネレータを再開する。これにより「親の効果A→子PS→親の効果B」
+ *   の順序を実際のEffectSequence解決と同じ粒度で保証する。
+ * - 効果解決数Guardは`yield`のたびに、そのイベント群を処理する前に直ちに
+ *   カウント・判定する。これにより、各PSの効果が次のPSを即座に誘発し続ける
+ *   再帰的な連鎖でもGuardが機能する（イベント処理より後にカウントする設計だと、
+ *   カウントへ到達する前に連鎖が深くなり続け、深度Guardにしか頼れなくなる）。
  *
  * イベント因果関係について: `TriggerCandidateEvent`は照合専用の最小形であり、
  * `DomainEventId`・`sequence`・`parentEventId`・`rootEventId`を持たない
@@ -133,106 +241,20 @@ export function resolvePassiveChain(
   initialGuard: PassiveActivationGuard = createEmptyPassiveActivationGuard(),
   deps: PassiveChainDependencies,
 ): PassiveChainResult {
-  let guard = initialGuard;
-  let effectsResolved = 0;
-  const interruptedCandidates: PassiveCandidate[] = [];
-  const resumptions = new Map<
-    number,
-    { readonly candidate: PassiveCandidate; readonly generator: PassiveActivation }
-  >();
+  const state: ChainState = {
+    guard: initialGuard,
+    effectsResolved: 0,
+    interruptedCandidates: [],
+    stack: createEmptyPassiveResolutionStack(),
+  };
 
-  let stack = pushCandidateGroups(createEmptyPassiveResolutionStack(), [
-    { event: initialEvent, candidates: detectLimitedCandidates(initialEvent, deps) },
-  ]);
-
-  /**
-   * `generator`を、候補を1件以上検出できる`EVENT`か`return`まで駆動する。
-   * `EFFECT_RESOLVED`のたびに効果解決数Guardをインクリメント・判定し、`EVENT`は
-   * 候補検出だけに使う（候補が0件の`EVENT`はそのままpumpし続ける）。
-   */
-  function advanceGenerator(
-    candidate: PassiveCandidate,
-    generator: PassiveActivation,
-  ): PassiveChainLimitViolationReason | undefined {
-    while (true) {
-      const step = generator.next();
-      if (step.done) {
-        if (step.value.interrupted) {
-          interruptedCandidates.push(candidate);
-        }
-        return undefined;
-      }
-
-      if (step.value.kind === "EFFECT_RESOLVED") {
-        effectsResolved += 1;
-        const effectsCheck = checkEffectsResolvedCount(effectsResolved, deps.limits);
-        if (!effectsCheck.ok) {
-          return effectsCheck.reason;
-        }
-        continue;
-      }
-
-      const candidates = detectLimitedCandidates(step.value.event, deps);
-      if (candidates.length === 0) {
-        continue;
-      }
-
-      const barrierDepth = depthOf(stack);
-      stack = pushCandidateGroups(stack, [{ event: step.value.event, candidates }]);
-      const depthCheck = checkPassiveDepth(depthOf(stack), deps.limits);
-      if (!depthCheck.ok) {
-        return depthCheck.reason;
-      }
-      resumptions.set(barrierDepth, { candidate, generator });
-      return undefined;
-    }
+  const violation = resolveEvent(initialEvent, state, deps);
+  if (violation !== undefined) {
+    return { ok: false, reason: violation };
   }
-
-  const initialDepthCheck = checkPassiveDepth(depthOf(stack), deps.limits);
-  if (!initialDepthCheck.ok) {
-    return { ok: false, reason: initialDepthCheck.reason };
-  }
-
-  while (depthOf(stack) > 0) {
-    const top = peekTop(stack);
-    if (top === undefined) {
-      break;
-    }
-    const [next, ...restCandidates] = top.candidates;
-    if (next === undefined) {
-      stack = popTop(stack);
-      const newDepth = depthOf(stack);
-      const resumption = resumptions.get(newDepth);
-      if (resumption !== undefined) {
-        resumptions.delete(newDepth);
-        const violation = advanceGenerator(resumption.candidate, resumption.generator);
-        if (violation !== undefined) {
-          return { ok: false, reason: violation };
-        }
-      }
-      continue;
-    }
-    stack = withTopCandidates(stack, restCandidates);
-
-    const currentUnit = deps.getCurrentUnit(next.unit.battleUnitId);
-    const reconfirmation = reconfirmPassiveCandidate(next, currentUnit, top.event, guard);
-    if (!reconfirmation.ok) {
-      continue;
-    }
-
-    guard = recordActivation(
-      guard,
-      currentUnit.battleUnitId,
-      next.skillDefinition.skillDefinitionId,
-    );
-
-    const activatedCandidate: PassiveCandidate = { ...next, unit: currentUnit };
-    const generator = deps.activate(activatedCandidate, top.event);
-    const violation = advanceGenerator(activatedCandidate, generator);
-    if (violation !== undefined) {
-      return { ok: false, reason: violation };
-    }
-  }
-
-  return { ok: true, activationGuard: guard, interruptedCandidates };
+  return {
+    ok: true,
+    activationGuard: state.guard,
+    interruptedCandidates: state.interruptedCandidates,
+  };
 }

@@ -3,7 +3,6 @@ import {
   resolvePassiveChain,
   type PassiveActivation,
   type PassiveActivationCompletion,
-  type PassiveActivationStep,
   type PassiveChainDependencies,
 } from "./resolve-passive-chain.js";
 import { createEmptyPassiveActivationGuard, hasActivated } from "./passive-activation-guard.js";
@@ -94,13 +93,6 @@ function event(eventType: string): TriggerCandidateEvent {
 
 const DONE: PassiveActivationCompletion = { interrupted: false };
 
-/** Wraps a `TriggerCandidateEvent` as the `EVENT` step variant, for brevity below. */
-function eventStep(triggerEvent: TriggerCandidateEvent): PassiveActivationStep {
-  return { kind: "EVENT", event: triggerEvent };
-}
-
-const EFFECT_RESOLVED: PassiveActivationStep = { kind: "EFFECT_RESOLVED" };
-
 /**
  * Builds a `PassiveActivation` that completes immediately without yielding any
  * step. Implemented as a plain iterator rather than `function*` because
@@ -170,12 +162,12 @@ describe("resolvePassiveChain", () => {
         order.push(candidate.skillDefinition.skillDefinitionId);
         seenEvents[candidate.skillDefinition.skillDefinitionId] = evt;
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          yield eventStep(eventFromA);
+          yield { events: [eventFromA] };
+        } else if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
+          yield { events: [eventFromB] };
+        } else {
+          yield { events: [] };
         }
-        if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
-          yield eventStep(eventFromB);
-        }
-        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -226,16 +218,13 @@ describe("resolvePassiveChain", () => {
       activate: function* (candidate) {
         if (candidate.skillDefinition.skillDefinitionId === skillParent.skillDefinitionId) {
           order.push("PARENT_EFFECT_A");
-          yield eventStep(effectAEvent);
-          yield EFFECT_RESOLVED;
+          yield { events: [effectAEvent] };
           order.push("PARENT_EFFECT_B");
-          yield eventStep(effectBEvent);
-          yield EFFECT_RESOLVED;
+          yield { events: [effectBEvent] };
           order.push("PARENT_DONE");
           return DONE;
         }
         order.push("CHILD_ACTIVATED");
-        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -269,9 +258,8 @@ describe("resolvePassiveChain", () => {
       activate: function* (candidate) {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          yield eventStep(eventFromA);
+          yield { events: [eventFromA] };
         }
-        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -319,11 +307,10 @@ describe("resolvePassiveChain", () => {
       },
       getCurrentUnit: () => owner,
       activate: function* () {
-        yield eventStep(event("NEXT"));
-        yield EFFECT_RESOLVED;
+        yield { events: [event("NEXT")] };
         return DONE;
       },
-      limits: { maxPassiveDepth: 3, maxEffectsPerScope: 100 },
+      limits: { maxPassiveDepth: 3, maxEffectsPerScope: 1000 },
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_PASSIVE_DEPTH_EXCEEDED" });
@@ -331,10 +318,10 @@ describe("resolvePassiveChain", () => {
 
   it("UT-GUARD-006: too many resolved effects in one scope stop with a structured MAX_EFFECTS_PER_SCOPE_EXCEEDED result, counted per effect rather than per PS activation", () => {
     const owner = unit("A");
-    // A single PS candidate whose own EffectSequence resolves 5 effects
-    // (5 EFFECT_RESOLVED steps), none of which trigger further PS candidates.
-    // The old (buggy) design counted one "effect" per PS activation and would
-    // never have caught this.
+    // A single PS candidate whose own EffectSequence resolves 5 effects (5
+    // yielded steps), none of which trigger further PS candidates. The old
+    // (buggy) design counted one "effect" per PS activation and would never
+    // have caught this.
     const skill = skillOf("SKL_MANY_EFFECTS");
     const candidate = candidateOf(owner, skill);
 
@@ -343,7 +330,7 @@ describe("resolvePassiveChain", () => {
       getCurrentUnit: () => owner,
       activate: function* () {
         for (let i = 0; i < 5; i += 1) {
-          yield EFFECT_RESOLVED;
+          yield { events: [] };
         }
         return DONE;
       },
@@ -356,16 +343,16 @@ describe("resolvePassiveChain", () => {
   it("UT-GUARD-007: several domain events from a single EffectAction are each checked for PS candidates but counted as exactly one resolved effect", () => {
     // Mirrors a real damage EffectAction, which can emit UnitBeingAttacked,
     // DamageWillBeApplied, DamageCalculated, and DamageApplied for one single
-    // effect. Counting per-EVENT (the previous design) would have counted this
-    // as 4 effects; counting per-EFFECT_RESOLVED counts it as exactly 1.
+    // effect: all four are bundled into the same yielded step, so they are
+    // each checked for PS candidates but counted as exactly one resolved effect.
     const owner = unit("A");
     const candidate = candidateOf(owner, skillOf("SKL_MULTI_EVENT"));
     const detectedEventTypes: string[] = [];
-    const damageEventTypes = [
-      "UnitBeingAttacked",
-      "DamageWillBeApplied",
-      "DamageCalculated",
-      "DamageApplied",
+    const damageEvents = [
+      event("UnitBeingAttacked"),
+      event("DamageWillBeApplied"),
+      event("DamageCalculated"),
+      event("DamageApplied"),
     ];
 
     function run(limits: PassiveChainDependencies["limits"]) {
@@ -376,10 +363,7 @@ describe("resolvePassiveChain", () => {
         },
         getCurrentUnit: () => owner,
         activate: function* () {
-          for (const eventType of damageEventTypes) {
-            yield eventStep(event(eventType));
-          }
-          yield EFFECT_RESOLVED;
+          yield { events: damageEvents };
           return DONE;
         },
         limits,
@@ -391,7 +375,39 @@ describe("resolvePassiveChain", () => {
       ok: false,
       reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED",
     });
-    expect(detectedEventTypes).toEqual(expect.arrayContaining(damageEventTypes));
+    expect(detectedEventTypes).toEqual(
+      expect.arrayContaining(damageEvents.map((e) => e.eventType)),
+    );
+  });
+
+  it("UT-GUARD-008: a recursive PS-triggers-PS chain (each effect immediately triggering the next PS) still stops with MAX_EFFECTS_PER_SCOPE_EXCEEDED, not just the depth guard", () => {
+    // Regression for a real bug: when the effect-resolved count was only
+    // incremented on a *later* yield than the one carrying the triggering
+    // event, a chain where every PS's single effect immediately triggers the
+    // next PS never reached that later yield (each activation paused to
+    // resolve its child before advancing its own generator), so the count
+    // stayed at 0 no matter how deep the chain went and only the (much
+    // higher, differently-purposed) depth guard could ever stop it. Counting
+    // must happen atomically when a step is yielded, before recursing into
+    // the events it produced.
+    const owner = unit("A");
+    let counter = 0;
+
+    const result = resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => {
+        counter += 1;
+        return [candidateOf(owner, skillOf(`SKL_${counter}`))];
+      },
+      getCurrentUnit: () => owner,
+      activate: function* () {
+        yield { events: [event("NEXT")] };
+        return DONE;
+      },
+      // Depth is generous; only the effects guard should be able to stop this.
+      limits: { maxPassiveDepth: 1000, maxEffectsPerScope: 3 },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
   });
 
   it("UT-R-PS-05-001: an interrupted activation is surfaced without aborting the rest of the chain", () => {
@@ -442,9 +458,8 @@ describe("resolvePassiveChain", () => {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
           unitD = { ...unitD, currentHp: 0 };
-          yield eventStep(eventFromA);
+          yield { events: [eventFromA] };
         }
-        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -535,13 +550,12 @@ describe("resolvePassiveChain", () => {
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
           const effectFromA = recordAndWrap(causeEvent);
           groupsByEvent.set(effectFromA, [candB]);
-          yield eventStep(effectFromA);
+          yield { events: [effectFromA] };
         } else if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
           const effectFromB = recordAndWrap(causeEvent);
           groupsByEvent.set(effectFromB, [candC]);
-          yield eventStep(effectFromB);
+          yield { events: [effectFromB] };
         }
-        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
