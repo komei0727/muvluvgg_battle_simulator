@@ -1,4 +1,4 @@
-import { CatalogIntegrityError } from "../../../domain/catalog/catalog-integrity.js";
+import { CatalogIntegrityError } from "../../../domain/catalog/integrity/catalog-integrity.js";
 import { CatalogShapeValidationError } from "./catalog-definition-mapper.js";
 import { CatalogFileContentError, loadCatalogFromDirectory } from "./catalog-file-loader.js";
 import {

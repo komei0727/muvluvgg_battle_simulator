@@ -76,7 +76,7 @@ describe("buildBattleObservation", () => {
   });
 
   it("UT-BATTLE-OBSERVATION-003 (SCN-BTL-021): reduceStateDeltas(initialState, stateTransitions.map(t => t.stateDelta)) reproduces finalState", async () => {
-    const { reduceStateDeltas } = await import("../domain/battle/events/state-delta-reducer.js");
+    const { reduceStateDeltas } = await import("../domain/battle/lifecycle/state-delta-reducer.js");
     const events = recordSampleEvents();
     const initialState = {
       status: "READY" as const,

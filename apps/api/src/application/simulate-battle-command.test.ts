@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
-import { createMemoryDefinitionId, createUnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+import {
+  createMemoryDefinitionId,
+  createUnitDefinitionId,
+} from "../domain/catalog/definitions/catalog-ids.js";
 
 function slot(column: 0 | 1 | 2, row: "FRONT" | "REAR" = "FRONT") {
   return { unitDefinitionId: createUnitDefinitionId("UNIT_001"), position: { column, row } };

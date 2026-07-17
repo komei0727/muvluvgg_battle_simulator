@@ -1,4 +1,4 @@
-import type { CatalogIndex } from "../../../domain/catalog/catalog-integrity.js";
+import type { CatalogIndex } from "../../../domain/catalog/integrity/catalog-integrity.js";
 import type { BattleCatalogDirectory } from "../../../domain/ports/battle-catalog-directory.js";
 import type { BattleCatalogSnapshot } from "../../../domain/ports/battle-catalog.js";
 

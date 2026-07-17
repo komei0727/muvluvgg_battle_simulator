@@ -1,15 +1,15 @@
-import type { CapabilityDefinition } from "../catalog/capability-definition.js";
+import type { CapabilityDefinition } from "../catalog/capability/capability-definition.js";
 import type {
   CapabilityId,
   EffectActionDefinitionId,
   MemoryDefinitionId,
   SkillDefinitionId,
   UnitDefinitionId,
-} from "../catalog/catalog-ids.js";
-import type { EffectActionDefinition } from "../catalog/effect-action-definition.js";
-import type { MemoryDefinition } from "../catalog/memory-definition.js";
-import type { SkillDefinition } from "../catalog/skill-definition.js";
-import type { UnitDefinition } from "../catalog/unit-definition.js";
+} from "../catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../catalog/definitions/effect-action-definition.js";
+import type { MemoryDefinition } from "../catalog/definitions/memory-definition.js";
+import type { SkillDefinition } from "../catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../catalog/definitions/unit-definition.js";
 
 /**
  * Requested Units/Memories plus their transitive Skill/EffectAction/Capability

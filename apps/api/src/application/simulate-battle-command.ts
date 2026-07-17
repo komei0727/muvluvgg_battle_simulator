@@ -1,5 +1,8 @@
 import type { Violation } from "./application-error.js";
-import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+import type {
+  MemoryDefinitionId,
+  UnitDefinitionId,
+} from "../domain/catalog/definitions/catalog-ids.js";
 
 /**
  * `09_アプリケーション設計.md` の SimulateBattleCommand. `column`/`row` は

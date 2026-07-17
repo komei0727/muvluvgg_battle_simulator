@@ -1,21 +1,21 @@
-import type { CapabilityDefinition } from "../../../domain/catalog/capability-definition.js";
+import type { CapabilityDefinition } from "../../../domain/catalog/capability/capability-definition.js";
 import type {
   CapabilityId,
   EffectActionDefinitionId,
   MemoryDefinitionId,
   SkillDefinitionId,
   UnitDefinitionId,
-} from "../../../domain/catalog/catalog-ids.js";
+} from "../../../domain/catalog/definitions/catalog-ids.js";
 import {
   collectEffectActionReferences,
   type CatalogIndex,
-} from "../../../domain/catalog/catalog-integrity.js";
-import type { EffectActionDefinition } from "../../../domain/catalog/effect-action-definition.js";
-import type { MemoryDefinition } from "../../../domain/catalog/memory-definition.js";
+} from "../../../domain/catalog/integrity/catalog-integrity.js";
+import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
+import type { MemoryDefinition } from "../../../domain/catalog/definitions/memory-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../../domain/ports/battle-catalog.js";
 import { toReadonlyMap } from "../../../domain/shared/readonly-map.js";
-import type { SkillDefinition } from "../../../domain/catalog/skill-definition.js";
-import type { UnitDefinition } from "../../../domain/catalog/unit-definition.js";
+import type { SkillDefinition } from "../../../domain/catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../../domain/catalog/definitions/unit-definition.js";
 
 /**
  * `BattleCatalog` Port adapter (`09_アプリケーション設計.md`,

@@ -1,11 +1,23 @@
-import type { ActionId, DomainEventId, ResolutionScopeId, SkillUseId } from "./event-ids.js";
+import type {
+  ActionId,
+  DomainEventId,
+  ResolutionScopeId,
+  SkillUseId,
+} from "../../shared/event-ids.js";
 import type { StateDelta } from "./state-delta.js";
-import type { BattleOutcome, CompletionReason } from "../victory-policy.js";
-import type { ReservedActionKind } from "../action-queue.js";
-import type { CooldownUnit } from "../../catalog/skill-definition.js";
-import type { Side } from "../side.js";
-import type { CriticalMode, DamageType, ResourceKind } from "../../catalog/catalog-enums.js";
-import type { EffectActionDefinitionId, SkillDefinitionId } from "../../catalog/catalog-ids.js";
+import type { BattleOutcome, CompletionReason } from "../outcome/victory-policy.js";
+import type { ReservedActionKind } from "../action/action-queue.js";
+import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
+import type { Side } from "../../shared/side.js";
+import type {
+  CriticalMode,
+  DamageType,
+  ResourceKind,
+} from "../../catalog/definitions/catalog-enums.js";
+import type {
+  EffectActionDefinitionId,
+  SkillDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
 
 /** `08_ドメインイベント.md`「イベントの分類」。M3が発行するイベントはFACT/TIMINGだけを使う。 */

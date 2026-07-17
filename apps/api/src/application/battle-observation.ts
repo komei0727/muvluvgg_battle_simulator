@@ -1,4 +1,4 @@
-import type { BattleStateSnapshot } from "../domain/battle/events/battle-state-snapshot.js";
+import type { BattleStateSnapshot } from "../domain/battle/lifecycle/battle-state-snapshot.js";
 import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
 import type { StateDelta } from "../domain/battle/events/state-delta.js";
 

@@ -1,9 +1,9 @@
-import type { BattleStatus } from "../battle-status.js";
-import type { CooldownUnit } from "../../catalog/skill-definition.js";
-import type { VictoryResult } from "../victory-policy.js";
-import type { SkillDefinitionId } from "../../catalog/catalog-ids.js";
+import type { BattleStatus } from "../model/battle-status.js";
+import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
+import type { VictoryResult } from "../outcome/victory-policy.js";
+import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { ActionId } from "./event-ids.js";
+import type { ActionId } from "../../shared/event-ids.js";
 
 export interface ValueChange<T> {
   readonly before: T;

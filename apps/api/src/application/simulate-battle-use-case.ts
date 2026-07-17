@@ -7,18 +7,21 @@ import {
 } from "./simulation-result-assembler.js";
 import { runPreflight } from "./simulation-preflight-validator.js";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
-import { advanceBattle, createBattle, startBattle } from "../domain/battle/battle.js";
-import type { BattleDefinitions } from "../domain/battle/battle-definitions.js";
-import { createBattleUnitsFromParty } from "../domain/battle/battle-unit.js";
+import { advanceBattle, createBattle, startBattle } from "../domain/battle/lifecycle/battle.js";
+import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
+import { createBattleUnitsFromParty } from "../domain/battle/model/battle-unit.js";
 import {
   captureBattleState,
   captureUnitRoster,
-} from "../domain/battle/events/battle-state-snapshot.js";
+} from "../domain/battle/lifecycle/battle-state-snapshot.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createBattleParty } from "../domain/battle/formation-factory.js";
-import { createTurnLimit } from "../domain/battle/turn-limit.js";
-import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/catalog-ids.js";
-import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
+import { createBattleParty } from "../domain/formation/formation-factory.js";
+import { createTurnLimit } from "../domain/battle/model/turn-limit.js";
+import type {
+  MemoryDefinitionId,
+  UnitDefinitionId,
+} from "../domain/catalog/definitions/catalog-ids.js";
+import type { SkillDefinition } from "../domain/catalog/definitions/skill-definition.js";
 import type { BattleIdGenerator } from "../domain/ports/battle-id-generator.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 import type { Clock } from "../domain/ports/clock.js";

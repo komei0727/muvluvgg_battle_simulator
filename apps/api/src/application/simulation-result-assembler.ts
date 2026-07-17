@@ -7,12 +7,15 @@ import type {
   BattleResultSnapshot,
   BattleStateSnapshot,
   BattleUnitRosterEntry,
-} from "../domain/battle/events/battle-state-snapshot.js";
+} from "../domain/battle/lifecycle/battle-state-snapshot.js";
 import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
-import { reduceStateDeltas, sameChargeState } from "../domain/battle/events/state-delta-reducer.js";
+import {
+  reduceStateDeltas,
+  sameChargeState,
+} from "../domain/battle/lifecycle/state-delta-reducer.js";
 import type { CooldownState } from "../domain/battle/events/state-delta.js";
-import type { BattleOutcome, CompletionReason } from "../domain/battle/victory-policy.js";
-import type { SkillDefinitionId } from "../domain/catalog/catalog-ids.js";
+import type { BattleOutcome, CompletionReason } from "../domain/battle/outcome/victory-policy.js";
+import type { SkillDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
 import type { BattleId, BattleUnitId } from "../domain/shared/ids.js";
 
