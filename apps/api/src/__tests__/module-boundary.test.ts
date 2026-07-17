@@ -211,6 +211,49 @@ describe("Module boundary — reverse dependency on battle/lifecycle", () => {
   });
 });
 
+describe("Module boundary — Domain Layer rules still apply inside every module-specific block", () => {
+  // Regression coverage: ESLint Flat config replaces (rather than merges) `rules` for configs
+  // whose `files` glob matches the same file. Each module-specific block below overlaps with
+  // the generic `src/domain/**` Layer boundary block, so if a module-specific block's
+  // `no-restricted-imports` entry ever stopped including the Domain Layer patterns
+  // (`domainRestrictedImports` in eslint.config.mjs), imports from application/infrastructure/
+  // presentation/bootstrap and Node.js built-ins would silently pass lint inside that module —
+  // exactly as previously happened until domainLayerPatterns was folded into every block.
+  const moduleSpecificDirs = [
+    "src/domain/catalog/definitions",
+    "src/domain/formation",
+    "src/domain/battle/model",
+    "src/domain/battle/outcome",
+    "src/domain/battle/targeting",
+    "src/domain/battle/action",
+    "src/domain/battle/skill",
+    "src/domain/battle/events",
+    "src/domain/battle/combat",
+    "src/domain/battle/effects",
+    "src/domain/battle/triggering",
+    "src/domain/battle/lifecycle",
+  ];
+
+  it.each(moduleSpecificDirs)(
+    "UT-MOD-021: %s cannot import from application (Layer rule)",
+    async (dir) => {
+      const violations = await lint(
+        "import type {} from '../../../../application/simulation/sentinel.js';\n",
+        `${dir}/bad.ts`,
+      );
+      expect(violations.length).toBeGreaterThan(0);
+    },
+  );
+
+  it.each(moduleSpecificDirs)(
+    "UT-MOD-022: %s cannot import Node.js built-in modules (Layer rule)",
+    async (dir) => {
+      const violations = await lint("import { readFileSync } from 'node:fs';\n", `${dir}/bad.ts`);
+      expect(violations.length).toBeGreaterThan(0);
+    },
+  );
+});
+
 describe("Module boundary — presentation cannot depend on domain directly", () => {
   it("UT-MOD-020: presentation cannot import from domain (existing Layer rule)", async () => {
     const violations = await lint(
