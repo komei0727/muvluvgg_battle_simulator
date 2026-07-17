@@ -2,9 +2,9 @@ import {
   ApplicationError,
   type ApplicationErrorCode,
   type Violation,
-} from "../../application/application-error.js";
-import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
-import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
+} from "../../application/contracts/application-error.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
+import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「WorkerSimulationTask」: スレッド境界を渡す

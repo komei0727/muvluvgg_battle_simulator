@@ -313,7 +313,7 @@ describe("selectUnitActionStates", () => {
   });
 
   it('marks cooldown/charge as unknown (not "none") when logLevel is SUMMARY, since COOLDOWN_*/CHARGE_* events are excluded from the SUMMARY log', () => {
-    // apps/api/src/application/battle-log-projection.ts SUMMARY_EVENT_TYPES does not
+    // apps/api/src/application/observation/battle-log-projection.ts SUMMARY_EVENT_TYPES does not
     // include CooldownStarted/CooldownReduced/CooldownCompleted/ChargeStarted/
     // ChargeReleased, so a SUMMARY-level response never carries these events even
     // when a skill is genuinely on cooldown or charging.

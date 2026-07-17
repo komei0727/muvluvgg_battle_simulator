@@ -1,9 +1,9 @@
 import { Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
-import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
-import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
-import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
+import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
+import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
@@ -14,7 +14,7 @@ import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/ba
 import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
-import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「ログ設計」の最小field

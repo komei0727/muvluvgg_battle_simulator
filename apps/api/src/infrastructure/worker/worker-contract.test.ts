@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApplicationError } from "../../application/application-error.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
 import { toApplicationError, toSerializedApplicationError } from "./worker-contract.js";
 
 describe("worker-contract serialization", () => {

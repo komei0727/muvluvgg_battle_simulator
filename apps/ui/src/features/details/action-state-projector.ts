@@ -10,7 +10,7 @@
 // finalStateがM5以降の形かどうかを判別できる。`cooldowns`キー自体が無い
 // unit(M5より前に録取したUI fixture)だけ、events[]のCOOLDOWN_*/CHARGE_*を
 // sequence順に走査するfallbackへ回す。fallback経路では、
-// logLevel=SUMMARYだとapps/api/src/application/battle-log-projection.tsの
+// logLevel=SUMMARYだとapps/api/src/application/observation/battle-log-projection.tsの
 // SUMMARY_EVENT_TYPESにCooldown*/Charge*が含まれずevents[]へ載らないため、
 // `cooldownChargeKnown`で呼び出し側に不明であることを伝える。
 

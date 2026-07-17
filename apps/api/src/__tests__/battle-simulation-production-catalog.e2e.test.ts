@@ -9,7 +9,7 @@ import {
   loadBattleCatalogDirectory,
   loadCatalogFromDirectory,
 } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { GetBattleSimulationCatalogUseCase } from "../application/get-battle-simulation-catalog-use-case.js";
+import { GetBattleSimulationCatalogUseCase } from "../application/catalog/get-battle-simulation-catalog-use-case.js";
 import { buildSimulationSmokeRequest } from "../infrastructure/deploy/simulation-smoke-request.js";
 
 /**

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
-import { ApplicationError } from "../../application/application-error.js";
-import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
-import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
-import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
-import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
-import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
+import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
+import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
+import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
+import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import { SimulationWorkerPool } from "./simulation-worker-pool.js";
 
 /**
