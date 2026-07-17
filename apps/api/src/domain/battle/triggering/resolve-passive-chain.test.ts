@@ -3,13 +3,15 @@ import {
   resolvePassiveChain,
   type PassiveActivation,
   type PassiveActivationCompletion,
+  type PassiveActivationStep,
+  type PassiveChainDependencies,
 } from "./resolve-passive-chain.js";
 import { createEmptyPassiveActivationGuard, hasActivated } from "./passive-activation-guard.js";
 import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidate.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
-import { createBattleUnitId } from "../../shared/ids.js";
+import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
@@ -17,6 +19,8 @@ import {
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import { EventRecorder } from "../events/event-recorder.js";
+import type { DomainEventId } from "../../shared/event-ids.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const POSITION = { column: "LEFT", row: "FRONT" } as const;
@@ -90,9 +94,16 @@ function event(eventType: string): TriggerCandidateEvent {
 
 const DONE: PassiveActivationCompletion = { interrupted: false };
 
+/** Wraps a `TriggerCandidateEvent` as the `EVENT` step variant, for brevity below. */
+function eventStep(triggerEvent: TriggerCandidateEvent): PassiveActivationStep {
+  return { kind: "EVENT", event: triggerEvent };
+}
+
+const EFFECT_RESOLVED: PassiveActivationStep = { kind: "EFFECT_RESOLVED" };
+
 /**
  * Builds a `PassiveActivation` that completes immediately without yielding any
- * event. Implemented as a plain iterator rather than `function*` because
+ * step. Implemented as a plain iterator rather than `function*` because
  * `eslint(require-yield)` rejects a generator function whose body never
  * yields, and several fakes below legitimately model a PS with zero effects.
  */
@@ -159,11 +170,12 @@ describe("resolvePassiveChain", () => {
         order.push(candidate.skillDefinition.skillDefinitionId);
         seenEvents[candidate.skillDefinition.skillDefinitionId] = evt;
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          yield eventFromA;
+          yield eventStep(eventFromA);
         }
         if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
-          yield eventFromB;
+          yield eventStep(eventFromB);
         }
+        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -214,13 +226,16 @@ describe("resolvePassiveChain", () => {
       activate: function* (candidate) {
         if (candidate.skillDefinition.skillDefinitionId === skillParent.skillDefinitionId) {
           order.push("PARENT_EFFECT_A");
-          yield effectAEvent;
+          yield eventStep(effectAEvent);
+          yield EFFECT_RESOLVED;
           order.push("PARENT_EFFECT_B");
-          yield effectBEvent;
+          yield eventStep(effectBEvent);
+          yield EFFECT_RESOLVED;
           order.push("PARENT_DONE");
           return DONE;
         }
         order.push("CHILD_ACTIVATED");
+        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -254,8 +269,9 @@ describe("resolvePassiveChain", () => {
       activate: function* (candidate) {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
-          yield eventFromA;
+          yield eventStep(eventFromA);
         }
+        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -303,7 +319,8 @@ describe("resolvePassiveChain", () => {
       },
       getCurrentUnit: () => owner,
       activate: function* () {
-        yield event("NEXT");
+        yield eventStep(event("NEXT"));
+        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: { maxPassiveDepth: 3, maxEffectsPerScope: 100 },
@@ -314,9 +331,10 @@ describe("resolvePassiveChain", () => {
 
   it("UT-GUARD-006: too many resolved effects in one scope stop with a structured MAX_EFFECTS_PER_SCOPE_EXCEEDED result, counted per effect rather than per PS activation", () => {
     const owner = unit("A");
-    // A single PS candidate whose own EffectSequence resolves 5 effects (5 yields),
-    // none of which trigger further PS candidates. The old (buggy) design counted
-    // one "effect" per PS activation and would never have caught this.
+    // A single PS candidate whose own EffectSequence resolves 5 effects
+    // (5 EFFECT_RESOLVED steps), none of which trigger further PS candidates.
+    // The old (buggy) design counted one "effect" per PS activation and would
+    // never have caught this.
     const skill = skillOf("SKL_MANY_EFFECTS");
     const candidate = candidateOf(owner, skill);
 
@@ -325,7 +343,7 @@ describe("resolvePassiveChain", () => {
       getCurrentUnit: () => owner,
       activate: function* () {
         for (let i = 0; i < 5; i += 1) {
-          yield event(`EFFECT_${i}`);
+          yield EFFECT_RESOLVED;
         }
         return DONE;
       },
@@ -333,6 +351,47 @@ describe("resolvePassiveChain", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
+  });
+
+  it("UT-GUARD-007: several domain events from a single EffectAction are each checked for PS candidates but counted as exactly one resolved effect", () => {
+    // Mirrors a real damage EffectAction, which can emit UnitBeingAttacked,
+    // DamageWillBeApplied, DamageCalculated, and DamageApplied for one single
+    // effect. Counting per-EVENT (the previous design) would have counted this
+    // as 4 effects; counting per-EFFECT_RESOLVED counts it as exactly 1.
+    const owner = unit("A");
+    const candidate = candidateOf(owner, skillOf("SKL_MULTI_EVENT"));
+    const detectedEventTypes: string[] = [];
+    const damageEventTypes = [
+      "UnitBeingAttacked",
+      "DamageWillBeApplied",
+      "DamageCalculated",
+      "DamageApplied",
+    ];
+
+    function run(limits: PassiveChainDependencies["limits"]) {
+      return resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
+        detectCandidates: (evt) => {
+          detectedEventTypes.push(evt.eventType);
+          return evt.eventType === "ROOT" ? [candidate] : [];
+        },
+        getCurrentUnit: () => owner,
+        activate: function* () {
+          for (const eventType of damageEventTypes) {
+            yield eventStep(event(eventType));
+          }
+          yield EFFECT_RESOLVED;
+          return DONE;
+        },
+        limits,
+      });
+    }
+
+    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 1 }).ok).toBe(true);
+    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 0 })).toEqual({
+      ok: false,
+      reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED",
+    });
+    expect(detectedEventTypes).toEqual(expect.arrayContaining(damageEventTypes));
   });
 
   it("UT-R-PS-05-001: an interrupted activation is surfaced without aborting the rest of the chain", () => {
@@ -383,8 +442,9 @@ describe("resolvePassiveChain", () => {
         activatedSkillIds.push(candidate.skillDefinition.skillDefinitionId);
         if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
           unitD = { ...unitD, currentHp: 0 };
-          yield eventFromA;
+          yield eventStep(eventFromA);
         }
+        yield EFFECT_RESOLVED;
         return DONE;
       },
       limits: GENEROUS_LIMITS,
@@ -409,5 +469,99 @@ describe("resolvePassiveChain", () => {
       limits: GENEROUS_LIMITS,
     });
     expect(result.ok).toBe(true);
+  });
+
+  it("UT-R-PS-06-009: nested activations threaded through resolvePassiveChain record correct rootEventId/parentEventId/sequence in a real EventRecorder", () => {
+    // Addresses the review request for causality verification against the real
+    // event envelope (08_ドメインイベント.md), not just the minimal
+    // TriggerCandidateEvent used for trigger matching. `resolvePassiveChain`
+    // itself does not assign DomainEventId/sequence/parentEventId/rootEventId
+    // (that is EventRecorder's job, wired by #73's real EffectSequence
+    // resolver) — what it must get right is threading the correct "immediate
+    // cause" event to each nested activate() call, which is exactly what a
+    // real recorder needs as `parentEventId`. This test proves that by having
+    // each fake `activate()` actually call the production `EventRecorder`.
+    const recorder = new EventRecorder(createBattleId("BATTLE_1"));
+    const scopeId = recorder.nextResolutionScopeId();
+    const recordedEventIdOf = new Map<TriggerCandidateEvent, DomainEventId>();
+    // `EventRecorder.record` defaults `rootEventId` to the event's own eventId
+    // when omitted, so the root call below leaves it unset and every later call
+    // explicitly threads that same id through, exactly as a real nested PS
+    // activation must do.
+    let rootEventId: DomainEventId | undefined;
+
+    function recordAndWrap(causeEvent: TriggerCandidateEvent | undefined): TriggerCandidateEvent {
+      const parentEventId =
+        causeEvent === undefined ? undefined : recordedEventIdOf.get(causeEvent);
+      const recorded = recorder.record({
+        eventType: "TurnStarted",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId: scopeId,
+        payload: { turnNumber: 1 },
+        ...(parentEventId !== undefined ? { parentEventId } : {}),
+        ...(rootEventId !== undefined ? { rootEventId } : {}),
+      });
+      rootEventId ??= recorded.eventId;
+      const triggerEvent: TriggerCandidateEvent = {
+        eventType: recorded.eventType,
+        category: recorded.category,
+        payload: {},
+      };
+      recordedEventIdOf.set(triggerEvent, recorded.eventId);
+      return triggerEvent;
+    }
+
+    const unitA = unit("A");
+    const unitB = unit("B");
+    const unitC = unit("C");
+    const skillA = skillOf("SKL_A");
+    const skillB = skillOf("SKL_B");
+    const skillC = skillOf("SKL_C");
+    const candA = candidateOf(unitA, skillA);
+    const candB = candidateOf(unitB, skillB);
+    const candC = candidateOf(unitC, skillC);
+
+    const rootTriggerEvent = recordAndWrap(undefined);
+    const groupsByEvent = new Map<TriggerCandidateEvent, PassiveCandidateGroup>([
+      [rootTriggerEvent, [candA]],
+    ]);
+
+    const result = resolvePassiveChain(rootTriggerEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => groupsByEvent.get(evt) ?? [],
+      getCurrentUnit: (id) => [unitA, unitB, unitC].find((u) => u.battleUnitId === id) ?? unitA,
+      activate: function* (candidate, causeEvent) {
+        if (candidate.skillDefinition.skillDefinitionId === skillA.skillDefinitionId) {
+          const effectFromA = recordAndWrap(causeEvent);
+          groupsByEvent.set(effectFromA, [candB]);
+          yield eventStep(effectFromA);
+        } else if (candidate.skillDefinition.skillDefinitionId === skillB.skillDefinitionId) {
+          const effectFromB = recordAndWrap(causeEvent);
+          groupsByEvent.set(effectFromB, [candC]);
+          yield eventStep(effectFromB);
+        }
+        yield EFFECT_RESOLVED;
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(result.ok).toBe(true);
+    const recordedEvents = recorder.getEvents();
+    expect(recordedEvents).toHaveLength(3);
+    const [root, fromA, fromB] = recordedEvents;
+    // rootEventId defaults to the event's own eventId when omitted (EventRecorder contract)
+    // and every nested event must inherit that same root, not its own eventId.
+    expect(root?.rootEventId).toBe(root?.eventId);
+    expect(fromA?.rootEventId).toBe(root?.eventId);
+    expect(fromB?.rootEventId).toBe(root?.eventId);
+    expect(root?.parentEventId).toBeUndefined();
+    expect(fromA?.parentEventId).toBe(root?.eventId);
+    expect(fromB?.parentEventId).toBe(fromA?.eventId);
+    // sequence reflects the actual (interleaved, depth-first) recording order.
+    expect(root?.sequence).toBe(1);
+    expect(fromA?.sequence).toBe(2);
+    expect(fromB?.sequence).toBe(3);
   });
 });

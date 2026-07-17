@@ -474,10 +474,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 台帳上は未完了のままとする。
   { ruleId: "R-PS-05", testCaseIds: [], kinds: [] },
   // R-PS-06「新規候補の即時処理」: `resolvePassiveChain`（#21）は`activate`が
-  // 効果解決の途中で`yield`するたびに、その候補連鎖を完全に解決してから元の
-  // ジェネレータを再開する。これにより「親の効果A→子PS→親の効果B」の順序
-  // （UT-R-PS-06-008）を、PSがEffectSequence全体を終えてからしか新規候補を
-  // 報告できない設計では表現できなかった粒度で満たす。
+  // `EVENT`を`yield`するたびに、その候補連鎖を完全に解決してから元のジェネレータを
+  // 再開する。これにより「親の効果A→子PS→親の効果B」の順序（UT-R-PS-06-008）を、
+  // PSがEffectSequence全体を終えてからしか新規候補を報告できない設計では表現
+  // できなかった粒度で満たす。UT-R-PS-06-009は実際の`EventRecorder`を使い、
+  // ネストした発動が正しい`rootEventId`/`parentEventId`/`sequence`で記録される
+  // ことを検証する統合テスト（`TriggerCandidateEvent`自体は照合専用でこれらの
+  // フィールドを持たないため、本関数の責務は「直近の原因イベントを正しく
+  // 次階層へ渡すこと」までであり、実際の採番は#73が配線する`EventRecorder`が
+  // 担う）。
   {
     ruleId: "R-PS-06",
     testCaseIds: [
@@ -489,6 +494,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-06-006",
       "UT-R-PS-06-007",
       "UT-R-PS-06-008",
+      "UT-R-PS-06-009",
     ],
     kinds: ["POSITIVE", "SCENARIO"],
   },

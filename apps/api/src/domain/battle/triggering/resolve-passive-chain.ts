@@ -33,21 +33,36 @@ export interface PassiveActivationCompletion {
 }
 
 /**
- * PSの発動処理（PP消費・EffectSequence解決など、#34/#73が実装）は、1つの
- * EffectAction/EffectStepを解決するたびにそこで発生したドメインイベントを
- * `yield`するジェネレータとして提供される。R-SKL-01系「1つのEffectAction適用後に
- * 発生したイベントからPSまたはMemory triggeredEffectsが候補になった場合、直ちに
- * 解決してから次のactionへ進む」を満たすため、`resolvePassiveChain`は`yield`の
- * たびにそのイベントの候補連鎖を完全に解決してから`.next()`で再開する。つまり
- * 親のEffectSequenceは、そこから生じた子PS連鎖の解決が終わるまで次のstepへ
- * 進まない。全stepを解決し終えたら`return`で`PassiveActivationCompletion`を返す。
+ * PSの発動処理（#34/#73が実装）が`resolvePassiveChain`へ差し出す1件分の途中経過。
+ * 1つのEffectAction/EffectStepは、PS照合が必要なドメインイベントを0件以上
+ * （`EVENT`）発行したのち、そのEffectAction自身の解決完了を1回だけ（`EFFECT_RESOLVED`）
+ * 報告する。両者を分離するのは、1つの効果が複数のドメインイベントを発行しうる
+ * ため（例: ダメージ系EffectActionは`UnitBeingAttacked`・`DamageWillBeApplied`・
+ * `DamageCalculated`・`DamageApplied`の4件を発行しうる）。もし発行イベント数を
+ * そのまま効果解決数としてカウントすると、1効果が複数効果として過大計上されて
+ * しまう。`EVENT`はPS候補検出だけに使い、Guardの「1解決スコープ内の効果解決数」
+ * （`09_アプリケーション設計.md`/`11_インフラストラクチャ設計.md`）は`EFFECT_RESOLVED`
+ * の回数だけを数える。
+ */
+export type PassiveActivationStep =
+  | { readonly kind: "EVENT"; readonly event: TriggerCandidateEvent }
+  | { readonly kind: "EFFECT_RESOLVED" };
+
+/**
+ * PSの発動処理は、上記`PassiveActivationStep`を`yield`するジェネレータとして
+ * 提供される。R-SKL-01系「1つのEffectAction適用後に発生したイベントからPS
+ * またはMemory triggeredEffectsが候補になった場合、直ちに解決してから次の
+ * actionへ進む」を満たすため、`resolvePassiveChain`は`EVENT`の`yield`のたびに
+ * その候補連鎖を完全に解決してから`.next()`で再開する。つまり親のEffectSequence
+ * は、そこから生じた子PS連鎖の解決が終わるまで次のstepへ進まない。全stepを
+ * 解決し終えたら`return`で`PassiveActivationCompletion`を返す。
  *
  * `resolvePassiveChain`が実際に呼び出すのは`next()`だけなので、標準の`Generator`
  * 全体ではなく、この最小限のプル型イテレータ形状だけを契約とする。`function*`で
  * 実装したジェネレータはそのままこの形へ構造的に適合する。
  */
 export interface PassiveActivation {
-  next(): IteratorResult<TriggerCandidateEvent, PassiveActivationCompletion>;
+  next(): IteratorResult<PassiveActivationStep, PassiveActivationCompletion>;
 }
 
 export type DetectPassiveCandidates = (event: TriggerCandidateEvent) => PassiveCandidateGroup;
@@ -95,12 +110,13 @@ function detectLimitedCandidates(
  *   ネストした解決から親グループへ戻った直後の次候補も同じ経路を通るため、
  *   「TIMINGイベント後に親処理の前提を再検証する」不変条件を満たす。
  * - R-PS-05 #1 / R-PS-07: 発動直前に`recordActivation`でguardへ記録し、再入を防ぐ。
- * - R-PS-06: `activate`が`yield`するたびに、そのイベントの候補連鎖をスタック先頭に
- *   積んで完全に解決してから、`yield`元のジェネレータを`.next()`で再開する。これにより
- *   「親の効果A→子PS→親の効果B」の順序（子PSが親の残り効果より先に解決される）を
- *   実際のEffectSequence解決と同じ粒度で保証する。
- * - 効果解決数Guardは`activate`の`yield`ごとに1件としてスコープ全体で累積カウントする
- *   （1件のPSが多数のEffectStepを解決しても、その数だけカウントされる）。
+ * - R-PS-06: `activate`が`EVENT`を`yield`するたびに、そのイベントの候補連鎖を
+ *   スタック先頭に積んで完全に解決してから、`yield`元のジェネレータを`.next()`で
+ *   再開する。これにより「親の効果A→子PS→親の効果B」の順序（子PSが親の残り効果
+ *   より先に解決される）を実際のEffectSequence解決と同じ粒度で保証する。
+ * - 効果解決数Guardは`activate`が`EFFECT_RESOLVED`を`yield`するたびに1件として
+ *   スコープ全体で累積カウントする。1つの効果が複数の`EVENT`を発行しても、
+ *   `EFFECT_RESOLVED`を1回`yield`する限り1件としてしかカウントされない。
  *
  * イベント因果関係について: `TriggerCandidateEvent`は照合専用の最小形であり、
  * `DomainEventId`・`sequence`・`parentEventId`・`rootEventId`を持たない
@@ -130,8 +146,9 @@ export function resolvePassiveChain(
   ]);
 
   /**
-   * `generator`を、次の`yield`（候補が1件以上検出できるものに限る）か`return`まで
-   * 駆動する。`yield`ごとに効果解決数Guardをインクリメント・判定する。
+   * `generator`を、候補を1件以上検出できる`EVENT`か`return`まで駆動する。
+   * `EFFECT_RESOLVED`のたびに効果解決数Guardをインクリメント・判定し、`EVENT`は
+   * 候補検出だけに使う（候補が0件の`EVENT`はそのままpumpし続ける）。
    */
   function advanceGenerator(
     candidate: PassiveCandidate,
@@ -146,19 +163,22 @@ export function resolvePassiveChain(
         return undefined;
       }
 
-      effectsResolved += 1;
-      const effectsCheck = checkEffectsResolvedCount(effectsResolved, deps.limits);
-      if (!effectsCheck.ok) {
-        return effectsCheck.reason;
+      if (step.value.kind === "EFFECT_RESOLVED") {
+        effectsResolved += 1;
+        const effectsCheck = checkEffectsResolvedCount(effectsResolved, deps.limits);
+        if (!effectsCheck.ok) {
+          return effectsCheck.reason;
+        }
+        continue;
       }
 
-      const candidates = detectLimitedCandidates(step.value, deps);
+      const candidates = detectLimitedCandidates(step.value.event, deps);
       if (candidates.length === 0) {
         continue;
       }
 
       const barrierDepth = depthOf(stack);
-      stack = pushCandidateGroups(stack, [{ event: step.value, candidates }]);
+      stack = pushCandidateGroups(stack, [{ event: step.value.event, candidates }]);
       const depthCheck = checkPassiveDepth(depthOf(stack), deps.limits);
       if (!depthCheck.ok) {
         return depthCheck.reason;
