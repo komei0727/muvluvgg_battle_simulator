@@ -388,14 +388,86 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE", "SCENARIO"],
   },
 
-  // PS: パッシブスキル
-  { ruleId: "R-PS-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-PS-02", testCaseIds: [], kinds: [] },
+  // PS: パッシブスキル（#19: PassiveTriggerMatcher・候補検出・優先順）
+  {
+    ruleId: "R-PS-01",
+    testCaseIds: [
+      "UT-R-PS-01-001",
+      "UT-R-PS-01-002",
+      "UT-R-PS-01-003",
+      "UT-R-PS-01-004",
+      "UT-R-PS-01-005",
+      "UT-R-PS-01-006",
+      "UT-R-PS-01-007",
+      "UT-R-PS-01-008",
+      "UT-R-PS-01-010",
+      "UT-R-PS-01-011",
+      "UT-R-PS-01-012",
+      "UT-R-PS-01-013",
+      "UT-R-PS-01-014",
+      "UT-R-PS-01-015",
+      "UT-R-PS-01-016",
+      "UT-R-PS-01-017",
+      "UT-R-PS-01-018",
+      "UT-R-PS-01-019",
+      "UT-R-PS-01-020",
+      "UT-R-PS-01-021",
+      "UT-R-PS-01-022",
+      "UT-R-PS-01-023",
+      "UT-R-PS-01-024",
+      "UT-R-PS-01-025",
+      "UT-R-PS-01-026",
+      "UT-R-PS-01-027",
+      "UT-R-PS-01-028",
+      "UT-R-PS-01-029",
+      "UT-R-PS-01-030",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-PS-02",
+    testCaseIds: [
+      "UT-R-PS-02-001",
+      "UT-R-PS-02-002",
+      "UT-R-PS-02-003",
+      "UT-R-PS-02-004",
+      "UT-R-PS-02-005",
+      "UT-R-PS-02-006",
+    ],
+    kinds: ["POSITIVE", "PROPERTY"],
+  },
+  // R-PS-03「同時発動制限」は`simultaneousActivationLimited`/`exclusiveActivationGroupId`
+  // による候補の1件絞り込みを要求するが、その絞り込みは`PassiveResolutionStack`と共に
+  // Issue #21（[M6] PS即時連鎖・同時発動制限・実行Guardを実装する）が実装する。#19は
+  // 候補検出・順序付けまでで、13_実装計画.md「後続依存を持つルールは完了計上しない」
+  // に従い台帳上は未完了のままとする。
   { ruleId: "R-PS-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-PS-04", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-PS-04",
+    testCaseIds: [
+      "UT-R-PS-04-001",
+      "UT-R-PS-04-002",
+      "UT-R-PS-04-003",
+      "UT-R-PS-04-004",
+      "UT-R-PS-04-005",
+      "UT-R-PS-04-006",
+      "UT-R-PS-04-007",
+      "UT-R-PS-04-008",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  // R-PS-05〜R-PS-07はPassiveResolutionStackによる実際の発動・即時連鎖・再入防止の
+  // 統合を要し、Issue #21のスコープ。R-PS-07の「発動済み集合」自体は#19で
+  // PassiveActivationGuardとして実装し、候補検出(R-PS-01)・発動直前再確認(R-PS-04)
+  // の除外条件として使っているが、実際の発動時にguardへ記録する経路は#21が
+  // 実装するため、ルール自体の完了はそちらへ計上する。
   { ruleId: "R-PS-05", testCaseIds: [], kinds: [] },
   { ruleId: "R-PS-06", testCaseIds: [], kinds: [] },
   { ruleId: "R-PS-07", testCaseIds: [], kinds: [] },
+  // R-PS-08「先制攻撃」: 候補順序（先制攻撃を通常候補より先に処理し、複数ある場合は
+  // R-PS-02を適用する）はUT-R-PS-08-001〜003で検証済みだが、ルール本文の「発動条件、
+  // 発動直前確認、同時発動制限、1解決スコープ1回制限を無視しない」のうち同時発動制限
+  // (R-PS-03)はIssue #21のスコープのため、台帳上は未完了のままとする。
   { ruleId: "R-PS-08", testCaseIds: [], kinds: [] },
 
   // MEM: Memory発動

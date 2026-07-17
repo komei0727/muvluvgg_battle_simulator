@@ -1,0 +1,71 @@
+import type { ComparisonOperator } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  ConditionDefinition,
+  JsonPrimitive,
+} from "../../catalog/definitions/condition-definition.js";
+import { DomainValidationError } from "../../shared/errors.js";
+
+/**
+ * `PassiveTriggerMatcher`が参照する、任意イベントのpayloadだけを持つ最小形。
+ * `TriggerDefinition.condition`の`EVENT_PAYLOAD`は`field`をpayloadのプロパティ名
+ * として直接参照する（`trigger-definition.test.ts`のドット記法を持たない例と同じ）。
+ */
+export interface TriggerConditionPayloadSource {
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
+function compare(actual: unknown, op: ComparisonOperator, expected: JsonPrimitive): boolean {
+  switch (op) {
+    case "GT":
+      return typeof actual === "number" && typeof expected === "number" && actual > expected;
+    case "GTE":
+      return typeof actual === "number" && typeof expected === "number" && actual >= expected;
+    case "LT":
+      return typeof actual === "number" && typeof expected === "number" && actual < expected;
+    case "LTE":
+      return typeof actual === "number" && typeof expected === "number" && actual <= expected;
+    case "EQ":
+      return actual === expected;
+    case "NEQ":
+      return actual !== expected;
+    case "IN":
+      return Array.isArray(expected) && (expected as readonly unknown[]).includes(actual);
+    case "CONTAINS":
+      return Array.isArray(actual) && (actual as readonly unknown[]).includes(expected);
+    default:
+      return false;
+  }
+}
+
+/**
+ * R-PS-01「発生源、対象、陣営、スキル種別などをConditionDefinitionで評価する」の
+ * うち、`08_ドメインイベント.md`「EVENT_PAYLOAD」に対応する評価器。M6時点では
+ * `TARGET_STATE`／`TARGET_HAS_MARKER`／`RUNTIME_COUNTER`／`ALIVE_UNIT_COUNT`は
+ * MarkerState／RuntimeCounter等の実行時状態(M7)を前提とするため未対応とし、
+ * 呼び出し側が明確なエラーで気付けるようにする
+ * (`action-selection-policy.ts`等、他の"basic"policyと同じ隔離方針)。
+ */
+export function evaluateTriggerCondition(
+  condition: ConditionDefinition,
+  event: TriggerConditionPayloadSource,
+): boolean {
+  switch (condition.kind) {
+    case "TRUE":
+      return true;
+    case "AND":
+      return condition.conditions.every((c) => evaluateTriggerCondition(c, event));
+    case "OR":
+      return condition.conditions.some((c) => evaluateTriggerCondition(c, event));
+    case "NOT":
+      return !evaluateTriggerCondition(condition.condition, event);
+    case "EVENT_PAYLOAD": {
+      const actual = event.payload[condition.field];
+      return compare(actual, condition.op, condition.value);
+    }
+    default:
+      throw new DomainValidationError(
+        "condition",
+        `kind "${condition.kind}" is not supported by this basic PassiveTriggerMatcher (TARGET_STATE/TARGET_HAS_MARKER/RUNTIME_COUNTER/ALIVE_UNIT_COUNT/LAST_RESULT/TURN_NUMBER are M7 scope)`,
+      );
+  }
+}
