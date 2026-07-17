@@ -32,54 +32,87 @@ function unit(id: string, side: Side): BattleUnit {
   return createBattleUnit(member, side, LIMITS);
 }
 
-function eventFrom(sourceUnitId: BattleUnitId | undefined, sourceSide: Side | undefined) {
-  const event: TriggerCandidateEvent = {
-    eventType: "DamageApplied",
-    category: "FACT",
-    payload: {},
-    ...(sourceUnitId !== undefined ? { sourceUnitId } : {}),
-    ...(sourceSide !== undefined ? { sourceSide } : {}),
-  };
-  return event;
-}
-
 describe("evaluateSourceSelector", () => {
   const owner = unit("OWNER", "ALLY");
+  const allyOther = unit("ALLY_OTHER", "ALLY");
+  const enemyOther = unit("ENEMY_OTHER", "ENEMY");
+  const unitsById = new Map([
+    [owner.battleUnitId, owner],
+    [allyOther.battleUnitId, allyOther],
+    [enemyOther.battleUnitId, enemyOther],
+  ]);
+
+  /**
+   * 本番の`event-recorder.ts`が実際に生成する形（`sourceUnitId`だけを設定し、
+   * `sourceSide`は設定しない）を再現する。
+   */
+  function eventFromUnit(sourceUnitId: BattleUnitId | undefined): TriggerCandidateEvent {
+    return {
+      eventType: "DamageApplied",
+      category: "FACT",
+      payload: {},
+      ...(sourceUnitId !== undefined ? { sourceUnitId } : {}),
+    };
+  }
 
   it("UT-R-PS-01-010: ANY matches regardless of source", () => {
-    expect(evaluateSourceSelector("ANY", owner, eventFrom(undefined, undefined))).toBe(true);
+    expect(evaluateSourceSelector("ANY", owner, eventFromUnit(undefined), unitsById)).toBe(true);
   });
 
   it("UT-R-PS-01-011: SELF matches only when the source is the owner itself", () => {
-    expect(evaluateSourceSelector("SELF", owner, eventFrom(owner.battleUnitId, "ALLY"))).toBe(true);
     expect(
-      evaluateSourceSelector("SELF", owner, eventFrom(createBattleUnitId("OTHER"), "ALLY")),
+      evaluateSourceSelector("SELF", owner, eventFromUnit(owner.battleUnitId), unitsById),
+    ).toBe(true);
+    expect(
+      evaluateSourceSelector("SELF", owner, eventFromUnit(enemyOther.battleUnitId), unitsById),
     ).toBe(false);
   });
 
-  it("UT-R-PS-01-012: ALLY matches when the source side equals the owner side", () => {
+  it("UT-R-PS-01-012 (regression): ALLY matches by resolving sourceUnitId's side, even though the event carries no sourceSide (matches production event-recorder.ts shape)", () => {
     expect(
-      evaluateSourceSelector("ALLY", owner, eventFrom(createBattleUnitId("OTHER"), "ALLY")),
+      evaluateSourceSelector("ALLY", owner, eventFromUnit(allyOther.battleUnitId), unitsById),
     ).toBe(true);
     expect(
-      evaluateSourceSelector("ALLY", owner, eventFrom(createBattleUnitId("OTHER"), "ENEMY")),
+      evaluateSourceSelector("ALLY", owner, eventFromUnit(enemyOther.battleUnitId), unitsById),
     ).toBe(false);
   });
 
-  it("UT-R-PS-01-013: ENEMY matches when the source side is the opposite of the owner side", () => {
+  it("UT-R-PS-01-013 (regression): ENEMY matches by resolving sourceUnitId's side, even though the event carries no sourceSide", () => {
     expect(
-      evaluateSourceSelector("ENEMY", owner, eventFrom(createBattleUnitId("OTHER"), "ENEMY")),
+      evaluateSourceSelector("ENEMY", owner, eventFromUnit(enemyOther.battleUnitId), unitsById),
     ).toBe(true);
     expect(
-      evaluateSourceSelector("ENEMY", owner, eventFrom(createBattleUnitId("OTHER"), "ALLY")),
+      evaluateSourceSelector("ENEMY", owner, eventFromUnit(allyOther.battleUnitId), unitsById),
     ).toBe(false);
-    expect(evaluateSourceSelector("ENEMY", owner, eventFrom(undefined, undefined))).toBe(false);
+    expect(evaluateSourceSelector("ENEMY", owner, eventFromUnit(undefined), unitsById)).toBe(false);
   });
 
   it("UT-R-PS-01-014: EFFECT_OWNER throws (M7 scope, requires AppliedEffect ownership)", () => {
     expect(() =>
-      evaluateSourceSelector("EFFECT_OWNER", owner, eventFrom(undefined, undefined)),
+      evaluateSourceSelector("EFFECT_OWNER", owner, eventFromUnit(undefined), unitsById),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-PS-01-028: falls back to event.sourceSide when the event has no sourceUnitId (e.g. Memory-origin events)", () => {
+    const memoryEvent: TriggerCandidateEvent = {
+      eventType: "HealApplied",
+      category: "FACT",
+      sourceSide: "ALLY",
+      payload: {},
+    };
+    expect(evaluateSourceSelector("ALLY", owner, memoryEvent, unitsById)).toBe(true);
+    expect(evaluateSourceSelector("ENEMY", owner, memoryEvent, unitsById)).toBe(false);
+  });
+
+  it("UT-R-PS-01-029: falls back to event.sourceSide when sourceUnitId does not resolve in unitsById", () => {
+    const event: TriggerCandidateEvent = {
+      eventType: "DamageApplied",
+      category: "FACT",
+      sourceUnitId: createBattleUnitId("UNKNOWN"),
+      sourceSide: "ENEMY",
+      payload: {},
+    };
+    expect(evaluateSourceSelector("ENEMY", owner, event, unitsById)).toBe(true);
   });
 });
 

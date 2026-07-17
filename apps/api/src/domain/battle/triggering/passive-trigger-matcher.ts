@@ -31,7 +31,7 @@ function findMatchingTrigger(
     (trigger) =>
       trigger.eventType === event.eventType &&
       trigger.category === event.category &&
-      evaluateSourceSelector(trigger.sourceSelector, owner, event) &&
+      evaluateSourceSelector(trigger.sourceSelector, owner, event, unitsById) &&
       evaluateTargetSelector(trigger.targetSelector, owner, event, unitsById) &&
       evaluateTriggerCondition(trigger.condition, event),
   );
@@ -44,8 +44,10 @@ function findMatchingTrigger(
  * `event.eventType`/`category`の一致だけで判定する。
  *
  * `08_ドメインイベント.md`「候補抽出」#1・#2・#4を実装する（#5「同時発動制限」は
- * #21のスコープ）。返り値は`sortPassiveCandidates`によりR-PS-02/R-PS-08で
- * 順序付け済みで、入力の`units`配列順には依存しない。
+ * #21のスコープ）。`SkillDefinition.activationCondition`（「Skill使用可否」、
+ * `05_ドメインモデル.md`のSkillDefinition表）も`trigger.condition`と同じ評価器で
+ * 満たされている場合だけ候補にする。返り値は`sortPassiveCandidates`により
+ * R-PS-02/R-PS-08で順序付け済みで、入力の`units`配列順には依存しない。
  */
 export function detectPassiveCandidates(input: PassiveTriggerMatchInput): PassiveCandidateGroup {
   const { event, units, unitDefinitions, skillDefinitions, activationGuard } = input;
@@ -75,7 +77,7 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
         );
       }
       const trigger = findMatchingTrigger(skill, owner, event, unitsById);
-      if (trigger !== undefined) {
+      if (trigger !== undefined && evaluateTriggerCondition(skill.activationCondition, event)) {
         candidates.push({ unit: owner, skillDefinition: skill, trigger, definitionIndex });
       }
     });

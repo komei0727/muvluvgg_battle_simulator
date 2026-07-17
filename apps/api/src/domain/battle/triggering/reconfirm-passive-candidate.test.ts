@@ -12,6 +12,7 @@ import {
 } from "../../catalog/definitions/catalog-ids.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
+import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import { startCooldown } from "../model/cooldown-state.js";
 
@@ -38,12 +39,17 @@ function owner(side: Side, overrides: Partial<BattleUnit> = {}): BattleUnit {
   return { ...createBattleUnit(member, side, LIMITS), currentPp: 3, ...overrides };
 }
 
-function skillOf(overrides: Partial<SkillDefinition["cost"]> = {}): SkillDefinition {
+interface SkillOverrides {
+  readonly amount?: number;
+  readonly activationCondition?: ConditionDefinition;
+}
+
+function skillOf(overrides: SkillOverrides = {}): SkillDefinition {
   return {
     skillDefinitionId: createSkillDefinitionId("SKL_A"),
     skillType: "PS",
-    cost: { resource: "PP", amount: 1, ...overrides },
-    activationCondition: { kind: "TRUE" },
+    cost: { resource: "PP", amount: overrides.amount ?? 1 },
+    activationCondition: overrides.activationCondition ?? { kind: "TRUE" },
     triggers: [
       {
         eventType: "TurnStarted",
@@ -87,18 +93,18 @@ describe("reconfirmPassiveCandidate", () => {
     const candidate = candidateOf(unit, skillOf());
     expect(
       reconfirmPassiveCandidate(candidate, unit, READY_EVENT, createEmptyPassiveActivationGuard()),
-    ).toBe(true);
+    ).toEqual({ ok: true });
   });
 
-  it("UT-R-PS-04-002: a defeated owner discards the candidate (所有者が戦闘可能でない)", () => {
+  it("UT-R-PS-04-002: a defeated owner discards the candidate with reason OWNER_DEFEATED (所有者が戦闘可能でない)", () => {
     const unit = owner("ALLY", { currentHp: 0 });
     const candidate = candidateOf(unit, skillOf());
     expect(
       reconfirmPassiveCandidate(candidate, unit, READY_EVENT, createEmptyPassiveActivationGuard()),
-    ).toBe(false);
+    ).toEqual({ ok: false, reason: "OWNER_DEFEATED" });
   });
 
-  it("UT-R-PS-04-003: a charging owner discards the candidate (チャージ中)", () => {
+  it("UT-R-PS-04-003: a charging owner discards the candidate with reason OWNER_CHARGING (チャージ中)", () => {
     const chargeSkill = skillOf();
     const unit = owner("ALLY", {
       charge: { skill: chargeSkill, startedActionId: "ACTION_1" as never },
@@ -106,18 +112,18 @@ describe("reconfirmPassiveCandidate", () => {
     const candidate = candidateOf(unit, skillOf());
     expect(
       reconfirmPassiveCandidate(candidate, unit, READY_EVENT, createEmptyPassiveActivationGuard()),
-    ).toBe(false);
+    ).toEqual({ ok: false, reason: "OWNER_CHARGING" });
   });
 
-  it("UT-R-PS-04-004: insufficient PP discards the candidate", () => {
+  it("UT-R-PS-04-004: insufficient PP discards the candidate with reason INSUFFICIENT_PP", () => {
     const unit = owner("ALLY", { currentPp: 0 });
     const candidate = candidateOf(unit, skillOf({ amount: 1 }));
     expect(
       reconfirmPassiveCandidate(candidate, unit, READY_EVENT, createEmptyPassiveActivationGuard()),
-    ).toBe(false);
+    ).toEqual({ ok: false, reason: "INSUFFICIENT_PP" });
   });
 
-  it("UT-R-PS-04-005: a positive cooldown remaining discards the candidate", () => {
+  it("UT-R-PS-04-005: a positive cooldown remaining discards the candidate with reason COOLING_DOWN", () => {
     const skill = skillOf();
     const unit = owner("ALLY");
     const { cooldowns } = startCooldown(unit.cooldowns, skill.skillDefinitionId, skill.cooldown, {
@@ -132,10 +138,10 @@ describe("reconfirmPassiveCandidate", () => {
         READY_EVENT,
         createEmptyPassiveActivationGuard(),
       ),
-    ).toBe(false);
+    ).toEqual({ ok: false, reason: "COOLING_DOWN" });
   });
 
-  it("UT-R-PS-04-006: a condition that no longer holds discards the candidate (条件変化)", () => {
+  it("UT-R-PS-04-006: a trigger condition that no longer holds discards the candidate with reason CONDITION_NOT_MET (条件変化)", () => {
     const unit = owner("ALLY");
     const candidate = candidateOf(unit, skillOf());
     const staleEvent: TriggerCandidateEvent = {
@@ -145,10 +151,26 @@ describe("reconfirmPassiveCandidate", () => {
     };
     expect(
       reconfirmPassiveCandidate(candidate, unit, staleEvent, createEmptyPassiveActivationGuard()),
-    ).toBe(false);
+    ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
   });
 
-  it("UT-R-PS-04-007 / R-PS-07: already-activated-in-scope discards the candidate", () => {
+  it("UT-R-PS-04-008: a Skill activationCondition that no longer holds discards the candidate with reason CONDITION_NOT_MET, even though the trigger condition still holds", () => {
+    const unit = owner("ALLY");
+    const skill = skillOf({
+      activationCondition: { kind: "EVENT_PAYLOAD", field: "usable", op: "EQ", value: true },
+    });
+    const candidate = candidateOf(unit, skill);
+    const event: TriggerCandidateEvent = {
+      eventType: "TurnStarted",
+      category: "FACT",
+      payload: { ready: true, usable: false },
+    };
+    expect(
+      reconfirmPassiveCandidate(candidate, unit, event, createEmptyPassiveActivationGuard()),
+    ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
+  });
+
+  it("UT-R-PS-04-007 / R-PS-07: already-activated-in-scope discards the candidate with reason ALREADY_ACTIVATED", () => {
     const skill = skillOf();
     const unit = owner("ALLY");
     const candidate = candidateOf(unit, skill);
@@ -157,6 +179,9 @@ describe("reconfirmPassiveCandidate", () => {
       unit.battleUnitId,
       skill.skillDefinitionId,
     );
-    expect(reconfirmPassiveCandidate(candidate, unit, READY_EVENT, guard)).toBe(false);
+    expect(reconfirmPassiveCandidate(candidate, unit, READY_EVENT, guard)).toEqual({
+      ok: false,
+      reason: "ALREADY_ACTIVATED",
+    });
   });
 });

@@ -92,12 +92,16 @@ function unitDefinitionOf(
   };
 }
 
-function passiveSkillOf(id: string, trigger: TriggerSpec): SkillDefinition {
+function passiveSkillOf(
+  id: string,
+  trigger: TriggerSpec,
+  activationCondition: ConditionDefinition = { kind: "TRUE" },
+): SkillDefinition {
   return {
     skillDefinitionId: createSkillDefinitionId(id),
     skillType: "PS",
     cost: { resource: "PP", amount: 1 },
-    activationCondition: { kind: "TRUE" },
+    activationCondition,
     triggers: [
       {
         eventType: trigger.eventType,
@@ -379,7 +383,7 @@ describe("detectPassiveCandidates", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-R-PS-01-026: sourceSelector/targetSelector filter candidates across two units", () => {
+  it("UT-R-PS-01-026 (regression): sourceSelector/targetSelector filter candidates across two units using only sourceUnitId, matching the shape production event-recorder.ts actually emits (sourceSide is never set)", () => {
     const allySourceSkill = passiveSkillOf("SKL_ALLY_SOURCE", {
       eventType: "DamageApplied",
       category: "FACT",
@@ -397,7 +401,6 @@ describe("detectPassiveCandidates", () => {
       eventType: "DamageApplied",
       category: "FACT",
       sourceUnitId: allyOwner.battleUnitId,
-      sourceSide: "ALLY",
       payload: {},
     };
 
@@ -410,6 +413,50 @@ describe("detectPassiveCandidates", () => {
     });
 
     expect(candidates.map((c) => c.unit.battleUnitId)).toEqual([allyOwner.battleUnitId]);
+  });
+
+  it("UT-R-PS-01-030: a PS whose Skill activationCondition is not met is excluded even though its trigger matches", () => {
+    const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
+    const gatedSkill = passiveSkillOf(
+      "SKL_GATED",
+      { eventType: "TurnStarted", category: "FACT", sourceSelector: "ANY", targetSelector: "ANY" },
+      { kind: "EVENT_PAYLOAD", field: "usable", op: "EQ", value: true },
+    );
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [gatedSkill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[gatedSkill.skillDefinitionId, gatedSkill]]);
+
+    const blockedEvent: TriggerCandidateEvent = {
+      eventType: "TurnStarted",
+      category: "FACT",
+      payload: { usable: false },
+    };
+    const allowedEvent: TriggerCandidateEvent = {
+      eventType: "TurnStarted",
+      category: "FACT",
+      payload: { usable: true },
+    };
+    const guard = createEmptyPassiveActivationGuard();
+
+    expect(
+      detectPassiveCandidates({
+        event: blockedEvent,
+        units: [owner],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+      }),
+    ).toHaveLength(0);
+    expect(
+      detectPassiveCandidates({
+        event: allowedEvent,
+        units: [owner],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+      }),
+    ).toHaveLength(1);
   });
 
   it("UT-R-PS-01-027: a reference to a missing UnitDefinition or SkillDefinition throws a clear DomainValidationError", () => {
