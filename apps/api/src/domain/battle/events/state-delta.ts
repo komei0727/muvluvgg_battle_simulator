@@ -13,10 +13,19 @@ export interface ValueChange<T> {
 /** `Battle.result`と同じ形。`battle.js`からの循環importを避けるため独立に定義する。 */
 export type BattleResultSnapshot = VictoryResult & { readonly completedTurn: number };
 
-/** `06_戦闘状態遷移.md`「クールタイム状態」の外部公開形。設定scope(`setActionId`等)は内部bookkeeping専用のため含めない。 */
+/**
+ * `06_戦闘状態遷移.md`「クールタイム状態」の外部公開形。`setActionId`/`setTurnNumber`は
+ * 「設定した同じ行動・ターンでは減算しない」(R-SKL-04)の設定scopeを、`unit`に応じて
+ * どちらか一方だけ持つ（`cooldown-state.ts`の`CooldownEntry`と同じXOR）。
+ * `UnitStateDelta.cooldowns`にも同じ形で運ばれ、`08_ドメインイベント.md`
+ * 「状態復元」の`stateTransitions`単体（`events`のlogLevelによる間引きに
+ * 依存しない）から独立Reducerで復元できる。
+ */
 export interface CooldownState {
   readonly unit: CooldownUnit;
   readonly remaining: number;
+  readonly setActionId?: ActionId;
+  readonly setTurnNumber?: number;
 }
 
 /** `06_戦闘状態遷移.md`「チャージ状態」の外部公開形。 */
@@ -36,9 +45,19 @@ export interface UnitStateDelta {
    * `unit`(ACTION/TURN)はスキル使用開始時から不変だが、ReducerはCatalogを
    * 参照できないため、初回設定(`CooldownStarted`)以降の全ての変更でも
    * 一緒に運ぶ（`before`のみのValueChangeでは初回設定時に`unit`を復元できない）。
+   * `setActionId`/`setTurnNumber`は初回設定(`CooldownStarted`)時だけ`unit`に
+   * 応じてどちらか一方を持ち、以降の変更(`CooldownReduced`等)では省略する
+   * （設定scope自体は変わらないため、独立Reducerは既存値を保持する）。
    */
   readonly cooldowns?: Readonly<
-    Record<SkillDefinitionId, { readonly unit: CooldownUnit } & ValueChange<number>>
+    Record<
+      SkillDefinitionId,
+      {
+        readonly unit: CooldownUnit;
+        readonly setActionId?: ActionId;
+        readonly setTurnNumber?: number;
+      } & ValueChange<number>
+    >
   >;
   /** R-SKL-05: チャージ開始(`undefined`→値)・解放/中断(値→`undefined`)。 */
   readonly charge?: ValueChange<ChargeState | undefined>;

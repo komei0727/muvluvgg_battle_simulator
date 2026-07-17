@@ -40,7 +40,12 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
     const cooldowns: Record<SkillDefinitionId, CooldownState> = {};
     for (const skillDefinitionId of cooldownIds) {
       const entry = unit.cooldowns[skillDefinitionId]!;
-      cooldowns[skillDefinitionId] = { unit: entry.unit, remaining: entry.remaining };
+      cooldowns[skillDefinitionId] = {
+        unit: entry.unit,
+        remaining: entry.remaining,
+        ...(entry.setActionId !== undefined ? { setActionId: entry.setActionId } : {}),
+        ...(entry.setTurnNumber !== undefined ? { setTurnNumber: entry.setTurnNumber } : {}),
+      };
     }
     units[unit.battleUnitId] = {
       hp: unit.currentHp,

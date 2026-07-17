@@ -35,9 +35,10 @@ interface Row {
 }
 
 // docs/ui-design/07_UI実装・拡張計画.md §9完了条件: M5追加eventを意味のある
-// 文言で表示し、cooldown/charge状態をbattleUnitId単位で追跡できる。AP/EXは
-// finalState.resourcesから、cooldown/chargeはevents[]から
-// action-state-projector.tsが再構築した値をそのまま表示する。
+// 文言で表示し、cooldown/charge状態をbattleUnitId単位で追跡できる。
+// action-state-projector.tsが選んだ値（AP/EXはfinalState.resourcesから、
+// cooldown/chargeはfinalState.units[]、それが無い旧fixtureだけevents[]から）
+// をそのまま表示する。
 function UnitActionStateGroup({
   side,
   rows,

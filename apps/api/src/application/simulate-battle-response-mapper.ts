@@ -7,15 +7,24 @@ import type {
   BattleStateDeltaResponseBody,
   BattleStateResponseBody,
   BattleUnitStateResponseBody,
+  ChargeStateResponseBody,
+  CooldownStateResponseBody,
+  EntityCollectionDeltaResponseBody,
   UnitStateDeltaResponseBody,
+  ValueChangeBody,
 } from "./http-contract.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
 import type {
   BattleUnitRosterEntry,
   BattleUnitSnapshot,
 } from "../domain/battle/events/battle-state-snapshot.js";
-import type { StateDelta, UnitStateDelta } from "../domain/battle/events/state-delta.js";
+import type {
+  CooldownState,
+  StateDelta,
+  UnitStateDelta,
+} from "../domain/battle/events/state-delta.js";
 import type { PositionColumn } from "../domain/catalog/catalog-enums.js";
+import type { SkillDefinitionId } from "../domain/catalog/catalog-ids.js";
 import type { BattleUnitId } from "../domain/shared/ids.js";
 
 const SCHEMA_VERSION = 1;
@@ -36,10 +45,86 @@ function toPercentagePoints(ratio: number): number {
   return ratio * PERCENTAGE_POINT_SCALE;
 }
 
+/**
+ * `10_API設計.md`「CooldownStateResponse」: `unit`に応じて`setAtActionId`/
+ * `setAtTurnNumber`のどちらか一方だけを持つdiscriminated unionを構築する。
+ * Domainの`CooldownState`はこのXORをコンパイル時には強制しない（`unit`と
+ * `setActionId`/`setTurnNumber`が独立したoptionalフィールドのため）ので、ここで
+ * 実行時に検証する。反対側のscopeフィールドが同時に存在する場合も、黙って
+ * 捨てて正常化するのではなく例外にする（M5レビュー4巡目[P3]: Domain不変条件が
+ * 破れているサインを握りつぶさない）。
+ */
+function toCooldownStateResponseBody(
+  skillDefinitionId: string,
+  state: CooldownState,
+): CooldownStateResponseBody {
+  if (state.unit === "ACTION") {
+    if (state.setActionId === undefined) {
+      throw new Error(
+        `cooldowns["${skillDefinitionId}"] has unit "ACTION" but no setActionId (violates the ACTION/TURN setting-scope XOR)`,
+      );
+    }
+    if (state.setTurnNumber !== undefined) {
+      throw new Error(
+        `cooldowns["${skillDefinitionId}"] has unit "ACTION" but also has setTurnNumber (violates the ACTION/TURN setting-scope XOR)`,
+      );
+    }
+    return {
+      skillDefinitionId,
+      unit: "ACTION",
+      remaining: state.remaining,
+      setAtActionId: state.setActionId,
+    };
+  }
+  if (state.setTurnNumber === undefined) {
+    throw new Error(
+      `cooldowns["${skillDefinitionId}"] has unit "TURN" but no setTurnNumber (violates the ACTION/TURN setting-scope XOR)`,
+    );
+  }
+  if (state.setActionId !== undefined) {
+    throw new Error(
+      `cooldowns["${skillDefinitionId}"] has unit "TURN" but also has setActionId (violates the ACTION/TURN setting-scope XOR)`,
+    );
+  }
+  return {
+    skillDefinitionId,
+    unit: "TURN",
+    remaining: state.remaining,
+    setAtTurnNumber: state.setTurnNumber,
+  };
+}
+
+/** `10_API設計.md`「BattleUnitStateResponse.cooldowns」: 残数があるスキルクールタイムだけを返す。 */
+function toCooldownStateResponseBodies(
+  cooldowns: BattleUnitSnapshot["cooldowns"],
+): readonly CooldownStateResponseBody[] {
+  if (cooldowns === undefined) {
+    return [];
+  }
+  return (Object.entries(cooldowns) as [SkillDefinitionId, CooldownState][])
+    .filter(([, state]) => state.remaining > 0)
+    .map(([skillDefinitionId, state]) => toCooldownStateResponseBody(skillDefinitionId, state));
+}
+
+/** `10_API設計.md`「ChargeStateResponse.status」: M5時点のDomainはCHARGING以外の状態を生成しない。 */
+function toChargeStateResponseBody(
+  charge: BattleUnitSnapshot["charge"],
+): ChargeStateResponseBody | undefined {
+  if (charge === undefined) {
+    return undefined;
+  }
+  return {
+    skillDefinitionId: charge.skillDefinitionId,
+    startedActionId: charge.startedActionId,
+    status: "CHARGING",
+  };
+}
+
 function toUnitStateResponseBody(
   roster: BattleUnitRosterEntry,
   snapshot: BattleUnitSnapshot,
 ): BattleUnitStateResponseBody {
+  const charge = toChargeStateResponseBody(snapshot.charge);
   return {
     battleUnitId: roster.battleUnitId,
     unitDefinitionId: roster.unitDefinitionId,
@@ -64,12 +149,13 @@ function toUnitStateResponseBody(
       affinityBonus: toPercentagePoints(roster.combatStats.affinityBonus),
       criticalDamageBonus: toPercentagePoints(roster.combatStats.criticalDamageBonus),
     },
-    // `10_API設計.md`「BattleUnitStateResponse」: シールド・サブユニット・効果・
-    // クールタイムはM5〜M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。
+    // `10_API設計.md`「BattleUnitStateResponse」: シールド・サブユニット・効果は
+    // M7〜M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。
     shields: { physical: 0, energy: 0, untyped: 0 },
     subUnits: [],
     effects: [],
-    cooldowns: [],
+    cooldowns: toCooldownStateResponseBodies(snapshot.cooldowns),
+    ...(charge !== undefined ? { charge } : {}),
   };
 }
 
@@ -123,6 +209,78 @@ function toBattleLogEventResponseBody(event: BattleLogEvent): BattleLogEventResp
 }
 
 /**
+ * `10_API設計.md`「UnitStateDeltaResponse.cooldowns」(`EntityCollectionDelta`)。
+ * `10_API設計.md`「BattleUnitStateResponse.cooldowns」の「残数があるスキルだけを
+ * 返す」規則をここでも適用し、可視状態への出入りから`added`/`updated`/`removed`を
+ * 導出する（before===0で新規出現=`added`、after===0で消滅=`removed`、それ以外は
+ * `updated`）。`added`は`CooldownStateResponseBody`と同じ完全な形（`setAtActionId`/
+ * `setAtTurnNumber`を含む）で持たせ、`stateTransitions`単体（`events`のlogLevel
+ * フィルタに依存しない）から`finalState`を厳密に復元できるようにする
+ * （`10_API設計.md`「差分の適用」`reconstructedFinalState === finalState`）。
+ */
+function toCooldownEntityCollectionDeltaResponseBody(
+  cooldowns: UnitStateDelta["cooldowns"],
+): EntityCollectionDeltaResponseBody | undefined {
+  if (cooldowns === undefined) {
+    return undefined;
+  }
+  const added: unknown[] = [];
+  const updated: { id: string; before: unknown; after: unknown }[] = [];
+  const removed: { id: string; before: unknown }[] = [];
+  for (const [skillDefinitionId, change] of Object.entries(cooldowns)) {
+    if (change.before === 0) {
+      added.push(
+        toCooldownStateResponseBody(skillDefinitionId, {
+          unit: change.unit,
+          remaining: change.after,
+          ...(change.setActionId !== undefined ? { setActionId: change.setActionId } : {}),
+          ...(change.setTurnNumber !== undefined ? { setTurnNumber: change.setTurnNumber } : {}),
+        }),
+      );
+    } else if (change.after === 0) {
+      removed.push({ id: skillDefinitionId, before: change.before });
+    } else {
+      updated.push({ id: skillDefinitionId, before: change.before, after: change.after });
+    }
+  }
+  return { added, updated, removed };
+}
+
+/**
+ * `10_API設計.md`「UnitStateDeltaResponse.charge」(`ValueChange`)。「値がなくなった
+ * ことを表す必要がある場合だけ`after: null`を使用する」規則に従い、Domainの
+ * `undefined`(未チャージ)を`null`へ明示的に変換する。`status`はM5時点で
+ * `CHARGING`以外の値を取り得ない定数のため、`toChargeStateResponseBody`と同じ値を
+ * ここでも補い、`ChargeStateResponseBody`と同じ完全な形にする(`reconstructedFinalState
+ * === finalState`)。
+ */
+function toChargeValueChangeResponseBody(
+  charge: UnitStateDelta["charge"],
+): ValueChangeBody<unknown> | undefined {
+  if (charge === undefined) {
+    return undefined;
+  }
+  return {
+    before:
+      charge.before !== undefined
+        ? {
+            skillDefinitionId: charge.before.skillDefinitionId,
+            startedActionId: charge.before.startedActionId,
+            status: "CHARGING",
+          }
+        : null,
+    after:
+      charge.after !== undefined
+        ? {
+            skillDefinitionId: charge.after.skillDefinitionId,
+            startedActionId: charge.after.startedActionId,
+            status: "CHARGING",
+          }
+        : null,
+  };
+}
+
+/**
  * `08_ドメインイベント.md`のフラットな`hp`/`ap`/`pp`/`extraGauge`を、
  * `10_API設計.md`「UnitStateDeltaResponse」の`hp`/`resources.{ap,pp,extraGauge}`
  * 形へ組み替える。`hp`が0を跨ぐ変化を伴う場合は、Domainが明示的には記録しない
@@ -145,11 +303,15 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
     combatStatusBefore !== combatStatusAfter
       ? { before: combatStatusBefore, after: combatStatusAfter }
       : undefined;
+  const cooldowns = toCooldownEntityCollectionDeltaResponseBody(delta.cooldowns);
+  const charge = toChargeValueChangeResponseBody(delta.charge);
 
   return {
     ...(delta.hp !== undefined ? { hp: delta.hp } : {}),
     ...(resources !== undefined ? { resources } : {}),
     ...(combatStatus !== undefined ? { combatStatus } : {}),
+    ...(cooldowns !== undefined ? { cooldowns } : {}),
+    ...(charge !== undefined ? { charge } : {}),
   };
 }
 

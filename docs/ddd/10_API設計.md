@@ -523,11 +523,11 @@ CooldownStateResponse {
   unit: ACTION | TURN
   remaining
   setAtActionId?
-  setAtTurnNumber
+  setAtTurnNumber?
 }
 ```
 
-設定した同じ行動・ターンでは減算しないことを追跡できるよう、設定スコープを含める。
+設定した同じ行動・ターンでは減算しないことを追跡できるよう、設定スコープを含める。`unit`に応じてどちらか一方だけが存在する（`ACTION`なら`setAtActionId`、`TURN`なら`setAtTurnNumber`）。Domain側もこの設定scopeを行動単位・ターン単位のいずれか一方でしか保持しないため（`06_戦闘状態遷移.md`R-SKL-04）、両方を常に返す契約にはしない。
 
 ### ChargeStateResponse
 

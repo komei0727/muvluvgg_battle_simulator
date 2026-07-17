@@ -8,7 +8,10 @@ import type {
   BattleSimulationResponseBody,
   BattleStateResponseBody,
   BattleUnitStateResponseBody,
+  ChargeStateResponseBody,
+  CooldownStateResponseBody,
   StateTransitionResponseBody,
+  UnitStateDeltaResponseBody,
   ValueChangeBody,
 } from "../../application/http-contract.js";
 import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
@@ -186,6 +189,45 @@ class FakeBattleCatalog implements BattleCatalog {
  * 2. 各`ValueChange.before`が、その時点でReducerが追跡している現在値と一致する
  *    （欠落・逆順・重複はどこかで`before`が現在値とずれて検出される）。
  */
+/**
+ * `10_API設計.md`「UnitStateDeltaResponse.cooldowns」(`EntityCollectionDelta`)を
+ * `BattleUnitStateResponseBody.cooldowns`（残数>0のスキルだけの配列）へ適用する。
+ */
+function applyCooldownsDelta(
+  current: readonly CooldownStateResponseBody[],
+  delta: UnitStateDeltaResponseBody["cooldowns"],
+): readonly CooldownStateResponseBody[] {
+  if (delta === undefined) {
+    return current;
+  }
+  let next = [...current];
+  for (const entry of delta.added) {
+    next = [...next, entry as CooldownStateResponseBody];
+  }
+  for (const entry of delta.updated) {
+    next = next.map((cooldown) =>
+      cooldown.skillDefinitionId === entry.id
+        ? { ...cooldown, remaining: entry.after as number }
+        : cooldown,
+    );
+  }
+  for (const entry of delta.removed) {
+    next = next.filter((cooldown) => cooldown.skillDefinitionId !== entry.id);
+  }
+  return next;
+}
+
+/** `10_API設計.md`「UnitStateDeltaResponse.charge」(`ValueChange`)を適用する。`after: null`はチャージ終了(省略)を表す。 */
+function applyChargeDelta(
+  current: ChargeStateResponseBody | undefined,
+  delta: UnitStateDeltaResponseBody["charge"],
+): ChargeStateResponseBody | undefined {
+  if (delta === undefined) {
+    return current;
+  }
+  return delta.after === null ? undefined : (delta.after as ChargeStateResponseBody);
+}
+
 function applyValueChange<T>(current: T, change: ValueChangeBody<T>, path: string): T {
   if (change.before !== current) {
     throw new Error(
@@ -218,8 +260,13 @@ function applyDelta(
       return unit;
     }
     const path = `stateTransitions[${index}].delta.units[${unit.battleUnitId}]`;
+    const charge = applyChargeDelta(unit.charge, unitDelta.charge);
+    // `unit.charge` (spread via `...rest`) must not leak through when `charge`
+    // was cleared to `undefined` — plain object spread only adds/overwrites
+    // keys, it never deletes a key already present on the spread source.
+    const { charge: _staleCharge, ...rest } = unit;
     return {
-      ...unit,
+      ...rest,
       combatStatus:
         unitDelta.combatStatus !== undefined
           ? applyValueChange(unit.combatStatus, unitDelta.combatStatus, `${path}.combatStatus`)
@@ -263,6 +310,8 @@ function applyDelta(
               }
             : unit.resources.extraGauge,
       },
+      cooldowns: applyCooldownsDelta(unit.cooldowns, unitDelta.cooldowns),
+      ...(charge !== undefined ? { charge } : {}),
     };
   });
 
@@ -419,6 +468,119 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
   }
 }
 
+/** `action-phase-resolver.test.ts`のchargeSkillと同形（R-SKL-05）: 発動はチャージ開始とは別行動、`cooldown`は開始行動へ設定される。 */
+function chargeSkill(id: string, effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+          },
+        ],
+      },
+    },
+    cooldown: { unit: "ACTION", count: 2 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Charge", tags: [] },
+  };
+}
+
+/**
+ * `action-phase-resolver.test.ts`のUT-ACTION-PHASE-013と同じ配置(`maximumAp: 1`、
+ * cooldown count 2)をHTTP経由で実行する。ChargeStarted→ChargeReleasedで
+ * cooldown/chargeの両方が動くため、`stateTransitions`のcooldowns
+ * (`EntityCollectionDelta`)とcharge(`ValueChange`)の両方を一度に検証できる。
+ * charge解放行動自体がACTION単位クールタイムを1減らすため(R-SKL-04
+ * COMPLETING)、finalStateには`remaining: 1`のcooldownが残る
+ * （M5レビュー2巡目[P1]: これが`setAtTurnNumber`必須のままだと直列化に
+ * 失敗しうるケース）。
+ */
+async function runChargeAndCooldownScenario(): Promise<BattleSimulationResponseBody> {
+  const skillId = "SKL_CHARGE_CD";
+  const effectActionId = "ACT_CHARGE_CD";
+  const attackerUnit: UnitDefinition = {
+    ...unitDefinition("UNIT_CHARGER"),
+    baseStats: { ...unitDefinition("UNIT_CHARGER").baseStats, maximumAp: 1, attack: 30 },
+    activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+  };
+  const defenderUnit: UnitDefinition = {
+    ...unitDefinition("UNIT_DEF"),
+    baseStats: { ...unitDefinition("UNIT_DEF").baseStats, maximumHp: 1000, defense: 0 },
+  };
+  const units = new Map([
+    [createUnitDefinitionId("UNIT_CHARGER"), attackerUnit],
+    [createUnitDefinitionId("UNIT_DEF"), defenderUnit],
+  ]);
+  const skills = new Map([
+    [createSkillDefinitionId(skillId), chargeSkill(skillId, effectActionId)],
+    [createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")],
+  ]);
+  const effectActions = new Map([
+    [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],
+  ]);
+
+  const useCase: SimulateBattleUseCasePort = {
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
+      Promise.resolve(
+        new SimulateBattleUseCase({
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
+          battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+          // AP recovers each turn, so the actor runs a charge-start/release
+          // cycle in every one of the 3 turns — each release hit draws once
+          // for its critical check (NORMAL mode). A few extra values are
+          // supplied as headroom.
+          randomSourceFactory: new SequenceRandomSourceFactory([0.99, 0.99, 0.99, 0.99, 0.99]),
+          clock: new ManualClock(Date.now()),
+        }).execute(toSimulateBattleCommand(request), context),
+      ),
+  };
+  const app: FastifyInstance = await buildServer(useCase);
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_CHARGER", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_DEF", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 3,
+      },
+    });
+    if (response.statusCode !== 200) {
+      throw new Error(`expected 200, got ${response.statusCode}: ${response.body}`);
+    }
+    return response.json<BattleSimulationResponseBody>();
+  } finally {
+    await app.close();
+  }
+}
+
 describe("HTTP response state restoration (independent Reducer)", () => {
   it("API-STATE-RESTORE-001 (10_API設計.md「差分の適用」/12_テスト戦略.md「独立した差分Reducer」): reconstructedFinalState built from the actual HTTP response's initialState + stateTransitions equals its finalState, for a battle with HP/AP/resource changes and a unit defeat", async () => {
     const body = await runLethalScenario();
@@ -438,6 +600,35 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     // DamageCalculated/DamageApplied/UnitDefeated — event types the
     // turn-limit scenario in openapi.test.ts's API-OPENAPI-002 never
     // reaches — against the OpenAPI-published per-event `details` schema.
+    const ajv = new Ajv({ strict: false });
+    const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
+    expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
+  });
+
+  it("API-STATE-RESTORE-006 (M5 review round 2 [P1] fix): a ChargeStarted->ChargeReleased scenario serializes successfully (an ACTION-unit cooldown surviving into finalState previously violated the response schema's unconditional setAtTurnNumber requirement), and reconstructedFinalState built from stateTransitions alone (cooldowns/charge included) equals finalState", async () => {
+    const body = await runChargeAndCooldownScenario();
+
+    // Sanity: this scenario actually leaves an active ACTION-unit cooldown
+    // and completes the charge lifecycle — otherwise the restoration below
+    // would trivially pass with no cooldowns/charge deltas at all.
+    const chargerFinal = body.finalState.units.find((u) => u.unitDefinitionId === "UNIT_CHARGER");
+    expect(chargerFinal?.cooldowns).toHaveLength(1);
+    const cooldown = chargerFinal!.cooldowns[0]!;
+    expect(cooldown.unit).toBe("ACTION");
+    expect(cooldown.remaining).toBe(1);
+    if (cooldown.unit !== "ACTION") {
+      throw new Error("expected an ACTION-unit cooldown");
+    }
+    expect(typeof cooldown.setAtActionId).toBe("string");
+    expect(chargerFinal?.charge).toBeUndefined(); // released by the end of the battle.
+    const defenderFinal = body.finalState.units.find((u) => u.unitDefinitionId === "UNIT_DEF");
+    expect(defenderFinal?.hp.current).toBeLessThan(1000); // the charge release actually hit.
+
+    const reconstructed = reconstructFinalState(body);
+    expect(reconstructed).toEqual(body.finalState);
+
+    // Also exercises COOLDOWN_STARTED/REDUCED and CHARGE_STARTED/RELEASED
+    // against the OpenAPI-published per-event `details` schema.
     const ajv = new Ajv({ strict: false });
     const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);

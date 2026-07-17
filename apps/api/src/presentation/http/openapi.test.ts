@@ -6,6 +6,7 @@ import {
   battleSimulationResponseSchema,
   battleSimulationResponseDocSchema,
   battleLogEventResponseDocSchema,
+  cooldownStateResponseSchema,
 } from "./schemas.js";
 import type {
   BattleSimulationRequestBody,
@@ -14,6 +15,7 @@ import type {
 import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
+import type { BattleDomainEventType } from "../../domain/battle/events/domain-event.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
@@ -499,5 +501,89 @@ describe("OpenAPI document", () => {
       },
     };
     expect(validate(matched), JSON.stringify(validate.errors)).toBe(true);
+  });
+
+  it("API-OPENAPI-005 (regression: M5 review [P1] found COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
+    // A mapped type over `BattleDomainEventType` forces a compile error (missing
+    // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event
+    // type, so this list can't silently drift from the domain the way
+    // `EVENT_DETAILS_SCHEMA_BY_TYPE` did.
+    const ALL_EVENT_TYPES: Readonly<Record<BattleDomainEventType, true>> = {
+      BattleStarted: true,
+      TurnStarted: true,
+      ResourcesRecovered: true,
+      ActionQueueCreated: true,
+      ActionReservationRemoved: true,
+      ActionQueueReordered: true,
+      ActionStarted: true,
+      ActionWaited: true,
+      TargetsSelected: true,
+      SkillUseStarting: true,
+      SkillUseStarted: true,
+      SkillUseCompleted: true,
+      HitConfirmed: true,
+      CriticalCheckResolved: true,
+      DamageCalculated: true,
+      DamageApplied: true,
+      UnitDefeated: true,
+      ActionCompleting: true,
+      ActionCompleted: true,
+      CooldownStarted: true,
+      CooldownReduced: true,
+      CooldownCompleted: true,
+      ChargeStarted: true,
+      ChargeReleased: true,
+      TurnCompleting: true,
+      TurnCompleted: true,
+      BattleCompleted: true,
+    };
+    const expectedTypes = new Set(
+      Object.keys(ALL_EVENT_TYPES).map((eventType) =>
+        eventType.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase(),
+      ),
+    );
+
+    const declaredTypes = new Set(
+      battleLogEventResponseDocSchema.oneOf.map(
+        (variant) =>
+          (variant.properties as { readonly type: { readonly const: string } }).type.const,
+      ),
+    );
+
+    expect(declaredTypes).toEqual(expectedTypes);
+  });
+
+  it("API-OPENAPI-006 (M5 review round 3 [P2] fix): cooldownStateResponseSchema enforces the ACTION/TURN setting-scope XOR (10_API設計.md CooldownStateResponse) — accepts exactly one matching scope field, rejects both missing, both present, or a mismatched scope field", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(cooldownStateResponseSchema);
+
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1, setAtActionId: "a-1" }),
+    ).toBe(true);
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "TURN", remaining: 1, setAtTurnNumber: 3 }),
+    ).toBe(true);
+
+    // Both missing.
+    expect(validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1 })).toBe(false);
+    // Both present.
+    expect(
+      validate({
+        skillDefinitionId: "SKL_1",
+        unit: "ACTION",
+        remaining: 1,
+        setAtActionId: "a-1",
+        setAtTurnNumber: 3,
+      }),
+    ).toBe(false);
+    // Mismatched: ACTION with the TURN-shaped field.
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1, setAtTurnNumber: 3 }),
+    ).toBe(false);
+    // remaining: 0 would never be returned (finalState lists only active
+    // cooldowns), so the schema rejects it too.
+    expect(
+      validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 0, setAtActionId: "a-1" }),
+    ).toBe(false);
   });
 });

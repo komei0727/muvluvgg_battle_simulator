@@ -336,4 +336,48 @@ describe("selectUnitActionStates", () => {
       true,
     );
   });
+
+  it("reads cooldowns/charge directly from finalState.units[] when it carries the M5+ shape (cooldowns is an array), ignoring events entirely (M5 review round 2 [P2] fix)", () => {
+    const response = responseWith({
+      finalUnits: [
+        {
+          battleUnitId: "ally:1",
+          cooldowns: [{ skillDefinitionId: "SKILL_1", unit: "ACTION", remaining: 2 }],
+          charge: { skillDefinitionId: "SKILL_2", startedActionId: "action-1", status: "CHARGING" },
+        },
+        { battleUnitId: "enemy:1", cooldowns: [] },
+      ],
+      // Deliberately contradicts finalState (would show a different cooldown
+      // if the events[] fallback were still consulted) — proves finalState wins.
+      events: [
+        cooldownStartedEvent({
+          sequence: 1,
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKILL_STALE",
+          initialRemaining: 9,
+        }),
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.cooldowns).toEqual([
+      { skillDefinitionId: "SKILL_1", unit: "ACTION", remaining: 2 },
+    ]);
+    expect(states[0]?.charge).toEqual({ skillDefinitionId: "SKILL_2" });
+    expect(states[1]?.cooldowns).toEqual([]);
+    expect(states[1]?.charge).toBeUndefined();
+  });
+
+  it("treats cooldownChargeKnown as true from finalState even at SUMMARY logLevel, since finalState is complete regardless of logLevel (the PR#131 SUMMARY 'unknown' problem no longer applies once finalState carries real cooldowns/charge)", () => {
+    const response = responseWith({
+      finalUnits: [{ battleUnitId: "ally:1", cooldowns: [] }],
+      events: [],
+    });
+
+    const states = selectUnitActionStates(response, roster, "SUMMARY");
+
+    expect(states[0]?.cooldownChargeKnown).toBe(true);
+    expect(states[0]?.cooldowns).toEqual([]);
+  });
 });

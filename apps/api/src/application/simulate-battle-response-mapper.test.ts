@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
+import type { CooldownStateResponseBody } from "./http-contract.js";
 import { toBattleSimulationResponseBody } from "./simulate-battle-response-mapper.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
-import { createUnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+import { createActionId } from "../domain/battle/events/event-ids.js";
+import { createSkillDefinitionId, createUnitDefinitionId } from "../domain/catalog/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const ALLY_ID = createBattleUnitId("ally:1");
 const ENEMY_ID = createBattleUnitId("enemy:1");
+const SKL_A = createSkillDefinitionId("SKL_A");
+const SKL_B = createSkillDefinitionId("SKL_B");
+const SKL_C = createSkillDefinitionId("SKL_C");
+const SKL_D = createSkillDefinitionId("SKL_D");
+const ACTION_1 = createActionId("action-1");
+const ACTION_2 = createActionId("action-2");
 
 function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBattleResult {
   return {
@@ -148,7 +156,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(finalEnemy.combatStatus).toBe("DEFEATED");
   });
 
-  it("API-RESP-006: includes real combatStats from the roster and truthfully-empty shields/subUnits/effects/cooldowns (no shield/effect mechanic exists yet)", () => {
+  it("API-RESP-006: includes real combatStats from the roster and truthfully-empty shields/subUnits/effects/cooldowns (no shield/effect mechanic exists yet, and this snapshot has no active cooldowns)", () => {
     const body = toBattleSimulationResponseBody(baseResult());
     const ally = body.initialState.units[0]!;
 
@@ -291,5 +299,182 @@ describe("toBattleSimulationResponseBody", () => {
     expect(body.stateTransitions[0]!.delta).toEqual({
       units: { "ally:1": { resources: { ap: { before: 0, after: 3 } } } },
     });
+  });
+
+  it("API-RESP-010 (P1 fix): maps a unit's real cooldowns (10_API設計.md CooldownStateResponse, filtering out any zero-remaining entries) and charge instead of discarding them", () => {
+    const body = toBattleSimulationResponseBody(
+      baseResult({
+        finalState: {
+          status: "COMPLETED",
+          currentTurn: 1,
+          result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+          units: {
+            [ALLY_ID]: {
+              hp: 90,
+              ap: 1,
+              pp: 0,
+              extraGauge: 5,
+              cooldowns: {
+                [SKL_A]: { unit: "ACTION", remaining: 2, setActionId: ACTION_1 },
+                [SKL_B]: { unit: "TURN", remaining: 1, setTurnNumber: 3 },
+                // A completed cooldown the domain still tracks internally but is no
+                // longer "active" (10_API設計.md: cooldowns lists only skills with
+                // remaining > 0).
+                [SKL_C]: { unit: "ACTION", remaining: 0, setActionId: ACTION_1 },
+              },
+              charge: { skillDefinitionId: SKL_D, startedActionId: ACTION_2 },
+            },
+            [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+          },
+        },
+      }),
+    );
+
+    const finalAlly = body.finalState.units[0]!;
+    expect(finalAlly.cooldowns).toEqual([
+      { skillDefinitionId: "SKL_A", unit: "ACTION", remaining: 2, setAtActionId: "action-1" },
+      { skillDefinitionId: "SKL_B", unit: "TURN", remaining: 1, setAtTurnNumber: 3 },
+    ]);
+    expect(finalAlly.charge).toEqual({
+      skillDefinitionId: "SKL_D",
+      startedActionId: "action-2",
+      status: "CHARGING",
+    });
+  });
+
+  it("API-RESP-010B (M5 review round 3 [P2] fix): throws instead of silently producing an invalid CooldownStateResponse when a Domain cooldown's unit/setActionId/setTurnNumber XOR is violated (ACTION unit missing setActionId)", () => {
+    expect(() =>
+      toBattleSimulationResponseBody(
+        baseResult({
+          finalState: {
+            status: "COMPLETED",
+            currentTurn: 1,
+            result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+            units: {
+              [ALLY_ID]: {
+                hp: 90,
+                ap: 1,
+                pp: 0,
+                extraGauge: 5,
+                cooldowns: { [SKL_A]: { unit: "ACTION", remaining: 2 } },
+              },
+              [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+            },
+          },
+        }),
+      ),
+    ).toThrow(/setActionId/);
+  });
+
+  it("API-RESP-010C (M5 review round 4 [P3] fix): throws instead of silently dropping the opposite-side scope field when a Domain cooldown has both setActionId and setTurnNumber set (unit ACTION with a stray setTurnNumber)", () => {
+    expect(() =>
+      toBattleSimulationResponseBody(
+        baseResult({
+          finalState: {
+            status: "COMPLETED",
+            currentTurn: 1,
+            result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+            units: {
+              [ALLY_ID]: {
+                hp: 90,
+                ap: 1,
+                pp: 0,
+                extraGauge: 5,
+                cooldowns: {
+                  [SKL_A]: {
+                    unit: "ACTION",
+                    remaining: 2,
+                    setActionId: ACTION_1,
+                    setTurnNumber: 3,
+                  },
+                },
+              },
+              [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+            },
+          },
+        }),
+      ),
+    ).toThrow(/setTurnNumber/);
+  });
+
+  it("API-RESP-011 (P1 fix): maps a StateTransition's cooldowns delta into an EntityCollectionDelta (added/updated/removed derived from remaining crossing zero) and charge into a ValueChange with null for the unset side", () => {
+    const body = toBattleSimulationResponseBody(
+      baseResult({
+        stateTransitions: [
+          {
+            causedBySequence: 1,
+            stateVersionBefore: 0,
+            stateVersionAfter: 1,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  cooldowns: {
+                    [SKL_A]: { unit: "ACTION", before: 0, after: 2, setActionId: ACTION_1 },
+                    [SKL_B]: { unit: "TURN", before: 2, after: 1 },
+                    [SKL_C]: { unit: "ACTION", before: 1, after: 0 },
+                  },
+                  charge: {
+                    before: undefined,
+                    after: { skillDefinitionId: SKL_D, startedActionId: ACTION_2 },
+                  },
+                },
+              },
+            },
+          },
+          {
+            causedBySequence: 2,
+            stateVersionBefore: 1,
+            stateVersionAfter: 2,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  charge: {
+                    before: { skillDefinitionId: SKL_D, startedActionId: ACTION_2 },
+                    after: undefined,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(body.stateTransitions[0]!.delta.units!["ally:1"]!.cooldowns).toEqual({
+      added: [
+        {
+          skillDefinitionId: "SKL_A",
+          unit: "ACTION",
+          remaining: 2,
+          setAtActionId: "action-1",
+        },
+      ],
+      updated: [{ id: "SKL_B", before: 2, after: 1 }],
+      removed: [{ id: "SKL_C", before: 1 }],
+    });
+    expect(body.stateTransitions[0]!.delta.units!["ally:1"]!.charge).toEqual({
+      before: null,
+      after: { skillDefinitionId: "SKL_D", startedActionId: "action-2", status: "CHARGING" },
+    });
+    expect(body.stateTransitions[1]!.delta.units!["ally:1"]!.charge).toEqual({
+      before: { skillDefinitionId: "SKL_D", startedActionId: "action-2", status: "CHARGING" },
+      after: null,
+    });
+  });
+
+  it("API-RESP-010D (M5 review round 4 [P3] fix): CooldownStateResponseBody rejects a value with both setAtActionId and setAtTurnNumber at the type level, even through an intermediate variable (not just via excess-property-check on a literal)", () => {
+    const both = {
+      skillDefinitionId: "SKL_1",
+      unit: "ACTION" as const,
+      remaining: 1,
+      setAtActionId: "a-1",
+      setAtTurnNumber: 1,
+    };
+
+    // @ts-expect-error `setAtTurnNumber` is `never` on the ACTION variant, so this
+    // assignment must fail even though `both` isn't an object literal (the
+    // excess-property-check bypass the round 4 review found).
+    const rejected: CooldownStateResponseBody = both;
+    expect(rejected.unit).toBe("ACTION");
   });
 });
