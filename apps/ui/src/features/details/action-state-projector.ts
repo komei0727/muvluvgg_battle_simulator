@@ -5,8 +5,15 @@
 // キーごと省略)、finalStateから読むのではなく、events[]のCOOLDOWN_*/
 // CHARGE_*をsequence順に走査して再構築する。AP/EXはfinalState.resourcesが
 // 既に正しく埋まっているため、そこから直接読む。
+//
+// logLevel=SUMMARYではapps/api/src/application/battle-log-projection.tsの
+// SUMMARY_EVENT_TYPESにCooldown*/Charge*が含まれず、これらのeventがそもそも
+// events[]へ含まれない(PR #131レビュー指摘)。この場合cooldowns/chargeが
+// 空になるのは「実際に無い」のか「SUMMARYログでは分からない」のか区別できない
+// ため、`cooldownChargeKnown`で呼び出し側に不明であることを伝える。
 
 import type { RosterEntry } from "../summary/summary-projector.js";
+import type { LogLevel } from "../formation/types.js";
 import type {
   BattleLogEventResponse,
   BattleSimulationResponse,
@@ -33,6 +40,8 @@ export interface UnitActionState {
   readonly extraGauge?: ResourceValue;
   readonly cooldowns: readonly UnitCooldownState[];
   readonly charge?: UnitChargeState;
+  /** falseの場合、cooldowns/chargeが空でも「クールタイム/チャージなし」を意味しない(SUMMARYログ)。 */
+  readonly cooldownChargeKnown: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -180,6 +189,7 @@ const actionStateAdapters: Readonly<Record<string, ActionStateEventAdapter>> = {
 export function selectUnitActionStates(
   response: BattleSimulationResponse,
   roster: readonly RosterEntry[],
+  logLevel: LogLevel,
 ): readonly UnitActionState[] {
   const finalUnitsById = new Map(
     response.finalState.units.map((unit) => [unit.battleUnitId, unit] as const),
@@ -193,6 +203,8 @@ export function selectUnitActionStates(
     const adapter = actionStateAdapters[event.type];
     adapter?.(event, byUnit);
   }
+
+  const cooldownChargeKnown = logLevel !== "SUMMARY";
 
   return roster.map((entry) => {
     const finalUnit = finalUnitsById.get(entry.battleUnitId);
@@ -215,6 +227,7 @@ export function selectUnitActionStates(
       ...(extraGauge !== undefined ? { extraGauge } : {}),
       cooldowns,
       ...(charge !== undefined ? { charge } : {}),
+      cooldownChargeKnown,
     };
   });
 }

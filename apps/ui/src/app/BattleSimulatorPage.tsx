@@ -198,6 +198,7 @@ export function BattleSimulatorPage({
           <Panel step="03" title="戦闘詳細データ" meta="AUDIT TRAIL / RAW RESPONSE">
             <BattleDetailsSection
               response={displayedSuccess.response}
+              logLevel={displayedSuccess.request.options.logLevel}
               {...(catalog.status === "ready" ? { catalog: catalog.response } : {})}
             />
           </Panel>

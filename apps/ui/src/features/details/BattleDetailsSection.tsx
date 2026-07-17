@@ -6,6 +6,7 @@ import { RawJsonView } from "./RawJsonView.js";
 import { StateTransitionTable } from "./StateTransitionTable.js";
 import { UnitActionStateSection } from "./UnitActionStateSection.js";
 import { selectRoster } from "../summary/summary-projector.js";
+import type { LogLevel } from "../formation/types.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
@@ -15,6 +16,7 @@ import styles from "./BattleDetailsSection.module.css";
 export interface BattleDetailsSectionProps {
   readonly response: BattleSimulationResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
+  readonly logLevel: LogLevel;
 }
 
 type DetailsTab = "events" | "transitions" | "json" | "actionState";
@@ -37,7 +39,7 @@ const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
 // §2 BattleDetailsSection: イベント・状態遷移・JSONを1ページ内のtabで切り替
 // える(UI-AC-010)。stateTransitionIndexを持つイベントから対応する状態遷移
 // へ移動できる(§8.1)。
-export function BattleDetailsSection({ response, catalog }: BattleDetailsSectionProps) {
+export function BattleDetailsSection({ response, catalog, logLevel }: BattleDetailsSectionProps) {
   const [activeTab, setActiveTab] = useState<DetailsTab>("events");
   const [highlightedTransitionIndex, setHighlightedTransitionIndex] = useState<number | undefined>(
     undefined,
@@ -91,6 +93,7 @@ export function BattleDetailsSection({ response, catalog }: BattleDetailsSection
         <div role="tabpanel" id="tabpanel-actionState" aria-labelledby="tab-actionState">
           <UnitActionStateSection
             response={response}
+            logLevel={logLevel}
             {...(catalog !== undefined ? { catalog } : {})}
           />
         </div>

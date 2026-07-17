@@ -3,6 +3,7 @@ import { selectUnitActionStates } from "./action-state-projector.js";
 import { selectRoster } from "../summary/summary-projector.js";
 import type { RosterEntry } from "../summary/summary-projector.js";
 import type { UnitActionState } from "./action-state-projector.js";
+import type { LogLevel } from "../formation/types.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
@@ -12,6 +13,7 @@ import styles from "./UnitActionStateSection.module.css";
 export interface UnitActionStateSectionProps {
   readonly response: BattleSimulationResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
+  readonly logLevel: LogLevel;
 }
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -63,7 +65,9 @@ function UnitActionStateGroup({
                   <span>EX {resourceText(actionState.extraGauge)}</span>
                 </span>
               </div>
-              {actionState.cooldowns.length === 0 ? (
+              {!actionState.cooldownChargeKnown ? (
+                <p className={styles["muted"]}>クールタイム/チャージ: SUMMARYログのため不明</p>
+              ) : actionState.cooldowns.length === 0 ? (
                 <p className={styles["muted"]}>クールタイムなし</p>
               ) : (
                 <ul className={styles["cooldownList"]}>
@@ -74,7 +78,7 @@ function UnitActionStateGroup({
                   ))}
                 </ul>
               )}
-              {actionState.charge !== undefined ? (
+              {actionState.cooldownChargeKnown && actionState.charge !== undefined ? (
                 <p className={styles["charge"]}>
                   チャージ中: {actionState.charge.skillDefinitionId}
                 </p>
@@ -87,12 +91,19 @@ function UnitActionStateGroup({
   );
 }
 
-export function UnitActionStateSection({ response, catalog }: UnitActionStateSectionProps) {
+export function UnitActionStateSection({
+  response,
+  catalog,
+  logLevel,
+}: UnitActionStateSectionProps) {
   const roster = useMemo(
     () => selectRoster(response, catalog ?? EMPTY_CATALOG),
     [response, catalog],
   );
-  const actionStates = useMemo(() => selectUnitActionStates(response, roster), [response, roster]);
+  const actionStates = useMemo(
+    () => selectUnitActionStates(response, roster, logLevel),
+    [response, roster, logLevel],
+  );
 
   const rows: readonly Row[] = useMemo(() => {
     const actionStateByBattleUnitId = new Map(
@@ -103,9 +114,10 @@ export function UnitActionStateSection({ response, catalog }: UnitActionStateSec
       actionState: actionStateByBattleUnitId.get(entry.battleUnitId) ?? {
         battleUnitId: entry.battleUnitId,
         cooldowns: [],
+        cooldownChargeKnown: logLevel !== "SUMMARY",
       },
     }));
-  }, [roster, actionStates]);
+  }, [roster, actionStates, logLevel]);
 
   const allyRows = rows.filter((row) => row.roster.side !== "ENEMY");
   const enemyRows = rows.filter((row) => row.roster.side === "ENEMY");

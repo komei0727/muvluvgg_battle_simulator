@@ -47,7 +47,7 @@ describe("UnitActionStateSection", () => {
       ],
     });
 
-    render(<UnitActionStateSection response={response} />);
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
 
     expect(screen.getByText("AP 2 / 3")).toBeInTheDocument();
     expect(screen.getByText("EX 40 / 100")).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe("UnitActionStateSection", () => {
       units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],
     });
 
-    render(<UnitActionStateSection response={response} catalog={catalog} />);
+    render(<UnitActionStateSection response={response} catalog={catalog} logLevel="DETAILED" />);
 
     expect(screen.getByText("エー")).toBeInTheDocument();
   });
@@ -103,7 +103,7 @@ describe("UnitActionStateSection", () => {
       ],
     });
 
-    render(<UnitActionStateSection response={response} />);
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
 
     expect(screen.getByText(/SKILL_1/)).toBeInTheDocument();
     expect(screen.getByText(/残り3/)).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe("UnitActionStateSection", () => {
       ],
     });
 
-    render(<UnitActionStateSection response={response} />);
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
 
     expect(screen.getByText(/チャージ中/)).toBeInTheDocument();
     expect(screen.getByText(/SKILL_2/)).toBeInTheDocument();
@@ -144,10 +144,34 @@ describe("UnitActionStateSection", () => {
       units: [{ battleUnitId: "bu-ally-1", unitDefinitionId: "UNIT_ALLY_A", side: "ALLY" }],
     });
 
-    render(<UnitActionStateSection response={response} />);
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
 
     expect(screen.getByText("AP -")).toBeInTheDocument();
     expect(screen.getByText("EX -")).toBeInTheDocument();
     expect(screen.getByText("クールタイムなし")).toBeInTheDocument();
+  });
+
+  // PR #131 review: SUMMARYレベルではCOOLDOWN_*/CHARGE_*イベントが公開ログから
+  // 除外されるため、実際は残っていても「クールタイムなし」と断定してはいけない。
+  it("shows an unknown state instead of asserting no cooldown when logLevel is SUMMARY", () => {
+    const response = responseWith({
+      units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="SUMMARY" />);
+
+    expect(screen.queryByText("クールタイムなし")).not.toBeInTheDocument();
+    expect(screen.getByText(/SUMMARYログ/)).toBeInTheDocument();
+  });
+
+  it("shows the known cooldown/charge state as usual when logLevel is DETAILED or DIAGNOSTIC", () => {
+    const response = responseWith({
+      units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DIAGNOSTIC" />);
+
+    expect(screen.getByText("クールタイムなし")).toBeInTheDocument();
+    expect(screen.queryByText(/SUMMARYログ/)).not.toBeInTheDocument();
   });
 });

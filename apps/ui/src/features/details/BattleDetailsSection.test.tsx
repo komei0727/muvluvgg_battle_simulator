@@ -39,7 +39,7 @@ const response: BattleSimulationResponse = {
 describe("BattleDetailsSection", () => {
   it("switches between events, transitions, and JSON within a single page (UI-AC-010)", async () => {
     const user = userEvent.setup();
-    render(<BattleDetailsSection response={response} />);
+    render(<BattleDetailsSection response={response} logLevel="DETAILED" />);
 
     expect(screen.getByRole("button", { name: /BATTLE_STARTED/ })).toBeInTheDocument();
 
@@ -55,7 +55,7 @@ describe("BattleDetailsSection", () => {
 
   it("jumps from an event's state transition link to the transitions tab", async () => {
     const user = userEvent.setup();
-    render(<BattleDetailsSection response={response} />);
+    render(<BattleDetailsSection response={response} logLevel="DETAILED" />);
 
     await user.click(screen.getByRole("button", { name: /BATTLE_STARTED/ }));
     await user.click(screen.getByRole("button", { name: /状態遷移 #1/ }));
@@ -168,7 +168,7 @@ describe("BattleDetailsSection", () => {
     };
 
     const user = userEvent.setup();
-    render(<BattleDetailsSection response={legacyResponse} />);
+    render(<BattleDetailsSection response={legacyResponse} logLevel="DETAILED" />);
 
     expect(screen.getByRole("button", { name: /MYSTERIOUS_FUTURE_EVENT/ })).toBeInTheDocument();
 

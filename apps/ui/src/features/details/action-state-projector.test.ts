@@ -167,7 +167,7 @@ describe("selectUnitActionStates", () => {
       ],
     });
 
-    const states = selectUnitActionStates(response, roster);
+    const states = selectUnitActionStates(response, roster, "DETAILED");
 
     expect(states[0]).toMatchObject({
       battleUnitId: "ally:1",
@@ -181,12 +181,13 @@ describe("selectUnitActionStates", () => {
       finalUnits: [{ battleUnitId: "ally:1" }, { battleUnitId: "enemy:1" }],
     });
 
-    const states = selectUnitActionStates(response, roster);
+    const states = selectUnitActionStates(response, roster, "DETAILED");
 
     expect(states[0]?.ap).toBeUndefined();
     expect(states[0]?.extraGauge).toBeUndefined();
     expect(states[0]?.cooldowns).toEqual([]);
     expect(states[0]?.charge).toBeUndefined();
+    expect(states[0]?.cooldownChargeKnown).toBe(true);
   });
 
   it("tracks a cooldown from COOLDOWN_STARTED for the acting battleUnitId (UI-UT-ACT-002)", () => {
@@ -202,7 +203,7 @@ describe("selectUnitActionStates", () => {
       ],
     });
 
-    const states = selectUnitActionStates(response, roster);
+    const states = selectUnitActionStates(response, roster, "DETAILED");
 
     expect(states[0]?.cooldowns).toEqual([
       { skillDefinitionId: "SKILL_1", unit: "TURN", remaining: 3 },
@@ -235,7 +236,7 @@ describe("selectUnitActionStates", () => {
       ],
     });
 
-    const states = selectUnitActionStates(response, roster);
+    const states = selectUnitActionStates(response, roster, "DETAILED");
 
     expect(states[0]?.cooldowns).toEqual([]);
   });
@@ -260,7 +261,7 @@ describe("selectUnitActionStates", () => {
       ],
     });
 
-    const states = selectUnitActionStates(response, roster);
+    const states = selectUnitActionStates(response, roster, "DETAILED");
 
     expect(states[0]?.cooldowns).toEqual([
       { skillDefinitionId: "SKILL_1", unit: "TURN", remaining: 2 },
@@ -274,7 +275,7 @@ describe("selectUnitActionStates", () => {
         chargeStartedEvent({ sequence: 1, actorUnitId: "ally:1", skillDefinitionId: "SKILL_2" }),
       ],
     });
-    expect(selectUnitActionStates(stillCharging, roster)[0]?.charge).toEqual({
+    expect(selectUnitActionStates(stillCharging, roster, "DETAILED")[0]?.charge).toEqual({
       skillDefinitionId: "SKILL_2",
     });
 
@@ -285,7 +286,7 @@ describe("selectUnitActionStates", () => {
         chargeReleasedEvent({ sequence: 2, actorUnitId: "ally:1", skillDefinitionId: "SKILL_2" }),
       ],
     });
-    expect(selectUnitActionStates(released, roster)[0]?.charge).toBeUndefined();
+    expect(selectUnitActionStates(released, roster, "DETAILED")[0]?.charge).toBeUndefined();
   });
 
   it("ignores a cooldown/charge event with a malformed details shape instead of crashing (UI-AC-011)", () => {
@@ -307,7 +308,32 @@ describe("selectUnitActionStates", () => {
       ],
     });
 
-    expect(() => selectUnitActionStates(response, roster)).not.toThrow();
-    expect(selectUnitActionStates(response, roster)[0]?.cooldowns).toEqual([]);
+    expect(() => selectUnitActionStates(response, roster, "DETAILED")).not.toThrow();
+    expect(selectUnitActionStates(response, roster, "DETAILED")[0]?.cooldowns).toEqual([]);
+  });
+
+  it('marks cooldown/charge as unknown (not "none") when logLevel is SUMMARY, since COOLDOWN_*/CHARGE_* events are excluded from the SUMMARY log', () => {
+    // apps/api/src/application/battle-log-projection.ts SUMMARY_EVENT_TYPES does not
+    // include CooldownStarted/CooldownReduced/CooldownCompleted/ChargeStarted/
+    // ChargeReleased, so a SUMMARY-level response never carries these events even
+    // when a skill is genuinely on cooldown or charging.
+    const response = responseWith({
+      finalUnits: [{ battleUnitId: "ally:1" }, { battleUnitId: "enemy:1" }],
+      events: [],
+    });
+
+    const states = selectUnitActionStates(response, roster, "SUMMARY");
+
+    expect(states[0]?.cooldownChargeKnown).toBe(false);
+    expect(states[1]?.cooldownChargeKnown).toBe(false);
+  });
+
+  it("marks cooldown/charge as known for DETAILED and DIAGNOSTIC log levels", () => {
+    const response = responseWith({ finalUnits: [{ battleUnitId: "ally:1" }] });
+
+    expect(selectUnitActionStates(response, roster, "DETAILED")[0]?.cooldownChargeKnown).toBe(true);
+    expect(selectUnitActionStates(response, roster, "DIAGNOSTIC")[0]?.cooldownChargeKnown).toBe(
+      true,
+    );
   });
 });
