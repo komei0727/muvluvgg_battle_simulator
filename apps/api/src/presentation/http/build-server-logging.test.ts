@@ -7,9 +7,9 @@ import type { SimulationExecutionContext } from "../../application/simulation-ex
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
-} from "../../domain/catalog/catalog-ids.js";
-import type { SkillDefinition } from "../../domain/catalog/skill-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";

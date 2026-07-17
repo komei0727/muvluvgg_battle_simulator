@@ -7,7 +7,7 @@ import { FixedBattleIdGenerator } from "../testing/id/fixed-battle-id-generator.
 import { ManualClock } from "../testing/clock/manual-clock.js";
 import { SequenceRandomSourceFactory } from "../testing/random/sequence-random-source-factory.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
-import { createCapabilityDefinition } from "../domain/catalog/capability-definition.js";
+import { createCapabilityDefinition } from "../domain/catalog/capability/capability-definition.js";
 import {
   createCapabilityId,
   createEffectActionDefinitionId,
@@ -20,15 +20,15 @@ import {
   type MemoryDefinitionId,
   type SkillDefinitionId,
   type UnitDefinitionId,
-} from "../domain/catalog/catalog-ids.js";
-import type { EffectActionDefinition } from "../domain/catalog/effect-action-definition.js";
+} from "../domain/catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../domain/catalog/definitions/effect-action-definition.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,
-} from "../domain/catalog/memory-definition.js";
-import type { SkillDefinition } from "../domain/catalog/skill-definition.js";
-import type { TargetSelectorDefinition } from "../domain/catalog/target-selector-definition.js";
-import type { UnitDefinition } from "../domain/catalog/unit-definition.js";
+} from "../domain/catalog/definitions/memory-definition.js";
+import type { SkillDefinition } from "../domain/catalog/definitions/skill-definition.js";
+import type { TargetSelectorDefinition } from "../domain/catalog/definitions/target-selector-definition.js";
+import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
 import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
 
 function unitDefinition(
@@ -488,7 +488,7 @@ describe("SimulateBattleUseCase", () => {
   });
 
   it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {
-    const { reduceStateDeltas } = await import("../domain/battle/events/state-delta-reducer.js");
+    const { reduceStateDeltas } = await import("../domain/battle/lifecycle/state-delta-reducer.js");
     const skillId = "SKL_ATTACK";
     const effectActionId = "ACT_ATTACK";
     const attackerUnit: UnitDefinition = {

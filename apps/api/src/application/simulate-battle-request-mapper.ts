@@ -1,6 +1,9 @@
 import type { FormationPositionInput, SimulateBattleCommand } from "./simulate-battle-command.js";
 import type { BattleSimulationRequestBody, FormationRequestBody } from "./http-contract.js";
-import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+import type {
+  MemoryDefinitionId,
+  UnitDefinitionId,
+} from "../domain/catalog/definitions/catalog-ids.js";
 
 const DEFAULT_LOG_LEVEL = "DETAILED";
 

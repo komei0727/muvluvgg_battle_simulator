@@ -4,7 +4,7 @@ import type {
   BattleDomainEventType,
   EventCategory,
 } from "../domain/battle/events/domain-event.js";
-import type { ActionId, DomainEventId, SkillUseId } from "../domain/battle/events/event-ids.js";
+import type { ActionId, DomainEventId, SkillUseId } from "../domain/shared/event-ids.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
 import type { BattleUnitId } from "../domain/shared/ids.js";
 

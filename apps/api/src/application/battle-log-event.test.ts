@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { toBattleLogEvents } from "./battle-log-event.js";
 import type { StateTransition } from "./battle-observation.js";
 import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
-import { createDomainEventId } from "../domain/battle/events/event-ids.js";
+import { createDomainEventId } from "../domain/shared/event-ids.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
 import { DomainValidationError } from "../domain/shared/errors.js";
 import { createBattleId } from "../domain/shared/ids.js";

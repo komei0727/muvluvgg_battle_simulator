@@ -11,15 +11,15 @@ import { toSimulateBattleCommand } from "../../application/simulate-battle-reque
 import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
-import { createCapabilityDefinition } from "../../domain/catalog/capability-definition.js";
+import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
   createCapabilityId,
   createSkillDefinitionId,
   createUnitDefinitionId,
   type CapabilityId,
-} from "../../domain/catalog/catalog-ids.js";
-import type { SkillDefinition } from "../../domain/catalog/skill-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/unit-definition.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";

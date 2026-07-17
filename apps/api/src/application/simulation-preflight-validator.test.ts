@@ -3,7 +3,7 @@ import { runPreflight } from "./simulation-preflight-validator.js";
 import type { SimulateBattleCommand } from "./simulate-battle-command.js";
 import { ApplicationError } from "./application-error.js";
 import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
-import { createCapabilityDefinition } from "../domain/catalog/capability-definition.js";
+import { createCapabilityDefinition } from "../domain/catalog/capability/capability-definition.js";
 import {
   createCapabilityId,
   createEffectActionDefinitionId,
@@ -15,17 +15,20 @@ import {
   type MemoryDefinitionId,
   type SkillDefinitionId,
   type UnitDefinitionId,
-} from "../domain/catalog/catalog-ids.js";
+} from "../domain/catalog/definitions/catalog-ids.js";
 import {
   createEffectActionDefinition,
   type EffectActionDefinition,
-} from "../domain/catalog/effect-action-definition.js";
+} from "../domain/catalog/definitions/effect-action-definition.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,
-} from "../domain/catalog/memory-definition.js";
-import { createSkillDefinition, type SkillDefinition } from "../domain/catalog/skill-definition.js";
-import type { UnitDefinition } from "../domain/catalog/unit-definition.js";
+} from "../domain/catalog/definitions/memory-definition.js";
+import {
+  createSkillDefinition,
+  type SkillDefinition,
+} from "../domain/catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
 
 function unitDefinition(
   id: string,

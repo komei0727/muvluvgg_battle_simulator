@@ -3,8 +3,11 @@ import type { FormationInput, SimulateBattleCommand } from "./simulate-battle-co
 import {
   collectRequiredCapabilities,
   findUnimplementedCapabilities,
-} from "../domain/catalog/capability-availability.js";
-import type { MemoryDefinitionId, UnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+} from "../domain/catalog/capability/capability-availability.js";
+import type {
+  MemoryDefinitionId,
+  UnitDefinitionId,
+} from "../domain/catalog/definitions/catalog-ids.js";
 import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 
 const FORMATIONS: readonly ["allyFormation", "enemyFormation"] = [

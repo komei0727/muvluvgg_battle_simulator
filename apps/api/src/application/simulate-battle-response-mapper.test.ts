@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { CooldownStateResponseBody } from "./http-contract.js";
 import { toBattleSimulationResponseBody } from "./simulate-battle-response-mapper.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
-import { createActionId } from "../domain/battle/events/event-ids.js";
-import { createSkillDefinitionId, createUnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+import { createActionId } from "../domain/shared/event-ids.js";
+import {
+  createSkillDefinitionId,
+  createUnitDefinitionId,
+} from "../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");

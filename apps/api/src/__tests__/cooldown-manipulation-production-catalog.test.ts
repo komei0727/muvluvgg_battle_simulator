@@ -1,12 +1,12 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { applyCooldownManipulationAction } from "../domain/battle/cooldown-manipulation-application-service.js";
-import { createBattleUnit } from "../domain/battle/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/battle-party.js";
+import { applyCooldownManipulationAction } from "../domain/battle/lifecycle/cooldown-manipulation-application-service.js";
+import { createBattleUnit } from "../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../domain/battle/global-coordinate.js";
-import type { ResolvedEffectApplication } from "../domain/battle/skill-resolution-service.js";
-import { collectEffectActionReferences } from "../domain/catalog/catalog-integrity.js";
+import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
+import type { ResolvedEffectApplication } from "../domain/battle/skill/skill-resolution-service.js";
+import { collectEffectActionReferences } from "../domain/catalog/integrity/catalog-integrity.js";
 import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
 import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
 

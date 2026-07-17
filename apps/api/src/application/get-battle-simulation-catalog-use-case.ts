@@ -1,15 +1,20 @@
 import {
   collectRequiredCapabilities,
   findUnimplementedCapabilities,
-} from "../domain/catalog/capability-availability.js";
-import type { Attribute, PositionRow, Role, UnitType } from "../domain/catalog/catalog-enums.js";
+} from "../domain/catalog/capability/capability-availability.js";
+import type {
+  Attribute,
+  PositionRow,
+  Role,
+  UnitType,
+} from "../domain/catalog/definitions/catalog-enums.js";
 import type {
   CapabilityId,
   MemoryDefinitionId,
   UnitDefinitionId,
-} from "../domain/catalog/catalog-ids.js";
-import type { MemoryDefinition } from "../domain/catalog/memory-definition.js";
-import type { UnitDefinition } from "../domain/catalog/unit-definition.js";
+} from "../domain/catalog/definitions/catalog-ids.js";
+import type { MemoryDefinition } from "../domain/catalog/definitions/memory-definition.js";
+import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
 import type { BattleCatalogDirectory } from "../domain/ports/battle-catalog-directory.js";
 import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
 import { deepFreeze } from "../domain/shared/deep-freeze.js";

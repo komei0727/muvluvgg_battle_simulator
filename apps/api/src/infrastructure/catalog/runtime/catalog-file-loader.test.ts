@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { CatalogIntegrityError } from "../../../domain/catalog/catalog-integrity.js";
+import { CatalogIntegrityError } from "../../../domain/catalog/integrity/catalog-integrity.js";
 import { loadBattleCatalogDirectory, loadCatalogFromDirectory } from "./catalog-file-loader.js";
 import {
   CatalogFileHashMismatchError,

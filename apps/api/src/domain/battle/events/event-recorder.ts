@@ -13,9 +13,9 @@ import {
   type DomainEventId,
   type ResolutionScopeId,
   type SkillUseId,
-} from "./event-ids.js";
+} from "../../shared/event-ids.js";
 import type { StateDelta } from "./state-delta.js";
-import type { Side } from "../side.js";
+import type { Side } from "../../shared/side.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
 
 export interface RecordEventInput<Type extends BattleDomainEventType> {

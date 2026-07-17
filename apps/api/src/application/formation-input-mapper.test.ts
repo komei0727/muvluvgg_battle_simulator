@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { toDomainFormationInput, toDomainFormationPosition } from "./formation-input-mapper.js";
-import { createMemoryDefinitionId, createUnitDefinitionId } from "../domain/catalog/catalog-ids.js";
+import {
+  createMemoryDefinitionId,
+  createUnitDefinitionId,
+} from "../domain/catalog/definitions/catalog-ids.js";
 
 describe("toDomainFormationPosition", () => {
   it.each([

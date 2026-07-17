@@ -1,8 +1,8 @@
-import type { PositionColumn } from "../domain/catalog/catalog-enums.js";
+import type { PositionColumn } from "../domain/catalog/definitions/catalog-enums.js";
 import type {
   FormationInput as DomainFormationInput,
   FormationPosition,
-} from "../domain/battle/formation-input.js";
+} from "../domain/battle/model/formation-input.js";
 import type { FormationInput, FormationPositionInput } from "./simulate-battle-command.js";
 
 const COLUMNS: Record<0 | 1 | 2, PositionColumn> = { 0: "LEFT", 1: "CENTER", 2: "RIGHT" };
