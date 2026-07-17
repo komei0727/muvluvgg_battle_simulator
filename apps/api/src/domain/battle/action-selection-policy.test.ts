@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExUsable, selectAsCandidate } from "./action-selection-policy.js";
+import { isCoolingDown, isExUsable, selectAsCandidate } from "./action-selection-policy.js";
 import { createBattleUnit, type BattleUnit, type BattleUnitResourceLimits } from "./battle-unit.js";
 import type { BattlePartyMember } from "./battle-party.js";
 import { createBattleUnitId } from "../shared/ids.js";
@@ -150,6 +150,83 @@ describe("selectAsCandidate", () => {
     expect(() => selectAsCandidate([conditional], actor, [actor, enemy])).toThrow(
       DomainValidationError,
     );
+  });
+
+  it("UT-R-ACT-02-006 (Issue #129 R-ACT-02): skips an AS whose cooldown remaining is >= 1 and selects the next usable candidate", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const cooling = asSkill("SKL_COOLING", 1);
+    const ready = asSkill("SKL_READY", 1);
+    const actorWithCooldown: BattleUnit = {
+      ...actor,
+      cooldowns: { [cooling.skillDefinitionId]: { unit: "ACTION", remaining: 1 } },
+    };
+
+    const result = selectAsCandidate([cooling, ready], actorWithCooldown, [
+      actorWithCooldown,
+      enemy,
+    ]);
+
+    expect(result).toEqual({ kind: "SKILL", skill: ready });
+  });
+
+  it("UT-R-ACT-02-007 (Issue #129 R-ACT-02): selects an AS whose cooldown remaining is 0 (READY)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const skill = asSkill("SKL_READY", 1);
+    const actorWithCooldown: BattleUnit = {
+      ...actor,
+      cooldowns: { [skill.skillDefinitionId]: { unit: "ACTION", remaining: 0 } },
+    };
+
+    const result = selectAsCandidate([skill], actorWithCooldown, [actorWithCooldown, enemy]);
+
+    expect(result).toEqual({ kind: "SKILL", skill });
+  });
+
+  it("UT-R-ACT-02-008 (Issue #129 R-ACT-02): waits when the only AS candidate is still cooling down", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const skill = asSkill("SKL_COOLING", 1);
+    const actorWithCooldown: BattleUnit = {
+      ...actor,
+      cooldowns: { [skill.skillDefinitionId]: { unit: "ACTION", remaining: 2 } },
+    };
+
+    const result = selectAsCandidate([skill], actorWithCooldown, [actorWithCooldown, enemy]);
+
+    expect(result).toEqual({ kind: "WAIT" });
+  });
+});
+
+describe("isCoolingDown", () => {
+  it("UT-COOLDOWN-CHECK-001: true when the skill's cooldown remaining is >= 1", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const skillId = createSkillDefinitionId("SKL_A");
+    const actorWithCooldown: BattleUnit = {
+      ...actor,
+      cooldowns: { [skillId]: { unit: "ACTION", remaining: 1 } },
+    };
+
+    expect(isCoolingDown(actorWithCooldown, skillId)).toBe(true);
+  });
+
+  it("UT-COOLDOWN-CHECK-002: false when the skill's cooldown remaining is 0", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const skillId = createSkillDefinitionId("SKL_A");
+    const actorWithCooldown: BattleUnit = {
+      ...actor,
+      cooldowns: { [skillId]: { unit: "ACTION", remaining: 0 } },
+    };
+
+    expect(isCoolingDown(actorWithCooldown, skillId)).toBe(false);
+  });
+
+  it("UT-COOLDOWN-CHECK-003: false when the skill has no cooldown entry at all (READY/never used)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const skillId = createSkillDefinitionId("SKL_NEVER_USED");
+
+    expect(isCoolingDown(actor, skillId)).toBe(false);
   });
 });
 

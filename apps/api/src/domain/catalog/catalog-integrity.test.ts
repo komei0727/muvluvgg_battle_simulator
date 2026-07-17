@@ -142,6 +142,22 @@ function exSkill(id: string, amount: number): SkillDefinition {
   });
 }
 
+function cooldownManipulationAction(
+  id: string,
+  targetSkillDefinitionId: string,
+  operation: "RESET" | "REDUCE" = "RESET",
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "COOLDOWN_MANIPULATION",
+      payload: { targetSkillDefinitionId, operation },
+      requiredCapabilities: [],
+    },
+    "effectAction",
+  );
+}
+
 function unit(
   id: string,
   overrides: {
@@ -473,5 +489,75 @@ describe("buildCatalogIndex", () => {
       expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
       expect(err.violations[0]?.targetId).toBe("ACT_REMOVE_1");
     }
+  });
+
+  it("UT-CAT-IDX-017: rejects a COOLDOWN_MANIPULATION payload.targetSkillDefinitionId referencing a missing SkillDefinition (Issue #129)", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_CD_RESET")],
+      effectActions: [
+        ...defs.effectActions,
+        cooldownManipulationAction("ACT_CD_RESET", "SKL_MISSING"),
+      ],
+    };
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "DANGLING_REFERENCE" && v.targetId === "ACT_CD_RESET",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-018: rejects a COOLDOWN_MANIPULATION targeting a SkillDefinition owned by a different Unit (Issue #129)", () => {
+    const defs = baseDefinitions();
+    const withUnowned: CatalogDefinitions = {
+      ...defs,
+      units: [
+        unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] }),
+        unit("UNIT_002", { active: ["SKL_U2_AS1"], extra: "SKL_U2_EX1" }),
+      ],
+      skills: [
+        ...defs.skills,
+        asSkill("SKL_AS2", "ACT_CD_RESET"),
+        asSkill("SKL_U2_AS1", "ACT_DAMAGE_1"),
+        exSkill("SKL_U2_EX1", 7),
+      ],
+      effectActions: [
+        ...defs.effectActions,
+        cooldownManipulationAction("ACT_CD_RESET", "SKL_U2_AS1"),
+      ],
+    };
+    try {
+      buildCatalogIndex(withUnowned);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNOWNED_SKILL_REFERENCE" && v.targetId === "UNIT_001",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-019: accepts a COOLDOWN_MANIPULATION targeting a SkillDefinition owned by the same Unit (Issue #129)", () => {
+    const defs = baseDefinitions();
+    const withOwned: CatalogDefinitions = {
+      ...defs,
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_CD_RESET")],
+      effectActions: [...defs.effectActions, cooldownManipulationAction("ACT_CD_RESET", "SKL_AS1")],
+    };
+
+    const index = buildCatalogIndex(withOwned);
+
+    expect(index.effectActions.get("ACT_CD_RESET" as never)).toBeDefined();
   });
 });

@@ -16,9 +16,11 @@ import {
   createCapabilityId,
   createEffectActionDefinitionId,
   createMarkerId,
+  createSkillDefinitionId,
   type CapabilityId,
   type EffectActionDefinitionId,
   type MarkerId,
+  type SkillDefinitionId,
 } from "./catalog-ids.js";
 import { COMPARISON_OPERATORS } from "./condition-definition.js";
 import {
@@ -90,6 +92,7 @@ const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as 
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
 const REFLECT_TIMINGS = ["AFTER_DAMAGE_APPLIED"] as const;
 const RESOURCE_CAPACITY_OPERATIONS = ["ADD", "SET"] as const;
+const COOLDOWN_MANIPULATION_OPERATIONS = ["RESET", "REDUCE"] as const;
 
 /**
  * Kinds documented with a complete payload in `14_Catalog定義スキーマ.md`.
@@ -120,6 +123,7 @@ const EFFECT_ACTION_KINDS = [
   "APPLY_COVER",
   "APPLY_REFLECT",
   "APPLY_SUBUNIT",
+  "COOLDOWN_MANIPULATION",
 ] as const;
 export type EffectActionKind = (typeof EFFECT_ACTION_KINDS)[number];
 
@@ -160,6 +164,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
   APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
   APPLY_SUBUNIT: ["durability", "additionalDamage"],
+  COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
 };
 
 const DAMAGE_CRITICAL_ALLOWED_KEYS = ["mode"] as const;
@@ -344,6 +349,18 @@ export interface ApplySubunitPayload {
   readonly additionalDamage: { readonly formula: FormulaDefinition };
 }
 
+/**
+ * Issue #129 `COOLDOWN_MANIPULATION`: resets or reduces another skill's
+ * cooldown. `RESET` sets the remaining count to 0; `REDUCE` subtracts
+ * `amount` without going below 0. `amount` is required for `REDUCE` and
+ * unused for `RESET`.
+ */
+export interface CooldownManipulationPayload {
+  readonly targetSkillDefinitionId: SkillDefinitionId;
+  readonly operation: (typeof COOLDOWN_MANIPULATION_OPERATIONS)[number];
+  readonly amount?: number;
+}
+
 export type EffectActionPayload =
   | { readonly kind: "DAMAGE"; readonly payload: DamagePayload }
   | { readonly kind: "HEAL"; readonly payload: HealPayload }
@@ -364,7 +381,8 @@ export type EffectActionPayload =
   | { readonly kind: "APPLY_TARGET_REDIRECT"; readonly payload: ApplyTargetRedirectPayload }
   | { readonly kind: "APPLY_COVER"; readonly payload: ApplyCoverPayload }
   | { readonly kind: "APPLY_REFLECT"; readonly payload: ApplyReflectPayload }
-  | { readonly kind: "APPLY_SUBUNIT"; readonly payload: ApplySubunitPayload };
+  | { readonly kind: "APPLY_SUBUNIT"; readonly payload: ApplySubunitPayload }
+  | { readonly kind: "COOLDOWN_MANIPULATION"; readonly payload: CooldownManipulationPayload };
 
 export type EffectActionDefinition = EffectActionPayload & {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
@@ -1023,6 +1041,32 @@ function createPayload(
             ),
           },
         },
+      };
+    }
+    case "COOLDOWN_MANIPULATION": {
+      const targetSkillDefinitionId = createSkillDefinitionId(
+        requireField(
+          payload["targetSkillDefinitionId"] as string | undefined,
+          `${path}.targetSkillDefinitionId`,
+        ),
+        `${path}.targetSkillDefinitionId`,
+      );
+      const operation = requireField(
+        payload["operation"] as string | undefined,
+        `${path}.operation`,
+      );
+      assertEnumValue(operation, COOLDOWN_MANIPULATION_OPERATIONS, `${path}.operation`);
+      if (operation === "REDUCE") {
+        const amount = requireField(payload["amount"] as number | undefined, `${path}.amount`);
+        assertInteger(amount, `${path}.amount`, { min: 1 });
+        return {
+          kind: "COOLDOWN_MANIPULATION",
+          payload: { targetSkillDefinitionId, operation, amount },
+        };
+      }
+      return {
+        kind: "COOLDOWN_MANIPULATION",
+        payload: { targetSkillDefinitionId, operation },
       };
     }
   }

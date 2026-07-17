@@ -1281,4 +1281,109 @@ describe("EffectActionDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  // --- Issue #129: COOLDOWN_MANIPULATION ---
+
+  it("UT-CAT-ACT-056: maps COOLDOWN_MANIPULATION with operation RESET and no amount", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_CD_RESET",
+        kind: "COOLDOWN_MANIPULATION",
+        payload: { targetSkillDefinitionId: "SKL_SAYA_BUNNY_AS1", operation: "RESET" },
+        requiredCapabilities: ["CAP_COOLDOWN_MANIPULATION"],
+      },
+      "effectAction",
+    );
+    expect(result).toEqual({
+      effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_CD_RESET",
+      kind: "COOLDOWN_MANIPULATION",
+      payload: { targetSkillDefinitionId: "SKL_SAYA_BUNNY_AS1", operation: "RESET" },
+      requiredCapabilities: ["CAP_COOLDOWN_MANIPULATION"],
+      metadata: { tags: [] },
+    });
+  });
+
+  it("UT-CAT-ACT-057: maps COOLDOWN_MANIPULATION with operation REDUCE and a required amount", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MERU_PS1_CD_REDUCE",
+        kind: "COOLDOWN_MANIPULATION",
+        payload: {
+          targetSkillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
+          operation: "REDUCE",
+          amount: 1,
+        },
+        requiredCapabilities: ["CAP_COOLDOWN_MANIPULATION"],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("COOLDOWN_MANIPULATION");
+    if (result.kind === "COOLDOWN_MANIPULATION") {
+      expect(result.payload).toEqual({
+        targetSkillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
+        operation: "REDUCE",
+        amount: 1,
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-058: rejects COOLDOWN_MANIPULATION REDUCE without an amount", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_CD_REDUCE_NO_AMOUNT",
+          kind: "COOLDOWN_MANIPULATION",
+          payload: { targetSkillDefinitionId: "SKL_MERU_FLATSPIN_PS1", operation: "REDUCE" },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-059: rejects COOLDOWN_MANIPULATION REDUCE with a non-positive amount", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_CD_REDUCE_ZERO",
+          kind: "COOLDOWN_MANIPULATION",
+          payload: {
+            targetSkillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
+            operation: "REDUCE",
+            amount: 0,
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-060: rejects COOLDOWN_MANIPULATION with an unknown operation", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_CD_BAD_OP",
+          kind: "COOLDOWN_MANIPULATION",
+          payload: { targetSkillDefinitionId: "SKL_MERU_FLATSPIN_PS1", operation: "REVERSE" },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-061: rejects COOLDOWN_MANIPULATION with a targetSkillDefinitionId missing the SKL_ prefix", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_CD_BAD_TARGET",
+          kind: "COOLDOWN_MANIPULATION",
+          payload: { targetSkillDefinitionId: "BAD_ID", operation: "RESET" },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

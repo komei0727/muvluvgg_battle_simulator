@@ -734,6 +734,7 @@ metadata:
 | `APPLY_REFLECT`            | 反射                                   | `CAP_REFLECT_DAMAGE`           |
 | `APPLY_DAMAGE_LINK`        | 継続リンク状態                         | `CAP_DAMAGE_LINK_STATE`        |
 | `APPLY_SUBUNIT`            | サブユニット                           | なし                           |
+| `COOLDOWN_MANIPULATION`    | 他スキルのクールタイム短縮・リセット   | `CAP_COOLDOWN_MANIPULATION`    |
 
 ---
 
@@ -1291,6 +1292,33 @@ payload:
 | `markerId`     | string       | `MARKER_` prefix                                |
 | `stack.policy` | enum         | `ADD` / `KEEP_EXISTING` / `REFRESH` / `REPLACE` |
 | `stack.max`    | integer/null | null = 上限なし                                 |
+
+### COOLDOWN_MANIPULATION
+
+Issue #129。他スキルのクールタイムを短縮・リセットする。`RESET` は対象スキルの残数を0にし、`REDUCE` は `amount` だけ減らす（0未満にはならない）。対象がREADY（未登録、または残数が既に0）の場合は残数不変のためno-opとし、`CooldownReduced`/`CooldownCompleted` を発行しない。設定scope（`R-SKL-04`「設定した行動・ターンでは減らさない」）の対象外の明示操作であり、対象スキルが今回の行動・ターンで設定されていても適用する。
+
+```yaml
+kind: COOLDOWN_MANIPULATION
+payload:
+  targetSkillDefinitionId: SKL_SAYA_BUNNY_AS1
+  operation: RESET
+```
+
+```yaml
+kind: COOLDOWN_MANIPULATION
+payload:
+  targetSkillDefinitionId: SKL_MERU_FLATSPIN_PS1
+  operation: REDUCE
+  amount: 1
+```
+
+| フィールド                | 型     | 必須     | 制約                                 |
+| ------------------------- | ------ | -------- | ------------------------------------ |
+| `targetSkillDefinitionId` | string | ✓        | `SKL_` prefix                        |
+| `operation`               | enum   | ✓        | `RESET` / `REDUCE`                   |
+| `amount`                  | number | 条件付き | `operation: REDUCE` の場合必須、>= 1 |
+
+`targetSkillDefinitionId` の存在は Catalog 検証で拒否する（未定義のSkill IDへの参照）。加えて、対象スキルは操作元の`EffectAction`を保有するUnitと同じUnitが所有するスキルでなければならず、所有者が一致しない参照もCatalog検証で拒否する。`COOLDOWN_MANIPULATION` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_COOLDOWN_MANIPULATION` を含めること。
 
 ---
 

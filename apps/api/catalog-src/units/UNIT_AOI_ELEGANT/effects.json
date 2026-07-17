@@ -7,6 +7,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_CD_RESET",
+    "kind": "COOLDOWN_MANIPULATION",
+    "payload": { "targetSkillDefinitionId": "SKL_AOI_ELEGANT_PS1", "operation": "RESET" },
+    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.404 } },

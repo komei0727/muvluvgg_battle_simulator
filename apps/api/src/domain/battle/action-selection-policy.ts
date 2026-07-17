@@ -1,5 +1,6 @@
 import type { BattleUnit } from "./battle-unit.js";
 import { resolveTargets } from "./target-selection-policy.js";
+import type { SkillDefinitionId } from "../catalog/catalog-ids.js";
 import type { SkillDefinition } from "../catalog/skill-definition.js";
 import { DomainValidationError } from "../shared/errors.js";
 
@@ -19,14 +20,27 @@ export function hasResolvableTargets(
 }
 
 /**
- * R-ACT-02（基本形）: クールタイム・気絶・凍結（M7）は未実装のため、APと
- * 発動条件、対象候補の有無だけを評価する。
+ * R-ACT-02「クールタイムが0」: 指定スキルの残数が1以上（COOLING）かどうかを
+ * 判定する。未登録（READY/未使用）のスキルは残数0として扱う。M6のPS発動直前
+ * 再確認（`06_戦闘状態遷移.md`）でも同じ判定を再利用できるよう、
+ * `ActionSelectionPolicy`から独立した関数として公開する。
+ */
+export function isCoolingDown(actor: BattleUnit, skillDefinitionId: SkillDefinitionId): boolean {
+  return (actor.cooldowns[skillDefinitionId]?.remaining ?? 0) >= 1;
+}
+
+/**
+ * R-ACT-02（基本形）: クールタイム、APと発動条件、対象候補の有無を評価する。
+ * 気絶・凍結（M7）は未実装のため対象外。
  */
 function isUsable(
   skill: SkillDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
 ): boolean {
+  if (isCoolingDown(actor, skill.skillDefinitionId)) {
+    return false;
+  }
   if (skill.cost.amount > actor.currentAp) {
     return false;
   }
