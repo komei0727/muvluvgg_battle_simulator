@@ -11,10 +11,10 @@ import {
 import type {
   BattleSimulationRequestBody,
   BattleSimulationResponseBody,
-} from "../../application/http-contract.js";
-import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
-import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
-import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
+} from "../../application/contracts/http-contract.js";
+import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
+import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import type { BattleDomainEventType } from "../../domain/battle/events/domain-event.js";
 import {
   createSkillDefinitionId,

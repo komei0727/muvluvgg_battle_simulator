@@ -1,4 +1,4 @@
-import { ApplicationError } from "./application-error.js";
+import { ApplicationError } from "../contracts/application-error.js";
 import { toDomainFormationInput } from "./formation-input-mapper.js";
 import type { SimulationExecutionContext } from "./simulation-execution-context.js";
 import {
@@ -7,28 +7,28 @@ import {
 } from "./simulation-result-assembler.js";
 import { runPreflight } from "./simulation-preflight-validator.js";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
-import { advanceBattle, createBattle, startBattle } from "../domain/battle/lifecycle/battle.js";
-import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
-import { createBattleUnitsFromParty } from "../domain/battle/model/battle-unit.js";
+import { advanceBattle, createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { createBattleUnitsFromParty } from "../../domain/battle/model/battle-unit.js";
 import {
   captureBattleState,
   captureUnitRoster,
-} from "../domain/battle/lifecycle/battle-state-snapshot.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createBattleParty } from "../domain/formation/formation-factory.js";
-import { createTurnLimit } from "../domain/battle/model/turn-limit.js";
+} from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createBattleParty } from "../../domain/formation/formation-factory.js";
+import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import type {
   MemoryDefinitionId,
   UnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import type { SkillDefinition } from "../domain/catalog/definitions/skill-definition.js";
-import type { BattleIdGenerator } from "../domain/ports/battle-id-generator.js";
-import type { BattleCatalog, BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
-import type { Clock } from "../domain/ports/clock.js";
-import type { RandomSourceFactory } from "../domain/ports/random-source-factory.js";
-import { DomainValidationError } from "../domain/shared/errors.js";
-import type { BattleUnitId } from "../domain/shared/ids.js";
-import { createBattleUnitId } from "../domain/shared/ids.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.js";
+import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import type { Clock } from "../../domain/ports/clock.js";
+import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
+import { DomainValidationError } from "../../domain/shared/errors.js";
+import type { BattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
 
 export interface SimulateBattleUseCaseDependencies {
   readonly battleCatalog: BattleCatalog;

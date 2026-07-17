@@ -5,12 +5,12 @@ import type {
   BattleSimulationRequestBody,
   BattleSimulationResponseBody,
   ErrorResponseBody,
-} from "../../application/http-contract.js";
-import { ApplicationError } from "../../application/application-error.js";
-import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
-import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
-import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
-import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
+} from "../../application/contracts/http-contract.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
+import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
+import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
+import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
   createCapabilityId,

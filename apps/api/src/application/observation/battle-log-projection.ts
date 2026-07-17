@@ -1,8 +1,8 @@
-import type { LogLevel } from "./simulate-battle-command.js";
+import type { LogLevel } from "../simulation/simulate-battle-command.js";
 import type {
   BattleDomainEvent,
   BattleDomainEventType,
-} from "../domain/battle/events/domain-event.js";
+} from "../../domain/battle/events/domain-event.js";
 
 /**
  * `08_ドメインイベント.md`「公開レベル」のSUMMARYに対応するM3イベント種別。

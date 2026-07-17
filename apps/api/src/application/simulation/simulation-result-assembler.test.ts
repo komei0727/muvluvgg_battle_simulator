@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { assembleSimulationResult } from "./simulation-result-assembler.js";
-import { ApplicationError } from "./application-error.js";
-import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
-import { createActionId, createDomainEventId } from "../domain/shared/event-ids.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createSkillDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
+import { ApplicationError } from "../contracts/application-error.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
+import { createActionId, createDomainEventId } from "../../domain/shared/event-ids.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 

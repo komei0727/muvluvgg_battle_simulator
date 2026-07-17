@@ -1,23 +1,26 @@
-import { ApplicationError } from "./application-error.js";
-import { toBattleLogEvents, type BattleLogEvent } from "./battle-log-event.js";
-import { projectEventsForLogLevel } from "./battle-log-projection.js";
-import { buildBattleObservation, type StateTransition } from "./battle-observation.js";
+import { ApplicationError } from "../contracts/application-error.js";
+import { toBattleLogEvents, type BattleLogEvent } from "../observation/battle-log-event.js";
+import { projectEventsForLogLevel } from "../observation/battle-log-projection.js";
+import { buildBattleObservation, type StateTransition } from "../observation/battle-observation.js";
 import type { LogLevel } from "./simulate-battle-command.js";
 import type {
   BattleResultSnapshot,
   BattleStateSnapshot,
   BattleUnitRosterEntry,
-} from "../domain/battle/lifecycle/battle-state-snapshot.js";
-import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
+} from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import {
   reduceStateDeltas,
   sameChargeState,
-} from "../domain/battle/lifecycle/state-delta-reducer.js";
-import type { CooldownState } from "../domain/battle/events/state-delta.js";
-import type { BattleOutcome, CompletionReason } from "../domain/battle/outcome/victory-policy.js";
-import type { SkillDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import { DomainValidationError } from "../domain/shared/errors.js";
-import type { BattleId, BattleUnitId } from "../domain/shared/ids.js";
+} from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { CooldownState } from "../../domain/battle/events/state-delta.js";
+import type {
+  BattleOutcome,
+  CompletionReason,
+} from "../../domain/battle/outcome/victory-policy.js";
+import type { SkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { DomainValidationError } from "../../domain/shared/errors.js";
+import type { BattleId, BattleUnitId } from "../../domain/shared/ids.js";
 
 /** `09_アプリケーション設計.md`「SimulateBattleResult」と同じトップレベル形。 */
 export interface SimulateBattleResult {

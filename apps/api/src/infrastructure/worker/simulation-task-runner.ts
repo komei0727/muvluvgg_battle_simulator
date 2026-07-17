@@ -4,9 +4,9 @@ import {
   type WorkerSimulationResult,
   type WorkerSimulationTask,
 } from "./worker-contract.js";
-import { ApplicationError } from "../../application/application-error.js";
-import { toSimulateBattleCommand } from "../../application/simulate-battle-request-mapper.js";
-import { SimulateBattleUseCase } from "../../application/simulate-battle-use-case.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
+import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
+import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.js";
 import type { Clock } from "../../domain/ports/clock.js";
 import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";

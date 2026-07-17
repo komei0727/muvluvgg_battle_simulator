@@ -3,7 +3,7 @@ import { toDomainFormationInput, toDomainFormationPosition } from "./formation-i
 import {
   createMemoryDefinitionId,
   createUnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
 
 describe("toDomainFormationPosition", () => {
   it.each([

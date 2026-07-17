@@ -3,7 +3,7 @@ import { validateCommandShape, type SimulateBattleCommand } from "./simulate-bat
 import {
   createMemoryDefinitionId,
   createUnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
 
 function slot(column: 0 | 1 | 2, row: "FRONT" | "REAR" = "FRONT") {
   return { unitDefinitionId: createUnitDefinitionId("UNIT_001"), position: { column, row } };

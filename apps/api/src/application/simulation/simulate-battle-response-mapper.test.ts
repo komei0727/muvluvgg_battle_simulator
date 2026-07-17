@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { CooldownStateResponseBody } from "./http-contract.js";
+import type { CooldownStateResponseBody } from "../contracts/http-contract.js";
 import { toBattleSimulationResponseBody } from "./simulate-battle-response-mapper.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
-import { createActionId } from "../domain/shared/event-ids.js";
+import { createActionId } from "../../domain/shared/event-ids.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const ALLY_ID = createBattleUnitId("ally:1");

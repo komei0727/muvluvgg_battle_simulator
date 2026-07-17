@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildBattleObservation } from "./battle-observation.js";
-import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const UNIT_A = createBattleUnitId("unit-a");
@@ -76,7 +76,8 @@ describe("buildBattleObservation", () => {
   });
 
   it("UT-BATTLE-OBSERVATION-003 (SCN-BTL-021): reduceStateDeltas(initialState, stateTransitions.map(t => t.stateDelta)) reproduces finalState", async () => {
-    const { reduceStateDeltas } = await import("../domain/battle/lifecycle/state-delta-reducer.js");
+    const { reduceStateDeltas } =
+      await import("../../domain/battle/lifecycle/state-delta-reducer.js");
     const events = recordSampleEvents();
     const initialState = {
       status: "READY" as const,

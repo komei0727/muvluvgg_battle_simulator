@@ -9,14 +9,14 @@ import Fastify, {
 import fastifyCors from "@fastify/cors";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
-import { toBattleSimulationResponseBody } from "../../application/simulate-battle-response-mapper.js";
-import { toBattleSimulationCatalogResponseBody } from "../../application/battle-simulation-catalog-response-mapper.js";
-import { ApplicationError } from "../../application/application-error.js";
-import type { BattleSimulationRequestBody } from "../../application/http-contract.js";
-import type { BattleSimulationCatalogResult } from "../../application/get-battle-simulation-catalog-use-case.js";
-import { SimulationCapacityExceededError } from "../../application/simulation-capacity-exceeded-error.js";
-import type { SimulationExecutionContext } from "../../application/simulation-execution-context.js";
-import type { SimulateBattleResult } from "../../application/simulation-result-assembler.js";
+import { toBattleSimulationResponseBody } from "../../application/simulation/simulate-battle-response-mapper.js";
+import { toBattleSimulationCatalogResponseBody } from "../../application/catalog/battle-simulation-catalog-response-mapper.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
+import type { BattleSimulationRequestBody } from "../../application/contracts/http-contract.js";
+import type { BattleSimulationCatalogResult } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
+import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
+import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
+import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
 import { fromApplicationError, toErrorResponseBody } from "./error-response-mapper.js";
 import { registerHealthRoutes, type ReadinessPort } from "./health-routes.js";
 import {

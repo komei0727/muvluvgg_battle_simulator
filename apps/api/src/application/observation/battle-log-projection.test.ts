@@ -3,9 +3,9 @@ import { projectEventsForLogLevel } from "./battle-log-projection.js";
 import type {
   BattleDomainEvent,
   BattleDomainEventType,
-} from "../domain/battle/events/domain-event.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createBattleId } from "../domain/shared/ids.js";
+} from "../../domain/battle/events/domain-event.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 

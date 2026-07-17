@@ -3,10 +3,10 @@ import type {
   BattleDomainEvent,
   BattleDomainEventType,
   EventCategory,
-} from "../domain/battle/events/domain-event.js";
-import type { ActionId, DomainEventId, SkillUseId } from "../domain/shared/event-ids.js";
-import { DomainValidationError } from "../domain/shared/errors.js";
-import type { BattleUnitId } from "../domain/shared/ids.js";
+} from "../../domain/battle/events/domain-event.js";
+import type { ActionId, DomainEventId, SkillUseId } from "../../domain/shared/event-ids.js";
+import { DomainValidationError } from "../../domain/shared/errors.js";
+import type { BattleUnitId } from "../../domain/shared/ids.js";
 
 /**
  * `10_API設計.md`「BattleLogEventResponse」と同じ形。内部イベント名(`eventType`)を

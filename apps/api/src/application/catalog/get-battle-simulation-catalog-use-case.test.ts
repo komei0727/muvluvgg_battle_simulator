@@ -1,26 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { ApplicationError } from "./application-error.js";
+import { ApplicationError } from "../contracts/application-error.js";
 import { GetBattleSimulationCatalogUseCase } from "./get-battle-simulation-catalog-use-case.js";
-import { runPreflight } from "./simulation-preflight-validator.js";
-import type { SimulateBattleCommand } from "./simulate-battle-command.js";
-import { createCapabilityDefinition } from "../domain/catalog/capability/capability-definition.js";
-import type { EffectActionDefinition } from "../domain/catalog/definitions/effect-action-definition.js";
-import { createEffectActionDefinition } from "../domain/catalog/definitions/effect-action-definition-factory.js";
+import { runPreflight } from "../simulation/simulation-preflight-validator.js";
+import type { SimulateBattleCommand } from "../simulation/simulate-battle-command.js";
+import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
+import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import { createEffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition-factory.js";
 import {
   createMemoryDefinition,
   type MemoryDefinition,
-} from "../domain/catalog/definitions/memory-definition.js";
+} from "../../domain/catalog/definitions/memory-definition.js";
 import {
   createSkillDefinition,
   type SkillDefinition,
-} from "../domain/catalog/definitions/skill-definition.js";
+} from "../../domain/catalog/definitions/skill-definition.js";
 import {
   createUnitDefinition,
   type UnitDefinition,
-} from "../domain/catalog/definitions/unit-definition.js";
-import { createUnitDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import type { BattleCatalogDirectory } from "../domain/ports/battle-catalog-directory.js";
-import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
+} from "../../domain/catalog/definitions/unit-definition.js";
+import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { BattleCatalogDirectory } from "../../domain/ports/battle-catalog-directory.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 
 function damageAction(
   id: string,

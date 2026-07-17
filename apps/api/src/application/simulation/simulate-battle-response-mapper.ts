@@ -1,5 +1,5 @@
-import type { BattleLogEvent } from "./battle-log-event.js";
-import type { StateTransition } from "./battle-observation.js";
+import type { BattleLogEvent } from "../observation/battle-log-event.js";
+import type { StateTransition } from "../observation/battle-observation.js";
 import type {
   ActionReservationResponseBody,
   BattleLogEventResponseBody,
@@ -12,20 +12,20 @@ import type {
   EntityCollectionDeltaResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
-} from "./http-contract.js";
+} from "../contracts/http-contract.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
 import type {
   BattleUnitRosterEntry,
   BattleUnitSnapshot,
-} from "../domain/battle/lifecycle/battle-state-snapshot.js";
+} from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import type {
   CooldownState,
   StateDelta,
   UnitStateDelta,
-} from "../domain/battle/events/state-delta.js";
-import type { PositionColumn } from "../domain/catalog/definitions/catalog-enums.js";
-import type { SkillDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import type { BattleUnitId } from "../domain/shared/ids.js";
+} from "../../domain/battle/events/state-delta.js";
+import type { PositionColumn } from "../../domain/catalog/definitions/catalog-enums.js";
+import type { SkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { BattleUnitId } from "../../domain/shared/ids.js";
 
 const SCHEMA_VERSION = 1;
 

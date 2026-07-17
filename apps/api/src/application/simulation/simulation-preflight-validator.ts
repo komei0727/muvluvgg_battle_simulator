@@ -1,14 +1,14 @@
-import { ApplicationError, type Violation } from "./application-error.js";
+import { ApplicationError, type Violation } from "../contracts/application-error.js";
 import type { FormationInput, SimulateBattleCommand } from "./simulate-battle-command.js";
 import {
   collectRequiredCapabilities,
   findUnimplementedCapabilities,
-} from "../domain/catalog/capability/capability-availability.js";
+} from "../../domain/catalog/capability/capability-availability.js";
 import type {
   MemoryDefinitionId,
   UnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 
 const FORMATIONS: readonly ["allyFormation", "enemyFormation"] = [
   "allyFormation",

@@ -3,8 +3,11 @@ import type {
   ApplicationError,
   ApplicationErrorCode,
   Violation,
-} from "../../application/application-error.js";
-import type { ErrorResponseBody, ViolationResponseBody } from "../../application/http-contract.js";
+} from "../../application/contracts/application-error.js";
+import type {
+  ErrorResponseBody,
+  ViolationResponseBody,
+} from "../../application/contracts/http-contract.js";
 
 const SERVER_LOG_CORRELATION_STATUS = 500;
 

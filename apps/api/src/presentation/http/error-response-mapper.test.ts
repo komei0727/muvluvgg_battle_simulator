@@ -5,7 +5,7 @@ import {
   toExternalViolationPath,
   fromApplicationError,
 } from "./error-response-mapper.js";
-import { ApplicationError } from "../../application/application-error.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
 
 describe("httpStatusForErrorCode", () => {
   // `10_API設計.md`「ステータスコード対応」の正本テーブル。

@@ -1,23 +1,23 @@
 import {
   collectRequiredCapabilities,
   findUnimplementedCapabilities,
-} from "../domain/catalog/capability/capability-availability.js";
+} from "../../domain/catalog/capability/capability-availability.js";
 import type {
   Attribute,
   PositionRow,
   Role,
   UnitType,
-} from "../domain/catalog/definitions/catalog-enums.js";
+} from "../../domain/catalog/definitions/catalog-enums.js";
 import type {
   CapabilityId,
   MemoryDefinitionId,
   UnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import type { MemoryDefinition } from "../domain/catalog/definitions/memory-definition.js";
-import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
-import type { BattleCatalogDirectory } from "../domain/ports/battle-catalog-directory.js";
-import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
-import { deepFreeze } from "../domain/shared/deep-freeze.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-definition.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import type { BattleCatalogDirectory } from "../../domain/ports/battle-catalog-directory.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { deepFreeze } from "../../domain/shared/deep-freeze.js";
 
 export interface BattleSimulationUnitSummary {
   readonly unitDefinitionId: UnitDefinitionId;

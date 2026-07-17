@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import type { SimulateBattleResult } from "../../../application/simulation-result-assembler.js";
+import type { SimulateBattleResult } from "../../../application/simulation/simulation-result-assembler.js";
 import type { WorkerSimulationResult, WorkerSimulationTask } from "../worker-contract.js";
 
 /**

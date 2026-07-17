@@ -6,7 +6,7 @@ import type { ReadinessPort } from "../presentation/http/health-routes.js";
 import { parseCatalogManifest } from "../infrastructure/catalog/runtime/catalog-manifest.js";
 import { loadBattleCatalogDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker-pool.js";
-import { GetBattleSimulationCatalogUseCase } from "../application/get-battle-simulation-catalog-use-case.js";
+import { GetBattleSimulationCatalogUseCase } from "../application/catalog/get-battle-simulation-catalog-use-case.js";
 import { ShutdownState, installShutdownSignalHandlers } from "./shutdown.js";
 import { loadConfig } from "./config.js";
 
