@@ -109,4 +109,225 @@ describe("formatEvent", () => {
 
     expect(presentation.summary).not.toBe("");
   });
+
+  it("resolves ACTION_STARTED with AP/EX resource change and no wait reason", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "ACTION_STARTED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          reservedActionType: "AS",
+          effectiveActionType: "AS",
+          apBefore: 3,
+          apAfter: 2,
+          exBefore: 10,
+          exAfter: 20,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.title).toBe("ACTION_STARTED");
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("AP 3 → 2");
+    expect(presentation.summary).toContain("EX 10 → 20");
+    expect(presentation.summary).not.toContain("待機理由");
+  });
+
+  it("resolves ACTION_STARTED with a wait reason when effectiveActionType is WAIT", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "ACTION_STARTED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          reservedActionType: "AS",
+          effectiveActionType: "WAIT",
+          apBefore: 0,
+          apAfter: 0,
+          exBefore: 100,
+          exAfter: 100,
+          waitReason: "AP_EXHAUSTED",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("待機理由: AP_EXHAUSTED");
+  });
+
+  it("resolves ACTION_QUEUE_CREATED into a Japanese summary with reservation count", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "ACTION_QUEUE_CREATED",
+        details: {
+          cycleNumber: 2,
+          reservations: [
+            { battleUnitId: "ally:1", reservedActionKind: "AS", actionSpeed: 120 },
+            { battleUnitId: "enemy:1", reservedActionKind: "EX", actionSpeed: 95 },
+          ],
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.title).toBe("ACTION_QUEUE_CREATED");
+    expect(presentation.summary).toContain("2");
+    expect(presentation.summary).toContain("2件");
+    expect(presentation.severity).toBe("neutral");
+  });
+
+  it("resolves ACTION_QUEUE_REORDERED into a Japanese summary", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "ACTION_QUEUE_REORDERED",
+        details: {
+          before: [{ battleUnitId: "ally:1", actionSpeed: 90 }],
+          after: [{ battleUnitId: "enemy:1", actionSpeed: 110 }],
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.title).toBe("ACTION_QUEUE_REORDERED");
+    expect(presentation.summary).toContain("1件");
+  });
+
+  it("resolves ACTION_RESERVATION_REMOVED with the removal reason", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "ACTION_RESERVATION_REMOVED",
+        sourceUnitId: "enemy:1",
+        details: { battleUnitId: "enemy:1", reason: "DEFEATED" },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("ビー");
+    expect(presentation.summary).toContain("DEFEATED");
+    expect(presentation.severity).toBe("neutral");
+  });
+
+  it("resolves ACTION_WAITED with wait reason and consumed resource", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "ACTION_WAITED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          waitReason: "NO_VALID_ACTION",
+          consumedResource: "AP",
+          consumedAmount: 1,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("NO_VALID_ACTION");
+    expect(presentation.summary).toContain("AP");
+    expect(presentation.summary).toContain("1");
+  });
+
+  it("resolves COOLDOWN_STARTED with the skill id and initial remaining count", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "COOLDOWN_STARTED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKILL_1",
+          unit: "TURN",
+          initialRemaining: 3,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKILL_1");
+    expect(presentation.summary).toContain("3");
+  });
+
+  it("resolves COOLDOWN_REDUCED with the before/after remaining count", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "COOLDOWN_REDUCED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKILL_1",
+          unit: "TURN",
+          before: 3,
+          after: 2,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("3 → 2");
+  });
+
+  it("resolves COOLDOWN_COMPLETED with the skill id", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "COOLDOWN_COMPLETED",
+        sourceUnitId: "ally:1",
+        details: { actorUnitId: "ally:1", skillDefinitionId: "SKILL_1", unit: "TURN" },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKILL_1");
+  });
+
+  it("resolves CHARGE_STARTED with the skill id", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "CHARGE_STARTED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKILL_2",
+          startedActionId: "action-1",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKILL_2");
+  });
+
+  it("resolves CHARGE_RELEASED with the skill id", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "CHARGE_RELEASED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKILL_2",
+          chargeStartActionId: "action-1",
+          releaseActionId: "action-3",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKILL_2");
+  });
 });

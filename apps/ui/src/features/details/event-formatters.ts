@@ -111,13 +111,195 @@ function formatActionStarted(
   if (
     !isRecord(details) ||
     typeof details["actorUnitId"] !== "string" ||
-    typeof details["effectiveActionType"] !== "string"
+    typeof details["effectiveActionType"] !== "string" ||
+    typeof details["apBefore"] !== "number" ||
+    typeof details["apAfter"] !== "number" ||
+    typeof details["exBefore"] !== "number" ||
+    typeof details["exAfter"] !== "number"
+  ) {
+    return undefined;
+  }
+  const waitReason = details["waitReason"];
+  const waitReasonText = typeof waitReason === "string" ? ` 待機理由: ${waitReason}` : "";
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}が行動を開始しました（${details["effectiveActionType"]}）。AP ${details["apBefore"]} → ${details["apAfter"]} / EX ${details["exBefore"]} → ${details["exAfter"]}${waitReasonText}`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatActionQueueCreated(event: BattleLogEventResponse): EventPresentation | undefined {
+  const details = event["details"];
+  const reservations = details && isRecord(details) ? details["reservations"] : undefined;
+  if (
+    !isRecord(details) ||
+    typeof details["cycleNumber"] !== "number" ||
+    !Array.isArray(reservations)
   ) {
     return undefined;
   }
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}が行動を開始しました（${details["effectiveActionType"]}）。`,
+    summary: `周回${details["cycleNumber"]}の行動順を生成しました（${reservations.length}件）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatActionQueueReordered(event: BattleLogEventResponse): EventPresentation | undefined {
+  const details = event["details"];
+  if (!isRecord(details) || !Array.isArray(details["before"]) || !Array.isArray(details["after"])) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `速度変化により未行動者の行動順を並べ替えました（${details["after"].length}件）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatActionReservationRemoved(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["battleUnitId"] !== "string" ||
+    typeof details["reason"] !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}の行動予約を除去しました（理由: ${details["reason"]}）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatActionWaited(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["waitReason"] !== "string" ||
+    typeof details["consumedResource"] !== "string" ||
+    typeof details["consumedAmount"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}が待機しました（理由: ${details["waitReason"]}、消費: ${details["consumedResource"]} ${details["consumedAmount"]}）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatCooldownStarted(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string" ||
+    typeof details["initialRemaining"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のスキル「${details["skillDefinitionId"]}」のクールタイムを設定しました（残り${details["initialRemaining"]}）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatCooldownReduced(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string" ||
+    typeof details["before"] !== "number" ||
+    typeof details["after"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のスキル「${details["skillDefinitionId"]}」のクールタイムが${details["before"]} → ${details["after"]}になりました。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatCooldownCompleted(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のスキル「${details["skillDefinitionId"]}」のクールタイムが完了しました。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatChargeStarted(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}がスキル「${details["skillDefinitionId"]}」のチャージを開始しました。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatChargeReleased(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のチャージ「${details["skillDefinitionId"]}」が発動しました。`,
     details,
     severity: "neutral",
   };
@@ -143,7 +325,16 @@ function formatBattleCompleted(event: BattleLogEventResponse): EventPresentation
 const eventFormatters: Readonly<Record<string, EventFormatter>> = {
   BATTLE_STARTED: formatBattleStarted,
   TURN_STARTED: formatTurnStarted,
+  ACTION_QUEUE_CREATED: formatActionQueueCreated,
+  ACTION_QUEUE_REORDERED: formatActionQueueReordered,
+  ACTION_RESERVATION_REMOVED: formatActionReservationRemoved,
   ACTION_STARTED: formatActionStarted,
+  ACTION_WAITED: formatActionWaited,
+  COOLDOWN_STARTED: formatCooldownStarted,
+  COOLDOWN_REDUCED: formatCooldownReduced,
+  COOLDOWN_COMPLETED: formatCooldownCompleted,
+  CHARGE_STARTED: formatChargeStarted,
+  CHARGE_RELEASED: formatChargeReleased,
   DAMAGE_APPLIED: formatDamageApplied,
   UNIT_DEFEATED: formatUnitDefeated,
   BATTLE_COMPLETED: formatBattleCompleted,

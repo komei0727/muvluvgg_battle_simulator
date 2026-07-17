@@ -4,6 +4,7 @@ import { buildRosterIndex } from "./event-formatters.js";
 import { EventTimeline } from "./EventTimeline.js";
 import { RawJsonView } from "./RawJsonView.js";
 import { StateTransitionTable } from "./StateTransitionTable.js";
+import { UnitActionStateSection } from "./UnitActionStateSection.js";
 import { selectRoster } from "../summary/summary-projector.js";
 import type {
   BattleSimulationCatalogResponse,
@@ -16,12 +17,13 @@ export interface BattleDetailsSectionProps {
   readonly catalog?: BattleSimulationCatalogResponse;
 }
 
-type DetailsTab = "events" | "transitions" | "json";
+type DetailsTab = "events" | "transitions" | "json" | "actionState";
 
 const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] = [
   { id: "events", label: "時系列イベント" },
   { id: "transitions", label: "状態遷移" },
   { id: "json", label: "レスポンスJSON" },
+  { id: "actionState", label: "ユニット状態" },
 ];
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -83,6 +85,14 @@ export function BattleDetailsSection({ response, catalog }: BattleDetailsSection
       {activeTab === "json" ? (
         <div role="tabpanel" id="tabpanel-json" aria-labelledby="tab-json">
           <RawJsonView value={response} />
+        </div>
+      ) : null}
+      {activeTab === "actionState" ? (
+        <div role="tabpanel" id="tabpanel-actionState" aria-labelledby="tab-actionState">
+          <UnitActionStateSection
+            response={response}
+            {...(catalog !== undefined ? { catalog } : {})}
+          />
         </div>
       ) : null}
     </div>
