@@ -586,9 +586,14 @@ describe("resolvePassiveChain", () => {
         ...(rootEventId !== undefined ? { rootEventId } : {}),
       });
       rootEventId ??= recorded.eventId;
+      // `recorded.category` widens to `domain-event.ts`'s `EventCategory` (now
+      // includes DIAGNOSTIC, added for `ExtraGaugeOverflowDiscarded` in #34),
+      // but this helper always records with `category: "FACT"` above, and
+      // `TriggerCandidateEvent.category` intentionally stays FACT/TIMING-only
+      // (DIAGNOSTIC events never trigger PS/Memory candidates).
       const triggerEvent: TriggerCandidateEvent = {
         eventType: recorded.eventType,
-        category: recorded.category,
+        category: "FACT",
         payload: {},
       };
       recordedEventIdOf.set(triggerEvent, recorded.eventId);

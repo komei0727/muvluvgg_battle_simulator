@@ -5,7 +5,8 @@ import {
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion, recordCooldownStart } from "./action-completion.js";
-import { applyEffectActionGroups, resolveBindingSelections } from "./action-skill-use-resolver.js";
+import { resolveBindingSelections } from "./action-skill-use-resolver.js";
+import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveChargeReleaseOrder } from "../skill/skill-resolution-service.js";

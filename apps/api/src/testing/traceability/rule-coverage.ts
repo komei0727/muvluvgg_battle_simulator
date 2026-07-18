@@ -282,13 +282,31 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ACT: 行動
   { ruleId: "R-ACT-01", testCaseIds: [], kinds: [] },
   { ruleId: "R-ACT-02", testCaseIds: [], kinds: [] },
-  // R-ACT-03は「AS・PS・EXのコストは1以上」というCatalog検証の下限だけを
-  // UT-CAT-SKL-019/020/021・UT-INFRA-SCHEMA-011で検証している。行が示す
-  // 各消費量そのもの（PS・EXの実消費、AP0・EX満タン時の特殊待機、チャージ
-  // 効果発動）はPS/EX/M5未実装のため、13_実装計画.md「後続依存を持つルールは
-  // 完了計上しない」に従い台帳上は未完了のままとする。
-  { ruleId: "R-ACT-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-ACT-04", testCaseIds: [], kinds: [] },
+  // R-ACT-03: Issue #34がAS/待機のEX増加（消費量と同量、超過切り捨て）と、
+  // PSのPP消費+EX増加を実装した。AS・PS・EXのコスト下限自体は
+  // UT-CAT-SKL-019/020/021・UT-INFRA-SCHEMA-011が別途検証する。
+  {
+    ruleId: "R-ACT-03",
+    testCaseIds: [
+      "UT-R-ACT-03-001",
+      "UT-R-ACT-03-002",
+      "UT-R-ACT-03-003",
+      "UT-R-ACT-03-004",
+      "UT-R-ACT-03-005",
+      "UT-R-ACT-03-007",
+      "UT-R-PS-05-001",
+      "UT-R-PS-05-002",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // R-ACT-04: Issue #34が`ResourceChanged`をAP/PP/EXゲージ変更の主イベントとして
+  // 追加し、`ActionStarted`/`ActionWaited`/`PassiveActivated`から状態差分を
+  // 移した（重複記録なし）。消費→増加の順序、変化量0での発行省略を検証する。
+  {
+    ruleId: "R-ACT-04",
+    testCaseIds: ["UT-R-ACT-04-001", "UT-R-ACT-04-002", "UT-R-PS-05-003"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
 
   // TGT: 対象選択
   {
@@ -323,7 +341,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
 
   // SKL: スキル
+  // R-SKL-01は6項目のうち、使用者戦闘不能時の中断（既存`applyDamageAction`の
+  // ヒット単位中断＋PS発動処理自身の中断検知・`PassiveInterrupted`発行）と、
+  // イベント駆動でのPS即時連鎖解決（`resolvePassiveChain`を`applyDamageAction`の
+  // ヒット単位で呼ぶ実配線）をIssue #34（`UT-R-SKL-01-001`、`UT-R-SKL-02-001`）が
+  // 満たした。「各EffectStepとEffectActionの前後に必要なドメインイベント
+  // （`EffectStepStarting`/`EffectActionStarting`/`EffectActionCompleted`/
+  // `EffectStepCompleted`）を発行する」はまだ未実装で、ACTION step内の条件・
+  // 対象・action定義順解決（R-SKL-06）と合わせて#73のスコープ。
+  // 13_実装計画.md「後続依存を持つルールは完了計上しない」に従い、#73完了まで
+  // 台帳上は未完了のままとする。
   { ruleId: "R-SKL-01", testCaseIds: [], kinds: [] },
+  // R-SKL-02: 対象ごとの効果適用直後にPS候補を直ちに解決する要件自体は
+  // `applyDamageAction`のヒット単位フック（Issue #34、`UT-R-SKL-02-001`）で
+  // 満たすが、R-SKL-01と同じ理由（step/action前後のドメインイベント未発行）で
+  // #73完了までは未完了のままとする。
   { ruleId: "R-SKL-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-SKL-03", testCaseIds: [], kinds: [] },
   {
@@ -462,17 +494,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-04-006",
       "UT-R-PS-04-007",
       "UT-R-PS-04-008",
+      "UT-R-PS-04-009",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
-  // R-PS-05「発動と再入防止」は6ステップ（発動済み集合への記録、PP消費とEX増加、
-  // クールタイム設定、`PassiveActivated`発行、EffectSequence解決、`PassiveResolved`
-  // 発行）を要求する。#21が実装したのは#1（`resolvePassiveChain`内の
-  // `recordActivation`呼び出し）とSkill中断結果の接続点（`interruptedCandidates`）
-  // だけで、PP消費・EX増加・Cooldown設定・イベント発行は#34のスコープ。
-  // 13_実装計画.md「後続依存を持つルールは完了計上しない」に従い、#34完了まで
-  // 台帳上は未完了のままとする。
-  { ruleId: "R-PS-05", testCaseIds: [], kinds: [] },
+  // R-PS-05「発動と再入防止」6ステップのうち#1（発動済み集合への記録）は#21が
+  // `resolvePassiveChain`内の`recordActivation`呼び出しで実装済み。Issue #34が
+  // 残り5ステップ（PP消費とEX増加、クールタイム設定、`PassiveActivated`発行、
+  // EffectSequence解決、`PassiveResolved`/`PassiveInterrupted`発行）を
+  // `PassiveActivationRuntime`（`domain/battle/lifecycle/passive-activation-service.ts`）
+  // として実装した。
+  {
+    ruleId: "R-PS-05",
+    testCaseIds: ["UT-R-PS-05-001", "UT-R-PS-05-002", "UT-R-PS-05-003"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
   // R-PS-06「新規候補の即時処理」: `resolvePassiveChain`（#21）は`activate`が
   // `EVENT`を`yield`するたびに、その候補連鎖を完全に解決してから元のジェネレータを
   // 再開する。これにより「親の効果A→子PS→親の効果B」の順序（UT-R-PS-06-008）を、

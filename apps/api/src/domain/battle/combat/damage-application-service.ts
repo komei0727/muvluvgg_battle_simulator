@@ -8,6 +8,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import { resolveHit } from "./hit-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint } from "../model/resource-gauge.js";
@@ -44,6 +45,18 @@ export interface DamageEventContext {
   /** 各ヒットの直接の契機（`SkillUseStarted.eventId`）。ヒット同士は互いを親としない。 */
   readonly parentEventId: DomainEventId;
   readonly skillDefinitionId: SkillDefinitionId;
+  /**
+   * Issue #34: `DamageApplied`（および`UnitDefeated`）の確定直後にPS即時連鎖を
+   * 同期的に解決するフック。呼び出し側（`lifecycle/`、Domain層のmodule境界に
+   * より`combat/`自身は`triggering/`へ依存できない）が注入する。戻り値の
+   * `units`をそのまま以後の`working`として使う。未指定ならPS解決を行わない
+   * （R-SKL-06のACTION step単位の即時解決は#73のスコープで、本フックは
+   * R-SKL-01/02が要求する「ヒットごとの直ちの解決」までを満たす）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -234,8 +247,9 @@ export function applyDamageAction(
       },
     });
 
+    let latestFactEvent: BattleDomainEvent = damageApplied;
     if (!isDefeated(target) && isDefeated(updatedTarget)) {
-      context.recorder.record({
+      latestFactEvent = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",
         turnNumber: context.turnNumber,
@@ -249,6 +263,18 @@ export function applyDamageAction(
         targetUnitIds: [target.battleUnitId],
         payload: { unitId: target.battleUnitId, causeEventId: damageApplied.eventId },
       });
+    }
+
+    // R-SKL-01/02: このヒットが発行した事実イベントからのPS即時連鎖を、次のヒットへ
+    // 進む前に解決する（`onFactEventForPassiveChain`未指定ならPS解決を省略する）。
+    if (context.onFactEventForPassiveChain !== undefined) {
+      const updatedUnits = context.onFactEventForPassiveChain(
+        latestFactEvent,
+        Array.from(working.values()),
+      );
+      for (const unit of updatedUnits) {
+        working.set(unit.battleUnitId, unit);
+      }
     }
 
     outcomes.push({

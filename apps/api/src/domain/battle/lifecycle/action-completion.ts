@@ -9,6 +9,7 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { StateDelta } from "../events/state-delta.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleUnit } from "../model/battle-unit.js";
+import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 interface ActionCompletionContext {
@@ -137,7 +138,8 @@ export function recordActionCompletion(
 }
 
 interface CooldownStartContext {
-  readonly actionId: ActionId;
+  /** PS発動がターン開始/終了などアクション外のトップレベルイベントから起きた場合は`undefined`（`unit: "ACTION"`のクールタイムはその場合設定できない）。 */
+  readonly actionId?: ActionId;
   readonly turnNumber: number;
   readonly cycleNumber: number;
   readonly resolutionScopeId: ResolutionScopeId;
@@ -165,10 +167,16 @@ export function recordCooldownStart(
   parentEventId: DomainEventId,
   rootEventId: DomainEventId,
 ): CooldownStartResult {
+  if (skill.cooldown.unit === "ACTION" && context.actionId === undefined) {
+    throw new DomainValidationError(
+      "skill.cooldown.unit",
+      `an ACTION-unit cooldown requires an actionId, but none was given for skillDefinitionId "${skill.skillDefinitionId}" (e.g. a PS activated from a turn-boundary event outside any action)`,
+    );
+  }
   const scope: { readonly actionId: ActionId } | { readonly turnNumber: number } =
     skill.cooldown.unit === "TURN"
       ? { turnNumber: context.turnNumber }
-      : { actionId: context.actionId };
+      : { actionId: context.actionId! };
   const result = startCooldown(cooldowns, skill.skillDefinitionId, skill.cooldown, scope);
   if (skill.cooldown.count === 0) {
     return { cooldowns: result.cooldowns, lastEventId: parentEventId };
@@ -178,7 +186,7 @@ export function recordCooldownStart(
     category: "FACT",
     turnNumber: context.turnNumber,
     cycleNumber: context.cycleNumber,
-    actionId: context.actionId,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId,

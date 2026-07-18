@@ -20,6 +20,7 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { DefaultUnitDefinitionMap } from "../../../testing/fixtures/default-unit-definition-map.js";
 
 function member(id: string, overrides: Partial<BattlePartyMember> = {}): BattlePartyMember {
   return {
@@ -63,6 +64,8 @@ const NO_SKILLS: BattleDefinitions = {
   activeSkillsByUnit: new Map(),
   exSkillByUnit: new Map(),
   effectActions: new Map(),
+  unitDefinitions: new DefaultUnitDefinitionMap(),
+  skillDefinitions: new Map(),
 };
 const NO_RANDOM = () => new SequenceRandomSource([]);
 const recorder = () => new EventRecorder(createBattleId("B_1"));
@@ -149,7 +152,13 @@ function attackerDefinitions(): BattleDefinitions {
   const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
     [effectAction.effectActionDefinitionId, effectAction],
   ]);
-  return { activeSkillsByUnit, exSkillByUnit: new Map(), effectActions };
+  return {
+    activeSkillsByUnit,
+    exSkillByUnit: new Map(),
+    effectActions,
+    unitDefinitions: new DefaultUnitDefinitionMap(),
+    skillDefinitions: new Map(),
+  };
 }
 
 /**
@@ -205,7 +214,13 @@ function mutuallyLethalDefinitions(): BattleDefinitions {
     [enemyEffectAction.effectActionDefinitionId, enemyEffectAction],
     [selfEffectAction.effectActionDefinitionId, selfEffectAction],
   ]);
-  return { activeSkillsByUnit, exSkillByUnit: new Map(), effectActions };
+  return {
+    activeSkillsByUnit,
+    exSkillByUnit: new Map(),
+    effectActions,
+    unitDefinitions: new DefaultUnitDefinitionMap(),
+    skillDefinitions: new Map(),
+  };
 }
 
 describe("createBattle", () => {
@@ -496,6 +511,8 @@ describe("advanceBattle", () => {
       effectActions: new Map([
         [createEffectActionDefinitionId("ACT_TURN_CD"), damageEffectAction("ACT_TURN_CD")],
       ]),
+      unitDefinitions: new DefaultUnitDefinitionMap(),
+      skillDefinitions: new Map(),
     };
     const battle = startBattle(
       createBattle(
@@ -519,5 +536,115 @@ describe("advanceBattle", () => {
       remaining: 2,
       setTurnNumber: 1,
     });
+  });
+
+  it("UT-R-PS-05-003 (Issue #34 integration): a PS that triggers on TurnStarted activates during TURN_STARTING, before the action phase runs (PP consumed, EX gauge increased)", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_001");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_STARTED");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "TURN", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_TURN_STARTED", tags: [] },
+    };
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        unitDefinitionId,
+        {
+          unitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "SUPPORT",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0.1,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0.25,
+            actionSpeed: 10,
+            maximumAp: 3,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 100,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Supporter",
+            characterName: "Supporter",
+            characterId: "CHAR_SUPPORTER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY", { currentPp: 0 })],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      recorder(),
+    );
+
+    const turnRecorder = recorder();
+    const advanced = advanceBattle(battle, NO_RANDOM(), turnRecorder);
+
+    // TURN_STARTING recovers AP/PP to max *before* resolving PS (06_戦闘状態
+    // 遷移.md「TURN_STARTING」#2 precedes #5), so the PS consumes from the
+    // recovered maximumPp (3), leaving 2 — not from the pre-recovery value.
+    expect(advanced.allyUnits[0]!.currentPp).toBe(2);
+    // EX gauge: +1 from the PS's own activation, then +1 per subsequent
+    // mandatory WAIT in the action phase (maximumAp 3, no active skill, R-ACT-03).
+    expect(advanced.allyUnits[0]!.currentExtraGauge).toBe(4);
+
+    const events = turnRecorder.getEvents();
+    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: battle.allyUnits[0]!.battleUnitId,
+      skillDefinitionId: passiveSkillDefinitionId,
+      ppBefore: 3,
+      ppAfter: 2,
+      exBefore: 0,
+      exAfter: 1,
+    });
+    expect(events.some((e) => e.eventType === "PassiveResolved")).toBe(true);
+
+    // The PS-owning unit's own action phase (WAITs, since it has no active
+    // skill) happens after TURN_STARTING and is unaffected by the PS.
+    expect(advanced.allyUnits[0]!.currentAp).toBe(0);
   });
 });

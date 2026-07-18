@@ -53,3 +53,29 @@ export type ExtraGauge = Brand<number, "ExtraGauge">;
 export function createExtraGauge(value: number, max: number, path = "extraGauge"): ExtraGauge {
   return createBoundedGauge("ExtraGauge", value, max, path);
 }
+
+export interface ExtraGaugeIncreaseResult {
+  readonly gauge: ExtraGauge;
+  readonly increasedAmount: number;
+  readonly discardedAmount: number;
+}
+
+/**
+ * R-ACT-03「EXゲージ増加後はユニット固有の最大値で打ち止めとし、超過分を保持
+ * しない」。`createExtraGauge`は超過時に例外を投げるため、先にmaxへclampして
+ * から渡す。
+ */
+export function increaseExtraGaugeWithOverflow(
+  current: number,
+  amount: number,
+  max: number,
+  path = "extraGauge",
+): ExtraGaugeIncreaseResult {
+  const requested = current + amount;
+  const clamped = Math.min(max, requested);
+  return {
+    gauge: createExtraGauge(clamped, max, path),
+    increasedAmount: clamped - current,
+    discardedAmount: requested - clamped,
+  };
+}

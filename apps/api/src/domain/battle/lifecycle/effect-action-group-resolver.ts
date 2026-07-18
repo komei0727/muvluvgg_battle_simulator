@@ -1,0 +1,137 @@
+import { requireUnit } from "./action-resolution-shared.js";
+import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
+import { applyDamageAction } from "../combat/damage-application-service.js";
+import type { BattleDefinitions } from "../model/battle-definitions.js";
+import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
+import type {
+  ActionId,
+  DomainEventId,
+  ResolutionScopeId,
+  SkillUseId,
+} from "../../shared/event-ids.js";
+import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
+import type {
+  EffectActionDefinitionId,
+  SkillDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import type { RandomSource } from "../../ports/random-source.js";
+import { DomainValidationError } from "../../shared/errors.js";
+import type { BattleUnit } from "../model/battle-unit.js";
+import type { BattleUnitId } from "../../shared/ids.js";
+
+interface EffectActionGroup {
+  readonly effectActionDefinitionId: EffectActionDefinitionId;
+  readonly hits: ResolvedEffectApplication[];
+}
+
+/** `resolveSkillOrder` の定義順出力を、同一EffectActionDefinitionIdの連続runでまとめる。 */
+function groupConsecutiveByEffectAction(
+  plan: readonly ResolvedEffectApplication[],
+): readonly EffectActionGroup[] {
+  const groups: EffectActionGroup[] = [];
+  for (const entry of plan) {
+    const last = groups[groups.length - 1];
+    if (last !== undefined && last.effectActionDefinitionId === entry.effectActionDefinitionId) {
+      last.hits.push(entry);
+    } else {
+      groups.push({ effectActionDefinitionId: entry.effectActionDefinitionId, hits: [entry] });
+    }
+  }
+  return groups;
+}
+
+/**
+ * `groupConsecutiveByEffectAction`が生成したgroupを解決するために共有される
+ * 因果関係コンテキスト。`action-skill-use-resolver.ts`（AS/EX使用、チャージ
+ * 発動）と`passive-activation-service.ts`（PS発動）の両方が使う。両者の間で
+ * 循環importを起こさないよう、`applyEffectActionGroups`自体は独立したこの
+ * ファイルへ置く。
+ */
+export interface EffectActionGroupContext {
+  readonly definitions: BattleDefinitions;
+  readonly actorId: BattleUnitId;
+  readonly random: RandomSource;
+  readonly recorder: EventRecorder;
+  readonly turnNumber: number;
+  readonly cycleNumber: number;
+  readonly actionId: ActionId;
+  readonly skillUseId: SkillUseId;
+  readonly actionScope: ResolutionScopeId;
+  readonly rootEventId: DomainEventId;
+  readonly parentEventId: DomainEventId;
+  readonly skillDefinitionId: SkillDefinitionId;
+  /** Issue #34: DAMAGE適用の各ヒット確定直後にPS即時連鎖を解決するフック（`applyDamageAction`へ素通しする）。未指定ならPS解決を行わない。 */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
+}
+
+/**
+ * AS/EX使用（`resolveSkillUse`）とチャージ発動（`resolveChargeRelease`）、PS発動
+ * （`passive-activation-service.ts`）が使う、EffectActionDefinitionId単位groupの
+ * 適用ループ。Issue #129: `DAMAGE`に加えて`COOLDOWN_MANIPULATION`（対象スキルの
+ * クールタイムを短縮・リセットする純粋な状態操作）を解釈する。それ以外のkindは
+ * M6/M7/M8スコープのため未対応のまま拒否する。
+ */
+export function applyEffectActionGroups(
+  plan: readonly ResolvedEffectApplication[],
+  units: readonly BattleUnit[],
+  context: EffectActionGroupContext,
+): readonly BattleUnit[] {
+  let working = units;
+  for (const group of groupConsecutiveByEffectAction(plan)) {
+    const effectAction = context.definitions.effectActions.get(group.effectActionDefinitionId);
+    if (effectAction === undefined) {
+      throw new DomainValidationError(
+        "effectActionDefinitionId",
+        `effectActionDefinitionId "${group.effectActionDefinitionId}" was not found in the given effectActions (Catalog preflight should already guarantee this reference exists)`,
+      );
+    }
+    if (effectAction.kind === "DAMAGE") {
+      const currentActor = requireUnit(working, context.actorId);
+      const result = applyDamageAction(
+        currentActor,
+        group.hits,
+        effectAction,
+        working,
+        context.random,
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+          parentEventId: context.parentEventId,
+          skillDefinitionId: context.skillDefinitionId,
+          ...(context.onFactEventForPassiveChain !== undefined
+            ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+            : {}),
+        },
+      );
+      working = result.units;
+    } else if (effectAction.kind === "COOLDOWN_MANIPULATION") {
+      const result = applyCooldownManipulationAction(group.hits, effectAction, working, {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+        parentEventId: context.parentEventId,
+        sourceUnitId: context.actorId,
+      });
+      working = result.units;
+    } else {
+      throw new DomainValidationError(
+        "effectActionDefinitionId",
+        `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      );
+    }
+  }
+  return working;
+}

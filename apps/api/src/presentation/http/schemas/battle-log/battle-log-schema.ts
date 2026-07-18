@@ -423,6 +423,132 @@ const actionQueueReorderedDetailsSchema = {
   },
 } as const;
 
+const RESOURCE_CHANGE_REASON_ENUM = [
+  "SKILL_COST",
+  "WAIT_COST",
+  "EX_GAIN",
+  "EFFECT_ACTION",
+  "TURN_RECOVERY",
+] as const;
+
+const resourceChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "resource", "before", "after", "delta", "reason", "causeEventId"],
+  properties: {
+    battleUnitId: { type: "string" },
+    resource: { type: "string", enum: RESOURCE_KIND_ENUM },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+    delta: { type: "integer" },
+    reason: { type: "string", enum: RESOURCE_CHANGE_REASON_ENUM },
+    causeEventId: { type: "string" },
+  },
+} as const;
+
+const passivePointConsumedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "before", "after", "consumedAmount"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+    consumedAmount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const extraGaugeIncreasedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "causeResource", "before", "after", "increasedAmount"],
+  properties: {
+    battleUnitId: { type: "string" },
+    causeResource: { type: "string", enum: ["AP", "PP"] },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+    increasedAmount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const extraGaugeOverflowDiscardedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "requestedAmount", "actualAmount", "discardedAmount"],
+  properties: {
+    battleUnitId: { type: "string" },
+    requestedAmount: { type: "integer", minimum: 0 },
+    actualAmount: { type: "integer", minimum: 0 },
+    discardedAmount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const passiveActivatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "actorUnitId",
+    "skillDefinitionId",
+    "ppBefore",
+    "ppAfter",
+    "exBefore",
+    "exAfter",
+    "triggerEventId",
+  ],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    ppBefore: { type: "integer", minimum: 0 },
+    ppAfter: { type: "integer", minimum: 0 },
+    exBefore: { type: "integer", minimum: 0 },
+    exAfter: { type: "integer", minimum: 0 },
+    triggerEventId: { type: "string" },
+  },
+} as const;
+
+const passiveResolvedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "resolvedStepCount"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    resolvedStepCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const passiveInterruptedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "reason", "unresolvedEffectCount"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    reason: { type: "string", enum: ["OWNER_DEFEATED"] },
+    unresolvedEffectCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const skillUseInterruptedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "actorUnitId",
+    "skillDefinitionId",
+    "reason",
+    "resolvedEffectCount",
+    "unresolvedEffectCount",
+  ],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    reason: { type: "string", enum: ["ACTOR_DEFEATED"] },
+    resolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -459,6 +585,14 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   TURN_COMPLETING: turnNumberOnlyDetailsSchema,
   TURN_COMPLETED: turnNumberOnlyDetailsSchema,
   BATTLE_COMPLETED: battleCompletedDetailsSchema,
+  RESOURCE_CHANGED: resourceChangedDetailsSchema,
+  PASSIVE_POINT_CONSUMED: passivePointConsumedDetailsSchema,
+  EXTRA_GAUGE_INCREASED: extraGaugeIncreasedDetailsSchema,
+  EXTRA_GAUGE_OVERFLOW_DISCARDED: extraGaugeOverflowDiscardedDetailsSchema,
+  PASSIVE_ACTIVATED: passiveActivatedDetailsSchema,
+  PASSIVE_RESOLVED: passiveResolvedDetailsSchema,
+  PASSIVE_INTERRUPTED: passiveInterruptedDetailsSchema,
+  SKILL_USE_INTERRUPTED: skillUseInterruptedDetailsSchema,
 } as const;
 
 /**

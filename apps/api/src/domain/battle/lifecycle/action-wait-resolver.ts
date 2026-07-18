@@ -1,6 +1,9 @@
 import {
   consumeAp,
   consumeExGaugeFully,
+  increaseExGauge,
+  recordExtraGaugeOverflowDiscardedIfAny,
+  recordResourceChangeIfAny,
   requireUnit,
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
@@ -11,9 +14,9 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 
 /**
- * `06_戦闘状態遷移.md`「待機」: `通常の待機`（AP1消費）と、`Q-BTL-06`の
- * 「AP0・EX満タン・行動不能」（EXゲージ全量消費）の2通りを共通で扱う。
- * どちらもEXゲージ増加(R-ACT-04)は対象外（M6スコープ）。
+ * `06_戦闘状態遷移.md`「待機」: `通常の待機`（AP1消費、R-ACT-03によりEXゲージも
+ * 同量増加する）と、`Q-BTL-06`の「AP0・EX満タン・行動不能」（EXゲージ全量消費、
+ * 増加なし）の2通りを共通で扱う。
  */
 export function resolveWait(
   actor: BattleUnit,
@@ -29,15 +32,18 @@ export function resolveWait(
 ): ActionResolutionResult {
   const actorId = actor.battleUnitId;
   const consumedAmount = consumedResource === "AP" ? 1 : actor.currentExtraGauge;
-  const working =
+  let working =
     consumedResource === "AP"
       ? consumeAp(units, actorId, consumedAmount)
       : consumeExGaugeFully(units, actorId);
-  const actorAfter = requireUnit(working, actorId);
-  const stateDeltaEntry =
-    consumedResource === "AP"
-      ? { ap: { before: actor.currentAp, after: actorAfter.currentAp } }
-      : { extraGauge: { before: actor.currentExtraGauge, after: actorAfter.currentExtraGauge } };
+  const actorAfterCost = requireUnit(working, actorId);
+
+  const exGain =
+    consumedResource === "AP" ? increaseExGauge(working, actorId, consumedAmount) : undefined;
+  if (exGain !== undefined) {
+    working = exGain.units;
+  }
+  const actorAfterExGain = requireUnit(working, actorId);
 
   const actionStarted = recorder.record({
     eventType: "ActionStarted",
@@ -52,13 +58,64 @@ export function resolveWait(
       reservedActionType,
       effectiveActionType: "WAIT",
       apBefore: actor.currentAp,
-      apAfter: actorAfter.currentAp,
+      apAfter: actorAfterCost.currentAp,
       exBefore: actor.currentExtraGauge,
-      exAfter: actorAfter.currentExtraGauge,
+      exAfter: actorAfterExGain.currentExtraGauge,
       waitReason,
     },
-    stateDelta: { units: { [actorId]: stateDeltaEntry } },
   });
+
+  const resourceChangeContext = {
+    recorder,
+    turnNumber,
+    cycleNumber,
+    actionId,
+    resolutionScopeId: actionScope,
+    rootEventId: actionStarted.eventId,
+  };
+  // R-ACT-04: 消費を先に適用し、その後に増加を適用する。
+  let lastEventId =
+    consumedResource === "AP"
+      ? recordResourceChangeIfAny(
+          resourceChangeContext,
+          actorId,
+          "AP",
+          actor.currentAp,
+          actorAfterCost.currentAp,
+          "WAIT_COST",
+          actionStarted.eventId,
+          actionStarted.eventId,
+        )
+      : recordResourceChangeIfAny(
+          resourceChangeContext,
+          actorId,
+          "EX_GAUGE",
+          actor.currentExtraGauge,
+          actorAfterCost.currentExtraGauge,
+          "WAIT_COST",
+          actionStarted.eventId,
+          actionStarted.eventId,
+        );
+  if (exGain !== undefined) {
+    lastEventId = recordResourceChangeIfAny(
+      resourceChangeContext,
+      actorId,
+      "EX_GAUGE",
+      exGain.before,
+      exGain.after,
+      "EX_GAIN",
+      lastEventId,
+      actionStarted.eventId,
+    );
+    lastEventId = recordExtraGaugeOverflowDiscardedIfAny(
+      resourceChangeContext,
+      actorId,
+      exGain.requestedAmount,
+      exGain.after - exGain.before,
+      exGain.discardedAmount,
+      lastEventId,
+    );
+  }
 
   const actionWaited = recorder.record({
     eventType: "ActionWaited",
@@ -67,7 +124,7 @@ export function resolveWait(
     cycleNumber,
     actionId,
     resolutionScopeId: actionScope,
-    parentEventId: actionStarted.eventId,
+    parentEventId: lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorId,
     payload: {

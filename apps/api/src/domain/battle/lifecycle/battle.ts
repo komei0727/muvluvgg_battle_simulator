@@ -1,4 +1,5 @@
 import { resolveActionPhase } from "./action-phase-resolver.js";
+import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
@@ -225,11 +226,11 @@ export function advanceBattle(
   });
 
   const turnState = beginNextTurn(battle.turnState);
-  const allyUnits = battle.allyUnits.map(recoverTurnResources);
-  const enemyUnits = battle.enemyUnits.map(recoverTurnResources);
+  const recoveredAllyUnits = battle.allyUnits.map(recoverTurnResources);
+  const recoveredEnemyUnits = battle.enemyUnits.map(recoverTurnResources);
   const recovery = buildResourceRecovery(
     [...battle.allyUnits, ...battle.enemyUnits],
-    [...allyUnits, ...enemyUnits],
+    [...recoveredAllyUnits, ...recoveredEnemyUnits],
   );
   const resourcesRecovered = recorder.record({
     eventType: "ResourcesRecovered",
@@ -244,6 +245,28 @@ export function advanceBattle(
       ? { stateDelta: { units: recovery.unitDeltas } satisfies StateDelta }
       : {}),
   });
+
+  // `06_戦闘状態遷移.md` TURN_STARTING #5: `TurnStarted`をイベントとして持つPSを
+  // 解決する（回復適用後）。Issue #34 (R-PS-07): PS発動済み集合はこのトップ
+  // レベルイベント専用に1つだけ生成する。行動外のため`actionId`は持たない。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions: battle.definitions,
+      random,
+      recorder,
+      turnNumber: nextTurnNumber,
+      cycleNumber: 0,
+      resolutionScopeId: turnScope,
+      rootEventId: turnStarted.eventId,
+    },
+    [...recoveredAllyUnits, ...recoveredEnemyUnits],
+  );
+  const afterPassives = passiveRuntime.onFactEvent(turnStarted, [
+    ...recoveredAllyUnits,
+    ...recoveredEnemyUnits,
+  ]);
+  const allyUnits = afterPassives.filter((unit) => unit.side === "ALLY");
+  const enemyUnits = afterPassives.filter((unit) => unit.side === "ENEMY");
   const started: Battle = { ...battle, turnState, allyUnits, enemyUnits };
 
   // R-END-01 判定タイミング区分「ターン開始・終了など、行動外のトップレベル解決スコープ完了後」その1: TURN_STARTING完了後。

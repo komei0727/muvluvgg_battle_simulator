@@ -4,6 +4,7 @@ import {
   createExtraGauge,
   createHitPoint,
   createPassivePoint,
+  increaseExtraGaugeWithOverflow,
   truncateFraction,
 } from "./resource-gauge.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -66,5 +67,35 @@ describe("ActionPoint / PassivePoint / ExtraGauge share the HitPoint contract (R
   it("UT-R-NUM-02-013: ExtraGauge does not retain the excess above max", () => {
     expect(() => createExtraGauge(8, 7)).toThrow(DomainValidationError);
     expect(createExtraGauge(7, 7)).toBe(7);
+  });
+});
+
+describe("increaseExtraGaugeWithOverflow (R-ACT-03: EXゲージ増加後は最大値で打ち止め、超過分を保持しない)", () => {
+  it("UT-R-ACT-03-001: increases by the full requested amount when within max, discarding nothing", () => {
+    const result = increaseExtraGaugeWithOverflow(createExtraGauge(2, 10), 3, 10);
+    expect(result.gauge).toBe(5);
+    expect(result.increasedAmount).toBe(3);
+    expect(result.discardedAmount).toBe(0);
+  });
+
+  it("UT-R-ACT-03-002: clamps to max and reports the discarded remainder when the request overflows", () => {
+    const result = increaseExtraGaugeWithOverflow(createExtraGauge(8, 10), 5, 10);
+    expect(result.gauge).toBe(10);
+    expect(result.increasedAmount).toBe(2);
+    expect(result.discardedAmount).toBe(3);
+  });
+
+  it("UT-R-ACT-03-003: discards the entire amount when already at max", () => {
+    const result = increaseExtraGaugeWithOverflow(createExtraGauge(10, 10), 4, 10);
+    expect(result.gauge).toBe(10);
+    expect(result.increasedAmount).toBe(0);
+    expect(result.discardedAmount).toBe(4);
+  });
+
+  it("UT-R-ACT-03-004: a zero-amount increase changes nothing and discards nothing", () => {
+    const result = increaseExtraGaugeWithOverflow(createExtraGauge(4, 10), 0, 10);
+    expect(result.gauge).toBe(4);
+    expect(result.increasedAmount).toBe(0);
+    expect(result.discardedAmount).toBe(0);
   });
 });
