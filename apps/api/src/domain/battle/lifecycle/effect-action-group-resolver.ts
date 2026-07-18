@@ -17,7 +17,7 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
-import type { BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 interface EffectActionGroup {
@@ -87,9 +87,12 @@ export interface EffectActionGroupsResult {
  * （`passive-activation-service.ts`）が使う、EffectActionDefinitionId単位groupの
  * 適用ループ。Issue #129: `DAMAGE`に加えて`COOLDOWN_MANIPULATION`（対象スキルの
  * クールタイムを短縮・リセットする純粋な状態操作）を解釈する。それ以外のkindは
- * M6/M7/M8スコープのため未対応のまま拒否する。使用者が戦闘不能になった時点で
- * 以降のgroupを一切呼び出さず、その分をすべて`interruptedCount`へ計上する
- * （R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」）。
+ * M6/M7/M8スコープのため未対応のまま拒否する。各group開始直前に使用者の最新
+ * 状態を確認し、既に戦闘不能ならそのgroup以降を一切呼び出さず、EffectAction
+ * 種別に関係なく残り全てを`interruptedCount`へ計上する（R-SKL-01「使用者が
+ * 戦闘不能になった場合、未解決効果を中断する」）。DAMAGE group自身の最後の
+ * ヒットで使用者が倒れた場合（そのgroup内には未処理ヒットが残らない）も、
+ * 次のgroup開始時のこの確認で正しく検出する（PR #141再レビュー[P2] 2件目）。
  */
 export function applyEffectActionGroups(
   plan: readonly ResolvedEffectApplication[],
@@ -99,9 +102,8 @@ export function applyEffectActionGroups(
   let working = units;
   let resolvedCount = 0;
   let interruptedCount = 0;
-  let interrupted = false;
   for (const group of groupConsecutiveByEffectAction(plan)) {
-    if (interrupted) {
+    if (isDefeated(requireUnit(working, context.actorId))) {
       interruptedCount += group.hits.length;
       continue;
     }
@@ -138,9 +140,6 @@ export function applyEffectActionGroups(
       working = result.units;
       resolvedCount += group.hits.length - result.interruptedCount;
       interruptedCount += result.interruptedCount;
-      if (result.interruptedCount > 0) {
-        interrupted = true;
-      }
     } else if (effectAction.kind === "COOLDOWN_MANIPULATION") {
       const result = applyCooldownManipulationAction(group.hits, effectAction, working, {
         recorder: context.recorder,

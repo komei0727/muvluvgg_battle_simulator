@@ -1856,4 +1856,100 @@ describe("resolveActionPhase", () => {
     expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(true);
     expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(false);
   });
+
+  it("PR #141 re-review [P2] (2nd): when the actor is defeated by the last hit of a DAMAGE group, a subsequent COOLDOWN_MANIPULATION group must not apply, and the skill use is reported as interrupted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT_THEN_CD");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
+    const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_CD");
+    const cdManipAction = cooldownManipulationEffectAction(
+      "ACT_CD_RESET",
+      "SKL_TARGET_CD",
+      "RESET",
+    );
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_SELF_DESTRUCT_THEN_CD"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: cdManipAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SelfDestructThenCooldownManip", tags: [] },
+    };
+    const allyBase = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SELF_DESTRUCT_THEN_CD",
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      limits: { maximumAp: 1 },
+    });
+    const ally: BattleUnit = {
+      ...allyBase,
+      cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
+    };
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([
+        [selfDamage.effectActionDefinitionId, selfDamage],
+        [cdManipAction.effectActionDefinitionId, cdManipAction],
+      ]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // The self-lethal hit defeats the actor, so the COOLDOWN_MANIPULATION
+    // step's RESET must never apply (remaining would be 0 if it had run).
+    // `ActionCompleting`'s unrelated natural per-action decay (R-SKL-04) still
+    // reduces it by 1 regardless of how the action ended, so 2 (not 3) is the
+    // correct unaffected-by-RESET value here.
+    expect(result.allyUnits[0]!.cooldowns[targetSkillDefinitionId]).toEqual({
+      unit: "ACTION",
+      remaining: 2,
+    });
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(false);
+    const interrupted = events.find((e) => e.eventType === "SkillUseInterrupted")!;
+    expect(interrupted.payload).toMatchObject({
+      resolvedEffectCount: 1,
+      unresolvedEffectCount: 1,
+    });
+  });
 });
