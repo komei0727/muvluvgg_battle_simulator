@@ -119,10 +119,20 @@ interface OneApplicationResult {
 
 /**
  * R-SKL-06「ACTION step」#3〜#5を対象1件・EffectAction1件単位で適用するgenerator。
- * `EffectActionStarting`を`TIMING_EVENT`として、`EffectActionCompleted`を
- * `EFFECT_RESOLVED`として`yield`する。駆動側がyieldのたびに子PS連鎖を解決して
- * から再開することで、`box.units`がその場で最新化される
- * （`08_ドメインイベント.md`「TIMINGイベント後の再検証」、PR #142レビュー[P1]）。
+ * `EffectActionStarting`を`TIMING_EVENT`として`yield`し、DAMAGE/COOLDOWN_MANIPULATION
+ * 適用完了後に`EffectActionCompleted`を`EFFECT_RESOLVED`として`yield`する。
+ * `context.onFactEventForPassiveChain`が未指定（PSのEffectSequence自身の解決、
+ * `resolveEffectSequencePlan`への`yield*`委譲経路）の場合は、ヒット単位フックが
+ * 働かない代わりに、DAMAGE/COOLDOWN_MANIPULATION適用中に記録された内部イベント
+ * （`HitConfirmed`〜`DamageApplied`[`/UnitDefeated`]、`CooldownReduced`
+ * [`/CooldownCompleted`]）を発生順にこの`EFFECT_RESOLVED.events`へ含める
+ * （PR #142再レビュー[P1]: これらのイベントを契機とする子PSが、この関数の
+ * 呼び出し元が次のEffectActionへ進む前に完全に解決される）。
+ * `onFactEventForPassiveChain`が指定されている経路（AS/EX・チャージ解放）では
+ * それらのイベントを既にヒット単位で同期解決済みのため、二重処理を避けて
+ * `EffectActionCompleted`だけを`events`に含める。
+ * 駆動側はyieldのたびに子PS連鎖を解決してから再開し、`box.units`をその場で
+ * 最新化する（`08_ドメインイベント.md`「TIMINGイベント後の再検証」）。
  */
 function* resolveOneEffectActionApplication(
   application: EffectActionApplication,
@@ -178,6 +188,17 @@ function* resolveOneEffectActionApplication(
   // 記録した最後のイベント（`DamageApplied`/`UnitDefeated`/`CooldownCompleted`
   // 等）を指す必要がある。
   let effectLastEventId: DomainEventId;
+  // PR #142再レビュー[P1]: PS自身のEffectSequence解決（`context.onFactEventForPassiveChain`
+  // 未指定）では、DAMAGE/COOLDOWN_MANIPULATIONのヒット単位フックが働かない
+  // ため、ここで発行された内部イベント（`HitConfirmed`〜`DamageApplied`
+  // [`/UnitDefeated`]、`CooldownReduced`[`/CooldownCompleted`]）を捕捉し、
+  // `EffectActionCompleted`と同じ`EFFECT_RESOLVED`へ含めて発生順にyieldする。
+  // これらのイベントを契機とする子PSが、次のEffectActionより前に
+  // `resolvePassiveChain`のdriveActivationから解決される。AS/EX・チャージ
+  // 解放（`onFactEventForPassiveChain`が指定されている経路）では、ヒット単位
+  // フックが既にこれらを同期的に解決済みのため、二重処理を避けてここでは
+  // 含めない。
+  const innerEventsStart = context.recorder.getEvents().length;
 
   if (effectAction.kind === "DAMAGE") {
     const currentActor = requireUnit(box.units, context.actorId);
@@ -248,6 +269,11 @@ function* resolveOneEffectActionApplication(
     );
   }
 
+  const innerEvents =
+    context.onFactEventForPassiveChain === undefined
+      ? context.recorder.getEvents().slice(innerEventsStart)
+      : [];
+
   const completed = context.recorder.record({
     eventType: "EffectActionCompleted",
     category: "FACT",
@@ -267,7 +293,7 @@ function* resolveOneEffectActionApplication(
       resultKind,
     },
   });
-  yield { kind: "EFFECT_RESOLVED", events: [completed] };
+  yield { kind: "EFFECT_RESOLVED", events: [...innerEvents, completed] };
 
   return {
     lastEventId: completed.eventId,
