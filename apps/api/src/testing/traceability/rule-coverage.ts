@@ -341,22 +341,25 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
 
   // SKL: スキル
-  // R-SKL-01は6項目のうち、使用者戦闘不能時の中断（既存`applyDamageAction`の
-  // ヒット単位中断＋PS発動処理自身の中断検知・`PassiveInterrupted`発行）と、
-  // イベント駆動でのPS即時連鎖解決（`resolvePassiveChain`を`applyDamageAction`の
-  // ヒット単位で呼ぶ実配線）をIssue #34（`UT-R-SKL-01-001`、`UT-R-SKL-02-001`）が
-  // 満たした。「各EffectStepとEffectActionの前後に必要なドメインイベント
-  // （`EffectStepStarting`/`EffectActionStarting`/`EffectActionCompleted`/
-  // `EffectStepCompleted`）を発行する」はまだ未実装で、ACTION step内の条件・
-  // 対象・action定義順解決（R-SKL-06）と合わせて#73のスコープ。
-  // 13_実装計画.md「後続依存を持つルールは完了計上しない」に従い、#73完了まで
-  // 台帳上は未完了のままとする。
-  { ruleId: "R-SKL-01", testCaseIds: [], kinds: [] },
-  // R-SKL-02: 対象ごとの効果適用直後にPS候補を直ちに解決する要件自体は
-  // `applyDamageAction`のヒット単位フック（Issue #34、`UT-R-SKL-02-001`）で
-  // 満たすが、R-SKL-01と同じ理由（step/action前後のドメインイベント未発行）で
-  // #73完了までは未完了のままとする。
-  { ruleId: "R-SKL-02", testCaseIds: [], kinds: [] },
+  // R-SKL-01: 使用者戦闘不能時の中断（`applyDamageAction`のヒット単位中断＋
+  // PS発動処理自身の中断検知・`PassiveInterrupted`発行）をIssue #34
+  // （`UT-R-SKL-01-001`〜003）が満たし、Issue #73でACTION step/EffectAction
+  // 単位の中断（`EffectStepStarting`/`EffectActionStarting`後の再検証、
+  // `UT-R-SKL-01-004`）を追加して6項目を満たし切った。
+  {
+    ruleId: "R-SKL-01",
+    testCaseIds: ["UT-R-SKL-01-001", "UT-R-SKL-01-002", "UT-R-SKL-01-003", "UT-R-SKL-01-004"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // R-SKL-02: 対象ごとの効果適用直後にPS候補を直ちに解決する要件をIssue #34
+  // （`applyDamageAction`のヒット単位フック、`UT-R-SKL-02-001`）で満たし、
+  // Issue #73でEffectAction単位のイベント（`EffectActionStarting`/
+  // `EffectActionCompleted`）後の即時連鎖（`UT-R-SKL-06-011`）を追加した。
+  {
+    ruleId: "R-SKL-02",
+    testCaseIds: ["UT-R-SKL-02-001", "UT-R-SKL-06-011"],
+    kinds: ["POSITIVE", "SCENARIO"],
+  },
   { ruleId: "R-SKL-03", testCaseIds: [], kinds: [] },
   {
     ruleId: "R-SKL-04",
@@ -383,7 +386,29 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
   },
   { ruleId: "R-SKL-05", testCaseIds: [], kinds: [] },
-  { ruleId: "R-SKL-06", testCaseIds: [], kinds: [] },
+  // R-SKL-06: ACTION stepの条件評価（`evaluateEffectStepCondition`、
+  // `UT-R-SKL-06-001`〜005）、対象・action定義順解決とtargetUnitIds集約
+  // （`resolveEffectSequence`、`UT-R-SKL-06-006`/007）、step/action単位の
+  // ドメインイベント発行（`applyEffectActionGroups`、`UT-R-SKL-06-008`〜011）
+  // をIssue #73で実装した（TARGET_STATE等の条件kindはM7未実装のため対象外）。
+  {
+    ruleId: "R-SKL-06",
+    testCaseIds: [
+      "UT-R-SKL-06-001",
+      "UT-R-SKL-06-002",
+      "UT-R-SKL-06-003",
+      "UT-R-SKL-06-004",
+      "UT-R-SKL-06-005",
+      "UT-R-SKL-06-006",
+      "UT-R-SKL-06-007",
+      "UT-R-SKL-06-008",
+      "UT-R-SKL-06-009",
+      "UT-R-SKL-06-010",
+      "UT-R-SKL-06-011",
+      "UT-R-SKL-06-012",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
   { ruleId: "R-SKL-07", testCaseIds: [], kinds: [] },
   { ruleId: "R-SKL-08", testCaseIds: [], kinds: [] },
   {
@@ -416,6 +441,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-IDX-018",
       "UT-CAT-IDX-019",
       "IT-COOLDOWN-MANIP-PROD-001",
+      "UT-R-SKL-09-005",
+      "UT-R-SKL-09-006",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE", "SCENARIO"],
   },

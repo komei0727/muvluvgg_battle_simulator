@@ -8,8 +8,9 @@ import {
 } from "./action-resolution-shared.js";
 import { recordCooldownStart } from "./action-completion.js";
 import {
-  applyEffectActionGroups,
+  resolveEffectSequencePlan,
   type EffectActionGroupContext,
+  type UnitsBox,
 } from "./effect-action-group-resolver.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { BattleUnit } from "../model/battle-unit.js";
@@ -29,6 +30,7 @@ import type { PassiveCandidate } from "../triggering/passive-candidate.js";
 import {
   resolvePassiveChain,
   type PassiveActivation,
+  type PassiveActivationStep,
   type PassiveChainDependencies,
 } from "../triggering/resolve-passive-chain.js";
 import type { TriggerCandidateEvent } from "../triggering/trigger-event.js";
@@ -166,11 +168,7 @@ export class PassiveActivationRuntime {
   private *activatePassiveCandidate(
     candidate: PassiveCandidate,
     event: TriggerCandidateEvent,
-  ): Generator<
-    { readonly kind: "EFFECT_RESOLVED"; readonly events: readonly TriggerCandidateEvent[] },
-    { readonly interrupted: boolean },
-    unknown
-  > {
+  ): Generator<PassiveActivationStep, { readonly interrupted: boolean }, unknown> {
     const skill = candidate.skillDefinition;
     const ownerId = candidate.unit.battleUnitId;
     const triggerEventId = this.eventIdOf(event);
@@ -306,43 +304,69 @@ export class PassiveActivationRuntime {
       this.units,
       this.context.definitions.effectActions,
     );
-    let newEvents: readonly TriggerCandidateEvent[] = [];
-    let interruptedCount = 0;
-    if (plan.length > 0) {
-      // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
-      // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
-      // 解決できる。`EffectActionGroupContext`以下は`actionId`を任意にして
-      // 素通しする。
-      const beforeCount = this.context.recorder.getEvents().length;
-      const skillUseId = this.context.recorder.nextSkillUseId();
-      const groupContext: EffectActionGroupContext = {
-        definitions: this.context.definitions,
-        actorId: ownerId,
-        random: this.context.random,
-        recorder: this.context.recorder,
-        turnNumber: this.context.turnNumber,
-        cycleNumber: this.context.cycleNumber,
-        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
-        skillUseId,
-        actionScope: this.context.resolutionScopeId,
-        rootEventId: this.context.rootEventId,
-        parentEventId: lastEventId,
-        skillDefinitionId: skill.skillDefinitionId,
-      };
-      const effectResult = applyEffectActionGroups(plan, this.units, groupContext);
-      this.units = effectResult.units;
-      interruptedCount = effectResult.interruptedCount;
-      const recorded = this.context.recorder.getEvents().slice(beforeCount);
-      newEvents = recorded.map((recordedEvent) => this.toTriggerEvent(recordedEvent));
-      const last = recorded[recorded.length - 1];
-      if (last !== undefined) {
-        lastEventId = last.eventId;
+    // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
+    // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
+    // 解決できる。`EffectActionGroupContext`以下は`actionId`を任意にして
+    // 素通しする。`EffectSequence.steps`はCatalog検証で非空のため、
+    // `resolveEffectSequencePlan`は常に呼び出し、step単位のイベントを発行する
+    // （#73: R-SKL-06）。
+    //
+    // PR #142レビュー[P1]: 以前は`applyEffectActionGroups`でplan全体を同期的に
+    // 適用してから、記録された全イベントを一つの`EFFECT_RESOLVED`として
+    // まとめてyieldしていた。そのため最初のEffectAction Aが子PSを誘発しても、
+    // その子PSが解決される時点では後続EffectAction Bも適用済みになり
+    // （「親A→子PS→親B」ではなく「親A→親B→子PS」）、R-PS-06の親処理復帰契約に
+    // 反していた。`resolveEffectSequencePlan`（generator）へ`yield*`委譲する
+    // ことで、`resolvePassiveChain`の`driveActivation`が管理する共有state
+    // （PassiveResolutionStack・深度Guard・効果解決数Guard）へ正しく参加し、
+    // 各EffectAction/step境界で子PS連鎖を完全に解決してから次へ進むように
+    // なる。
+    const skillUseId = this.context.recorder.nextSkillUseId();
+    const groupContext: EffectActionGroupContext = {
+      definitions: this.context.definitions,
+      actorId: ownerId,
+      random: this.context.random,
+      recorder: this.context.recorder,
+      turnNumber: this.context.turnNumber,
+      cycleNumber: this.context.cycleNumber,
+      ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      skillUseId,
+      actionScope: this.context.resolutionScopeId,
+      rootEventId: this.context.rootEventId,
+      parentEventId: lastEventId,
+      skillDefinitionId: skill.skillDefinitionId,
+    };
+    const box: UnitsBox = { units: this.units };
+    const generator = resolveEffectSequencePlan(plan, box, groupContext);
+    let step = generator.next();
+    while (!step.done) {
+      // このyieldをresolvePassiveChainが処理する前に、ここまでの状態変化
+      // （box.units）を`this.units`へ反映し、子PSの候補検出・発動が最新状態を
+      // 見られるようにする。
+      this.units = box.units;
+      if (step.value.kind === "TIMING_EVENT") {
+        yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(step.value.event) };
+      } else {
+        yield {
+          kind: "EFFECT_RESOLVED",
+          events: step.value.events.map((event) => this.toTriggerEvent(event)),
+        };
       }
+      // 子PS連鎖（あれば）が`this.units`を書き換えている可能性があるため、
+      // 一時停止していたgeneratorを再開する前に`box.units`へ取り込む。
+      box.units = this.units;
+      const lastYielded =
+        step.value.kind === "TIMING_EVENT"
+          ? step.value.event
+          : step.value.events[step.value.events.length - 1];
+      if (lastYielded !== undefined) {
+        lastEventId = lastYielded.eventId;
+      }
+      step = generator.next();
     }
-
-    if (newEvents.length > 0) {
-      yield { kind: "EFFECT_RESOLVED", events: newEvents };
-    }
+    this.units = box.units;
+    const effectResult = step.value;
+    const interruptedCount = effectResult.interruptedCount;
 
     // R-PS-05 #6 / R-SKL-01: 使用者(PS所有者)が戦闘不能になり、未解決のまま
     // 打ち切られた適用が実際に残った場合だけ中断とする（PR #141再レビュー[P2]:

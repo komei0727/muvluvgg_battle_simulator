@@ -38,6 +38,15 @@ export interface ApplyDamageActionResult {
    * 前に到達したヒットは、命中/MISSに関わらず「解決済み」として数える。
    */
   readonly interruptedCount: number;
+  /**
+   * PR #142レビュー[P2]: このEffectAction適用中に実際に記録された最後の
+   * イベントID（最終ヒットの`DamageApplied`、致死なら`UnitDefeated`）。
+   * 呼び出し側が`EffectActionCompleted.parentEventId`をこれへ設定することで、
+   * イベントログの直接因果が実際の解決経路（`EffectActionStarting`固定では
+   * ない）を表せるようにする。全ヒットがスキップ・中断されて何も記録されな
+   * かった場合は`context.parentEventId`のまま変化しない。
+   */
+  readonly lastEventId: DomainEventId;
 }
 
 /** ヒットイベント（HitConfirmed〜UnitDefeated）が共有する因果関係コンテキスト。全て`ActionStarted`の解決スコープに属する。 */
@@ -112,6 +121,7 @@ export function applyDamageAction(
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
   let interruptedCount = 0;
+  let lastEventId = context.parentEventId;
 
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i]!;
@@ -263,6 +273,7 @@ export function applyDamageAction(
     // 致死ヒットでも`DamageApplied`起点のPS（例:「味方がダメージを受けた時」）を
     // `UnitDefeated`だけに上書きして見逃さないよう、両方を個別にフックへ渡す
     // （PR #141レビュー[P1]）。
+    lastEventId = damageApplied.eventId;
     const factEvents: BattleDomainEvent[] = [damageApplied];
     if (!isDefeated(target) && isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
@@ -280,6 +291,7 @@ export function applyDamageAction(
         payload: { unitId: target.battleUnitId, causeEventId: damageApplied.eventId },
       });
       factEvents.push(unitDefeated);
+      lastEventId = unitDefeated.eventId;
     }
 
     if (context.onFactEventForPassiveChain !== undefined) {
@@ -307,5 +319,6 @@ export function applyDamageAction(
     units: units.map((unit) => working.get(unit.battleUnitId)!),
     hits: outcomes,
     interruptedCount,
+    lastEventId,
   };
 }

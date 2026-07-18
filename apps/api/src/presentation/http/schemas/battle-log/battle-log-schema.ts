@@ -215,6 +215,106 @@ const skillUseCompletedDetailsSchema = {
   },
 } as const;
 
+const EFFECT_STEP_KIND_ENUM = ["ACTION", "BRANCH", "RANDOM_BRANCH", "REPEAT"] as const;
+const CONDITION_KIND_ENUM = [
+  "TRUE",
+  "AND",
+  "OR",
+  "NOT",
+  "TARGET_STATE",
+  "TARGET_HAS_MARKER",
+  "EVENT_PAYLOAD",
+  "LAST_RESULT",
+  "RUNTIME_COUNTER",
+  "TURN_NUMBER",
+  "ALIVE_UNIT_COUNT",
+] as const;
+const EFFECT_ACTION_KIND_ENUM = [
+  "DAMAGE",
+  "HEAL",
+  "APPLY_CONTINUOUS_HEAL",
+  "APPLY_CONTINUOUS_DAMAGE",
+  "APPLY_STAT_MOD",
+  "APPLY_DAMAGE_MOD",
+  "APPLY_HEALING_MOD",
+  "MODIFY_RESOURCE",
+  "MODIFY_RESOURCE_CAPACITY",
+  "APPLY_STATUS",
+  "APPLY_SHIELD",
+  "REMOVE_EFFECTS",
+  "EFFECT_IMMUNITY",
+  "APPLY_MARKER",
+  "REMOVE_MARKER",
+  "APPLY_DEATH_SURVIVAL",
+  "APPLY_TARGET_REDIRECT",
+  "APPLY_COVER",
+  "APPLY_REFLECT",
+  "APPLY_SUBUNIT",
+  "COOLDOWN_MANIPULATION",
+] as const;
+const EFFECT_ACTION_RESULT_KIND_ENUM = [
+  "APPLIED",
+  "SKIPPED",
+  "MISSED",
+  "REJECTED",
+  "INTERRUPTED",
+] as const;
+
+const effectStepStartingDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stepIndex", "stepKind", "conditionKind"],
+  properties: {
+    stepIndex: { type: "integer", minimum: 0 },
+    stepKind: { type: "string", enum: EFFECT_STEP_KIND_ENUM },
+    conditionKind: { type: "string", enum: CONDITION_KIND_ENUM },
+  },
+} as const;
+
+const effectStepSkippedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stepIndex", "conditionKind", "result"],
+  properties: {
+    stepIndex: { type: "integer", minimum: 0 },
+    conditionKind: { type: "string", enum: CONDITION_KIND_ENUM },
+    result: { type: "boolean", enum: [false] },
+  },
+} as const;
+
+const effectStepCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stepIndex", "resolvedActionCount"],
+  properties: {
+    stepIndex: { type: "integer", minimum: 0 },
+    resolvedActionCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const effectActionStartingDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectActionDefinitionId", "kind", "targetUnitIds"],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    kind: { type: "string", enum: EFFECT_ACTION_KIND_ENUM },
+    targetUnitIds: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
+const effectActionCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectActionDefinitionId", "effectActionKind", "targetUnitIds", "resultKind"],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    effectActionKind: { type: "string", enum: EFFECT_ACTION_KIND_ENUM },
+    targetUnitIds: { type: "array", items: { type: "string" } },
+    resultKind: { type: "string", enum: EFFECT_ACTION_RESULT_KIND_ENUM },
+  },
+} as const;
+
 const hitConfirmedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -570,6 +670,11 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   SKILL_USE_STARTING: skillUseStartingDetailsSchema,
   SKILL_USE_STARTED: skillUseStartedDetailsSchema,
   SKILL_USE_COMPLETED: skillUseCompletedDetailsSchema,
+  EFFECT_STEP_STARTING: effectStepStartingDetailsSchema,
+  EFFECT_STEP_SKIPPED: effectStepSkippedDetailsSchema,
+  EFFECT_STEP_COMPLETED: effectStepCompletedDetailsSchema,
+  EFFECT_ACTION_STARTING: effectActionStartingDetailsSchema,
+  EFFECT_ACTION_COMPLETED: effectActionCompletedDetailsSchema,
   HIT_CONFIRMED: hitConfirmedDetailsSchema,
   CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,

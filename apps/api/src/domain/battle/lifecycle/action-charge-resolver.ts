@@ -7,6 +7,7 @@ import {
 import { recordActionCompletion, recordCooldownStart } from "./action-completion.js";
 import { resolveBindingSelections } from "./action-skill-use-resolver.js";
 import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
+import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveChargeReleaseOrder } from "../skill/skill-resolution-service.js";
@@ -183,7 +184,24 @@ export function resolveChargeRelease(
 
   let working = units;
   const plan = resolveChargeReleaseOrder(skill, actor, working, definitions.effectActions);
-  const targetUnitIds = [...new Set(plan.map((entry) => entry.targetBattleUnitId))];
+  const targetUnitIds = plan.targetUnitIds;
+
+  // PR #142レビュー[P1]: AS/EX（`resolveSkillUse`）と同様、この行動専用の
+  // `PassiveActivationRuntime`を生成し、チャージ解放の効果解決から発行される
+  // イベントからもPS即時連鎖を解決できるようにする（従来欠落していた）。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
 
   const skillUseId = recorder.nextSkillUseId();
   const targetsSelected = recorder.record({
@@ -244,6 +262,8 @@ export function resolveChargeRelease(
     rootEventId: actionStarted.eventId,
     parentEventId: chargeReleased.eventId,
     skillDefinitionId: skill.skillDefinitionId,
+    onFactEventForPassiveChain: (event, unitsForChain) =>
+      passiveRuntime.onFactEvent(event, unitsForChain),
   }).units;
 
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
