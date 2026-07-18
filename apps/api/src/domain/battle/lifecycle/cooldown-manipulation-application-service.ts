@@ -17,6 +17,12 @@ export interface ApplyCooldownManipulationActionResult {
   readonly units: readonly BattleUnit[];
   /** R-SKL-09: 対象スキルがREADY(no-op)で`CooldownReduced`を発行しなかった場合は`false`。 */
   readonly changed: boolean;
+  /**
+   * PR #142レビュー[P2]: 実際に記録された最後のイベントID（`CooldownReduced`、
+   * `after === 0`なら続く`CooldownCompleted`）。`changed`が`false`の場合は
+   * `context.parentEventId`のまま変化しない。
+   */
+  readonly lastEventId: DomainEventId;
 }
 
 /** `CooldownReduced`/`CooldownCompleted`が共有する因果関係コンテキスト。 */
@@ -150,5 +156,5 @@ export function applyCooldownManipulationAction(
     }
   }
 
-  return { units: units.map((unit) => working.get(unit.battleUnitId)!), changed };
+  return { units: units.map((unit) => working.get(unit.battleUnitId)!), changed, lastEventId };
 }

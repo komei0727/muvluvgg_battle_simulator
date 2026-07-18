@@ -12,12 +12,8 @@ import type {
   ResolutionScopeId,
   SkillUseId,
 } from "../../shared/event-ids.js";
-import type { EventRecorder, RecordEventInput } from "../events/event-recorder.js";
-import type {
-  BattleDomainEvent,
-  BattleDomainEventType,
-  EffectActionResultKind,
-} from "../events/domain-event.js";
+import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent, EffectActionResultKind } from "../events/domain-event.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -45,7 +41,15 @@ export interface EffectActionGroupContext {
   readonly rootEventId: DomainEventId;
   readonly parentEventId: DomainEventId;
   readonly skillDefinitionId: SkillDefinitionId;
-  /** Issue #34/#73: FACT/TIMINGイベント確定直後にPS即時連鎖を解決するフック（未指定ならPS解決を行わない）。 */
+  /**
+   * Issue #34/#73: FACT/TIMINGイベント確定直後にPS即時連鎖を解決するフック
+   * （未指定ならPS解決を行わない）。`applyDamageAction`/`applyCooldownManipulationAction`
+   * のヒット単位フックへそのまま素通しされる。step/action単位のイベントに
+   * ついては`applyEffectActionGroups`（同期API）だけがこれを使う —
+   * `resolveEffectSequencePlan`（PSのEffectSequence自身の解決が`yield*`で
+   * 委譲するgenerator）はこのフィールドを無視し、代わりに`resolvePassiveChain`の
+   * `driveActivation`が共有stateで即時連鎖を解決する（PR #142レビュー[P1]）。
+   */
   readonly onFactEventForPassiveChain?: (
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
@@ -65,29 +69,30 @@ export interface EffectActionGroupsResult {
   readonly interruptedCount: number;
 }
 
-function countHits(applications: readonly EffectActionApplication[]): number {
-  return applications.reduce((sum, application) => sum + application.hits.length, 0);
+/**
+ * PR #142レビュー[P1]再発防止: `EffectSequencePlan`の解決中の`units`最新状態を、
+ * generatorのyield/resume境界をまたいで共有するための可変箱
+ * （`PassiveActivationRuntime.units`と同じ役割）。子PSがこの解決の途中で
+ * 発動してunitsを書き換えた場合、次のyield再開時にその変更を反映できる
+ * ようにする（generatorの`.next(value)`引数は`resolvePassiveChain`側が使わない
+ * ため、closure越しの共有可変状態として持つ）。
+ */
+export interface UnitsBox {
+  units: readonly BattleUnit[];
 }
 
 /**
- * イベントを記録し、DIAGNOSTIC以外は即座にPS即時連鎖フックへ渡す
- * （`onFactEventForPassiveChain`未指定ならPS解決を省略する）。DIAGNOSTICイベント
- * （`EffectStepSkipped`）はPSの発動契機になり得ない
- * (`08_ドメインイベント.md`「DIAGNOSTIC」)。
+ * PR #142レビュー[P1]: `resolvePassiveChain`が期待する`PassiveActivationStep`
+ * （`triggering/resolve-passive-chain.ts`）と同型だが、`TriggerCandidateEvent`
+ * ではなく完全な`BattleDomainEvent`を運ぶ。`passive-activation-service.ts`が
+ * `toTriggerEvent`で変換しながら`resolvePassiveChain`へそのまま`yield`できる。
  */
-function emitAndChain<Type extends BattleDomainEventType>(
-  context: EffectActionGroupContext,
-  working: readonly BattleUnit[],
-  input: RecordEventInput<Type>,
-): {
-  readonly event: Extract<BattleDomainEvent, { eventType: Type }>;
-  readonly units: readonly BattleUnit[];
-} {
-  const event = context.recorder.record(input);
-  if (context.onFactEventForPassiveChain === undefined || event.category === "DIAGNOSTIC") {
-    return { event, units: working };
-  }
-  return { event, units: context.onFactEventForPassiveChain(event, working) };
+export type EffectResolutionStep =
+  | { readonly kind: "TIMING_EVENT"; readonly event: BattleDomainEvent }
+  | { readonly kind: "EFFECT_RESOLVED"; readonly events: readonly BattleDomainEvent[] };
+
+function countHits(applications: readonly EffectActionApplication[]): number {
+  return applications.reduce((sum, application) => sum + application.hits.length, 0);
 }
 
 /** R-SKL-06 #5: DAMAGE適用結果からEffectActionCompletedのresultKindを導く。 */
@@ -105,24 +110,26 @@ function damageResultKind(
   return anyHitApplied ? "APPLIED" : "MISSED";
 }
 
-/**
- * R-SKL-06「ACTION step」#3〜#5を、対象1件・EffectAction1件単位で適用する。
- * `EffectActionStarting`直後に対象の生存を再検証し（`08_ドメインイベント.md`
- * 「TIMINGイベント後の再検証」）、既に戦闘不能ならDAMAGE/COOLDOWN_MANIPULATION
- * どちらも呼び出さず`SKIPPED`として`EffectActionCompleted`を発行する。
- */
-function applyOneEffectActionApplication(
-  application: EffectActionApplication,
-  units: readonly BattleUnit[],
-  context: EffectActionGroupContext,
-  lastEventId: DomainEventId,
-): {
-  readonly units: readonly BattleUnit[];
+interface OneApplicationResult {
   readonly lastEventId: DomainEventId;
   readonly resolvedCount: number;
   readonly interruptedCount: number;
   readonly interrupted: boolean;
-} {
+}
+
+/**
+ * R-SKL-06「ACTION step」#3〜#5を対象1件・EffectAction1件単位で適用するgenerator。
+ * `EffectActionStarting`を`TIMING_EVENT`として、`EffectActionCompleted`を
+ * `EFFECT_RESOLVED`として`yield`する。駆動側がyieldのたびに子PS連鎖を解決して
+ * から再開することで、`box.units`がその場で最新化される
+ * （`08_ドメインイベント.md`「TIMINGイベント後の再検証」、PR #142レビュー[P1]）。
+ */
+function* resolveOneEffectActionApplication(
+  application: EffectActionApplication,
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  parentEventId: DomainEventId,
+): Generator<EffectResolutionStep, OneApplicationResult, void> {
   const effectAction = context.definitions.effectActions.get(application.effectActionDefinitionId);
   if (effectAction === undefined) {
     throw new DomainValidationError(
@@ -131,7 +138,7 @@ function applyOneEffectActionApplication(
     );
   }
 
-  const starting = emitAndChain(context, units, {
+  const starting = context.recorder.record({
     eventType: "EffectActionStarting",
     category: "TIMING",
     turnNumber: context.turnNumber,
@@ -139,7 +146,7 @@ function applyOneEffectActionApplication(
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
     skillUseId: context.skillUseId,
     resolutionScopeId: context.actionScope,
-    parentEventId: lastEventId,
+    parentEventId,
     rootEventId: context.rootEventId,
     sourceUnitId: context.actorId,
     targetUnitIds: [application.targetBattleUnitId],
@@ -149,15 +156,14 @@ function applyOneEffectActionApplication(
       targetUnitIds: [application.targetBattleUnitId],
     },
   });
-  let working = starting.units;
-  let currentLastEventId = starting.event.eventId;
+  yield { kind: "TIMING_EVENT", event: starting };
 
   // TIMINGイベント後の再検証: 使用者がPS/Memory連鎖で戦闘不能になった場合、
-  // このEffectActionへは進まず中断として計上する（R-SKL-01）。
-  if (isDefeated(requireUnit(working, context.actorId))) {
+  // このEffectActionへは進まず中断として計上する（R-SKL-01）。`box.units`は
+  // 直前のyieldで駆動側が解決した子PS連鎖の結果を反映済み。
+  if (isDefeated(requireUnit(box.units, context.actorId))) {
     return {
-      units: working,
-      lastEventId: currentLastEventId,
+      lastEventId: starting.eventId,
       resolvedCount: 0,
       interruptedCount: application.hits.length,
       interrupted: true,
@@ -167,15 +173,22 @@ function applyOneEffectActionApplication(
   let resultKind: EffectActionResultKind;
   let resolvedCount: number;
   let interruptedCount: number;
+  // PR #142レビュー[P2]: `EffectActionCompleted.parentEventId`は
+  // `EffectActionStarting`固定ではなく、DAMAGE/COOLDOWN_MANIPULATIONが実際に
+  // 記録した最後のイベント（`DamageApplied`/`UnitDefeated`/`CooldownCompleted`
+  // 等）を指す必要がある。
+  let effectLastEventId: DomainEventId;
 
   if (effectAction.kind === "DAMAGE") {
-    const currentActor = requireUnit(working, context.actorId);
-    const targetAlreadyDefeated = isDefeated(requireUnit(working, application.targetBattleUnitId));
+    const currentActor = requireUnit(box.units, context.actorId);
+    const targetAlreadyDefeated = isDefeated(
+      requireUnit(box.units, application.targetBattleUnitId),
+    );
     const damageResult = applyDamageAction(
       currentActor,
       application.hits,
       effectAction,
-      working,
+      box.units,
       context.random,
       {
         recorder: context.recorder,
@@ -185,16 +198,17 @@ function applyOneEffectActionApplication(
         skillUseId: context.skillUseId,
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
-        parentEventId: currentLastEventId,
+        parentEventId: starting.eventId,
         skillDefinitionId: context.skillDefinitionId,
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
       },
     );
-    working = damageResult.units;
+    box.units = damageResult.units;
     resolvedCount = application.hits.length - damageResult.interruptedCount;
     interruptedCount = damageResult.interruptedCount;
+    effectLastEventId = damageResult.lastEventId;
     resultKind = damageResultKind(
       targetAlreadyDefeated,
       damageResult.interruptedCount > 0,
@@ -204,7 +218,7 @@ function applyOneEffectActionApplication(
     const cooldownResult = applyCooldownManipulationAction(
       application.hits,
       effectAction,
-      working,
+      box.units,
       {
         recorder: context.recorder,
         turnNumber: context.turnNumber,
@@ -213,18 +227,19 @@ function applyOneEffectActionApplication(
         skillUseId: context.skillUseId,
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
-        parentEventId: currentLastEventId,
+        parentEventId: starting.eventId,
         sourceUnitId: context.actorId,
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
       },
     );
-    working = cooldownResult.units;
+    box.units = cooldownResult.units;
     // COOLDOWN_MANIPULATIONは使用者戦闘不能による中断の対象外（Issue #129
     // 時点で自傷を伴わない純粋な状態操作のため）。全件解決済みとして数える。
     resolvedCount = application.hits.length;
     interruptedCount = 0;
+    effectLastEventId = cooldownResult.lastEventId;
     resultKind = cooldownResult.changed ? "APPLIED" : "SKIPPED";
   } else {
     throw new DomainValidationError(
@@ -233,7 +248,7 @@ function applyOneEffectActionApplication(
     );
   }
 
-  const completed = emitAndChain(context, working, {
+  const completed = context.recorder.record({
     eventType: "EffectActionCompleted",
     category: "FACT",
     turnNumber: context.turnNumber,
@@ -241,7 +256,7 @@ function applyOneEffectActionApplication(
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
     skillUseId: context.skillUseId,
     resolutionScopeId: context.actionScope,
-    parentEventId: currentLastEventId,
+    parentEventId: effectLastEventId,
     rootEventId: context.rootEventId,
     sourceUnitId: context.actorId,
     targetUnitIds: [application.targetBattleUnitId],
@@ -252,12 +267,10 @@ function applyOneEffectActionApplication(
       resultKind,
     },
   });
-  working = completed.units;
-  currentLastEventId = completed.event.eventId;
+  yield { kind: "EFFECT_RESOLVED", events: [completed] };
 
   return {
-    units: working,
-    lastEventId: currentLastEventId,
+    lastEventId: completed.eventId,
     resolvedCount,
     interruptedCount,
     interrupted: resultKind === "INTERRUPTED",
@@ -265,37 +278,45 @@ function applyOneEffectActionApplication(
 }
 
 /**
- * AS/EX使用（`resolveSkillUse`）とチャージ発動（`resolveChargeRelease`）、PS発動
- * （`passive-activation-service.ts`）が使う、`EffectSequencePlan`の適用ループ。
- * R-SKL-06「ACTION step」を、stepごとに`EffectStepStarting`/`EffectStepSkipped`/
- * `EffectStepCompleted`、EffectAction(target)ごとに`EffectActionStarting`/
- * `EffectActionCompleted`を発行しながら解決し、各イベント確定直後にPS即時連鎖
- * （`onFactEventForPassiveChain`）を解決する。使用者の戦闘不能を各step開始前・
- * 各EffectAction適用前後に再確認し、検出した時点でそのstep以降（当stepの
- * 残りのapplicationsと、後続のstep全て）を静かに中断へ計上する
- * （R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」）。
- * 中断されたstepでは`EffectStepStarting`が既に発行済みでも`EffectStepCompleted`
- * は発行しない（step自体が完了していないため）。
+ * R-SKL-06「ACTION step」全体を解決するgenerator本体。stepごとに
+ * `EffectStepStarting`(`TIMING_EVENT`)/`EffectStepSkipped`(DIAGNOSTIC、
+ * PSの発動契機になり得ないため`yield`しない)/`EffectStepCompleted`
+ * (`EFFECT_RESOLVED`)を、EffectAction(target)ごとに
+ * `resolveOneEffectActionApplication`を`yield*`委譲しながら解決する。
+ * 使用者の戦闘不能を各step開始前・各EffectAction適用前後に再確認し、検出した
+ * 時点でそのstep以降（当stepの残りのapplicationsと、後続のstep全て）を静かに
+ * 中断へ計上する（R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断
+ * する」）。中断されたstepでは`EffectStepStarting`が既に発行済みでも
+ * `EffectStepCompleted`は発行しない（step自体が完了していないため）。
+ *
+ * PR #142レビュー[P1]: PSの`EffectSequence`自身の解決（`passive-activation-service.ts`）
+ * はこのgeneratorへ`yield*`委譲することで、`resolvePassiveChain`の
+ * `driveActivation`が管理する共有state（PassiveResolutionStack・深度Guard・
+ * 効果解決数Guard・`interruptedCandidates`）へ正しく参加する。「親A→子PS→親B」
+ * の順序（R-PS-06）と、深度/効果解決数Guardのnesting全体での一貫性の両方を
+ * 満たすには、PSの`EffectSequence`自身の解決を`resolvePassiveChain`と切り離した
+ * 別経路（同期callbackや、独立した`resolvePassiveChain`の再帰呼び出し）で
+ * 行ってはならない — 後者は各呼び出しがstack/depth/effectsResolvedを
+ * ゼロから開始してしまい、Guardが実効的にnesting全体を見なくなる。
  */
-export function applyEffectActionGroups(
+export function* resolveEffectSequencePlan(
   plan: EffectSequencePlan,
-  units: readonly BattleUnit[],
+  box: UnitsBox,
   context: EffectActionGroupContext,
-): EffectActionGroupsResult {
-  let working = units;
+): Generator<EffectResolutionStep, EffectActionGroupsResult, void> {
   let resolvedCount = 0;
   let interruptedCount = 0;
   let lastEventId = context.parentEventId;
   let sequenceInterrupted = false;
 
   for (const step of plan.steps) {
-    if (sequenceInterrupted || isDefeated(requireUnit(working, context.actorId))) {
+    if (sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
       sequenceInterrupted = true;
       interruptedCount += countHits(step.applications);
       continue;
     }
 
-    const stepStarting = emitAndChain(context, working, {
+    const stepStarting = context.recorder.record({
       eventType: "EffectStepStarting",
       category: "TIMING",
       turnNumber: context.turnNumber,
@@ -312,11 +333,17 @@ export function applyEffectActionGroups(
         conditionKind: step.conditionKind,
       },
     });
-    working = stepStarting.units;
-    lastEventId = stepStarting.event.eventId;
+    yield { kind: "TIMING_EVENT", event: stepStarting };
+    lastEventId = stepStarting.eventId;
+
+    if (isDefeated(requireUnit(box.units, context.actorId))) {
+      sequenceInterrupted = true;
+      interruptedCount += countHits(step.applications);
+      continue;
+    }
 
     if (!step.satisfied) {
-      const stepSkipped = emitAndChain(context, working, {
+      const stepSkipped = context.recorder.record({
         eventType: "EffectStepSkipped",
         category: "DIAGNOSTIC",
         turnNumber: context.turnNumber,
@@ -329,8 +356,7 @@ export function applyEffectActionGroups(
         sourceUnitId: context.actorId,
         payload: { stepIndex: step.stepIndex, conditionKind: step.conditionKind, result: false },
       });
-      working = stepSkipped.units;
-      lastEventId = stepSkipped.event.eventId;
+      lastEventId = stepSkipped.eventId;
       continue;
     }
 
@@ -338,15 +364,19 @@ export function applyEffectActionGroups(
     let resolvedActionCount = 0;
 
     for (const application of step.applications) {
-      if (isDefeated(requireUnit(working, context.actorId))) {
+      if (isDefeated(requireUnit(box.units, context.actorId))) {
         stepCutShort = true;
         sequenceInterrupted = true;
         interruptedCount += application.hits.length;
         continue;
       }
 
-      const applied = applyOneEffectActionApplication(application, working, context, lastEventId);
-      working = applied.units;
+      const applied = yield* resolveOneEffectActionApplication(
+        application,
+        box,
+        context,
+        lastEventId,
+      );
       lastEventId = applied.lastEventId;
       resolvedCount += applied.resolvedCount;
       interruptedCount += applied.interruptedCount;
@@ -359,7 +389,7 @@ export function applyEffectActionGroups(
     }
 
     if (!stepCutShort) {
-      const stepCompleted = emitAndChain(context, working, {
+      const stepCompleted = context.recorder.record({
         eventType: "EffectStepCompleted",
         category: "FACT",
         turnNumber: context.turnNumber,
@@ -372,10 +402,40 @@ export function applyEffectActionGroups(
         sourceUnitId: context.actorId,
         payload: { stepIndex: step.stepIndex, resolvedActionCount },
       });
-      working = stepCompleted.units;
-      lastEventId = stepCompleted.event.eventId;
+      yield { kind: "EFFECT_RESOLVED", events: [stepCompleted] };
+      lastEventId = stepCompleted.eventId;
     }
   }
 
-  return { units: working, resolvedCount, interruptedCount };
+  return { units: box.units, resolvedCount, interruptedCount };
+}
+
+/**
+ * AS/EX使用（`resolveSkillUse`）とチャージ発動（`resolveChargeRelease`）が使う
+ * 同期API。`resolveEffectSequencePlan`を駆動し、yieldのたびに
+ * `context.onFactEventForPassiveChain`（提供されていれば）を呼んでPS即時連鎖を
+ * 同期的に解決する。これらの呼び出し元は`resolvePassiveChain`の`driveActivation`
+ * に自身がnestingされることはない（PS発動の起点であり、候補ではない）ため、
+ * 各yieldごとに独立した`resolvePassiveChain`呼び出し（`PassiveActivationRuntime.onFactEvent`）
+ * で解決してよい。PSの`EffectSequence`自身の解決は`resolveEffectSequencePlan`へ
+ * `yield*`委譲する別経路を使う（`passive-activation-service.ts`）。
+ */
+export function applyEffectActionGroups(
+  plan: EffectSequencePlan,
+  units: readonly BattleUnit[],
+  context: EffectActionGroupContext,
+): EffectActionGroupsResult {
+  const box: UnitsBox = { units };
+  const generator = resolveEffectSequencePlan(plan, box, context);
+  let step = generator.next();
+  while (!step.done) {
+    if (context.onFactEventForPassiveChain !== undefined) {
+      const events = step.value.kind === "TIMING_EVENT" ? [step.value.event] : step.value.events;
+      for (const event of events) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    }
+    step = generator.next();
+  }
+  return step.value;
 }

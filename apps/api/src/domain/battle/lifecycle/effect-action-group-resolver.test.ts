@@ -63,6 +63,19 @@ function damageAction(id: string, hitCount = 1): EffectActionDefinition {
   };
 }
 
+function cooldownManipulationAction(
+  id: string,
+  targetSkillDefinitionId: ReturnType<typeof createSkillDefinitionId>,
+): EffectActionDefinition {
+  return {
+    kind: "COOLDOWN_MANIPULATION",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { targetSkillDefinitionId, operation: "RESET" },
+  };
+}
+
 const NO_RANDOM: RandomSource = {
   next(): number {
     throw new Error("random should not be consumed by critical.mode: PREVENTED");
@@ -349,5 +362,71 @@ describe("applyEffectActionGroups", () => {
     const finalEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
     const expectedHp = 100 - 10 + observedEventTypes.length;
     expect(finalEnemy.currentHp).toBe(expectedHp);
+  });
+
+  it("PR #142レビュー[P2]: EffectActionCompleted.parentEventId (DAMAGE) points to the actual last event (DamageApplied), not EffectActionStarting", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const attack = damageAction("ACT_ATTACK");
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const events = recorder.getEvents();
+    const damageApplied = events.find((e) => e.eventType === "DamageApplied")!;
+    const starting = events.find((e) => e.eventType === "EffectActionStarting")!;
+    const completed = events.find((e) => e.eventType === "EffectActionCompleted")!;
+    expect(completed.parentEventId).toBe(damageApplied.eventId);
+    expect(completed.parentEventId).not.toBe(starting.eventId);
+  });
+
+  it("PR #142レビュー[P2]: EffectActionCompleted.parentEventId (DAMAGE, lethal) points to UnitDefeated when the hit is lethal", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+    const enemy = unit("ENEMY", "ENEMY");
+    const attack = damageAction("ACT_ATTACK");
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(enemy, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, actor.battleUnitId, attack.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const events = recorder.getEvents();
+    const unitDefeated = events.find((e) => e.eventType === "UnitDefeated")!;
+    const completed = events.find((e) => e.eventType === "EffectActionCompleted")!;
+    expect(completed.parentEventId).toBe(unitDefeated.eventId);
+  });
+
+  it("PR #142レビュー[P2]: EffectActionCompleted.parentEventId (COOLDOWN_MANIPULATION) points to the actual last event (CooldownCompleted), not EffectActionStarting", () => {
+    const targetSkillId = createSkillDefinitionId("SKL_TARGET");
+    const actor = unit("ACTOR", "ALLY", {
+      cooldowns: { [targetSkillId]: { unit: "ACTION", remaining: 2 } },
+    });
+    const reset = cooldownManipulationAction("ACT_RESET", targetSkillId);
+    const effectActions = new Map([[reset.effectActionDefinitionId, reset]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, actor.battleUnitId, reset.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+    };
+
+    applyEffectActionGroups(plan, [actor], context);
+
+    const events = recorder.getEvents();
+    const cooldownCompleted = events.find((e) => e.eventType === "CooldownCompleted")!;
+    const starting = events.find((e) => e.eventType === "EffectActionStarting")!;
+    const completed = events.find((e) => e.eventType === "EffectActionCompleted")!;
+    expect(completed.parentEventId).toBe(cooldownCompleted.eventId);
+    expect(completed.parentEventId).not.toBe(starting.eventId);
   });
 });

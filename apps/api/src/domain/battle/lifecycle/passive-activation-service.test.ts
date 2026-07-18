@@ -543,4 +543,130 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
     expect(recorder.getEvents().some((e) => e.eventType === "PassiveActivated")).toBe(false);
   });
+
+  it("PR #142レビュー[P1]: when a PS's own EffectSequence has two EffectActions and the first triggers a child PS, the child resolves completely before the parent's second EffectAction starts (親A→子PS→親B)", () => {
+    const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
+    const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");
+    const actionA = damageEffectAction("ACT_A");
+    const actionB = damageEffectAction("ACT_B");
+    const childAction = damageEffectAction("ACT_CHILD");
+
+    const parentSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PARENT"),
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: actionA.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: actionB.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+    // 子PS: 任意の`EffectActionCompleted`に反応する（R-PS-07の1解決スコープ1回
+    // guardにより、実際に発動するのは最初に観測した1件だけ — 親のaction A由来の
+    // ものになるはずで、これが「親A→子PS→親B」の検証を成立させる）。
+    const childSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_CHILD"),
+      triggers: [
+        {
+          eventType: "EffectActionCompleted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: childAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+
+    const parentOwner = unit("PARENT", "ALLY", {
+      unitDefinitionId: parentUnitDefinitionId,
+      currentPp: 3,
+    });
+    const childOwner = unit("CHILD", "ALLY", {
+      unitDefinitionId: childUnitDefinitionId,
+      currentPp: 3,
+    });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          parentUnitDefinitionId,
+          unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+        ],
+        [
+          childUnitDefinitionId,
+          unitDefinitionOf(childUnitDefinitionId, [childSkill.skillDefinitionId]),
+        ],
+      ]),
+      new Map([
+        [parentSkill.skillDefinitionId, parentSkill],
+        [childSkill.skillDefinitionId, childSkill],
+      ]),
+      new Map([
+        [actionA.effectActionDefinitionId, actionA],
+        [actionB.effectActionDefinitionId, actionB],
+        [childAction.effectActionDefinitionId, childAction],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [parentOwner, childOwner],
+    );
+
+    runtime.onFactEvent(turnStarted, [parentOwner, childOwner]);
+
+    const events = recorder.getEvents();
+    const actionCompletedEvents = events.filter(
+      (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }> =>
+        e.eventType === "EffectActionCompleted",
+    );
+    // 親のaction A・B・子のchildActionの3件がそれぞれ1回ずつ解決される。
+    expect(actionCompletedEvents.map((e) => e.payload.effectActionDefinitionId)).toEqual([
+      actionA.effectActionDefinitionId,
+      childAction.effectActionDefinitionId,
+      actionB.effectActionDefinitionId,
+    ]);
+
+    const actionACompletedIndex = events.indexOf(actionCompletedEvents[0]!);
+    const childPassiveActivatedIndex = events.findIndex(
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === childOwner.battleUnitId,
+    );
+    const actionBStartingIndex = events.findIndex(
+      (e) =>
+        e.eventType === "EffectActionStarting" &&
+        e.payload.effectActionDefinitionId === actionB.effectActionDefinitionId,
+    );
+    expect(childPassiveActivatedIndex).toBeGreaterThan(actionACompletedIndex);
+    expect(actionBStartingIndex).toBeGreaterThan(childPassiveActivatedIndex);
+
+    // 子PSは1解決スコープ1回のため、親のaction B由来のEffectActionCompletedや
+    // 自分自身のchildAction由来のEffectActionCompletedでは再発動しない。
+    const childPassiveActivatedEvents = events.filter(
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === childOwner.battleUnitId,
+    );
+    expect(childPassiveActivatedEvents).toHaveLength(1);
+  });
 });
