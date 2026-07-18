@@ -244,7 +244,7 @@ export function resolveChargeRelease(
     rootEventId: actionStarted.eventId,
     parentEventId: chargeReleased.eventId,
     skillDefinitionId: skill.skillDefinitionId,
-  });
+  }).units;
 
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
   // （とPS解決、M6）の後（M5レビュー2巡目[P2]: 内部の`working`だけでなく、公開

@@ -1765,6 +1765,95 @@ describe("resolveActionPhase", () => {
     expect(interrupted.payload).toMatchObject({
       skillDefinitionId: skill.skillDefinitionId,
       reason: "ACTOR_DEFEATED",
+      // PR #141 re-review [P2]: exact counts, not an approximation — the
+      // self-damage hit resolved, the enemy hit never got the chance to.
+      resolvedEffectCount: 1,
+      unresolvedEffectCount: 1,
     });
+  });
+
+  it("PR #141 re-review [P2]: when the actor is defeated only by their own skill's LAST step (nothing left unresolved), SkillUseCompleted is emitted, not SkillUseInterrupted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT_LAST");
+    const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
+    const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_SELF_DESTRUCT_LAST"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: enemyBindingId, selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SelfDestructLast", tags: [] },
+    };
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SELF_DESTRUCT_LAST",
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { currentHp: 100, maximumHp: 100 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([
+        [enemyDamage.effectActionDefinitionId, enemyDamage],
+        [selfDamage.effectActionDefinitionId, selfDamage],
+      ]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    // Both steps actually applied (enemy hit, then the fatal self hit); there
+    // was nothing left unresolved when the actor ended up defeated.
+    expect(
+      events.some(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          e.sourceUnitId === ally.battleUnitId &&
+          e.targetUnitIds?.includes(enemy.battleUnitId),
+      ),
+    ).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(false);
   });
 });

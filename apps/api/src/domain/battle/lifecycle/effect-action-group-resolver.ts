@@ -69,20 +69,42 @@ export interface EffectActionGroupContext {
   ) => readonly BattleUnit[];
 }
 
+export interface EffectActionGroupsResult {
+  readonly units: readonly BattleUnit[];
+  /** 使用者が戦闘不能になる前に到達し、実際に処理したヒット・適用の総数。 */
+  readonly resolvedCount: number;
+  /**
+   * PR #141再レビュー[P2]: 使用者が戦闘不能になったことで未処理のまま残った
+   * ヒット・適用の総数。0より大きい場合だけが「中断」(R-SKL-01)であり、
+   * 呼び出し側は`resolvedCount`/`interruptedCount`のどちらもここから得て、
+   * 戦闘不能かどうかだけで中断を判定しない。
+   */
+  readonly interruptedCount: number;
+}
+
 /**
  * AS/EX使用（`resolveSkillUse`）とチャージ発動（`resolveChargeRelease`）、PS発動
  * （`passive-activation-service.ts`）が使う、EffectActionDefinitionId単位groupの
  * 適用ループ。Issue #129: `DAMAGE`に加えて`COOLDOWN_MANIPULATION`（対象スキルの
  * クールタイムを短縮・リセットする純粋な状態操作）を解釈する。それ以外のkindは
- * M6/M7/M8スコープのため未対応のまま拒否する。
+ * M6/M7/M8スコープのため未対応のまま拒否する。使用者が戦闘不能になった時点で
+ * 以降のgroupを一切呼び出さず、その分をすべて`interruptedCount`へ計上する
+ * （R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」）。
  */
 export function applyEffectActionGroups(
   plan: readonly ResolvedEffectApplication[],
   units: readonly BattleUnit[],
   context: EffectActionGroupContext,
-): readonly BattleUnit[] {
+): EffectActionGroupsResult {
   let working = units;
+  let resolvedCount = 0;
+  let interruptedCount = 0;
+  let interrupted = false;
   for (const group of groupConsecutiveByEffectAction(plan)) {
+    if (interrupted) {
+      interruptedCount += group.hits.length;
+      continue;
+    }
     const effectAction = context.definitions.effectActions.get(group.effectActionDefinitionId);
     if (effectAction === undefined) {
       throw new DomainValidationError(
@@ -114,6 +136,11 @@ export function applyEffectActionGroups(
         },
       );
       working = result.units;
+      resolvedCount += group.hits.length - result.interruptedCount;
+      interruptedCount += result.interruptedCount;
+      if (result.interruptedCount > 0) {
+        interrupted = true;
+      }
     } else if (effectAction.kind === "COOLDOWN_MANIPULATION") {
       const result = applyCooldownManipulationAction(group.hits, effectAction, working, {
         recorder: context.recorder,
@@ -127,6 +154,9 @@ export function applyEffectActionGroups(
         sourceUnitId: context.actorId,
       });
       working = result.units;
+      // COOLDOWN_MANIPULATIONは使用者戦闘不能による中断の対象外（Issue #129
+      // 時点で自傷を伴わない純粋な状態操作のため）。全件解決済みとして数える。
+      resolvedCount += group.hits.length;
     } else {
       throw new DomainValidationError(
         "effectActionDefinitionId",
@@ -134,5 +164,5 @@ export function applyEffectActionGroups(
       );
     }
   }
-  return working;
+  return { units: working, resolvedCount, interruptedCount };
 }

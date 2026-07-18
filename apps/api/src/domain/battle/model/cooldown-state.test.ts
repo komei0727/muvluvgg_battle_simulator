@@ -77,6 +77,17 @@ describe("startCooldown", () => {
     expect(withBoth[SKL_A]).toEqual({ unit: "ACTION", remaining: 2, setActionId: ACTION_1 });
     expect(withBoth[SKL_B]).toEqual({ unit: "TURN", remaining: 1, setTurnNumber: 1 });
   });
+
+  it("PR #141 re-review [P1]: an ACTION-unit cooldown set with no scope (e.g. a PS activated from a turn-boundary event outside any action) records an entry with no setActionId, so it decrements at the owner's next action regardless of that action's id", () => {
+    const result = startCooldown({}, SKL_A, { unit: "ACTION", count: 2 }, undefined);
+
+    expect(result.cooldowns[SKL_A]).toEqual({ unit: "ACTION", remaining: 2 });
+
+    const decremented = decrementActionCooldowns(result.cooldowns, ACTION_1);
+    expect(decremented.changes).toEqual([
+      { skillDefinitionId: SKL_A, unit: "ACTION", before: 2, after: 1 },
+    ]);
+  });
 });
 
 describe("decrementActionCooldowns", () => {

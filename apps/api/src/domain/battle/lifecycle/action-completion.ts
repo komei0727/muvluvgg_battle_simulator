@@ -9,7 +9,6 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { StateDelta } from "../events/state-delta.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleUnit } from "../model/battle-unit.js";
-import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 interface ActionCompletionContext {
@@ -158,6 +157,13 @@ interface CooldownStartResult {
  * は`skill.cooldown.unit`により行動単位(`actionId`)またはターン単位
  * (`turnNumber`)を選ぶ（PR#128レビュー[P1]: 呼び出し側が`unit`を無視して常に
  * `actionId`を渡すと、TURN単位クールタイムが設定ターン末に誤って減算される）。
+ *
+ * `unit: "ACTION"`でも`context.actionId`が無い場合（PS発動がターン開始・終了
+ * など行動外のトップレベルイベントから起きた場合、PR #141再レビュー[P1]）は
+ * `scope`を`undefined`のまま`startCooldown`へ渡す。`count`が0ならそもそも
+ * `scope`を使わないため問題にならず、`count`が正でも`setActionId`を持たない
+ * エントリとして設定され、所有者の次の行動終了時（`decrementActionCooldowns`）
+ * に正しく1減らせる。
  */
 export function recordCooldownStart(
   recorder: EventRecorder,
@@ -167,16 +173,12 @@ export function recordCooldownStart(
   parentEventId: DomainEventId,
   rootEventId: DomainEventId,
 ): CooldownStartResult {
-  if (skill.cooldown.unit === "ACTION" && context.actionId === undefined) {
-    throw new DomainValidationError(
-      "skill.cooldown.unit",
-      `an ACTION-unit cooldown requires an actionId, but none was given for skillDefinitionId "${skill.skillDefinitionId}" (e.g. a PS activated from a turn-boundary event outside any action)`,
-    );
-  }
-  const scope: { readonly actionId: ActionId } | { readonly turnNumber: number } =
+  const scope: { readonly actionId: ActionId } | { readonly turnNumber: number } | undefined =
     skill.cooldown.unit === "TURN"
       ? { turnNumber: context.turnNumber }
-      : { actionId: context.actionId! };
+      : context.actionId !== undefined
+        ? { actionId: context.actionId }
+        : undefined;
   const result = startCooldown(cooldowns, skill.skillDefinitionId, skill.cooldown, scope);
   if (skill.cooldown.count === 0) {
     return { cooldowns: result.cooldowns, lastEventId: parentEventId };
@@ -205,9 +207,11 @@ export function recordCooldownStart(
               unit: skill.cooldown.unit,
               before: result.before,
               after: skill.cooldown.count,
-              ...("actionId" in scope
-                ? { setActionId: scope.actionId }
-                : { setTurnNumber: scope.turnNumber }),
+              ...(scope === undefined
+                ? {}
+                : "actionId" in scope
+                  ? { setActionId: scope.actionId }
+                  : { setTurnNumber: scope.turnNumber }),
             },
           },
         },

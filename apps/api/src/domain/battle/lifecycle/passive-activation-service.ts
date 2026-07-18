@@ -12,7 +12,7 @@ import {
   type EffectActionGroupContext,
 } from "./effect-action-group-resolver.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EventRecorder } from "../events/event-recorder.js";
@@ -307,6 +307,7 @@ export class PassiveActivationRuntime {
       this.context.definitions.effectActions,
     );
     let newEvents: readonly TriggerCandidateEvent[] = [];
+    let interruptedCount = 0;
     if (plan.length > 0) {
       // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
       // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
@@ -328,7 +329,9 @@ export class PassiveActivationRuntime {
         parentEventId: lastEventId,
         skillDefinitionId: skill.skillDefinitionId,
       };
-      this.units = applyEffectActionGroups(plan, this.units, groupContext);
+      const effectResult = applyEffectActionGroups(plan, this.units, groupContext);
+      this.units = effectResult.units;
+      interruptedCount = effectResult.interruptedCount;
       const recorded = this.context.recorder.getEvents().slice(beforeCount);
       newEvents = recorded.map((recordedEvent) => this.toTriggerEvent(recordedEvent));
       const last = recorded[recorded.length - 1];
@@ -341,9 +344,11 @@ export class PassiveActivationRuntime {
       yield { kind: "EFFECT_RESOLVED", events: newEvents };
     }
 
-    // R-PS-05 #6 / R-SKL-01: 使用者(PS所有者)が戦闘不能になった場合、未解決効果を中断する。
-    const ownerAfterEffects = requireUnit(this.units, ownerId);
-    const interrupted = isDefeated(ownerAfterEffects);
+    // R-PS-05 #6 / R-SKL-01: 使用者(PS所有者)が戦闘不能になり、未解決のまま
+    // 打ち切られた適用が実際に残った場合だけ中断とする（PR #141再レビュー[P2]:
+    // 戦闘不能かどうかだけでは判定しない — 最後の効果で倒れても残り0件なら
+    // 正常解決のまま）。
+    const interrupted = interruptedCount > 0;
     const resolvedStepCount =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0;
     if (interrupted) {
@@ -361,10 +366,7 @@ export class PassiveActivationRuntime {
           actorUnitId: ownerId,
           skillDefinitionId: skill.skillDefinitionId,
           reason: "OWNER_DEFEATED",
-          // #73（R-SKL-06）がACTION step単位の解決へ細分化するまでの暫定値:
-          // 全体を1バッチとして適用するため、正確な未解決数ではなく計画済み
-          // 適用数の上限で近似する。
-          unresolvedEffectCount: plan.length,
+          unresolvedEffectCount: interruptedCount,
         },
       });
     } else {

@@ -478,6 +478,51 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "DamageApplied")).toBe(true);
   });
 
+  it("PR #141 re-review [P1]: a PS triggered from a turn-boundary event with a positive ACTION-unit cooldown does not throw, and the cooldown decrements at the owner's next own action", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const skill = passiveSkillOf("SKL_TURN_ACTION_CD", {
+      ppCost: 1,
+      cooldown: { unit: "ACTION", count: 2 },
+    });
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+      owner,
+    ]);
+
+    let updatedUnits: readonly BattleUnit[] = [];
+    expect(() => {
+      updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+    }).not.toThrow();
+
+    const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(updatedOwner.cooldowns[skill.skillDefinitionId]).toEqual({
+      unit: "ACTION",
+      remaining: 2,
+    });
+    const cooldownStarted = recorder.getEvents().find((e) => e.eventType === "CooldownStarted")!;
+    expect(cooldownStarted.payload).toMatchObject({
+      actorUnitId: owner.battleUnitId,
+      skillDefinitionId: skill.skillDefinitionId,
+      unit: "ACTION",
+      initialRemaining: 2,
+    });
+    // No setActionId recorded (no action was in progress), so the owner's own
+    // next action-completion decrements it regardless of that action's id.
+    expect(cooldownStarted.stateDelta).toEqual({
+      units: {
+        [owner.battleUnitId]: {
+          cooldowns: { [skill.skillDefinitionId]: { unit: "ACTION", before: 0, after: 2 } },
+        },
+      },
+    });
+  });
+
   it("UT-R-PS-04-009 (Issue #34 integration): a PS candidate without enough PP is silently skipped (no PassiveActivated), leaving resources untouched", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill = passiveSkillOf("SKL_PS", { ppCost: 5 });

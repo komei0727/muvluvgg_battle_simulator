@@ -31,6 +31,13 @@ export interface DamageHitOutcome {
 export interface ApplyDamageActionResult {
   readonly units: readonly BattleUnit[];
   readonly hits: readonly DamageHitOutcome[];
+  /**
+   * PR #141再レビュー[P2]: 使用者が戦闘不能になったことで未処理のまま残った
+   * ヒット数。MISSや対象の戦闘不能による通常のスキップ（`DamageHitOutcome.applied`
+   * が`false`になる別のケース）は含まない — 使用者(attacker)が戦闘不能になる
+   * 前に到達したヒットは、命中/MISSに関わらず「解決済み」として数える。
+   */
+  readonly interruptedCount: number;
 }
 
 /** ヒットイベント（HitConfirmed〜UnitDefeated）が共有する因果関係コンテキスト。全て`ActionStarted`の解決スコープに属する。 */
@@ -104,6 +111,7 @@ export function applyDamageAction(
 ): ApplyDamageActionResult {
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
+  let interruptedCount = 0;
 
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i]!;
@@ -111,6 +119,7 @@ export function applyDamageAction(
 
     // R-SKL-01/R-SKL-03: 使用者が戦闘不能になったら残りの未解決ヒットを中断する。
     if (isDefeated(currentAttacker)) {
+      interruptedCount = hits.length - i;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
@@ -297,5 +306,6 @@ export function applyDamageAction(
   return {
     units: units.map((unit) => working.get(unit.battleUnitId)!),
     hits: outcomes,
+    interruptedCount,
   };
 }
