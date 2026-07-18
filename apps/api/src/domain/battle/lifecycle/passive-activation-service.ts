@@ -306,38 +306,38 @@ export class PassiveActivationRuntime {
       this.units,
       this.context.definitions.effectActions,
     );
-    let newEvents: readonly TriggerCandidateEvent[] = [];
-    let interruptedCount = 0;
-    if (plan.length > 0) {
-      // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
-      // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
-      // 解決できる。`EffectActionGroupContext`以下は`actionId`を任意にして
-      // 素通しする。
-      const beforeCount = this.context.recorder.getEvents().length;
-      const skillUseId = this.context.recorder.nextSkillUseId();
-      const groupContext: EffectActionGroupContext = {
-        definitions: this.context.definitions,
-        actorId: ownerId,
-        random: this.context.random,
-        recorder: this.context.recorder,
-        turnNumber: this.context.turnNumber,
-        cycleNumber: this.context.cycleNumber,
-        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
-        skillUseId,
-        actionScope: this.context.resolutionScopeId,
-        rootEventId: this.context.rootEventId,
-        parentEventId: lastEventId,
-        skillDefinitionId: skill.skillDefinitionId,
-      };
-      const effectResult = applyEffectActionGroups(plan, this.units, groupContext);
-      this.units = effectResult.units;
-      interruptedCount = effectResult.interruptedCount;
-      const recorded = this.context.recorder.getEvents().slice(beforeCount);
-      newEvents = recorded.map((recordedEvent) => this.toTriggerEvent(recordedEvent));
-      const last = recorded[recorded.length - 1];
-      if (last !== undefined) {
-        lastEventId = last.eventId;
-      }
+    // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
+    // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
+    // 解決できる。`EffectActionGroupContext`以下は`actionId`を任意にして
+    // 素通しする。`EffectSequence.steps`はCatalog検証で非空のため、
+    // `applyEffectActionGroups`は常に呼び出し、step単位のイベントを発行する
+    // （#73: R-SKL-06）。
+    const beforeCount = this.context.recorder.getEvents().length;
+    const skillUseId = this.context.recorder.nextSkillUseId();
+    const groupContext: EffectActionGroupContext = {
+      definitions: this.context.definitions,
+      actorId: ownerId,
+      random: this.context.random,
+      recorder: this.context.recorder,
+      turnNumber: this.context.turnNumber,
+      cycleNumber: this.context.cycleNumber,
+      ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      skillUseId,
+      actionScope: this.context.resolutionScopeId,
+      rootEventId: this.context.rootEventId,
+      parentEventId: lastEventId,
+      skillDefinitionId: skill.skillDefinitionId,
+    };
+    const effectResult = applyEffectActionGroups(plan, this.units, groupContext);
+    this.units = effectResult.units;
+    const interruptedCount = effectResult.interruptedCount;
+    const recorded = this.context.recorder.getEvents().slice(beforeCount);
+    const newEvents: readonly TriggerCandidateEvent[] = recorded.map((recordedEvent) =>
+      this.toTriggerEvent(recordedEvent),
+    );
+    const last = recorded[recorded.length - 1];
+    if (last !== undefined) {
+      lastEventId = last.eventId;
     }
 
     if (newEvents.length > 0) {

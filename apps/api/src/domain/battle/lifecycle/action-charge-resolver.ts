@@ -183,7 +183,7 @@ export function resolveChargeRelease(
 
   let working = units;
   const plan = resolveChargeReleaseOrder(skill, actor, working, definitions.effectActions);
-  const targetUnitIds = [...new Set(plan.map((entry) => entry.targetBattleUnitId))];
+  const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();
   const targetsSelected = recorder.record({

@@ -159,7 +159,7 @@ export function resolveSkillUse(
   }
 
   const plan = resolveSkillOrder(skill, actorAfterExGain, working, definitions.effectActions);
-  const targetUnitIds = [...new Set(plan.map((entry) => entry.targetBattleUnitId))];
+  const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();
   const targetsSelected = recorder.record({

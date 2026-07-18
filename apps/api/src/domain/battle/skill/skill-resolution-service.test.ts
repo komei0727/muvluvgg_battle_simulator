@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveChargeReleaseOrder, resolveSkillOrder } from "./skill-resolution-service.js";
+import {
+  flattenEffectSequencePlan,
+  resolveChargeReleaseOrder,
+  resolveSkillOrder,
+} from "./skill-resolution-service.js";
 import {
   createBattleUnit,
   type BattleUnit,
@@ -124,7 +128,9 @@ describe("resolveSkillOrder", () => {
       [attack.effectActionDefinitionId, attack],
     ]);
 
-    const plan = resolveSkillOrder(skill, actor, [actor, enemy], effectActions);
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, enemy], effectActions),
+    );
 
     expect(plan).toEqual([
       {
@@ -158,7 +164,9 @@ describe("resolveSkillOrder", () => {
       [attack.effectActionDefinitionId, attack],
     ]);
 
-    const plan = resolveSkillOrder(skill, actor, [actor, far, near], effectActions);
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, far, near], effectActions),
+    );
 
     expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([
       createBattleUnitId("NEAR"),
@@ -188,7 +196,9 @@ describe("resolveSkillOrder", () => {
       [tripleHit.effectActionDefinitionId, tripleHit],
     ]);
 
-    const plan = resolveSkillOrder(skill, actor, [actor, enemy], effectActions);
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, enemy], effectActions),
+    );
 
     expect(plan.map((entry) => entry.hitIndex)).toEqual([1, 2, 3]);
     expect(plan.every((entry) => entry.targetBattleUnitId === createBattleUnitId("ENEMY_1"))).toBe(
@@ -223,7 +233,9 @@ describe("resolveSkillOrder", () => {
       [second.effectActionDefinitionId, second],
     ]);
 
-    const plan = resolveSkillOrder(skill, actor, [actor, enemy], effectActions);
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, enemy], effectActions),
+    );
 
     expect(plan.map((entry) => [entry.effectActionDefinitionId, entry.hitIndex] as const)).toEqual([
       [first.effectActionDefinitionId, 1],
@@ -255,8 +267,12 @@ describe("resolveSkillOrder", () => {
       [attack.effectActionDefinitionId, attack],
     ]);
 
-    const fromOriginal = resolveSkillOrder(skill, actor, [actor, far, near], effectActions);
-    const fromShuffled = resolveSkillOrder(skill, actor, [near, far, actor], effectActions);
+    const fromOriginal = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, far, near], effectActions),
+    );
+    const fromShuffled = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [near, far, actor], effectActions),
+    );
 
     expect(fromShuffled).toEqual(fromOriginal);
   });
@@ -307,7 +323,7 @@ describe("resolveSkillOrder", () => {
       [heal.effectActionDefinitionId, heal],
     ]);
 
-    const plan = resolveSkillOrder(skill, actor, [actor], effectActions);
+    const plan = flattenEffectSequencePlan(resolveSkillOrder(skill, actor, [actor], effectActions));
 
     expect(plan).toEqual([
       {
@@ -410,6 +426,104 @@ describe("resolveSkillOrder", () => {
       DomainValidationError,
     );
   });
+
+  it("UT-R-SKL-06-006: a step whose condition evaluates to false is skipped (empty applications, satisfied: false), and later steps still resolve", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const skipped = damageAction("ACT_SKIPPED");
+    const resolved = damageAction("ACT_RESOLVED");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "NOT", condition: { kind: "TRUE" } },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: skipped.effectActionDefinitionId }],
+        },
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: resolved.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+      [skipped.effectActionDefinitionId, skipped],
+      [resolved.effectActionDefinitionId, resolved],
+    ]);
+
+    const plan = resolveSkillOrder(skill, actor, [actor, enemy], effectActions);
+
+    expect(plan.steps).toEqual([
+      {
+        stepIndex: 0,
+        stepKind: "ACTION",
+        conditionKind: "NOT",
+        satisfied: false,
+        applications: [],
+      },
+      {
+        stepIndex: 1,
+        stepKind: "ACTION",
+        conditionKind: "TRUE",
+        satisfied: true,
+        applications: [
+          {
+            targetBattleUnitId: enemy.battleUnitId,
+            effectActionDefinitionId: resolved.effectActionDefinitionId,
+            hits: [
+              {
+                targetBattleUnitId: enemy.battleUnitId,
+                effectActionDefinitionId: resolved.effectActionDefinitionId,
+                hitIndex: 1,
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("UT-R-SKL-06-007: plan.targetUnitIds dedupes targets across steps in first-occurrence order", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const near = unit("NEAR", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const far = unit("FAR", "ENEMY", { column: "LEFT", row: "BACK" });
+    const first = damageAction("ACT_FIRST");
+    const second = damageAction("ACT_SECOND");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: first.effectActionDefinitionId }],
+        },
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: second.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+      [first.effectActionDefinitionId, first],
+      [second.effectActionDefinitionId, second],
+    ]);
+
+    const plan = resolveSkillOrder(skill, actor, [actor, far, near], effectActions);
+
+    expect(plan.targetUnitIds).toEqual([near.battleUnitId, far.battleUnitId]);
+  });
 });
 
 describe("resolveChargeReleaseOrder", () => {
@@ -437,7 +551,9 @@ describe("resolveChargeReleaseOrder", () => {
       },
     });
 
-    const plan = resolveChargeReleaseOrder(skill, actor, [actor, enemy], effectActions);
+    const plan = flattenEffectSequencePlan(
+      resolveChargeReleaseOrder(skill, actor, [actor, enemy], effectActions),
+    );
 
     expect(plan).toEqual([
       {

@@ -7,6 +7,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -14,6 +15,8 @@ import type { BattleUnitId } from "../../shared/ids.js";
 
 export interface ApplyCooldownManipulationActionResult {
   readonly units: readonly BattleUnit[];
+  /** R-SKL-09: 対象スキルがREADY(no-op)で`CooldownReduced`を発行しなかった場合は`false`。 */
+  readonly changed: boolean;
 }
 
 /** `CooldownReduced`/`CooldownCompleted`が共有する因果関係コンテキスト。 */
@@ -29,6 +32,11 @@ export interface CooldownManipulationEventContext {
   readonly parentEventId: DomainEventId;
   /** CTを操作するスキルの使用者（自然減算時の`sourceUnitId`と同じ役割）。 */
   readonly sourceUnitId: BattleUnitId;
+  /** R-SKL-06 #5: `CooldownReduced`/`CooldownCompleted`確定直後にPS即時連鎖を解決するフック（`applyDamageAction`と同じ役割）。未指定ならPS解決を行わない。 */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 function findUnit(
@@ -57,8 +65,17 @@ export function applyCooldownManipulationAction(
   units: readonly BattleUnit[],
   context: CooldownManipulationEventContext,
 ): ApplyCooldownManipulationActionResult {
-  const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
+  let working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   let lastEventId = context.parentEventId;
+  let changed = false;
+
+  function chain(event: BattleDomainEvent): void {
+    if (context.onFactEventForPassiveChain === undefined) {
+      return;
+    }
+    const updatedUnits = context.onFactEventForPassiveChain(event, Array.from(working.values()));
+    working = new Map(updatedUnits.map((unit) => [unit.battleUnitId, unit]));
+  }
 
   for (const hit of hits) {
     const target = findUnit(working, hit.targetBattleUnitId, "hits[].targetBattleUnitId");
@@ -71,6 +88,7 @@ export function applyCooldownManipulationAction(
     if (result.change === undefined) {
       continue;
     }
+    changed = true;
     const change = result.change;
     working.set(target.battleUnitId, { ...target, cooldowns: result.cooldowns });
 
@@ -107,6 +125,7 @@ export function applyCooldownManipulationAction(
       },
     });
     lastEventId = reduced.eventId;
+    chain(reduced);
 
     if (change.after === 0) {
       const completed = context.recorder.record({
@@ -127,8 +146,9 @@ export function applyCooldownManipulationAction(
         },
       });
       lastEventId = completed.eventId;
+      chain(completed);
     }
   }
 
-  return { units: units.map((unit) => working.get(unit.battleUnitId)!) };
+  return { units: units.map((unit) => working.get(unit.battleUnitId)!), changed };
 }

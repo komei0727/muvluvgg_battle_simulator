@@ -19,6 +19,9 @@ import type {
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
+import type { ConditionKind } from "../../catalog/definitions/condition-definition.js";
+import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
+import type { EffectStepDefinition } from "../../catalog/definitions/effect-sequence.js";
 
 /**
  * `08_ドメインイベント.md`「イベントの分類」。M3〜M5はFACT/TIMINGだけを使い、
@@ -140,6 +143,36 @@ export interface BattleDomainEventPayloadMap {
     readonly skillDefinitionId: SkillDefinitionId;
     readonly resolvedStepCount: number;
     readonly targetUnitIds: readonly BattleUnitId[];
+  };
+  /** R-SKL-06 #1〜#2: ACTION stepのcondition評価前（`08_ドメインイベント.md`「EffectStepStarting」）。BRANCH/RANDOM_BRANCH/REPEATはM7スコープのため`stepKind`は常に"ACTION"。 */
+  readonly EffectStepStarting: {
+    readonly stepIndex: number;
+    readonly stepKind: EffectStepDefinition["kind"];
+    readonly conditionKind: ConditionKind;
+  };
+  /** R-SKL-06 #2: conditionがfalseと評価され、step全体をスキップした時。 */
+  readonly EffectStepSkipped: {
+    readonly stepIndex: number;
+    readonly conditionKind: ConditionKind;
+    readonly result: false;
+  };
+  /** R-SKL-06: stepの解決完了後（`08_ドメインイベント.md`「EffectStepCompleted」）。使用者戦闘不能で中断したstepでは発行しない。 */
+  readonly EffectStepCompleted: {
+    readonly stepIndex: number;
+    readonly resolvedActionCount: number;
+  };
+  /** R-SKL-06 #4: 対象へEffectAction適用前（`08_ドメインイベント.md`「EffectActionStarting」）。PS/Memory連鎖による対象生存の再検証はこの直前に行う。 */
+  readonly EffectActionStarting: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly kind: EffectActionKind;
+    readonly targetUnitIds: readonly BattleUnitId[];
+  };
+  /** R-SKL-06 #5: EffectAction適用完了後（`08_ドメインイベント.md`「EffectActionCompleted」）。`lastResultReference`(R-SKL-08 直前結果)はM7スコープのため未対応。 */
+  readonly EffectActionCompleted: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly effectActionKind: EffectActionKind;
+    readonly targetUnitIds: readonly BattleUnitId[];
+    readonly resultKind: EffectActionResultKind;
   };
   readonly HitConfirmed: {
     readonly skillDefinitionId: SkillDefinitionId;
@@ -303,6 +336,12 @@ export interface BattleDomainEventPayloadMap {
     readonly unresolvedEffectCount: number;
   };
 }
+
+/**
+ * `08_ドメインイベント.md`「EffectActionCompleted payload」。M6時点では
+ * `REJECTED`(効果適用拒否、`AppliedEffect`前提のM7スコープ)を生成しない。
+ */
+export type EffectActionResultKind = "APPLIED" | "SKIPPED" | "MISSED" | "REJECTED" | "INTERRUPTED";
 
 /** `08_ドメインイベント.md`「ResourceChanged payload」。 */
 export type ResourceChangeReason =
