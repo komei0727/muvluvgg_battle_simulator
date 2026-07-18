@@ -28,12 +28,18 @@ export interface CooldownChange {
  * R-SKL-04: スキル使用開始時にクールタイムを設定する。`cooldown.count`が0の
  * スキルは減算対象になり得ないため、READY状態のまま何も記録しない
  * (COOLING状態への遷移自体が発生しない)。
+ *
+ * `scope`が`undefined`なのは、PS発動がターン開始・終了など行動外のトップ
+ * レベルイベントから起き、`unit: "ACTION"`に対応する`actionId`が存在しない
+ * 場合（PR #141再レビュー[P1]）。`setActionId`/`setTurnNumber`を両方とも
+ * 持たないエントリになり、`decrementActionCooldowns`は「どの行動でも設定
+ * scopeに一致しない」として扱うため、所有者の次の行動終了時に正しく1減らせる。
  */
 export function startCooldown(
   cooldowns: CooldownMap,
   skillDefinitionId: SkillDefinitionId,
   cooldown: Cooldown,
-  scope: { readonly actionId: ActionId } | { readonly turnNumber: number },
+  scope?: { readonly actionId: ActionId } | { readonly turnNumber: number },
 ): { readonly cooldowns: CooldownMap; readonly before: number } {
   const before = cooldowns[skillDefinitionId]?.remaining ?? 0;
   if (cooldown.count === 0) {
@@ -42,9 +48,11 @@ export function startCooldown(
   const entry: CooldownEntry = {
     unit: cooldown.unit,
     remaining: cooldown.count,
-    ...("actionId" in scope
-      ? { setActionId: scope.actionId }
-      : { setTurnNumber: scope.turnNumber }),
+    ...(scope === undefined
+      ? {}
+      : "actionId" in scope
+        ? { setActionId: scope.actionId }
+        : { setTurnNumber: scope.turnNumber }),
   };
   return { cooldowns: { ...cooldowns, [skillDefinitionId]: entry }, before };
 }

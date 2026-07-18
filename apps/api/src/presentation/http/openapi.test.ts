@@ -534,6 +534,14 @@ describe("OpenAPI document", () => {
       TurnCompleting: true,
       TurnCompleted: true,
       BattleCompleted: true,
+      ResourceChanged: true,
+      PassivePointConsumed: true,
+      ExtraGaugeIncreased: true,
+      ExtraGaugeOverflowDiscarded: true,
+      PassiveActivated: true,
+      PassiveResolved: true,
+      PassiveInterrupted: true,
+      SkillUseInterrupted: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

@@ -137,7 +137,8 @@ export function recordActionCompletion(
 }
 
 interface CooldownStartContext {
-  readonly actionId: ActionId;
+  /** PS発動がターン開始/終了などアクション外のトップレベルイベントから起きた場合は`undefined`（`unit: "ACTION"`のクールタイムはその場合設定できない）。 */
+  readonly actionId?: ActionId;
   readonly turnNumber: number;
   readonly cycleNumber: number;
   readonly resolutionScopeId: ResolutionScopeId;
@@ -156,6 +157,13 @@ interface CooldownStartResult {
  * は`skill.cooldown.unit`により行動単位(`actionId`)またはターン単位
  * (`turnNumber`)を選ぶ（PR#128レビュー[P1]: 呼び出し側が`unit`を無視して常に
  * `actionId`を渡すと、TURN単位クールタイムが設定ターン末に誤って減算される）。
+ *
+ * `unit: "ACTION"`でも`context.actionId`が無い場合（PS発動がターン開始・終了
+ * など行動外のトップレベルイベントから起きた場合、PR #141再レビュー[P1]）は
+ * `scope`を`undefined`のまま`startCooldown`へ渡す。`count`が0ならそもそも
+ * `scope`を使わないため問題にならず、`count`が正でも`setActionId`を持たない
+ * エントリとして設定され、所有者の次の行動終了時（`decrementActionCooldowns`）
+ * に正しく1減らせる。
  */
 export function recordCooldownStart(
   recorder: EventRecorder,
@@ -165,10 +173,12 @@ export function recordCooldownStart(
   parentEventId: DomainEventId,
   rootEventId: DomainEventId,
 ): CooldownStartResult {
-  const scope: { readonly actionId: ActionId } | { readonly turnNumber: number } =
+  const scope: { readonly actionId: ActionId } | { readonly turnNumber: number } | undefined =
     skill.cooldown.unit === "TURN"
       ? { turnNumber: context.turnNumber }
-      : { actionId: context.actionId };
+      : context.actionId !== undefined
+        ? { actionId: context.actionId }
+        : undefined;
   const result = startCooldown(cooldowns, skill.skillDefinitionId, skill.cooldown, scope);
   if (skill.cooldown.count === 0) {
     return { cooldowns: result.cooldowns, lastEventId: parentEventId };
@@ -178,7 +188,7 @@ export function recordCooldownStart(
     category: "FACT",
     turnNumber: context.turnNumber,
     cycleNumber: context.cycleNumber,
-    actionId: context.actionId,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId,
@@ -197,9 +207,11 @@ export function recordCooldownStart(
               unit: skill.cooldown.unit,
               before: result.before,
               after: skill.cooldown.count,
-              ...("actionId" in scope
-                ? { setActionId: scope.actionId }
-                : { setTurnNumber: scope.turnNumber }),
+              ...(scope === undefined
+                ? {}
+                : "actionId" in scope
+                  ? { setActionId: scope.actionId }
+                  : { setTurnNumber: scope.turnNumber }),
             },
           },
         },

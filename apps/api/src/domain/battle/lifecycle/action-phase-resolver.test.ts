@@ -28,6 +28,7 @@ import type { TargetSelectorDefinition } from "../../catalog/definitions/target-
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { DefaultUnitDefinitionMap } from "../../../testing/fixtures/default-unit-definition-map.js";
 
 function unit(
   id: string,
@@ -305,7 +306,16 @@ function definitionsOf(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   exSkillByUnit: ReadonlyMap<UnitDefinitionId, SkillDefinition> = new Map(),
 ): BattleDefinitions {
-  return { activeSkillsByUnit, exSkillByUnit, effectActions };
+  return {
+    activeSkillsByUnit,
+    exSkillByUnit,
+    effectActions,
+    // PS trigger detection (Issue #34) requires every participating unit's
+    // UnitDefinition to exist; this file's tests don't exercise PS, so fall
+    // back to a definition with no passive skills for any unitDefinitionId.
+    unitDefinitions: new DefaultUnitDefinitionMap(),
+    skillDefinitions: new Map(),
+  };
 }
 
 const NO_SKILLS: BattleDefinitions = definitionsOf(new Map(), new Map());
@@ -370,6 +380,49 @@ describe("resolveActionPhase", () => {
     });
   });
 
+  it("UT-R-ACT-03-007: a normal wait consumes 1 AP and increases the EX gauge by 1, recorded as two ResourceChanged events (consume, then increase)", () => {
+    const ally = unit("ALLY_1", "ALLY", {
+      limits: { maximumAp: 1, maximumExtraGauge: 10 },
+      currentExtraGauge: 3,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      NO_SKILLS,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(4);
+
+    const events = ctx.recorder.getEvents();
+    const actionStarted = events.find(
+      (e) => e.eventType === "ActionStarted" && e.sourceUnitId === ally.battleUnitId,
+    )!;
+    expect(actionStarted.stateDelta).toBeUndefined();
+
+    const resourceChanged = events.filter(
+      (e): e is Extract<typeof e, { eventType: "ResourceChanged" }> =>
+        e.eventType === "ResourceChanged" && e.sourceUnitId === ally.battleUnitId,
+    );
+    expect(
+      resourceChanged.map((e) => ({ resource: e.payload.resource, reason: e.payload.reason })),
+    ).toEqual([
+      { resource: "AP", reason: "WAIT_COST" },
+      { resource: "EX_GAUGE", reason: "EX_GAIN" },
+    ]);
+    expect(resourceChanged[0]!.payload).toMatchObject({ before: 1, after: 0, delta: -1 });
+    expect(resourceChanged[1]!.payload).toMatchObject({ before: 3, after: 4, delta: 1 });
+  });
+
   it("UT-ACTION-PHASE-002: a usable AS skill consumes its AP cost and applies DAMAGE to the target", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
@@ -404,6 +457,181 @@ describe("resolveActionPhase", () => {
     expect(result.allyUnits[0]!.currentAp).toBe(0);
     expect(result.enemyUnits[0]!.currentHp).toBe(80);
     expect(result.result).toBeUndefined();
+  });
+
+  it("UT-R-ACT-03-005: an AS use increases the EX gauge by the same amount as the AP consumed", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 1, maximumExtraGauge: 100 },
+      currentExtraGauge: 10,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 10,
+      maximumHp: 100,
+      limits: { maximumAp: 0 },
+    });
+    const effectAction = damageEffectAction("ACT_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_ATTACK", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(11);
+  });
+
+  it("UT-R-ACT-04-001: ActionStarted no longer owns the AP/EX stateDelta directly; ResourceChanged owns it instead (consume-then-increase order), and reduceStateDeltas still restores the exact same finalState", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 1, maximumExtraGauge: 100 },
+      currentExtraGauge: 10,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 10,
+      maximumHp: 100,
+      limits: { maximumAp: 0 },
+    });
+    const effectAction = damageEffectAction("ACT_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_ATTACK", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const actionStarted = events.find(
+      (e) => e.eventType === "ActionStarted" && e.sourceUnitId === ally.battleUnitId,
+    )!;
+    expect(actionStarted.stateDelta).toBeUndefined();
+
+    const resourceChanged = events.filter(
+      (e): e is Extract<typeof e, { eventType: "ResourceChanged" }> =>
+        e.eventType === "ResourceChanged" && e.sourceUnitId === ally.battleUnitId,
+    );
+    expect(
+      resourceChanged.map((e) => ({ resource: e.payload.resource, reason: e.payload.reason })),
+    ).toEqual([
+      { resource: "AP", reason: "SKILL_COST" },
+      { resource: "EX_GAUGE", reason: "EX_GAIN" },
+    ]);
+    expect(resourceChanged[0]!.payload).toMatchObject({ before: 1, after: 0, delta: -1 });
+    expect(resourceChanged[1]!.payload).toMatchObject({ before: 10, after: 11, delta: 1 });
+    expect(resourceChanged[0]!.stateDelta).toEqual({
+      units: { [ally.battleUnitId]: { ap: { before: 1, after: 0 } } },
+    });
+    expect(resourceChanged[1]!.stateDelta).toEqual({
+      units: { [ally.battleUnitId]: { extraGauge: { before: 10, after: 11 } } },
+    });
+
+    const stateTransitions = events
+      .filter((e) => e.stateDelta !== undefined)
+      .map((e) => e.stateDelta!);
+    const restored = reduceStateDeltas(
+      {
+        status: "RUNNING",
+        currentTurn: 1,
+        units: {
+          [ally.battleUnitId]: { ap: 1, pp: 3, hp: 100, extraGauge: 10 },
+          [enemy.battleUnitId]: { ap: 0, pp: 3, hp: 100, extraGauge: 0 },
+        },
+      },
+      stateTransitions,
+    );
+    expect(restored.units[ally.battleUnitId]!.ap).toBe(0);
+    expect(restored.units[ally.battleUnitId]!.extraGauge).toBe(11);
+    expect(restored.units[enemy.battleUnitId]!.hp).toBe(80);
+  });
+
+  it("UT-R-ACT-04-002: an AS's EX gain that would overflow the max is clamped, and ExtraGaugeOverflowDiscarded reports the requested/actual/discarded split", () => {
+    // EX gauge must stay below max *before* the action starts, otherwise
+    // `reservedActionKindOf` (action-queue.ts) reserves EX instead of AS for
+    // this unit (R-ORD-03) — so a full-overflow-to-zero-actual-increase case
+    // can't be reached through an AS's own EX gain; that zero-delta path is
+    // covered at the resource-consumption helper's unit level instead.
+    // The enemy has just enough HP to be defeated by this single hit, so the
+    // gauge reaching max (which would otherwise re-queue the ally for an EX
+    // action next cycle, per R-ORD-03) never gets a chance to matter here.
+    const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 3, maximumExtraGauge: 5 },
+      currentAp: 3,
+      currentExtraGauge: 4,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 10,
+      maximumHp: 20,
+      limits: { maximumAp: 0 },
+    });
+    const effectAction = damageEffectAction("ACT_ATTACK");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_ATTACK", 3)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(5);
+
+    const events = ctx.recorder.getEvents();
+    const exResourceChanged = events.find(
+      (e) =>
+        e.eventType === "ResourceChanged" &&
+        e.sourceUnitId === ally.battleUnitId &&
+        e.payload.resource === "EX_GAUGE",
+    )!;
+    expect(exResourceChanged.payload).toMatchObject({ before: 4, after: 5, delta: 1 });
+
+    const overflowDiscarded = events.find(
+      (e) => e.eventType === "ExtraGaugeOverflowDiscarded" && e.sourceUnitId === ally.battleUnitId,
+    )!;
+    expect(overflowDiscarded.payload).toEqual({
+      battleUnitId: ally.battleUnitId,
+      requestedAmount: 3,
+      actualAmount: 1,
+      discardedAmount: 2,
+    });
   });
 
   it("UT-ACTION-PHASE-003 (R-END-01 timing #1): resolving victory mid-phase stops processing the remaining queue immediately", () => {
@@ -561,7 +789,9 @@ describe("resolveActionPhase", () => {
       ctx.turnScopeParentEventId,
     );
 
-    expect(result.allyUnits[0]!.currentExtraGauge).toBe(0);
+    // R-ACT-03: the cycle-2 AS use (apCost 1) increases the EX gauge by the
+    // same amount, so it doesn't stay drained at 0 (added by #34).
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(1);
     expect(result.allyUnits[0]!.currentAp).toBe(0); // consumed by the AS use in cycle 2.
     expect(result.enemyUnits[0]!.currentHp).toBe(1000 - 30 - 30); // one EX hit + one AS hit.
 
@@ -1323,5 +1553,403 @@ describe("resolveActionPhase", () => {
     expect(restored.units[ally.battleUnitId]!.cooldowns![targetSkillDefinitionId]!.remaining).toBe(
       result.allyUnits[0]!.cooldowns[targetSkillDefinitionId]!.remaining,
     );
+  });
+
+  it("UT-R-SKL-02-001 (Issue #34 integration): an AS attack's DamageApplied triggers the defender's own PS (PP consumed, EX gauge increased) within the same action", () => {
+    const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER_PS_INTEGRATION");
+    const defenderUnitDefinitionId = createUnitDefinitionId("UNIT_DEFENDER_WITH_PS");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_DAMAGED");
+
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_ATTACKER_PS_INTEGRATION",
+      attack: 30,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = {
+      ...unit("ENEMY_1", "ENEMY", {
+        unitDefinitionId: "UNIT_DEFENDER_WITH_PS",
+        defense: 10,
+        maximumHp: 100,
+        limits: { maximumAp: 0, maximumPp: 3, maximumExtraGauge: 10 },
+      }),
+      currentPp: 3,
+    };
+
+    const effectAction = damageEffectAction("ACT_ATTACK");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "DamageApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_DAMAGED", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        defenderUnitDefinitionId,
+        {
+          unitDefinitionId: defenderUnitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "TANK",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 10,
+            maximumAp: 1,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Defender",
+            characterName: "Defender",
+            characterId: "CHAR_DEFENDER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[attackerUnitDefinitionId, [attackSkill("ACT_ATTACK", 1)]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const updatedEnemy = result.enemyUnits[0]!;
+    expect(updatedEnemy.currentHp).toBe(80);
+    expect(updatedEnemy.currentPp).toBe(2);
+    expect(updatedEnemy.currentExtraGauge).toBe(1);
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "PassiveActivated")).toBe(true);
+    expect(events.some((e) => e.eventType === "PassiveResolved")).toBe(true);
+    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: enemy.battleUnitId,
+      skillDefinitionId: passiveSkillDefinitionId,
+      ppBefore: 3,
+      ppAfter: 2,
+      exBefore: 0,
+      exAfter: 1,
+    });
+  });
+
+  it("PR #141 review [P1]: when the actor is defeated by their own skill's first step, the second step is skipped and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
+    const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
+    const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_SELF_DESTRUCT"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: enemyBindingId, selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SelfDestruct", tags: [] },
+    };
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SELF_DESTRUCT",
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { currentHp: 100, maximumHp: 100 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([
+        [selfDamage.effectActionDefinitionId, selfDamage],
+        [enemyDamage.effectActionDefinitionId, enemyDamage],
+      ]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    // The self-damage step defeats the actor, so the enemy step must never apply.
+    expect(
+      events.some(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          e.sourceUnitId === ally.battleUnitId &&
+          e.targetUnitIds?.includes(enemy.battleUnitId),
+      ),
+    ).toBe(false);
+    expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(false);
+    const interrupted = events.find((e) => e.eventType === "SkillUseInterrupted")!;
+    expect(interrupted.payload).toMatchObject({
+      skillDefinitionId: skill.skillDefinitionId,
+      reason: "ACTOR_DEFEATED",
+      // PR #141 re-review [P2]: exact counts, not an approximation — the
+      // self-damage hit resolved, the enemy hit never got the chance to.
+      resolvedEffectCount: 1,
+      unresolvedEffectCount: 1,
+    });
+  });
+
+  it("PR #141 re-review [P2]: when the actor is defeated only by their own skill's LAST step (nothing left unresolved), SkillUseCompleted is emitted, not SkillUseInterrupted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT_LAST");
+    const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
+    const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_SELF_DESTRUCT_LAST"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: enemyBindingId, selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SelfDestructLast", tags: [] },
+    };
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SELF_DESTRUCT_LAST",
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { currentHp: 100, maximumHp: 100 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([
+        [enemyDamage.effectActionDefinitionId, enemyDamage],
+        [selfDamage.effectActionDefinitionId, selfDamage],
+      ]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    // Both steps actually applied (enemy hit, then the fatal self hit); there
+    // was nothing left unresolved when the actor ended up defeated.
+    expect(
+      events.some(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          e.sourceUnitId === ally.battleUnitId &&
+          e.targetUnitIds?.includes(enemy.battleUnitId),
+      ),
+    ).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(false);
+  });
+
+  it("PR #141 re-review [P2] (2nd): when the actor is defeated by the last hit of a DAMAGE group, a subsequent COOLDOWN_MANIPULATION group must not apply, and the skill use is reported as interrupted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT_THEN_CD");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
+    const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_CD");
+    const cdManipAction = cooldownManipulationEffectAction(
+      "ACT_CD_RESET",
+      "SKL_TARGET_CD",
+      "RESET",
+    );
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_SELF_DESTRUCT_THEN_CD"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: cdManipAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SelfDestructThenCooldownManip", tags: [] },
+    };
+    const allyBase = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SELF_DESTRUCT_THEN_CD",
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      limits: { maximumAp: 1 },
+    });
+    const ally: BattleUnit = {
+      ...allyBase,
+      cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
+    };
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([
+        [selfDamage.effectActionDefinitionId, selfDamage],
+        [cdManipAction.effectActionDefinitionId, cdManipAction],
+      ]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // The self-lethal hit defeats the actor, so the COOLDOWN_MANIPULATION
+    // step's RESET must never apply (remaining would be 0 if it had run).
+    // `ActionCompleting`'s unrelated natural per-action decay (R-SKL-04) still
+    // reduces it by 1 regardless of how the action ended, so 2 (not 3) is the
+    // correct unaffected-by-RESET value here.
+    expect(result.allyUnits[0]!.cooldowns[targetSkillDefinitionId]).toEqual({
+      unit: "ACTION",
+      remaining: 2,
+    });
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(false);
+    const interrupted = events.find((e) => e.eventType === "SkillUseInterrupted")!;
+    expect(interrupted.payload).toMatchObject({
+      resolvedEffectCount: 1,
+      unresolvedEffectCount: 1,
+    });
   });
 });

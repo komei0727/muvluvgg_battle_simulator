@@ -579,6 +579,7 @@ describe("SimulateBattleUseCase", () => {
         "ACTION_QUEUE_CREATED",
         "ACTION_STARTED",
         "ACTION_WAITED",
+        "RESOURCE_CHANGED",
         "TARGETS_SELECTED",
         "SKILL_USE_STARTING",
         "SKILL_USE_STARTED",
@@ -690,5 +691,139 @@ describe("SimulateBattleUseCase", () => {
     // back to the DamageApplied event that caused it.
     expect(unitDefeated.parentSequence).toBe(damageApplied.sequence);
     expect(unitDefeated.details).toMatchObject({ unitId: createBattleUnitId("enemy:1") });
+  });
+
+  it("SCN-BTL-008 (Issue #34 acceptance): a defender's PS triggered by DamageApplied consumes PP and increases the EX gauge by the same amount, recorded via ResourceChanged/PassiveActivated/PassiveResolved", () => {
+    const skillId = "SKL_ATTACK";
+    const effectActionId = "ACT_ATTACK";
+    const passiveSkillId = "SKL_PS_ON_DAMAGED";
+    const attackerUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_ATK"),
+      baseStats: { ...unitDefinition("UNIT_ATK").baseStats, maximumAp: 1 },
+      activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+    };
+    const defenderUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_PS_DEF"),
+      baseStats: { ...unitDefinition("UNIT_PS_DEF").baseStats, maximumHp: 1000, maximumPp: 3 },
+      extraGaugeMaximum: 10,
+      passiveSkillDefinitionIds: [createSkillDefinitionId(passiveSkillId)],
+    };
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId(passiveSkillId),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "DamageApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: passiveSkillId, tags: [] },
+    };
+    const units = new Map([
+      [createUnitDefinitionId("UNIT_ATK"), attackerUnit],
+      [createUnitDefinitionId("UNIT_PS_DEF"), defenderUnit],
+    ]);
+    const skills = new Map([
+      ...EX_SKILLS,
+      [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
+      [createSkillDefinitionId(passiveSkillId), passiveSkill],
+    ]);
+    const effectActions = new Map([
+      [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],
+    ]);
+    const catalog = new FakeBattleCatalog(
+      units,
+      new Map(),
+      new Map(),
+      "rev-1",
+      skills,
+      effectActions,
+    );
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+      clock: new ManualClock(0),
+    });
+
+    const result = useCase.execute(
+      command({
+        allyFormation: { slots: [slot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+        enemyFormation: { slots: [slot("UNIT_PS_DEF", 0)], memoryDefinitionIds: [] },
+        turnLimit: 1,
+      }),
+      testContext(),
+    );
+
+    const { events, finalState } = result;
+    const defenderUnitId = createBattleUnitId("enemy:1");
+
+    // Non-lethal attack (UNIT_ATK attack 10 - UNIT_PS_DEF defense 10 -> 1
+    // damage floor, 1000 HP survives) so the PS resolves without interruption.
+    const eventTypes = events.map((e) => e.type);
+    const damageAppliedIndex = eventTypes.indexOf("DAMAGE_APPLIED");
+    const passiveActivatedIndex = eventTypes.indexOf("PASSIVE_ACTIVATED");
+    const passiveResolvedIndex = eventTypes.indexOf("PASSIVE_RESOLVED");
+    expect(damageAppliedIndex).toBeGreaterThanOrEqual(0);
+    // R-SKL-01/02: the PS resolves immediately, before the attacker's action completes.
+    expect(passiveActivatedIndex).toBeGreaterThan(damageAppliedIndex);
+    expect(passiveResolvedIndex).toBeGreaterThan(passiveActivatedIndex);
+
+    const passiveActivated = events[passiveActivatedIndex]!;
+    expect(passiveActivated.details).toMatchObject({
+      actorUnitId: defenderUnitId,
+      skillDefinitionId: createSkillDefinitionId(passiveSkillId),
+      // TURN_STARTING recovers PP to maximumPp (3) before the action phase.
+      ppBefore: 3,
+      ppAfter: 2,
+      exBefore: 0,
+      exAfter: 1,
+    });
+
+    // Restrict to the window between DamageApplied and PassiveActivated so the
+    // defender's own later WAIT action (which also emits AP/EX ResourceChanged
+    // for itself, R-ACT-03) doesn't get mixed into the PS's own resource change.
+    const resourceChangedForDefender = events
+      .slice(damageAppliedIndex, passiveActivatedIndex)
+      .filter(
+        (e) =>
+          e.type === "RESOURCE_CHANGED" &&
+          (e.details as { battleUnitId: string }).battleUnitId === defenderUnitId,
+      );
+    expect(
+      resourceChangedForDefender.map((e) => (e.details as { resource: string }).resource),
+    ).toEqual(["PP", "EX_GAUGE"]);
+    expect(resourceChangedForDefender[0]!.details).toMatchObject({
+      before: 3,
+      after: 2,
+      delta: -1,
+      reason: "SKILL_COST",
+    });
+    expect(resourceChangedForDefender[1]!.details).toMatchObject({
+      before: 0,
+      after: 1,
+      delta: 1,
+      reason: "EX_GAIN",
+    });
+
+    expect(finalState.units[defenderUnitId]!.pp).toBe(2);
+    // +1 from the PS's own activation, then +1 per subsequent mandatory WAIT
+    // in the defender's own action phase (maximumAp 3, no active skill, R-ACT-03).
+    expect(finalState.units[defenderUnitId]!.extraGauge).toBe(4);
   });
 });

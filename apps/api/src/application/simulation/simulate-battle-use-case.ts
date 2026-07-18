@@ -117,6 +117,8 @@ function buildBattleDefinitions(snapshot: BattleCatalogSnapshot): BattleDefiniti
     activeSkillsByUnit: buildActiveSkillsByUnit(snapshot.units, snapshot.skills),
     exSkillByUnit: buildExSkillByUnit(snapshot.units, snapshot.skills),
     effectActions: snapshot.effectActions,
+    unitDefinitions: snapshot.units,
+    skillDefinitions: snapshot.skills,
   };
 }
 

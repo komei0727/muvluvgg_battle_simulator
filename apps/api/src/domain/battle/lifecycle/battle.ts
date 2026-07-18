@@ -1,4 +1,6 @@
 import { resolveActionPhase } from "./action-phase-resolver.js";
+import { PassiveActivationRuntime } from "./passive-activation-service.js";
+import { recordResourceChangeIfAny } from "./action-resolution-shared.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
@@ -6,13 +8,12 @@ import { decrementTurnCooldowns } from "../model/cooldown-state.js";
 import type { DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ResourceRecoveryEntry } from "../events/domain-event.js";
-import type { StateDelta, UnitStateDelta } from "../events/state-delta.js";
 import { beginNextTurn, createTurnState, isFinalTurn, type TurnState } from "./turn-state.js";
 import type { TurnLimit } from "../model/turn-limit.js";
 import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
-import type { BattleId, BattleUnitId } from "../../shared/ids.js";
+import type { BattleId } from "../../shared/ids.js";
 
 export type { BattleStatus } from "../model/battle-status.js";
 
@@ -86,13 +87,17 @@ function allDefeated(units: readonly BattleUnit[]): boolean {
   return units.every(isDefeated);
 }
 
-/** TURN_STARTING #2のAP/PP回復のうち、実際に値が変わったユニットだけをpayload/StateDeltaへ含める。 */
+/**
+ * TURN_STARTING #2のAP/PP回復のうち、実際に値が変わったユニットだけを
+ * `ResourcesRecovered`のpayloadへ含める。R-ACT-04によりstateDelta自体は
+ * `ResourcesRecovered`が所有せず、`ResourceChanged`（reason: TURN_RECOVERY）が
+ * リソースごとに個別に所有する（PR #141レビュー[P1]）。
+ */
 function buildResourceRecovery(
   before: readonly BattleUnit[],
   after: readonly BattleUnit[],
-): { entries: readonly ResourceRecoveryEntry[]; unitDeltas: Record<BattleUnitId, UnitStateDelta> } {
+): { entries: readonly ResourceRecoveryEntry[] } {
   const entries: ResourceRecoveryEntry[] = [];
-  const unitDeltas: Record<BattleUnitId, UnitStateDelta> = {};
   for (let i = 0; i < before.length; i++) {
     const previous = before[i]!;
     const recovered = after[i]!;
@@ -106,12 +111,8 @@ function buildResourceRecovery(
       ppBefore: previous.currentPp,
       ppAfter: recovered.currentPp,
     });
-    unitDeltas[previous.battleUnitId] = {
-      ap: { before: previous.currentAp, after: recovered.currentAp },
-      pp: { before: previous.currentPp, after: recovered.currentPp },
-    };
   }
-  return { entries, unitDeltas };
+  return { entries };
 }
 
 /**
@@ -225,11 +226,11 @@ export function advanceBattle(
   });
 
   const turnState = beginNextTurn(battle.turnState);
-  const allyUnits = battle.allyUnits.map(recoverTurnResources);
-  const enemyUnits = battle.enemyUnits.map(recoverTurnResources);
+  const recoveredAllyUnits = battle.allyUnits.map(recoverTurnResources);
+  const recoveredEnemyUnits = battle.enemyUnits.map(recoverTurnResources);
   const recovery = buildResourceRecovery(
     [...battle.allyUnits, ...battle.enemyUnits],
-    [...allyUnits, ...enemyUnits],
+    [...recoveredAllyUnits, ...recoveredEnemyUnits],
   );
   const resourcesRecovered = recorder.record({
     eventType: "ResourcesRecovered",
@@ -240,10 +241,62 @@ export function advanceBattle(
     parentEventId: turnStarted.eventId,
     rootEventId: turnStarted.eventId,
     payload: { units: recovery.entries },
-    ...(Object.keys(recovery.unitDeltas).length > 0
-      ? { stateDelta: { units: recovery.unitDeltas } satisfies StateDelta }
-      : {}),
   });
+
+  // R-ACT-04: 回復で変化した各リソースを`ResourceChanged`(reason: TURN_RECOVERY)
+  // として個別に所有・観測できるようにする（PR #141レビュー[P1]）。
+  const recoveryResourceChangeContext = {
+    recorder,
+    turnNumber: nextTurnNumber,
+    cycleNumber: 0,
+    resolutionScopeId: turnScope,
+    rootEventId: turnStarted.eventId,
+  };
+  let lastRecoveryEventId = resourcesRecovered.eventId;
+  for (const entry of recovery.entries) {
+    lastRecoveryEventId = recordResourceChangeIfAny(
+      recoveryResourceChangeContext,
+      entry.battleUnitId,
+      "AP",
+      entry.apBefore,
+      entry.apAfter,
+      "TURN_RECOVERY",
+      lastRecoveryEventId,
+      resourcesRecovered.eventId,
+    );
+    lastRecoveryEventId = recordResourceChangeIfAny(
+      recoveryResourceChangeContext,
+      entry.battleUnitId,
+      "PP",
+      entry.ppBefore,
+      entry.ppAfter,
+      "TURN_RECOVERY",
+      lastRecoveryEventId,
+      resourcesRecovered.eventId,
+    );
+  }
+
+  // `06_戦闘状態遷移.md` TURN_STARTING #5: `TurnStarted`をイベントとして持つPSを
+  // 解決する（回復適用後）。Issue #34 (R-PS-07): PS発動済み集合はこのトップ
+  // レベルイベント専用に1つだけ生成する。行動外のため`actionId`は持たない。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions: battle.definitions,
+      random,
+      recorder,
+      turnNumber: nextTurnNumber,
+      cycleNumber: 0,
+      resolutionScopeId: turnScope,
+      rootEventId: turnStarted.eventId,
+    },
+    [...recoveredAllyUnits, ...recoveredEnemyUnits],
+  );
+  const afterPassives = passiveRuntime.onFactEvent(turnStarted, [
+    ...recoveredAllyUnits,
+    ...recoveredEnemyUnits,
+  ]);
+  const allyUnits = afterPassives.filter((unit) => unit.side === "ALLY");
+  const enemyUnits = afterPassives.filter((unit) => unit.side === "ENEMY");
   const started: Battle = { ...battle, turnState, allyUnits, enemyUnits };
 
   // R-END-01 判定タイミング区分「ターン開始・終了など、行動外のトップレベル解決スコープ完了後」その1: TURN_STARTING完了後。

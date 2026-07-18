@@ -1,138 +1,26 @@
 import {
   consumeAp,
   consumeExGaugeFully,
+  increaseExGauge,
+  recordExtraGaugeOverflowDiscardedIfAny,
+  recordResourceChangeIfAny,
   requireUnit,
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion, recordCooldownStart } from "./action-completion.js";
-import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
-import { applyDamageAction } from "../combat/damage-application-service.js";
+import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
+import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
-import {
-  resolveSkillOrder,
-  type ResolvedEffectApplication,
-} from "../skill/skill-resolution-service.js";
-import type {
-  ActionId,
-  DomainEventId,
-  ResolutionScopeId,
-  SkillUseId,
-} from "../../shared/event-ids.js";
+import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
+import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type {
-  EffectActionDefinitionId,
-  SkillDefinitionId,
-} from "../../catalog/definitions/catalog-ids.js";
 import type { TargetBindingDefinition } from "../../catalog/definitions/effect-sequence.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
-import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-
-interface EffectActionGroup {
-  readonly effectActionDefinitionId: EffectActionDefinitionId;
-  readonly hits: ResolvedEffectApplication[];
-}
-
-/** `resolveSkillOrder` の定義順出力を、同一EffectActionDefinitionIdの連続runでまとめる。 */
-function groupConsecutiveByEffectAction(
-  plan: readonly ResolvedEffectApplication[],
-): readonly EffectActionGroup[] {
-  const groups: EffectActionGroup[] = [];
-  for (const entry of plan) {
-    const last = groups[groups.length - 1];
-    if (last !== undefined && last.effectActionDefinitionId === entry.effectActionDefinitionId) {
-      last.hits.push(entry);
-    } else {
-      groups.push({ effectActionDefinitionId: entry.effectActionDefinitionId, hits: [entry] });
-    }
-  }
-  return groups;
-}
-
-/** `groupConsecutiveByEffectAction`が生成したgroupを解決するために共有される因果関係コンテキスト。 */
-interface EffectActionGroupContext {
-  readonly definitions: BattleDefinitions;
-  readonly actorId: BattleUnitId;
-  readonly random: RandomSource;
-  readonly recorder: EventRecorder;
-  readonly turnNumber: number;
-  readonly cycleNumber: number;
-  readonly actionId: ActionId;
-  readonly skillUseId: SkillUseId;
-  readonly actionScope: ResolutionScopeId;
-  readonly rootEventId: DomainEventId;
-  readonly parentEventId: DomainEventId;
-  readonly skillDefinitionId: SkillDefinitionId;
-}
-
-/**
- * AS/EX使用（`resolveSkillUse`）とチャージ発動（`resolveChargeRelease`）の両方が
- * 使う、EffectActionDefinitionId単位groupの適用ループ。Issue #129:
- * `DAMAGE`に加えて`COOLDOWN_MANIPULATION`（対象スキルのクールタイムを
- * 短縮・リセットする純粋な状態操作）を解釈する。それ以外のkindはM6/M7/M8
- * スコープのため未対応のまま拒否する。
- */
-export function applyEffectActionGroups(
-  plan: readonly ResolvedEffectApplication[],
-  units: readonly BattleUnit[],
-  context: EffectActionGroupContext,
-): readonly BattleUnit[] {
-  let working = units;
-  for (const group of groupConsecutiveByEffectAction(plan)) {
-    const effectAction = context.definitions.effectActions.get(group.effectActionDefinitionId);
-    if (effectAction === undefined) {
-      throw new DomainValidationError(
-        "effectActionDefinitionId",
-        `effectActionDefinitionId "${group.effectActionDefinitionId}" was not found in the given effectActions (Catalog preflight should already guarantee this reference exists)`,
-      );
-    }
-    if (effectAction.kind === "DAMAGE") {
-      const currentActor = requireUnit(working, context.actorId);
-      const result = applyDamageAction(
-        currentActor,
-        group.hits,
-        effectAction,
-        working,
-        context.random,
-        {
-          recorder: context.recorder,
-          turnNumber: context.turnNumber,
-          cycleNumber: context.cycleNumber,
-          actionId: context.actionId,
-          skillUseId: context.skillUseId,
-          resolutionScopeId: context.actionScope,
-          rootEventId: context.rootEventId,
-          parentEventId: context.parentEventId,
-          skillDefinitionId: context.skillDefinitionId,
-        },
-      );
-      working = result.units;
-    } else if (effectAction.kind === "COOLDOWN_MANIPULATION") {
-      const result = applyCooldownManipulationAction(group.hits, effectAction, working, {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        actionId: context.actionId,
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        rootEventId: context.rootEventId,
-        parentEventId: context.parentEventId,
-        sourceUnitId: context.actorId,
-      });
-      working = result.units;
-    } else {
-      throw new DomainValidationError(
-        "effectActionDefinitionId",
-        `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
-      );
-    }
-  }
-  return working;
-}
 
 /** `08_ドメインイベント.md`「TargetsSelected」payload: targetBindingごとの解決対象。 */
 export function resolveBindingSelections(
@@ -169,15 +57,19 @@ export function resolveSkillUse(
   actionScope: ResolutionScopeId,
 ): ActionResolutionResult {
   const actorId = actor.battleUnitId;
+  // R-ACT-03: ASは消費APと同量、EXは増加なし。
   let working =
     effectiveActionType === "EX"
       ? consumeExGaugeFully(units, actorId)
       : consumeAp(units, actorId, skill.cost.amount);
   const actorAfterCost = requireUnit(working, actorId);
-  const stateDeltaEntry =
-    effectiveActionType === "EX"
-      ? { extraGauge: { before: actor.currentExtraGauge, after: actorAfterCost.currentExtraGauge } }
-      : { ap: { before: actor.currentAp, after: actorAfterCost.currentAp } };
+
+  const exGain =
+    effectiveActionType === "AS" ? increaseExGauge(working, actorId, skill.cost.amount) : undefined;
+  if (exGain !== undefined) {
+    working = exGain.units;
+  }
+  const actorAfterExGain = requireUnit(working, actorId);
 
   const actionStarted = recorder.record({
     eventType: "ActionStarted",
@@ -194,12 +86,79 @@ export function resolveSkillUse(
       apBefore: actor.currentAp,
       apAfter: actorAfterCost.currentAp,
       exBefore: actor.currentExtraGauge,
-      exAfter: actorAfterCost.currentExtraGauge,
+      exAfter: actorAfterExGain.currentExtraGauge,
     },
-    stateDelta: { units: { [actorId]: stateDeltaEntry } },
   });
 
-  const plan = resolveSkillOrder(skill, actorAfterCost, working, definitions.effectActions);
+  // Issue #34 (R-PS-07): PS発動済み集合を1解決スコープ（=1行動）ごとに破棄する
+  // ため、`PassiveActivationRuntime`もこの行動専用に1つだけ生成する。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
+
+  const resourceChangeContext = {
+    recorder,
+    turnNumber,
+    cycleNumber,
+    actionId,
+    resolutionScopeId: actionScope,
+    rootEventId: actionStarted.eventId,
+  };
+  // R-ACT-04: 消費を先に適用し、その後に増加を適用する（両方とも変化量0では発行しない）。
+  let lastEventId =
+    effectiveActionType === "EX"
+      ? recordResourceChangeIfAny(
+          resourceChangeContext,
+          actorId,
+          "EX_GAUGE",
+          actor.currentExtraGauge,
+          actorAfterCost.currentExtraGauge,
+          "SKILL_COST",
+          actionStarted.eventId,
+          actionStarted.eventId,
+        )
+      : recordResourceChangeIfAny(
+          resourceChangeContext,
+          actorId,
+          "AP",
+          actor.currentAp,
+          actorAfterCost.currentAp,
+          "SKILL_COST",
+          actionStarted.eventId,
+          actionStarted.eventId,
+        );
+  if (exGain !== undefined) {
+    lastEventId = recordResourceChangeIfAny(
+      resourceChangeContext,
+      actorId,
+      "EX_GAUGE",
+      exGain.before,
+      exGain.after,
+      "EX_GAIN",
+      lastEventId,
+      actionStarted.eventId,
+    );
+    lastEventId = recordExtraGaugeOverflowDiscardedIfAny(
+      resourceChangeContext,
+      actorId,
+      exGain.requestedAmount,
+      exGain.after - exGain.before,
+      exGain.discardedAmount,
+      lastEventId,
+    );
+  }
+
+  const plan = resolveSkillOrder(skill, actorAfterExGain, working, definitions.effectActions);
   const targetUnitIds = [...new Set(plan.map((entry) => entry.targetBattleUnitId))];
 
   const skillUseId = recorder.nextSkillUseId();
@@ -211,7 +170,7 @@ export function resolveSkillUse(
     actionId,
     skillUseId,
     resolutionScopeId: actionScope,
-    parentEventId: actionStarted.eventId,
+    parentEventId: lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorId,
     targetUnitIds,
@@ -251,12 +210,12 @@ export function resolveSkillUse(
   const cooldownResult = recordCooldownStart(
     recorder,
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
-    actorAfterCost.cooldowns,
+    actorAfterExGain.cooldowns,
     skill,
     skillUseStarting.eventId,
     actionStarted.eventId,
   );
-  const actorWithCooldown = { ...actorAfterCost, cooldowns: cooldownResult.cooldowns };
+  const actorWithCooldown = { ...actorAfterExGain, cooldowns: cooldownResult.cooldowns };
   working = working.map((u) => (u.battleUnitId === actorId ? actorWithCooldown : u));
 
   const skillUseStarted = recorder.record({
@@ -278,7 +237,7 @@ export function resolveSkillUse(
     },
   });
 
-  working = applyEffectActionGroups(plan, working, {
+  const effectResult = applyEffectActionGroups(plan, working, {
     definitions,
     actorId,
     random,
@@ -291,26 +250,55 @@ export function resolveSkillUse(
     rootEventId: actionStarted.eventId,
     parentEventId: skillUseStarted.eventId,
     skillDefinitionId: skill.skillDefinitionId,
+    onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units),
   });
+  working = effectResult.units;
 
-  const skillUseCompleted = recorder.record({
-    eventType: "SkillUseCompleted",
-    category: "FACT",
-    turnNumber,
-    cycleNumber,
-    actionId,
-    skillUseId,
-    resolutionScopeId: actionScope,
-    parentEventId: skillUseStarted.eventId,
-    rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
-    targetUnitIds,
-    payload: {
-      skillDefinitionId: skill.skillDefinitionId,
-      resolvedStepCount: skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0,
-      targetUnitIds,
-    },
-  });
+  // PR #141 review [P1] / re-review [P2]: 使用者がEffectSequence解決中(自傷や
+  // PSの反射等で)戦闘不能になり、未解決のまま打ち切られたヒット・適用が実際に
+  // 残った場合だけ`SkillUseInterrupted`を発行する（戦闘不能かどうかだけでは
+  // 判定しない — 最後の効果で倒れても残り0件なら`SkillUseCompleted`のまま）。
+  const skillUseCompleted =
+    effectResult.interruptedCount > 0
+      ? recorder.record({
+          eventType: "SkillUseInterrupted",
+          category: "FACT",
+          turnNumber,
+          cycleNumber,
+          actionId,
+          skillUseId,
+          resolutionScopeId: actionScope,
+          parentEventId: skillUseStarted.eventId,
+          rootEventId: actionStarted.eventId,
+          sourceUnitId: actorId,
+          targetUnitIds,
+          payload: {
+            actorUnitId: actorId,
+            skillDefinitionId: skill.skillDefinitionId,
+            reason: "ACTOR_DEFEATED",
+            resolvedEffectCount: effectResult.resolvedCount,
+            unresolvedEffectCount: effectResult.interruptedCount,
+          },
+        })
+      : recorder.record({
+          eventType: "SkillUseCompleted",
+          category: "FACT",
+          turnNumber,
+          cycleNumber,
+          actionId,
+          skillUseId,
+          resolutionScopeId: actionScope,
+          parentEventId: skillUseStarted.eventId,
+          rootEventId: actionStarted.eventId,
+          sourceUnitId: actorId,
+          targetUnitIds,
+          payload: {
+            skillDefinitionId: skill.skillDefinitionId,
+            resolvedStepCount:
+              skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0,
+            targetUnitIds,
+          },
+        });
 
   const completion = recordActionCompletion(
     recorder,

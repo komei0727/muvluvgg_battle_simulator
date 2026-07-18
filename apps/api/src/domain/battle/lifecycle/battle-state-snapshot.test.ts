@@ -69,6 +69,8 @@ describe("captureBattleState", () => {
       activeSkillsByUnit: new Map(),
       exSkillByUnit: new Map(),
       effectActions: new Map(),
+      unitDefinitions: new Map(),
+      skillDefinitions: new Map(),
     });
 
     const snapshot = captureBattleState(battle);
@@ -96,6 +98,8 @@ describe("captureBattleState", () => {
       activeSkillsByUnit: new Map(),
       exSkillByUnit: new Map(),
       effectActions: new Map(),
+      unitDefinitions: new Map(),
+      skillDefinitions: new Map(),
     });
 
     const snapshot = captureBattleState(battle);
@@ -123,7 +127,13 @@ describe("captureUnitRoster", () => {
       [ally1, ally2],
       [enemy1],
       createTurnLimit(3),
-      { activeSkillsByUnit: new Map(), exSkillByUnit: new Map(), effectActions: new Map() },
+      {
+        activeSkillsByUnit: new Map(),
+        exSkillByUnit: new Map(),
+        effectActions: new Map(),
+        unitDefinitions: new Map(),
+        skillDefinitions: new Map(),
+      },
     );
 
     const roster = captureUnitRoster(battle);

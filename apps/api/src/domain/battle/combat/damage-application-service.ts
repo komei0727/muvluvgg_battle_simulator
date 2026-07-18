@@ -8,6 +8,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import { resolveHit } from "./hit-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint } from "../model/resource-gauge.js";
@@ -30,6 +31,13 @@ export interface DamageHitOutcome {
 export interface ApplyDamageActionResult {
   readonly units: readonly BattleUnit[];
   readonly hits: readonly DamageHitOutcome[];
+  /**
+   * PR #141再レビュー[P2]: 使用者が戦闘不能になったことで未処理のまま残った
+   * ヒット数。MISSや対象の戦闘不能による通常のスキップ（`DamageHitOutcome.applied`
+   * が`false`になる別のケース）は含まない — 使用者(attacker)が戦闘不能になる
+   * 前に到達したヒットは、命中/MISSに関わらず「解決済み」として数える。
+   */
+  readonly interruptedCount: number;
 }
 
 /** ヒットイベント（HitConfirmed〜UnitDefeated）が共有する因果関係コンテキスト。全て`ActionStarted`の解決スコープに属する。 */
@@ -37,13 +45,26 @@ export interface DamageEventContext {
   readonly recorder: EventRecorder;
   readonly turnNumber: number;
   readonly cycleNumber: number;
-  readonly actionId: ActionId;
+  /** PSがターン開始・終了など行動外のトップレベルイベントから発動した場合は`undefined`。 */
+  readonly actionId?: ActionId;
   readonly skillUseId: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
   /** 各ヒットの直接の契機（`SkillUseStarted.eventId`）。ヒット同士は互いを親としない。 */
   readonly parentEventId: DomainEventId;
   readonly skillDefinitionId: SkillDefinitionId;
+  /**
+   * Issue #34: `DamageApplied`（および`UnitDefeated`）の確定直後にPS即時連鎖を
+   * 同期的に解決するフック。呼び出し側（`lifecycle/`、Domain層のmodule境界に
+   * より`combat/`自身は`triggering/`へ依存できない）が注入する。戻り値の
+   * `units`をそのまま以後の`working`として使う。未指定ならPS解決を行わない
+   * （R-SKL-06のACTION step単位の即時解決は#73のスコープで、本フックは
+   * R-SKL-01/02が要求する「ヒットごとの直ちの解決」までを満たす）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -90,6 +111,7 @@ export function applyDamageAction(
 ): ApplyDamageActionResult {
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
+  let interruptedCount = 0;
 
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i]!;
@@ -97,6 +119,7 @@ export function applyDamageAction(
 
     // R-SKL-01/R-SKL-03: 使用者が戦闘不能になったら残りの未解決ヒットを中断する。
     if (isDefeated(currentAttacker)) {
+      interruptedCount = hits.length - i;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
@@ -113,7 +136,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: context.parentEventId,
@@ -140,7 +163,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: hitConfirmed.eventId,
@@ -173,7 +196,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: criticalCheckResolved.eventId,
@@ -212,7 +235,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: damageCalculated.eventId,
@@ -234,13 +257,20 @@ export function applyDamageAction(
       },
     });
 
+    // R-SKL-01/02: このヒットが発行した事実イベントそれぞれからのPS即時連鎖を、
+    // 発生順に（DamageApplied→UnitDefeatedがあればその後）次のヒットへ進む前に
+    // 解決する（`onFactEventForPassiveChain`未指定ならPS解決を省略する）。
+    // 致死ヒットでも`DamageApplied`起点のPS（例:「味方がダメージを受けた時」）を
+    // `UnitDefeated`だけに上書きして見逃さないよう、両方を個別にフックへ渡す
+    // （PR #141レビュー[P1]）。
+    const factEvents: BattleDomainEvent[] = [damageApplied];
     if (!isDefeated(target) && isDefeated(updatedTarget)) {
-      context.recorder.record({
+      const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",
         turnNumber: context.turnNumber,
         cycleNumber: context.cycleNumber,
-        actionId: context.actionId,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         skillUseId: context.skillUseId,
         resolutionScopeId: context.resolutionScopeId,
         parentEventId: damageApplied.eventId,
@@ -249,6 +279,19 @@ export function applyDamageAction(
         targetUnitIds: [target.battleUnitId],
         payload: { unitId: target.battleUnitId, causeEventId: damageApplied.eventId },
       });
+      factEvents.push(unitDefeated);
+    }
+
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const factEvent of factEvents) {
+        const updatedUnits = context.onFactEventForPassiveChain(
+          factEvent,
+          Array.from(working.values()),
+        );
+        for (const unit of updatedUnits) {
+          working.set(unit.battleUnitId, unit);
+        }
+      }
     }
 
     outcomes.push({
@@ -263,5 +306,6 @@ export function applyDamageAction(
   return {
     units: units.map((unit) => working.get(unit.battleUnitId)!),
     hits: outcomes,
+    interruptedCount,
   };
 }

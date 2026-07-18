@@ -20,8 +20,14 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
 
-/** `08_ドメインイベント.md`「イベントの分類」。M3が発行するイベントはFACT/TIMINGだけを使う。 */
-export type EventCategory = "FACT" | "TIMING";
+/**
+ * `08_ドメインイベント.md`「イベントの分類」。M3〜M5はFACT/TIMINGだけを使い、
+ * M6で`ExtraGaugeOverflowDiscarded`等のDIAGNOSTICイベントが加わる。
+ * `TriggerDefinition.category`（`catalog/definitions/catalog-enums.ts`の別の
+ * `EventCategory`）はDIAGNOSTICを含まない — DIAGNOSTICイベントはPS/Memoryの
+ * 発動契機になり得ないため、意図的に別の狭い型として保つ。
+ */
+export type EventCategory = "FACT" | "TIMING" | "DIAGNOSTIC";
 
 /** `08_ドメインイベント.md`「イベントエンベロープ」の共通フィールド。M3実装では`effectSequenceId`は未使用（EffectSequenceイベント自体がM7範囲）。 */
 export interface DomainEventEnvelope {
@@ -232,7 +238,79 @@ export interface BattleDomainEventPayloadMap {
     readonly completionReason: CompletionReason;
     readonly completedTurn: number;
   };
+  /** R-ACT-04: AP/PP/EXゲージ変更を確定した後の主イベント（`08_ドメインイベント.md:475`）。変化量0では発行しない。 */
+  readonly ResourceChanged: {
+    readonly battleUnitId: BattleUnitId;
+    readonly resource: ResourceKind;
+    readonly before: number;
+    readonly after: number;
+    readonly delta: number;
+    readonly reason: ResourceChangeReason;
+    readonly causeEventId: DomainEventId;
+  };
+  /** R-PS-05 #2: PP消費の内訳（`ResourceChanged`の子イベント、`stateDelta`は持たない）。 */
+  readonly PassivePointConsumed: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly before: number;
+    readonly after: number;
+    readonly consumedAmount: number;
+  };
+  /** R-ACT-03: AP・PP消費による増加の内訳（`ResourceChanged`の子イベント）。 */
+  readonly ExtraGaugeIncreased: {
+    readonly battleUnitId: BattleUnitId;
+    readonly causeResource: "AP" | "PP";
+    readonly before: number;
+    readonly after: number;
+    readonly increasedAmount: number;
+  };
+  /** R-ACT-03: EX最大値超過分を破棄した時（DIAGNOSTIC、`catalog-event-types.ts`の`DIAGNOSTIC_ONLY_EVENT_TYPES`）。 */
+  readonly ExtraGaugeOverflowDiscarded: {
+    readonly battleUnitId: BattleUnitId;
+    readonly requestedAmount: number;
+    readonly actualAmount: number;
+    readonly discardedAmount: number;
+  };
+  /** R-PS-05 #4: 発動済み集合への登録とPP消費後。 */
+  readonly PassiveActivated: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly ppBefore: number;
+    readonly ppAfter: number;
+    readonly exBefore: number;
+    readonly exAfter: number;
+    readonly triggerEventId: DomainEventId;
+  };
+  /** R-PS-05 #6: PSのEffectSequence解決後（中断していない場合）。 */
+  readonly PassiveResolved: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly resolvedStepCount: number;
+  };
+  /** R-SKL-01: PS所有者が解決中に戦闘不能になり中断した時。 */
+  readonly PassiveInterrupted: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly reason: "OWNER_DEFEATED";
+    readonly unresolvedEffectCount: number;
+  };
+  /** R-SKL-01: AS/EX使用者が解決中に戦闘不能になり中断した時。 */
+  readonly SkillUseInterrupted: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly reason: "ACTOR_DEFEATED";
+    readonly resolvedEffectCount: number;
+    readonly unresolvedEffectCount: number;
+  };
 }
+
+/** `08_ドメインイベント.md`「ResourceChanged payload」。 */
+export type ResourceChangeReason =
+  | "SKILL_COST"
+  | "WAIT_COST"
+  | "EX_GAIN"
+  | "EFFECT_ACTION"
+  | "TURN_RECOVERY";
 
 export type BattleDomainEventType = keyof BattleDomainEventPayloadMap;
 
