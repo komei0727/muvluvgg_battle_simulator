@@ -308,12 +308,10 @@ export class PassiveActivationRuntime {
     );
     let newEvents: readonly TriggerCandidateEvent[] = [];
     if (plan.length > 0) {
-      if (this.context.actionId === undefined) {
-        throw new DomainValidationError(
-          "skill.resolution",
-          `PS "${skill.skillDefinitionId}" has non-empty resolution steps but was activated outside any action (e.g. a turn-boundary trigger); resolving real effects without an actionId is not supported yet`,
-        );
-      }
+      // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
+      // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
+      // 解決できる。`EffectActionGroupContext`以下は`actionId`を任意にして
+      // 素通しする。
       const beforeCount = this.context.recorder.getEvents().length;
       const skillUseId = this.context.recorder.nextSkillUseId();
       const groupContext: EffectActionGroupContext = {
@@ -323,7 +321,7 @@ export class PassiveActivationRuntime {
         recorder: this.context.recorder,
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
-        actionId: this.context.actionId,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
         skillUseId,
         actionScope: this.context.resolutionScopeId,
         rootEventId: this.context.rootEventId,

@@ -19,7 +19,7 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { TargetBindingDefinition } from "../../catalog/definitions/effect-sequence.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
-import type { BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 /** `08_ドメインイベント.md`「TargetsSelected」payload: targetBindingごとの解決対象。 */
@@ -253,24 +253,57 @@ export function resolveSkillUse(
     onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units),
   });
 
-  const skillUseCompleted = recorder.record({
-    eventType: "SkillUseCompleted",
-    category: "FACT",
-    turnNumber,
-    cycleNumber,
-    actionId,
-    skillUseId,
-    resolutionScopeId: actionScope,
-    parentEventId: skillUseStarted.eventId,
-    rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
-    targetUnitIds,
-    payload: {
-      skillDefinitionId: skill.skillDefinitionId,
-      resolvedStepCount: skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0,
-      targetUnitIds,
-    },
-  });
+  // PR #141 review [P1]: 使用者がEffectSequence解決中(自傷やPSの反射等で)戦闘
+  // 不能になった場合、`SkillUseCompleted`で成功扱いにせず`SkillUseInterrupted`
+  // を発行する（R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」）。
+  const actorAfterEffects = requireUnit(working, actorId);
+  const skillUseCompleted = isDefeated(actorAfterEffects)
+    ? (() => {
+        // このEffectAction単位の粗い解決状況（#73のR-SKL-06完了までの暫定値、
+        // DamageApplied件数から近似する）。
+        const resolvedEffectCount = recorder
+          .getEvents()
+          .filter((e) => e.eventType === "DamageApplied" && e.skillUseId === skillUseId).length;
+        return recorder.record({
+          eventType: "SkillUseInterrupted",
+          category: "FACT",
+          turnNumber,
+          cycleNumber,
+          actionId,
+          skillUseId,
+          resolutionScopeId: actionScope,
+          parentEventId: skillUseStarted.eventId,
+          rootEventId: actionStarted.eventId,
+          sourceUnitId: actorId,
+          targetUnitIds,
+          payload: {
+            actorUnitId: actorId,
+            skillDefinitionId: skill.skillDefinitionId,
+            reason: "ACTOR_DEFEATED",
+            resolvedEffectCount,
+            unresolvedEffectCount: Math.max(0, plan.length - resolvedEffectCount),
+          },
+        });
+      })()
+    : recorder.record({
+        eventType: "SkillUseCompleted",
+        category: "FACT",
+        turnNumber,
+        cycleNumber,
+        actionId,
+        skillUseId,
+        resolutionScopeId: actionScope,
+        parentEventId: skillUseStarted.eventId,
+        rootEventId: actionStarted.eventId,
+        sourceUnitId: actorId,
+        targetUnitIds,
+        payload: {
+          skillDefinitionId: skill.skillDefinitionId,
+          resolvedStepCount:
+            skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0,
+          targetUnitIds,
+        },
+      });
 
   const completion = recordActionCompletion(
     recorder,

@@ -38,7 +38,8 @@ export interface DamageEventContext {
   readonly recorder: EventRecorder;
   readonly turnNumber: number;
   readonly cycleNumber: number;
-  readonly actionId: ActionId;
+  /** PSがターン開始・終了など行動外のトップレベルイベントから発動した場合は`undefined`。 */
+  readonly actionId?: ActionId;
   readonly skillUseId: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
@@ -126,7 +127,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: context.parentEventId,
@@ -153,7 +154,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: hitConfirmed.eventId,
@@ -186,7 +187,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: criticalCheckResolved.eventId,
@@ -225,7 +226,7 @@ export function applyDamageAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: damageCalculated.eventId,
@@ -247,14 +248,20 @@ export function applyDamageAction(
       },
     });
 
-    let latestFactEvent: BattleDomainEvent = damageApplied;
+    // R-SKL-01/02: このヒットが発行した事実イベントそれぞれからのPS即時連鎖を、
+    // 発生順に（DamageApplied→UnitDefeatedがあればその後）次のヒットへ進む前に
+    // 解決する（`onFactEventForPassiveChain`未指定ならPS解決を省略する）。
+    // 致死ヒットでも`DamageApplied`起点のPS（例:「味方がダメージを受けた時」）を
+    // `UnitDefeated`だけに上書きして見逃さないよう、両方を個別にフックへ渡す
+    // （PR #141レビュー[P1]）。
+    const factEvents: BattleDomainEvent[] = [damageApplied];
     if (!isDefeated(target) && isDefeated(updatedTarget)) {
-      latestFactEvent = context.recorder.record({
+      const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",
         turnNumber: context.turnNumber,
         cycleNumber: context.cycleNumber,
-        actionId: context.actionId,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         skillUseId: context.skillUseId,
         resolutionScopeId: context.resolutionScopeId,
         parentEventId: damageApplied.eventId,
@@ -263,17 +270,18 @@ export function applyDamageAction(
         targetUnitIds: [target.battleUnitId],
         payload: { unitId: target.battleUnitId, causeEventId: damageApplied.eventId },
       });
+      factEvents.push(unitDefeated);
     }
 
-    // R-SKL-01/02: このヒットが発行した事実イベントからのPS即時連鎖を、次のヒットへ
-    // 進む前に解決する（`onFactEventForPassiveChain`未指定ならPS解決を省略する）。
     if (context.onFactEventForPassiveChain !== undefined) {
-      const updatedUnits = context.onFactEventForPassiveChain(
-        latestFactEvent,
-        Array.from(working.values()),
-      );
-      for (const unit of updatedUnits) {
-        working.set(unit.battleUnitId, unit);
+      for (const factEvent of factEvents) {
+        const updatedUnits = context.onFactEventForPassiveChain(
+          factEvent,
+          Array.from(working.values()),
+        );
+        for (const unit of updatedUnits) {
+          working.set(unit.battleUnitId, unit);
+        }
       }
     }
 

@@ -391,4 +391,38 @@ describe("applyDamageAction", () => {
     expect(damageDetails.actionDamageMultiplier).toBeCloseTo(1.2);
     expect(damageDetails.preTruncationDamage).toBeCloseTo(97.2);
   });
+
+  it("PR #141 review [P1]: a lethal hit still passes DamageApplied (not just the resulting UnitDefeated) to onFactEventForPassiveChain, in event order", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 100 });
+    const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 10 });
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const seenEventTypes: string[] = [];
+    const contextWithHook: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) => {
+        seenEventTypes.push(event.eventType);
+        return units;
+      },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      contextWithHook,
+    );
+
+    expect(
+      isDefeated(result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!),
+    ).toBe(true);
+    // Both facts from this one lethal hit must reach the hook, in causal
+    // order, so a third party's DamageApplied-triggered PS (e.g. "when an
+    // ally is damaged") is not silently skipped just because the hit also
+    // happened to be lethal.
+    expect(seenEventTypes).toEqual(["DamageApplied", "UnitDefeated"]);
+  });
 });

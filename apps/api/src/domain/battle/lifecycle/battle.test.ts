@@ -290,6 +290,50 @@ describe("advanceBattle", () => {
     expect(battle.status).toBe("RUNNING");
   });
 
+  it("PR #141 review [P1]: TURN_STARTING's AP/PP recovery is uniquely owned by per-resource ResourceChanged(TURN_RECOVERY) events, not by ResourcesRecovered directly", () => {
+    const turnRecorder = recorder();
+    const battle = advanceBattle(
+      startBattle(readyBattle(5), recorder()),
+      NO_RANDOM(),
+      turnRecorder,
+    );
+
+    expect(battle.allyUnits[0]!.currentPp).toBe(3);
+
+    const events = turnRecorder.getEvents();
+    const resourcesRecovered = events.find((e) => e.eventType === "ResourcesRecovered")!;
+    // R-ACT-04: exactly one event owns each state diff — ResourceChanged now
+    // owns the AP/PP recovery, so ResourcesRecovered itself must not.
+    expect(resourcesRecovered.stateDelta).toBeUndefined();
+
+    // Restrict to the window between ResourcesRecovered and the action phase's
+    // first ActionStarted so the ally's own later WAITs (which also emit
+    // ResourceChanged for AP/EX, R-ACT-03) aren't mixed in.
+    const actionStartedIndex = events.findIndex((e) => e.eventType === "ActionStarted");
+    const resourceChangedForAlly = events
+      .slice(0, actionStartedIndex)
+      .filter(
+        (e): e is Extract<typeof e, { eventType: "ResourceChanged" }> =>
+          e.eventType === "ResourceChanged" && e.sourceUnitId === battle.allyUnits[0]!.battleUnitId,
+      );
+    expect(
+      resourceChangedForAlly.map((e) => ({
+        resource: e.payload.resource,
+        reason: e.payload.reason,
+      })),
+    ).toEqual([
+      { resource: "AP", reason: "TURN_RECOVERY" },
+      { resource: "PP", reason: "TURN_RECOVERY" },
+    ]);
+    expect(resourceChangedForAlly[0]!.payload).toMatchObject({ before: 0, after: 3, delta: 3 });
+    expect(resourceChangedForAlly[0]!.stateDelta).toEqual({
+      units: { [battle.allyUnits[0]!.battleUnitId]: { ap: { before: 0, after: 3 } } },
+    });
+    expect(resourceChangedForAlly[1]!.stateDelta).toEqual({
+      units: { [battle.allyUnits[0]!.battleUnitId]: { pp: { before: 0, after: 3 } } },
+    });
+  });
+
   it("UT-BATTLE-008: does not recover resources for a unit that started defeated", () => {
     const battle = createBattle(
       createBattleId("B_1"),

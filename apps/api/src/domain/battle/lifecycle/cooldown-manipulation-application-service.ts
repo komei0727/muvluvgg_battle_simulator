@@ -21,7 +21,8 @@ export interface CooldownManipulationEventContext {
   readonly recorder: EventRecorder;
   readonly turnNumber: number;
   readonly cycleNumber: number;
-  readonly actionId: ActionId;
+  /** PSがターン開始・終了など行動外のトップレベルイベントから発動した場合は`undefined`。 */
+  readonly actionId?: ActionId;
   readonly skillUseId: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
@@ -78,7 +79,7 @@ export function applyCooldownManipulationAction(
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
-      actionId: context.actionId,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId: context.rootEventId,
@@ -113,7 +114,7 @@ export function applyCooldownManipulationAction(
         category: "FACT",
         turnNumber: context.turnNumber,
         cycleNumber: context.cycleNumber,
-        actionId: context.actionId,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         resolutionScopeId: context.resolutionScopeId,
         parentEventId: lastEventId,
         rootEventId: context.rootEventId,

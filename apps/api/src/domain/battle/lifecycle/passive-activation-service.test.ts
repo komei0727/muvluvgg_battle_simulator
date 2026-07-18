@@ -403,6 +403,81 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     ).toBe(false);
   });
 
+  it("PR #141 review [P1]: a PS triggered from a turn-boundary event (no actionId, e.g. TurnStarted) can still resolve real EffectSequence steps instead of throwing", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
+    const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+    const skill = passiveSkillOf("SKL_TURN_ATTACK", {
+      ppCost: 1,
+      // TURN-unit (not the default ACTION-unit): setting an ACTION-unit
+      // cooldown requires an actionId, which a turn-boundary activation
+      // (like this one) doesn't have — that's a separate, orthogonal
+      // constraint from the EffectSequence-resolution bug this test targets.
+      cooldown: { unit: "TURN", count: 0 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    });
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId,
+      attack: 100,
+      currentPp: 3,
+    });
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      currentHp: 100,
+      maximumHp: 100,
+      defense: 0,
+      unitDefinitionId: enemyUnitDefinitionId,
+    });
+    const definitions = definitionsOf(
+      new Map([
+        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([[skill.skillDefinitionId, skill]]),
+      new Map([[enemyDamage.effectActionDefinitionId, enemyDamage]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    // No actionId: this PS is activated from a turn-boundary event, not from
+    // within any unit's own action.
+    const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+      owner,
+      enemy,
+    ]);
+
+    let updatedUnits: readonly BattleUnit[] = [];
+    expect(() => {
+      updatedUnits = runtime.onFactEvent(turnStarted, [owner, enemy]);
+    }).not.toThrow();
+
+    const updatedEnemy = updatedUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(updatedEnemy.currentHp).toBeLessThan(100);
+    expect(recorder.getEvents().some((e) => e.eventType === "DamageApplied")).toBe(true);
+  });
+
   it("UT-R-PS-04-009 (Issue #34 integration): a PS candidate without enough PP is silently skipped (no PassiveActivated), leaving resources untouched", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill = passiveSkillOf("SKL_PS", { ppCost: 5 });

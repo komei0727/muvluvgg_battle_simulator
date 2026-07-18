@@ -55,7 +55,8 @@ export interface EffectActionGroupContext {
   readonly recorder: EventRecorder;
   readonly turnNumber: number;
   readonly cycleNumber: number;
-  readonly actionId: ActionId;
+  /** PSがターン開始・終了など行動外のトップレベルイベントから発動した場合は`undefined`。 */
+  readonly actionId?: ActionId;
   readonly skillUseId: SkillUseId;
   readonly actionScope: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
@@ -101,7 +102,7 @@ export function applyEffectActionGroups(
           recorder: context.recorder,
           turnNumber: context.turnNumber,
           cycleNumber: context.cycleNumber,
-          actionId: context.actionId,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
           skillUseId: context.skillUseId,
           resolutionScopeId: context.actionScope,
           rootEventId: context.rootEventId,
@@ -118,7 +119,7 @@ export function applyEffectActionGroups(
         recorder: context.recorder,
         turnNumber: context.turnNumber,
         cycleNumber: context.cycleNumber,
-        actionId: context.actionId,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         skillUseId: context.skillUseId,
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,

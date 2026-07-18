@@ -1678,4 +1678,93 @@ describe("resolveActionPhase", () => {
       exAfter: 1,
     });
   });
+
+  it("PR #141 review [P1]: when the actor is defeated by their own skill's first step, the second step is skipped and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
+    const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
+    const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_SELF_DESTRUCT"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: enemyBindingId, selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SelfDestruct", tags: [] },
+    };
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SELF_DESTRUCT",
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { currentHp: 100, maximumHp: 100 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([
+        [selfDamage.effectActionDefinitionId, selfDamage],
+        [enemyDamage.effectActionDefinitionId, enemyDamage],
+      ]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    // The self-damage step defeats the actor, so the enemy step must never apply.
+    expect(
+      events.some(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          e.sourceUnitId === ally.battleUnitId &&
+          e.targetUnitIds?.includes(enemy.battleUnitId),
+      ),
+    ).toBe(false);
+    expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(true);
+    expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(false);
+    const interrupted = events.find((e) => e.eventType === "SkillUseInterrupted")!;
+    expect(interrupted.payload).toMatchObject({
+      skillDefinitionId: skill.skillDefinitionId,
+      reason: "ACTOR_DEFEATED",
+    });
+  });
 });
