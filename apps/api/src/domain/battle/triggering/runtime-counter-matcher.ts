@@ -105,9 +105,10 @@ function applyUpdate(
  * 検出し、決定的に更新する。呼び出し側はPS/Memory候補抽出より前に呼び出し、
  * 変化があった件数分だけ`RuntimeCounterChanged`を発行する。
  *
- * `Battle`／`BattleUnit`スコープはIssue #143の対象12行がいずれも
- * `SKILL_RUNTIME`スコープで表現できるため未実装とし、明示的に拒否する
- * （他の"basic"policyと同じ隔離方針）。
+ * `Battle`／`BattleUnit`スコープは`createRuntimeCounterUpdateDefinition`
+ * （Catalogロード時点）が既に拒否するため、ここへ到達するのは`SKILL_RUNTIME`
+ * だけのはずである。それでも到達した場合（Catalogを経由しない直接構築など）に
+ * 未対応のまま実行を続けないよう、防御的にも明示的に拒否する（レビュー指摘[P2]）。
  */
 export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
   readonly units: readonly BattleUnit[];
@@ -158,9 +159,10 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
         }
         const existingCounters = currentOwner.skillCounters?.[skillId] ?? {};
         const applied = applyUpdate(update, existingCounters, currentOwner, event);
-        if (applied.before === applied.after) {
-          continue;
-        }
+        // レビュー指摘[P1]: 閾値未到達（value不変）でも`applied.counters`の`carry`
+        // （繰り越し端数）は必ず`workingUnits`へ反映する。ここで`continue`すると
+        // 次回の更新が繰り越し前のcarryから再計算され、複数回に分けて閾値へ
+        // 到達する累計ダメージが正しく積み上がらない。
         const updatedOwner: BattleUnit = {
           ...currentOwner,
           skillCounters: { ...currentOwner.skillCounters, [skillId]: applied.counters },
@@ -168,6 +170,9 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
         workingUnits = workingUnits.map((u) =>
           u.battleUnitId === updatedOwner.battleUnitId ? updatedOwner : u,
         );
+        if (applied.before === applied.after) {
+          continue;
+        }
         changes.push({
           ownerUnitId: originalOwner.battleUnitId,
           skillDefinitionId: skillId,
@@ -181,4 +186,63 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
   }
 
   return { units: workingUnits, changes };
+}
+
+export interface RuntimeCounterResetTarget {
+  readonly ownerUnitId: BattleUnitId;
+  readonly skillDefinitionId: SkillDefinitionId;
+  readonly counter: RuntimeCounterId;
+}
+
+export interface RuntimeCounterResetScanInput {
+  readonly units: readonly BattleUnit[];
+  readonly unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
+  readonly skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>;
+}
+
+/**
+ * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（レビュー指摘[P2]、
+ * Issue #143）: `resetScope: "RESOLUTION_SCOPE"`を宣言するcounterのうち、現在値を
+ * 持つものを列挙する。呼び出し側（`PassiveActivationRuntime.finalizeResolutionScope`）
+ * が、この結果を使ってcounterを破棄し`RuntimeCounterReset`を発行する。
+ */
+export function collectResolutionScopeResets(
+  input: RuntimeCounterResetScanInput,
+): readonly RuntimeCounterResetTarget[] {
+  const { units, unitDefinitions, skillDefinitions } = input;
+  const targets: RuntimeCounterResetTarget[] = [];
+
+  for (const owner of units) {
+    const unitDefinition = unitDefinitions.get(owner.unitDefinitionId);
+    if (unitDefinition === undefined) {
+      throw new DomainValidationError(
+        "unitDefinitions",
+        `no UnitDefinition found for unitDefinitionId "${owner.unitDefinitionId}" (battleUnitId "${owner.battleUnitId}")`,
+      );
+    }
+    for (const skillId of unitDefinition.passiveSkillDefinitionIds) {
+      const skill = skillDefinitions.get(skillId);
+      if (skill === undefined) {
+        throw new DomainValidationError(
+          "skillDefinitions",
+          `no SkillDefinition found for skillDefinitionId "${skillId}"`,
+        );
+      }
+      for (const update of skill.counterUpdates) {
+        if (update.resetScope !== "RESOLUTION_SCOPE") {
+          continue;
+        }
+        if (owner.skillCounters?.[skillId]?.[update.counter] === undefined) {
+          continue;
+        }
+        targets.push({
+          ownerUnitId: owner.battleUnitId,
+          skillDefinitionId: skillId,
+          counter: update.counter,
+        });
+      }
+    }
+  }
+
+  return targets;
 }

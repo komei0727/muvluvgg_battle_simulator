@@ -306,7 +306,10 @@ export function resolveSkillUse(
             targetUnitIds,
           },
         });
-  working = passiveRuntime.onFactEvent(skillUseCompleted, working);
+  passiveRuntime.onFactEvent(skillUseCompleted, working);
+  // レビュー指摘[P2]: この行動専用の解決スコープが終わるたびに、
+  // `resetScope: "RESOLUTION_SCOPE"`のcounterを破棄・`RuntimeCounterReset`発行する。
+  working = passiveRuntime.finalizeResolutionScope();
 
   const completion = recordActionCompletion(
     recorder,

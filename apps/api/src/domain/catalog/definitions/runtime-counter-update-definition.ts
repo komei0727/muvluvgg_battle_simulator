@@ -13,20 +13,37 @@ import {
 } from "../../shared/validate.js";
 
 /**
- * `05_ドメインモデル.md`「RuntimeCounter」が列挙するスコープのうち、M6が実装する
- * 最小範囲（Issue #143）。`BATTLE`はCatalogの語彙としては受理するが、この時点で
- * 対象となる本番Catalogは存在せず、評価器（`runtime-counter-matcher.ts`)は
- * 未対応として明示的に拒否する。
+ * `05_ドメインモデル.md`「RuntimeCounter」が列挙するスコープ全体（型としての語彙）。
  */
 export const RUNTIME_COUNTER_SCOPES = ["BATTLE", "BATTLE_UNIT", "SKILL_RUNTIME"] as const;
 export type RuntimeCounterScope = (typeof RUNTIME_COUNTER_SCOPES)[number];
 
+/**
+ * M6が実際に実装するスコープ（Issue #143）。`BATTLE`/`BATTLE_UNIT`は
+ * `RuntimeCounterScope`の語彙としては存在するが、`runtime-counter-matcher.ts`の
+ * 評価器が未実装のため、Catalogロード時点でこの2つを拒否する（レビュー指摘[P2]:
+ * Catalogが受理した定義が実行時に無条件で例外化する契約は避ける）。対象12行は
+ * いずれも`SKILL_RUNTIME`スコープで表現できるため、この制限は対象外の
+ * 不完全変換を生まない。
+ */
+const IMPLEMENTED_RUNTIME_COUNTER_SCOPES = ["SKILL_RUNTIME"] as const;
+
 const RUNTIME_COUNTER_UPDATE_KINDS = ["INCREMENT", "CUMULATIVE_DAMAGE_THRESHOLD"] as const;
 export type RuntimeCounterUpdateKind = (typeof RUNTIME_COUNTER_UPDATE_KINDS)[number];
 
+/**
+ * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（レビュー指摘[P2]、
+ * Issue #143）。省略時はcounterが戦闘終了まで持続する（対象12行はすべてこちら）。
+ * `RESOLUTION_SCOPE`を指定すると、そのcounterを保持するSkillRuntimeの所有者が
+ * 属する1解決スコープ（1行動、またはターン開始・終了などの行動外トップレベル
+ * イベント）が終了するたびに破棄し、`RuntimeCounterReset`を発行する。
+ */
+const RUNTIME_COUNTER_RESET_SCOPES = ["RESOLUTION_SCOPE"] as const;
+export type RuntimeCounterResetScope = (typeof RUNTIME_COUNTER_RESET_SCOPES)[number];
+
 const RUNTIME_COUNTER_UPDATE_ALLOWED_KEYS: Record<RuntimeCounterUpdateKind, readonly string[]> = {
-  INCREMENT: ["kind", "counter", "scope", "trigger", "amount"],
-  CUMULATIVE_DAMAGE_THRESHOLD: ["kind", "counter", "scope", "trigger", "maxHpRatio"],
+  INCREMENT: ["kind", "counter", "scope", "trigger", "amount", "resetScope"],
+  CUMULATIVE_DAMAGE_THRESHOLD: ["kind", "counter", "scope", "trigger", "maxHpRatio", "resetScope"],
 };
 
 /**
@@ -44,6 +61,7 @@ export type RuntimeCounterUpdateDefinition =
       readonly scope: RuntimeCounterScope;
       readonly trigger: TriggerDefinition;
       readonly amount: number;
+      readonly resetScope?: RuntimeCounterResetScope;
     }
   | {
       readonly kind: "CUMULATIVE_DAMAGE_THRESHOLD";
@@ -51,6 +69,7 @@ export type RuntimeCounterUpdateDefinition =
       readonly scope: RuntimeCounterScope;
       readonly trigger: TriggerDefinition;
       readonly maxHpRatio: number;
+      readonly resetScope?: RuntimeCounterResetScope;
     };
 
 export interface RuntimeCounterUpdateDefinitionInput {
@@ -60,6 +79,18 @@ export interface RuntimeCounterUpdateDefinitionInput {
   readonly trigger: TriggerDefinitionInput;
   readonly amount?: number;
   readonly maxHpRatio?: number;
+  readonly resetScope?: string;
+}
+
+function createResetScope(
+  input: RuntimeCounterUpdateDefinitionInput,
+  path: string,
+): RuntimeCounterResetScope | undefined {
+  if (input.resetScope === undefined) {
+    return undefined;
+  }
+  assertEnumValue(input.resetScope, RUNTIME_COUNTER_RESET_SCOPES, `${path}.resetScope`);
+  return input.resetScope;
 }
 
 export function createRuntimeCounterUpdateDefinition(
@@ -68,16 +99,24 @@ export function createRuntimeCounterUpdateDefinition(
 ): RuntimeCounterUpdateDefinition {
   assertEnumValue(input.kind, RUNTIME_COUNTER_UPDATE_KINDS, `${path}.kind`);
   assertKnownKeys(input, RUNTIME_COUNTER_UPDATE_ALLOWED_KEYS[input.kind], path);
-  assertEnumValue(input.scope, RUNTIME_COUNTER_SCOPES, `${path}.scope`);
+  assertEnumValue(input.scope, IMPLEMENTED_RUNTIME_COUNTER_SCOPES, `${path}.scope`);
   const counter = createRuntimeCounterId(input.counter, `${path}.counter`);
   const trigger = createTriggerDefinition(input.trigger, `${path}.trigger`);
+  const resetScope = createResetScope(input, path);
 
   if (input.kind === "INCREMENT") {
     if (input.amount === undefined) {
       throw new DomainValidationError(`${path}.amount`, "is required when kind is INCREMENT");
     }
     assertInteger(input.amount, `${path}.amount`, { min: 1 });
-    return { kind: "INCREMENT", counter, scope: input.scope, trigger, amount: input.amount };
+    return {
+      kind: "INCREMENT",
+      counter,
+      scope: input.scope,
+      trigger,
+      amount: input.amount,
+      ...(resetScope !== undefined ? { resetScope } : {}),
+    };
   }
 
   if (input.maxHpRatio === undefined) {
@@ -99,5 +138,6 @@ export function createRuntimeCounterUpdateDefinition(
     scope: input.scope,
     trigger,
     maxHpRatio: input.maxHpRatio,
+    ...(resetScope !== undefined ? { resetScope } : {}),
   };
 }

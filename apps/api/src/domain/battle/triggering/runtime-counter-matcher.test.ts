@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { detectRuntimeCounterUpdates } from "./runtime-counter-matcher.js";
+import {
+  collectResolutionScopeResets,
+  detectRuntimeCounterUpdates,
+} from "./runtime-counter-matcher.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -382,26 +385,90 @@ describe("detectRuntimeCounterUpdates", () => {
     expect(result.changes).toEqual([]);
   });
 
-  it("UT-RCOUNTER-M-007: rejects a BATTLE-scoped counterUpdates entry as not yet supported (Issue #143 implements SKILL_RUNTIME only)", () => {
+  it("UT-RCOUNTER-M-008 (review fix): the carry is persisted into the returned units even when it does not yet cross a threshold, so a later update can pick up where it left off", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
-        kind: "INCREMENT",
-        counter: "RUNTIME_COUNTER_BATTLE",
-        scope: "BATTLE",
+        kind: "CUMULATIVE_DAMAGE_THRESHOLD",
+        counter: "RUNTIME_COUNTER_DMG",
+        scope: "SKILL_RUNTIME",
         trigger: {
-          eventType: "CriticalCheckResolved",
+          eventType: "DamageApplied",
           category: "FACT",
-          sourceSelector: "SELF",
-          targetSelector: "ANY",
+          sourceSelector: "ENEMY",
+          targetSelector: "SELF",
         },
-        amount: 1,
+        maxHpRatio: 0.4,
       },
     ]);
     const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const enemy = unit("E1", "ENEMY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
     const unitDefinitions = new Map([
       [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
     ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const first = detectRuntimeCounterUpdates({
+      event: damageEvent(enemy.battleUnitId, owner.battleUnitId, 30),
+      units: [owner, enemy],
+      unitDefinitions,
+      skillDefinitions,
+    });
+    expect(first.changes).toEqual([]);
+    const ownerAfterFirst = first.units.find((u) => u.battleUnitId === owner.battleUnitId);
+    expect(
+      ownerAfterFirst?.skillCounters?.[skill.skillDefinitionId]?.["RUNTIME_COUNTER_DMG" as never],
+    ).toEqual({ value: 0, carry: 30 });
+
+    // carry 30 + 15 = 45 >= 40 threshold: one crossing, remainder 5.
+    const second = detectRuntimeCounterUpdates({
+      event: damageEvent(enemy.battleUnitId, owner.battleUnitId, 15),
+      units: first.units,
+      unitDefinitions,
+      skillDefinitions,
+    });
+    expect(second.changes).toEqual([
+      {
+        ownerUnitId: owner.battleUnitId,
+        skillDefinitionId: skill.skillDefinitionId,
+        counter: "RUNTIME_COUNTER_DMG",
+        before: 0,
+        after: 1,
+        carry: 5,
+      },
+    ]);
+  });
+
+  it("UT-RCOUNTER-M-007: rejects a BATTLE-scoped counterUpdates entry as not yet supported (defense-in-depth; Catalog validation already rejects this scope before it can reach here, per UT-CAT-RCU-011)", () => {
+    // `createRuntimeCounterUpdateDefinition` (Catalog layer) now rejects
+    // BATTLE/BATTLE_UNIT scope outright, so a BATTLE-scoped entry can no
+    // longer be constructed via `passiveSkillOf`. Build it directly to
+    // exercise the matcher's own defensive check.
+    const skill = passiveSkillOf("SKL_PS1", []);
+    const skillWithBattleScopedCounter: SkillDefinition = {
+      ...skill,
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: "RUNTIME_COUNTER_BATTLE",
+          scope: "BATTLE",
+          trigger: {
+            eventType: "CriticalCheckResolved",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+      ] as never,
+    };
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skillWithBattleScopedCounter.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([
+      [skillWithBattleScopedCounter.skillDefinitionId, skillWithBattleScopedCounter],
+    ]);
 
     expect(() =>
       detectRuntimeCounterUpdates({
@@ -411,5 +478,113 @@ describe("detectRuntimeCounterUpdates", () => {
         skillDefinitions,
       }),
     ).toThrow(DomainValidationError);
+  });
+});
+
+describe("collectResolutionScopeResets (review fix [P2])", () => {
+  it("UT-RCOUNTER-M-009: finds a counter declared with resetScope: RESOLUTION_SCOPE that currently holds a value", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_SCOPED",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+        resetScope: "RESOLUTION_SCOPE",
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A, {
+      skillCounters: {
+        [skill.skillDefinitionId]: { RUNTIME_COUNTER_SCOPED: { value: 2, carry: 0 } },
+      },
+    } as never);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const resets = collectResolutionScopeResets({
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(resets).toEqual([
+      {
+        ownerUnitId: owner.battleUnitId,
+        skillDefinitionId: skill.skillDefinitionId,
+        counter: "RUNTIME_COUNTER_SCOPED",
+      },
+    ]);
+  });
+
+  it("UT-RCOUNTER-M-010: does not report a counter that has no resetScope (persists for the whole battle)", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_PERSISTENT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A, {
+      skillCounters: {
+        [skill.skillDefinitionId]: { RUNTIME_COUNTER_PERSISTENT: { value: 2, carry: 0 } },
+      },
+    } as never);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const resets = collectResolutionScopeResets({
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(resets).toEqual([]);
+  });
+
+  it("UT-RCOUNTER-M-011: does not report a resetScope counter that has no current value yet", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_SCOPED",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+        resetScope: "RESOLUTION_SCOPE",
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const resets = collectResolutionScopeResets({
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(resets).toEqual([]);
   });
 });

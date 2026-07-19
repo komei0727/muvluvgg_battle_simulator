@@ -21,7 +21,11 @@ import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/ev
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { detectPassiveCandidates } from "../triggering/passive-trigger-matcher.js";
-import { detectRuntimeCounterUpdates } from "../triggering/runtime-counter-matcher.js";
+import {
+  collectResolutionScopeResets,
+  detectRuntimeCounterUpdates,
+} from "../triggering/runtime-counter-matcher.js";
+import { resetRuntimeCounter } from "../model/runtime-counter-state.js";
 import {
   createEmptyPassiveActivationGuard,
   type PassiveActivationGuard,
@@ -145,20 +149,17 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * `applyDamageAction`等が確定させたFACT/TIMINGイベントの都度呼び出す
-   * エントリーポイント。PS発動で変化した`units`をそのまま返す。
-   *
    * `08_ドメインイベント.md`「イベント発行と処理」#3（M6最小実装、Issue #143）:
    * 原因イベントに起因する`RuntimeCounter`更新（`counterUpdates`、`SKILL_RUNTIME`
-   * スコープ）があれば、`RuntimeCounterChanged`を発行し、その候補解決を
-   * （このメソッドへの再入により）原因イベント自身の候補抽出より先に完了させて
-   * から、`RUNTIME_COUNTER` Conditionが更新後の値を参照できる状態で原因イベント
-   * 自身の候補解決へ進む。
+   * スコープ）を検出し、`RuntimeCounterChanged`を発行する。`this.units`を更新
+   * するだけで、発行したイベントの候補解決は呼び出し側の責務とする
+   * （`state.guard`/stackを共有できるかどうかは呼び出し元のコンテキストに
+   * 依存するため、ここではguardに触れない — レビュー指摘[P1]参照）。
    */
-  onFactEvent(event: BattleDomainEvent, units: readonly BattleUnit[]): readonly BattleUnit[] {
-    this.units = units;
-    const triggerEvent = this.toTriggerEvent(event);
-
+  private detectAndRecordRuntimeCounterChanges(
+    causingEvent: BattleDomainEvent,
+  ): readonly BattleDomainEvent[] {
+    const triggerEvent = this.toTriggerEvent(causingEvent);
     const counterUpdate = detectRuntimeCounterUpdates({
       event: triggerEvent,
       units: this.units,
@@ -166,15 +167,15 @@ export class PassiveActivationRuntime {
       skillDefinitions: this.context.definitions.skillDefinitions,
     });
     this.units = counterUpdate.units;
-    for (const change of counterUpdate.changes) {
-      const recorded = this.context.recorder.record({
+    return counterUpdate.changes.map((change) =>
+      this.context.recorder.record({
         eventType: "RuntimeCounterChanged",
         category: "FACT",
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
         resolutionScopeId: this.context.resolutionScopeId,
-        parentEventId: event.eventId,
+        parentEventId: causingEvent.eventId,
         rootEventId: this.context.rootEventId,
         sourceUnitId: change.ownerUnitId,
         payload: {
@@ -197,7 +198,28 @@ export class PassiveActivationRuntime {
             },
           },
         },
-      });
+      }),
+    );
+  }
+
+  /**
+   * `applyDamageAction`等が確定させたFACT/TIMINGイベントの都度呼び出す
+   * トップレベルのエントリーポイント。PS発動で変化した`units`をそのまま返す。
+   *
+   * このメソッドは常に新しい`resolvePassiveChain`呼び出し（新しい`ChainState`・
+   * guardスナップショット）を起こすため、既に別の`resolvePassiveChain`呼び出しが
+   * 進行中の文脈（`activatePassiveCandidate`のgenerator本体など）から呼び出しては
+   * ならない — 進行中の呼び出しが完了した際に`this.guard`を上書きし、この
+   * メソッド内で記録した発動をロストする（レビュー指摘[P1]、Issue #143）。
+   * そのような文脈では代わりに`PassiveActivationStep`を`yield`し、進行中の
+   * `driveActivation`が共有する`state`（guard/stack）へ正しく参加させること。
+   */
+  onFactEvent(event: BattleDomainEvent, units: readonly BattleUnit[]): readonly BattleUnit[] {
+    this.units = units;
+    const triggerEvent = this.toTriggerEvent(event);
+
+    const runtimeCounterChanges = this.detectAndRecordRuntimeCounterChanges(event);
+    for (const recorded of runtimeCounterChanges) {
       this.units = this.onFactEvent(recorded, this.units);
     }
 
@@ -210,6 +232,76 @@ export class PassiveActivationRuntime {
     }
     this.guard = result.activationGuard;
     return this.units;
+  }
+
+  /**
+   * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（レビュー指摘[P2]、
+   * Issue #143）。呼び出し側（`resolveSkillUse`／charge解放／`advanceBattle`の
+   * `TurnStarted`処理など、このインスタンスが担当する1解決スコープを完全に終えた
+   * 箇所）が、そのスコープ内の最後の`onFactEvent`呼び出し後に必ず1回呼び出す。
+   * `resetScope: "RESOLUTION_SCOPE"`を宣言し現在値を持つcounterを破棄して
+   * `RuntimeCounterReset`を発行し、その候補解決（`onFactEvent`経由、トップ
+   * レベルの呼び出しのため安全）を行う。この候補解決が同じスコープへ新しい
+   * 対象counterを生成・更新した場合は、リセット対象counterが残らなくなるまで
+   * 「破棄→発行→候補解決」を繰り返す。対象12行はいずれも`resetScope`を宣言
+   * しないため、この処理は常に即座に`this.units`をそのまま返す。
+   */
+  finalizeResolutionScope(): readonly BattleUnit[] {
+    while (true) {
+      const targets = collectResolutionScopeResets({
+        units: this.units,
+        unitDefinitions: this.context.definitions.unitDefinitions,
+        skillDefinitions: this.context.definitions.skillDefinitions,
+      });
+      if (targets.length === 0) {
+        return this.units;
+      }
+      for (const target of targets) {
+        const owner = requireUnit(this.units, target.ownerUnitId);
+        const counters = owner.skillCounters?.[target.skillDefinitionId] ?? {};
+        const result = resetRuntimeCounter(counters, target.counter);
+        if (result === undefined) {
+          continue;
+        }
+        const updatedOwner: BattleUnit = {
+          ...owner,
+          skillCounters: { ...owner.skillCounters, [target.skillDefinitionId]: result.counters },
+        };
+        this.units = this.units.map((u) =>
+          u.battleUnitId === owner.battleUnitId ? updatedOwner : u,
+        );
+        const recorded = this.context.recorder.record({
+          eventType: "RuntimeCounterReset",
+          category: "FACT",
+          turnNumber: this.context.turnNumber,
+          cycleNumber: this.context.cycleNumber,
+          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+          resolutionScopeId: this.context.resolutionScopeId,
+          parentEventId: this.context.rootEventId,
+          rootEventId: this.context.rootEventId,
+          sourceUnitId: target.ownerUnitId,
+          payload: {
+            ownerUnitId: target.ownerUnitId,
+            scope: "SKILL_RUNTIME",
+            counter: target.counter,
+            skillDefinitionId: target.skillDefinitionId,
+            before: result.change.before,
+          },
+          stateDelta: {
+            units: {
+              [target.ownerUnitId]: {
+                skillCounters: {
+                  [target.skillDefinitionId]: {
+                    [target.counter]: { before: result.change.before, after: 0 },
+                  },
+                },
+              },
+            },
+          },
+        });
+        this.units = this.onFactEvent(recorded, this.units);
+      }
+    }
   }
 
   /**
@@ -346,11 +438,23 @@ export class PassiveActivationRuntime {
       },
     });
     lastEventId = passiveActivated.eventId;
-    // Issue #143修正: `PassiveActivated`はこれまで直接recordするだけで
-    // `onFactEvent`を経由しておらず、これに反応するPS（例:「パッシブスキルを
-    // N回使用するたびに発動」のRuntimeCounter更新）が検出されなかった。他の
-    // FACTイベントと同様、counter更新・候補解決の対象にする。
-    this.units = this.onFactEvent(passiveActivated, this.units);
+    // Issue #143修正 / レビュー指摘[P1]: `PassiveActivated`はこれまで直接record
+    // するだけで`onFactEvent`を経由しておらず、これに反応するPS（例:「パッシブ
+    // スキルをN回使用するたびに発動」のRuntimeCounter更新）が検出されなかった。
+    // ただし本メソッドは常に進行中の`resolvePassiveChain`（`driveActivation`）の
+    // 内側から呼ばれるため、`this.onFactEvent()`を再帰呼び出しすると新しい
+    // `resolvePassiveChain`が別のguardスナップショットから走り、進行中の呼び出し
+    // が完了した際に発動記録を上書きしてしまう（R-PS-07違反）。counter更新自体は
+    // guard/stackに触れないため直接検出・記録し、候補解決は`TIMING_EVENT`として
+    // yieldして進行中の`driveActivation`が共有する`state`へ正しく参加させる
+    // （`RuntimeCounterChanged`→`PassiveActivated`の順。前者の候補解決を後者より
+    // 先に完了させる「複合処理と状態差分の所有」のpre-matching例外と同じ順序）。
+    const runtimeCounterChanges = this.detectAndRecordRuntimeCounterChanges(passiveActivated);
+    for (const changed of runtimeCounterChanges) {
+      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
+      lastEventId = changed.eventId;
+    }
+    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(passiveActivated) };
     // 上記の候補解決で`ownerId`自身の状態が変わりうるため、`resolveSkillOrder`
     // へ渡す`actor`スナップショットを最新の`this.units`から取り直す
     // （クールタイム設定直後の古いスナップショットのままだと、直前の連鎖が

@@ -1120,4 +1120,159 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       skillB.skillDefinitionId,
     ]);
   });
+
+  it("UT-R-PS-05-004 (review fix [P1]: PassiveActivated re-entry must not clobber the activation guard): a PS whose own trigger reacts to its own PassiveActivated activates exactly once per resolution scope (R-PS-07), not twice", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_SELF_REACT_OWNER");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_SELF_REACT"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+        {
+          // Deliberately reacts to its own PassiveActivated (unconditionally),
+          // so the buggy implementation would try to re-activate itself the
+          // moment its own PassiveActivated event is processed mid-flight.
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_SELF_REACT", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    runtime.onFactEvent(turnStarted, [owner]);
+
+    const passiveActivatedEvents = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "PassiveActivated");
+    expect(passiveActivatedEvents).toHaveLength(1);
+  });
+
+  it("UT-R-EFF-11-002 (review fix [P2]): finalizeResolutionScope discards a resetScope: RESOLUTION_SCOPE counter and emits RuntimeCounterReset once the candidate stack is empty", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESET_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SCOPED");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_RESET"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_RESET", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    const afterEvent = runtime.onFactEvent(turnStarted, [owner]);
+    const ownerAfterEvent = afterEvent.find((u) => u.battleUnitId === owner.battleUnitId);
+    expect(ownerAfterEvent?.skillCounters).toEqual({
+      [skill.skillDefinitionId]: { RUNTIME_COUNTER_SCOPED: { value: 1, carry: 0 } },
+    });
+
+    const finalUnits = runtime.finalizeResolutionScope();
+    const ownerAfterFinalize = finalUnits.find((u) => u.battleUnitId === owner.battleUnitId);
+    expect(ownerAfterFinalize?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
+
+    const reset = recorder.getEvents().find((e) => e.eventType === "RuntimeCounterReset")!;
+    expect(reset).toBeDefined();
+    expect(reset.parentEventId).toBe(turnStarted.eventId);
+    expect(reset.payload).toMatchObject({
+      ownerUnitId: owner.battleUnitId,
+      scope: "SKILL_RUNTIME",
+      counter: counterId,
+      skillDefinitionId: skill.skillDefinitionId,
+      before: 1,
+    });
+    expect(reset.stateDelta).toEqual({
+      units: {
+        [owner.battleUnitId]: {
+          skillCounters: { [skill.skillDefinitionId]: { [counterId]: { before: 1, after: 0 } } },
+        },
+      },
+    });
+
+    // Calling it again is a stable no-op: nothing left to reset, no duplicate event.
+    const resetEventsBefore = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterReset").length;
+    runtime.finalizeResolutionScope();
+    const resetEventsAfter = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterReset").length;
+    expect(resetEventsAfter).toBe(resetEventsBefore);
+  });
 });

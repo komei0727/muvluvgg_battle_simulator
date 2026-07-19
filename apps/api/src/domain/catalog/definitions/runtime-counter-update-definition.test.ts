@@ -185,4 +185,74 @@ describe("RuntimeCounterUpdateDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-RCU-012 (review fix [P2]): maps an INCREMENT update definition with resetScope: RESOLUTION_SCOPE", () => {
+    const result = createRuntimeCounterUpdateDefinition(
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_AS_USE",
+        scope: "SKILL_RUNTIME",
+        trigger: baseTrigger,
+        amount: 1,
+        resetScope: "RESOLUTION_SCOPE",
+      },
+      "counterUpdate",
+    );
+    expect(result).toEqual({
+      kind: "INCREMENT",
+      counter: "RUNTIME_COUNTER_AS_USE",
+      scope: "SKILL_RUNTIME",
+      trigger: { ...baseTrigger, condition: { kind: "TRUE" } },
+      amount: 1,
+      resetScope: "RESOLUTION_SCOPE",
+    });
+  });
+
+  it("UT-CAT-RCU-013 (review fix [P2]): omitting resetScope means the counter persists for the whole battle (no resetScope key on the result)", () => {
+    const result = createRuntimeCounterUpdateDefinition(
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_AS_USE",
+        scope: "SKILL_RUNTIME",
+        trigger: baseTrigger,
+        amount: 1,
+      },
+      "counterUpdate",
+    );
+    expect(result).not.toHaveProperty("resetScope");
+  });
+
+  it("UT-CAT-RCU-014 (review fix [P2]): rejects an invalid resetScope value", () => {
+    expect(() =>
+      createRuntimeCounterUpdateDefinition(
+        {
+          kind: "INCREMENT",
+          counter: "RUNTIME_COUNTER_AS_USE",
+          scope: "SKILL_RUNTIME",
+          trigger: baseTrigger,
+          amount: 1,
+          resetScope: "TURN",
+        },
+        "counterUpdate",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it.each(["BATTLE", "BATTLE_UNIT"])(
+    "UT-CAT-RCU-011 (review fix [P2]): rejects scope %s at Catalog load time (only SKILL_RUNTIME is implemented; Catalog must not accept a scope the runtime rejects)",
+    (scope) => {
+      expect(() =>
+        createRuntimeCounterUpdateDefinition(
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_AS_USE",
+            scope,
+            trigger: baseTrigger,
+            amount: 1,
+          },
+          "counterUpdate",
+        ),
+      ).toThrow(DomainValidationError);
+    },
+  );
 });
