@@ -12,6 +12,7 @@ import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createActionId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
@@ -902,5 +903,132 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     );
     expect(childPassiveActivatedIndex).toBeGreaterThan(cooldownReducedIndex);
     expect(actionBStartingIndex).toBeGreaterThan(childPassiveActivatedIndex);
+  });
+
+  it("UT-R-EFF-11-001 (RuntimeCounter, Issue #143): updates the counter and emits RuntimeCounterChanged before the causing event's own PS candidates are resolved, so a modulo-gated PS only activates once the counter reaches a multiple", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS2"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "RUNTIME_COUNTER",
+            counter: counterId,
+            op: "GTE",
+            value: 1,
+            modulo: 2,
+          },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "CriticalCheckResolved",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS2", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    function recordCrit(): BattleDomainEvent {
+      return recorder.record({
+        eventType: "CriticalCheckResolved",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: owner.battleUnitId,
+        payload: { mode: "NORMAL", baseCriticalRate: 1, effectiveCriticalRate: 1, result: true },
+      });
+    }
+
+    const crit1 = recordCrit();
+    let units = runtime.onFactEvent(crit1, [owner]);
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
+      [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { value: 1, carry: 0 } },
+    });
+    expect(recorder.getEvents().some((e) => e.eventType === "PassiveActivated")).toBe(false);
+
+    const runtimeCounterChanged1 = recorder
+      .getEvents()
+      .find((e) => e.eventType === "RuntimeCounterChanged")!;
+    expect(runtimeCounterChanged1.parentEventId).toBe(crit1.eventId);
+    expect(runtimeCounterChanged1.sequence).toBeGreaterThan(crit1.sequence);
+    expect(runtimeCounterChanged1.payload).toMatchObject({
+      ownerUnitId: owner.battleUnitId,
+      scope: "SKILL_RUNTIME",
+      counter: "RUNTIME_COUNTER_CRIT",
+      skillDefinitionId: skill.skillDefinitionId,
+      before: 0,
+      after: 1,
+      carry: 0,
+    });
+    expect(runtimeCounterChanged1.stateDelta).toEqual({
+      units: {
+        [owner.battleUnitId]: {
+          skillCounters: {
+            [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { before: 0, after: 1 } },
+          },
+        },
+      },
+    });
+
+    const crit2 = recordCrit();
+    units = runtime.onFactEvent(crit2, units);
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
+      [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { value: 2, carry: 0 } },
+    });
+
+    const passiveActivated = recorder
+      .getEvents()
+      .find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated).toBeDefined();
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: owner.battleUnitId,
+      skillDefinitionId: skill.skillDefinitionId,
+    });
+    const runtimeCounterChanged2 = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterChanged")[1]!;
+    expect(runtimeCounterChanged2.sequence).toBeLessThan(passiveActivated.sequence);
   });
 });

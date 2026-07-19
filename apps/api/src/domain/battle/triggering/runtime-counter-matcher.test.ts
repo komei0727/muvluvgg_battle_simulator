@@ -177,6 +177,7 @@ describe("detectRuntimeCounterUpdates", () => {
         counter: "RUNTIME_COUNTER_CRIT",
         before: 0,
         after: 1,
+        carry: 0,
       },
     ]);
     expect(result.units[0]?.skillCounters?.[skill.skillDefinitionId]?.["RUNTIME_COUNTER_CRIT" as never]).toEqual({
@@ -223,6 +224,7 @@ describe("detectRuntimeCounterUpdates", () => {
       counter: "RUNTIME_COUNTER_CRIT",
       before: 1,
       after: 2,
+      carry: 0,
     });
   });
 
@@ -260,6 +262,7 @@ describe("detectRuntimeCounterUpdates", () => {
         counter: "RUNTIME_COUNTER_CRIT",
         before: 0,
         after: 1,
+        carry: 0,
       },
     ]);
   });
@@ -328,6 +331,7 @@ describe("detectRuntimeCounterUpdates", () => {
         counter: "RUNTIME_COUNTER_DMG",
         before: 0,
         after: 2,
+        carry: 25,
       },
     ]);
   });

@@ -24,6 +24,8 @@ export interface RuntimeCounterUpdateResult {
   readonly counter: RuntimeCounterId;
   readonly before: number;
   readonly after: number;
+  /** `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`INCREMENT`では常に0）。観測用。 */
+  readonly carry: number;
 }
 
 export interface RuntimeCounterMatchInput {
@@ -66,10 +68,20 @@ function applyUpdate(
   counters: RuntimeCounterMap,
   owner: BattleUnit,
   event: TriggerCandidateEvent,
-): { readonly counters: RuntimeCounterMap; readonly before: number; readonly after: number } {
+): {
+  readonly counters: RuntimeCounterMap;
+  readonly before: number;
+  readonly after: number;
+  readonly carry: number;
+} {
   if (update.kind === "INCREMENT") {
     const result = incrementRuntimeCounter(counters, update.counter, update.amount);
-    return { counters: result.counters, before: result.change.before, after: result.change.after };
+    return {
+      counters: result.counters,
+      before: result.change.before,
+      after: result.change.after,
+      carry: 0,
+    };
   }
   const damageAmount = readNumberPayloadField(event, "hitPointDamage");
   const result = applyCumulativeDamageThreshold(
@@ -79,7 +91,12 @@ function applyUpdate(
     owner.combatStats.maximumHp,
     update.maxHpRatio,
   );
-  return { counters: result.counters, before: result.change.before, after: result.change.after };
+  return {
+    counters: result.counters,
+    before: result.change.before,
+    after: result.change.after,
+    carry: result.counters[update.counter]?.carry ?? 0,
+  };
 }
 
 /**
@@ -155,6 +172,7 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
           counter: update.counter,
           before: applied.before,
           after: applied.after,
+          carry: applied.carry,
         });
       }
     }

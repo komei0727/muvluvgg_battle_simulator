@@ -21,6 +21,7 @@ import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/ev
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { detectPassiveCandidates } from "../triggering/passive-trigger-matcher.js";
+import { detectRuntimeCounterUpdates } from "../triggering/runtime-counter-matcher.js";
 import {
   createEmptyPassiveActivationGuard,
   type PassiveActivationGuard,
@@ -146,10 +147,60 @@ export class PassiveActivationRuntime {
   /**
    * `applyDamageAction`等が確定させたFACT/TIMINGイベントの都度呼び出す
    * エントリーポイント。PS発動で変化した`units`をそのまま返す。
+   *
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（M6最小実装、Issue #143）:
+   * 原因イベントに起因する`RuntimeCounter`更新（`counterUpdates`、`SKILL_RUNTIME`
+   * スコープ）があれば、`RuntimeCounterChanged`を発行し、その候補解決を
+   * （このメソッドへの再入により）原因イベント自身の候補抽出より先に完了させて
+   * から、`RUNTIME_COUNTER` Conditionが更新後の値を参照できる状態で原因イベント
+   * 自身の候補解決へ進む。
    */
   onFactEvent(event: BattleDomainEvent, units: readonly BattleUnit[]): readonly BattleUnit[] {
     this.units = units;
     const triggerEvent = this.toTriggerEvent(event);
+
+    const counterUpdate = detectRuntimeCounterUpdates({
+      event: triggerEvent,
+      units: this.units,
+      unitDefinitions: this.context.definitions.unitDefinitions,
+      skillDefinitions: this.context.definitions.skillDefinitions,
+    });
+    this.units = counterUpdate.units;
+    for (const change of counterUpdate.changes) {
+      const recorded = this.context.recorder.record({
+        eventType: "RuntimeCounterChanged",
+        category: "FACT",
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        resolutionScopeId: this.context.resolutionScopeId,
+        parentEventId: event.eventId,
+        rootEventId: this.context.rootEventId,
+        sourceUnitId: change.ownerUnitId,
+        payload: {
+          ownerUnitId: change.ownerUnitId,
+          scope: "SKILL_RUNTIME",
+          counter: change.counter,
+          skillDefinitionId: change.skillDefinitionId,
+          before: change.before,
+          after: change.after,
+          carry: change.carry,
+        },
+        stateDelta: {
+          units: {
+            [change.ownerUnitId]: {
+              skillCounters: {
+                [change.skillDefinitionId]: {
+                  [change.counter]: { before: change.before, after: change.after },
+                },
+              },
+            },
+          },
+        },
+      });
+      this.units = this.onFactEvent(recorded, this.units);
+    }
+
     const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
     if (!result.ok) {
       throw new DomainValidationError(
