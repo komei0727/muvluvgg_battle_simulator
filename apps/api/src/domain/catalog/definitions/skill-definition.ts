@@ -352,7 +352,11 @@ export function createSkillDefinition(
   const activationCondition =
     input.activationCondition === undefined
       ? { kind: "TRUE" as const }
-      : createConditionDefinition(input.activationCondition, `${path}.activationCondition`, undefined);
+      : createConditionDefinition(
+          input.activationCondition,
+          `${path}.activationCondition`,
+          undefined,
+        );
 
   if (input.counterUpdates !== undefined) {
     assertArray(input.counterUpdates, `${path}.counterUpdates`);

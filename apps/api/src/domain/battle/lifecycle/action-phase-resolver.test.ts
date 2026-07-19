@@ -1764,7 +1764,9 @@ describe("resolveActionPhase", () => {
     ]);
 
     const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map([[attackerUnitDefinitionId, [attackSkill("ACT_ATTACK_SELF_PS", 1)]]]),
+      activeSkillsByUnit: new Map([
+        [attackerUnitDefinitionId, [attackSkill("ACT_ATTACK_SELF_PS", 1)]],
+      ]),
       exSkillByUnit: new Map(),
       effectActions: new Map([[effectAction.effectActionDefinitionId, effectAction]]),
       unitDefinitions,

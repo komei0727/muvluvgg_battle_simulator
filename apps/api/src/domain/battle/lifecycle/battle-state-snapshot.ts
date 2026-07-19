@@ -27,7 +27,9 @@ export interface BattleUnitSnapshot {
    * Issue #143）。`cooldowns`と同様、1件も持たないユニットへは`{}`を書かない。
    * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数は公開しない内部状態のため含まない。
    */
-  readonly skillCounters?: Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>>;
+  readonly skillCounters?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
 }
 
 /**

@@ -1018,9 +1018,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { value: 2, carry: 0 } },
     });
 
-    const passiveActivated = recorder
-      .getEvents()
-      .find((e) => e.eventType === "PassiveActivated")!;
+    const passiveActivated = recorder.getEvents().find((e) => e.eventType === "PassiveActivated")!;
     expect(passiveActivated).toBeDefined();
     expect(passiveActivated.payload).toMatchObject({
       actorUnitId: owner.battleUnitId,
@@ -1096,7 +1094,10 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
     const definitions = definitionsOf(
       new Map([
-        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skillA.skillDefinitionId, skillB.skillDefinitionId])],
+        [
+          unitDefinitionId,
+          unitDefinitionOf(unitDefinitionId, [skillA.skillDefinitionId, skillB.skillDefinitionId]),
+        ],
       ]),
       new Map([
         [skillA.skillDefinitionId, skillA],

@@ -226,7 +226,13 @@ describe("ConditionDefinition", () => {
 
   it("UT-CAT-COND-017: maps a RUNTIME_COUNTER condition with modulo (Issue #143)", () => {
     const result = createConditionDefinition(
-      { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_AS_USE", op: "GTE", value: 1, modulo: 3 },
+      {
+        kind: "RUNTIME_COUNTER",
+        counter: "RUNTIME_COUNTER_AS_USE",
+        op: "GTE",
+        value: 1,
+        modulo: 3,
+      },
       "condition",
       undefined,
     );
@@ -258,7 +264,13 @@ describe("ConditionDefinition", () => {
   it("UT-CAT-COND-019: rejects a zero or negative modulo on RUNTIME_COUNTER (Issue #143)", () => {
     expect(() =>
       createConditionDefinition(
-        { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_AS_USE", op: "GTE", value: 1, modulo: 0 },
+        {
+          kind: "RUNTIME_COUNTER",
+          counter: "RUNTIME_COUNTER_AS_USE",
+          op: "GTE",
+          value: 1,
+          modulo: 0,
+        },
         "condition",
         undefined,
       ),

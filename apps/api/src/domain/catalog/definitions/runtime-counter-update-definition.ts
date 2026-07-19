@@ -5,7 +5,12 @@ import {
   type TriggerDefinitionInput,
 } from "./trigger-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
-import { assertEnumValue, assertFinite, assertInteger, assertKnownKeys } from "../../shared/validate.js";
+import {
+  assertEnumValue,
+  assertFinite,
+  assertInteger,
+  assertKnownKeys,
+} from "../../shared/validate.js";
 
 /**
  * `05_ドメインモデル.md`「RuntimeCounter」が列挙するスコープのうち、M6が実装する

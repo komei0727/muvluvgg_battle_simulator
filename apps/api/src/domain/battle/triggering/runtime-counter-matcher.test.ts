@@ -160,7 +160,9 @@ describe("detectRuntimeCounterUpdates", () => {
       },
     ]);
     const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
-    const unitDefinitions = new Map([[UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])]]);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
 
     const result = detectRuntimeCounterUpdates({
@@ -180,7 +182,9 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 0,
       },
     ]);
-    expect(result.units[0]?.skillCounters?.[skill.skillDefinitionId]?.["RUNTIME_COUNTER_CRIT" as never]).toEqual({
+    expect(
+      result.units[0]?.skillCounters?.[skill.skillDefinitionId]?.["RUNTIME_COUNTER_CRIT" as never],
+    ).toEqual({
       value: 1,
       carry: 0,
     });
@@ -202,7 +206,9 @@ describe("detectRuntimeCounterUpdates", () => {
       },
     ]);
     const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
-    const unitDefinitions = new Map([[UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])]]);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
 
     const first = detectRuntimeCounterUpdates({
@@ -245,7 +251,9 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
     const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
     const other = unit("U2", "ALLY", { row: "FRONT", column: "CENTER" }, UNIT_DEF_A);
-    const unitDefinitions = new Map([[UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])]]);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
 
     const result = detectRuntimeCounterUpdates({
@@ -282,8 +290,12 @@ describe("detectRuntimeCounterUpdates", () => {
         amount: 1,
       },
     ]);
-    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A, { currentHp: 0 });
-    const unitDefinitions = new Map([[UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])]]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A, {
+      currentHp: 0,
+    });
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
 
     const result = detectRuntimeCounterUpdates({
@@ -313,7 +325,9 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
     const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
     const enemy = unit("E1", "ENEMY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
-    const unitDefinitions = new Map([[UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])]]);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
 
     const result = detectRuntimeCounterUpdates({
@@ -353,7 +367,9 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
     const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
     const enemy = unit("E1", "ENEMY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
-    const unitDefinitions = new Map([[UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])]]);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
 
     const result = detectRuntimeCounterUpdates({
@@ -382,7 +398,9 @@ describe("detectRuntimeCounterUpdates", () => {
       },
     ]);
     const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
-    const unitDefinitions = new Map([[UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])]]);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
     const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
 
     expect(() =>

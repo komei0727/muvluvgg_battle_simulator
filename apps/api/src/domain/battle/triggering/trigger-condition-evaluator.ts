@@ -83,8 +83,8 @@ export function evaluateTriggerCondition(
           'kind "RUNTIME_COUNTER" requires a RuntimeCounterLookupContext (owner + skillDefinitionId)',
         );
       }
-      const value = context.owner.skillCounters?.[context.skillDefinitionId]?.[condition.counter]
-        ?.value ?? 0;
+      const value =
+        context.owner.skillCounters?.[context.skillDefinitionId]?.[condition.counter]?.value ?? 0;
       if (condition.modulo !== undefined && value % condition.modulo !== 0) {
         return false;
       }

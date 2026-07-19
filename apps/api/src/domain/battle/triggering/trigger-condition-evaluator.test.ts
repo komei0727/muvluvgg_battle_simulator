@@ -153,39 +153,67 @@ describe("evaluateTriggerCondition", () => {
 
     it("UT-R-PS-01-010: an absent counter defaults to value 0", () => {
       expect(
-        evaluateTriggerCondition(condition, { payload: {} }, { owner: ownerWithCounter(), skillDefinitionId: SKILL_ID }),
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner: ownerWithCounter(), skillDefinitionId: SKILL_ID },
+        ),
       ).toBe(false);
     });
 
     it("UT-R-PS-01-011: compares the owning skill's current counter value with op/value", () => {
       expect(
-        evaluateTriggerCondition(condition, { payload: {} }, { owner: ownerWithCounter(1), skillDefinitionId: SKILL_ID }),
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner: ownerWithCounter(1), skillDefinitionId: SKILL_ID },
+        ),
       ).toBe(true);
       expect(
-        evaluateTriggerCondition(condition, { payload: {} }, { owner: ownerWithCounter(0), skillDefinitionId: SKILL_ID }),
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner: ownerWithCounter(0), skillDefinitionId: SKILL_ID },
+        ),
       ).toBe(false);
     });
 
     it("UT-R-PS-01-012 (RUNTIME_COUNTER_MODULO): modulo adds 'value mod modulo == 0' as an extra condition (every 3rd)", () => {
       const everyThird: ConditionDefinition = { ...condition, modulo: 3 };
       expect(
-        evaluateTriggerCondition(everyThird, { payload: {} }, { owner: ownerWithCounter(3), skillDefinitionId: SKILL_ID }),
+        evaluateTriggerCondition(
+          everyThird,
+          { payload: {} },
+          { owner: ownerWithCounter(3), skillDefinitionId: SKILL_ID },
+        ),
       ).toBe(true);
       expect(
-        evaluateTriggerCondition(everyThird, { payload: {} }, { owner: ownerWithCounter(4), skillDefinitionId: SKILL_ID }),
+        evaluateTriggerCondition(
+          everyThird,
+          { payload: {} },
+          { owner: ownerWithCounter(4), skillDefinitionId: SKILL_ID },
+        ),
       ).toBe(false);
       expect(
-        evaluateTriggerCondition(everyThird, { payload: {} }, { owner: ownerWithCounter(6), skillDefinitionId: SKILL_ID }),
+        evaluateTriggerCondition(
+          everyThird,
+          { payload: {} },
+          { owner: ownerWithCounter(6), skillDefinitionId: SKILL_ID },
+        ),
       ).toBe(true);
     });
 
     it("UT-R-PS-01-013: a counter belonging to a different SkillDefinitionId is not visible (SKILL_RUNTIME scope isolation)", () => {
       const owner = ownerWithCounter(5);
       expect(
-        evaluateTriggerCondition(condition, { payload: {} }, {
-          owner,
-          skillDefinitionId: createSkillDefinitionId("SKL_OTHER"),
-        }),
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          {
+            owner,
+            skillDefinitionId: createSkillDefinitionId("SKL_OTHER"),
+          },
+        ),
       ).toBe(false);
     });
   });

@@ -109,7 +109,11 @@ function applyRuntimeCounterDeltas(
       RuntimeCounterId,
       ValueChange<number>,
     ][]) {
-      assertBeforeMatches(`${path}[${skillDefinitionId}][${counterId}]`, existing?.[counterId] ?? 0, change);
+      assertBeforeMatches(
+        `${path}[${skillDefinitionId}][${counterId}]`,
+        existing?.[counterId] ?? 0,
+        change,
+      );
       updated[counterId] = change.after;
     }
     next[skillDefinitionId] = updated;

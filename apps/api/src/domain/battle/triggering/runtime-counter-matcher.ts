@@ -147,7 +147,9 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
         if (!matchesUpdateTrigger(update, originalOwner, skillId, event, unitsById)) {
           continue;
         }
-        const currentOwner = workingUnits.find((u) => u.battleUnitId === originalOwner.battleUnitId);
+        const currentOwner = workingUnits.find(
+          (u) => u.battleUnitId === originalOwner.battleUnitId,
+        );
         if (currentOwner === undefined) {
           throw new DomainValidationError(
             "units",

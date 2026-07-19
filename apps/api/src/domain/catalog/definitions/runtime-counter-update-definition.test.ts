@@ -42,7 +42,12 @@ describe("RuntimeCounterUpdateDefinition", () => {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
         counter: "RUNTIME_COUNTER_CUMULATIVE_DAMAGE",
         scope: "SKILL_RUNTIME",
-        trigger: { ...baseTrigger, eventType: "DamageApplied", sourceSelector: "ENEMY", targetSelector: "SELF" },
+        trigger: {
+          ...baseTrigger,
+          eventType: "DamageApplied",
+          sourceSelector: "ENEMY",
+          targetSelector: "SELF",
+        },
         maxHpRatio: 0.4,
       },
       "counterUpdate",

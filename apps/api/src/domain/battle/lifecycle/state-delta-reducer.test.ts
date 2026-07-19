@@ -5,7 +5,10 @@ import type { StateDelta } from "../events/state-delta.js";
 import { createActionId } from "../../shared/event-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createRuntimeCounterId, createSkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import {
+  createRuntimeCounterId,
+  createSkillDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 
 const UNIT_A = createBattleUnitId("unit-a");
 const UNIT_B = createBattleUnitId("unit-b");

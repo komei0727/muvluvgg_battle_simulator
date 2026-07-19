@@ -1471,10 +1471,10 @@ counterUpdates:
     maxHpRatio: 0.4
 ```
 
-| kind                         | 追加フィールド             | 意味                                                                                                  |
-| ---------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `INCREMENT`                  | `amount`（整数、1以上）    | `trigger`が成立するたびにcounterへ`amount`を加算する（`RUNTIME_COUNTER_MODULO`）。                    |
-| `CUMULATIVE_DAMAGE_THRESHOLD`| `maxHpRatio`（`(0, 1]`）  | `trigger`成立時の被ダメージ量を対象の最大HP×`maxHpRatio`単位で加算し、超えた閾値の回数だけcounterを進める。端数は次回へ繰り越す（`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`）。 |
+| kind                          | 追加フィールド           | 意味                                                                                                                                                                       |
+| ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INCREMENT`                   | `amount`（整数、1以上）  | `trigger`が成立するたびにcounterへ`amount`を加算する（`RUNTIME_COUNTER_MODULO`）。                                                                                         |
+| `CUMULATIVE_DAMAGE_THRESHOLD` | `maxHpRatio`（`(0, 1]`） | `trigger`成立時の被ダメージ量を対象の最大HP×`maxHpRatio`単位で加算し、超えた閾値の回数だけcounterを進める。端数は次回へ繰り越す（`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`）。 |
 
 `trigger`は`TriggerDefinition`と同じ形（`eventType`/`category`/`sourceSelector`/`targetSelector`/`condition`）で、対象の更新契機を独立に判定する。`scope`は`RuntimeCounter`の所有スコープ（`BATTLE`／`BATTLE_UNIT`／`SKILL_RUNTIME`、`05_ドメインモデル.md`「RuntimeCounter」参照）で、M6時点では`SKILL_RUNTIME`だけを実装する（`BATTLE`／`BATTLE_UNIT`はCatalogとして受理するが評価器が明示的に拒否する）。
 
