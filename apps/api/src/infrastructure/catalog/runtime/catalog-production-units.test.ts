@@ -18,9 +18,10 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    // Issue #129: bumped when the 4 COOLDOWN_MANIPULATION units were updated
-    // and catalog/ regenerated (mise exec -- pnpm run generate-catalog).
-    expect(catalog.catalogRevision).toBe("2026-07-17.1");
+    // Issue #143: bumped when the 12 RUNTIME_COUNTER_MODULO/
+    // CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER lines were updated and catalog/
+    // regenerated (mise exec -- pnpm run generate-catalog).
+    expect(catalog.catalogRevision).toBe("2026-07-19.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
