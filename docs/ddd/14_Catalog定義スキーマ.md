@@ -1442,7 +1442,53 @@ condition:
 | `POSITION_RELATION` | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
 | `RESOLUTION_PHASE`  | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
 
-`RUNTIME_COUNTER`の`modulo`は`TURN_NUMBER`と同じ意味を持つ。省略時は`op`/`value`のみで判定する（従来どおり）。指定時は「更新後の`value`を`modulo`で割った余りが0」を追加条件とし、N回ごとの発動を表す（`RUNTIME_COUNTER_MODULO`、Issue #143）。累計ダメージ閾値（`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`、Issue #143）は、Counter自体の更新契機（最大HP比の閾値ごとに加算し端数を繰り越す）をCatalog側で表現する。加算契機の具体的なフィールド形状はIssue #143で確定する。
+`RUNTIME_COUNTER`の`modulo`は`TURN_NUMBER`と同じ意味を持つ。省略時は`op`/`value`のみで判定する（従来どおり）。指定時は「更新後の`value`を`modulo`で割った余りが0」を追加条件とし、N回ごとの発動を表す（`RUNTIME_COUNTER_MODULO`、Issue #143）。
+
+### counterUpdates（RuntimeCounterの更新契機、Issue #143）
+
+`RUNTIME_COUNTER` Conditionが参照するcounterは、`SkillDefinition.counterUpdates`（`RuntimeCounterUpdateDefinition[]`、省略時`[]`）が更新契機を宣言する。`counterUpdates`を1件以上宣言するSkillDefinitionだけ、そのTriggerDefinition/activationConditionが参照するcounterがいずれかの`counterUpdates[].counter`と一致することをCatalog検証が要求する（`counterUpdates`が空のSkillDefinitionはこの検証対象外— `<skillId>_ACTIVATIONS`/`<skillId>_CUMULATIVE_DAMAGE_RATIO`のように本Issue以前からcounterUpdatesを伴わずに存在するプレースホルダー、`CAP_RUNTIME_COUNTER`未実装のため現状preflightで拒否される、を遡及的に壊さないため）。
+
+```yaml
+counterUpdates:
+  - kind: INCREMENT
+    counter: SKL_EXAMPLE_PS1_TRIGGER_COUNT
+    scope: SKILL_RUNTIME
+    trigger:
+      eventType: SkillUseCompleted
+      category: FACT
+      sourceSelector: SELF
+      targetSelector: ANY
+      condition: { kind: EVENT_PAYLOAD, field: skillType, op: EQ, value: AS }
+    amount: 1
+  - kind: CUMULATIVE_DAMAGE_THRESHOLD
+    counter: SKL_EXAMPLE_PS2_THRESHOLD_COUNT
+    scope: SKILL_RUNTIME
+    trigger:
+      eventType: DamageApplied
+      category: FACT
+      sourceSelector: ENEMY
+      targetSelector: SELF
+    maxHpRatio: 0.4
+```
+
+| kind                         | 追加フィールド             | 意味                                                                                                  |
+| ---------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `INCREMENT`                  | `amount`（整数、1以上）    | `trigger`が成立するたびにcounterへ`amount`を加算する（`RUNTIME_COUNTER_MODULO`）。                    |
+| `CUMULATIVE_DAMAGE_THRESHOLD`| `maxHpRatio`（`(0, 1]`）  | `trigger`成立時の被ダメージ量を対象の最大HP×`maxHpRatio`単位で加算し、超えた閾値の回数だけcounterを進める。端数は次回へ繰り越す（`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`）。 |
+
+`trigger`は`TriggerDefinition`と同じ形（`eventType`/`category`/`sourceSelector`/`targetSelector`/`condition`）で、対象の更新契機を独立に判定する。`scope`は`RuntimeCounter`の所有スコープ（`BATTLE`／`BATTLE_UNIT`／`SKILL_RUNTIME`、`05_ドメインモデル.md`「RuntimeCounter」参照）で、M6時点では`SKILL_RUNTIME`だけを実装する（`BATTLE`／`BATTLE_UNIT`はCatalogとして受理するが評価器が明示的に拒否する）。
+
+`INCREMENT`によるカウントは、`RUNTIME_COUNTER` Conditionを対象イベント自身（`counterUpdates[].trigger`と同じ`eventType`）へ直接付与し、`modulo`で周期を絞り込む。一方`CUMULATIVE_DAMAGE_THRESHOLD`は、`counterUpdates[].trigger`（`DamageApplied`など）ごとに閾値を超えたとは限らないため、`RUNTIME_COUNTER`をそのまま使うと閾値を超えていない被ダメージでも「前回超えた時のvalueがまだ条件を満たす」まま誤って再発火しうる。そのため`CUMULATIVE_DAMAGE_THRESHOLD`を消費するPSは、`counterUpdates[].trigger`ではなく`RuntimeCounterChanged`（値が実際に変化した時だけ発行される）をtriggerのeventTypeとし、`EVENT_PAYLOAD`で`counter`フィールドを自身のcounter IDと比較して絞り込む。
+
+```yaml
+triggers:
+  - eventType: RuntimeCounterChanged
+    category: FACT
+    sourceSelector: SELF
+    targetSelector: ANY
+    condition:
+      { kind: EVENT_PAYLOAD, field: counter, op: EQ, value: SKL_EXAMPLE_PS2_THRESHOLD_COUNT }
+```
 
 `POSITION_RELATION`の`relation`は少なくとも「目の前」（`IN_FRONT_OF`）を候補とする。`target`は`ALLY`/`ENEMY`と組み合わせられる。`RESOLUTION_PHASE`の`phase`は`BATTLE_START`/`TURN_START`/`TURN_END`を候補とし、`negate: true`で「これらのphase中は不成立」（除外条件）を表す。両kindとも、`condition`フィールド（`ConditionDefinition`）から他のkindと`AND`/`OR`/`NOT`で組み合わせられる。具体的なpayload形状、対象不在時の評価規則、Mapper実装はIssue #144で確定する。
 
