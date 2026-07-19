@@ -204,18 +204,23 @@ export function resolveSkillUse(
       costAmount: skill.cost.amount,
     },
   });
+  working = passiveRuntime.onFactEvent(skillUseStarting, working);
 
   // R-SKL-04 #4: 使用したスキルへクールタイムを設定し、現在の行動IDを設定
   // スコープとして記録する（SkillUseStarting発行後、SkillUseStarted発行前）。
+  // Issue #143: `SkillUseStarting`のPS解決（あれば）で`working`が変化しうる
+  // ため、クールタイムはその後の最新状態（`actorBeforeCooldown`）へ重ねる
+  // （`actorAfterExGain`という古いスナップショットへ戻して上書きしない）。
+  const actorBeforeCooldown = requireUnit(working, actorId);
   const cooldownResult = recordCooldownStart(
     recorder,
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
-    actorAfterExGain.cooldowns,
+    actorBeforeCooldown.cooldowns,
     skill,
     skillUseStarting.eventId,
     actionStarted.eventId,
   );
-  const actorWithCooldown = { ...actorAfterExGain, cooldowns: cooldownResult.cooldowns };
+  const actorWithCooldown = { ...actorBeforeCooldown, cooldowns: cooldownResult.cooldowns };
   working = working.map((u) => (u.battleUnitId === actorId ? actorWithCooldown : u));
 
   const skillUseStarted = recorder.record({
@@ -236,6 +241,7 @@ export function resolveSkillUse(
       costAmount: skill.cost.amount,
     },
   });
+  working = passiveRuntime.onFactEvent(skillUseStarted, working);
 
   const effectResult = applyEffectActionGroups(plan, working, {
     definitions,
@@ -294,11 +300,13 @@ export function resolveSkillUse(
           targetUnitIds,
           payload: {
             skillDefinitionId: skill.skillDefinitionId,
+            skillType: skill.skillType,
             resolvedStepCount:
               skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0,
             targetUnitIds,
           },
         });
+  working = passiveRuntime.onFactEvent(skillUseCompleted, working);
 
   const completion = recordActionCompletion(
     recorder,

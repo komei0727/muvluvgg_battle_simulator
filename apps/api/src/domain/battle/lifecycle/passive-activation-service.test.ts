@@ -1031,4 +1031,92 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       .filter((e) => e.eventType === "RuntimeCounterChanged")[1]!;
     expect(runtimeCounterChanged2.sequence).toBeLessThan(passiveActivated.sequence);
   });
+
+  it("UT-R-PS-05-003 (Issue #143 fix: PassiveActivated now reaches PS candidate detection): a PS that activates causes another PS reacting to PassiveActivated to activate within the same resolution scope", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CHAIN_OWNER");
+    const skillA: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_A"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_A", tags: [] },
+    };
+    const skillB: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_B"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: skillA.skillDefinitionId,
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_B", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([
+        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skillA.skillDefinitionId, skillB.skillDefinitionId])],
+      ]),
+      new Map([
+        [skillA.skillDefinitionId, skillA],
+        [skillB.skillDefinitionId, skillB],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    runtime.onFactEvent(turnStarted, [owner]);
+
+    const events = recorder.getEvents();
+    const passiveActivatedEvents = events.filter((e) => e.eventType === "PassiveActivated");
+    expect(passiveActivatedEvents.map((e) => e.payload.skillDefinitionId)).toEqual([
+      skillA.skillDefinitionId,
+      skillB.skillDefinitionId,
+    ]);
+  });
 });

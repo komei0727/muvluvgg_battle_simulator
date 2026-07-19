@@ -207,9 +207,11 @@ const skillUseStartedDetailsSchema = {
 const skillUseCompletedDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["skillDefinitionId", "resolvedStepCount", "targetUnitIds"],
+  required: ["skillDefinitionId", "skillType", "resolvedStepCount", "targetUnitIds"],
   properties: {
     skillDefinitionId: { type: "string" },
+    /** Issue #143: `SkillUseCompleted`はAS/EXの使用完了時にのみ発行される（PSはこのeventTypeを発行しない）。 */
+    skillType: { type: "string", enum: ["AS", "EX"] },
     resolvedStepCount: { type: "integer", minimum: 0 },
     targetUnitIds: { type: "array", items: { type: "string" } },
   },

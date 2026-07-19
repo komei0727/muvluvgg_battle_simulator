@@ -1684,6 +1684,122 @@ describe("resolveActionPhase", () => {
     });
   });
 
+  it("UT-R-SKL-02-002 (Issue #143 fix: SkillUseCompleted now reaches PS candidate detection): an AS use's own SkillUseCompleted triggers the actor's own PS within the same action", () => {
+    const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER_SELF_PS");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_OWN_AS");
+
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        unitDefinitionId: "UNIT_ATTACKER_SELF_PS",
+        attack: 30,
+        limits: { maximumAp: 1, maximumPp: 3, maximumExtraGauge: 10 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { defense: 10, maximumHp: 100 });
+
+    const effectAction = damageEffectAction("ACT_ATTACK_SELF_PS");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "SkillUseCompleted",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "EVENT_PAYLOAD", field: "skillType", op: "EQ", value: "AS" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_OWN_AS", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        attackerUnitDefinitionId,
+        {
+          unitDefinitionId: attackerUnitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 30,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 10,
+            maximumAp: 1,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Attacker",
+            characterName: "Attacker",
+            characterId: "CHAR_ATTACKER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[attackerUnitDefinitionId, [attackSkill("ACT_ATTACK_SELF_PS", 1)]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const updatedAlly = result.allyUnits[0]!;
+    expect(updatedAlly.currentPp).toBe(2);
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "PassiveActivated")).toBe(true);
+    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: ally.battleUnitId,
+      skillDefinitionId: passiveSkillDefinitionId,
+    });
+    const skillUseCompletedIndex = events.findIndex((e) => e.eventType === "SkillUseCompleted");
+    const passiveActivatedIndex = events.findIndex((e) => e.eventType === "PassiveActivated");
+    expect(skillUseCompletedIndex).toBeGreaterThanOrEqual(0);
+    expect(passiveActivatedIndex).toBeGreaterThan(skillUseCompletedIndex);
+  });
+
   it("PR #141 review [P1]: when the actor is defeated by their own skill's first step, the second step is skipped and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT");
     const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");

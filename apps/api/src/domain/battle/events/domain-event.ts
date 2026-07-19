@@ -13,6 +13,7 @@ import type {
   CriticalMode,
   DamageType,
   ResourceKind,
+  SkillType,
 } from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
@@ -143,6 +144,11 @@ export interface BattleDomainEventPayloadMap {
   };
   readonly SkillUseCompleted: {
     readonly skillDefinitionId: SkillDefinitionId;
+    /**
+     * Issue #143: `RUNTIME_COUNTER_MODULO`対象skillが「AS/EX/PSをN回使用する
+     * たびに発動」を`EVENT_PAYLOAD`で判定できるよう追加した。
+     */
+    readonly skillType: SkillType;
     readonly resolvedStepCount: number;
     readonly targetUnitIds: readonly BattleUnitId[];
   };

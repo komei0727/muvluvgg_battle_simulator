@@ -325,7 +325,6 @@ export class PassiveActivationRuntime {
     lastEventId = cooldownResult.lastEventId;
 
     // R-PS-05 #4: 発動済み集合への登録とPP消費後に`PassiveActivated`を発行する。
-    const ownerAfterCooldown = requireUnit(this.units, ownerId);
     const passiveActivated = this.context.recorder.record({
       eventType: "PassiveActivated",
       category: "FACT",
@@ -347,11 +346,21 @@ export class PassiveActivationRuntime {
       },
     });
     lastEventId = passiveActivated.eventId;
+    // Issue #143修正: `PassiveActivated`はこれまで直接recordするだけで
+    // `onFactEvent`を経由しておらず、これに反応するPS（例:「パッシブスキルを
+    // N回使用するたびに発動」のRuntimeCounter更新）が検出されなかった。他の
+    // FACTイベントと同様、counter更新・候補解決の対象にする。
+    this.units = this.onFactEvent(passiveActivated, this.units);
+    // 上記の候補解決で`ownerId`自身の状態が変わりうるため、`resolveSkillOrder`
+    // へ渡す`actor`スナップショットを最新の`this.units`から取り直す
+    // （クールタイム設定直後の古いスナップショットのままだと、直前の連鎖が
+    // 加えた変更を`plan`の解決から見落とす）。
+    const ownerAfterChainedActivations = requireUnit(this.units, ownerId);
 
     // R-PS-05 #5: EffectSequenceをR-SKL-01〜08に従って解決する。
     const plan = resolveSkillOrder(
       skill,
-      ownerAfterCooldown,
+      ownerAfterChainedActivations,
       this.units,
       this.context.definitions.effectActions,
     );
