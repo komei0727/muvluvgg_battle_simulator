@@ -434,13 +434,14 @@ describe("applyStateDelta", () => {
       },
     });
 
-    expect(next.units[UNIT_A]!.skillCounterCarry).toEqual({});
-    expect(
-      Object.prototype.hasOwnProperty.call(
-        next.units[UNIT_A]!.skillCounterCarry,
-        skillDefinitionId,
-      ),
-    ).toBe(false);
+    // レビュー再々々々レビュー[P1]: 剪定の結果、skillDefinitionIdエントリ
+    // だけでなく`skillCounterCarry`フィールド自体が完全に無くなる
+    // （`{}`ではなく`undefined`、`captureBattleState`が非0のcarryを1件も
+    // 持たないユニットへこのフィールド自体を書かないことと一致させる）。
+    expect(Object.prototype.hasOwnProperty.call(next.units[UNIT_A]!, "skillCounterCarry")).toBe(
+      false,
+    );
+    expect(next.units[UNIT_A]!.skillCounterCarry).toBeUndefined();
   });
 
   it("UT-STATE-REDUCER-028 (review re-re-fix [P1]): skillCounterCarry does not prune a skillDefinitionId entry that still has a sibling counter with nonzero carry", () => {

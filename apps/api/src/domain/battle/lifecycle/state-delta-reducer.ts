@@ -152,6 +152,16 @@ function applyTwoLevelCounterDeltas(
       next[skillDefinitionId] = updated;
     }
   }
+  // レビュー再々々々レビュー[P1]: `skillCounterCarry`（`pruneEmptySkillEntries`）は、
+  // 剪定の結果すべてのskillDefinitionIdエントリが消えた場合、`{}`ではなく
+  // `undefined`を返す。`captureBattleState`は非0のcarryが1件も無ければ
+  // `skillCounterCarry`フィールド自体を省略するため、呼び出し元
+  // （`applyUnitDelta`）がこのフィールド自体を省略できるようにする
+  // （`skillCounters`は逆に空でもキーを保持する既存の非対称な規約のため、
+  // このフィールド全体省略は`pruneEmptySkillEntries`のときだけ行う）。
+  if (options.pruneEmptySkillEntries === true && Object.keys(next).length === 0) {
+    return undefined;
+  }
   return next;
 }
 

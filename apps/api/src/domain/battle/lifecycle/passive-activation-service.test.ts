@@ -1491,15 +1491,15 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       },
     };
     let appliedEventCount = 0;
-    function replayNewCounterDeltasIntoSnapshot(): void {
+    // レビュー再々々々レビュー[P1]: `?? {}`で個別フィールドを緩く比較するのでは
+    // なく、`captureBattleState`相当の完全なSnapshot同士を直接突き合わせる
+    // ため、RuntimeCounterChanged/Reset以外（PP消費・EX増加等）も含め全ての
+    // イベントのstateDeltaを順に適用し、実状態と同じ完全なunit射影を再構築する。
+    function replayNewEventDeltasIntoSnapshot(): void {
       const events = recorder.getEvents();
       for (; appliedEventCount < events.length; appliedEventCount += 1) {
         const event = events[appliedEventCount]!;
-        if (
-          (event.eventType === "RuntimeCounterChanged" ||
-            event.eventType === "RuntimeCounterReset") &&
-          event.stateDelta !== undefined
-        ) {
+        if (event.stateDelta !== undefined) {
           snapshot = applyStateDelta(snapshot, event.stateDelta);
         }
       }
@@ -1508,7 +1508,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     // Hit 1: 20 damage, sub-threshold (threshold = maxHp(100) * 0.5 = 50).
     // carry 0 -> 20 (carry-only change, valueChanged: false); value stays 0.
     runtime.onFactEvent(damageAppliedEvent(20), [owner, enemy]);
-    replayNewCounterDeltasIntoSnapshot();
+    replayNewEventDeltasIntoSnapshot();
     let ownerNow = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
     expect(ownerNow.skillCounters?.[skill.skillDefinitionId]).toEqual({
       [counterId]: { value: 0, carry: 20 },
@@ -1521,25 +1521,52 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     // exactly once with remainder 0 — carry lands exactly back on 0 via a
     // normal update (not a resolution-scope reset). value 0 -> 1.
     runtime.onFactEvent(damageAppliedEvent(30), runtime.currentUnits);
-    replayNewCounterDeltasIntoSnapshot();
+    replayNewEventDeltasIntoSnapshot();
     ownerNow = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
     expect(ownerNow.skillCounters?.[skill.skillDefinitionId]).toEqual({
       [counterId]: { value: 1, carry: 0 },
     });
-    // The real state's carry projection omits a 0-carry counter entirely —
-    // the reconstructed snapshot must match, not show `{ counter: 0 }`.
-    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry ?? {}).toEqual({});
+    // The real state's carry projection omits the `skillCounterCarry` field
+    // entirely once no counter has nonzero carry — assert the key itself is
+    // absent (not merely falsy/`{}`), matching `captureBattleState` exactly
+    // (レビュー再々々々レビュー[P1]: `?? {}` previously masked `{}` vs "no key").
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        snapshot.units[owner.battleUnitId]!,
+        "skillCounterCarry",
+      ),
+    ).toBe(false);
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry).toBeUndefined();
 
     // Resolution-scope end: the counter's public value (1) is discarded.
     // carry is already 0 at this point, so no skillCounterCarry delta is
     // expected from the reset itself (only skillCounters).
     runtime.finalizeResolutionScope();
-    replayNewCounterDeltasIntoSnapshot();
+    replayNewEventDeltasIntoSnapshot();
     const finalOwner = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
     expect(finalOwner.skillCounters?.[skill.skillDefinitionId]).toEqual({});
     expect(snapshot.units[owner.battleUnitId]!.skillCounters).toEqual({
       [skill.skillDefinitionId]: {},
     });
-    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry ?? {}).toEqual({});
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        snapshot.units[owner.battleUnitId]!,
+        "skillCounterCarry",
+      ),
+    ).toBe(false);
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry).toBeUndefined();
+
+    // 直接、実状態(`captureBattleState`相当の射影)と再構築Snapshotの
+    // unit全体を突き合わせる（フィールド単位の`?? {}`に頼らない）。
+    // `finalOwner`（実BattleUnit）に対応する射影は、carryが1件も残って
+    // いないため`skillCounterCarry`を持たず、`skillCounters`は
+    // `{ [skillDefinitionId]: {} }`だけを持つ。
+    expect(snapshot.units[owner.battleUnitId]).toEqual({
+      hp: finalOwner.currentHp,
+      ap: finalOwner.currentAp,
+      pp: finalOwner.currentPp,
+      extraGauge: finalOwner.currentExtraGauge,
+      skillCounters: { [skill.skillDefinitionId]: {} },
+    });
   });
 });
