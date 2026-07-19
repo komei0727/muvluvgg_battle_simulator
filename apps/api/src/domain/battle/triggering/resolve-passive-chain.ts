@@ -1,4 +1,5 @@
 import type { BattleUnit } from "../model/battle-unit.js";
+import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import {
   createEmptyPassiveActivationGuard,
@@ -96,6 +97,12 @@ export interface PassiveChainDependencies {
   readonly getCurrentUnit: GetCurrentBattleUnit;
   readonly activate: ActivatePassiveCandidate;
   readonly limits: PassiveChainLimits;
+  /**
+   * `RESOLUTION_PHASE`（Issue #144、TRIGGER_EXCLUSION_TIMING）を候補検出時と
+   * 同一の値で再確認（R-PS-04）するために`reconfirmPassiveCandidate`へそのまま
+   * 渡す。1解決スコープの全体を通じて固定（呼び出し側が決める）。
+   */
+  readonly resolutionPhase?: ResolutionPhase;
 }
 
 export type PassiveChainResult =
@@ -169,7 +176,14 @@ function resolveTopGroup(
   state.stack = withTopCandidates(state.stack, restCandidates);
 
   const currentUnit = deps.getCurrentUnit(next.unit.battleUnitId);
-  const reconfirmation = reconfirmPassiveCandidate(next, currentUnit, top.event, state.guard);
+  const reconfirmation = reconfirmPassiveCandidate(
+    next,
+    currentUnit,
+    top.event,
+    state.guard,
+    deps.getCurrentUnit,
+    deps.resolutionPhase,
+  );
   if (reconfirmation.ok) {
     state.guard = recordActivation(
       state.guard,

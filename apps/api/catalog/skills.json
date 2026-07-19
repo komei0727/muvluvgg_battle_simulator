@@ -5136,7 +5136,15 @@
         "category": "FACT",
         "sourceSelector": "ANY",
         "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" }
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
+        }
       }
     ]
   },
@@ -6392,7 +6400,15 @@
         "category": "FACT",
         "sourceSelector": "ANY",
         "targetSelector": "ALLY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" }
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
+        }
       }
     ]
   },
@@ -12449,10 +12465,13 @@
         "sourceSelector": "ANY",
         "targetSelector": "ENEMY",
         "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "effectKind",
-          "op": "EQ",
-          "value": "APPLY_STATUS"
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "effectKind", "op": "EQ", "value": "APPLY_STATUS" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
         }
       }
     ]
@@ -13275,7 +13294,12 @@
         "eventType": "UnitBeingAttacked",
         "category": "TIMING",
         "sourceSelector": "ENEMY",
-        "targetSelector": "ALLY"
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "POSITION_RELATION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "relation": "IN_FRONT_OF"
+        }
       }
     ]
   },
@@ -13309,11 +13333,21 @@
         "sourceSelector": "ALLY",
         "targetSelector": "ALLY",
         "condition": {
-          "kind": "TARGET_STATE",
-          "target": { "kind": "TRIGGER_TARGET" },
-          "field": "HP_RATIO",
-          "op": "LTE",
-          "value": 0.5
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "field": "HP_RATIO",
+              "op": "LTE",
+              "value": 0.5
+            },
+            {
+              "kind": "POSITION_RELATION",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "relation": "IN_FRONT_OF"
+            }
+          ]
         }
       }
     ]
@@ -13351,7 +13385,17 @@
         "category": "TIMING",
         "sourceSelector": "ALLY",
         "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "POSITION_RELATION",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "relation": "IN_FRONT_OF"
+            }
+          ]
+        }
       }
     ]
   },

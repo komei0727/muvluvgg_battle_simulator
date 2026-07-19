@@ -202,6 +202,7 @@ function contextOf(
   definitions: BattleDefinitions,
   triggerEvent: BattleDomainEvent,
   actionId?: ReturnType<typeof createActionId>,
+  resolutionPhase?: PassiveActivationRuntimeContext["resolutionPhase"],
 ): PassiveActivationRuntimeContext {
   return {
     definitions,
@@ -212,6 +213,7 @@ function contextOf(
     resolutionScopeId: triggerEvent.resolutionScopeId,
     rootEventId: triggerEvent.eventId,
     ...(actionId !== undefined ? { actionId } : {}),
+    ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
   };
 }
 
@@ -314,6 +316,51 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       actualAmount: 2,
       discardedAmount: 1,
     });
+  });
+
+  it("UT-R-PS-01-033 (Issue #144, TRIGGER_EXCLUSION_TIMING): PassiveActivationRuntimeContext.resolutionPhase reaches candidate detection AND reconfirmation, excluding a RESOLUTION_PHASE(negate: true)-gated PS only when the context's resolutionPhase matches", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const skill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PS", { ppCost: 2 }),
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "RESOLUTION_PHASE", phase: "TURN_START", negate: true },
+        },
+      ],
+    };
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId,
+      currentPp: 3,
+      maximumPp: 3,
+    });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+
+    const excludedRecorder = new EventRecorder(createBattleId("B_1"));
+    const excludedTurnStarted = recordTurnStarted(excludedRecorder);
+    const excludedRuntime = new PassiveActivationRuntime(
+      contextOf(excludedRecorder, definitions, excludedTurnStarted, undefined, "TURN_START"),
+      [owner],
+    );
+    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]);
+    expect(excludedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(3);
+    expect(excludedRecorder.getEvents().map((e) => e.eventType)).toEqual(["TurnStarted"]);
+
+    const includedRecorder = new EventRecorder(createBattleId("B_2"));
+    const includedTurnStarted = recordTurnStarted(includedRecorder);
+    const includedRuntime = new PassiveActivationRuntime(
+      contextOf(includedRecorder, definitions, includedTurnStarted, createActionId("B_2:action:1")),
+      [owner],
+    );
+    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner]);
+    expect(includedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
+    expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
   it("UT-R-SKL-01-001: when the PS owner is defeated partway through its own EffectSequence, the remaining step is skipped and PassiveInterrupted is emitted instead of PassiveResolved", () => {

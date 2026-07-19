@@ -148,10 +148,18 @@
         "sourceSelector": "ANY",
         "targetSelector": "ENEMY",
         "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "effectKind",
-          "op": "EQ",
-          "value": "APPLY_STATUS"
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "effectKind",
+              "op": "EQ",
+              "value": "APPLY_STATUS"
+            },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
         }
       }
     ]

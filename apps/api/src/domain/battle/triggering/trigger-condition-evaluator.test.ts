@@ -4,13 +4,15 @@ import type { ConditionDefinition } from "../../catalog/definitions/condition-de
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
-import { createBattleUnitId } from "../../shared/ids.js";
+import { createBattleUnitId, type BattleUnitId } from "../../shared/ids.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import type { Side } from "../../shared/side.js";
+import type { PositionColumn, PositionRow } from "../../catalog/definitions/catalog-enums.js";
 
 const SKILL_ID = createSkillDefinitionId("SKL_PS1");
 const COUNTER_ID = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
@@ -43,6 +45,36 @@ function ownerWithCounter(value?: number): BattleUnit {
   return {
     ...unit,
     skillCounters: { [SKILL_ID]: { [COUNTER_ID]: { value, carry: 0 } } },
+  };
+}
+
+function unitAt(
+  id: string,
+  side: Side,
+  row: PositionRow,
+  column: PositionColumn,
+  overrides: Partial<BattleUnit> = {},
+): BattleUnit {
+  const position = { row, column };
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(id),
+    unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate(side, position),
+    combatStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0.1,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+    },
+  };
+  return {
+    ...createBattleUnit(member, side, { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 }),
+    ...overrides,
   };
 }
 
@@ -215,6 +247,271 @@ describe("evaluateTriggerCondition", () => {
           },
         ),
       ).toBe(false);
+    });
+  });
+
+  describe("POSITION_RELATION (Issue #144, TRIGGER_POSITION_RELATION)", () => {
+    const inFrontOfTriggerTarget: ConditionDefinition = {
+      kind: "POSITION_RELATION",
+      target: { kind: "TRIGGER_TARGET" },
+      relation: "IN_FRONT_OF",
+    };
+
+    it.each([
+      {
+        side: "ALLY",
+        ownerRow: "BACK",
+        ownerCol: "LEFT",
+        targetRow: "FRONT",
+        targetCol: "LEFT",
+        expected: true,
+      },
+      {
+        side: "ALLY",
+        ownerRow: "BACK",
+        ownerCol: "CENTER",
+        targetRow: "FRONT",
+        targetCol: "CENTER",
+        expected: true,
+      },
+      {
+        side: "ALLY",
+        ownerRow: "BACK",
+        ownerCol: "RIGHT",
+        targetRow: "FRONT",
+        targetCol: "RIGHT",
+        expected: true,
+      },
+      {
+        side: "ALLY",
+        ownerRow: "BACK",
+        ownerCol: "LEFT",
+        targetRow: "FRONT",
+        targetCol: "CENTER",
+        expected: false,
+      },
+      {
+        side: "ALLY",
+        ownerRow: "FRONT",
+        ownerCol: "LEFT",
+        targetRow: "BACK",
+        targetCol: "LEFT",
+        expected: false,
+      },
+      {
+        side: "ENEMY",
+        ownerRow: "BACK",
+        ownerCol: "LEFT",
+        targetRow: "FRONT",
+        targetCol: "LEFT",
+        expected: true,
+      },
+      {
+        side: "ENEMY",
+        ownerRow: "FRONT",
+        ownerCol: "LEFT",
+        targetRow: "BACK",
+        targetCol: "LEFT",
+        expected: false,
+      },
+    ] as const)(
+      "UT-R-PS-01-014: $side owner at $ownerRow/$ownerCol vs target at $targetRow/$targetCol -> $expected",
+      ({ side, ownerRow, ownerCol, targetRow, targetCol, expected }) => {
+        const owner = unitAt("OWNER", side, ownerRow, ownerCol);
+        const target = unitAt("TARGET", side, targetRow, targetCol);
+        const getUnit = (id: BattleUnitId): BattleUnit | undefined =>
+          [owner, target].find((u) => u.battleUnitId === id);
+        expect(
+          evaluateTriggerCondition(
+            inFrontOfTriggerTarget,
+            { payload: {}, targetUnitIds: [target.battleUnitId] },
+            { owner, skillDefinitionId: SKILL_ID, getUnit },
+          ),
+        ).toBe(expected);
+      },
+    );
+
+    it("UT-R-PS-01-015: resolves the target via TRIGGER_SOURCE", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "LEFT");
+      const source = unitAt("SOURCE", "ALLY", "FRONT", "LEFT");
+      const getUnit = (id: BattleUnitId): BattleUnit | undefined =>
+        [owner, source].find((u) => u.battleUnitId === id);
+      const condition: ConditionDefinition = {
+        kind: "POSITION_RELATION",
+        target: { kind: "TRIGGER_SOURCE" },
+        relation: "IN_FRONT_OF",
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {}, sourceUnitId: source.battleUnitId },
+          { owner, skillDefinitionId: SKILL_ID, getUnit },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-016: no target in the event (absent target) does not match", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "LEFT");
+      expect(
+        evaluateTriggerCondition(
+          inFrontOfTriggerTarget,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => undefined },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-017: a defeated target does not match, even at the correct coordinate", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "LEFT");
+      const defeatedTarget = unitAt("TARGET", "ALLY", "FRONT", "LEFT", { currentHp: 0 });
+      const getUnit = (id: BattleUnitId): BattleUnit | undefined =>
+        [owner, defeatedTarget].find((u) => u.battleUnitId === id);
+      expect(
+        evaluateTriggerCondition(
+          inFrontOfTriggerTarget,
+          { payload: {}, targetUnitIds: [defeatedTarget.battleUnitId] },
+          { owner, skillDefinitionId: SKILL_ID, getUnit },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-018: a targetUnitId that no longer resolves to a unit does not match", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "LEFT");
+      expect(
+        evaluateTriggerCondition(
+          inFrontOfTriggerTarget,
+          { payload: {}, targetUnitIds: [createBattleUnitId("GONE")] },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => undefined },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-019: matches if any of multiple targetUnitIds satisfies the relation", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "LEFT");
+      const wrongColumn = unitAt("WRONG", "ALLY", "FRONT", "CENTER");
+      const inFront = unitAt("RIGHT_ONE", "ALLY", "FRONT", "LEFT");
+      const getUnit = (id: BattleUnitId): BattleUnit | undefined =>
+        [owner, wrongColumn, inFront].find((u) => u.battleUnitId === id);
+      expect(
+        evaluateTriggerCondition(
+          inFrontOfTriggerTarget,
+          { payload: {}, targetUnitIds: [wrongColumn.battleUnitId, inFront.battleUnitId] },
+          { owner, skillDefinitionId: SKILL_ID, getUnit },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-020: throws when no getUnit lookup is supplied in context", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "LEFT");
+      expect(() =>
+        evaluateTriggerCondition(
+          inFrontOfTriggerTarget,
+          { payload: {}, targetUnitIds: [createBattleUnitId("TARGET")] },
+          { owner, skillDefinitionId: SKILL_ID },
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-PS-01-021: throws when context itself is missing", () => {
+      expect(() =>
+        evaluateTriggerCondition(inFrontOfTriggerTarget, {
+          payload: {},
+          targetUnitIds: [createBattleUnitId("TARGET")],
+        }),
+      ).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("RESOLUTION_PHASE (Issue #144, TRIGGER_EXCLUSION_TIMING)", () => {
+    const owner = ownerWithCounter();
+
+    it("UT-R-PS-01-022: matches (negate: false) when resolutionPhase equals the declared phase", () => {
+      const condition: ConditionDefinition = {
+        kind: "RESOLUTION_PHASE",
+        phase: "TURN_START",
+        negate: false,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, resolutionPhase: "TURN_START" },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-023: does not match (negate: false) when resolutionPhase differs from the declared phase", () => {
+      const condition: ConditionDefinition = {
+        kind: "RESOLUTION_PHASE",
+        phase: "TURN_START",
+        negate: false,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, resolutionPhase: "TURN_END" },
+        ),
+      ).toBe(false);
+    });
+
+    it.each(["BATTLE_START", "TURN_START", "TURN_END"] as const)(
+      "UT-R-PS-01-024: negate: true excludes the %s phase (TRIGGER_EXCLUSION_TIMING)",
+      (phase) => {
+        const condition: ConditionDefinition = { kind: "RESOLUTION_PHASE", phase, negate: true };
+        expect(
+          evaluateTriggerCondition(
+            condition,
+            { payload: {} },
+            { owner, skillDefinitionId: SKILL_ID, resolutionPhase: phase },
+          ),
+        ).toBe(false);
+      },
+    );
+
+    it("UT-R-PS-01-025: an AND of three negated RESOLUTION_PHASE conditions matches during normal action resolution (resolutionPhase undefined)", () => {
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: (["BATTLE_START", "TURN_START", "TURN_END"] as const).map((phase) => ({
+          kind: "RESOLUTION_PHASE" as const,
+          phase,
+          negate: true,
+        })),
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-026: an AND of three negated RESOLUTION_PHASE conditions is excluded when resolutionPhase is one of them", () => {
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: (["BATTLE_START", "TURN_START", "TURN_END"] as const).map((phase) => ({
+          kind: "RESOLUTION_PHASE" as const,
+          phase,
+          negate: true,
+        })),
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, resolutionPhase: "TURN_END" },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-027: does not throw when context is entirely missing (defaults to normal/undefined phase)", () => {
+      const condition: ConditionDefinition = {
+        kind: "RESOLUTION_PHASE",
+        phase: "BATTLE_START",
+        negate: true,
+      };
+      expect(evaluateTriggerCondition(condition, { payload: {} })).toBe(true);
     });
   });
 });

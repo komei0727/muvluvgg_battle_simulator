@@ -1,5 +1,7 @@
 import { isCoolingDown } from "../action/action-selection-policy.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import type { PassiveActivationGuard } from "./passive-activation-guard.js";
 import { hasActivated } from "./passive-activation-guard.js";
 import type { PassiveCandidate } from "./passive-candidate.js";
@@ -31,13 +33,18 @@ export type PassiveReconfirmationResult =
  * 現在も成立／現在の解決スコープで未発動。いずれかを満たさなくなった候補は
  * `{ ok: false, reason }`を返す（呼び出し側が理由を観測したうえで破棄する）。
  * `currentUnit`は候補検出時点のスナップショットではなく、再確認時点の最新状態を
- * 渡す。
+ * 渡す。`getUnit`/`resolutionPhase`は`POSITION_RELATION`/`RESOLUTION_PHASE`
+ * （Issue #144）を候補検出時と同一の文脈で再評価するために、呼び出し側
+ * （`resolve-passive-chain.ts`の`PassiveChainDependencies`）が候補検出時と
+ * 同じ値を渡す。
  */
 export function reconfirmPassiveCandidate(
   candidate: PassiveCandidate,
   currentUnit: BattleUnit,
   event: TriggerCandidateEvent,
   activationGuard: PassiveActivationGuard,
+  getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined,
+  resolutionPhase?: ResolutionPhase,
 ): PassiveReconfirmationResult {
   if (isDefeated(currentUnit)) {
     return { ok: false, reason: "OWNER_DEFEATED" };
@@ -54,6 +61,8 @@ export function reconfirmPassiveCandidate(
   const counterContext = {
     owner: currentUnit,
     skillDefinitionId: candidate.skillDefinition.skillDefinitionId,
+    ...(getUnit !== undefined ? { getUnit } : {}),
+    ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
   };
   if (
     !evaluateTriggerCondition(candidate.trigger.condition, event, counterContext) ||

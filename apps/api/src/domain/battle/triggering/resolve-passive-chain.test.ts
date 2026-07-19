@@ -542,6 +542,58 @@ describe("resolvePassiveChain", () => {
     }
   });
 
+  it("UT-R-PS-04-011 (Issue #144, TRIGGER_EXCLUSION_TIMING): deps.resolutionPhase reaches reconfirmation, discarding a RESOLUTION_PHASE(negate: true)-gated candidate detected during that phase", () => {
+    const unitA = unit("A");
+    const skillA: SkillDefinition = {
+      ...skillOf("SKL_A"),
+      triggers: [
+        {
+          eventType: "ANY",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "RESOLUTION_PHASE", phase: "TURN_START", negate: true },
+        },
+      ],
+    };
+    const candA = candidateOf(unitA, skillA);
+
+    const excluded = resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [candA],
+      getCurrentUnit: () => unitA,
+      activate: () => completedActivation(DONE),
+      limits: GENEROUS_LIMITS,
+      resolutionPhase: "TURN_START",
+    });
+    expect(excluded.ok).toBe(true);
+    if (excluded.ok) {
+      expect(
+        hasActivated(excluded.activationGuard, unitA.battleUnitId, skillA.skillDefinitionId),
+      ).toBe(false);
+    }
+
+    const includedDuringNormalAction = resolvePassiveChain(
+      event("ROOT"),
+      createEmptyPassiveActivationGuard(),
+      {
+        detectCandidates: () => [candA],
+        getCurrentUnit: () => unitA,
+        activate: () => completedActivation(DONE),
+        limits: GENEROUS_LIMITS,
+      },
+    );
+    expect(includedDuringNormalAction.ok).toBe(true);
+    if (includedDuringNormalAction.ok) {
+      expect(
+        hasActivated(
+          includedDuringNormalAction.activationGuard,
+          unitA.battleUnitId,
+          skillA.skillDefinitionId,
+        ),
+      ).toBe(true);
+    }
+  });
+
   it("smoke: a candidate whose activation completes immediately generates no follow-ups", () => {
     const owner = unit("A");
     const candidate = candidateOf(owner, skillOf("SKL_A"));
