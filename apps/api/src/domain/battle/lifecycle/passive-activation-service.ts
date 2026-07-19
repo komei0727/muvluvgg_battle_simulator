@@ -222,7 +222,15 @@ export class PassiveActivationRuntime {
                 ? {
                     skillCounterCarry: {
                       [change.skillDefinitionId]: {
-                        [change.counter]: { before: change.carryBefore, after: change.carry },
+                        // レビュー再々々レビュー[P1]: `captureBattleState`は
+                        // carryが0のcounterをキーごと省略するため（`0`は
+                        // デフォルト値扱い）、carryがちょうど0へ戻った場合も
+                        // `after: 0`ではなく`undefined`（キー削除）にして
+                        // 独立Reducerの復元結果を実状態と一致させる。
+                        [change.counter]: {
+                          before: change.carryBefore,
+                          after: change.carry === 0 ? undefined : change.carry,
+                        },
                       },
                     },
                   }

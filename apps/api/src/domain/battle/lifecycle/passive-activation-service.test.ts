@@ -1380,4 +1380,166 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       /exceeded .* discard\/emit\/resolve rounds/,
     );
   });
+
+  it("UT-R-EFF-11-004 (review re-re-fix [P1]): a hit that lands carry exactly on 0 (not via reset) still reconstructs to the same skillCounterCarry shape as the real state (key absent, not present with value 0) across sub-threshold -> exact-crossing -> resolution-scope reset", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CARRY_ZERO_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CARRY_ZERO");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_CARRY_ZERO"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "RuntimeCounterChanged",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "AND",
+            conditions: [
+              { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterId },
+              { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
+            ],
+          },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "CUMULATIVE_DAMAGE_THRESHOLD",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "DamageApplied",
+            category: "FACT",
+            sourceSelector: "ENEMY",
+            targetSelector: "SELF",
+            condition: { kind: "TRUE" },
+          },
+          maxHpRatio: 0.5,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_CARRY_ZERO", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId,
+      currentPp: 3,
+      maximumPp: 3,
+      maximumHp: 100,
+    });
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_CARRY_ZERO_ENEMY");
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner, enemy],
+    );
+
+    function damageAppliedEvent(damage: number): BattleDomainEvent {
+      return recorder.record({
+        eventType: "DamageApplied",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        parentEventId: turnStarted.eventId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: enemy.battleUnitId,
+        targetUnitIds: [owner.battleUnitId],
+        payload: {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_CARRY_ZERO_HIT"),
+          hitIndex: 1,
+          targetUnitId: owner.battleUnitId,
+          calculatedDamage: damage,
+          hitPointDamage: damage,
+          hpBefore: owner.currentHp,
+          hpAfter: owner.currentHp - damage,
+          defeated: false,
+        },
+      });
+    }
+
+    let snapshot: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: 1,
+      units: {
+        [owner.battleUnitId]: {
+          hp: owner.currentHp,
+          ap: owner.currentAp,
+          pp: owner.currentPp,
+          extraGauge: owner.currentExtraGauge,
+        },
+      },
+    };
+    let appliedEventCount = 0;
+    function replayNewCounterDeltasIntoSnapshot(): void {
+      const events = recorder.getEvents();
+      for (; appliedEventCount < events.length; appliedEventCount += 1) {
+        const event = events[appliedEventCount]!;
+        if (
+          (event.eventType === "RuntimeCounterChanged" ||
+            event.eventType === "RuntimeCounterReset") &&
+          event.stateDelta !== undefined
+        ) {
+          snapshot = applyStateDelta(snapshot, event.stateDelta);
+        }
+      }
+    }
+
+    // Hit 1: 20 damage, sub-threshold (threshold = maxHp(100) * 0.5 = 50).
+    // carry 0 -> 20 (carry-only change, valueChanged: false); value stays 0.
+    runtime.onFactEvent(damageAppliedEvent(20), [owner, enemy]);
+    replayNewCounterDeltasIntoSnapshot();
+    let ownerNow = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(ownerNow.skillCounters?.[skill.skillDefinitionId]).toEqual({
+      [counterId]: { value: 0, carry: 20 },
+    });
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry).toEqual({
+      [skill.skillDefinitionId]: { [counterId]: 20 },
+    });
+
+    // Hit 2: 30 more damage. Total carry 20+30=50 crosses the threshold
+    // exactly once with remainder 0 — carry lands exactly back on 0 via a
+    // normal update (not a resolution-scope reset). value 0 -> 1.
+    runtime.onFactEvent(damageAppliedEvent(30), runtime.currentUnits);
+    replayNewCounterDeltasIntoSnapshot();
+    ownerNow = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(ownerNow.skillCounters?.[skill.skillDefinitionId]).toEqual({
+      [counterId]: { value: 1, carry: 0 },
+    });
+    // The real state's carry projection omits a 0-carry counter entirely —
+    // the reconstructed snapshot must match, not show `{ counter: 0 }`.
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry ?? {}).toEqual({});
+
+    // Resolution-scope end: the counter's public value (1) is discarded.
+    // carry is already 0 at this point, so no skillCounterCarry delta is
+    // expected from the reset itself (only skillCounters).
+    runtime.finalizeResolutionScope();
+    replayNewCounterDeltasIntoSnapshot();
+    const finalOwner = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(finalOwner.skillCounters?.[skill.skillDefinitionId]).toEqual({});
+    expect(snapshot.units[owner.battleUnitId]!.skillCounters).toEqual({
+      [skill.skillDefinitionId]: {},
+    });
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry ?? {}).toEqual({});
+  });
 });

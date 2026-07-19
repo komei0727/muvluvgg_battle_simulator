@@ -72,10 +72,15 @@ function applyUnitDelta(
     unit.skillCounters,
     delta.skillCounters,
   );
+  // レビュー再々々レビュー[P1]: `skillCounterCarry`は`captureBattleState`が
+  // carry===0のskillDefinitionIdキーごと省略する（`skillCounters`と違い0を
+  // デフォルト値として扱う）ため、Reducer側もdelta適用後に空になった
+  // skillDefinitionIdエントリを剪定し、実状態と同じ形へ揃える。
   const skillCounterCarry = applyTwoLevelCounterDeltas(
     `${path}.skillCounterCarry`,
     unit.skillCounterCarry,
     delta.skillCounterCarry,
+    { pruneEmptySkillEntries: true },
   );
   return {
     hp: delta.hp?.after ?? unit.hp,
@@ -112,6 +117,7 @@ function applyTwoLevelCounterDeltas(
         >
       >
     | undefined,
+  options: { readonly pruneEmptySkillEntries?: boolean } = {},
 ): Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>> | undefined {
   if (deltas === undefined) {
     return current;
@@ -140,7 +146,11 @@ function applyTwoLevelCounterDeltas(
         updated[counterId] = change.after;
       }
     }
-    next[skillDefinitionId] = updated;
+    if (options.pruneEmptySkillEntries === true && Object.keys(updated).length === 0) {
+      delete next[skillDefinitionId];
+    } else {
+      next[skillDefinitionId] = updated;
+    }
   }
   return next;
 }

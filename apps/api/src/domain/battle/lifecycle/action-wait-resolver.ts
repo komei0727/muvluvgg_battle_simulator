@@ -8,9 +8,12 @@ import {
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion } from "./action-completion.js";
+import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
+import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { RandomSource } from "../../ports/random-source.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 
 /**
@@ -24,6 +27,8 @@ export function resolveWait(
   waitReason: string,
   consumedResource: "AP" | "EX_GAUGE",
   units: readonly BattleUnit[],
+  definitions: BattleDefinitions,
+  random: RandomSource,
   recorder: EventRecorder,
   turnNumber: number,
   cycleNumber: number,
@@ -135,6 +140,24 @@ export function resolveWait(
     },
   });
 
+  // レビュー再々々レビュー[P2]: 待機も`ActionWaited`と`ActionCompleting`/
+  // Cooldown更新/`ActionCompleted`を発動タイミングとするPS/counter更新を
+  // 持ちうるため、この行動専用の`PassiveActivationRuntime`を生成して接続する。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
+  working = passiveRuntime.onFactEvent(actionWaited, working);
+
   const completion = recordActionCompletion(
     recorder,
     {
@@ -144,14 +167,17 @@ export function resolveWait(
       turnNumber,
       cycleNumber,
       actorId,
+      onFactEventForPassiveChain: (event, unitsForChain) =>
+        passiveRuntime.onFactEvent(event, unitsForChain),
     },
     "WAIT",
     actionWaited.eventId,
     working,
   );
+  const finalUnits = passiveRuntime.finalizeResolutionScope();
 
   return {
-    units: completion.units,
+    units: finalUnits,
     actionScope,
     rootEventId: actionStarted.eventId,
     completedEventId: completion.completedEventId,

@@ -1802,6 +1802,237 @@ describe("resolveActionPhase", () => {
     expect(passiveActivatedIndex).toBeGreaterThan(skillUseCompletedIndex);
   });
 
+  it("UT-R-SKL-02-003 (review re-fix [P2]): a WAIT action's own ActionWaited triggers the actor's own PS within the same resolution scope", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_WAITER_SELF_PS");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_OWN_WAIT");
+
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        unitDefinitionId: "UNIT_WAITER_SELF_PS",
+        limits: { maximumAp: 1, maximumPp: 3, maximumExtraGauge: 10 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionWaited",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_OWN_WAIT", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        unitDefinitionId,
+        {
+          unitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 10,
+            maximumAp: 1,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Waiter",
+            characterName: "Waiter",
+            characterId: "CHAR_WAITER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const updatedAlly = result.allyUnits[0]!;
+    expect(updatedAlly.currentPp).toBe(2);
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "ActionWaited")).toBe(true);
+    expect(events.some((e) => e.eventType === "PassiveActivated")).toBe(true);
+    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: ally.battleUnitId,
+      skillDefinitionId: passiveSkillDefinitionId,
+    });
+  });
+
+  it("UT-R-SKL-02-004 (review re-fix [P2]): a CHARGE skill's own ChargeStarted triggers an ally's PS within the same resolution scope (mirrors production Harriet PS2's sourceSelector/targetSelector: ALLY)", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER_PS_WIRING");
+    const supporterUnitDefinitionId = createUnitDefinitionId("UNIT_SUPPORTER_PS_WIRING");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_ALLY_CHARGE_START");
+
+    const charger = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CHARGER_PS_WIRING",
+      limits: { maximumAp: 1 },
+    });
+    const supporter = {
+      ...unit("ALLY_2", "ALLY", {
+        unitDefinitionId: "UNIT_SUPPORTER_PS_WIRING",
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { maximumHp: 1000 });
+
+    const skill = chargeSkill("ACT_CHARGE_PS_WIRING", 1);
+    const effectAction = damageEffectAction("ACT_CHARGE_PS_WIRING");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ChargeStarted",
+          category: "FACT",
+          sourceSelector: "ALLY",
+          targetSelector: "ALLY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_ALLY_CHARGE_START", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        supporterUnitDefinitionId,
+        {
+          unitDefinitionId: supporterUnitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 10,
+            maximumAp: 0,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Supporter",
+            characterName: "Supporter",
+            characterId: "CHAR_SUPPORTER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[chargerUnitDefinitionId, [skill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [charger, supporter],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const updatedSupporter = result.allyUnits.find(
+      (u) => u.battleUnitId === supporter.battleUnitId,
+    )!;
+    expect(updatedSupporter.currentPp).toBe(2);
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "ChargeStarted")).toBe(true);
+    expect(events.some((e) => e.eventType === "PassiveActivated")).toBe(true);
+    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: supporter.battleUnitId,
+      skillDefinitionId: passiveSkillDefinitionId,
+    });
+  });
+
   it("PR #141 review [P1]: when the actor is defeated by their own skill's first step, the second step is skipped and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT");
     const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");

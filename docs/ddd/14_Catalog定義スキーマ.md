@@ -1496,7 +1496,9 @@ counterUpdates:
 
 公開値（`value`）が変わらない更新（例: 累計ダメージ閾値未到達のヒット）でも、内部端数（`carry`）が変化していれば`RuntimeCounterChanged`を発行する（レビュー再レビュー[P2]: `value`不変・`carry`不変（トリガー自体が不成立、または加算量0）の場合だけ何も発行しない）。可変状態の変化を必ずイベント列から追跡できるようにするため。
 
-`INCREMENT`によるカウントは、`RUNTIME_COUNTER` Conditionを対象イベント自身（`counterUpdates[].trigger`と同じ`eventType`）へ直接付与し、`modulo`で周期を絞り込む。一方`CUMULATIVE_DAMAGE_THRESHOLD`は、`counterUpdates[].trigger`（`DamageApplied`など）ごとに閾値を超えたとは限らないため、`RUNTIME_COUNTER`をそのまま使うと閾値を超えていない被ダメージでも「前回超えた時のvalueがまだ条件を満たす」まま誤って再発火しうる。そのため`CUMULATIVE_DAMAGE_THRESHOLD`を消費するPSは、`counterUpdates[].trigger`ではなく`RuntimeCounterChanged`（値が実際に変化した時だけ発行される）をtriggerのeventTypeとし、`EVENT_PAYLOAD`で`counter`フィールドを自身のcounter IDと比較して絞り込む。
+`INCREMENT`によるカウントは、`RUNTIME_COUNTER` Conditionを対象イベント自身（`counterUpdates[].trigger`と同じ`eventType`）へ直接付与し、`modulo`で周期を絞り込む。一方`CUMULATIVE_DAMAGE_THRESHOLD`は、`counterUpdates[].trigger`（`DamageApplied`など）ごとに閾値を超えたとは限らないため、`RUNTIME_COUNTER`をそのまま使うと閾値を超えていない被ダメージでも「前回超えた時のvalueがまだ条件を満たす」まま誤って再発火しうる。そのため`CUMULATIVE_DAMAGE_THRESHOLD`を消費するPSは、`counterUpdates[].trigger`ではなく`RuntimeCounterChanged`をtriggerのeventTypeとする。
+
+ただし`RuntimeCounterChanged`は上記のとおりcarryのみの変化でも発行されるため（`valueChanged: false`）、`EVENT_PAYLOAD`で`counter`フィールドを自身のcounter IDと比較するだけでは閾値未到達の被弾ごとに誤発動する（レビュー再々レビュー[P1]、Issue #143）。`counter`の一致に加えて`valueChanged`が`true`であることも`AND`で要求し、実際に閾値を跨いだ（`before !== after`）更新だけに絞り込む。
 
 ```yaml
 triggers:
@@ -1505,7 +1507,10 @@ triggers:
     sourceSelector: SELF
     targetSelector: ANY
     condition:
-      { kind: EVENT_PAYLOAD, field: counter, op: EQ, value: SKL_EXAMPLE_PS2_THRESHOLD_COUNT }
+      kind: AND
+      conditions:
+        - { kind: EVENT_PAYLOAD, field: counter, op: EQ, value: SKL_EXAMPLE_PS2_THRESHOLD_COUNT }
+        - { kind: EVENT_PAYLOAD, field: valueChanged, op: EQ, value: true }
 ```
 
 `POSITION_RELATION`の`relation`は少なくとも「目の前」（`IN_FRONT_OF`）を候補とする。`target`は`ALLY`/`ENEMY`と組み合わせられる。`RESOLUTION_PHASE`の`phase`は`BATTLE_START`/`TURN_START`/`TURN_END`を候補とし、`negate: true`で「これらのphase中は不成立」（除外条件）を表す。両kindとも、`condition`フィールド（`ConditionDefinition`）から他のkindと`AND`/`OR`/`NOT`で組み合わせられる。具体的なpayload形状、対象不在時の評価規則、Mapper実装はIssue #144で確定する。

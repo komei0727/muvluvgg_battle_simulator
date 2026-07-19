@@ -405,6 +405,73 @@ describe("applyStateDelta", () => {
       [skillDefinitionId]: { [COUNTER_CRIT]: 1 },
     });
   });
+
+  it("UT-STATE-REDUCER-027 (review re-re-fix [P1]): skillCounterCarry deletes the counter key (and prunes the now-empty skillDefinitionId entry entirely) when after is undefined, unlike skillCounters (UT-STATE-REDUCER-024) which keeps a landed-on-0 key", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
+    const withCarry = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          skillCounterCarry: { [skillDefinitionId]: { [COUNTER_CRIT]: { before: 0, after: 30 } } },
+        },
+      },
+    });
+    expect(withCarry.units[UNIT_A]!.skillCounterCarry).toEqual({
+      [skillDefinitionId]: { [COUNTER_CRIT]: 30 },
+    });
+
+    // carry returns to exactly 0 (e.g. a hit that lands precisely on a
+    // threshold multiple): the delta must use `after: undefined`, not `0`,
+    // so this single remaining counter's entry — and the now-empty
+    // skillDefinitionId-level map itself — are both removed, matching
+    // `captureBattleState`'s "carry 0 is omitted entirely" convention.
+    const next = applyStateDelta(withCarry, {
+      units: {
+        [UNIT_A]: {
+          skillCounterCarry: {
+            [skillDefinitionId]: { [COUNTER_CRIT]: { before: 30, after: undefined } },
+          },
+        },
+      },
+    });
+
+    expect(next.units[UNIT_A]!.skillCounterCarry).toEqual({});
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        next.units[UNIT_A]!.skillCounterCarry,
+        skillDefinitionId,
+      ),
+    ).toBe(false);
+  });
+
+  it("UT-STATE-REDUCER-028 (review re-re-fix [P1]): skillCounterCarry does not prune a skillDefinitionId entry that still has a sibling counter with nonzero carry", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
+    const withBoth = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          skillCounterCarry: {
+            [skillDefinitionId]: {
+              [COUNTER_CRIT]: { before: 0, after: 30 },
+              [COUNTER_OTHER]: { before: 0, after: 12 },
+            },
+          },
+        },
+      },
+    });
+
+    const next = applyStateDelta(withBoth, {
+      units: {
+        [UNIT_A]: {
+          skillCounterCarry: {
+            [skillDefinitionId]: { [COUNTER_CRIT]: { before: 30, after: undefined } },
+          },
+        },
+      },
+    });
+
+    expect(next.units[UNIT_A]!.skillCounterCarry).toEqual({
+      [skillDefinitionId]: { [COUNTER_OTHER]: 12 },
+    });
+  });
 });
 
 describe("reduceStateDeltas", () => {

@@ -19,6 +19,7 @@ import { SimulateBattleUseCase } from "../../application/simulation/simulate-bat
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import {
   createEffectActionDefinitionId,
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
@@ -470,6 +471,129 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
   }
 }
 
+/**
+ * Issue #143 review re-fix [P1]: 防御側の`CUMULATIVE_DAMAGE_THRESHOLD`
+ * counterUpdates PSが実際に閾値を跨ぐ一撃を受け、`RuntimeCounterChanged`を
+ * 発行するシナリオ。実HTTPレスポンスの`details.valueChanged`が公開
+ * OpenAPI schema（`valueChanged`必須）を満たすことを検証するために使う。
+ */
+async function runRuntimeCounterThresholdScenario(): Promise<BattleSimulationResponseBody> {
+  const skillId = "SKL_THRESHOLD_ATTACK";
+  const effectActionId = "ACT_THRESHOLD_ATTACK";
+  const passiveSkillId = "SKL_THRESHOLD_PS";
+  const counterId = createRuntimeCounterId("CNT_THRESHOLD_TEST");
+  const attackerUnit: UnitDefinition = {
+    ...unitDefinition("UNIT_THRESHOLD_ATK"),
+    baseStats: { ...unitDefinition("UNIT_THRESHOLD_ATK").baseStats, maximumAp: 1, attack: 500 },
+    activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+  };
+  const passiveSkill: SkillDefinition = {
+    skillDefinitionId: createSkillDefinitionId(passiveSkillId),
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [
+      {
+        eventType: "RuntimeCounterChanged",
+        category: "FACT",
+        sourceSelector: "SELF",
+        targetSelector: "ANY",
+        condition: {
+          kind: "AND",
+          conditions: [
+            { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterId },
+            { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
+          ],
+        },
+      },
+    ],
+    counterUpdates: [
+      {
+        kind: "CUMULATIVE_DAMAGE_THRESHOLD",
+        counter: counterId,
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "DamageApplied",
+          category: "FACT",
+          sourceSelector: "ENEMY",
+          targetSelector: "SELF",
+          condition: { kind: "TRUE" },
+        },
+        maxHpRatio: 0.1,
+      },
+    ],
+    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "ThresholdPS", tags: [] },
+  };
+  const defenderUnit: UnitDefinition = {
+    ...unitDefinition("UNIT_THRESHOLD_DEF"),
+    baseStats: { ...unitDefinition("UNIT_THRESHOLD_DEF").baseStats, maximumHp: 1000, defense: 0 },
+    passiveSkillDefinitionIds: [createSkillDefinitionId(passiveSkillId)],
+  };
+  const units = new Map([
+    [createUnitDefinitionId("UNIT_THRESHOLD_ATK"), attackerUnit],
+    [createUnitDefinitionId("UNIT_THRESHOLD_DEF"), defenderUnit],
+  ]);
+  const skills = new Map([
+    [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
+    [createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")],
+    [createSkillDefinitionId(passiveSkillId), passiveSkill],
+  ]);
+  const effectActions = new Map([
+    [createEffectActionDefinitionId(effectActionId), damageEffectAction(effectActionId)],
+  ]);
+
+  const useCase: SimulateBattleUseCasePort = {
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
+      Promise.resolve(
+        new SimulateBattleUseCase({
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
+          battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+          randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+          clock: new ManualClock(Date.now()),
+        }).execute(toSimulateBattleCommand(request), context),
+      ),
+  };
+  const app: FastifyInstance = await buildServer(useCase);
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [
+            { unitDefinitionId: "UNIT_THRESHOLD_ATK", position: { column: 0, row: "FRONT" } },
+          ],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [
+            { unitDefinitionId: "UNIT_THRESHOLD_DEF", position: { column: 0, row: "FRONT" } },
+          ],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 1,
+      },
+    });
+    if (response.statusCode !== 200) {
+      throw new Error(`expected 200, got ${response.statusCode}: ${response.body}`);
+    }
+    return response.json<BattleSimulationResponseBody>();
+  } finally {
+    await app.close();
+  }
+}
+
 /** `action-phase-resolver.test.ts`のchargeSkillと同形（R-SKL-05）: 発動はチャージ開始とは別行動、`cooldown`は開始行動へ設定される。 */
 function chargeSkill(id: string, effectActionId: string): SkillDefinition {
   return {
@@ -603,6 +727,21 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     // DamageCalculated/DamageApplied/UnitDefeated — event types the
     // turn-limit scenario in openapi.test.ts's API-OPENAPI-002 never
     // reaches — against the OpenAPI-published per-event `details` schema.
+    const ajv = new Ajv({ strict: false });
+    const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
+    expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
+  });
+
+  it("API-STATE-RESTORE-007 (review re-fix [P1]): a real RuntimeCounterChanged event's details include valueChanged and pass the published OpenAPI schema", async () => {
+    const body = await runRuntimeCounterThresholdScenario();
+
+    // Sanity: the hit actually crossed the threshold — otherwise this would
+    // trivially pass without ever emitting RuntimeCounterChanged at all.
+    const runtimeCounterChanged = body.events.find((e) => e.type === "RUNTIME_COUNTER_CHANGED");
+    expect(runtimeCounterChanged).toBeDefined();
+    expect(runtimeCounterChanged?.details).toMatchObject({ valueChanged: true, before: 0 });
+    expect((runtimeCounterChanged?.details as { after: number }).after).toBeGreaterThan(0);
+
     const ajv = new Ajv({ strict: false });
     const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
