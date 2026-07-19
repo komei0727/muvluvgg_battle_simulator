@@ -649,6 +649,38 @@ const skillUseInterruptedDetailsSchema = {
   },
 } as const;
 
+const RUNTIME_COUNTER_SCOPE_ENUM = ["BATTLE", "BATTLE_UNIT", "SKILL_RUNTIME"] as const;
+
+/** `RuntimeCounterChanged`（M6最小実装、Issue #143）。`carry`は観測用の繰り越し端数。 */
+const runtimeCounterChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ownerUnitId", "scope", "counter", "skillDefinitionId", "before", "after", "carry"],
+  properties: {
+    ownerUnitId: { type: "string" },
+    scope: { type: "string", enum: RUNTIME_COUNTER_SCOPE_ENUM },
+    counter: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    before: { type: "number" },
+    after: { type: "number" },
+    carry: { type: "number" },
+  },
+} as const;
+
+/** `RuntimeCounterReset`（M6最小実装、Issue #143）。解決スコープ終了後にcounterを破棄した時。 */
+const runtimeCounterResetDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ownerUnitId", "scope", "counter", "skillDefinitionId", "before"],
+  properties: {
+    ownerUnitId: { type: "string" },
+    scope: { type: "string", enum: RUNTIME_COUNTER_SCOPE_ENUM },
+    counter: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    before: { type: "number" },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -698,6 +730,8 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   PASSIVE_RESOLVED: passiveResolvedDetailsSchema,
   PASSIVE_INTERRUPTED: passiveInterruptedDetailsSchema,
   SKILL_USE_INTERRUPTED: skillUseInterruptedDetailsSchema,
+  RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
+  RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
 } as const;
 
 /**

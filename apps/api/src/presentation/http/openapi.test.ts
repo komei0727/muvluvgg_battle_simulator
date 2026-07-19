@@ -548,6 +548,8 @@ describe("OpenAPI document", () => {
       PassiveResolved: true,
       PassiveInterrupted: true,
       SkillUseInterrupted: true,
+      RuntimeCounterChanged: true,
+      RuntimeCounterReset: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

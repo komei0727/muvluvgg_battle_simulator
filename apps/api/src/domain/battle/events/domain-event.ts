@@ -16,8 +16,10 @@ import type {
 } from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
+  RuntimeCounterId,
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { RuntimeCounterScope } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
 import type { ConditionKind } from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
@@ -334,6 +336,29 @@ export interface BattleDomainEventPayloadMap {
     readonly reason: "ACTOR_DEFEATED";
     readonly resolvedEffectCount: number;
     readonly unresolvedEffectCount: number;
+  };
+  /**
+   * `R-EFF-11`/`08_ドメインイベント.md`「RuntimeCounterイベント」（M6最小実装、
+   * Issue #143）。原因イベントの直後・候補抽出より前に採番する例外的な子イベント
+   * （「複合処理と状態差分の所有」参照）。`carry`は`CUMULATIVE_DAMAGE_THRESHOLD`の
+   * 繰り越し端数（`INCREMENT`では常に0）で、`stateDelta`には含めない観測用の値。
+   */
+  readonly RuntimeCounterChanged: {
+    readonly ownerUnitId: BattleUnitId;
+    readonly scope: RuntimeCounterScope;
+    readonly counter: RuntimeCounterId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly before: number;
+    readonly after: number;
+    readonly carry: number;
+  };
+  /** `R-EFF-11`: 解決スコープ終了時、PS/Memory候補スタックが空になった後にcounterを破棄する。 */
+  readonly RuntimeCounterReset: {
+    readonly ownerUnitId: BattleUnitId;
+    readonly scope: RuntimeCounterScope;
+    readonly counter: RuntimeCounterId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly before: number;
   };
 }
 

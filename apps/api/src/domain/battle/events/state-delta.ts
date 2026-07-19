@@ -1,7 +1,7 @@
 import type { BattleStatus } from "../model/battle-status.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
-import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { ActionId } from "../../shared/event-ids.js";
 
@@ -61,6 +61,16 @@ export interface UnitStateDelta {
   >;
   /** R-SKL-05: チャージ開始(`undefined`→値)・解放/中断(値→`undefined`)。 */
   readonly charge?: ValueChange<ChargeState | undefined>;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`SkillRuntime`スコープ（M6最小実装、
+   * Issue #143）。`SkillDefinitionId`→`RuntimeCounterId`の2段キーで、変更された
+   * counterの`value`だけを持つ（`RuntimeCounterChanged`/`RuntimeCounterReset`が
+   * 単独で所有する`stateDelta`）。`CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数は
+   * 公開しない内部状態のためここへは含めない（イベントpayloadの`carry`を参照）。
+   */
+  readonly skillCounters?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number>>>>
+  >;
 }
 
 /**

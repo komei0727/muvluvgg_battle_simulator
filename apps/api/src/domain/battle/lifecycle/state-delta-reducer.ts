@@ -6,7 +6,7 @@ import type {
   UnitStateDelta,
   ValueChange,
 } from "../events/state-delta.js";
-import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
@@ -67,6 +67,11 @@ function applyUnitDelta(
     assertChargeBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
   }
   const nextCharge = delta.charge !== undefined ? delta.charge.after : unit.charge;
+  const skillCounters = applyRuntimeCounterDeltas(
+    `${path}.skillCounters`,
+    unit.skillCounters,
+    delta.skillCounters,
+  );
   return {
     hp: delta.hp?.after ?? unit.hp,
     ap: delta.ap?.after ?? unit.ap,
@@ -74,7 +79,42 @@ function applyUnitDelta(
     extraGauge: delta.extraGauge?.after ?? unit.extraGauge,
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
+    ...(skillCounters !== undefined ? { skillCounters } : {}),
   };
+}
+
+/**
+ * `R-EFF-11`（`SkillRuntime`スコープ、Issue #143）: `SkillDefinitionId`→
+ * `RuntimeCounterId`の2段キーで、変更されたcounterの`value`だけを既存の
+ * `skillCounters`へ差分適用する。
+ */
+function applyRuntimeCounterDeltas(
+  path: string,
+  current: BattleUnitSnapshot["skillCounters"],
+  deltas: UnitStateDelta["skillCounters"],
+): BattleUnitSnapshot["skillCounters"] {
+  if (deltas === undefined) {
+    return current;
+  }
+  const next: Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>> = {
+    ...current,
+  };
+  for (const [skillDefinitionId, counterChanges] of Object.entries(deltas) as [
+    SkillDefinitionId,
+    Readonly<Record<RuntimeCounterId, ValueChange<number>>>,
+  ][]) {
+    const existing = next[skillDefinitionId];
+    const updated: Record<RuntimeCounterId, number> = { ...existing };
+    for (const [counterId, change] of Object.entries(counterChanges) as [
+      RuntimeCounterId,
+      ValueChange<number>,
+    ][]) {
+      assertBeforeMatches(`${path}[${skillDefinitionId}][${counterId}]`, existing?.[counterId] ?? 0, change);
+      updated[counterId] = change.after;
+    }
+    next[skillDefinitionId] = updated;
+  }
+  return next;
 }
 
 /**
