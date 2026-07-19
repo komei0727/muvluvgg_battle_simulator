@@ -67,10 +67,15 @@ function applyUnitDelta(
     assertChargeBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
   }
   const nextCharge = delta.charge !== undefined ? delta.charge.after : unit.charge;
-  const skillCounters = applyRuntimeCounterDeltas(
+  const skillCounters = applyTwoLevelCounterDeltas(
     `${path}.skillCounters`,
     unit.skillCounters,
     delta.skillCounters,
+  );
+  const skillCounterCarry = applyTwoLevelCounterDeltas(
+    `${path}.skillCounterCarry`,
+    unit.skillCounterCarry,
+    delta.skillCounterCarry,
   );
   return {
     hp: delta.hp?.after ?? unit.hp,
@@ -80,23 +85,34 @@ function applyUnitDelta(
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
     ...(skillCounters !== undefined ? { skillCounters } : {}),
+    ...(skillCounterCarry !== undefined ? { skillCounterCarry } : {}),
   };
 }
 
 /**
  * `R-EFF-11`（`SkillRuntime`スコープ、Issue #143）: `SkillDefinitionId`→
- * `RuntimeCounterId`の2段キーで、変更されたcounterの`value`だけを既存の
- * `skillCounters`へ差分適用する。
+ * `RuntimeCounterId`の2段キーで運ばれる`skillCounters`（`value`）／
+ * `skillCounterCarry`（`carry`、レビュー再々レビュー[P2]）の両方に使う共通
+ * 差分適用。
  *
  * レビュー指摘[P1]: `change.after === undefined`は`RuntimeCounterReset`による
  * キー自体の削除を表すため、`0`を書き込むのではなく`updated`からキーを
  * `delete`する（実状態の`resetRuntimeCounter`と同じ規約）。
  */
-function applyRuntimeCounterDeltas(
+function applyTwoLevelCounterDeltas(
   path: string,
-  current: BattleUnitSnapshot["skillCounters"],
-  deltas: UnitStateDelta["skillCounters"],
-): BattleUnitSnapshot["skillCounters"] {
+  current:
+    | Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>>
+    | undefined,
+  deltas:
+    | Readonly<
+        Record<
+          SkillDefinitionId,
+          Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>
+        >
+      >
+    | undefined,
+): Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>> | undefined {
   if (deltas === undefined) {
     return current;
   }

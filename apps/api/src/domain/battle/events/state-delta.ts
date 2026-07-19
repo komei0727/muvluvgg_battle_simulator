@@ -65,8 +65,8 @@ export interface UnitStateDelta {
    * `05_ドメインモデル.md`「RuntimeCounter」の`SkillRuntime`スコープ（M6最小実装、
    * Issue #143）。`SkillDefinitionId`→`RuntimeCounterId`の2段キーで、変更された
    * counterの`value`だけを持つ（`RuntimeCounterChanged`/`RuntimeCounterReset`が
-   * 単独で所有する`stateDelta`）。`CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数は
-   * 公開しない内部状態のためここへは含めない（イベントpayloadの`carry`を参照）。
+   * 単独で所有する`stateDelta`）。値が変化しなかった更新（carryのみの変化）では
+   * このキー自体を持たない（`skillCounterCarry`を参照）。
    *
    * レビュー指摘[P1]: `after: undefined`は`RuntimeCounterReset`によるcounter
    * キー自体の削除を表す（`0`という値ではなく、実状態の`resetRuntimeCounter`が
@@ -74,6 +74,17 @@ export interface UnitStateDelta {
    * `{ counter: 0 }`を復元してしまい、実状態の`{}`と一致しなくなる）。
    */
   readonly skillCounters?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
+  >;
+  /**
+   * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`carry`）専用の差分
+   * （レビュー再々レビュー[P2]、Issue #143: `carry`はStateDeltaから除外されて
+   * いたため、次回の閾値判定に必要な内部状態がStateDelta単独から復元できな
+   * かった）。`skillCounters`と同じ2段キーだが独立に変化するため別フィールドと
+   * する（`INCREMENT`は常に`carry`が0のままのためこのキーを持たない）。
+   * `after: undefined`は`RuntimeCounterReset`によるキー削除を表す。
+   */
+  readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
   >;
 }

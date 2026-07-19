@@ -24,8 +24,18 @@ export interface RuntimeCounterUpdateResult {
   readonly counter: RuntimeCounterId;
   readonly before: number;
   readonly after: number;
-  /** `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`INCREMENT`では常に0）。観測用。 */
+  /** `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（更新後、`INCREMENT`では常に0）。観測用。 */
   readonly carry: number;
+  /** この更新の直前の繰り越し端数（`carry`との差分でcarry自体の変化を判定する）。 */
+  readonly carryBefore: number;
+  /**
+   * `before !== after`（公開値が実際に変化した＝閾値を跨いだ）かどうか。
+   * レビュー再々レビュー[P1]: `RuntimeCounterChanged`はcarryのみの変化でも
+   * 発行するため（追跡性のため）、閾値到達時だけ発動すべきPS
+   * （`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`）はこのフィールドで絞り込む
+   * 契約とする（Catalog側の条件は`docs/ddd/14_Catalog定義スキーマ.md`参照）。
+   */
+  readonly valueChanged: boolean;
 }
 
 export interface RuntimeCounterMatchInput {
@@ -175,7 +185,11 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
         // 変化した場合は`RuntimeCounterChanged`を発行する。ここで完全に
         // skipすると、可変状態(carry)が変化したこと自体がイベント列から
         // 追跡できなくなる（対象3スキルでは閾値未到達ヒットの方が通常経路）。
-        if (applied.before === applied.after && applied.carry === carryBefore) {
+        // `valueChanged`をpayloadへ含めるのは、この関数の呼び出し側
+        // （Catalog側の閾値到達PS）が「carryだけの変化」と「実際の閾値到達」を
+        // 区別できるようにするため（レビュー再々レビュー[P1]）。
+        const valueChanged = applied.before !== applied.after;
+        if (!valueChanged && applied.carry === carryBefore) {
           continue;
         }
         changes.push({
@@ -185,6 +199,8 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
           before: applied.before,
           after: applied.after,
           carry: applied.carry,
+          carryBefore,
+          valueChanged,
         });
       }
     }

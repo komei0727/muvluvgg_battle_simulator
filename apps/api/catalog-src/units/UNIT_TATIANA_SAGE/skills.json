@@ -379,10 +379,16 @@
         "sourceSelector": "SELF",
         "targetSelector": "ANY",
         "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "counter",
-          "op": "EQ",
-          "value": "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT"
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
         }
       }
     ],

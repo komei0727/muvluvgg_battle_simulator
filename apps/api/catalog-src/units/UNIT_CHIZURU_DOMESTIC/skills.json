@@ -208,10 +208,16 @@
         "sourceSelector": "SELF",
         "targetSelector": "ANY",
         "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "counter",
-          "op": "EQ",
-          "value": "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT"
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
         }
       }
     ],

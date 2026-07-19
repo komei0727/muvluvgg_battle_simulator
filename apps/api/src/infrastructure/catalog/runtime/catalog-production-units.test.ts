@@ -18,10 +18,10 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    // Issue #143: bumped when the 12 RUNTIME_COUNTER_MODULO/
-    // CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER lines were updated and catalog/
-    // regenerated (mise exec -- pnpm run generate-catalog).
-    expect(catalog.catalogRevision).toBe("2026-07-19.1");
+    // Issue #143: bumped when the 3 CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER
+    // triggers were updated to gate on `valueChanged` (review re-fix [P1])
+    // and catalog/ regenerated (mise exec -- pnpm run generate-catalog).
+    expect(catalog.catalogRevision).toBe("2026-07-19.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -211,7 +211,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     { unitId: "UNIT_CHIZURU_DOMESTIC", skillId: "SKL_CHIZURU_DOMESTIC_PS3", maxHpRatio: 0.85 },
     { unitId: "UNIT_TATIANA_SAGE", skillId: "SKL_TATIANA_SAGE_PS1", maxHpRatio: 0.2 },
   ])(
-    "IT-CAT-PROD-009 (Issue #143, CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER): $skillId declares a matching counterUpdates CUMULATIVE_DAMAGE_THRESHOLD entry (maxHpRatio=$maxHpRatio) and triggers on its own RuntimeCounterChanged ($unitId)",
+    "IT-CAT-PROD-009 (Issue #143, CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER): $skillId declares a matching counterUpdates CUMULATIVE_DAMAGE_THRESHOLD entry (maxHpRatio=$maxHpRatio) and triggers on its own RuntimeCounterChanged only when valueChanged is true ($unitId)",
     ({ unitId, skillId, maxHpRatio }) => {
       const catalog = loadCatalogFromDirectory(catalogPath());
       const snapshot = catalog.loadSnapshot([unitId] as never[], []);
@@ -228,11 +228,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       const trigger = skill?.triggers[0];
       expect(trigger?.eventType).toBe("RuntimeCounterChanged");
       expect(trigger?.sourceSelector).toBe("SELF");
+      // レビュー再々レビュー[P1]: carryのみの変化でも`RuntimeCounterChanged`が
+      // 発行されるようになったため、閾値到達時（`valueChanged: true`）だけに
+      // 絞り込む条件をANDで持つ（さもないと閾値未到達の被弾ごとに誤発動する）。
       expect(trigger?.condition).toEqual({
-        kind: "EVENT_PAYLOAD",
-        field: "counter",
-        op: "EQ",
-        value: update?.counter,
+        kind: "AND",
+        conditions: [
+          { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: update?.counter },
+          { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
+        ],
       });
     },
   );

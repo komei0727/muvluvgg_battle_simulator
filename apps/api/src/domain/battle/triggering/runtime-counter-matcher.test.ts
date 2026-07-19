@@ -183,6 +183,8 @@ describe("detectRuntimeCounterUpdates", () => {
         before: 0,
         after: 1,
         carry: 0,
+        carryBefore: 0,
+        valueChanged: true,
       },
     ]);
     expect(
@@ -234,6 +236,8 @@ describe("detectRuntimeCounterUpdates", () => {
       before: 1,
       after: 2,
       carry: 0,
+      carryBefore: 0,
+      valueChanged: true,
     });
   });
 
@@ -274,6 +278,8 @@ describe("detectRuntimeCounterUpdates", () => {
         before: 0,
         after: 1,
         carry: 0,
+        carryBefore: 0,
+        valueChanged: true,
       },
     ]);
   });
@@ -349,6 +355,8 @@ describe("detectRuntimeCounterUpdates", () => {
         before: 0,
         after: 2,
         carry: 25,
+        carryBefore: 0,
+        valueChanged: true,
       },
     ]);
   });
@@ -390,6 +398,8 @@ describe("detectRuntimeCounterUpdates", () => {
         before: 0,
         after: 0,
         carry: 10,
+        carryBefore: 0,
+        valueChanged: false,
       },
     ]);
   });
@@ -464,6 +474,8 @@ describe("detectRuntimeCounterUpdates", () => {
         before: 0,
         after: 0,
         carry: 30,
+        carryBefore: 0,
+        valueChanged: false,
       },
     ]);
     const ownerAfterFirst = first.units.find((u) => u.battleUnitId === owner.battleUnitId);
@@ -486,6 +498,8 @@ describe("detectRuntimeCounterUpdates", () => {
         before: 0,
         after: 1,
         carry: 5,
+        carryBefore: 30,
+        valueChanged: true,
       },
     ]);
   });

@@ -289,6 +289,12 @@ export function resolveChargeRelease(
       turnNumber,
       cycleNumber,
       actorId,
+      // レビュー再々レビュー[P2]: `ActionCompleting`/Cooldown更新/`ActionCompleted`
+      // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする
+      // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に
+      // 解決されるようにする。
+      onFactEventForPassiveChain: (event, unitsForChain) =>
+        passiveRuntime.onFactEvent(event, unitsForChain),
     },
     "CHARGE_RELEASE",
     chargeReleased.eventId,
@@ -310,9 +316,9 @@ export function resolveChargeRelease(
   // レビュー指摘再レビュー[P2]: `06_戦闘状態遷移.md`のCOMPLETING順序では
   // `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
   // `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
-  // `RuntimeCounterReset`発行）は`recordActionCompletion`（チャージ終了・
-  // Cooldown減算含む）より後で、その最終`units`を同期してから呼び出す。
-  passiveRuntime.syncUnits(completion.units);
+  // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
+  // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
+  // `passiveRuntime`を同期済みのため、追加の同期は不要。
   const finalUnits = passiveRuntime.finalizeResolutionScope();
 
   return {

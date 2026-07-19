@@ -25,9 +25,17 @@ export interface BattleUnitSnapshot {
   /**
    * `05_ドメインモデル.md`「RuntimeCounter」の`SkillRuntime`スコープ（M6最小実装、
    * Issue #143）。`cooldowns`と同様、1件も持たないユニットへは`{}`を書かない。
-   * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数は公開しない内部状態のため含まない。
    */
   readonly skillCounters?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /**
+   * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`carry`）専用の射影
+   * （レビュー再々レビュー[P2]、Issue #143）。`carry`が0の（＝一度も繰り越しが
+   * 発生していない、または`INCREMENT`の）counterはキー自体を持たない
+   * （`skillCounters`と違い0はデフォルト値として省略する）。
+   */
+  readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
   >;
 }
@@ -61,13 +69,24 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
     }
     const skillCounterSkillIds = Object.keys(unit.skillCounters ?? {}) as SkillDefinitionId[];
     const skillCounters: Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>> = {};
+    const skillCounterCarry: Record<
+      SkillDefinitionId,
+      Readonly<Record<RuntimeCounterId, number>>
+    > = {};
     for (const skillDefinitionId of skillCounterSkillIds) {
       const counters = unit.skillCounters![skillDefinitionId]!;
       const values: Record<RuntimeCounterId, number> = {};
+      const carryValues: Record<RuntimeCounterId, number> = {};
       for (const counterId of Object.keys(counters) as RuntimeCounterId[]) {
         values[counterId] = counters[counterId]!.value;
+        if (counters[counterId]!.carry !== 0) {
+          carryValues[counterId] = counters[counterId]!.carry;
+        }
       }
       skillCounters[skillDefinitionId] = values;
+      if (Object.keys(carryValues).length > 0) {
+        skillCounterCarry[skillDefinitionId] = carryValues;
+      }
     }
     units[unit.battleUnitId] = {
       hp: unit.currentHp,
@@ -84,6 +103,7 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
           }
         : {}),
       ...(skillCounterSkillIds.length > 0 ? { skillCounters } : {}),
+      ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
     };
   }
   return {

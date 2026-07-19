@@ -117,19 +117,6 @@ export class PassiveActivationRuntime {
     return this.units;
   }
 
-  /**
-   * レビュー指摘[P2]: `recordActionCompletion`（Cooldown減算等）のように、
-   * このインスタンスのPS解決を経由せずに`units`を変化させる後続処理の結果を
-   * `finalizeResolutionScope`へ反映させるための同期専用API。候補解決は
-   * 一切行わない（`onFactEvent`と異なりguard/stackに触れない）。
-   * `ActionCompleting`/Cooldown更新/`ActionCompleted`が発行された後、
-   * それらの最終`units`で呼び出してから`finalizeResolutionScope`を呼ぶこと
-   * （`06_戦闘状態遷移.md`のCOMPLETING順序どおり、resetはそれらより後）。
-   */
-  syncUnits(units: readonly BattleUnit[]): void {
-    this.units = units;
-  }
-
   private toTriggerEvent(event: BattleDomainEvent): TriggerCandidateEvent {
     const triggerEvent: TriggerCandidateEvent = {
       eventType: event.eventType,
@@ -190,8 +177,9 @@ export class PassiveActivationRuntime {
       skillDefinitions: this.context.definitions.skillDefinitions,
     });
     this.units = counterUpdate.units;
-    return counterUpdate.changes.map((change) =>
-      this.context.recorder.record({
+    return counterUpdate.changes.map((change) => {
+      const carryChanged = change.carry !== change.carryBefore;
+      return this.context.recorder.record({
         eventType: "RuntimeCounterChanged",
         category: "FACT",
         turnNumber: this.context.turnNumber,
@@ -209,20 +197,41 @@ export class PassiveActivationRuntime {
           before: change.before,
           after: change.after,
           carry: change.carry,
+          // レビュー再々レビュー[P1]: `value`が変化していない（carryのみの
+          // 変化の）更新でもこのイベント自体は発行する（追跡性のため）ので、
+          // 閾値到達時だけ発動すべきPSはこのフィールドで絞り込む契約とする。
+          valueChanged: change.valueChanged,
         },
         stateDelta: {
           units: {
             [change.ownerUnitId]: {
-              skillCounters: {
-                [change.skillDefinitionId]: {
-                  [change.counter]: { before: change.before, after: change.after },
-                },
-              },
+              // レビュー再々レビュー[P2]: `value`(公開値)が変化した場合だけ
+              // `skillCounters`を持つ。carryのみの変化では公開値のstateDeltaを
+              // 持たせない（「変更した項目だけを持つ」契約、carryは
+              // `skillCounterCarry`側に独立して持つ）。
+              ...(change.valueChanged
+                ? {
+                    skillCounters: {
+                      [change.skillDefinitionId]: {
+                        [change.counter]: { before: change.before, after: change.after },
+                      },
+                    },
+                  }
+                : {}),
+              ...(carryChanged
+                ? {
+                    skillCounterCarry: {
+                      [change.skillDefinitionId]: {
+                        [change.counter]: { before: change.carryBefore, after: change.carry },
+                      },
+                    },
+                  }
+                : {}),
             },
           },
         },
-      }),
-    );
+      });
+    });
   }
 
   /**
@@ -298,6 +307,9 @@ export class PassiveActivationRuntime {
       for (const target of targets) {
         const owner = requireUnit(this.units, target.ownerUnitId);
         const counters = owner.skillCounters?.[target.skillDefinitionId] ?? {};
+        // レビュー再々レビュー[P2]: 破棄されるcarryもstateDeltaへ含めるため、
+        // `resetRuntimeCounter`が削除する前に読み取っておく。
+        const carryBefore = counters[target.counter]?.carry ?? 0;
         const result = resetRuntimeCounter(counters, target.counter);
         if (result === undefined) {
           continue;
@@ -337,6 +349,18 @@ export class PassiveActivationRuntime {
                     [target.counter]: { before: result.change.before, after: undefined },
                   },
                 },
+                // レビュー再々レビュー[P2]: carryが実際に非0だった場合だけ
+                // `skillCounterCarry`を持つ（0のcarryは元々`captureBattleState`
+                // が省略するキーのため、削除する意味のある差分がない）。
+                ...(carryBefore !== 0
+                  ? {
+                      skillCounterCarry: {
+                        [target.skillDefinitionId]: {
+                          [target.counter]: { before: carryBefore, after: undefined },
+                        },
+                      },
+                    }
+                  : {}),
               },
             },
           },
