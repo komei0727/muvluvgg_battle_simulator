@@ -36,6 +36,7 @@ export interface RuntimeCounterMatchInput {
 function matchesUpdateTrigger(
   update: RuntimeCounterUpdateDefinition,
   owner: BattleUnit,
+  skillDefinitionId: SkillDefinitionId,
   event: TriggerCandidateEvent,
   unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
 ): boolean {
@@ -45,7 +46,7 @@ function matchesUpdateTrigger(
     trigger.category === event.category &&
     evaluateSourceSelector(trigger.sourceSelector, owner, event, unitsById) &&
     evaluateTargetSelector(trigger.targetSelector, owner, event, unitsById) &&
-    evaluateTriggerCondition(trigger.condition, event)
+    evaluateTriggerCondition(trigger.condition, event, { owner, skillDefinitionId })
   );
 }
 
@@ -126,7 +127,7 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
             `scope "${update.scope}" is not supported yet (Issue #143 only implements SKILL_RUNTIME scope)`,
           );
         }
-        if (!matchesUpdateTrigger(update, originalOwner, event, unitsById)) {
+        if (!matchesUpdateTrigger(update, originalOwner, skillId, event, unitsById)) {
           continue;
         }
         const currentOwner = workingUnits.find((u) => u.battleUnitId === originalOwner.battleUnitId);

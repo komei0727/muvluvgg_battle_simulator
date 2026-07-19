@@ -33,7 +33,10 @@ function findMatchingTrigger(
       trigger.category === event.category &&
       evaluateSourceSelector(trigger.sourceSelector, owner, event, unitsById) &&
       evaluateTargetSelector(trigger.targetSelector, owner, event, unitsById) &&
-      evaluateTriggerCondition(trigger.condition, event),
+      evaluateTriggerCondition(trigger.condition, event, {
+        owner,
+        skillDefinitionId: skill.skillDefinitionId,
+      }),
   );
 }
 
@@ -77,7 +80,13 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
         );
       }
       const trigger = findMatchingTrigger(skill, owner, event, unitsById);
-      if (trigger !== undefined && evaluateTriggerCondition(skill.activationCondition, event)) {
+      if (
+        trigger !== undefined &&
+        evaluateTriggerCondition(skill.activationCondition, event, {
+          owner,
+          skillDefinitionId: skill.skillDefinitionId,
+        })
+      ) {
         candidates.push({ unit: owner, skillDefinition: skill, trigger, definitionIndex });
       }
     });
