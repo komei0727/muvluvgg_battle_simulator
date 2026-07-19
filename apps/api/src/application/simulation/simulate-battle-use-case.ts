@@ -194,7 +194,7 @@ export class SimulateBattleUseCase {
       );
       const initialState = captureBattleState(battle);
       const unitRoster = captureUnitRoster(battle);
-      battle = startBattle(battle, recorder);
+      battle = startBattle(battle, random, recorder);
       while (battle.status !== "COMPLETED") {
         // `11_インフラストラクチャ設計.md`「キャンセルと期限」段階1（協調的停止）:
         // ターン境界（advanceBattle呼び出し前）という安全な内部境界で

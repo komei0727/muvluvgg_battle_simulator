@@ -84,6 +84,7 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
     resolutionScopeId: scope(),
     payload: {
       skillDefinitionId: "SKL_1" as never,
+      skillType: "AS",
       actorUnitId: "ally:1" as never,
       targetUnitIds: [],
       costResource: "AP",

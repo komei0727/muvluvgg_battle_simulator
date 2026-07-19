@@ -59,20 +59,26 @@ export function createBattle(
   };
 }
 
-/** Battle集約の主要操作: start（06_戦闘状態遷移.md READY→RUNNING）。BattleStartedを発行する。 */
-export function startBattle(battle: Battle, recorder: EventRecorder): Battle {
+/**
+ * Battle集約の主要操作: start（06_戦闘状態遷移.md READY→RUNNING）。BattleStartedを
+ * 発行し、対応するPSを解決する（Issue #144 follow-up、PR #150で保留した残作業:
+ * `resolutionPhase: "BATTLE_START"`を渡し、`RESOLUTION_PHASE`条件を実際に評価
+ * 可能にする）。READY→RUNNINGはTURN_STARTINGと異なりAP/PP回復を行わない。
+ */
+export function startBattle(battle: Battle, random: RandomSource, recorder: EventRecorder): Battle {
   if (battle.status !== "READY") {
     throw new DomainValidationError(
       "battle.status",
       `cannot start a battle in status "${battle.status}"`,
     );
   }
-  recorder.record({
+  const battleScope = recorder.nextResolutionScopeId();
+  const battleStarted = recorder.record({
     eventType: "BattleStarted",
     category: "FACT",
     turnNumber: 0,
     cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
+    resolutionScopeId: battleScope,
     payload: {
       turnLimit: battle.turnState.turnLimit,
       allySlotCount: battle.allyUnits.length,
@@ -80,7 +86,26 @@ export function startBattle(battle: Battle, recorder: EventRecorder): Battle {
     },
     stateDelta: { battleStatus: { before: battle.status, after: "RUNNING" } },
   });
-  return { ...battle, status: "RUNNING" };
+
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions: battle.definitions,
+      random,
+      recorder,
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: battleScope,
+      rootEventId: battleStarted.eventId,
+      resolutionPhase: "BATTLE_START",
+    },
+    [...battle.allyUnits, ...battle.enemyUnits],
+  );
+  passiveRuntime.onFactEvent(battleStarted, [...battle.allyUnits, ...battle.enemyUnits]);
+  const afterPassives = passiveRuntime.finalizeResolutionScope();
+  const allyUnits = afterPassives.filter((unit) => unit.side === "ALLY");
+  const enemyUnits = afterPassives.filter((unit) => unit.side === "ENEMY");
+
+  return { ...battle, status: "RUNNING", allyUnits, enemyUnits };
 }
 
 function allDefeated(units: readonly BattleUnit[]): boolean {
@@ -344,10 +369,37 @@ export function advanceBattle(
     payload: { turnNumber: nextTurnNumber },
   });
 
-  // R-SKL-04 TURN_ENDING #2-4: ターン単位クールタイムを全ユニットで1減らす
-  // （現在のターンで設定されたものを除く）。
-  const cooldownDecrement = applyTurnCooldownDecrements(
+  // `06_戦闘状態遷移.md` TURN_ENDING #1: `TurnCompleting`をイベントとして持つPSを
+  // 解決する（Issue #144 follow-up、PR #150で保留した残作業:
+  // `resolutionPhase: "TURN_END"`を渡す）。行動外のため`actionId`は持たない。
+  const turnEndPassiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions: battle.definitions,
+      random,
+      recorder,
+      turnNumber: nextTurnNumber,
+      cycleNumber: 0,
+      resolutionScopeId: turnEndScope,
+      rootEventId: turnCompleting.eventId,
+      resolutionPhase: "TURN_END",
+    },
     [...actionPhase.allyUnits, ...actionPhase.enemyUnits],
+  );
+  turnEndPassiveRuntime.onFactEvent(turnCompleting, [
+    ...actionPhase.allyUnits,
+    ...actionPhase.enemyUnits,
+  ]);
+  const afterTurnEndPassives = turnEndPassiveRuntime.finalizeResolutionScope();
+  const allyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter((unit) => unit.side === "ALLY");
+  const enemyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter(
+    (unit) => unit.side === "ENEMY",
+  );
+
+  // R-SKL-04 TURN_ENDING #2-4: PS連鎖完了後の現在状態から対象を再取得し、
+  // ターン単位クールタイムを全ユニットで1減らす（現在のターンで設定された
+  // ものを除く）。
+  const cooldownDecrement = applyTurnCooldownDecrements(
+    afterTurnEndPassives,
     nextTurnNumber,
     recorder,
     nextTurnNumber,
@@ -358,8 +410,8 @@ export function advanceBattle(
   const cooldownById = new Map(cooldownDecrement.units.map((u) => [u.battleUnitId, u]));
   const progressedWithCooldown: Battle = {
     ...progressed,
-    allyUnits: actionPhase.allyUnits.map((u) => cooldownById.get(u.battleUnitId) ?? u),
-    enemyUnits: actionPhase.enemyUnits.map((u) => cooldownById.get(u.battleUnitId) ?? u),
+    allyUnits: allyUnitsAfterTurnEndPassives.map((u) => cooldownById.get(u.battleUnitId) ?? u),
+    enemyUnits: enemyUnitsAfterTurnEndPassives.map((u) => cooldownById.get(u.battleUnitId) ?? u),
   };
 
   recorder.record({
@@ -374,8 +426,8 @@ export function advanceBattle(
   });
 
   const afterTurnEnd = resolveVictory({
-    allAlliesDefeated: allDefeated(actionPhase.allyUnits),
-    allEnemiesDefeated: allDefeated(actionPhase.enemyUnits),
+    allAlliesDefeated: allDefeated(progressedWithCooldown.allyUnits),
+    allEnemiesDefeated: allDefeated(progressedWithCooldown.enemyUnits),
     turnLimitReached: isFinalTurn(turnState),
   });
   if (afterTurnEnd !== undefined) {

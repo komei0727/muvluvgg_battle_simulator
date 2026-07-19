@@ -198,6 +198,7 @@ export function resolveSkillUse(
     targetUnitIds,
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
+      skillType: skill.skillType,
       actorUnitId: actorId,
       targetUnitIds,
       costResource: skill.cost.resource,

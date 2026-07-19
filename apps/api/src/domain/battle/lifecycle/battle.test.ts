@@ -264,13 +264,115 @@ describe("createBattle", () => {
 
 describe("startBattle", () => {
   it("UT-BATTLE-004: transitions READY to RUNNING (06_戦闘状態遷移.md)", () => {
-    const battle = startBattle(readyBattle(), recorder());
+    const battle = startBattle(readyBattle(), NO_RANDOM(), recorder());
     expect(battle.status).toBe("RUNNING");
   });
 
   it("UT-BATTLE-005: rejects starting a battle that is not READY", () => {
-    const running = startBattle(readyBattle(), recorder());
-    expect(() => startBattle(running, recorder())).toThrow(DomainValidationError);
+    const running = startBattle(readyBattle(), NO_RANDOM(), recorder());
+    expect(() => startBattle(running, NO_RANDOM(), recorder())).toThrow(DomainValidationError);
+  });
+
+  it('UT-BATTLE-015 (Issue #144 follow-up, PR #150 remaining work): resolves a PS that triggers on BattleStarted, passing resolutionPhase: "BATTLE_START" to the trigger condition (06_戦闘状態遷移.md READY→RUNNING)', () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_001");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_BATTLE_STARTED");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "RESOLUTION_PHASE", phase: "BATTLE_START", negate: false },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "TURN", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_BATTLE_STARTED", tags: [] },
+    };
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        unitDefinitionId,
+        {
+          unitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "SUPPORT",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0.1,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0.25,
+            actionSpeed: 10,
+            maximumAp: 3,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 100,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Supporter",
+            characterName: "Supporter",
+            characterId: "CHAR_SUPPORTER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const battleRecorder = recorder();
+    // READY→RUNNINGはTURN_STARTINGと異なりAP/PP回復を行わないため
+    // （06_戦闘状態遷移.md「戦闘全体の状態遷移」参照）、PSが消費するPPを
+    // あらかじめ持たせておく。
+    const battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY", { currentPp: 1 })],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      NO_RANDOM(),
+      battleRecorder,
+    );
+
+    expect(battle.allyUnits[0]!.currentPp).toBe(0);
+
+    const events = battleRecorder.getEvents();
+    expect(events[0]!.eventType).toBe("BattleStarted");
+    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: battle.allyUnits[0]!.battleUnitId,
+      skillDefinitionId: passiveSkillDefinitionId,
+      ppBefore: 1,
+      ppAfter: 0,
+    });
+    expect(events.some((e) => e.eventType === "PassiveResolved")).toBe(true);
   });
 });
 
@@ -282,7 +384,11 @@ describe("advanceBattle", () => {
   });
 
   it("UT-BATTLE-007: TURN_STARTING recovers AP/PP for surviving units, which the action phase then spends via mandatory WAITs (no AS defined)", () => {
-    const battle = advanceBattle(startBattle(readyBattle(5), recorder()), NO_RANDOM(), recorder());
+    const battle = advanceBattle(
+      startBattle(readyBattle(5), NO_RANDOM(), recorder()),
+      NO_RANDOM(),
+      recorder(),
+    );
 
     expect(battle.turnState.currentTurn).toBe(1);
     // PP is untouched by the action phase (only AP is spent by AS/WAIT), so it proves recovery happened.
@@ -295,7 +401,7 @@ describe("advanceBattle", () => {
   it("PR #141 review [P1]: TURN_STARTING's AP/PP recovery is uniquely owned by per-resource ResourceChanged(TURN_RECOVERY) events, not by ResourcesRecovered directly", () => {
     const turnRecorder = recorder();
     const battle = advanceBattle(
-      startBattle(readyBattle(5), recorder()),
+      startBattle(readyBattle(5), NO_RANDOM(), recorder()),
       NO_RANDOM(),
       turnRecorder,
     );
@@ -345,7 +451,11 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const advanced = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
+    const advanced = advanceBattle(
+      startBattle(battle, NO_RANDOM(), recorder()),
+      NO_RANDOM(),
+      recorder(),
+    );
 
     expect(advanced.allyUnits[0]!.currentAp).toBe(0);
   });
@@ -359,7 +469,11 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
+    const completed = advanceBattle(
+      startBattle(battle, NO_RANDOM(), recorder()),
+      NO_RANDOM(),
+      recorder(),
+    );
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -378,7 +492,11 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
+    const completed = advanceBattle(
+      startBattle(battle, NO_RANDOM(), recorder()),
+      NO_RANDOM(),
+      recorder(),
+    );
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -397,7 +515,11 @@ describe("advanceBattle", () => {
       NO_SKILLS,
     );
 
-    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
+    const completed = advanceBattle(
+      startBattle(battle, NO_RANDOM(), recorder()),
+      NO_RANDOM(),
+      recorder(),
+    );
 
     expect(completed.status).toBe("COMPLETED");
     expect(completed.result).toEqual({
@@ -409,7 +531,7 @@ describe("advanceBattle", () => {
 
   it("UT-R-END-01-004 / SCN-BTL-020 lifecycle: neither side defeated stays RUNNING until the regulation turn count is reached, then resolves ALLY_LOSE/TURN_LIMIT_REACHED", () => {
     const rec = recorder();
-    let battle = startBattle(readyBattle(2), rec);
+    let battle = startBattle(readyBattle(2), NO_RANDOM(), rec);
 
     battle = advanceBattle(battle, NO_RANDOM(), rec);
     expect(battle.status).toBe("RUNNING");
@@ -432,7 +554,11 @@ describe("advanceBattle", () => {
       createTurnLimit(5),
       NO_SKILLS,
     );
-    const completed = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
+    const completed = advanceBattle(
+      startBattle(battle, NO_RANDOM(), recorder()),
+      NO_RANDOM(),
+      recorder(),
+    );
 
     expect(() => advanceBattle(completed, NO_RANDOM(), recorder())).toThrow(DomainValidationError);
   });
@@ -446,7 +572,11 @@ describe("advanceBattle", () => {
       attackerDefinitions(),
     );
 
-    const advanced = advanceBattle(startBattle(battle, recorder()), NO_RANDOM(), recorder());
+    const advanced = advanceBattle(
+      startBattle(battle, NO_RANDOM(), recorder()),
+      NO_RANDOM(),
+      recorder(),
+    );
 
     expect(advanced.status).toBe("RUNNING");
     // 3 AP at 1 AP/use means the ally attacks 3 times this turn: 100 - 3*20 = 40.
@@ -463,6 +593,7 @@ describe("advanceBattle", () => {
         createTurnLimit(5),
         attackerDefinitions(),
       ),
+      NO_RANDOM(),
       recorder(),
     );
 
@@ -485,6 +616,7 @@ describe("advanceBattle", () => {
         createTurnLimit(5),
         mutuallyLethalDefinitions(),
       ),
+      NO_RANDOM(),
       recorder(),
     );
 
@@ -512,6 +644,7 @@ describe("advanceBattle", () => {
         createTurnLimit(5),
         NO_SKILLS,
       ),
+      NO_RANDOM(),
       recorder(),
     );
 
@@ -568,6 +701,7 @@ describe("advanceBattle", () => {
         createTurnLimit(5),
         definitions,
       ),
+      NO_RANDOM(),
       recorder(),
     );
 
@@ -664,6 +798,7 @@ describe("advanceBattle", () => {
         createTurnLimit(5),
         definitions,
       ),
+      NO_RANDOM(),
       recorder(),
     );
 
@@ -693,5 +828,115 @@ describe("advanceBattle", () => {
     // The PS-owning unit's own action phase (WAITs, since it has no active
     // skill) happens after TURN_STARTING and is unaffected by the PS.
     expect(advanced.allyUnits[0]!.currentAp).toBe(0);
+  });
+
+  it('UT-BATTLE-016 (Issue #144 follow-up, PR #150 remaining work): resolves a PS that triggers on TurnCompleting, passing resolutionPhase: "TURN_END" to the trigger condition, before the turn-unit cooldown decrement re-reads unit state (06_戦闘状態遷移.md TURN_ENDING #1-2)', () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_001");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_COMPLETING");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnCompleting",
+          category: "TIMING",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "RESOLUTION_PHASE", phase: "TURN_END", negate: false },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "TURN", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_TURN_COMPLETING", tags: [] },
+    };
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        unitDefinitionId,
+        {
+          unitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "SUPPORT",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0.1,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0.25,
+            actionSpeed: 10,
+            maximumAp: 3,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 100,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Supporter",
+            characterName: "Supporter",
+            characterId: "CHAR_SUPPORTER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    const turnRecorder = recorder();
+    const advanced = advanceBattle(battle, NO_RANDOM(), turnRecorder);
+
+    // TURN_STARTING recovers PP to max (3), and the PS costs 1, consumed
+    // during TURN_ENDING (TurnCompleting), leaving 2.
+    expect(advanced.allyUnits[0]!.currentPp).toBe(2);
+
+    const events = turnRecorder.getEvents();
+    const turnCompletingIndex = events.findIndex((e) => e.eventType === "TurnCompleting");
+    const passiveActivatedIndex = events.findIndex((e) => e.eventType === "PassiveActivated");
+    const turnCompletedIndex = events.findIndex((e) => e.eventType === "TurnCompleted");
+    expect(turnCompletingIndex).toBeGreaterThanOrEqual(0);
+    // 06_戦闘状態遷移.md TURN_ENDING #1: `TurnCompleting`発行直後に対応するPSを
+    // 解決する（#2のクールタイム再取得より前）。
+    expect(passiveActivatedIndex).toBeGreaterThan(turnCompletingIndex);
+    expect(turnCompletedIndex).toBeGreaterThan(passiveActivatedIndex);
+    const passiveActivated = events[passiveActivatedIndex]!;
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: advanced.allyUnits[0]!.battleUnitId,
+      skillDefinitionId: passiveSkillDefinitionId,
+      ppBefore: 3,
+      ppAfter: 2,
+    });
+    expect(events.some((e) => e.eventType === "PassiveResolved")).toBe(true);
   });
 });
