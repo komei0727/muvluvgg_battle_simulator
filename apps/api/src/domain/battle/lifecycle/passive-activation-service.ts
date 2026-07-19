@@ -163,6 +163,11 @@ export class PassiveActivationRuntime {
             : {}),
         }),
       getCurrentUnit: (battleUnitId) => requireUnit(this.units, battleUnitId),
+      // レビュー指摘[P2]: `getCurrentUnit`（`requireUnit`）は未知のBattleUnitIdに
+      // 例外を送出するため、POSITION_RELATIONの対象不在を条件不成立として決定的に
+      // 扱うR-PS-01/Issue #144の契約には使えない。対象解決専用に、見つからない
+      // 場合`undefined`を返す`findUnit`を分けて渡す。
+      findUnit: (battleUnitId) => this.units.find((unit) => unit.battleUnitId === battleUnitId),
       activate: (candidate, event): PassiveActivation =>
         this.activatePassiveCandidate(candidate, event),
       limits: this.context.limits ?? DEFAULT_PASSIVE_CHAIN_LIMITS,

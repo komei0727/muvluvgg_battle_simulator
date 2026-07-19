@@ -83,6 +83,15 @@ export interface PassiveActivation {
 
 export type DetectPassiveCandidates = (event: TriggerCandidateEvent) => PassiveCandidateGroup;
 export type GetCurrentBattleUnit = (battleUnitId: BattleUnitId) => BattleUnit;
+/**
+ * `POSITION_RELATION`（Issue #144）の対象解決専用の安全なlookup。
+ * `GetCurrentBattleUnit`（`getCurrentUnit`、本番実装は`requireUnit`）は未知の
+ * `BattleUnitId`に対して例外を送出する契約だが、R-PS-01/Issue #144は「対象不在」を
+ * 条件不成立として決定的に候補破棄する契約（`evaluateTriggerCondition`の
+ * `POSITION_RELATION`分岐参照）のため、両者を混用してはならない
+ * （レビュー指摘[P2]）。
+ */
+export type FindBattleUnit = (battleUnitId: BattleUnitId) => BattleUnit | undefined;
 export type ActivatePassiveCandidate = (
   candidate: PassiveCandidate,
   event: TriggerCandidateEvent,
@@ -95,6 +104,13 @@ export interface PassiveChainDependencies {
    * 適用不要。 */
   readonly detectCandidates: DetectPassiveCandidates;
   readonly getCurrentUnit: GetCurrentBattleUnit;
+  /**
+   * `POSITION_RELATION`（Issue #144）の再確認（R-PS-04）が候補検出時と同じ対象
+   * 解決を使うために渡す。未指定時は`reconfirmPassiveCandidate`へ渡さず、
+   * `POSITION_RELATION`を参照するtriggerの再確認はcontext不足として例外になる
+   * （`evaluateTriggerCondition`の既存契約と同じ）。
+   */
+  readonly findUnit?: FindBattleUnit;
   readonly activate: ActivatePassiveCandidate;
   readonly limits: PassiveChainLimits;
   /**
@@ -181,7 +197,7 @@ function resolveTopGroup(
     currentUnit,
     top.event,
     state.guard,
-    deps.getCurrentUnit,
+    deps.findUnit,
     deps.resolutionPhase,
   );
   if (reconfirmation.ok) {

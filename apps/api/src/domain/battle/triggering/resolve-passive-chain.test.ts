@@ -594,6 +594,57 @@ describe("resolvePassiveChain", () => {
     }
   });
 
+  it("UT-R-PS-04-012 (Issue #144 review fix [P2]): reconfirmation uses a separate findUnit lookup for POSITION_RELATION, deterministically discarding a candidate whose target no longer resolves instead of throwing (getCurrentUnit is reserved for owner lookups and throws on unknown ids in production)", () => {
+    const unitA = unit("A");
+    const skillA: SkillDefinition = {
+      ...skillOf("SKL_A"),
+      triggers: [
+        {
+          eventType: "ANY",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: {
+            kind: "POSITION_RELATION",
+            target: { kind: "TRIGGER_TARGET" },
+            relation: "IN_FRONT_OF",
+          },
+        },
+      ],
+    };
+    const candA = candidateOf(unitA, skillA);
+    const vanishedTargetId = createBattleUnitId("GONE");
+    const rootEvent: TriggerCandidateEvent = {
+      eventType: "ANY",
+      category: "FACT",
+      targetUnitIds: [vanishedTargetId],
+      payload: {},
+    };
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [candA],
+      getCurrentUnit: (id) => {
+        if (id === unitA.battleUnitId) {
+          return unitA;
+        }
+        // Mirrors production `requireUnit`: throws on an unknown BattleUnitId.
+        // POSITION_RELATION reconfirmation must never reach this lookup for a
+        // vanished target — it must use `findUnit` instead.
+        throw new Error(`unexpected getCurrentUnit(${id})`);
+      },
+      findUnit: () => undefined,
+      activate: () => completedActivation(DONE),
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(
+        hasActivated(result.activationGuard, unitA.battleUnitId, skillA.skillDefinitionId),
+      ).toBe(false);
+    }
+  });
+
   it("smoke: a candidate whose activation completes immediately generates no follow-ups", () => {
     const owner = unit("A");
     const candidate = candidateOf(owner, skillOf("SKL_A"));
