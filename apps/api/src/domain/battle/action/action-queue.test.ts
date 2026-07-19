@@ -23,6 +23,7 @@ const CHARGE_SKILL: SkillDefinition = {
   cost: { resource: "AP", amount: 1 },
   activationCondition: { kind: "TRUE" },
   triggers: [],
+  counterUpdates: [],
   resolution: {
     kind: "CHARGE",
     targetBindings: [],

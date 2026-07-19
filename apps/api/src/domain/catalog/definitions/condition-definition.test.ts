@@ -223,4 +223,61 @@ describe("ConditionDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-017: maps a RUNTIME_COUNTER condition with modulo (Issue #143)", () => {
+    const result = createConditionDefinition(
+      { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_AS_USE", op: "GTE", value: 1, modulo: 3 },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "RUNTIME_COUNTER",
+      counter: "RUNTIME_COUNTER_AS_USE",
+      op: "GTE",
+      value: 1,
+      modulo: 3,
+    });
+  });
+
+  it("UT-CAT-COND-018: rejects a non-finite modulo on RUNTIME_COUNTER", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "RUNTIME_COUNTER",
+          counter: "RUNTIME_COUNTER_AS_USE",
+          op: "GTE",
+          value: 1,
+          modulo: Number.NaN,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-019: rejects a zero or negative modulo on RUNTIME_COUNTER (Issue #143)", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_AS_USE", op: "GTE", value: 1, modulo: 0 },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-020: rejects a non-integer modulo on RUNTIME_COUNTER (Issue #143)", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "RUNTIME_COUNTER",
+          counter: "RUNTIME_COUNTER_AS_USE",
+          op: "GTE",
+          value: 1,
+          modulo: 1.5,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

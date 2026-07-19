@@ -66,6 +66,7 @@ function asSkill(
     cost: { resource: "AP", amount: apCost },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [

@@ -132,6 +132,7 @@ function passiveSkillOf(
         condition: { kind: "TRUE" },
       },
     ],
+    counterUpdates: [],
     resolution: overrides.resolution ?? { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: overrides.cooldown ?? { unit: "ACTION", count: 0 },
     traits: {

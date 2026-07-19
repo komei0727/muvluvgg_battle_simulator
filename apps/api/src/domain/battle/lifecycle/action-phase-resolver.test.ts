@@ -143,6 +143,7 @@ function attackSkill(
     cost: { resource: "AP", amount: apCost },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector }],
@@ -179,6 +180,7 @@ function exSkill(
     cost: { resource: "EX_GAUGE", amount: gaugeAmount },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector }],
@@ -216,6 +218,7 @@ function chargeSkill(
     cost: { resource: "AP", amount: apCost },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "CHARGE",
       targetBindings: [],
@@ -276,6 +279,7 @@ function cooldownManipulationSkill(
     cost: { resource: "AP", amount: apCost },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [],
@@ -1590,6 +1594,7 @@ describe("resolveActionPhase", () => {
           condition: { kind: "TRUE" },
         },
       ],
+      counterUpdates: [],
       resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
       cooldown: { unit: "ACTION", count: 0 },
       traits: {
@@ -1690,6 +1695,7 @@ describe("resolveActionPhase", () => {
       cost: { resource: "AP", amount: 1 },
       activationCondition: { kind: "TRUE" },
       triggers: [],
+      counterUpdates: [],
       resolution: {
         kind: "IMMEDIATE",
         targetBindings: [{ targetBindingId: enemyBindingId, selector: ENEMY_ALL }],
@@ -1783,6 +1789,7 @@ describe("resolveActionPhase", () => {
       cost: { resource: "AP", amount: 1 },
       activationCondition: { kind: "TRUE" },
       triggers: [],
+      counterUpdates: [],
       resolution: {
         kind: "IMMEDIATE",
         targetBindings: [{ targetBindingId: enemyBindingId, selector: ENEMY_ALL }],
@@ -1872,6 +1879,7 @@ describe("resolveActionPhase", () => {
       cost: { resource: "AP", amount: 1 },
       activationCondition: { kind: "TRUE" },
       triggers: [],
+      counterUpdates: [],
       resolution: {
         kind: "IMMEDIATE",
         targetBindings: [],

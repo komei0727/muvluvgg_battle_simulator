@@ -60,6 +60,7 @@ function exSkillDefinition(id: string): SkillDefinition {
     cost: { resource: "EX_GAUGE", amount: 100 },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {

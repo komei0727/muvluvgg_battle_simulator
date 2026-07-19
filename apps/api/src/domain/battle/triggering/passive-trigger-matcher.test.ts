@@ -111,6 +111,7 @@ function passiveSkillOf(
         condition: trigger.condition ?? { kind: "TRUE" },
       },
     ],
+    counterUpdates: [],
     resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {

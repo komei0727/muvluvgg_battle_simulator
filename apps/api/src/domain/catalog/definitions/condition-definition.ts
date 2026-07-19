@@ -16,6 +16,7 @@ import {
   assertBoolean,
   assertEnumValue,
   assertFinite,
+  assertInteger,
   assertKnownKeys,
   assertNonEmptyArray,
 } from "../../shared/validate.js";
@@ -86,7 +87,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   TARGET_HAS_MARKER: ["kind", "target", "markerId", "countCondition"],
   EVENT_PAYLOAD: ["kind", "field", "op", "value"],
   LAST_RESULT: ["kind", "field", "op", "value"],
-  RUNTIME_COUNTER: ["kind", "counter", "op", "value"],
+  RUNTIME_COUNTER: ["kind", "counter", "op", "value", "modulo"],
   TURN_NUMBER: ["kind", "op", "value", "modulo"],
   ALIVE_UNIT_COUNT: ["kind", "side", "excludeSelf", "op", "value"],
 };
@@ -133,6 +134,7 @@ export type ConditionDefinition =
       readonly counter: RuntimeCounterId;
       readonly op: ComparisonOperator;
       readonly value: number;
+      readonly modulo?: number;
     }
   | {
       readonly kind: "TURN_NUMBER";
@@ -275,7 +277,12 @@ export function createConditionDefinition(
         `${path}.counter`,
       );
       const value = requireNumberField(input, path);
-      return { kind: "RUNTIME_COUNTER", counter, op: createOperator(input, path), value };
+      const op = createOperator(input, path);
+      if (input.modulo === undefined) {
+        return { kind: "RUNTIME_COUNTER", counter, op, value };
+      }
+      assertInteger(input.modulo, `${path}.modulo`, { min: 1 });
+      return { kind: "RUNTIME_COUNTER", counter, op, value, modulo: input.modulo };
     }
     case "TURN_NUMBER": {
       const value = requireNumberField(input, path);

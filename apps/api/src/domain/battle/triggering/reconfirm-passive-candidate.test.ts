@@ -59,6 +59,7 @@ function skillOf(overrides: SkillOverrides = {}): SkillDefinition {
         condition: { kind: "EVENT_PAYLOAD", field: "ready", op: "EQ", value: true },
       },
     ],
+    counterUpdates: [],
     resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: { unit: "ACTION", count: 2 },
     traits: {

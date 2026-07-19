@@ -132,6 +132,7 @@ function chargeReleaseSkill(effectActionId: string): SkillDefinition {
     cost: { resource: "AP", amount: 1 },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "CHARGE",
       targetBindings: [],
@@ -177,6 +178,7 @@ function passiveSkillOnDamageApplied(id: string): SkillDefinition {
         condition: { kind: "TRUE" },
       },
     ],
+    counterUpdates: [],
     resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {

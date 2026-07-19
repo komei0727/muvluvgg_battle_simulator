@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSkillDefinition } from "./skill-definition.js";
+import { createSkillDefinition, type SkillDefinitionInput } from "./skill-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 function minimalAsInput() {
@@ -341,5 +341,189 @@ describe("SkillDefinition", () => {
         } as unknown as typeof input.traits,
       }),
     ).toThrow(DomainValidationError);
+  });
+
+  function psWithCounterInput(overrides: {
+    readonly counterUpdates?: readonly unknown[];
+    readonly triggerCondition?: unknown;
+  }): SkillDefinitionInput {
+    const input = minimalAsInput();
+    const trigger: Record<string, unknown> = {
+      eventType: "CriticalCheckResolved",
+      category: "FACT",
+      sourceSelector: "SELF",
+      targetSelector: "ENEMY",
+    };
+    if (overrides.triggerCondition !== undefined) {
+      trigger.condition = overrides.triggerCondition;
+    }
+    const result: Record<string, unknown> = {
+      ...input,
+      skillDefinitionId: "SKL_001_PS1",
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      triggers: [trigger],
+    };
+    if (overrides.counterUpdates !== undefined) {
+      result.counterUpdates = overrides.counterUpdates;
+    }
+    return result as unknown as SkillDefinitionInput;
+  }
+
+  it("UT-CAT-SKL-022: maps counterUpdates and an RUNTIME_COUNTER trigger condition referencing them (Issue #143)", () => {
+    const result = createSkillDefinition(
+      psWithCounterInput({
+        counterUpdates: [
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_CRIT",
+            scope: "SKILL_RUNTIME",
+            trigger: {
+              eventType: "CriticalCheckResolved",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "ANY",
+            },
+            amount: 1,
+          },
+        ],
+        triggerCondition: {
+          kind: "RUNTIME_COUNTER",
+          counter: "RUNTIME_COUNTER_CRIT",
+          op: "GTE",
+          value: 1,
+          modulo: 4,
+        },
+      }),
+    );
+    expect(result.counterUpdates).toHaveLength(1);
+    expect(result.counterUpdates[0]).toMatchObject({
+      kind: "INCREMENT",
+      counter: "RUNTIME_COUNTER_CRIT",
+      scope: "SKILL_RUNTIME",
+      amount: 1,
+    });
+    expect(result.triggers[0]?.condition).toEqual({
+      kind: "RUNTIME_COUNTER",
+      counter: "RUNTIME_COUNTER_CRIT",
+      op: "GTE",
+      value: 1,
+      modulo: 4,
+    });
+  });
+
+  it("UT-CAT-SKL-023: defaults counterUpdates to an empty array when omitted", () => {
+    const result = createSkillDefinition(minimalAsInput());
+    expect(result.counterUpdates).toEqual([]);
+  });
+
+  it("UT-CAT-SKL-024: rejects a RUNTIME_COUNTER trigger condition referencing an undefined counter (Issue #143)", () => {
+    expect(() =>
+      createSkillDefinition(
+        psWithCounterInput({
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_OTHER",
+              scope: "SKILL_RUNTIME",
+              trigger: {
+                eventType: "CriticalCheckResolved",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ANY",
+              },
+              amount: 1,
+            },
+          ],
+          triggerCondition: {
+            kind: "RUNTIME_COUNTER",
+            counter: "RUNTIME_COUNTER_UNDECLARED",
+            op: "GTE",
+            value: 1,
+          },
+        }),
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-025: rejects a RUNTIME_COUNTER activationCondition referencing an undefined counter (Issue #143)", () => {
+    const input = psWithCounterInput({
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: "RUNTIME_COUNTER_OTHER",
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "CriticalCheckResolved",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+          },
+          amount: 1,
+        },
+      ],
+    });
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        activationCondition: {
+          kind: "RUNTIME_COUNTER",
+          counter: "RUNTIME_COUNTER_UNDECLARED",
+          op: "GTE",
+          value: 1,
+        },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-027: does not cross-check RUNTIME_COUNTER references when counterUpdates is empty (grandfathers pre-Issue-#143 production placeholders such as '<id>_ACTIVATIONS')", () => {
+    const result = createSkillDefinition(
+      psWithCounterInput({
+        triggerCondition: {
+          kind: "RUNTIME_COUNTER",
+          counter: "SKL_001_PS1_ACTIVATIONS",
+          op: "LT",
+          value: 1,
+        },
+      }),
+    );
+    expect(result.counterUpdates).toEqual([]);
+  });
+
+  it("UT-CAT-SKL-026: accepts a RUNTIME_COUNTER condition nested inside AND/NOT when the counter is declared (Issue #143)", () => {
+    const result = createSkillDefinition(
+      psWithCounterInput({
+        counterUpdates: [
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_CRIT",
+            scope: "SKILL_RUNTIME",
+            trigger: {
+              eventType: "CriticalCheckResolved",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "ANY",
+            },
+            amount: 1,
+          },
+        ],
+        triggerCondition: {
+          kind: "AND",
+          conditions: [
+            { kind: "TRUE" },
+            {
+              kind: "NOT",
+              condition: {
+                kind: "RUNTIME_COUNTER",
+                counter: "RUNTIME_COUNTER_CRIT",
+                op: "LT",
+                value: 1,
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(result.triggers).toHaveLength(1);
   });
 });
