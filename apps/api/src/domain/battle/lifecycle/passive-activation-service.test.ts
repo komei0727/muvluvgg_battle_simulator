@@ -12,6 +12,7 @@ import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createActionId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
@@ -25,6 +26,8 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { applyStateDelta } from "./state-delta-reducer.js";
+import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -132,6 +135,7 @@ function passiveSkillOf(
         condition: { kind: "TRUE" },
       },
     ],
+    counterUpdates: [],
     resolution: overrides.resolution ?? { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: overrides.cooldown ?? { unit: "ACTION", count: 0 },
     traits: {
@@ -901,5 +905,668 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     );
     expect(childPassiveActivatedIndex).toBeGreaterThan(cooldownReducedIndex);
     expect(actionBStartingIndex).toBeGreaterThan(childPassiveActivatedIndex);
+  });
+
+  it("UT-R-EFF-11-001 (RuntimeCounter, Issue #143): updates the counter and emits RuntimeCounterChanged before the causing event's own PS candidates are resolved, so a modulo-gated PS only activates once the counter reaches a multiple", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS2"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "RUNTIME_COUNTER",
+            counter: counterId,
+            op: "GTE",
+            value: 1,
+            modulo: 2,
+          },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "CriticalCheckResolved",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS2", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    function recordCrit(): BattleDomainEvent {
+      return recorder.record({
+        eventType: "CriticalCheckResolved",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: owner.battleUnitId,
+        payload: { mode: "NORMAL", baseCriticalRate: 1, effectiveCriticalRate: 1, result: true },
+      });
+    }
+
+    const crit1 = recordCrit();
+    let units = runtime.onFactEvent(crit1, [owner]);
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
+      [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { value: 1, carry: 0 } },
+    });
+    expect(recorder.getEvents().some((e) => e.eventType === "PassiveActivated")).toBe(false);
+
+    const runtimeCounterChanged1 = recorder
+      .getEvents()
+      .find((e) => e.eventType === "RuntimeCounterChanged")!;
+    expect(runtimeCounterChanged1.parentEventId).toBe(crit1.eventId);
+    expect(runtimeCounterChanged1.sequence).toBeGreaterThan(crit1.sequence);
+    expect(runtimeCounterChanged1.payload).toMatchObject({
+      ownerUnitId: owner.battleUnitId,
+      scope: "SKILL_RUNTIME",
+      counter: "RUNTIME_COUNTER_CRIT",
+      skillDefinitionId: skill.skillDefinitionId,
+      before: 0,
+      after: 1,
+      carry: 0,
+    });
+    expect(runtimeCounterChanged1.stateDelta).toEqual({
+      units: {
+        [owner.battleUnitId]: {
+          skillCounters: {
+            [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { before: 0, after: 1 } },
+          },
+        },
+      },
+    });
+
+    const crit2 = recordCrit();
+    units = runtime.onFactEvent(crit2, units);
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
+      [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { value: 2, carry: 0 } },
+    });
+
+    const passiveActivated = recorder.getEvents().find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated).toBeDefined();
+    expect(passiveActivated.payload).toMatchObject({
+      actorUnitId: owner.battleUnitId,
+      skillDefinitionId: skill.skillDefinitionId,
+    });
+    const runtimeCounterChanged2 = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterChanged")[1]!;
+    expect(runtimeCounterChanged2.sequence).toBeLessThan(passiveActivated.sequence);
+  });
+
+  it("UT-R-PS-05-003 (Issue #143 fix: PassiveActivated now reaches PS candidate detection): a PS that activates causes another PS reacting to PassiveActivated to activate within the same resolution scope", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CHAIN_OWNER");
+    const skillA: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_A"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_A", tags: [] },
+    };
+    const skillB: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_B"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: skillA.skillDefinitionId,
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_B", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          unitDefinitionId,
+          unitDefinitionOf(unitDefinitionId, [skillA.skillDefinitionId, skillB.skillDefinitionId]),
+        ],
+      ]),
+      new Map([
+        [skillA.skillDefinitionId, skillA],
+        [skillB.skillDefinitionId, skillB],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    runtime.onFactEvent(turnStarted, [owner]);
+
+    const events = recorder.getEvents();
+    const passiveActivatedEvents = events.filter((e) => e.eventType === "PassiveActivated");
+    expect(passiveActivatedEvents.map((e) => e.payload.skillDefinitionId)).toEqual([
+      skillA.skillDefinitionId,
+      skillB.skillDefinitionId,
+    ]);
+  });
+
+  it("UT-R-PS-05-004 (review fix [P1]: PassiveActivated re-entry must not clobber the activation guard): a PS whose own trigger reacts to its own PassiveActivated activates exactly once per resolution scope (R-PS-07), not twice", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_SELF_REACT_OWNER");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_SELF_REACT"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+        {
+          // Deliberately reacts to its own PassiveActivated (unconditionally),
+          // so the buggy implementation would try to re-activate itself the
+          // moment its own PassiveActivated event is processed mid-flight.
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_SELF_REACT", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    runtime.onFactEvent(turnStarted, [owner]);
+
+    const passiveActivatedEvents = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "PassiveActivated");
+    expect(passiveActivatedEvents).toHaveLength(1);
+  });
+
+  it("UT-R-EFF-11-002 (review fix [P2]): finalizeResolutionScope discards a resetScope: RESOLUTION_SCOPE counter and emits RuntimeCounterReset once the candidate stack is empty", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESET_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SCOPED");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_RESET"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_RESET", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    const afterEvent = runtime.onFactEvent(turnStarted, [owner]);
+    const ownerAfterEvent = afterEvent.find((u) => u.battleUnitId === owner.battleUnitId);
+    expect(ownerAfterEvent?.skillCounters).toEqual({
+      [skill.skillDefinitionId]: { RUNTIME_COUNTER_SCOPED: { value: 1, carry: 0 } },
+    });
+
+    const finalUnits = runtime.finalizeResolutionScope();
+    const ownerAfterFinalize = finalUnits.find((u) => u.battleUnitId === owner.battleUnitId);
+    expect(ownerAfterFinalize?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
+
+    const reset = recorder.getEvents().find((e) => e.eventType === "RuntimeCounterReset")!;
+    expect(reset).toBeDefined();
+    expect(reset.parentEventId).toBe(turnStarted.eventId);
+    expect(reset.payload).toMatchObject({
+      ownerUnitId: owner.battleUnitId,
+      scope: "SKILL_RUNTIME",
+      counter: counterId,
+      skillDefinitionId: skill.skillDefinitionId,
+      before: 1,
+    });
+    // レビュー再レビュー[P1]: `after: 0`ではなく`undefined`（キー自体の削除）。
+    expect(reset.stateDelta).toEqual({
+      units: {
+        [owner.battleUnitId]: {
+          skillCounters: {
+            [skill.skillDefinitionId]: { [counterId]: { before: 1, after: undefined } },
+          },
+        },
+      },
+    });
+
+    // レビュー再レビュー[P1]: `reset.stateDelta`だけから独立Reducerで復元した
+    // 状態が、実状態（`resetRuntimeCounter`がキーを削除した後の`ownerAfterFinalize`）
+    // と同じ形（`{}`、`{ counter: 0 }`ではない）になること。
+    const initialSnapshot: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: 1,
+      units: {
+        [owner.battleUnitId]: {
+          hp: owner.currentHp,
+          ap: owner.currentAp,
+          pp: owner.currentPp,
+          extraGauge: owner.currentExtraGauge,
+          skillCounters: { [skill.skillDefinitionId]: { [counterId]: 1 } },
+        },
+      },
+    };
+    const reconstructed = applyStateDelta(initialSnapshot, reset.stateDelta!);
+    expect(reconstructed.units[owner.battleUnitId]!.skillCounters).toEqual({
+      [skill.skillDefinitionId]: {},
+    });
+
+    // Calling it again is a stable no-op: nothing left to reset, no duplicate event.
+    const resetEventsBefore = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterReset").length;
+    runtime.finalizeResolutionScope();
+    const resetEventsAfter = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterReset").length;
+    expect(resetEventsAfter).toBe(resetEventsBefore);
+  });
+
+  it("UT-R-EFF-11-003 (review re-fix [P1]): a resetScope counter whose own counterUpdates re-triggers on the RuntimeCounterReset it causes makes finalizeResolutionScope throw a deterministic error instead of looping forever", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESET_LOOP_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SELF_REGEN");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_RESET_LOOP"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+        {
+          // このcounterの再生成契機が、自身がRESOLUTION_SCOPE終了時に発行する
+          // `RuntimeCounterReset`自身になっている（悪意/誤りのあるCatalog定義）。
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "RuntimeCounterReset",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_RESET_LOOP", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+    runtime.onFactEvent(turnStarted, [owner]);
+
+    expect(() => runtime.finalizeResolutionScope()).toThrow(
+      /exceeded .* discard\/emit\/resolve rounds/,
+    );
+  });
+
+  it("UT-R-EFF-11-004 (review re-re-fix [P1]): a hit that lands carry exactly on 0 (not via reset) still reconstructs to the same skillCounterCarry shape as the real state (key absent, not present with value 0) across sub-threshold -> exact-crossing -> resolution-scope reset", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CARRY_ZERO_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CARRY_ZERO");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_CARRY_ZERO"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "RuntimeCounterChanged",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "AND",
+            conditions: [
+              { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterId },
+              { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
+            ],
+          },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "CUMULATIVE_DAMAGE_THRESHOLD",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "DamageApplied",
+            category: "FACT",
+            sourceSelector: "ENEMY",
+            targetSelector: "SELF",
+            condition: { kind: "TRUE" },
+          },
+          maxHpRatio: 0.5,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_CARRY_ZERO", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId,
+      currentPp: 3,
+      maximumPp: 3,
+      maximumHp: 100,
+    });
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_CARRY_ZERO_ENEMY");
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner, enemy],
+    );
+
+    function damageAppliedEvent(damage: number): BattleDomainEvent {
+      return recorder.record({
+        eventType: "DamageApplied",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        parentEventId: turnStarted.eventId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: enemy.battleUnitId,
+        targetUnitIds: [owner.battleUnitId],
+        payload: {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_CARRY_ZERO_HIT"),
+          hitIndex: 1,
+          targetUnitId: owner.battleUnitId,
+          calculatedDamage: damage,
+          hitPointDamage: damage,
+          hpBefore: owner.currentHp,
+          hpAfter: owner.currentHp - damage,
+          defeated: false,
+        },
+      });
+    }
+
+    let snapshot: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: 1,
+      units: {
+        [owner.battleUnitId]: {
+          hp: owner.currentHp,
+          ap: owner.currentAp,
+          pp: owner.currentPp,
+          extraGauge: owner.currentExtraGauge,
+        },
+      },
+    };
+    let appliedEventCount = 0;
+    // レビュー再々々々レビュー[P1]: `?? {}`で個別フィールドを緩く比較するのでは
+    // なく、`captureBattleState`相当の完全なSnapshot同士を直接突き合わせる
+    // ため、RuntimeCounterChanged/Reset以外（PP消費・EX増加等）も含め全ての
+    // イベントのstateDeltaを順に適用し、実状態と同じ完全なunit射影を再構築する。
+    function replayNewEventDeltasIntoSnapshot(): void {
+      const events = recorder.getEvents();
+      for (; appliedEventCount < events.length; appliedEventCount += 1) {
+        const event = events[appliedEventCount]!;
+        if (event.stateDelta !== undefined) {
+          snapshot = applyStateDelta(snapshot, event.stateDelta);
+        }
+      }
+    }
+
+    // Hit 1: 20 damage, sub-threshold (threshold = maxHp(100) * 0.5 = 50).
+    // carry 0 -> 20 (carry-only change, valueChanged: false); value stays 0.
+    runtime.onFactEvent(damageAppliedEvent(20), [owner, enemy]);
+    replayNewEventDeltasIntoSnapshot();
+    let ownerNow = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(ownerNow.skillCounters?.[skill.skillDefinitionId]).toEqual({
+      [counterId]: { value: 0, carry: 20 },
+    });
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry).toEqual({
+      [skill.skillDefinitionId]: { [counterId]: 20 },
+    });
+
+    // Hit 2: 30 more damage. Total carry 20+30=50 crosses the threshold
+    // exactly once with remainder 0 — carry lands exactly back on 0 via a
+    // normal update (not a resolution-scope reset). value 0 -> 1.
+    runtime.onFactEvent(damageAppliedEvent(30), runtime.currentUnits);
+    replayNewEventDeltasIntoSnapshot();
+    ownerNow = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(ownerNow.skillCounters?.[skill.skillDefinitionId]).toEqual({
+      [counterId]: { value: 1, carry: 0 },
+    });
+    // The real state's carry projection omits the `skillCounterCarry` field
+    // entirely once no counter has nonzero carry — assert the key itself is
+    // absent (not merely falsy/`{}`), matching `captureBattleState` exactly
+    // (レビュー再々々々レビュー[P1]: `?? {}` previously masked `{}` vs "no key").
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        snapshot.units[owner.battleUnitId]!,
+        "skillCounterCarry",
+      ),
+    ).toBe(false);
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry).toBeUndefined();
+
+    // Resolution-scope end: the counter's public value (1) is discarded.
+    // carry is already 0 at this point, so no skillCounterCarry delta is
+    // expected from the reset itself (only skillCounters).
+    runtime.finalizeResolutionScope();
+    replayNewEventDeltasIntoSnapshot();
+    const finalOwner = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(finalOwner.skillCounters?.[skill.skillDefinitionId]).toEqual({});
+    expect(snapshot.units[owner.battleUnitId]!.skillCounters).toEqual({
+      [skill.skillDefinitionId]: {},
+    });
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        snapshot.units[owner.battleUnitId]!,
+        "skillCounterCarry",
+      ),
+    ).toBe(false);
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry).toBeUndefined();
+
+    // 直接、実状態(`captureBattleState`相当の射影)と再構築Snapshotの
+    // unit全体を突き合わせる（フィールド単位の`?? {}`に頼らない）。
+    // `finalOwner`（実BattleUnit）に対応する射影は、carryが1件も残って
+    // いないため`skillCounterCarry`を持たず、`skillCounters`は
+    // `{ [skillDefinitionId]: {} }`だけを持つ。
+    expect(snapshot.units[owner.battleUnitId]).toEqual({
+      hp: finalOwner.currentHp,
+      ap: finalOwner.currentAp,
+      pp: finalOwner.currentPp,
+      extraGauge: finalOwner.currentExtraGauge,
+      skillCounters: { [skill.skillDefinitionId]: {} },
+    });
   });
 });

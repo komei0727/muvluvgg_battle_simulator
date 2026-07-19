@@ -6,6 +6,7 @@ import {
 } from "../model/cooldown-state.js";
 import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { StateDelta } from "../events/state-delta.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleUnit } from "../model/battle-unit.js";
@@ -18,6 +19,20 @@ interface ActionCompletionContext {
   readonly turnNumber: number;
   readonly cycleNumber: number;
   readonly actorId: BattleUnitId;
+  /**
+   * レビュー再々レビュー[P2]: `ActionCompleting`/`CooldownReduced`/
+   * `CooldownCompleted`/`ActionCompleted`を、呼び出し元が保有する
+   * `PassiveActivationRuntime`へ接続するためのフック（未指定ならPS解決を
+   * 行わない）。`06_戦闘状態遷移.md`のCOMPLETING順序が要求する「`ActionCompleted`
+   * とそのPS連鎖をすべて解決した後にスコープを終了する」を満たすには、
+   * `finalizeResolutionScope`を呼ぶ前にこれらのイベント自身もPS候補解決を
+   * 経由している必要がある（`effect-action-group-resolver.ts`の
+   * `onFactEventForPassiveChain`と同じ役割）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 interface ActionCompletionResult {
@@ -44,6 +59,13 @@ export function recordActionCompletion(
   units: readonly BattleUnit[],
   closingStateDelta?: StateDelta,
 ): ActionCompletionResult {
+  let working = units;
+  const notify = (event: BattleDomainEvent): void => {
+    if (context.onFactEventForPassiveChain !== undefined) {
+      working = context.onFactEventForPassiveChain(event, working);
+    }
+  };
+
   const actionCompleting = recorder.record({
     eventType: "ActionCompleting",
     category: "TIMING",
@@ -57,13 +79,13 @@ export function recordActionCompletion(
     payload: { actorUnitId: context.actorId, effectiveActionType },
     ...(closingStateDelta !== undefined ? { stateDelta: closingStateDelta } : {}),
   });
+  notify(actionCompleting);
 
-  const actor = requireUnit(units, context.actorId);
+  const actor = requireUnit(working, context.actorId);
   const decrement = decrementActionCooldowns(actor.cooldowns, context.actionId);
-  let working = units;
   let lastEventId = actionCompleting.eventId;
   if (decrement.changes.length > 0) {
-    working = units.map((u) =>
+    working = working.map((u) =>
       u.battleUnitId === context.actorId ? { ...u, cooldowns: decrement.cooldowns } : u,
     );
     for (const change of decrement.changes) {
@@ -99,6 +121,7 @@ export function recordActionCompletion(
         },
       });
       lastEventId = reduced.eventId;
+      notify(reduced);
       if (change.after === 0) {
         const completed = recorder.record({
           eventType: "CooldownCompleted",
@@ -117,6 +140,7 @@ export function recordActionCompletion(
           },
         });
         lastEventId = completed.eventId;
+        notify(completed);
       }
     }
   }
@@ -133,6 +157,7 @@ export function recordActionCompletion(
     sourceUnitId: context.actorId,
     payload: { actorUnitId: context.actorId, effectiveActionType },
   });
+  notify(actionCompleted);
   return { completedEventId: actionCompleted.eventId, units: working };
 }
 

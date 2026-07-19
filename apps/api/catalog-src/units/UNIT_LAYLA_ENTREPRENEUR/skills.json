@@ -184,7 +184,35 @@
         "eventType": "CriticalCheckResolved",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY"
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 4
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "CriticalCheckResolved",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ENEMY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
+        },
+        "amount": 1
       }
     ]
   }

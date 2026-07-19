@@ -82,6 +82,7 @@ function skillOf(resolution: SkillResolutionDefinition): SkillDefinition {
     cost: { resource: "AP", amount: 1 },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution,
     cooldown: { unit: "ACTION", count: 0 },
     traits: {

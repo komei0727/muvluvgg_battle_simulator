@@ -6,7 +6,7 @@ import type {
   UnitStateDelta,
   ValueChange,
 } from "../events/state-delta.js";
-import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
@@ -67,6 +67,21 @@ function applyUnitDelta(
     assertChargeBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
   }
   const nextCharge = delta.charge !== undefined ? delta.charge.after : unit.charge;
+  const skillCounters = applyTwoLevelCounterDeltas(
+    `${path}.skillCounters`,
+    unit.skillCounters,
+    delta.skillCounters,
+  );
+  // レビュー再々々レビュー[P1]: `skillCounterCarry`は`captureBattleState`が
+  // carry===0のskillDefinitionIdキーごと省略する（`skillCounters`と違い0を
+  // デフォルト値として扱う）ため、Reducer側もdelta適用後に空になった
+  // skillDefinitionIdエントリを剪定し、実状態と同じ形へ揃える。
+  const skillCounterCarry = applyTwoLevelCounterDeltas(
+    `${path}.skillCounterCarry`,
+    unit.skillCounterCarry,
+    delta.skillCounterCarry,
+    { pruneEmptySkillEntries: true },
+  );
   return {
     hp: delta.hp?.after ?? unit.hp,
     ap: delta.ap?.after ?? unit.ap,
@@ -74,7 +89,80 @@ function applyUnitDelta(
     extraGauge: delta.extraGauge?.after ?? unit.extraGauge,
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
+    ...(skillCounters !== undefined ? { skillCounters } : {}),
+    ...(skillCounterCarry !== undefined ? { skillCounterCarry } : {}),
   };
+}
+
+/**
+ * `R-EFF-11`（`SkillRuntime`スコープ、Issue #143）: `SkillDefinitionId`→
+ * `RuntimeCounterId`の2段キーで運ばれる`skillCounters`（`value`）／
+ * `skillCounterCarry`（`carry`、レビュー再々レビュー[P2]）の両方に使う共通
+ * 差分適用。
+ *
+ * レビュー指摘[P1]: `change.after === undefined`は`RuntimeCounterReset`による
+ * キー自体の削除を表すため、`0`を書き込むのではなく`updated`からキーを
+ * `delete`する（実状態の`resetRuntimeCounter`と同じ規約）。
+ */
+function applyTwoLevelCounterDeltas(
+  path: string,
+  current:
+    | Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>>
+    | undefined,
+  deltas:
+    | Readonly<
+        Record<
+          SkillDefinitionId,
+          Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>
+        >
+      >
+    | undefined,
+  options: { readonly pruneEmptySkillEntries?: boolean } = {},
+): Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>> | undefined {
+  if (deltas === undefined) {
+    return current;
+  }
+  const next: Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>> = {
+    ...current,
+  };
+  for (const [skillDefinitionId, counterChanges] of Object.entries(deltas) as [
+    SkillDefinitionId,
+    Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>,
+  ][]) {
+    const existing = next[skillDefinitionId];
+    const updated: Record<RuntimeCounterId, number> = { ...existing };
+    for (const [counterId, change] of Object.entries(counterChanges) as [
+      RuntimeCounterId,
+      ValueChange<number | undefined>,
+    ][]) {
+      assertBeforeMatches(
+        `${path}[${skillDefinitionId}][${counterId}]`,
+        existing?.[counterId] ?? 0,
+        change,
+      );
+      if (change.after === undefined) {
+        delete updated[counterId];
+      } else {
+        updated[counterId] = change.after;
+      }
+    }
+    if (options.pruneEmptySkillEntries === true && Object.keys(updated).length === 0) {
+      delete next[skillDefinitionId];
+    } else {
+      next[skillDefinitionId] = updated;
+    }
+  }
+  // レビュー再々々々レビュー[P1]: `skillCounterCarry`（`pruneEmptySkillEntries`）は、
+  // 剪定の結果すべてのskillDefinitionIdエントリが消えた場合、`{}`ではなく
+  // `undefined`を返す。`captureBattleState`は非0のcarryが1件も無ければ
+  // `skillCounterCarry`フィールド自体を省略するため、呼び出し元
+  // （`applyUnitDelta`）がこのフィールド自体を省略できるようにする
+  // （`skillCounters`は逆に空でもキーを保持する既存の非対称な規約のため、
+  // このフィールド全体省略は`pruneEmptySkillEntries`のときだけ行う）。
+  if (options.pruneEmptySkillEntries === true && Object.keys(next).length === 0) {
+    return undefined;
+  }
+  return next;
 }
 
 /**

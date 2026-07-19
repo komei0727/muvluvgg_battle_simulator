@@ -51,9 +51,13 @@ export function reconfirmPassiveCandidate(
   if (isCoolingDown(currentUnit, candidate.skillDefinition.skillDefinitionId)) {
     return { ok: false, reason: "COOLING_DOWN" };
   }
+  const counterContext = {
+    owner: currentUnit,
+    skillDefinitionId: candidate.skillDefinition.skillDefinitionId,
+  };
   if (
-    !evaluateTriggerCondition(candidate.trigger.condition, event) ||
-    !evaluateTriggerCondition(candidate.skillDefinition.activationCondition, event)
+    !evaluateTriggerCondition(candidate.trigger.condition, event, counterContext) ||
+    !evaluateTriggerCondition(candidate.skillDefinition.activationCondition, event, counterContext)
   ) {
     return { ok: false, reason: "CONDITION_NOT_MET" };
   }

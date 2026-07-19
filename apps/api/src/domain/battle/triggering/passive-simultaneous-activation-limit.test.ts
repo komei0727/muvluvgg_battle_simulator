@@ -56,6 +56,7 @@ function skillOf(id: string, overrides: SkillOverrides = {}): SkillDefinition {
         condition: { kind: "TRUE" },
       },
     ],
+    counterUpdates: [],
     resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {

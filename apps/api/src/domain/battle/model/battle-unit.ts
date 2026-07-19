@@ -1,8 +1,9 @@
 import type { Attribute } from "../../catalog/definitions/catalog-enums.js";
-import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { ActiveCharge } from "./charge-state.js";
 import type { CooldownMap } from "./cooldown-state.js";
+import type { RuntimeCounterMap } from "./runtime-counter-state.js";
 import {
   createActionPoint,
   createExtraGauge,
@@ -42,6 +43,13 @@ export interface BattleUnit {
   readonly cooldowns: CooldownMap;
   /** R-SKL-05: 発動待ちのチャージ。同時に1つだけ持てる。 */
   readonly charge?: ActiveCharge;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`SkillRuntime`スコープ（M6最小実装、
+   * Issue #143）。所有スキルの`SkillDefinitionId`をキーとする。未使用のスキルは
+   * キー自体を持たない（`cooldowns`と異なり、大半のスキルがcounterを持たない
+   * ため`charge`と同様に省略可能とする）。
+   */
+  readonly skillCounters?: Readonly<Record<SkillDefinitionId, RuntimeCounterMap>>;
 }
 
 export interface BattleUnitResourceLimits {

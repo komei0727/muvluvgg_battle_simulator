@@ -118,6 +118,7 @@ function attackSkill(
     cost: { resource: "AP", amount: 1 },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
@@ -176,6 +177,7 @@ function mutuallyLethalDefinitions(): BattleDefinitions {
     cost: { resource: "AP", amount: 1 },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [
@@ -599,6 +601,7 @@ describe("advanceBattle", () => {
           condition: { kind: "TRUE" },
         },
       ],
+      counterUpdates: [],
       resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
       cooldown: { unit: "TURN", count: 0 },
       traits: {

@@ -374,10 +374,36 @@
     },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ENEMY",
-        "targetSelector": "SELF"
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.2
       }
     ]
   }

@@ -18,9 +18,10 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    // Issue #129: bumped when the 4 COOLDOWN_MANIPULATION units were updated
+    // Issue #143: bumped when the 3 CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER
+    // triggers were updated to gate on `valueChanged` (review re-fix [P1])
     // and catalog/ regenerated (mise exec -- pnpm run generate-catalog).
-    expect(catalog.catalogRevision).toBe("2026-07-17.1");
+    expect(catalog.catalogRevision).toBe("2026-07-19.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -143,6 +144,100 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expect(trigger?.eventType).toBe("UnitDefeated");
       expect(trigger?.targetSelector).toBe("ALLY");
       expect(trigger?.sourceSelector).toBe(sourceSelector);
+    },
+  );
+
+  /**
+   * Issue #143: `RUNTIME_COUNTER`のCondition木からRUNTIME_COUNTER kindだけを
+   * 再帰的に探す（`AND`でラップされている場合があるため）。
+   */
+  function findRuntimeCounterCondition(
+    condition: unknown,
+  ): { readonly counter?: string; readonly modulo?: number | undefined } | undefined {
+    if (condition === null || typeof condition !== "object") {
+      return undefined;
+    }
+    const c = condition as Record<string, unknown>;
+    if (c.kind === "RUNTIME_COUNTER") {
+      return { counter: c.counter as string, modulo: c.modulo as number | undefined };
+    }
+    if ((c.kind === "AND" || c.kind === "OR") && Array.isArray(c.conditions)) {
+      for (const sub of c.conditions) {
+        const found = findRuntimeCounterCondition(sub);
+        if (found !== undefined) {
+          return found;
+        }
+      }
+    }
+    if (c.kind === "NOT") {
+      return findRuntimeCounterCondition(c.condition);
+    }
+    return undefined;
+  }
+
+  it.each([
+    { unitId: "UNIT_LAYLA_ENTREPRENEUR", skillId: "SKL_LAYLA_ENTREPRENEUR_PS2", modulo: 4 },
+    { unitId: "UNIT_JUNKA_CHILDHOOD", skillId: "SKL_JUNKA_CHILDHOOD_PS2", modulo: 3 },
+    { unitId: "UNIT_SHIRANA_SORA", skillId: "SKL_SHIRANA_SORA_PS1", modulo: 2 },
+    { unitId: "UNIT_CLARA_SANTA", skillId: "SKL_CLARA_SANTA_PS1", modulo: 3 },
+    { unitId: "UNIT_OLGA_VETERAN", skillId: "SKL_OLGA_VETERAN_PS1", modulo: 4 },
+    { unitId: "UNIT_MAO_COMMITTEE", skillId: "SKL_MAO_COMMITTEE_PS1", modulo: 3 },
+    { unitId: "UNIT_MIRIAM_MAGE", skillId: "SKL_MIRIAM_MAGE_PS1", modulo: 3 },
+    { unitId: "UNIT_ELENA_MOODMAKER", skillId: "SKL_ELENA_MOODMAKER_PS1", modulo: 4 },
+    { unitId: "UNIT_NADYA_SUCCESSOR", skillId: "SKL_NADYA_SUCCESSOR_PS3", modulo: 3 },
+  ])(
+    "IT-CAT-PROD-008 (Issue #143, RUNTIME_COUNTER_MODULO): $skillId declares a matching counterUpdates INCREMENT entry and a RUNTIME_COUNTER trigger condition with modulo=$modulo ($unitId)",
+    ({ unitId, skillId, modulo }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const skill = snapshot.skills.get(skillId as never);
+      expect(skill?.counterUpdates).toHaveLength(1);
+      const update = skill?.counterUpdates[0];
+      expect(update?.kind).toBe("INCREMENT");
+      expect(update?.scope).toBe("SKILL_RUNTIME");
+      if (update?.kind === "INCREMENT") {
+        expect(update.amount).toBe(1);
+      }
+
+      const found = findRuntimeCounterCondition(skill?.triggers[0]?.condition);
+      expect(found).toBeDefined();
+      expect(found?.counter).toBe(update?.counter);
+      expect(found?.modulo).toBe(modulo);
+    },
+  );
+
+  it.each([
+    { unitId: "UNIT_CHIYURU_NEWYEAR", skillId: "SKL_CHIYURU_NEWYEAR_PS2", maxHpRatio: 0.4 },
+    { unitId: "UNIT_CHIZURU_DOMESTIC", skillId: "SKL_CHIZURU_DOMESTIC_PS3", maxHpRatio: 0.85 },
+    { unitId: "UNIT_TATIANA_SAGE", skillId: "SKL_TATIANA_SAGE_PS1", maxHpRatio: 0.2 },
+  ])(
+    "IT-CAT-PROD-009 (Issue #143, CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER): $skillId declares a matching counterUpdates CUMULATIVE_DAMAGE_THRESHOLD entry (maxHpRatio=$maxHpRatio) and triggers on its own RuntimeCounterChanged only when valueChanged is true ($unitId)",
+    ({ unitId, skillId, maxHpRatio }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const skill = snapshot.skills.get(skillId as never);
+      expect(skill?.counterUpdates).toHaveLength(1);
+      const update = skill?.counterUpdates[0];
+      expect(update?.kind).toBe("CUMULATIVE_DAMAGE_THRESHOLD");
+      expect(update?.scope).toBe("SKILL_RUNTIME");
+      if (update?.kind === "CUMULATIVE_DAMAGE_THRESHOLD") {
+        expect(update.maxHpRatio).toBe(maxHpRatio);
+      }
+      expect(update?.trigger.eventType).toBe("DamageApplied");
+
+      const trigger = skill?.triggers[0];
+      expect(trigger?.eventType).toBe("RuntimeCounterChanged");
+      expect(trigger?.sourceSelector).toBe("SELF");
+      // レビュー再々レビュー[P1]: carryのみの変化でも`RuntimeCounterChanged`が
+      // 発行されるようになったため、閾値到達時（`valueChanged: true`）だけに
+      // 絞り込む条件をANDで持つ（さもないと閾値未到達の被弾ごとに誤発動する）。
+      expect(trigger?.condition).toEqual({
+        kind: "AND",
+        conditions: [
+          { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: update?.counter },
+          { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
+        ],
+      });
     },
   );
 });

@@ -188,7 +188,12 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
     actionId,
     skillUseId,
     resolutionScopeId: scope(),
-    payload: { skillDefinitionId: "SKL_1" as never, resolvedStepCount: 1, targetUnitIds: [] },
+    payload: {
+      skillDefinitionId: "SKL_1" as never,
+      skillType: "AS",
+      resolvedStepCount: 1,
+      targetUnitIds: [],
+    },
   });
   recorder.record({
     eventType: "ActionCompleting",

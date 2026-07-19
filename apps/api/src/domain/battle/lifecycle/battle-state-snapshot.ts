@@ -5,7 +5,11 @@ import type { FormationPosition } from "../model/formation-input.js";
 import type { GlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
-import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type {
+  RuntimeCounterId,
+  SkillDefinitionId,
+  UnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 export type { BattleResultSnapshot } from "../events/state-delta.js";
@@ -18,6 +22,22 @@ export interface BattleUnitSnapshot {
   /** 空でない場合だけ持つ(`captureBattleState`はクールタイムが1件も無いユニットへ`{}`を書かない)。 */
   readonly cooldowns?: Readonly<Record<SkillDefinitionId, CooldownState>>;
   readonly charge?: ChargeState;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`SkillRuntime`スコープ（M6最小実装、
+   * Issue #143）。`cooldowns`と同様、1件も持たないユニットへは`{}`を書かない。
+   */
+  readonly skillCounters?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /**
+   * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`carry`）専用の射影
+   * （レビュー再々レビュー[P2]、Issue #143）。`carry`が0の（＝一度も繰り越しが
+   * 発生していない、または`INCREMENT`の）counterはキー自体を持たない
+   * （`skillCounters`と違い0はデフォルト値として省略する）。
+   */
+  readonly skillCounterCarry?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
 }
 
 /**
@@ -47,6 +67,27 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         ...(entry.setTurnNumber !== undefined ? { setTurnNumber: entry.setTurnNumber } : {}),
       };
     }
+    const skillCounterSkillIds = Object.keys(unit.skillCounters ?? {}) as SkillDefinitionId[];
+    const skillCounters: Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>> = {};
+    const skillCounterCarry: Record<
+      SkillDefinitionId,
+      Readonly<Record<RuntimeCounterId, number>>
+    > = {};
+    for (const skillDefinitionId of skillCounterSkillIds) {
+      const counters = unit.skillCounters![skillDefinitionId]!;
+      const values: Record<RuntimeCounterId, number> = {};
+      const carryValues: Record<RuntimeCounterId, number> = {};
+      for (const counterId of Object.keys(counters) as RuntimeCounterId[]) {
+        values[counterId] = counters[counterId]!.value;
+        if (counters[counterId]!.carry !== 0) {
+          carryValues[counterId] = counters[counterId]!.carry;
+        }
+      }
+      skillCounters[skillDefinitionId] = values;
+      if (Object.keys(carryValues).length > 0) {
+        skillCounterCarry[skillDefinitionId] = carryValues;
+      }
+    }
     units[unit.battleUnitId] = {
       hp: unit.currentHp,
       ap: unit.currentAp,
@@ -61,6 +102,8 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
             },
           }
         : {}),
+      ...(skillCounterSkillIds.length > 0 ? { skillCounters } : {}),
+      ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
     };
   }
   return {

@@ -20,6 +20,12 @@ import {
   type TriggerDefinition,
   type TriggerDefinitionInput,
 } from "./trigger-definition.js";
+import {
+  createRuntimeCounterUpdateDefinition,
+  type RuntimeCounterUpdateDefinition,
+  type RuntimeCounterUpdateDefinitionInput,
+} from "./runtime-counter-update-definition.js";
+import type { RuntimeCounterId } from "./catalog-ids.js";
 import { deepFreeze } from "../../shared/deep-freeze.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import {
@@ -88,6 +94,7 @@ export interface SkillDefinition {
   readonly cost: SkillCost;
   readonly activationCondition: ConditionDefinition;
   readonly triggers: readonly TriggerDefinition[];
+  readonly counterUpdates: readonly RuntimeCounterUpdateDefinition[];
   readonly resolution: SkillResolutionDefinition;
   readonly cooldown: Cooldown;
   readonly traits: SkillTraits;
@@ -130,6 +137,7 @@ export interface SkillDefinitionInput {
   readonly cost: SkillCostInput;
   readonly activationCondition?: ConditionDefinitionInput;
   readonly triggers?: readonly TriggerDefinitionInput[];
+  readonly counterUpdates?: readonly RuntimeCounterUpdateDefinitionInput[];
   readonly resolution: SkillResolutionDefinitionInput;
   readonly cooldown: CooldownInput;
   readonly traits: SkillTraitsInput;
@@ -247,6 +255,65 @@ function createResolution(
   );
 }
 
+/**
+ * `RUNTIME_COUNTER` Conditionが参照するcounterは、`R-EFF-11`の所有範囲規則
+ * （M6最小実装、Issue #143）により、同じSkillDefinitionが宣言する
+ * `counterUpdates`に存在するものだけを許可する。AND/OR/NOTを再帰的に辿る。
+ */
+function collectReferencedRuntimeCounterIds(
+  condition: ConditionDefinition,
+  into: Set<RuntimeCounterId>,
+): void {
+  switch (condition.kind) {
+    case "AND":
+    case "OR":
+      condition.conditions.forEach((c) => collectReferencedRuntimeCounterIds(c, into));
+      return;
+    case "NOT":
+      collectReferencedRuntimeCounterIds(condition.condition, into);
+      return;
+    case "RUNTIME_COUNTER":
+      into.add(condition.counter);
+      return;
+    default:
+      return;
+  }
+}
+
+/**
+ * production Catalogには本Issue以前から、`<skillDefinitionId>_ACTIVATIONS`
+ * （発動回数、`op: LT, value: 1`で「1回のみ」判定）や
+ * `<skillDefinitionId>_CUMULATIVE_DAMAGE_RATIO`（累計被ダメージ比）といった
+ * `counterUpdates`を伴わない`RUNTIME_COUNTER`参照が既に存在する
+ * （`CAP_RUNTIME_COUNTER`未実装によりpreflightで拒否される、独立したフォロー
+ * アップIssue待ちのプレースホルダー）。これらを本Issueの対象として遡及的に
+ * 壊さないため、cross-reference検証は`counterUpdates`を1件以上宣言している
+ * SkillDefinitionだけに適用する（本Issueが新設する`counterUpdates`機構を実際に
+ * 使うskillだけが、未定義counterの誤参照を検証される）。
+ */
+function assertRuntimeCounterReferencesAreDeclared(
+  activationCondition: ConditionDefinition,
+  triggers: readonly TriggerDefinition[],
+  counterUpdates: readonly RuntimeCounterUpdateDefinition[],
+  path: string,
+): void {
+  if (counterUpdates.length === 0) {
+    return;
+  }
+  const declared = new Set(counterUpdates.map((update) => update.counter));
+  const referenced = new Set<RuntimeCounterId>();
+  collectReferencedRuntimeCounterIds(activationCondition, referenced);
+  triggers.forEach((trigger) => collectReferencedRuntimeCounterIds(trigger.condition, referenced));
+  for (const counter of referenced) {
+    if (!declared.has(counter)) {
+      throw new DomainValidationError(
+        `${path}.counterUpdates`,
+        `RUNTIME_COUNTER references undeclared counter "${counter}" (must appear in counterUpdates)`,
+      );
+    }
+  }
+}
+
 export function createSkillDefinition(
   input: SkillDefinitionInput,
   path = "skill",
@@ -282,19 +349,30 @@ export function createSkillDefinition(
     createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
   );
 
+  const activationCondition =
+    input.activationCondition === undefined
+      ? { kind: "TRUE" as const }
+      : createConditionDefinition(
+          input.activationCondition,
+          `${path}.activationCondition`,
+          undefined,
+        );
+
+  if (input.counterUpdates !== undefined) {
+    assertArray(input.counterUpdates, `${path}.counterUpdates`);
+  }
+  const counterUpdates = (input.counterUpdates ?? []).map((c, i) =>
+    createRuntimeCounterUpdateDefinition(c, `${path}.counterUpdates[${i}]`),
+  );
+  assertRuntimeCounterReferencesAreDeclared(activationCondition, triggers, counterUpdates, path);
+
   return deepFreeze({
     skillDefinitionId,
     skillType: input.skillType,
     cost: createCost(input.cost, input.skillType, `${path}.cost`),
-    activationCondition:
-      input.activationCondition === undefined
-        ? { kind: "TRUE" }
-        : createConditionDefinition(
-            input.activationCondition,
-            `${path}.activationCondition`,
-            undefined,
-          ),
+    activationCondition,
     triggers,
+    counterUpdates,
     resolution: createResolution(input.resolution, `${path}.resolution`),
     cooldown: createCooldown(input.cooldown, `${path}.cooldown`),
     traits: createTraits(input.traits, `${path}.traits`),

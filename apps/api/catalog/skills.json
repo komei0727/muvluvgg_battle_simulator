@@ -985,10 +985,36 @@
     "metadata": { "displayName": "災難除け", "tags": [] },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ENEMY",
-        "targetSelector": "SELF"
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_CHIYURU_NEWYEAR_PS2_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_CHIYURU_NEWYEAR_PS2_THRESHOLD_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.4
       }
     ]
   },
@@ -1196,11 +1222,36 @@
     "metadata": { "displayName": "怒らせすぎ注意", "tags": [] },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ENEMY",
-        "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.85
       }
     ]
   },
@@ -1454,8 +1505,35 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_CLARA_SANTA_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 3
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_CLARA_SANTA_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        },
+        "amount": 1
       }
     ]
   },
@@ -2190,8 +2268,35 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_ELENA_MOODMAKER_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 4
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_ELENA_MOODMAKER_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        },
+        "amount": 1
       }
     ]
   },
@@ -4285,8 +4390,35 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_JUNKA_CHILDHOOD_PS2_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 3
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_JUNKA_CHILDHOOD_PS2_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        },
+        "amount": 1
       }
     ]
   },
@@ -5933,7 +6065,35 @@
         "eventType": "CriticalCheckResolved",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY"
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 4
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "CriticalCheckResolved",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ENEMY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
+        },
+        "amount": 1
       }
     ]
   },
@@ -7728,13 +7888,40 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "IN",
-          "value": ["AS", "EX"]
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "IN", "value": ["AS", "EX"] },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_MAO_COMMITTEE_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 3
+            }
+          ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_MAO_COMMITTEE_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillType",
+            "op": "IN",
+            "value": ["AS", "EX"]
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -9064,8 +9251,35 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_MIRIAM_MAGE_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 3
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_MIRIAM_MAGE_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        },
+        "amount": 1
       }
     ]
   },
@@ -9277,11 +9491,31 @@
     "metadata": { "displayName": "お母様、見ててください……！", "tags": [] },
     "triggers": [
       {
-        "eventType": "SkillUseCompleted",
+        "eventType": "PassiveActivated",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "PS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_NADYA_SUCCESSOR_PS3_TRIGGER_COUNT",
+          "op": "GTE",
+          "value": 1,
+          "modulo": 3
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_NADYA_SUCCESSOR_PS3_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY"
+        },
+        "amount": 1
       }
     ]
   },
@@ -9886,8 +10120,35 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_OLGA_VETERAN_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 4
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_OLGA_VETERAN_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        },
+        "amount": 1
       }
     ]
   },
@@ -11828,8 +12089,35 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_SHIRANA_SORA_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 2
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_SHIRANA_SORA_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        },
+        "amount": 1
       }
     ]
   },
@@ -13449,10 +13737,36 @@
     "metadata": { "displayName": "起死回生の一手", "tags": [] },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ENEMY",
-        "targetSelector": "SELF"
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.2
       }
     ]
   },

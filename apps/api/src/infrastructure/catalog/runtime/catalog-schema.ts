@@ -133,6 +133,8 @@ export const skillDefinitionSchema = {
     },
     activationCondition: looseObject,
     triggers: looseObjectArray,
+    /** Issue #143: `RUNTIME_COUNTER`のcounter更新契機（`INCREMENT`/`CUMULATIVE_DAMAGE_THRESHOLD`）。省略時はDomain側で`[]`とする。 */
+    counterUpdates: looseObjectArray,
     resolution: {
       type: "object",
       additionalProperties: false,

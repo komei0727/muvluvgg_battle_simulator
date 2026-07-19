@@ -1,7 +1,7 @@
 import type { BattleStatus } from "../model/battle-status.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
-import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { ActionId } from "../../shared/event-ids.js";
 
@@ -61,6 +61,32 @@ export interface UnitStateDelta {
   >;
   /** R-SKL-05: チャージ開始(`undefined`→値)・解放/中断(値→`undefined`)。 */
   readonly charge?: ValueChange<ChargeState | undefined>;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`SkillRuntime`スコープ（M6最小実装、
+   * Issue #143）。`SkillDefinitionId`→`RuntimeCounterId`の2段キーで、変更された
+   * counterの`value`だけを持つ（`RuntimeCounterChanged`/`RuntimeCounterReset`が
+   * 単独で所有する`stateDelta`）。値が変化しなかった更新（carryのみの変化）では
+   * このキー自体を持たない（`skillCounterCarry`を参照）。
+   *
+   * レビュー指摘[P1]: `after: undefined`は`RuntimeCounterReset`によるcounter
+   * キー自体の削除を表す（`0`という値ではなく、実状態の`resetRuntimeCounter`が
+   * キーを`delete`することと対応させる — `after: 0`のままだと独立Reducerが
+   * `{ counter: 0 }`を復元してしまい、実状態の`{}`と一致しなくなる）。
+   */
+  readonly skillCounters?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
+  >;
+  /**
+   * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`carry`）専用の差分
+   * （レビュー再々レビュー[P2]、Issue #143: `carry`はStateDeltaから除外されて
+   * いたため、次回の閾値判定に必要な内部状態がStateDelta単独から復元できな
+   * かった）。`skillCounters`と同じ2段キーだが独立に変化するため別フィールドと
+   * する（`INCREMENT`は常に`carry`が0のままのためこのキーを持たない）。
+   * `after: undefined`は`RuntimeCounterReset`によるキー削除を表す。
+   */
+  readonly skillCounterCarry?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
+  >;
 }
 
 /**

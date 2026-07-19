@@ -31,6 +31,8 @@ export function resolveChargeStart(
   effectiveActionType: "AS" | "EX",
   reservedActionType: ReservedActionKind,
   units: readonly BattleUnit[],
+  definitions: BattleDefinitions,
+  random: RandomSource,
   recorder: EventRecorder,
   turnNumber: number,
   cycleNumber: number,
@@ -95,6 +97,11 @@ export function resolveChargeStart(
     parentEventId: cooldownResult.lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorId,
+    // レビュー再々々レビュー[P2]: このイベントには外部の対象がなく、チャージを
+    // 開始した本人自身が観測対象であるため、`targetUnitIds`へ自分自身を含める
+    // （`targetSelector: ALLY`等で「ALLYがチャージ開始した」を判定するPS、
+    // 例: production Catalog Harriet PS2が候補化できるようにする）。
+    targetUnitIds: [actorId],
     payload: {
       actorUnitId: actorId,
       skillDefinitionId: skill.skillDefinitionId,
@@ -112,6 +119,25 @@ export function resolveChargeStart(
     },
   });
 
+  // レビュー再々々レビュー[P2]: チャージ開始も`ChargeStarted`（例: Harriet PS2
+  // 「ALLYがチャージ開始した時」）と`ActionCompleting`/Cooldown更新/
+  // `ActionCompleted`を発動タイミングとするPS/counter更新を持ちうるため、
+  // この行動専用の`PassiveActivationRuntime`を生成して接続する。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
+  working = passiveRuntime.onFactEvent(chargeStarted, working);
+
   const completion = recordActionCompletion(
     recorder,
     {
@@ -121,14 +147,17 @@ export function resolveChargeStart(
       turnNumber,
       cycleNumber,
       actorId,
+      onFactEventForPassiveChain: (event, unitsForChain) =>
+        passiveRuntime.onFactEvent(event, unitsForChain),
     },
     effectiveActionType,
     chargeStarted.eventId,
     working,
   );
+  const finalUnits = passiveRuntime.finalizeResolutionScope();
 
   return {
-    units: completion.units,
+    units: finalUnits,
     actionScope,
     rootEventId: actionStarted.eventId,
     completedEventId: completion.completedEventId,
@@ -289,6 +318,12 @@ export function resolveChargeRelease(
       turnNumber,
       cycleNumber,
       actorId,
+      // レビュー再々レビュー[P2]: `ActionCompleting`/Cooldown更新/`ActionCompleted`
+      // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする
+      // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に
+      // 解決されるようにする。
+      onFactEventForPassiveChain: (event, unitsForChain) =>
+        passiveRuntime.onFactEvent(event, unitsForChain),
     },
     "CHARGE_RELEASE",
     chargeReleased.eventId,
@@ -307,9 +342,16 @@ export function resolveChargeRelease(
       },
     },
   );
+  // レビュー指摘再レビュー[P2]: `06_戦闘状態遷移.md`のCOMPLETING順序では
+  // `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
+  // `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
+  // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
+  // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
+  // `passiveRuntime`を同期済みのため、追加の同期は不要。
+  const finalUnits = passiveRuntime.finalizeResolutionScope();
 
   return {
-    units: completion.units,
+    units: finalUnits,
     actionScope,
     rootEventId: actionStarted.eventId,
     completedEventId: completion.completedEventId,

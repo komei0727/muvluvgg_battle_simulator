@@ -13,11 +13,14 @@ import type {
   CriticalMode,
   DamageType,
   ResourceKind,
+  SkillType,
 } from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
+  RuntimeCounterId,
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { RuntimeCounterScope } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
 import type { ConditionKind } from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
@@ -141,6 +144,11 @@ export interface BattleDomainEventPayloadMap {
   };
   readonly SkillUseCompleted: {
     readonly skillDefinitionId: SkillDefinitionId;
+    /**
+     * Issue #143: `RUNTIME_COUNTER_MODULO`対象skillが「AS/EX/PSをN回使用する
+     * たびに発動」を`EVENT_PAYLOAD`で判定できるよう追加した。
+     */
+    readonly skillType: SkillType;
     readonly resolvedStepCount: number;
     readonly targetUnitIds: readonly BattleUnitId[];
   };
@@ -334,6 +342,33 @@ export interface BattleDomainEventPayloadMap {
     readonly reason: "ACTOR_DEFEATED";
     readonly resolvedEffectCount: number;
     readonly unresolvedEffectCount: number;
+  };
+  /**
+   * `R-EFF-11`/`08_ドメインイベント.md`「RuntimeCounterイベント」（M6最小実装、
+   * Issue #143）。原因イベントの直後・候補抽出より前に採番する例外的な子イベント
+   * （「複合処理と状態差分の所有」参照）。`carry`は`CUMULATIVE_DAMAGE_THRESHOLD`の
+   * 繰り越し端数（`INCREMENT`では常に0）。`carry`のみが変化した更新でもこの
+   * イベント自体は発行するため（追跡性のため、レビュー再々レビュー[P1]）、
+   * `valueChanged`（`before !== after`、閾値を実際に跨いだかどうか）を
+   * Catalog側の閾値到達PS向けの絞り込み条件として持つ。
+   */
+  readonly RuntimeCounterChanged: {
+    readonly ownerUnitId: BattleUnitId;
+    readonly scope: RuntimeCounterScope;
+    readonly counter: RuntimeCounterId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly before: number;
+    readonly after: number;
+    readonly carry: number;
+    readonly valueChanged: boolean;
+  };
+  /** `R-EFF-11`: 解決スコープ終了時、PS/Memory候補スタックが空になった後にcounterを破棄する。 */
+  readonly RuntimeCounterReset: {
+    readonly ownerUnitId: BattleUnitId;
+    readonly scope: RuntimeCounterScope;
+    readonly counter: RuntimeCounterId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly before: number;
   };
 }
 

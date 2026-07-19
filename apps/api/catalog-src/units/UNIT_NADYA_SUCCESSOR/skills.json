@@ -349,16 +349,31 @@
     },
     "triggers": [
       {
-        "eventType": "SkillUseCompleted",
+        "eventType": "PassiveActivated",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "PS"
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_NADYA_SUCCESSOR_PS3_TRIGGER_COUNT",
+          "op": "GTE",
+          "value": 1,
+          "modulo": 3
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_NADYA_SUCCESSOR_PS3_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY"
+        },
+        "amount": 1
       }
     ]
   }

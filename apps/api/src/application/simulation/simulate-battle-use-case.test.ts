@@ -69,6 +69,7 @@ function exSkillDefinition(id: string): SkillDefinition {
     cost: { resource: "EX_GAUGE", amount: 100 },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {
@@ -139,6 +140,7 @@ function attackSkill(id: string, effectActionId: string): SkillDefinition {
     cost: { resource: "AP", amount: 1 },
     activationCondition: { kind: "TRUE" },
     triggers: [],
+    counterUpdates: [],
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
@@ -726,6 +728,7 @@ describe("SimulateBattleUseCase", () => {
           condition: { kind: "TRUE" },
         },
       ],
+      counterUpdates: [],
       resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
       cooldown: { unit: "ACTION", count: 0 },
       traits: {

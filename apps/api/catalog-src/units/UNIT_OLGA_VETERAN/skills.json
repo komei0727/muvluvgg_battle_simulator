@@ -298,13 +298,45 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "skillType",
+              "op": "EQ",
+              "value": "AS"
+            },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_OLGA_VETERAN_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 4
+            }
+          ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_OLGA_VETERAN_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillType",
+            "op": "EQ",
+            "value": "AS"
+          }
+        },
+        "amount": 1
       }
     ]
   },

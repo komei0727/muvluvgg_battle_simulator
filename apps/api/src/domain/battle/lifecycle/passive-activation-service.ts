@@ -22,6 +22,11 @@ import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { detectPassiveCandidates } from "../triggering/passive-trigger-matcher.js";
 import {
+  collectResolutionScopeResets,
+  detectRuntimeCounterUpdates,
+} from "../triggering/runtime-counter-matcher.js";
+import { resetRuntimeCounter } from "../model/runtime-counter-state.js";
+import {
   createEmptyPassiveActivationGuard,
   type PassiveActivationGuard,
 } from "../triggering/passive-activation-guard.js";
@@ -44,6 +49,16 @@ export const DEFAULT_PASSIVE_CHAIN_LIMITS: PassiveChainLimits = {
   maxPassiveDepth: 8,
   maxEffectsPerScope: 50,
 };
+
+/**
+ * `finalizeResolutionScope`の「破棄→発行→候補解決」反復に対する上限
+ * （レビュー指摘[P1]、Issue #143）。counter更新は`PassiveActivationGuard`
+ * （R-PS-07）を経由しないため、`DEFAULT_PASSIVE_CHAIN_LIMITS`だけでは
+ * 自己再生成する`resetScope`counterの無限ループを検出できない。対象12行は
+ * いずれも`resetScope`を宣言しないため通常は1周も要さず、この上限に
+ * 到達すること自体が誤ったCatalog定義を示す。
+ */
+const MAX_RESOLUTION_SCOPE_RESET_ROUNDS = 10;
 
 /** `PassiveActivationRuntime`が1解決スコープ分の発動処理を行うために必要な依存。 */
 export interface PassiveActivationRuntimeContext {
@@ -144,12 +159,110 @@ export class PassiveActivationRuntime {
   }
 
   /**
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（M6最小実装、Issue #143）:
+   * 原因イベントに起因する`RuntimeCounter`更新（`counterUpdates`、`SKILL_RUNTIME`
+   * スコープ）を検出し、`RuntimeCounterChanged`を発行する。`this.units`を更新
+   * するだけで、発行したイベントの候補解決は呼び出し側の責務とする
+   * （`state.guard`/stackを共有できるかどうかは呼び出し元のコンテキストに
+   * 依存するため、ここではguardに触れない — レビュー指摘[P1]参照）。
+   */
+  private detectAndRecordRuntimeCounterChanges(
+    causingEvent: BattleDomainEvent,
+  ): readonly BattleDomainEvent[] {
+    const triggerEvent = this.toTriggerEvent(causingEvent);
+    const counterUpdate = detectRuntimeCounterUpdates({
+      event: triggerEvent,
+      units: this.units,
+      unitDefinitions: this.context.definitions.unitDefinitions,
+      skillDefinitions: this.context.definitions.skillDefinitions,
+    });
+    this.units = counterUpdate.units;
+    return counterUpdate.changes.map((change) => {
+      const carryChanged = change.carry !== change.carryBefore;
+      return this.context.recorder.record({
+        eventType: "RuntimeCounterChanged",
+        category: "FACT",
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        resolutionScopeId: this.context.resolutionScopeId,
+        parentEventId: causingEvent.eventId,
+        rootEventId: this.context.rootEventId,
+        sourceUnitId: change.ownerUnitId,
+        payload: {
+          ownerUnitId: change.ownerUnitId,
+          scope: "SKILL_RUNTIME",
+          counter: change.counter,
+          skillDefinitionId: change.skillDefinitionId,
+          before: change.before,
+          after: change.after,
+          carry: change.carry,
+          // レビュー再々レビュー[P1]: `value`が変化していない（carryのみの
+          // 変化の）更新でもこのイベント自体は発行する（追跡性のため）ので、
+          // 閾値到達時だけ発動すべきPSはこのフィールドで絞り込む契約とする。
+          valueChanged: change.valueChanged,
+        },
+        stateDelta: {
+          units: {
+            [change.ownerUnitId]: {
+              // レビュー再々レビュー[P2]: `value`(公開値)が変化した場合だけ
+              // `skillCounters`を持つ。carryのみの変化では公開値のstateDeltaを
+              // 持たせない（「変更した項目だけを持つ」契約、carryは
+              // `skillCounterCarry`側に独立して持つ）。
+              ...(change.valueChanged
+                ? {
+                    skillCounters: {
+                      [change.skillDefinitionId]: {
+                        [change.counter]: { before: change.before, after: change.after },
+                      },
+                    },
+                  }
+                : {}),
+              ...(carryChanged
+                ? {
+                    skillCounterCarry: {
+                      [change.skillDefinitionId]: {
+                        // レビュー再々々レビュー[P1]: `captureBattleState`は
+                        // carryが0のcounterをキーごと省略するため（`0`は
+                        // デフォルト値扱い）、carryがちょうど0へ戻った場合も
+                        // `after: 0`ではなく`undefined`（キー削除）にして
+                        // 独立Reducerの復元結果を実状態と一致させる。
+                        [change.counter]: {
+                          before: change.carryBefore,
+                          after: change.carry === 0 ? undefined : change.carry,
+                        },
+                      },
+                    },
+                  }
+                : {}),
+            },
+          },
+        },
+      });
+    });
+  }
+
+  /**
    * `applyDamageAction`等が確定させたFACT/TIMINGイベントの都度呼び出す
-   * エントリーポイント。PS発動で変化した`units`をそのまま返す。
+   * トップレベルのエントリーポイント。PS発動で変化した`units`をそのまま返す。
+   *
+   * このメソッドは常に新しい`resolvePassiveChain`呼び出し（新しい`ChainState`・
+   * guardスナップショット）を起こすため、既に別の`resolvePassiveChain`呼び出しが
+   * 進行中の文脈（`activatePassiveCandidate`のgenerator本体など）から呼び出しては
+   * ならない — 進行中の呼び出しが完了した際に`this.guard`を上書きし、この
+   * メソッド内で記録した発動をロストする（レビュー指摘[P1]、Issue #143）。
+   * そのような文脈では代わりに`PassiveActivationStep`を`yield`し、進行中の
+   * `driveActivation`が共有する`state`（guard/stack）へ正しく参加させること。
    */
   onFactEvent(event: BattleDomainEvent, units: readonly BattleUnit[]): readonly BattleUnit[] {
     this.units = units;
     const triggerEvent = this.toTriggerEvent(event);
+
+    const runtimeCounterChanges = this.detectAndRecordRuntimeCounterChanges(event);
+    for (const recorded of runtimeCounterChanges) {
+      this.units = this.onFactEvent(recorded, this.units);
+    }
+
     const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
     if (!result.ok) {
       throw new DomainValidationError(
@@ -159,6 +272,110 @@ export class PassiveActivationRuntime {
     }
     this.guard = result.activationGuard;
     return this.units;
+  }
+
+  /**
+   * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（レビュー指摘[P2]、
+   * Issue #143）。呼び出し側（`resolveSkillUse`／charge解放／`advanceBattle`の
+   * `TurnStarted`処理など、このインスタンスが担当する1解決スコープを完全に終えた
+   * 箇所）が、そのスコープ内の最後の`onFactEvent`呼び出し後に必ず1回呼び出す。
+   * `resetScope: "RESOLUTION_SCOPE"`を宣言し現在値を持つcounterを破棄して
+   * `RuntimeCounterReset`を発行し、その候補解決（`onFactEvent`経由、トップ
+   * レベルの呼び出しのため安全）を行う。この候補解決が同じスコープへ新しい
+   * 対象counterを生成・更新した場合は、リセット対象counterが残らなくなるまで
+   * 「破棄→発行→候補解決」を繰り返す。対象12行はいずれも`resetScope`を宣言
+   * しないため、この処理は常に即座に`this.units`をそのまま返す。
+   *
+   * レビュー指摘[P1]: `resetScope: RESOLUTION_SCOPE`のcounterが、自身の
+   * `RuntimeCounterReset`をtriggerとする`counterUpdates`を持つ場合
+   * （破棄→発行→その候補解決で同じcounterが即座に再生成される）、このwhileは
+   * 決して`targets`が空にならず同期的に無限ループする。counter更新はPS発動
+   * 済みGuard（`R-PS-07`）を通らないため、既存のPassiveChainLimitsもこの
+   * ループ自体を止めない。反復回数の上限を設け、超過時は黙って打ち切る代わりに
+   * 決定的なエラーとして検出する。
+   */
+  finalizeResolutionScope(): readonly BattleUnit[] {
+    let round = 0;
+    while (true) {
+      const targets = collectResolutionScopeResets({
+        units: this.units,
+        unitDefinitions: this.context.definitions.unitDefinitions,
+        skillDefinitions: this.context.definitions.skillDefinitions,
+      });
+      if (targets.length === 0) {
+        return this.units;
+      }
+      round += 1;
+      if (round > MAX_RESOLUTION_SCOPE_RESET_ROUNDS) {
+        throw new DomainValidationError(
+          "counterUpdates",
+          `finalizeResolutionScope exceeded ${MAX_RESOLUTION_SCOPE_RESET_ROUNDS} discard/emit/resolve rounds; a counterUpdates definition likely re-triggers its own resetScope: RESOLUTION_SCOPE counter from the RuntimeCounterReset event it causes (infinite regeneration)`,
+        );
+      }
+      for (const target of targets) {
+        const owner = requireUnit(this.units, target.ownerUnitId);
+        const counters = owner.skillCounters?.[target.skillDefinitionId] ?? {};
+        // レビュー再々レビュー[P2]: 破棄されるcarryもstateDeltaへ含めるため、
+        // `resetRuntimeCounter`が削除する前に読み取っておく。
+        const carryBefore = counters[target.counter]?.carry ?? 0;
+        const result = resetRuntimeCounter(counters, target.counter);
+        if (result === undefined) {
+          continue;
+        }
+        const updatedOwner: BattleUnit = {
+          ...owner,
+          skillCounters: { ...owner.skillCounters, [target.skillDefinitionId]: result.counters },
+        };
+        this.units = this.units.map((u) =>
+          u.battleUnitId === owner.battleUnitId ? updatedOwner : u,
+        );
+        const recorded = this.context.recorder.record({
+          eventType: "RuntimeCounterReset",
+          category: "FACT",
+          turnNumber: this.context.turnNumber,
+          cycleNumber: this.context.cycleNumber,
+          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+          resolutionScopeId: this.context.resolutionScopeId,
+          parentEventId: this.context.rootEventId,
+          rootEventId: this.context.rootEventId,
+          sourceUnitId: target.ownerUnitId,
+          payload: {
+            ownerUnitId: target.ownerUnitId,
+            scope: "SKILL_RUNTIME",
+            counter: target.counter,
+            skillDefinitionId: target.skillDefinitionId,
+            before: result.change.before,
+          },
+          stateDelta: {
+            units: {
+              [target.ownerUnitId]: {
+                skillCounters: {
+                  [target.skillDefinitionId]: {
+                    // レビュー指摘[P1]: `after: 0`ではなく`undefined`にして、
+                    // 独立Reducerがキー自体を削除できるようにする（実状態の
+                    // `resetRuntimeCounter`と同じく、値0で残すのではなく削除）。
+                    [target.counter]: { before: result.change.before, after: undefined },
+                  },
+                },
+                // レビュー再々レビュー[P2]: carryが実際に非0だった場合だけ
+                // `skillCounterCarry`を持つ（0のcarryは元々`captureBattleState`
+                // が省略するキーのため、削除する意味のある差分がない）。
+                ...(carryBefore !== 0
+                  ? {
+                      skillCounterCarry: {
+                        [target.skillDefinitionId]: {
+                          [target.counter]: { before: carryBefore, after: undefined },
+                        },
+                      },
+                    }
+                  : {}),
+              },
+            },
+          },
+        });
+        this.units = this.onFactEvent(recorded, this.units);
+      }
+    }
   }
 
   /**
@@ -274,7 +491,6 @@ export class PassiveActivationRuntime {
     lastEventId = cooldownResult.lastEventId;
 
     // R-PS-05 #4: 発動済み集合への登録とPP消費後に`PassiveActivated`を発行する。
-    const ownerAfterCooldown = requireUnit(this.units, ownerId);
     const passiveActivated = this.context.recorder.record({
       eventType: "PassiveActivated",
       category: "FACT",
@@ -296,11 +512,33 @@ export class PassiveActivationRuntime {
       },
     });
     lastEventId = passiveActivated.eventId;
+    // Issue #143修正 / レビュー指摘[P1]: `PassiveActivated`はこれまで直接record
+    // するだけで`onFactEvent`を経由しておらず、これに反応するPS（例:「パッシブ
+    // スキルをN回使用するたびに発動」のRuntimeCounter更新）が検出されなかった。
+    // ただし本メソッドは常に進行中の`resolvePassiveChain`（`driveActivation`）の
+    // 内側から呼ばれるため、`this.onFactEvent()`を再帰呼び出しすると新しい
+    // `resolvePassiveChain`が別のguardスナップショットから走り、進行中の呼び出し
+    // が完了した際に発動記録を上書きしてしまう（R-PS-07違反）。counter更新自体は
+    // guard/stackに触れないため直接検出・記録し、候補解決は`TIMING_EVENT`として
+    // yieldして進行中の`driveActivation`が共有する`state`へ正しく参加させる
+    // （`RuntimeCounterChanged`→`PassiveActivated`の順。前者の候補解決を後者より
+    // 先に完了させる「複合処理と状態差分の所有」のpre-matching例外と同じ順序）。
+    const runtimeCounterChanges = this.detectAndRecordRuntimeCounterChanges(passiveActivated);
+    for (const changed of runtimeCounterChanges) {
+      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
+      lastEventId = changed.eventId;
+    }
+    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(passiveActivated) };
+    // 上記の候補解決で`ownerId`自身の状態が変わりうるため、`resolveSkillOrder`
+    // へ渡す`actor`スナップショットを最新の`this.units`から取り直す
+    // （クールタイム設定直後の古いスナップショットのままだと、直前の連鎖が
+    // 加えた変更を`plan`の解決から見落とす）。
+    const ownerAfterChainedActivations = requireUnit(this.units, ownerId);
 
     // R-PS-05 #5: EffectSequenceをR-SKL-01〜08に従って解決する。
     const plan = resolveSkillOrder(
       skill,
-      ownerAfterCooldown,
+      ownerAfterChainedActivations,
       this.units,
       this.context.definitions.effectActions,
     );

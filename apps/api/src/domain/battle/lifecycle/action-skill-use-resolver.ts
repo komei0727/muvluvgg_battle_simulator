@@ -204,18 +204,23 @@ export function resolveSkillUse(
       costAmount: skill.cost.amount,
     },
   });
+  working = passiveRuntime.onFactEvent(skillUseStarting, working);
 
   // R-SKL-04 #4: 使用したスキルへクールタイムを設定し、現在の行動IDを設定
   // スコープとして記録する（SkillUseStarting発行後、SkillUseStarted発行前）。
+  // Issue #143: `SkillUseStarting`のPS解決（あれば）で`working`が変化しうる
+  // ため、クールタイムはその後の最新状態（`actorBeforeCooldown`）へ重ねる
+  // （`actorAfterExGain`という古いスナップショットへ戻して上書きしない）。
+  const actorBeforeCooldown = requireUnit(working, actorId);
   const cooldownResult = recordCooldownStart(
     recorder,
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
-    actorAfterExGain.cooldowns,
+    actorBeforeCooldown.cooldowns,
     skill,
     skillUseStarting.eventId,
     actionStarted.eventId,
   );
-  const actorWithCooldown = { ...actorAfterExGain, cooldowns: cooldownResult.cooldowns };
+  const actorWithCooldown = { ...actorBeforeCooldown, cooldowns: cooldownResult.cooldowns };
   working = working.map((u) => (u.battleUnitId === actorId ? actorWithCooldown : u));
 
   const skillUseStarted = recorder.record({
@@ -236,6 +241,7 @@ export function resolveSkillUse(
       costAmount: skill.cost.amount,
     },
   });
+  working = passiveRuntime.onFactEvent(skillUseStarted, working);
 
   const effectResult = applyEffectActionGroups(plan, working, {
     definitions,
@@ -294,11 +300,13 @@ export function resolveSkillUse(
           targetUnitIds,
           payload: {
             skillDefinitionId: skill.skillDefinitionId,
+            skillType: skill.skillType,
             resolvedStepCount:
               skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0,
             targetUnitIds,
           },
         });
+  working = passiveRuntime.onFactEvent(skillUseCompleted, working);
 
   const completion = recordActionCompletion(
     recorder,
@@ -309,14 +317,27 @@ export function resolveSkillUse(
       turnNumber,
       cycleNumber,
       actorId,
+      // レビュー再々レビュー[P2]: `ActionCompleting`/Cooldown更新/`ActionCompleted`
+      // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする
+      // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に
+      // 解決されるようにする。
+      onFactEventForPassiveChain: (event, unitsForChain) =>
+        passiveRuntime.onFactEvent(event, unitsForChain),
     },
     effectiveActionType,
     skillUseCompleted.eventId,
     working,
   );
+  // レビュー指摘再レビュー[P2]: `06_戦闘状態遷移.md`のCOMPLETING順序では
+  // `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
+  // `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
+  // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
+  // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
+  // `passiveRuntime`を同期済みのため、追加の同期は不要。
+  const finalUnits = passiveRuntime.finalizeResolutionScope();
 
   return {
-    units: completion.units,
+    units: finalUnits,
     actionScope,
     rootEventId: actionStarted.eventId,
     completedEventId: completion.completedEventId,
