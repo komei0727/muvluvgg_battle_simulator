@@ -18,10 +18,11 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    // Issue #143: bumped when the 3 CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER
-    // triggers were updated to gate on `valueChanged` (review re-fix [P1])
-    // and catalog/ regenerated (mise exec -- pnpm run generate-catalog).
-    expect(catalog.catalogRevision).toBe("2026-07-19.2");
+    // Issue #144: bumped when SUIRAN_CHAOS's PS1/PS2/PS3 gained
+    // POSITION_RELATION and KEI_JACKKNIFE_PS2/LILY_SINGER_PS1/SIENA_DIVA_PS1
+    // gained RESOLUTION_PHASE exclusion conditions, and catalog/ was
+    // regenerated (mise exec -- pnpm run generate-catalog).
+    expect(catalog.catalogRevision).toBe("2026-07-20.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -238,6 +239,84 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
           { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
         ],
       });
+    },
+  );
+
+  /**
+   * Issue #144: `POSITION_RELATION`/`RESOLUTION_PHASE` ConditionのCondition木
+   * からそのkindだけを再帰的に探す（`AND`でラップされている場合があるため、
+   * `findRuntimeCounterCondition`と同じ形）。
+   */
+  function findConditionsOfKind<K extends string>(
+    condition: unknown,
+    kind: K,
+  ): readonly Record<string, unknown>[] {
+    if (condition === null || typeof condition !== "object") {
+      return [];
+    }
+    const c = condition as Record<string, unknown>;
+    if (c.kind === kind) {
+      return [c];
+    }
+    if ((c.kind === "AND" || c.kind === "OR") && Array.isArray(c.conditions)) {
+      return c.conditions.flatMap((sub) => findConditionsOfKind(sub, kind));
+    }
+    if (c.kind === "NOT") {
+      return findConditionsOfKind(c.condition, kind);
+    }
+    return [];
+  }
+
+  it.each([
+    {
+      unitId: "UNIT_SUIRAN_CHAOS",
+      skillId: "SKL_SUIRAN_CHAOS_PS1",
+      target: { kind: "TRIGGER_TARGET" },
+    },
+    {
+      unitId: "UNIT_SUIRAN_CHAOS",
+      skillId: "SKL_SUIRAN_CHAOS_PS2",
+      target: { kind: "TRIGGER_TARGET" },
+    },
+    {
+      unitId: "UNIT_SUIRAN_CHAOS",
+      skillId: "SKL_SUIRAN_CHAOS_PS3",
+      target: { kind: "TRIGGER_SOURCE" },
+    },
+  ])(
+    "IT-CAT-PROD-010 (Issue #144, TRIGGER_POSITION_RELATION): $skillId's trigger condition requires the target to be IN_FRONT_OF the PS owner, not an approximated 任意の味方 ($unitId)",
+    ({ unitId, skillId, target }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const skill = snapshot.skills.get(skillId as never);
+      const trigger = skill?.triggers[0];
+      const positionConditions = findConditionsOfKind(trigger?.condition, "POSITION_RELATION");
+      expect(positionConditions).toHaveLength(1);
+      expect(positionConditions[0]).toEqual({
+        kind: "POSITION_RELATION",
+        target,
+        relation: "IN_FRONT_OF",
+      });
+    },
+  );
+
+  it.each([
+    { unitId: "UNIT_KEI_JACKKNIFE", skillId: "SKL_KEI_JACKKNIFE_PS2" },
+    { unitId: "UNIT_LILY_SINGER", skillId: "SKL_LILY_SINGER_PS1" },
+    { unitId: "UNIT_SIENA_DIVA", skillId: "SKL_SIENA_DIVA_PS1" },
+  ])(
+    "IT-CAT-PROD-011 (Issue #144, TRIGGER_EXCLUSION_TIMING): $skillId's trigger condition excludes BATTLE_START/TURN_START/TURN_END resolution phases ($unitId)",
+    ({ unitId, skillId }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const skill = snapshot.skills.get(skillId as never);
+      const trigger = skill?.triggers[0];
+      const phaseConditions = findConditionsOfKind(trigger?.condition, "RESOLUTION_PHASE");
+      const phases = phaseConditions.map((c) => c.phase).sort();
+      expect(phases).toEqual(["BATTLE_START", "TURN_END", "TURN_START"]);
+      for (const c of phaseConditions) {
+        expect(c.negate).toBe(true);
+      }
     },
   );
 });

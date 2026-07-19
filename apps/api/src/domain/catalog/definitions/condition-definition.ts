@@ -75,6 +75,8 @@ const CONDITION_KINDS = [
   "RUNTIME_COUNTER",
   "TURN_NUMBER",
   "ALIVE_UNIT_COUNT",
+  "POSITION_RELATION",
+  "RESOLUTION_PHASE",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
 
@@ -90,9 +92,19 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   RUNTIME_COUNTER: ["kind", "counter", "op", "value", "modulo"],
   TURN_NUMBER: ["kind", "op", "value", "modulo"],
   ALIVE_UNIT_COUNT: ["kind", "side", "excludeSelf", "op", "value"],
+  POSITION_RELATION: ["kind", "target", "relation"],
+  RESOLUTION_PHASE: ["kind", "phase", "negate"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
+
+/** `14_Catalog定義スキーマ.md`「POSITION_RELATION」（M6、Issue #144）。「目の前」を候補とする。 */
+export const POSITION_RELATIONS = ["IN_FRONT_OF"] as const;
+export type PositionRelation = (typeof POSITION_RELATIONS)[number];
+
+/** `14_Catalog定義スキーマ.md`「RESOLUTION_PHASE」（M6、Issue #144）。 */
+export const RESOLUTION_PHASES = ["BATTLE_START", "TURN_START", "TURN_END"] as const;
+export type ResolutionPhase = (typeof RESOLUTION_PHASES)[number];
 
 export interface MarkerCountCondition {
   readonly op: ComparisonOperator;
@@ -148,6 +160,16 @@ export type ConditionDefinition =
       readonly excludeSelf: boolean;
       readonly op: ComparisonOperator;
       readonly value: number;
+    }
+  | {
+      readonly kind: "POSITION_RELATION";
+      readonly target: TargetReference;
+      readonly relation: PositionRelation;
+    }
+  | {
+      readonly kind: "RESOLUTION_PHASE";
+      readonly phase: ResolutionPhase;
+      readonly negate: boolean;
     };
 
 export interface ConditionDefinitionInput {
@@ -164,6 +186,9 @@ export interface ConditionDefinitionInput {
   readonly modulo?: number;
   readonly side?: string;
   readonly excludeSelf?: boolean;
+  readonly relation?: string;
+  readonly phase?: string;
+  readonly negate?: boolean;
 }
 
 function requireField<K extends keyof ConditionDefinitionInput>(
@@ -309,6 +334,26 @@ export function createConditionDefinition(
         op: createOperator(input, path),
         value,
       };
+    }
+    case "POSITION_RELATION": {
+      const target = requireField(input, "target", path);
+      const relation = requireField(input, "relation", path);
+      assertEnumValue(relation, POSITION_RELATIONS, `${path}.relation`);
+      return {
+        kind: "POSITION_RELATION",
+        target: createTargetReference(target, `${path}.target`, scope),
+        relation,
+      };
+    }
+    case "RESOLUTION_PHASE": {
+      const phase = requireField(input, "phase", path);
+      assertEnumValue(phase, RESOLUTION_PHASES, `${path}.phase`);
+      let negate = false;
+      if (input.negate !== undefined) {
+        assertBoolean(input.negate, `${path}.negate`);
+        negate = input.negate;
+      }
+      return { kind: "RESOLUTION_PHASE", phase, negate };
     }
   }
 }

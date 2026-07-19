@@ -1,4 +1,5 @@
 import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { TriggerDefinition } from "../../catalog/definitions/trigger-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
@@ -19,6 +20,13 @@ export interface PassiveTriggerMatchInput {
   readonly unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
   readonly skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>;
   readonly activationGuard: PassiveActivationGuard;
+  /**
+   * `RESOLUTION_PHASE`（Issue #144、TRIGGER_EXCLUSION_TIMING）が参照する、
+   * 現在の解決スコープのroot/ancestorイベントが属するBattle/Turn phase。
+   * 呼び出し側（`PassiveActivationRuntime`等）が1解決スコープにつき1回だけ
+   * 決める。行動中など通常の解決スコープでは`undefined`。
+   */
+  readonly resolutionPhase?: ResolutionPhase;
 }
 
 function findMatchingTrigger(
@@ -26,6 +34,7 @@ function findMatchingTrigger(
   owner: BattleUnit,
   event: TriggerCandidateEvent,
   unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
+  resolutionPhase: ResolutionPhase | undefined,
 ): TriggerDefinition | undefined {
   return skill.triggers.find(
     (trigger) =>
@@ -36,6 +45,8 @@ function findMatchingTrigger(
       evaluateTriggerCondition(trigger.condition, event, {
         owner,
         skillDefinitionId: skill.skillDefinitionId,
+        getUnit: (id) => unitsById.get(id),
+        ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
       }),
   );
 }
@@ -53,7 +64,8 @@ function findMatchingTrigger(
  * R-PS-02/R-PS-08で順序付け済みで、入力の`units`配列順には依存しない。
  */
 export function detectPassiveCandidates(input: PassiveTriggerMatchInput): PassiveCandidateGroup {
-  const { event, units, unitDefinitions, skillDefinitions, activationGuard } = input;
+  const { event, units, unitDefinitions, skillDefinitions, activationGuard, resolutionPhase } =
+    input;
   const unitsById = new Map(units.map((unit) => [unit.battleUnitId, unit] as const));
   const candidates: PassiveCandidate[] = [];
 
@@ -79,12 +91,14 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
           `no SkillDefinition found for skillDefinitionId "${skillDefinitionId}"`,
         );
       }
-      const trigger = findMatchingTrigger(skill, owner, event, unitsById);
+      const trigger = findMatchingTrigger(skill, owner, event, unitsById, resolutionPhase);
       if (
         trigger !== undefined &&
         evaluateTriggerCondition(skill.activationCondition, event, {
           owner,
           skillDefinitionId: skill.skillDefinitionId,
+          getUnit: (id) => unitsById.get(id),
+          ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
         })
       ) {
         candidates.push({ unit: owner, skillDefinition: skill, trigger, definitionIndex });

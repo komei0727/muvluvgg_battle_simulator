@@ -1513,7 +1513,9 @@ triggers:
         - { kind: EVENT_PAYLOAD, field: valueChanged, op: EQ, value: true }
 ```
 
-`POSITION_RELATION`の`relation`は少なくとも「目の前」（`IN_FRONT_OF`）を候補とする。`target`は`ALLY`/`ENEMY`と組み合わせられる。`RESOLUTION_PHASE`の`phase`は`BATTLE_START`/`TURN_START`/`TURN_END`を候補とし、`negate: true`で「これらのphase中は不成立」（除外条件）を表す。両kindとも、`condition`フィールド（`ConditionDefinition`）から他のkindと`AND`/`OR`/`NOT`で組み合わせられる。具体的なpayload形状、対象不在時の評価規則、Mapper実装はIssue #144で確定する。
+`POSITION_RELATION`の`relation`は少なくとも「目の前」（`IN_FRONT_OF`）を候補とする。`target`は`TargetReference`（`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`、trigger文脈では`BINDING`等のEffectSequence専用kindは非対応）で、`ALLY`/`ENEMY`の`sourceSelector`/`targetSelector`と組み合わせられる。`RESOLUTION_PHASE`の`phase`は`BATTLE_START`/`TURN_START`/`TURN_END`を候補とし、`negate: true`で「これらのphase中は不成立」（除外条件）を表す。両kindとも、`condition`フィールド（`ConditionDefinition`）から他のkindと`AND`/`OR`/`NOT`で組み合わせられる（Issue #144）。
+
+`POSITION_RELATION`は、`target`が解決する対象が複数ある場合（`TRIGGER_TARGET`が複数ユニットを指す等）はいずれか1体が`relation`を満たせば成立とし（`sourceSelector`/`targetSelector`の「いずれか1件」判定と同じ方針）、対象が不在（`target`が解決先を持たない）または戦闘不能の場合は不成立として扱う。`RESOLUTION_PHASE`は、呼び出し側が現在の解決スコープのphaseを渡さない場合（行動中など通常の解決スコープ）を「いずれの`phase`とも一致しない」の既定値として扱うため、`negate: false`の条件はcontext省略時に常に不成立、`negate: true`の条件は常に成立する。両kindとも、`TriggerDefinition.condition`／`SkillDefinition.activationCondition`の評価器（`PassiveTriggerMatcher`、`battle/triggering`）が対応し、`EffectSequence`側の`ConditionEvaluator`（M7）は未対応のまま。
 
 `ALIVE_UNIT_COUNT` は `FormulaDefinition.ALIVE_UNIT_COUNT_SCALE` が倍率計算専用（発動可否のゲーティングに使えない）だったことを受けて追加した。`excludeSelf: true` で自身を母数から除外できる（例: 「自身以外の味方が0体なら不発」は `side: ALLY, excludeSelf: true, op: GT, value: 0` を `activationCondition` に設定する）。
 

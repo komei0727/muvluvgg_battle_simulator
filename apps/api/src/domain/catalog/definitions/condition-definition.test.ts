@@ -292,4 +292,80 @@ describe("ConditionDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-021: maps a POSITION_RELATION condition (Issue #144, TRIGGER_POSITION_RELATION)", () => {
+    const result = createConditionDefinition(
+      { kind: "POSITION_RELATION", target: { kind: "TRIGGER_TARGET" }, relation: "IN_FRONT_OF" },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "POSITION_RELATION",
+      target: { kind: "TRIGGER_TARGET" },
+      relation: "IN_FRONT_OF",
+    });
+  });
+
+  it("UT-CAT-COND-022: rejects POSITION_RELATION with an unknown relation", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "POSITION_RELATION", target: { kind: "TRIGGER_TARGET" }, relation: "BEHIND_OF" },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-023: rejects a typo'd sibling key on POSITION_RELATION", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "POSITION_RELATION",
+          target: { kind: "TRIGGER_TARGET" },
+          relation: "IN_FRONT_OF",
+          typoField: 1,
+        } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-024: maps a RESOLUTION_PHASE condition with negate defaulted to false (Issue #144, TRIGGER_EXCLUSION_TIMING)", () => {
+    const result = createConditionDefinition(
+      { kind: "RESOLUTION_PHASE", phase: "TURN_START" },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({ kind: "RESOLUTION_PHASE", phase: "TURN_START", negate: false });
+  });
+
+  it("UT-CAT-COND-025: maps a RESOLUTION_PHASE condition with negate true (exclusion form)", () => {
+    const result = createConditionDefinition(
+      { kind: "RESOLUTION_PHASE", phase: "BATTLE_START", negate: true },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({ kind: "RESOLUTION_PHASE", phase: "BATTLE_START", negate: true });
+  });
+
+  it("UT-CAT-COND-026: rejects RESOLUTION_PHASE with an unknown phase", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "RESOLUTION_PHASE", phase: "ACTION_START" },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-027: rejects a typo'd sibling key on RESOLUTION_PHASE", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "RESOLUTION_PHASE", phase: "TURN_END", typoField: 1 } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

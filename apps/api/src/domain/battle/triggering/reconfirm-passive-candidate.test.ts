@@ -185,4 +185,108 @@ describe("reconfirmPassiveCandidate", () => {
       reason: "ALREADY_ACTIVATED",
     });
   });
+
+  it("UT-R-PS-04-009 (Issue #144, TRIGGER_POSITION_RELATION): reconfirmation re-evaluates POSITION_RELATION with the same getUnit lookup as candidate detection, discarding a target that became defeated in the meantime", () => {
+    const unit = owner("ALLY", {
+      position: { column: "LEFT", row: "BACK" },
+      globalCoordinate: toGlobalCoordinate("ALLY", { column: "LEFT", row: "BACK" }),
+    });
+    const positionSkill = skillOf({
+      activationCondition: { kind: "TRUE" },
+    });
+    const skill: SkillDefinition = {
+      ...positionSkill,
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: {
+            kind: "POSITION_RELATION",
+            target: { kind: "TRIGGER_TARGET" },
+            relation: "IN_FRONT_OF",
+          },
+        },
+      ],
+    };
+    const candidate = candidateOf(unit, skill);
+    const targetId = createBattleUnitId("ALLY_IN_FRONT");
+    const event: TriggerCandidateEvent = {
+      eventType: "TurnStarted",
+      category: "FACT",
+      targetUnitIds: [targetId],
+      payload: {},
+    };
+    const aliveTarget = {
+      ...owner("ALLY", {
+        position: { column: "LEFT", row: "FRONT" },
+        globalCoordinate: toGlobalCoordinate("ALLY", { column: "LEFT", row: "FRONT" }),
+      }),
+      battleUnitId: targetId,
+    };
+    const defeatedTarget = { ...aliveTarget, currentHp: 0 };
+
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        event,
+        createEmptyPassiveActivationGuard(),
+        (id) => (id === targetId ? aliveTarget : undefined),
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        event,
+        createEmptyPassiveActivationGuard(),
+        (id) => (id === targetId ? defeatedTarget : undefined),
+      ),
+    ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
+  });
+
+  it("UT-R-PS-04-010 (Issue #144, TRIGGER_EXCLUSION_TIMING): reconfirmation re-evaluates RESOLUTION_PHASE with the same resolutionPhase as candidate detection", () => {
+    const unit = owner("ALLY");
+    const skill: SkillDefinition = {
+      ...skillOf(),
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "RESOLUTION_PHASE", phase: "TURN_START", negate: true },
+        },
+      ],
+    };
+    const candidate = candidateOf(unit, skill);
+    const event: TriggerCandidateEvent = {
+      eventType: "TurnStarted",
+      category: "FACT",
+      payload: {},
+    };
+
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        event,
+        createEmptyPassiveActivationGuard(),
+        undefined,
+        undefined,
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        event,
+        createEmptyPassiveActivationGuard(),
+        undefined,
+        "TURN_START",
+      ),
+    ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
+  });
 });

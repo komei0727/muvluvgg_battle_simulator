@@ -39,6 +39,7 @@ import {
   type PassiveChainDependencies,
 } from "../triggering/resolve-passive-chain.js";
 import type { TriggerCandidateEvent } from "../triggering/trigger-event.js";
+import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の暫定既定値。
@@ -72,6 +73,13 @@ export interface PassiveActivationRuntimeContext {
   /** 行動外のトップレベルイベント（ターン開始・終了など）から発動する場合は`undefined`。 */
   readonly actionId?: ActionId;
   readonly limits?: PassiveChainLimits;
+  /**
+   * `RESOLUTION_PHASE`（Issue #144、TRIGGER_EXCLUSION_TIMING）が参照する、この
+   * 解決スコープのroot事象が属するBattle/Turn phase。呼び出し側（`battle.ts`の
+   * `TurnStarted`/`TurnCompleting`呼び出し等）が1解決スコープにつき1回だけ決める。
+   * 行動中の解決スコープでは`undefined`（既定値、いずれの`phase`とも一致しない）。
+   */
+  readonly resolutionPhase?: ResolutionPhase;
 }
 
 function toResourceChangeContext(
@@ -150,11 +158,22 @@ export class PassiveActivationRuntime {
           unitDefinitions: this.context.definitions.unitDefinitions,
           skillDefinitions: this.context.definitions.skillDefinitions,
           activationGuard: this.guard,
+          ...(this.context.resolutionPhase !== undefined
+            ? { resolutionPhase: this.context.resolutionPhase }
+            : {}),
         }),
       getCurrentUnit: (battleUnitId) => requireUnit(this.units, battleUnitId),
+      // レビュー指摘[P2]: `getCurrentUnit`（`requireUnit`）は未知のBattleUnitIdに
+      // 例外を送出するため、POSITION_RELATIONの対象不在を条件不成立として決定的に
+      // 扱うR-PS-01/Issue #144の契約には使えない。対象解決専用に、見つからない
+      // 場合`undefined`を返す`findUnit`を分けて渡す。
+      findUnit: (battleUnitId) => this.units.find((unit) => unit.battleUnitId === battleUnitId),
       activate: (candidate, event): PassiveActivation =>
         this.activatePassiveCandidate(candidate, event),
       limits: this.context.limits ?? DEFAULT_PASSIVE_CHAIN_LIMITS,
+      ...(this.context.resolutionPhase !== undefined
+        ? { resolutionPhase: this.context.resolutionPhase }
+        : {}),
     };
   }
 

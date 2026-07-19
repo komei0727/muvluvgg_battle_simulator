@@ -279,6 +279,8 @@ export function advanceBattle(
   // `06_戦闘状態遷移.md` TURN_STARTING #5: `TurnStarted`をイベントとして持つPSを
   // 解決する（回復適用後）。Issue #34 (R-PS-07): PS発動済み集合はこのトップ
   // レベルイベント専用に1つだけ生成する。行動外のため`actionId`は持たない。
+  // Issue #144 (TRIGGER_EXCLUSION_TIMING): このトップレベルイベントのroot自体が
+  // `TurnStarted`のため、`resolutionPhase: "TURN_START"`を渡す。
   const passiveRuntime = new PassiveActivationRuntime(
     {
       definitions: battle.definitions,
@@ -288,6 +290,7 @@ export function advanceBattle(
       cycleNumber: 0,
       resolutionScopeId: turnScope,
       rootEventId: turnStarted.eventId,
+      resolutionPhase: "TURN_START",
     },
     [...recoveredAllyUnits, ...recoveredEnemyUnits],
   );

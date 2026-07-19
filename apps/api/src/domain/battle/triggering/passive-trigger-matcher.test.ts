@@ -477,4 +477,105 @@ describe("detectPassiveCandidates", () => {
       }),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-R-PS-01-031 (Issue #144, TRIGGER_POSITION_RELATION): a POSITION_RELATION trigger condition only candidates when the target is directly in front of the owner", () => {
+    const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "BACK" }, UNIT_DEF_A);
+    const allyInFront = unit("IN_FRONT", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_B);
+    const allyElsewhere = unit("ELSEWHERE", "ALLY", { column: "CENTER", row: "FRONT" }, UNIT_DEF_B);
+    const skill = passiveSkillOf("SKL_GUARD", {
+      eventType: "UnitBeingAttacked",
+      category: "TIMING",
+      sourceSelector: "ENEMY",
+      targetSelector: "ALLY",
+      condition: {
+        kind: "POSITION_RELATION",
+        target: { kind: "TRIGGER_TARGET" },
+        relation: "IN_FRONT_OF",
+      },
+    });
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+      [UNIT_DEF_B, unitDefinitionOf(UNIT_DEF_B, [])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+    const guard = createEmptyPassiveActivationGuard();
+
+    const eventTargetingInFront: TriggerCandidateEvent = {
+      eventType: "UnitBeingAttacked",
+      category: "TIMING",
+      sourceSide: "ENEMY",
+      targetUnitIds: [allyInFront.battleUnitId],
+      payload: {},
+    };
+    const eventTargetingElsewhere: TriggerCandidateEvent = {
+      eventType: "UnitBeingAttacked",
+      category: "TIMING",
+      sourceSide: "ENEMY",
+      targetUnitIds: [allyElsewhere.battleUnitId],
+      payload: {},
+    };
+
+    expect(
+      detectPassiveCandidates({
+        event: eventTargetingInFront,
+        units: [owner, allyInFront, allyElsewhere],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+      }),
+    ).toHaveLength(1);
+    expect(
+      detectPassiveCandidates({
+        event: eventTargetingElsewhere,
+        units: [owner, allyInFront, allyElsewhere],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("UT-R-PS-01-032 (Issue #144, TRIGGER_EXCLUSION_TIMING): a RESOLUTION_PHASE(negate: true) trigger condition excludes candidates only when the caller supplies the matching resolutionPhase", () => {
+    const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
+    const skill = passiveSkillOf("SKL_EXCLUDED_AT_TURN_START", {
+      eventType: "EffectApplied",
+      category: "FACT",
+      sourceSelector: "ANY",
+      targetSelector: "ENEMY",
+      condition: { kind: "RESOLUTION_PHASE", phase: "TURN_START", negate: true },
+    });
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+      [UNIT_DEF_B, unitDefinitionOf(UNIT_DEF_B, [])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+    const target = unit("TARGET", "ENEMY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_B);
+    const event: TriggerCandidateEvent = {
+      eventType: "EffectApplied",
+      category: "FACT",
+      targetUnitIds: [target.battleUnitId],
+      payload: { category: "DEBUFF" },
+    };
+    const guard = createEmptyPassiveActivationGuard();
+
+    expect(
+      detectPassiveCandidates({
+        event,
+        units: [owner, target],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+      }),
+    ).toHaveLength(1);
+    expect(
+      detectPassiveCandidates({
+        event,
+        units: [owner, target],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+        resolutionPhase: "TURN_START",
+      }),
+    ).toHaveLength(0);
+  });
 });
