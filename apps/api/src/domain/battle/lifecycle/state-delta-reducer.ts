@@ -87,6 +87,10 @@ function applyUnitDelta(
  * `R-EFF-11`（`SkillRuntime`スコープ、Issue #143）: `SkillDefinitionId`→
  * `RuntimeCounterId`の2段キーで、変更されたcounterの`value`だけを既存の
  * `skillCounters`へ差分適用する。
+ *
+ * レビュー指摘[P1]: `change.after === undefined`は`RuntimeCounterReset`による
+ * キー自体の削除を表すため、`0`を書き込むのではなく`updated`からキーを
+ * `delete`する（実状態の`resetRuntimeCounter`と同じ規約）。
  */
 function applyRuntimeCounterDeltas(
   path: string,
@@ -101,20 +105,24 @@ function applyRuntimeCounterDeltas(
   };
   for (const [skillDefinitionId, counterChanges] of Object.entries(deltas) as [
     SkillDefinitionId,
-    Readonly<Record<RuntimeCounterId, ValueChange<number>>>,
+    Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>,
   ][]) {
     const existing = next[skillDefinitionId];
     const updated: Record<RuntimeCounterId, number> = { ...existing };
     for (const [counterId, change] of Object.entries(counterChanges) as [
       RuntimeCounterId,
-      ValueChange<number>,
+      ValueChange<number | undefined>,
     ][]) {
       assertBeforeMatches(
         `${path}[${skillDefinitionId}][${counterId}]`,
         existing?.[counterId] ?? 0,
         change,
       );
-      updated[counterId] = change.after;
+      if (change.after === undefined) {
+        delete updated[counterId];
+      } else {
+        updated[counterId] = change.after;
+      }
     }
     next[skillDefinitionId] = updated;
   }

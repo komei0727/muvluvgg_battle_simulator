@@ -353,7 +353,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-006: reports no change when the accumulated damage stays below the threshold (carry is tracked internally, not surfaced as a change)", () => {
+  it("UT-RCOUNTER-M-006 (review re-fix [P2]): still reports a change when the accumulated damage stays below the threshold, because the internal carry changed even though the public value did not (before === after but carry moved from 0 to 10)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
@@ -377,6 +377,47 @@ describe("detectRuntimeCounterUpdates", () => {
 
     const result = detectRuntimeCounterUpdates({
       event: damageEvent(enemy.battleUnitId, owner.battleUnitId, 10),
+      units: [owner, enemy],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(result.changes).toEqual([
+      {
+        ownerUnitId: owner.battleUnitId,
+        skillDefinitionId: skill.skillDefinitionId,
+        counter: "RUNTIME_COUNTER_DMG",
+        before: 0,
+        after: 0,
+        carry: 10,
+      },
+    ]);
+  });
+
+  it("UT-RCOUNTER-M-006b (review re-fix [P2]): reports no change at all when neither the value nor the carry moved (trigger did not match / 0 damage)", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "CUMULATIVE_DAMAGE_THRESHOLD",
+        counter: "RUNTIME_COUNTER_DMG",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "DamageApplied",
+          category: "FACT",
+          sourceSelector: "ENEMY",
+          targetSelector: "SELF",
+        },
+        maxHpRatio: 0.4,
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const enemy = unit("E1", "ENEMY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const result = detectRuntimeCounterUpdates({
+      event: damageEvent(enemy.battleUnitId, owner.battleUnitId, 0),
       units: [owner, enemy],
       unitDefinitions,
       skillDefinitions,
@@ -413,7 +454,18 @@ describe("detectRuntimeCounterUpdates", () => {
       unitDefinitions,
       skillDefinitions,
     });
-    expect(first.changes).toEqual([]);
+    // レビュー再レビュー[P2]: valueは変わらない(0->0)がcarryが0->30へ変化した
+    // ため、この更新自体もchangeとして報告される。
+    expect(first.changes).toEqual([
+      {
+        ownerUnitId: owner.battleUnitId,
+        skillDefinitionId: skill.skillDefinitionId,
+        counter: "RUNTIME_COUNTER_DMG",
+        before: 0,
+        after: 0,
+        carry: 30,
+      },
+    ]);
     const ownerAfterFirst = first.units.find((u) => u.battleUnitId === owner.battleUnitId);
     expect(
       ownerAfterFirst?.skillCounters?.[skill.skillDefinitionId]?.["RUNTIME_COUNTER_DMG" as never],

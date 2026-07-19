@@ -1476,7 +1476,25 @@ counterUpdates:
 | `INCREMENT`                   | `amount`（整数、1以上）  | `trigger`が成立するたびにcounterへ`amount`を加算する（`RUNTIME_COUNTER_MODULO`）。                                                                                         |
 | `CUMULATIVE_DAMAGE_THRESHOLD` | `maxHpRatio`（`(0, 1]`） | `trigger`成立時の被ダメージ量を対象の最大HP×`maxHpRatio`単位で加算し、超えた閾値の回数だけcounterを進める。端数は次回へ繰り越す（`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`）。 |
 
-`trigger`は`TriggerDefinition`と同じ形（`eventType`/`category`/`sourceSelector`/`targetSelector`/`condition`）で、対象の更新契機を独立に判定する。`scope`は`RuntimeCounter`の所有スコープ（`BATTLE`／`BATTLE_UNIT`／`SKILL_RUNTIME`、`05_ドメインモデル.md`「RuntimeCounter」参照）で、M6時点では`SKILL_RUNTIME`だけを実装する（`BATTLE`／`BATTLE_UNIT`はCatalogとして受理するが評価器が明示的に拒否する）。
+`trigger`は`TriggerDefinition`と同じ形（`eventType`/`category`/`sourceSelector`/`targetSelector`/`condition`）で、対象の更新契機を独立に判定する。`scope`は`RuntimeCounter`の所有スコープ（`BATTLE`／`BATTLE_UNIT`／`SKILL_RUNTIME`、`05_ドメインモデル.md`「RuntimeCounter」参照）で、M6実装は`SKILL_RUNTIME`だけを受理する。`BATTLE`／`BATTLE_UNIT`はCatalogロード時点（`createRuntimeCounterUpdateDefinition`）で明示的に拒否する（レビュー再レビュー[P2]、Issue #143: 当初「Catalogとして受理するが評価器が実行時に拒否する」契約だったが、未対応スコープを実行前に検出できるよう変更した。対象を使うCatalog行が現れるまでフォローアップIssueへ委ねる）。
+
+`resetScope`（省略可、`"RESOLUTION_SCOPE"`のみ）を宣言すると、そのcounterは「1解決スコープ（1行動、またはターン開始・終了など行動外のトップレベルイベント）の終了時に破棄される」（`R-EFF-11`）。省略時（既定）はBattle単位、つまり戦闘終了までcounterを保持する。スコープ終了時の破棄・`RuntimeCounterReset`発行・候補解決は呼び出し側（`PassiveActivationRuntime.finalizeResolutionScope`）が、そのスコープの最後の`onFactEvent`呼び出し後に必ず1回実行する。`RuntimeCounterReset`自身の候補解決が同じcounterを再生成した場合は、対象が残らなくなるまで「破棄→発行→候補解決」を繰り返すが、この反復はPS発動済みGuard（R-PS-07）を経由しないため、実装は反復回数へ決定的な上限を設けて超過時にエラーを送出する（`counterUpdates`が自身の`RuntimeCounterReset`を再生契機にする誤ったCatalog定義を検出するため）。
+
+```yaml
+counterUpdates:
+  - kind: INCREMENT
+    counter: SKL_EXAMPLE_PS3_PER_ACTION_COUNT
+    scope: SKILL_RUNTIME
+    trigger:
+      eventType: SkillUseCompleted
+      category: FACT
+      sourceSelector: SELF
+      targetSelector: ANY
+    amount: 1
+    resetScope: RESOLUTION_SCOPE
+```
+
+公開値（`value`）が変わらない更新（例: 累計ダメージ閾値未到達のヒット）でも、内部端数（`carry`）が変化していれば`RuntimeCounterChanged`を発行する（レビュー再レビュー[P2]: `value`不変・`carry`不変（トリガー自体が不成立、または加算量0）の場合だけ何も発行しない）。可変状態の変化を必ずイベント列から追跡できるようにするため。
 
 `INCREMENT`によるカウントは、`RUNTIME_COUNTER` Conditionを対象イベント自身（`counterUpdates[].trigger`と同じ`eventType`）へ直接付与し、`modulo`で周期を絞り込む。一方`CUMULATIVE_DAMAGE_THRESHOLD`は、`counterUpdates[].trigger`（`DamageApplied`など）ごとに閾値を超えたとは限らないため、`RUNTIME_COUNTER`をそのまま使うと閾値を超えていない被ダメージでも「前回超えた時のvalueがまだ条件を満たす」まま誤って再発火しうる。そのため`CUMULATIVE_DAMAGE_THRESHOLD`を消費するPSは、`counterUpdates[].trigger`ではなく`RuntimeCounterChanged`（値が実際に変化した時だけ発行される）をtriggerのeventTypeとし、`EVENT_PAYLOAD`で`counter`フィールドを自身のcounter IDと比較して絞り込む。
 

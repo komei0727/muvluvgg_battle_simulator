@@ -50,6 +50,16 @@ export const DEFAULT_PASSIVE_CHAIN_LIMITS: PassiveChainLimits = {
   maxEffectsPerScope: 50,
 };
 
+/**
+ * `finalizeResolutionScope`の「破棄→発行→候補解決」反復に対する上限
+ * （レビュー指摘[P1]、Issue #143）。counter更新は`PassiveActivationGuard`
+ * （R-PS-07）を経由しないため、`DEFAULT_PASSIVE_CHAIN_LIMITS`だけでは
+ * 自己再生成する`resetScope`counterの無限ループを検出できない。対象12行は
+ * いずれも`resetScope`を宣言しないため通常は1周も要さず、この上限に
+ * 到達すること自体が誤ったCatalog定義を示す。
+ */
+const MAX_RESOLUTION_SCOPE_RESET_ROUNDS = 10;
+
 /** `PassiveActivationRuntime`が1解決スコープ分の発動処理を行うために必要な依存。 */
 export interface PassiveActivationRuntimeContext {
   readonly definitions: BattleDefinitions;
@@ -105,6 +115,19 @@ export class PassiveActivationRuntime {
 
   get currentUnits(): readonly BattleUnit[] {
     return this.units;
+  }
+
+  /**
+   * レビュー指摘[P2]: `recordActionCompletion`（Cooldown減算等）のように、
+   * このインスタンスのPS解決を経由せずに`units`を変化させる後続処理の結果を
+   * `finalizeResolutionScope`へ反映させるための同期専用API。候補解決は
+   * 一切行わない（`onFactEvent`と異なりguard/stackに触れない）。
+   * `ActionCompleting`/Cooldown更新/`ActionCompleted`が発行された後、
+   * それらの最終`units`で呼び出してから`finalizeResolutionScope`を呼ぶこと
+   * （`06_戦闘状態遷移.md`のCOMPLETING順序どおり、resetはそれらより後）。
+   */
+  syncUnits(units: readonly BattleUnit[]): void {
+    this.units = units;
   }
 
   private toTriggerEvent(event: BattleDomainEvent): TriggerCandidateEvent {
@@ -245,8 +268,17 @@ export class PassiveActivationRuntime {
    * 対象counterを生成・更新した場合は、リセット対象counterが残らなくなるまで
    * 「破棄→発行→候補解決」を繰り返す。対象12行はいずれも`resetScope`を宣言
    * しないため、この処理は常に即座に`this.units`をそのまま返す。
+   *
+   * レビュー指摘[P1]: `resetScope: RESOLUTION_SCOPE`のcounterが、自身の
+   * `RuntimeCounterReset`をtriggerとする`counterUpdates`を持つ場合
+   * （破棄→発行→その候補解決で同じcounterが即座に再生成される）、このwhileは
+   * 決して`targets`が空にならず同期的に無限ループする。counter更新はPS発動
+   * 済みGuard（`R-PS-07`）を通らないため、既存のPassiveChainLimitsもこの
+   * ループ自体を止めない。反復回数の上限を設け、超過時は黙って打ち切る代わりに
+   * 決定的なエラーとして検出する。
    */
   finalizeResolutionScope(): readonly BattleUnit[] {
+    let round = 0;
     while (true) {
       const targets = collectResolutionScopeResets({
         units: this.units,
@@ -255,6 +287,13 @@ export class PassiveActivationRuntime {
       });
       if (targets.length === 0) {
         return this.units;
+      }
+      round += 1;
+      if (round > MAX_RESOLUTION_SCOPE_RESET_ROUNDS) {
+        throw new DomainValidationError(
+          "counterUpdates",
+          `finalizeResolutionScope exceeded ${MAX_RESOLUTION_SCOPE_RESET_ROUNDS} discard/emit/resolve rounds; a counterUpdates definition likely re-triggers its own resetScope: RESOLUTION_SCOPE counter from the RuntimeCounterReset event it causes (infinite regeneration)`,
+        );
       }
       for (const target of targets) {
         const owner = requireUnit(this.units, target.ownerUnitId);
@@ -292,7 +331,10 @@ export class PassiveActivationRuntime {
               [target.ownerUnitId]: {
                 skillCounters: {
                   [target.skillDefinitionId]: {
-                    [target.counter]: { before: result.change.before, after: 0 },
+                    // レビュー指摘[P1]: `after: 0`ではなく`undefined`にして、
+                    // 独立Reducerがキー自体を削除できるようにする（実状態の
+                    // `resetRuntimeCounter`と同じく、値0で残すのではなく削除）。
+                    [target.counter]: { before: result.change.before, after: undefined },
                   },
                 },
               },

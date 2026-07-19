@@ -67,9 +67,14 @@ export interface UnitStateDelta {
    * counterの`value`だけを持つ（`RuntimeCounterChanged`/`RuntimeCounterReset`が
    * 単独で所有する`stateDelta`）。`CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数は
    * 公開しない内部状態のためここへは含めない（イベントpayloadの`carry`を参照）。
+   *
+   * レビュー指摘[P1]: `after: undefined`は`RuntimeCounterReset`によるcounter
+   * キー自体の削除を表す（`0`という値ではなく、実状態の`resetRuntimeCounter`が
+   * キーを`delete`することと対応させる — `after: 0`のままだと独立Reducerが
+   * `{ counter: 0 }`を復元してしまい、実状態の`{}`と一致しなくなる）。
    */
   readonly skillCounters?: Readonly<
-    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number>>>>
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
   >;
 }
 

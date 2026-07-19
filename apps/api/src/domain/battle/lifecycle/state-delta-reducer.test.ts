@@ -315,7 +315,7 @@ describe("applyStateDelta", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-STATE-REDUCER-024 (RuntimeCounter reset, Issue #143): a reset to 0 is applied like any other counter change", () => {
+  it("UT-STATE-REDUCER-024 (RuntimeCounter, Issue #143): a value change landing on 0 keeps the counter key (distinct from RuntimeCounterReset's key deletion below)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -335,6 +335,74 @@ describe("applyStateDelta", () => {
 
     expect(next.units[UNIT_A]!.skillCounters).toEqual({
       [skillDefinitionId]: { [COUNTER_CRIT]: 0 },
+    });
+  });
+
+  it("UT-STATE-REDUCER-025 (review re-fix [P1], RuntimeCounterReset, Issue #143): after: undefined deletes the counter key entirely, unlike after: 0 (UT-STATE-REDUCER-024) which keeps it", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
+    const withOne = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          skillCounters: {
+            [skillDefinitionId]: {
+              [COUNTER_CRIT]: { before: 0, after: 1 },
+              [COUNTER_OTHER]: { before: 0, after: 5 },
+            },
+          },
+        },
+      },
+    });
+
+    const next = applyStateDelta(withOne, {
+      units: {
+        [UNIT_A]: {
+          skillCounters: {
+            [skillDefinitionId]: { [COUNTER_CRIT]: { before: 1, after: undefined } },
+          },
+        },
+      },
+    });
+
+    expect(next.units[UNIT_A]!.skillCounters).toEqual({
+      [skillDefinitionId]: { [COUNTER_OTHER]: 5 },
+    });
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        next.units[UNIT_A]!.skillCounters![skillDefinitionId],
+        COUNTER_CRIT,
+      ),
+    ).toBe(false);
+  });
+
+  it("UT-STATE-REDUCER-026 (review re-fix [P1]): a counter re-created after being deleted validates its before against 0 again (the deletion is not distinguishable from never having existed)", () => {
+    const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
+    const withOne = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          skillCounters: { [skillDefinitionId]: { [COUNTER_CRIT]: { before: 0, after: 1 } } },
+        },
+      },
+    });
+    const afterReset = applyStateDelta(withOne, {
+      units: {
+        [UNIT_A]: {
+          skillCounters: {
+            [skillDefinitionId]: { [COUNTER_CRIT]: { before: 1, after: undefined } },
+          },
+        },
+      },
+    });
+
+    const next = applyStateDelta(afterReset, {
+      units: {
+        [UNIT_A]: {
+          skillCounters: { [skillDefinitionId]: { [COUNTER_CRIT]: { before: 0, after: 1 } } },
+        },
+      },
+    });
+
+    expect(next.units[UNIT_A]!.skillCounters).toEqual({
+      [skillDefinitionId]: { [COUNTER_CRIT]: 1 },
     });
   });
 });

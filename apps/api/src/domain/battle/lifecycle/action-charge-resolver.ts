@@ -249,7 +249,7 @@ export function resolveChargeRelease(
     // `ActionCompleting`が所有する（下記`closingStateDelta`）。
   });
 
-  applyEffectActionGroups(plan, working, {
+  working = applyEffectActionGroups(plan, working, {
     definitions,
     actorId,
     random,
@@ -264,12 +264,7 @@ export function resolveChargeRelease(
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, unitsForChain) =>
       passiveRuntime.onFactEvent(event, unitsForChain),
-  });
-  // レビュー指摘[P2]: この行動専用の解決スコープが終わるたびに、
-  // `resetScope: "RESOLUTION_SCOPE"`のcounterを破棄・`RuntimeCounterReset`発行する。
-  // `onFactEventForPassiveChain`が毎yieldで`passiveRuntime`をfull unitsで同期
-  // 済みのため、`finalizeResolutionScope()`の戻り値が効果解決後の最新状態となる。
-  working = passiveRuntime.finalizeResolutionScope();
+  }).units;
 
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
   // （とPS解決、M6）の後（M5レビュー2巡目[P2]: 内部の`working`だけでなく、公開
@@ -312,9 +307,16 @@ export function resolveChargeRelease(
       },
     },
   );
+  // レビュー指摘再レビュー[P2]: `06_戦闘状態遷移.md`のCOMPLETING順序では
+  // `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
+  // `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
+  // `RuntimeCounterReset`発行）は`recordActionCompletion`（チャージ終了・
+  // Cooldown減算含む）より後で、その最終`units`を同期してから呼び出す。
+  passiveRuntime.syncUnits(completion.units);
+  const finalUnits = passiveRuntime.finalizeResolutionScope();
 
   return {
-    units: completion.units,
+    units: finalUnits,
     actionScope,
     rootEventId: actionStarted.eventId,
     completedEventId: completion.completedEventId,

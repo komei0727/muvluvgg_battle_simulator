@@ -26,6 +26,8 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { applyStateDelta } from "./state-delta-reducer.js";
+import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -1257,12 +1259,36 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       skillDefinitionId: skill.skillDefinitionId,
       before: 1,
     });
+    // レビュー再レビュー[P1]: `after: 0`ではなく`undefined`（キー自体の削除）。
     expect(reset.stateDelta).toEqual({
       units: {
         [owner.battleUnitId]: {
-          skillCounters: { [skill.skillDefinitionId]: { [counterId]: { before: 1, after: 0 } } },
+          skillCounters: {
+            [skill.skillDefinitionId]: { [counterId]: { before: 1, after: undefined } },
+          },
         },
       },
+    });
+
+    // レビュー再レビュー[P1]: `reset.stateDelta`だけから独立Reducerで復元した
+    // 状態が、実状態（`resetRuntimeCounter`がキーを削除した後の`ownerAfterFinalize`）
+    // と同じ形（`{}`、`{ counter: 0 }`ではない）になること。
+    const initialSnapshot: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: 1,
+      units: {
+        [owner.battleUnitId]: {
+          hp: owner.currentHp,
+          ap: owner.currentAp,
+          pp: owner.currentPp,
+          extraGauge: owner.currentExtraGauge,
+          skillCounters: { [skill.skillDefinitionId]: { [counterId]: 1 } },
+        },
+      },
+    };
+    const reconstructed = applyStateDelta(initialSnapshot, reset.stateDelta!);
+    expect(reconstructed.units[owner.battleUnitId]!.skillCounters).toEqual({
+      [skill.skillDefinitionId]: {},
     });
 
     // Calling it again is a stable no-op: nothing left to reset, no duplicate event.
@@ -1274,5 +1300,84 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       .getEvents()
       .filter((e) => e.eventType === "RuntimeCounterReset").length;
     expect(resetEventsAfter).toBe(resetEventsBefore);
+  });
+
+  it("UT-R-EFF-11-003 (review re-fix [P1]): a resetScope counter whose own counterUpdates re-triggers on the RuntimeCounterReset it causes makes finalizeResolutionScope throw a deterministic error instead of looping forever", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESET_LOOP_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SELF_REGEN");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_RESET_LOOP"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+        {
+          // このcounterの再生成契機が、自身がRESOLUTION_SCOPE終了時に発行する
+          // `RuntimeCounterReset`自身になっている（悪意/誤りのあるCatalog定義）。
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "RuntimeCounterReset",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_RESET_LOOP", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+    runtime.onFactEvent(turnStarted, [owner]);
+
+    expect(() => runtime.finalizeResolutionScope()).toThrow(
+      /exceeded .* discard\/emit\/resolve rounds/,
+    );
   });
 });

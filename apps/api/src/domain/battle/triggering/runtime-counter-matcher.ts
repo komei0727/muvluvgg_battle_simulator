@@ -158,6 +158,7 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
           );
         }
         const existingCounters = currentOwner.skillCounters?.[skillId] ?? {};
+        const carryBefore = existingCounters[update.counter]?.carry ?? 0;
         const applied = applyUpdate(update, existingCounters, currentOwner, event);
         // レビュー指摘[P1]: 閾値未到達（value不変）でも`applied.counters`の`carry`
         // （繰り越し端数）は必ず`workingUnits`へ反映する。ここで`continue`すると
@@ -170,7 +171,11 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
         workingUnits = workingUnits.map((u) =>
           u.battleUnitId === updatedOwner.battleUnitId ? updatedOwner : u,
         );
-        if (applied.before === applied.after) {
+        // レビュー指摘[P2]: `value`(公開値)が変わらなくても`carry`(内部端数)が
+        // 変化した場合は`RuntimeCounterChanged`を発行する。ここで完全に
+        // skipすると、可変状態(carry)が変化したこと自体がイベント列から
+        // 追跡できなくなる（対象3スキルでは閾値未到達ヒットの方が通常経路）。
+        if (applied.before === applied.after && applied.carry === carryBefore) {
           continue;
         }
         changes.push({

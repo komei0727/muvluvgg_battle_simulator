@@ -306,10 +306,7 @@ export function resolveSkillUse(
             targetUnitIds,
           },
         });
-  passiveRuntime.onFactEvent(skillUseCompleted, working);
-  // レビュー指摘[P2]: この行動専用の解決スコープが終わるたびに、
-  // `resetScope: "RESOLUTION_SCOPE"`のcounterを破棄・`RuntimeCounterReset`発行する。
-  working = passiveRuntime.finalizeResolutionScope();
+  working = passiveRuntime.onFactEvent(skillUseCompleted, working);
 
   const completion = recordActionCompletion(
     recorder,
@@ -325,9 +322,16 @@ export function resolveSkillUse(
     skillUseCompleted.eventId,
     working,
   );
+  // レビュー指摘再レビュー[P2]: `06_戦闘状態遷移.md`のCOMPLETING順序では
+  // `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
+  // `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
+  // `RuntimeCounterReset`発行）は`recordActionCompletion`（Cooldown減算含む）
+  // より後で、その最終`units`を同期してから呼び出す。
+  passiveRuntime.syncUnits(completion.units);
+  const finalUnits = passiveRuntime.finalizeResolutionScope();
 
   return {
-    units: completion.units,
+    units: finalUnits,
     actionScope,
     rootEventId: actionStarted.eventId,
     completedEventId: completion.completedEventId,
