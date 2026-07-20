@@ -28,6 +28,7 @@ import type { EffectActionDefinition } from "../../catalog/definitions/effect-ac
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { applyStateDelta } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
+import { ExecutionGuardExceededError } from "../../shared/errors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -278,6 +279,17 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(resourceChanged.map((e) => e.payload.resource)).toEqual(["PP", "EX_GAUGE"]);
     expect(resourceChanged[0]!.payload).toMatchObject({ before: 3, after: 1, delta: -2 });
     expect(resourceChanged[1]!.payload).toMatchObject({ before: 0, after: 2, delta: 2 });
+
+    // レビュー指摘[P2]: PSも一つのSkillUseのため、この発動に属する全イベント
+    // (リソース消費・Cooldown設定・PassiveActivated・PassiveResolved)は同じ
+    // skillUseIdを共有し、かつTurnStarted(このPSの原因イベント、PSのSkillUse
+    // ではない)にはskillUseIdが無いはずである。
+    const skillUseIds = events
+      .filter((e) => e.eventType !== "TurnStarted")
+      .map((e) => e.skillUseId);
+    expect(skillUseIds.every((id) => id !== undefined)).toBe(true);
+    expect(new Set(skillUseIds).size).toBe(1);
+    expect(events.find((e) => e.eventType === "TurnStarted")!.skillUseId).toBeUndefined();
   });
 
   it("UT-R-PS-05-002: clamps the EX gain at the max and emits ExtraGaugeOverflowDiscarded with the requested/actual/discarded split", () => {
@@ -1704,5 +1716,387 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       extraGauge: finalOwner.currentExtraGauge,
       skillCounters: { [skill.skillDefinitionId]: {} },
     });
+  });
+
+  it("review fix [P1]: PassiveResolved now reaches PS candidate detection, so another PS reacting to 'an ally's PS resolved' activates in the same resolution scope", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESOLVED_REACT_OWNER");
+    const skillA = passiveSkillOf("SKL_PS_RESOLVED_A", { ppCost: 1 });
+    const skillB: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_RESOLVED_B"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "PassiveResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: skillA.skillDefinitionId,
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_RESOLVED_B", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          unitDefinitionId,
+          unitDefinitionOf(unitDefinitionId, [skillA.skillDefinitionId, skillB.skillDefinitionId]),
+        ],
+      ]),
+      new Map([
+        [skillA.skillDefinitionId, skillA],
+        [skillB.skillDefinitionId, skillB],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    runtime.onFactEvent(turnStarted, [owner]);
+
+    const events = recorder.getEvents();
+    const resolvedEvents = events.filter((e) => e.eventType === "PassiveResolved");
+    expect(resolvedEvents.map((e) => e.payload.skillDefinitionId)).toEqual([
+      skillA.skillDefinitionId,
+      skillB.skillDefinitionId,
+    ]);
+    const activatedEvents = events.filter((e) => e.eventType === "PassiveActivated");
+    expect(activatedEvents.map((e) => e.payload.skillDefinitionId)).toEqual([
+      skillA.skillDefinitionId,
+      skillB.skillDefinitionId,
+    ]);
+  });
+
+  it("review fix [P1]: PassiveInterrupted now reaches PS candidate detection, so another unit's PS reacting to it activates", () => {
+    const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_INTERRUPTED_OWNER");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE_INTERRUPT");
+    const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE_INTERRUPT");
+    const enemyBindingId = createTargetBindingId("TGT_ENEMY_INTERRUPT");
+    const skillA = passiveSkillOf("SKL_BACKLASH_INTERRUPT", {
+      ppCost: 1,
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        // 1段目で自爆し使用者(PS所有者)が戦闘不能になるため、2段目は未解決のまま
+        // 打ち切られる(UT-R-SKL-01-001と同じ設定)。1段しかないと打ち切られる
+        // 残り効果が0件になり`PassiveInterrupted`ではなく`PassiveResolved`が
+        // 発行されてしまう。
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    });
+    const watcherUnitDefinitionId = createUnitDefinitionId("UNIT_PS_INTERRUPTED_WATCHER");
+    const skillB: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_INTERRUPTED_WATCHER"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "PassiveInterrupted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: skillA.skillDefinitionId,
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_INTERRUPTED_WATCHER", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId: ownerUnitDefinitionId,
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      currentPp: 3,
+    });
+    const watcher = unit("WATCHER", "ALLY", {
+      unitDefinitionId: watcherUnitDefinitionId,
+      currentPp: 3,
+    });
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_PS_INTERRUPTED_ENEMY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      currentHp: 100,
+      maximumHp: 100,
+      unitDefinitionId: enemyUnitDefinitionId,
+    });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          ownerUnitDefinitionId,
+          unitDefinitionOf(ownerUnitDefinitionId, [skillA.skillDefinitionId]),
+        ],
+        [
+          watcherUnitDefinitionId,
+          unitDefinitionOf(watcherUnitDefinitionId, [skillB.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([
+        [skillA.skillDefinitionId, skillA],
+        [skillB.skillDefinitionId, skillB],
+      ]),
+      new Map([
+        [selfDamage.effectActionDefinitionId, selfDamage],
+        [enemyDamage.effectActionDefinitionId, enemyDamage],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner, watcher, enemy],
+    );
+
+    runtime.onFactEvent(turnStarted, [owner, watcher, enemy]);
+
+    const events = recorder.getEvents();
+    expect(events.some((e) => e.eventType === "PassiveInterrupted")).toBe(true);
+    const activatedEvents = events.filter((e) => e.eventType === "PassiveActivated");
+    expect(activatedEvents.map((e) => e.payload.skillDefinitionId)).toEqual([
+      skillA.skillDefinitionId,
+      skillB.skillDefinitionId,
+    ]);
+  });
+
+  it("review fix [P2]: multiple RuntimeCounter updates caused by the same event are applied one at a time — a PS reacting to the first RuntimeCounterChanged cannot observe a second counter's not-yet-emitted value", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_SEQUENTIAL_COUNTERS_OWNER");
+    const counterA = createRuntimeCounterId("RUNTIME_COUNTER_SEQ_A");
+    const counterB = createRuntimeCounterId("RUNTIME_COUNTER_SEQ_B");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_SEQUENTIAL_COUNTERS"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      // レビュー指摘[P2]の再現条件: 修正前は`counterA`の変化に反応する候補解決の
+      // 時点で`counterB`（後続counter）が既に更新済みだったため、この
+      // RUNTIME_COUNTER条件（`counterB == 0`）が偽になり発動しなかった。
+      activationCondition: { kind: "RUNTIME_COUNTER", counter: counterB, op: "EQ", value: 0 },
+      triggers: [
+        {
+          eventType: "RuntimeCounterChanged",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterA },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterA,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+        {
+          kind: "INCREMENT",
+          counter: counterB,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_SEQUENTIAL_COUNTERS", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+
+    const counterChangedEvents = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterChanged");
+    expect(counterChangedEvents.map((e) => e.payload.counter)).toEqual([counterA, counterB]);
+
+    // The PS reacting to counterA's change activated, proving its RUNTIME_COUNTER
+    // condition observed counterB still at 0 (not yet emitted) at that moment.
+    const activatedEvents = recorder.getEvents().filter((e) => e.eventType === "PassiveActivated");
+    expect(activatedEvents).toHaveLength(1);
+    expect(activatedEvents[0]?.payload.skillDefinitionId).toBe(skill.skillDefinitionId);
+
+    const finalOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(finalOwner.skillCounters?.[skill.skillDefinitionId]).toEqual({
+      [counterA]: { value: 1, carry: 0 },
+      [counterB]: { value: 1, carry: 0 },
+    });
+  });
+
+  it("review fix [P2]: a counterUpdates definition that re-triggers itself from the RuntimeCounterChanged it causes throws a deterministic ExecutionGuardExceededError instead of recursing forever", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_COUNTER_SELF_REGEN_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SELF_REGEN_ONFACTEVENT");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_COUNTER_SELF_REGEN"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+        {
+          // このcounterの再更新契機が、自身の変化で発行される
+          // `RuntimeCounterChanged`自身になっている（悪意/誤りのあるCatalog定義）。
+          // 毎回`value`が変化する(INCREMENT)ため、この`RuntimeCounterChanged`は
+          // 自分自身の条件にも一致し続け、`onFactEvent`が無限に再帰する。
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "RuntimeCounterChanged",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterId },
+          },
+          amount: 1,
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_COUNTER_SELF_REGEN", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    let caught: unknown;
+    try {
+      runtime.onFactEvent(turnStarted, [owner]);
+    } catch (error) {
+      caught = error;
+    }
+    // レビュー指摘[P1]: 実行ガード超過は`DomainValidationError`
+    // （`INVALID_COMMAND`/HTTP422へ変換される）ではなく、専用の
+    // `ExecutionGuardExceededError`（`EXECUTION_LIMIT_EXCEEDED`/HTTP503）でなければ
+    // ならない。
+    expect(caught).toBeInstanceOf(ExecutionGuardExceededError);
+    expect((caught as Error).message).toMatch(/self-triggering recursion exceeded/);
   });
 });

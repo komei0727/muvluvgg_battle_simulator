@@ -4,7 +4,12 @@ import {
   startCooldown,
   type CooldownMap,
 } from "../model/cooldown-state.js";
-import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
+import type {
+  ActionId,
+  DomainEventId,
+  ResolutionScopeId,
+  SkillUseId,
+} from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { StateDelta } from "../events/state-delta.js";
@@ -168,6 +173,8 @@ interface CooldownStartContext {
   readonly cycleNumber: number;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly actorId: BattleUnitId;
+  /** レビュー指摘[P2]: 同じSkillUseに属するイベントは同じSkillUseIdを持つ契約（PSも1つのSkillUse）。呼び出し側が採番済みの場合だけ渡す。 */
+  readonly skillUseId?: SkillUseId;
 }
 
 interface CooldownStartResult {
@@ -214,6 +221,7 @@ export function recordCooldownStart(
     turnNumber: context.turnNumber,
     cycleNumber: context.cycleNumber,
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId,

@@ -12,6 +12,7 @@ import {
   createCapabilityId,
   createEffectActionDefinitionId,
   createMemoryDefinitionId,
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
@@ -832,5 +833,93 @@ describe("SimulateBattleUseCase", () => {
     // +1 from the PS's own activation, then +1 per subsequent mandatory WAIT
     // in the defender's own action phase (maximumAp 3, no active skill, R-ACT-03).
     expect(finalState.units[defenderUnitId]!.extraGauge).toBe(4);
+  });
+
+  it("review fix [P1]: a RuntimeCounter execution-guard breach surfaces as EXECUTION_LIMIT_EXCEEDED (HTTP 503), not INVALID_COMMAND (HTTP 422)", () => {
+    const passiveSkillId = "SKL_PS_COUNTER_SELF_REGEN_E2E";
+    const counterId = "RUNTIME_COUNTER_SELF_REGEN_E2E";
+    const psUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_PS_COUNTER_LOOP"),
+      passiveSkillDefinitionIds: [createSkillDefinitionId(passiveSkillId)],
+    };
+    // このユニットのcounterUpdatesは`TurnStarted`で初回発火し、以後は自身が
+    // 発行する`RuntimeCounterChanged`を契機に再更新し続ける（悪意/誤りのある
+    // Catalog定義）。PS自体のtriggersは空のため、活動履歴とは無関係に
+    // `onFactEvent`の再帰だけが無限に続く（レビュー指摘[P2]の再現、
+    // 実行ガードで検出されることの確認）。
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId(passiveSkillId),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: createRuntimeCounterId(counterId),
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+        {
+          kind: "INCREMENT",
+          counter: createRuntimeCounterId(counterId),
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "RuntimeCounterChanged",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterId },
+          },
+          amount: 1,
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: passiveSkillId, tags: [] },
+    };
+    const units = new Map([
+      [createUnitDefinitionId("UNIT_PS_COUNTER_LOOP"), psUnit],
+      [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
+    ]);
+    const skills = new Map([...EX_SKILLS, [createSkillDefinitionId(passiveSkillId), passiveSkill]]);
+    const catalog = new FakeBattleCatalog(units, new Map(), new Map(), "rev-1", skills);
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+      clock: new ManualClock(0),
+    });
+
+    let caught: unknown;
+    try {
+      useCase.execute(
+        command({
+          allyFormation: { slots: [slot("UNIT_PS_COUNTER_LOOP", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [slot("UNIT_001", 0)], memoryDefinitionIds: [] },
+          turnLimit: 1,
+        }),
+        testContext(),
+      );
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ApplicationError);
+    expect((caught as ApplicationError).code).toBe("EXECUTION_LIMIT_EXCEEDED");
   });
 });

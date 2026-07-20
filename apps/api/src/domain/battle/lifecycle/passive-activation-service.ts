@@ -17,9 +17,14 @@ import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
+import type {
+  ActionId,
+  DomainEventId,
+  ResolutionScopeId,
+  SkillUseId,
+} from "../../shared/event-ids.js";
 import type { RandomSource } from "../../ports/random-source.js";
-import { DomainValidationError } from "../../shared/errors.js";
+import { DomainValidationError, ExecutionGuardExceededError } from "../../shared/errors.js";
 import { detectPassiveCandidates } from "../triggering/passive-trigger-matcher.js";
 import {
   collectResolutionScopeResets,
@@ -61,6 +66,17 @@ export const DEFAULT_PASSIVE_CHAIN_LIMITS: PassiveChainLimits = {
  */
 const MAX_RESOLUTION_SCOPE_RESET_ROUNDS = 10;
 
+/**
+ * `onFactEvent`が自身の`RuntimeCounterChanged`を再帰的に候補解決へ回す深さの上限
+ * （レビュー指摘[P2]、M6完了条件「実行ガードがPS深度とイベント数を監視する」
+ * 13_実装計画.md参照）。`RuntimeCounterChanged`を自身の`counterUpdates.trigger`に
+ * 持つCatalog定義は、更新→発行→候補解決の都度また同じcounterを更新しうるため、
+ * この再帰は`PassiveChainLimits`（1解決スコープ単位のPS深度・効果解決数）にも
+ * `EventRecorder`の総イベント数Guardにも到達する前にJSの呼び出しスタックを
+ * 使い尽くしうる。決定的な`ExecutionGuardExceededError`として早期に検出する。
+ */
+const MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH = 10;
+
 /** `PassiveActivationRuntime`が1解決スコープ分の発動処理を行うために必要な依存。 */
 export interface PassiveActivationRuntimeContext {
   readonly definitions: BattleDefinitions;
@@ -84,6 +100,7 @@ export interface PassiveActivationRuntimeContext {
 
 function toResourceChangeContext(
   context: PassiveActivationRuntimeContext,
+  skillUseId?: SkillUseId,
 ): ResourceChangeRecordContext {
   return {
     recorder: context.recorder,
@@ -92,6 +109,7 @@ function toResourceChangeContext(
     resolutionScopeId: context.resolutionScopeId,
     rootEventId: context.rootEventId,
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(skillUseId !== undefined ? { skillUseId } : {}),
   };
 }
 
@@ -180,14 +198,27 @@ export class PassiveActivationRuntime {
   /**
    * `08_ドメインイベント.md`「イベント発行と処理」#3（M6最小実装、Issue #143）:
    * 原因イベントに起因する`RuntimeCounter`更新（`counterUpdates`、`SKILL_RUNTIME`
-   * スコープ）を検出し、`RuntimeCounterChanged`を発行する。`this.units`を更新
-   * するだけで、発行したイベントの候補解決は呼び出し側の責務とする
-   * （`state.guard`/stackを共有できるかどうかは呼び出し元のコンテキストに
-   * 依存するため、ここではguardに触れない — レビュー指摘[P1]参照）。
+   * スコープ）を検出し、`RuntimeCounterChanged`を発行する。発行したイベントの
+   * 候補解決は呼び出し側の責務とする（`state.guard`/stackを共有できるかどうかは
+   * 呼び出し元のコンテキストに依存するため、ここではguardに触れない —
+   * レビュー指摘[P1]参照）。
+   *
+   * レビュー指摘[P2]: 同一原因イベントで複数counterが変化する場合、対象は
+   * `detectRuntimeCounterUpdates`が原因イベント時点の`this.units`から決定論的に
+   * 一括算出する（`R-EFF-11`の確定順）が、`this.units`への反映自体は1件ずつ
+   * 行う — このメソッドをgeneratorにし、1件`record`するたびに`yield`して
+   * 呼び出し側へ制御を返す。呼び出し側（`onFactEvent`の再帰呼び出し／
+   * `activatePassiveCandidate`の`TIMING_EVENT`）が`for...of`でその候補解決を
+   * 終えてから次の`.next()`を呼ぶため、後続counterの`this.units`反映は先行する
+   * counterの候補解決が完了した後になる。全件をまとめて`this.units`へ反映して
+   * から全イベントを発行すると、最初の`RuntimeCounterChanged`に反応する候補が、
+   * まだ自身のイベントを発行していない後続counterの値まで観測できてしまう
+   * （修正前の不具合）。
    */
-  private detectAndRecordRuntimeCounterChanges(
+  private *detectAndRecordRuntimeCounterChanges(
     causingEvent: BattleDomainEvent,
-  ): readonly BattleDomainEvent[] {
+    skillUseId?: SkillUseId,
+  ): Generator<BattleDomainEvent, void, unknown> {
     const triggerEvent = this.toTriggerEvent(causingEvent);
     const counterUpdate = detectRuntimeCounterUpdates({
       event: triggerEvent,
@@ -195,15 +226,30 @@ export class PassiveActivationRuntime {
       unitDefinitions: this.context.definitions.unitDefinitions,
       skillDefinitions: this.context.definitions.skillDefinitions,
     });
-    this.units = counterUpdate.units;
-    return counterUpdate.changes.map((change) => {
+    for (const change of counterUpdate.changes) {
+      const owner = requireUnit(this.units, change.ownerUnitId);
+      const updatedOwner: BattleUnit = {
+        ...owner,
+        skillCounters: {
+          ...owner.skillCounters,
+          [change.skillDefinitionId]: {
+            ...owner.skillCounters?.[change.skillDefinitionId],
+            [change.counter]: { value: change.after, carry: change.carry },
+          },
+        },
+      };
+      this.units = this.units.map((u) =>
+        u.battleUnitId === updatedOwner.battleUnitId ? updatedOwner : u,
+      );
+
       const carryChanged = change.carry !== change.carryBefore;
-      return this.context.recorder.record({
+      const recorded = this.context.recorder.record({
         eventType: "RuntimeCounterChanged",
         category: "FACT",
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        ...(skillUseId !== undefined ? { skillUseId } : {}),
         resolutionScopeId: this.context.resolutionScopeId,
         parentEventId: causingEvent.eventId,
         rootEventId: this.context.rootEventId,
@@ -258,7 +304,8 @@ export class PassiveActivationRuntime {
           },
         },
       });
-    });
+      yield recorded;
+    }
   }
 
   /**
@@ -273,19 +320,27 @@ export class PassiveActivationRuntime {
    * そのような文脈では代わりに`PassiveActivationStep`を`yield`し、進行中の
    * `driveActivation`が共有する`state`（guard/stack）へ正しく参加させること。
    */
-  onFactEvent(event: BattleDomainEvent, units: readonly BattleUnit[]): readonly BattleUnit[] {
+  onFactEvent(
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+    counterUpdateDepth = 0,
+  ): readonly BattleUnit[] {
     this.units = units;
     const triggerEvent = this.toTriggerEvent(event);
 
-    const runtimeCounterChanges = this.detectAndRecordRuntimeCounterChanges(event);
-    for (const recorded of runtimeCounterChanges) {
-      this.units = this.onFactEvent(recorded, this.units);
+    const nextDepth = counterUpdateDepth + 1;
+    for (const recorded of this.detectAndRecordRuntimeCounterChanges(event)) {
+      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+        throw new ExecutionGuardExceededError(
+          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+        );
+      }
+      this.units = this.onFactEvent(recorded, this.units, nextDepth);
     }
 
     const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
     if (!result.ok) {
-      throw new DomainValidationError(
-        "resolvePassiveChain",
+      throw new ExecutionGuardExceededError(
         `PS chain resolution exceeded its execution guard: ${result.reason}`,
       );
     }
@@ -326,8 +381,7 @@ export class PassiveActivationRuntime {
       }
       round += 1;
       if (round > MAX_RESOLUTION_SCOPE_RESET_ROUNDS) {
-        throw new DomainValidationError(
-          "counterUpdates",
+        throw new ExecutionGuardExceededError(
           `finalizeResolutionScope exceeded ${MAX_RESOLUTION_SCOPE_RESET_ROUNDS} discard/emit/resolve rounds; a counterUpdates definition likely re-triggers its own resetScope: RESOLUTION_SCOPE counter from the RuntimeCounterReset event it causes (infinite regeneration)`,
         );
       }
@@ -408,7 +462,15 @@ export class PassiveActivationRuntime {
     const skill = candidate.skillDefinition;
     const ownerId = candidate.unit.battleUnitId;
     const triggerEventId = this.eventIdOf(event);
-    const resourceCtx = toResourceChangeContext(this.context);
+    // レビュー指摘[P2]: PSも一つのSkillUse（`08_ドメインイベント.md`「同じ
+    // SkillUseIdに属するイベントを関連づける。PSも一つのスキル使用として新しい
+    // SkillUseIdを持つ」）。以前はEffectSequence解決直前(旧`skillUseId`採番位置)
+    // でしか採番しておらず、それより前に発行するリソース・Cooldown・
+    // `PassiveActivated`／終了後の`PassiveResolved`/`PassiveInterrupted`に
+    // SkillUseIdが付かなかった。PS発動開始時点で採番し、このPSに属する全イベント
+    // （終了イベントまで）へ伝播させる。
+    const skillUseId = this.context.recorder.nextSkillUseId();
+    const resourceCtx = toResourceChangeContext(this.context, skillUseId);
 
     // R-PS-05 #2: PPを消費し、消費量と同量だけEXゲージを増やす（R-ACT-03/超過切り捨て）。
     const ownerBefore = requireUnit(this.units, ownerId);
@@ -431,6 +493,7 @@ export class PassiveActivationRuntime {
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId,
         resolutionScopeId: this.context.resolutionScopeId,
         parentEventId: lastEventId,
         rootEventId: this.context.rootEventId,
@@ -465,6 +528,7 @@ export class PassiveActivationRuntime {
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId,
         resolutionScopeId: this.context.resolutionScopeId,
         parentEventId: lastEventId,
         rootEventId: this.context.rootEventId,
@@ -494,6 +558,7 @@ export class PassiveActivationRuntime {
       this.context.recorder,
       {
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId,
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         resolutionScopeId: this.context.resolutionScopeId,
@@ -516,6 +581,7 @@ export class PassiveActivationRuntime {
       turnNumber: this.context.turnNumber,
       cycleNumber: this.context.cycleNumber,
       ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      skillUseId,
       resolutionScopeId: this.context.resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId: this.context.rootEventId,
@@ -542,7 +608,10 @@ export class PassiveActivationRuntime {
     // yieldして進行中の`driveActivation`が共有する`state`へ正しく参加させる
     // （`RuntimeCounterChanged`→`PassiveActivated`の順。前者の候補解決を後者より
     // 先に完了させる「複合処理と状態差分の所有」のpre-matching例外と同じ順序）。
-    const runtimeCounterChanges = this.detectAndRecordRuntimeCounterChanges(passiveActivated);
+    const runtimeCounterChanges = this.detectAndRecordRuntimeCounterChanges(
+      passiveActivated,
+      skillUseId,
+    );
     for (const changed of runtimeCounterChanges) {
       yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
       lastEventId = changed.eventId;
@@ -578,7 +647,6 @@ export class PassiveActivationRuntime {
     // （PassiveResolutionStack・深度Guard・効果解決数Guard）へ正しく参加し、
     // 各EffectAction/step境界で子PS連鎖を完全に解決してから次へ進むように
     // なる。
-    const skillUseId = this.context.recorder.nextSkillUseId();
     const groupContext: EffectActionGroupContext = {
       definitions: this.context.definitions,
       actorId: ownerId,
@@ -632,13 +700,15 @@ export class PassiveActivationRuntime {
     const interrupted = interruptedCount > 0;
     const resolvedStepCount =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0;
+    let terminalEvent: BattleDomainEvent;
     if (interrupted) {
-      this.context.recorder.record({
+      terminalEvent = this.context.recorder.record({
         eventType: "PassiveInterrupted",
         category: "FACT",
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId,
         resolutionScopeId: this.context.resolutionScopeId,
         parentEventId: lastEventId,
         rootEventId: this.context.rootEventId,
@@ -651,12 +721,13 @@ export class PassiveActivationRuntime {
         },
       });
     } else {
-      this.context.recorder.record({
+      terminalEvent = this.context.recorder.record({
         eventType: "PassiveResolved",
         category: "FACT",
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId,
         resolutionScopeId: this.context.resolutionScopeId,
         parentEventId: lastEventId,
         rootEventId: this.context.rootEventId,
@@ -668,6 +739,19 @@ export class PassiveActivationRuntime {
         },
       });
     }
+    // レビュー指摘[P1]: `PassiveActivated`と同じ理由（544行目付近）で、
+    // `PassiveResolved`/`PassiveInterrupted`もPS発動契機にできる契約
+    // （08_ドメインイベント.md「同じSkillUseIdに属するイベント」節、
+    // 「味方のPS解決後」を条件とするPS等）を満たすため、TIMING_EVENTとして
+    // yieldし進行中の`driveActivation`が共有するstateへ候補解決させる。
+    const terminalCounterChanges = this.detectAndRecordRuntimeCounterChanges(
+      terminalEvent,
+      skillUseId,
+    );
+    for (const changed of terminalCounterChanges) {
+      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
+    }
+    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
 
     return { interrupted };
   }

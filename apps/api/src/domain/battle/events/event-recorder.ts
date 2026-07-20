@@ -17,6 +17,17 @@ import {
 import type { StateDelta } from "./state-delta.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
+import { ExecutionGuardExceededError } from "../../shared/errors.js";
+
+/**
+ * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の「発行イベント総数」
+ * 上限の暫定既定値（M9で設定可能にするまでの固定値、レビュー指摘[P2]）。
+ * PS深度・効果解決数Guardは1解決スコープ単位でしか働かないため、
+ * `RuntimeCounterChanged`を自身の更新契機にするCatalog定義（`PassiveActivationRuntime`
+ * 側にも専用の再帰深度Guardを設けている）のような、複数解決スコープにまたがる
+ * 想定外のイベント量産をBattle全体で捕捉する最終防衛線として機能する。
+ */
+export const DEFAULT_MAX_TOTAL_EVENTS = 20_000;
 
 export interface RecordEventInput<Type extends BattleDomainEventType> {
   readonly eventType: Type;
@@ -49,9 +60,11 @@ export class EventRecorder {
   private skillUseCounter = 0;
   private scopeCounter = 0;
   private readonly recordedEvents: BattleDomainEvent[] = [];
+  private readonly maxTotalEvents: number;
 
-  constructor(battleId: BattleId) {
+  constructor(battleId: BattleId, maxTotalEvents: number = DEFAULT_MAX_TOTAL_EVENTS) {
     this.battleId = battleId;
+    this.maxTotalEvents = maxTotalEvents;
   }
 
   /** `08_ドメインイベント.md`「resolutionScopeId」: ユニット行動ではActionIdと対応する。 */
@@ -79,6 +92,11 @@ export class EventRecorder {
   record<Type extends BattleDomainEventType>(
     input: RecordEventInput<Type>,
   ): Extract<BattleDomainEvent, { eventType: Type }> {
+    if (this.recordedEvents.length >= this.maxTotalEvents) {
+      throw new ExecutionGuardExceededError(
+        `event recording exceeded the SimulationExecutionGuard total-event limit (${this.maxTotalEvents}) for this battle`,
+      );
+    }
     this.sequenceCounter += 1;
     const eventId = createDomainEventId(`${this.battleId}:${this.sequenceCounter}`);
     const stateVersionBefore = this.stateVersionCounter;
