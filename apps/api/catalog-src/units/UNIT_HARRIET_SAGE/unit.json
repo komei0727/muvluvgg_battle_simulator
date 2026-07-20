@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_HARRIET_SAGE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],
     "displayName": "【憎まれ口の大賢者】ハリエット・ミルズ",
     "characterName": "ハリエット・ミルズ",

@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_SIENA_OFFSTAGE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【舞台を降りた元歌姫】シエナ・クラーク",
     "characterName": "シエナ・クラーク",

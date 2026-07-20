@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_LILY_SINGER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_FUUKI_IINKAI"],
     "tags": [],
     "displayName": "【想い響かせるヒーローシンガー】リリー・ラヴォア",
     "characterName": "リリー・ラヴォア",

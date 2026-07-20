@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_YURIA_YUKATA_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【はだけるわんぱく浴衣】ユリア・バーンズ",
     "characterName": "ユリア・バーンズ",

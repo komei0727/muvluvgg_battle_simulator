@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_FLUTE_VAMPIRE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【＃激カワ吸血鬼配信者♪】フルート・メルヴィル",
     "characterName": "フルート・メルヴィル",

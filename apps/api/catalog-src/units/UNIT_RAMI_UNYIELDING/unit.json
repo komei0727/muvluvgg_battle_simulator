@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_RAMI_UNYIELDING_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],
     "displayName": "【負けず嫌いな不屈少女】朽葉ラミ",
     "characterName": "朽葉ラミ",

@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_CLARA_TSUNDERE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],
     "displayName": "【正々堂々なミス・ツンデレ】綺羅クララ",
     "characterName": "綺羅クララ",

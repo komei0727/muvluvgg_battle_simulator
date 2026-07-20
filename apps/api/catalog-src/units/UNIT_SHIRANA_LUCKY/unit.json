@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_SHIRANA_LUCKY_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],
     "displayName": "【純白のラッキーガール】一条白奈",
     "characterName": "一条白奈",

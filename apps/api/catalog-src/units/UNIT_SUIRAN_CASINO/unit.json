@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_SUIRAN_CASINO_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【恥じらうカジノラビット】劉翠蘭",
     "characterName": "劉翠蘭",

@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_KOKORO_SPORTSDAY_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PRE_KURASU_A"],
     "tags": [],
     "displayName": "【体育祭のサポート役】樋向心香",
     "characterName": "樋向心香",

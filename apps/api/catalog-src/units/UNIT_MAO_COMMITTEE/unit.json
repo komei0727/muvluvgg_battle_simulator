@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_MAO_COMMITTEE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_FUUKI_IINKAI"],
     "tags": [],
     "displayName": "【ポンコツいいんちょ】大賀真桜",
     "characterName": "大賀真桜",

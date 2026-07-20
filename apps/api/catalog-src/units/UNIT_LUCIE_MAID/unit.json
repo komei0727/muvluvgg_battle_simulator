@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_LUCIE_MAID_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],
     "displayName": "【忠義の狂犬メイド】リュシー・ムーアクロフト",
     "characterName": "リュシー・ムーアクロフト",

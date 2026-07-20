@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_CHIYURU_MAZE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],
     "displayName": "【博識なメイズの探求者】月ヶ瀬ちゆる",
     "characterName": "月ヶ瀬ちゆる",

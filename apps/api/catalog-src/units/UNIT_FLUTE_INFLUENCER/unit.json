@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【ギャルインフルエンサー】フルート・メルヴィル",
     "characterName": "フルート・メルヴィル",

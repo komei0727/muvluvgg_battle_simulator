@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_SENKA_CHRISTMAS_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],
     "displayName": "【クリスマスコーデの参謀】姫川泉花",
     "characterName": "姫川泉花",

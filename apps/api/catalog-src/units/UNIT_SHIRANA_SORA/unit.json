@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_SHIRANA_SORA_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],
     "displayName": "【期待応える輝きの穹】一条白奈",
     "characterName": "一条白奈",

@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_LUCIE_COMPANION_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],
     "displayName": "【連れ添い歩む傍らの友】リュシー・ムーアクロフト",
     "characterName": "リュシー・ムーアクロフト",

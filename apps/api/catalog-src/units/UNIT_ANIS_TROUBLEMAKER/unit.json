@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【愛を求めるトラブルメーカー】アニス・ベネット",
     "characterName": "アニス・ベネット",

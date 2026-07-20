@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_YURIA_WILDCARD_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【享楽のワイルドカード】ユリア・バーンズ",
     "characterName": "ユリア・バーンズ",

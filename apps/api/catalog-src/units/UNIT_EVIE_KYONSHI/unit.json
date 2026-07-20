@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_EVIE_KYONSHI_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【キョンシーハッカー】エヴィ・レーナルト",
     "characterName": "エヴィ・レーナルト",

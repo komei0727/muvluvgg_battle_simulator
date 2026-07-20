@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_AOI_ELEGANT_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],
     "displayName": "【優雅なる規律の花】生駒葵",
     "characterName": "生駒葵",

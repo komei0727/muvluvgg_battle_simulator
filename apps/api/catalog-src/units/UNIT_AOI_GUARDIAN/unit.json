@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_AOI_GUARDIAN_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],
     "displayName": "【厳格な規律の守護者】生駒葵",
     "characterName": "生駒葵",

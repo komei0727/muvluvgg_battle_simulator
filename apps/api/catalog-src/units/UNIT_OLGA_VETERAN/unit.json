@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_OLGA_VETERAN_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_KURASUNA"],
     "tags": [],
     "displayName": "【歴戦の鉄母】オルガ・ヴォルコワ",
     "characterName": "オルガ・ヴォルコワ",

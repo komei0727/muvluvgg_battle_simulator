@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_FEE_BATH_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【自己に揺れる白湯気】フィー・ドレーゼ",
     "characterName": "フィー・ドレーゼ",

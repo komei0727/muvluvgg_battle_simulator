@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_NOEL_RUMBLE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PRE_KURASU_A"],
     "tags": [],
     "displayName": "【体育祭の暴れん坊】ノエル・アルエ",
     "characterName": "ノエル・アルエ",

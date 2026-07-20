@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【戦うアントレプレナー】レイラ・ジェンキンス",
     "characterName": "レイラ・ジェンキンス",
