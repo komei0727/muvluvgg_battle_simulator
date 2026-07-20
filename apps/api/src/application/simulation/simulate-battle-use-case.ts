@@ -26,7 +26,7 @@ import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.j
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import type { Clock } from "../../domain/ports/clock.js";
 import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
-import { DomainValidationError } from "../../domain/shared/errors.js";
+import { DomainValidationError, ExecutionGuardExceededError } from "../../domain/shared/errors.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 
@@ -228,6 +228,12 @@ export class SimulateBattleUseCase {
         unitRoster,
       });
     } catch (error) {
+      if (error instanceof ExecutionGuardExceededError) {
+        // 09_アプリケーション設計.md「実行保護」: イベント数・PS深度・効果数の
+        // SimulationExecutionGuard上限超過はクライアント入力エラーではなく
+        // `EXECUTION_LIMIT_EXCEEDED`（HTTP 503）として返す（レビュー指摘[P1]）。
+        throw new ApplicationError("EXECUTION_LIMIT_EXCEEDED", [{ reason: error.message }]);
+      }
       if (error instanceof DomainValidationError) {
         // 09_アプリケーション設計.md「ドメインエラーの変換」: 編成・値オブジェクト
         // 生成時の入力違反はINVALID_COMMANDへ変換する。事前検証(preflight)を

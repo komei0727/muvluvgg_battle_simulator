@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EventRecorder } from "./event-recorder.js";
 import { createBattleId } from "../../shared/ids.js";
+import { ExecutionGuardExceededError } from "../../shared/errors.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 
@@ -150,5 +151,24 @@ describe("EventRecorder", () => {
     });
 
     expect(r.getEvents().map((e) => e.eventType)).toEqual(["TurnStarted", "TurnCompleting"]);
+  });
+
+  it("review fix [P2]: throws a deterministic ExecutionGuardExceededError once the total-event SimulationExecutionGuard limit is reached, instead of accumulating events without bound", () => {
+    const r = new EventRecorder(BATTLE_ID, 2);
+    const scope = r.nextResolutionScopeId();
+    const record = () =>
+      r.record({
+        eventType: "TurnStarted",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: scope,
+        payload: { turnNumber: 1 },
+      });
+
+    record();
+    record();
+    expect(() => record()).toThrow(ExecutionGuardExceededError);
+    expect(r.getEvents()).toHaveLength(2);
   });
 });

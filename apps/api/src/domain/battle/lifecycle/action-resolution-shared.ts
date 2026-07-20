@@ -5,7 +5,12 @@ import {
   createPassivePoint,
   increaseExtraGaugeWithOverflow,
 } from "../model/resource-gauge.js";
-import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
+import type {
+  ActionId,
+  DomainEventId,
+  ResolutionScopeId,
+  SkillUseId,
+} from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ResourceChangeReason } from "../events/domain-event.js";
 import type { ResourceKind } from "../../catalog/definitions/catalog-enums.js";
@@ -105,6 +110,8 @@ export interface ResourceChangeRecordContext {
   readonly actionId?: ActionId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /** レビュー指摘[P2]: 同じSkillUseに属するイベントは同じSkillUseIdを持つ契約（PSも1つのSkillUse）。呼び出し側が採番済みの場合だけ渡す。 */
+  readonly skillUseId?: SkillUseId;
 }
 
 /**
@@ -132,6 +139,7 @@ export function recordResourceChangeIfAny(
     turnNumber: context.turnNumber,
     cycleNumber: context.cycleNumber,
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
@@ -168,6 +176,7 @@ export function recordExtraGaugeOverflowDiscardedIfAny(
     turnNumber: context.turnNumber,
     cycleNumber: context.cycleNumber,
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
