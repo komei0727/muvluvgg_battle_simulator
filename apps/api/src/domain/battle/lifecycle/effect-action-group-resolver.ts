@@ -1,6 +1,9 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import { applyDamageAction } from "../combat/damage-application-service.js";
+import { grantEffect } from "../effects/effect-grant-service.js";
+import { applyMarkerToUnit, removeMarkerFromUnit } from "../effects/marker-application-service.js";
+import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type {
   EffectActionApplication,
@@ -90,6 +93,21 @@ export interface UnitsBox {
 export type EffectResolutionStep =
   | { readonly kind: "TIMING_EVENT"; readonly event: BattleDomainEvent }
   | { readonly kind: "EFFECT_RESOLVED"; readonly events: readonly BattleDomainEvent[] };
+
+/**
+ * R-DMG-01の`resolveSkillPower`/`resolveActionDamageMultiplier`と同じ「基本
+ * FormulaEvaluator」方針: `CONSTANT`だけを評価する（binding・イベントpayload・
+ * 直前結果・Marker参照などを含む一般Formula評価器はIssue #74のスコープ）。
+ */
+function resolveBasicFormula(formula: FormulaDefinition, path: string): number {
+  if (formula.kind !== "CONSTANT") {
+    throw new DomainValidationError(
+      path,
+      `kind "${formula.kind}" is not supported by this basic EffectActionGroupResolver (general FormulaEvaluator is Issue #74 scope)`,
+    );
+  }
+  return formula.value;
+}
 
 function countHits(applications: readonly EffectActionApplication[]): number {
   return applications.reduce((sum, application) => sum + application.hits.length, 0);
@@ -262,10 +280,98 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
     effectLastEventId = cooldownResult.lastEventId;
     resultKind = cooldownResult.changed ? "APPLIED" : "SKIPPED";
+  } else if (effectAction.kind === "APPLY_STAT_MOD") {
+    // Issue #23 (R-EFF-01/05): 継続stat補正をAppliedEffectとして付与する。
+    // `stacking.mode`は現状"STACKABLE"しかCatalogスキーマに存在しないため、
+    // 重複あり(duplicate: true)として扱う（`applied-effect.ts`のコメント参照）。
+    const magnitude = resolveBasicFormula(
+      effectAction.payload.formula,
+      "effectAction.payload.formula",
+    );
+    const grantResult = grantEffect(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      {
+        effectActionDefinitionId: application.effectActionDefinitionId,
+        sourceId: context.actorId,
+        targetId: application.targetBattleUnitId,
+        duplicate: true,
+        magnitude,
+        durationDefinition: effectAction.payload.duration,
+      },
+      starting.eventId,
+    );
+    box.units = grantResult.units;
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = grantResult.lastEventId;
+    resultKind = "APPLIED";
+  } else if (effectAction.kind === "APPLY_MARKER") {
+    // Issue #23 (R-EFF-10): ADD/KEEP_EXISTING/REFRESH/REPLACEいずれも
+    // `applyMarkerToUnit`が既存有無から新規/更新を判定する。
+    const markerResult = applyMarkerToUnit(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      {
+        markerId: effectAction.payload.markerId,
+        sourceId: context.actorId,
+        targetId: application.targetBattleUnitId,
+        policy: effectAction.payload.stack.policy,
+        stackMax: effectAction.payload.stack.max,
+        duration: { definition: effectAction.payload.duration },
+        dispellable: effectAction.payload.duration.dispellable,
+        linkedEffectGroupId: effectAction.payload.duration.linkedEffectGroupId,
+      },
+      starting.eventId,
+    );
+    box.units = markerResult.units;
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = markerResult.lastEventId;
+    resultKind = "APPLIED";
+  } else if (effectAction.kind === "REMOVE_MARKER") {
+    const removeResult = removeMarkerFromUnit(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      application.targetBattleUnitId,
+      effectAction.payload.markerId,
+      "EXPLICIT_REMOVE",
+      starting.eventId,
+    );
+    const removed = removeResult.lastEventId !== starting.eventId;
+    box.units = removeResult.units;
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = removeResult.lastEventId;
+    resultKind = removed ? "APPLIED" : "SKIPPED";
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_MARKER"/"REMOVE_MARKER" is not supported by this basic turn action resolver (M7/M8 scope)`,
     );
   }
 

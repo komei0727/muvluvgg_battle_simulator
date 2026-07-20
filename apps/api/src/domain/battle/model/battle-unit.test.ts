@@ -54,6 +54,13 @@ describe("createBattleUnit", () => {
     expect(unit.maximumExtraGauge).toBe(100);
   });
 
+  it("UT-BATTLE-UNIT-005: starts with no AppliedEffect/Marker instances (Issue #23)", () => {
+    const unit = createBattleUnit(member(), "ALLY", LIMITS);
+
+    expect(unit.appliedEffects).toEqual([]);
+    expect(unit.markers).toEqual([]);
+  });
+
   it("UT-BATTLE-UNIT-002: carries the member's position, coordinate, and combat stats through unchanged", () => {
     const unit = createBattleUnit(member(), "ENEMY", LIMITS);
 

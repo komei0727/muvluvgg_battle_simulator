@@ -710,6 +710,58 @@ describe("advanceBattle", () => {
     });
   });
 
+  it("UT-BATTLE-015 (Issue #23, R-EFF-06): does not decrement a TURN-unit AppliedEffect duration granted on the current turn, but decrements it (and expires at 0) at the next turn's end", () => {
+    const effectInstanceId = "B_1:effect:seed" as never;
+    let battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [
+          unit("ally:1", "ALLY", {
+            appliedEffects: [
+              {
+                effectInstanceId,
+                effectActionDefinitionId: "ACT_BUFF" as never,
+                kindKey: "ACT_BUFF" as never,
+                duplicate: true,
+                sourceId: "ally:1" as never,
+                targetId: "ally:1" as never,
+                magnitude: 10,
+                duration: {
+                  definition: {
+                    timeLimit: { unit: "TURN", count: 1 },
+                    dispellable: true,
+                    linkedEffectGroupId: null,
+                  },
+                  timeLimitRemaining: 1,
+                  grantedTurnNumber: 1,
+                },
+                active: true,
+              },
+            ],
+          }),
+        ],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        NO_SKILLS,
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    const turn1Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn1Recorder);
+
+    expect(battle.allyUnits[0]!.appliedEffects).toHaveLength(1);
+    expect(turn1Recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
+
+    const turn2Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn2Recorder);
+
+    expect(battle.allyUnits[0]!.appliedEffects).toEqual([]);
+    const expired = turn2Recorder.getEvents().find((e) => e.eventType === "EffectExpired");
+    expect(expired?.payload).toMatchObject({ effectInstanceId, reason: "TIME_LIMIT" });
+  });
+
   it("UT-R-PS-05-003 (Issue #34 integration): a PS that triggers on TurnStarted activates during TURN_STARTING, before the action phase runs (PP consumed, EX gauge increased)", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_STARTED");

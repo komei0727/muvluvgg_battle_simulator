@@ -76,6 +76,50 @@ function cooldownManipulationAction(
   };
 }
 
+function statModAction(id: string, value = 10): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      stat: "ATTACK",
+      valueType: "FIXED",
+      formula: { kind: "CONSTANT", value },
+      stacking: { mode: "STACKABLE" },
+      duration: {
+        timeLimit: { unit: "TURN", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
+function applyMarkerAction(id: string, markerId: string): EffectActionDefinition {
+  return {
+    kind: "APPLY_MARKER",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      markerId: markerId as never,
+      stack: { policy: "ADD", max: null },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+  };
+}
+
+function removeMarkerAction(id: string, markerId: string): EffectActionDefinition {
+  return {
+    kind: "REMOVE_MARKER",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { markerId: markerId as never },
+  };
+}
+
 const NO_RANDOM: RandomSource = {
   next(): number {
     throw new Error("random should not be consumed by critical.mode: PREVENTED");
@@ -428,5 +472,89 @@ describe("applyEffectActionGroups", () => {
     const completed = events.find((e) => e.eventType === "EffectActionCompleted")!;
     expect(completed.parentEventId).toBe(cooldownCompleted.eventId);
     expect(completed.parentEventId).not.toBe(starting.eventId);
+  });
+
+  it("Issue #23: APPLY_STAT_MOD grants an AppliedEffect and emits EffectApplied, resultKind APPLIED", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const buff = statModAction("ACT_BUFF", 15);
+    const effectActions = new Map([[buff.effectActionDefinitionId, buff]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, buff.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(targetAfter.appliedEffects).toHaveLength(1);
+    expect(targetAfter.appliedEffects[0]?.magnitude).toBe(15);
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied?.payload).toMatchObject({
+      sourceUnitId: actor.battleUnitId,
+      targetUnitId: enemy.battleUnitId,
+      magnitude: 15,
+    });
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("APPLIED");
+  });
+
+  it("Issue #23: APPLY_MARKER grants a Marker and emits MarkerApplied", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const mark = applyMarkerAction("ACT_MARK", "MARKER_WARNING_ROD");
+    const effectActions = new Map([[mark.effectActionDefinitionId, mark]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, mark.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(targetAfter.markers).toHaveLength(1);
+    expect(recorder.getEvents().some((e) => e.eventType === "MarkerApplied")).toBe(true);
+  });
+
+  it("Issue #23: REMOVE_MARKER removes an existing Marker and emits MarkerRemoved", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemyId = createBattleUnitId("ENEMY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      markers: [
+        {
+          markerId: "MARKER_WARNING_ROD" as never,
+          sourceId: actor.battleUnitId,
+          targetId: enemyId,
+          stackCount: 1,
+          stackMax: null,
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      ],
+    });
+    const remove = removeMarkerAction("ACT_UNMARK", "MARKER_WARNING_ROD");
+    const effectActions = new Map([[remove.effectActionDefinitionId, remove]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(targetAfter.markers).toEqual([]);
+    expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(true);
   });
 });

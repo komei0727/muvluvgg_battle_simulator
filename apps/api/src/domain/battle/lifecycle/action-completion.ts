@@ -4,6 +4,8 @@ import {
   startCooldown,
   type CooldownMap,
 } from "../model/cooldown-state.js";
+import { decrementActionEffectDurations } from "../effects/effect-duration-decrement.js";
+import { expireEffects } from "../effects/effect-expiration-service.js";
 import type {
   ActionId,
   DomainEventId,
@@ -146,6 +148,46 @@ export function recordActionCompletion(
         });
         lastEventId = completed.eventId;
         notify(completed);
+      }
+    }
+  }
+
+  // R-EFF-04: 対象自身（=この行動者）の行動終了時に、行動単位効果を1減らす。
+  // 今回の行動で付与されたものは対象外（`decrementActionEffectDurations`が判定）。
+  const actorForEffects = requireUnit(working, context.actorId);
+  const effectDecrement = decrementActionEffectDurations(
+    actorForEffects.appliedEffects,
+    context.actionId,
+  );
+  if (effectDecrement.changes.length > 0) {
+    working = working.map((u) =>
+      u.battleUnitId === context.actorId ? { ...u, appliedEffects: effectDecrement.effects } : u,
+    );
+    const toExpire = effectDecrement.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        effectInstanceId: change.effectInstanceId,
+        reason: "TIME_LIMIT" as const,
+      }));
+    if (toExpire.length > 0) {
+      const expireResult = expireEffects(
+        {
+          recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+        },
+        working,
+        context.actorId,
+        toExpire,
+        lastEventId,
+      );
+      working = expireResult.units;
+      lastEventId = expireResult.lastEventId;
+      for (const event of expireResult.events) {
+        notify(event);
       }
     }
   }

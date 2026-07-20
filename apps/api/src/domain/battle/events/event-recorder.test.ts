@@ -130,6 +130,13 @@ describe("EventRecorder", () => {
     expect(r.nextResolutionScopeId()).toBe("battle-1:scope:1");
   });
 
+  it("UT-EVENT-RECORDER-007: nextEffectInstanceId is battleId-scoped and monotonic (Issue #23)", () => {
+    const r = recorder();
+
+    expect(r.nextEffectInstanceId()).toBe("battle-1:effect:1");
+    expect(r.nextEffectInstanceId()).toBe("battle-1:effect:2");
+  });
+
   it("UT-EVENT-RECORDER-006: getEvents returns all recorded events in recorded order", () => {
     const r = recorder();
     const scope = r.nextResolutionScopeId();

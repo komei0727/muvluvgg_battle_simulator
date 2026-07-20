@@ -4,6 +4,8 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 import type { ActiveCharge } from "./charge-state.js";
 import type { CooldownMap } from "./cooldown-state.js";
 import type { RuntimeCounterMap } from "./runtime-counter-state.js";
+import type { AppliedEffect } from "./applied-effect.js";
+import type { MarkerState } from "./marker-state.js";
 import {
   createActionPoint,
   createExtraGauge,
@@ -50,6 +52,10 @@ export interface BattleUnit {
    * ため`charge`と同様に省略可能とする）。
    */
   readonly skillCounters?: Readonly<Record<SkillDefinitionId, RuntimeCounterMap>>;
+  /** `05_ドメインモデル.md`「AppliedEffect」（Issue #23）。付与順を保持する（`effect-duplicate-resolution.ts`の重複なし選択が配列順をtie-breakに使う）。 */
+  readonly appliedEffects: readonly AppliedEffect[];
+  /** `05_ドメインモデル.md`「MarkerState」（Issue #23）。 */
+  readonly markers: readonly MarkerState[];
 }
 
 export interface BattleUnitResourceLimits {
@@ -80,6 +86,8 @@ export function createBattleUnit(
     maximumPp: limits.maximumPp,
     maximumExtraGauge: limits.maximumExtraGauge,
     cooldowns: {},
+    appliedEffects: [],
+    markers: [],
   };
 }
 
@@ -112,6 +120,19 @@ export function createBattleUnitsFromParty(
 /** R-END-02: 全滅判定はHPが0かどうかで決まる（05_ドメインモデル.md「HPが0になったユニットを即時に戦闘不能とする」）。 */
 export function isDefeated(unit: BattleUnit): boolean {
   return unit.currentHp === 0;
+}
+
+/**
+ * `lifecycle/action-resolution-shared.ts`の`requireUnit`と同じ実装。
+ * `domain/battle/effects`は`domain/battle/lifecycle`に依存できない
+ * （モジュール境界、eslint.config.mjs）ため、`model`側に複製を持つ。
+ */
+export function requireUnit(units: readonly BattleUnit[], id: BattleUnitId): BattleUnit {
+  const unit = units.find((candidate) => candidate.battleUnitId === id);
+  if (unit === undefined) {
+    throw new DomainValidationError("battleUnitId", `references an unknown BattleUnitId: "${id}"`);
+  }
+  return unit;
 }
 
 /**

@@ -1,6 +1,7 @@
 import type {
   ActionId,
   DomainEventId,
+  EffectInstanceId,
   ResolutionScopeId,
   SkillUseId,
 } from "../../shared/event-ids.js";
@@ -10,13 +11,17 @@ import type { ReservedActionKind } from "../action/action-queue.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { Side } from "../../shared/side.js";
 import type {
+  ConsumptionKind,
   CriticalMode,
   DamageType,
+  DurationTimeUnit,
+  MarkerStackPolicy,
   ResourceKind,
   SkillType,
 } from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
+  MarkerId,
   RuntimeCounterId,
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
@@ -376,6 +381,90 @@ export interface BattleDomainEventPayloadMap {
     readonly counter: RuntimeCounterId;
     readonly skillDefinitionId: SkillDefinitionId;
     readonly before: number;
+  };
+  /**
+   * `05_ドメインモデル.md`「AppliedEffect」/`08_ドメインイベント.md`「EffectApplied
+   * payload」（Issue #23）。新しい効果インスタンスを追加した直後に発行する。
+   * `kindKey`は`EffectKindKey`（現状`EffectActionDefinitionId`をそのまま使う、
+   * `effect-duplicate-resolution.ts`参照）。`durationUnit`/`initialRemaining`は
+   * `timeLimit`を持つ場合だけ、`consumptionKind`/`consumptionMaxCount`は
+   * `consumption`を持つ場合だけ存在する。両方とも持たない場合は戦闘終了まで
+   * 保持される（時間制限も消費もない効果）。
+   */
+  readonly EffectApplied: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly targetUnitId: BattleUnitId;
+    readonly duplicate: boolean;
+    readonly kindKey: string;
+    readonly magnitude: number;
+    readonly durationUnit?: DurationTimeUnit;
+    readonly initialRemaining?: number;
+    readonly consumptionKind?: ConsumptionKind;
+    readonly consumptionMaxCount?: number;
+    readonly linkedEffectGroupId: string | null;
+    readonly grantedActionId?: ActionId;
+    readonly grantedTurnNumber?: number;
+    readonly snapshot?: Readonly<Record<string, number>>;
+  };
+  /**
+   * `08_ドメインイベント.md`「EffectExpiredの順序」（R-EFF-04/06/07/08）。
+   * `reason`は失効の原因（同じイベントで複数条件が同時に成立しても二重発行
+   * しない、R-EFF-07「どちらかで失効した効果は二重に失効処理しない」）。
+   */
+  readonly EffectExpired: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly targetUnitId: BattleUnitId;
+    readonly kindKey: string;
+    readonly reason: "TIME_LIMIT" | "CONSUMPTION" | "SPECIAL_CONDITION" | "LINKED_GROUP_CASCADE";
+  };
+  /** R-EFF-05/R-STA-03: 重複なし効果グループの採用対象が変わった時。`beforeEffectInstanceId`が`undefined`なのは新規グループ発足時。 */
+  readonly EffectiveEffectChanged: {
+    readonly targetUnitId: BattleUnitId;
+    readonly kindKey: string;
+    readonly beforeEffectInstanceId?: EffectInstanceId;
+    readonly afterEffectInstanceId?: EffectInstanceId;
+  };
+  /** R-EFF-07: 消費条件で残回数が変化した後。0になった場合は続けて`EffectExpired`（`reason: "CONSUMPTION"`）を発行する。 */
+  readonly EffectConsumptionChanged: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly targetUnitId: BattleUnitId;
+    readonly consumptionKind: ConsumptionKind;
+    readonly before: number;
+    readonly after: number;
+  };
+  /** R-EFF-10: Markerを新規付与した後（`ADD`/`KEEP_EXISTING`/`REFRESH`/`REPLACE`いずれも既存が無ければ新規付与になる）。 */
+  readonly MarkerApplied: {
+    readonly markerId: MarkerId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly targetUnitId: BattleUnitId;
+    readonly stackCount: number;
+    readonly durationUnit?: DurationTimeUnit;
+  };
+  /** `08_ドメインイベント.md`「MarkerUpdated payload」。既存Markerのスタック/Duration変更後。 */
+  readonly MarkerUpdated: {
+    readonly markerId: MarkerId;
+    readonly targetUnitId: BattleUnitId;
+    readonly sourceUnitId?: BattleUnitId;
+    readonly stackBefore: number;
+    readonly stackAfter: number;
+    readonly durationBefore?: number;
+    readonly durationAfter?: number;
+    readonly policy: MarkerStackPolicy;
+    readonly linkedEffectGroupId: string | null;
+  };
+  /** Markerを解除・失効した後。`reason: "ZERO_STACK"`はADD以外の経路でスタックが0になった場合（現状未使用、将来の消費/減算Actionのため予約）。 */
+  readonly MarkerRemoved: {
+    readonly markerId: MarkerId;
+    readonly targetUnitId: BattleUnitId;
+    readonly reason:
+      | "EXPLICIT_REMOVE"
+      | "TIME_LIMIT"
+      | "CONSUMPTION"
+      | "SPECIAL_CONDITION"
+      | "ZERO_STACK"
+      | "LINKED_GROUP_CASCADE";
   };
 }
 

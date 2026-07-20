@@ -712,6 +712,155 @@ const runtimeCounterResetDetailsSchema = {
   },
 } as const;
 
+const DURATION_TIME_UNIT_ENUM = ["ACTION", "TURN", "BATTLE", "HIT", "SKILL_USE"] as const;
+const CONSUMPTION_KIND_ENUM = [
+  "NEXT_OUTGOING_ATTACK",
+  "NEXT_INCOMING_ATTACK",
+  "INCOMING_HIT",
+  "OUTGOING_HIT",
+  "STATUS_BLOCKED",
+  "LETHAL_DAMAGE",
+] as const;
+const MARKER_STACK_POLICY_ENUM = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
+const EFFECT_EXPIRED_REASON_ENUM = [
+  "TIME_LIMIT",
+  "CONSUMPTION",
+  "SPECIAL_CONDITION",
+  "LINKED_GROUP_CASCADE",
+] as const;
+const MARKER_REMOVED_REASON_ENUM = [
+  "EXPLICIT_REMOVE",
+  "TIME_LIMIT",
+  "CONSUMPTION",
+  "SPECIAL_CONDITION",
+  "ZERO_STACK",
+  "LINKED_GROUP_CASCADE",
+] as const;
+
+/** `05_ドメインモデル.md`「AppliedEffect」/`08_ドメインイベント.md`「EffectApplied payload」（Issue #23）。 */
+const effectAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "effectActionDefinitionId",
+    "sourceUnitId",
+    "targetUnitId",
+    "duplicate",
+    "kindKey",
+    "magnitude",
+    "linkedEffectGroupId",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    targetUnitId: { type: "string" },
+    duplicate: { type: "boolean" },
+    kindKey: { type: "string" },
+    magnitude: { type: "number" },
+    durationUnit: { type: "string", enum: DURATION_TIME_UNIT_ENUM },
+    initialRemaining: { type: "integer", minimum: 0 },
+    consumptionKind: { type: "string", enum: CONSUMPTION_KIND_ENUM },
+    consumptionMaxCount: { type: "integer", minimum: 1 },
+    linkedEffectGroupId: { type: ["string", "null"] },
+    grantedActionId: { type: "string" },
+    grantedTurnNumber: { type: "integer", minimum: 1 },
+    snapshot: { type: "object" },
+  },
+} as const;
+
+/** `08_ドメインイベント.md`「EffectExpiredの順序」（R-EFF-04/06/07/08）。 */
+const effectExpiredDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectInstanceId", "targetUnitId", "kindKey", "reason"],
+  properties: {
+    effectInstanceId: { type: "string" },
+    targetUnitId: { type: "string" },
+    kindKey: { type: "string" },
+    reason: { type: "string", enum: EFFECT_EXPIRED_REASON_ENUM },
+  },
+} as const;
+
+/** R-EFF-05/R-STA-03: 重複なし効果グループの採用対象が変わった時。 */
+const effectiveEffectChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["targetUnitId", "kindKey"],
+  properties: {
+    targetUnitId: { type: "string" },
+    kindKey: { type: "string" },
+    beforeEffectInstanceId: { type: "string" },
+    afterEffectInstanceId: { type: "string" },
+  },
+} as const;
+
+/** R-EFF-07: 消費条件で残回数が変化した後。 */
+const effectConsumptionChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectInstanceId", "targetUnitId", "consumptionKind", "before", "after"],
+  properties: {
+    effectInstanceId: { type: "string" },
+    targetUnitId: { type: "string" },
+    consumptionKind: { type: "string", enum: CONSUMPTION_KIND_ENUM },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+/** R-EFF-10: Markerを新規付与した後。 */
+const markerAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["markerId", "sourceUnitId", "targetUnitId", "stackCount"],
+  properties: {
+    markerId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    targetUnitId: { type: "string" },
+    stackCount: { type: "integer", minimum: 0 },
+    durationUnit: { type: "string", enum: DURATION_TIME_UNIT_ENUM },
+  },
+} as const;
+
+/** `08_ドメインイベント.md`「MarkerUpdated payload」。 */
+const markerUpdatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "markerId",
+    "targetUnitId",
+    "stackBefore",
+    "stackAfter",
+    "policy",
+    "linkedEffectGroupId",
+  ],
+  properties: {
+    markerId: { type: "string" },
+    targetUnitId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    stackBefore: { type: "integer", minimum: 0 },
+    stackAfter: { type: "integer", minimum: 0 },
+    durationBefore: { type: "integer", minimum: 0 },
+    durationAfter: { type: "integer", minimum: 0 },
+    policy: { type: "string", enum: MARKER_STACK_POLICY_ENUM },
+    linkedEffectGroupId: { type: ["string", "null"] },
+  },
+} as const;
+
+/** Markerを解除・失効した後。 */
+const markerRemovedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["markerId", "targetUnitId", "reason"],
+  properties: {
+    markerId: { type: "string" },
+    targetUnitId: { type: "string" },
+    reason: { type: "string", enum: MARKER_REMOVED_REASON_ENUM },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -763,6 +912,13 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   SKILL_USE_INTERRUPTED: skillUseInterruptedDetailsSchema,
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
+  EFFECT_APPLIED: effectAppliedDetailsSchema,
+  EFFECT_EXPIRED: effectExpiredDetailsSchema,
+  EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
+  EFFECT_CONSUMPTION_CHANGED: effectConsumptionChangedDetailsSchema,
+  MARKER_APPLIED: markerAppliedDetailsSchema,
+  MARKER_UPDATED: markerUpdatedDetailsSchema,
+  MARKER_REMOVED: markerRemovedDetailsSchema,
 } as const;
 
 /**

@@ -37,3 +37,10 @@ export function createResolutionScopeId(
   requireNonEmpty("ResolutionScopeId", path, value);
   return value as ResolutionScopeId;
 }
+
+/** `05_ドメインモデル.md`「AppliedEffect」: 付与された個別の効果インスタンスを識別する。`EventRecorder`が採番する（`ActionId`/`SkillUseId`と同じ形）。 */
+export type EffectInstanceId = Brand<string, "EffectInstanceId">;
+export function createEffectInstanceId(value: string, path = "effectInstanceId"): EffectInstanceId {
+  requireNonEmpty("EffectInstanceId", path, value);
+  return value as EffectInstanceId;
+}

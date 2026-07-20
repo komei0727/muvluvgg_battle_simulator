@@ -1,0 +1,229 @@
+import { describe, expect, it } from "vitest";
+import { expireEffects } from "./effect-expiration-service.js";
+import { EventRecorder } from "../events/event-recorder.js";
+import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import type { BattleUnit } from "../model/battle-unit.js";
+import type { AppliedEffect, EffectKindKey } from "../model/applied-effect.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
+
+const BATTLE_ID = createBattleId("battle-1");
+const SOURCE = createBattleUnitId("enemy:1");
+const TARGET = createBattleUnitId("ally:1");
+const KIND = "ACT_BUFF_ATTACK" as EffectKindKey;
+
+function effect(overrides: {
+  readonly id: string;
+  readonly magnitude: number;
+  readonly duplicate: boolean;
+  readonly active: boolean;
+  readonly linkedEffectGroupId?: string | null;
+}): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(overrides.id),
+    effectActionDefinitionId: KIND as unknown as AppliedEffect["effectActionDefinitionId"],
+    kindKey: KIND,
+    duplicate: overrides.duplicate,
+    sourceId: SOURCE,
+    targetId: TARGET,
+    magnitude: overrides.magnitude,
+    duration: {
+      definition: {
+        dispellable: true,
+        linkedEffectGroupId: overrides.linkedEffectGroupId ?? null,
+      },
+    },
+    active: overrides.active,
+  };
+}
+
+function unitWith(appliedEffects: readonly AppliedEffect[]): BattleUnit {
+  return {
+    battleUnitId: TARGET,
+    unitDefinitionId: "UNIT_X" as never,
+    attribute: "CUTE",
+    side: "ALLY",
+    position: { column: "LEFT", row: "FRONT" } as never,
+    globalCoordinate: { x: 0, y: 2 },
+    combatStats: {} as never,
+    currentHp: 100,
+    currentAp: 0,
+    currentPp: 0,
+    currentExtraGauge: 0,
+    maximumAp: 3,
+    maximumPp: 3,
+    maximumExtraGauge: 100,
+    cooldowns: {},
+    appliedEffects,
+    markers: [],
+  };
+}
+
+function makeContext(recorder: EventRecorder) {
+  const resolutionScopeId = recorder.nextResolutionScopeId();
+  const root = recorder.record({
+    eventType: "TurnStarted",
+    category: "FACT",
+    turnNumber: 1,
+    cycleNumber: 1,
+    resolutionScopeId,
+    payload: { turnNumber: 1 },
+  });
+  return {
+    recorder,
+    turnNumber: 1,
+    cycleNumber: 1,
+    resolutionScopeId,
+    rootEventId: root.eventId,
+    rootEvent: root,
+  };
+}
+
+describe("expireEffects (R-EFF-04/06/07/08/09)", () => {
+  it("UT-EFF-EXPIRE-SVC-001: removes the expiring effect from appliedEffects and records EffectExpired", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [unitWith([effect({ id: "e1", magnitude: 10, duplicate: true, active: true })])];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [{ effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" }],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects).toEqual([]);
+    const expired = recorder.getEvents().find((e) => e.eventType === "EffectExpired");
+    expect(expired?.payload).toMatchObject({ effectInstanceId: "e1", reason: "TIME_LIMIT" });
+  });
+
+  it("UT-EFF-EXPIRE-SVC-002: promotes the next-strongest effect and records EffectiveEffectChanged when the active one expires", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [
+      unitWith([
+        effect({ id: "e1", magnitude: 30, duplicate: false, active: true }),
+        effect({ id: "e2", magnitude: 15, duplicate: false, active: false }),
+      ]),
+    ];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [{ effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" }],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects.find((e) => e.effectInstanceId === "e2")?.active).toBe(true);
+    const changed = recorder.getEvents().find((e) => e.eventType === "EffectiveEffectChanged");
+    expect(changed?.payload).toMatchObject({
+      beforeEffectInstanceId: "e1",
+      afterEffectInstanceId: "e2",
+    });
+  });
+
+  it("UT-EFF-EXPIRE-SVC-003: does not record EffectiveEffectChanged when a non-active (dethroned) instance expires", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [
+      unitWith([
+        effect({ id: "e1", magnitude: 30, duplicate: false, active: true }),
+        effect({ id: "e2", magnitude: 15, duplicate: false, active: false }),
+      ]),
+    ];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [{ effectInstanceId: createEffectInstanceId("e2"), reason: "CONSUMPTION" }],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects.find((e) => e.effectInstanceId === "e1")?.active).toBe(true);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectiveEffectChanged")).toBe(false);
+  });
+
+  it("UT-EFF-EXPIRE-SVC-004: cascades a linkedEffectGroup parent's expiry to its children, children before parent (R-EFF-09)", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [
+      unitWith([
+        effect({
+          id: "parent",
+          magnitude: 10,
+          duplicate: true,
+          active: true,
+          linkedEffectGroupId: "GROUP_A",
+        }),
+        effect({
+          id: "child",
+          magnitude: 5,
+          duplicate: true,
+          active: true,
+          linkedEffectGroupId: "GROUP_A",
+        }),
+      ]),
+    ];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [{ effectInstanceId: createEffectInstanceId("parent"), reason: "TIME_LIMIT" }],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects).toEqual([]);
+    const expiredEvents = recorder.getEvents().filter((e) => e.eventType === "EffectExpired");
+    expect(
+      expiredEvents.map((e) => (e.payload as { effectInstanceId: string }).effectInstanceId),
+    ).toEqual(["child", "parent"]);
+    expect(
+      (
+        expiredEvents.find(
+          (e) => (e.payload as { effectInstanceId: string }).effectInstanceId === "child",
+        )?.payload as { reason: string }
+      ).reason,
+    ).toBe("LINKED_GROUP_CASCADE");
+  });
+
+  it("UT-EFF-EXPIRE-SVC-005: a child expiring independently does not cascade to (remove) the parent (子効果だけが消費条件で失効した場合、親効果は維持する)", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [
+      unitWith([
+        effect({
+          id: "parent",
+          magnitude: 10,
+          duplicate: true,
+          active: true,
+          linkedEffectGroupId: "GROUP_A",
+        }),
+        effect({
+          id: "child",
+          magnitude: 5,
+          duplicate: true,
+          active: true,
+          linkedEffectGroupId: "GROUP_A",
+        }),
+      ]),
+    ];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [{ effectInstanceId: createEffectInstanceId("child"), reason: "CONSUMPTION" }],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects.map((e) => e.effectInstanceId)).toEqual(["parent"]);
+  });
+});

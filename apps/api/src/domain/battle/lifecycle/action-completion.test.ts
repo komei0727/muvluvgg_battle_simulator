@@ -131,4 +131,64 @@ describe("recordActionCompletion", () => {
     expect(result.units[0]?.currentHp).toBe(initialActor.currentHp);
     expect(result.units[0]?.cooldowns[createSkillDefinitionId("SKL_OTHER")]?.remaining).toBe(0);
   });
+
+  it("UT-ACT-COMPLETION-003 (Issue #23): decrements the actor's own ACTION-unit AppliedEffect durations, expiring at 0 (R-EFF-04)", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const priorActionId = createActionId("B_1:action:0");
+    const currentActionId = createActionId("B_1:action:1");
+    const initialActor: BattleUnit = {
+      ...actorWithExpiringCooldown(),
+      appliedEffects: [
+        {
+          effectInstanceId: "B_1:effect:1" as never,
+          effectActionDefinitionId: "ACT_BUFF" as never,
+          kindKey: "ACT_BUFF" as never,
+          duplicate: true,
+          sourceId: createBattleUnitId("U1"),
+          targetId: createBattleUnitId("U1"),
+          magnitude: 10,
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION", count: 1 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 1,
+            grantedActionId: priorActionId,
+          },
+          active: true,
+        },
+      ],
+    };
+
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: currentActionId,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorId: initialActor.battleUnitId,
+      },
+      "AS",
+      seed.eventId,
+      [initialActor],
+    );
+
+    expect(result.units[0]?.appliedEffects).toEqual([]);
+    const expired = recorder.getEvents().find((e) => e.eventType === "EffectExpired");
+    expect(expired?.payload).toMatchObject({
+      effectInstanceId: "B_1:effect:1",
+      reason: "TIME_LIMIT",
+    });
+  });
 });
