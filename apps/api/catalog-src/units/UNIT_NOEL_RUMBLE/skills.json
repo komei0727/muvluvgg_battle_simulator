@@ -97,9 +97,9 @@
     },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_CONTINUOUS_DAMAGE"
     ],
     "metadata": {

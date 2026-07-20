@@ -60,7 +60,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL", "CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "イグナイト", "tags": [] }
   },
   {
@@ -127,9 +127,9 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "スタンサプレッション", "tags": [] }
   },
@@ -203,9 +203,9 @@
     "requiredCapabilities": [
       "CAP_DAMAGE_MOD",
       "CAP_CONTINUOUS_HEAL",
-      "CAP_DERIVED_TARGETS",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_REMOVE_EFFECTS"
     ],
     "metadata": { "displayName": "セントリストア", "tags": [] },

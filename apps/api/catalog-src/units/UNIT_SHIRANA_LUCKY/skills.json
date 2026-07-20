@@ -40,7 +40,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SHIELD"],
     "metadata": { "displayName": "薄暮の宵火", "tags": [] }
   },
   {

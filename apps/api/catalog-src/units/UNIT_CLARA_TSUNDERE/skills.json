@@ -34,7 +34,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "フェアボルゲネ・ゲフューレ", "tags": [] }
   },
   {
@@ -110,7 +110,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "アーマークラッシュ", "tags": [] }
   },
   {
@@ -173,7 +173,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "クイックブースト", "tags": [] },
     "triggers": [
       {

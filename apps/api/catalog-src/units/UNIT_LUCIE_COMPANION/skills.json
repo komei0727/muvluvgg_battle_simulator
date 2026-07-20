@@ -183,7 +183,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_DERIVED_TARGETS", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_CONTINUOUS_DAMAGE"
+    ],
     "metadata": { "displayName": "ルミナス・ガード", "tags": [] },
     "triggers": [
       {

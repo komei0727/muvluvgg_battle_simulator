@@ -33,7 +33,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "displayName": "幕間の微睡み", "tags": [] }
   },
   {
@@ -75,7 +75,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "カーテンショット", "tags": [] }
   },
   {
@@ -113,7 +113,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "アタックアンプリファイ", "tags": [] },
     "triggers": [
       {
@@ -166,7 +166,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "ステージブースト", "tags": [] },
     "triggers": [
       {

@@ -74,9 +74,9 @@
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
+      "CAP_TARGET_DERIVED_AREA",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_EFFECT_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION"
     ],
     "metadata": { "displayName": "Pスラスト", "tags": [] }
   },

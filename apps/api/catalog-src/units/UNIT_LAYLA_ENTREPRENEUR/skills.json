@@ -35,7 +35,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_SPECIFIC_IMMUNITY"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SPECIFIC_IMMUNITY"],
     "metadata": { "displayName": "大儲けだー！", "tags": [] }
   },
   {
@@ -92,7 +92,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "フォーカススラスト", "tags": [] }
   },
   {
@@ -140,7 +140,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "CRTフォーカス", "tags": [] },
     "triggers": [
       {

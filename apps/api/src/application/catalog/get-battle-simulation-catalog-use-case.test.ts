@@ -297,9 +297,14 @@ describe("GetBattleSimulationCatalogUseCase", () => {
         [
           createCapabilityDefinition({
             capabilityId: "CAP_ACTION",
-            status: "PLANNED",
+            schemaStatus: "SUPPORTED",
+            runtimeStatus: "PLANNED",
+            implementationTaskId: "TEST-001",
             description: "d",
-            requiredBy: [],
+            verification: {
+              productionDefinitionIds: ["TEST_DEFINITION"],
+              testCaseIds: ["TEST-001"],
+            },
           }),
         ],
         (c) => c.capabilityId,

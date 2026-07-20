@@ -26,7 +26,7 @@
       "formula": { "kind": "CONSTANT", "value": -3 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {

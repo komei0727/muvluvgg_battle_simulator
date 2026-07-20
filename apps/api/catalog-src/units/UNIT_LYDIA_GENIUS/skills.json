@@ -55,8 +55,8 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_ADVANCED_TARGETING",
-      "CAP_TARGET_FALLBACK",
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_TARGET_BINDING_FALLBACK",
       "CAP_CRITICAL_CONTROL"
     ],
     "metadata": { "displayName": "リディアたいちょうのめいれい", "tags": [] }
@@ -101,7 +101,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_ADVANCED_TARGETING", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "ジャマしちゃ、めっ……だよ？", "tags": [] }
   },
   {
@@ -147,7 +147,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "わるいこはおしおき", "tags": [] }
   },
   {
@@ -172,7 +172,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "みんなをおたすけ", "tags": [] },
     "triggers": [
       {
@@ -211,9 +211,9 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": { "priorityAttack": true },
     "requiredCapabilities": [
-      "CAP_RESOURCE_MOD",
-      "CAP_RUNTIME_COUNTER",
-      "CAP_ADVANCED_PASSIVE_TRIGGER",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
+      "CAP_TRIGGER_CONTEXT",
       "CAP_HEAL"
     ],
     "metadata": { "displayName": "がんばるね、おにいちゃん", "tags": [] },

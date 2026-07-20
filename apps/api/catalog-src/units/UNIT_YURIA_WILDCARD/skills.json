@@ -62,7 +62,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_PARTIAL_PIERCING", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_PARTIAL_PIERCING",
+      "CAP_RESOURCE_MUTATION"
+    ],
     "metadata": { "displayName": "びしょ濡れだねー！", "tags": [] }
   },
   {
@@ -139,7 +143,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_SHIELD"],
     "metadata": { "displayName": "アナーキーシールド", "tags": [] },
     "triggers": [
       {
@@ -170,7 +174,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "フレンジーキャノン", "tags": [] },
     "triggers": [
       {

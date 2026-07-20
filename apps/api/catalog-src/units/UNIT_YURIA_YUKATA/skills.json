@@ -39,7 +39,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "桶シュート！", "tags": [] }
   },
   {
@@ -97,7 +97,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "みんなで温泉入ろ♪", "tags": [] }
   },
   {
@@ -161,7 +161,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "温泉の効能", "tags": [] },
     "triggers": [
       {

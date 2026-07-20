@@ -68,8 +68,8 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_PARTIAL_PIERCING",
       "CAP_HEAL",
       "CAP_CONTINUOUS_HEAL"
@@ -117,7 +117,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER"],
     "metadata": { "displayName": "快刀乱麻", "tags": [] }
   },
   {
@@ -209,8 +209,8 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD"
     ],
     "metadata": { "displayName": "怒髪衝天", "tags": [] }
@@ -260,7 +260,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "起死回生", "tags": [] },
     "triggers": [
       {

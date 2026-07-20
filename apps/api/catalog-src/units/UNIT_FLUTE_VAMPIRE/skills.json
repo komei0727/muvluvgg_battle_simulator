@@ -54,10 +54,10 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
+      "CAP_TARGET_DERIVED_AREA",
       "CAP_HEAL",
       "CAP_FORMULA",
-      "CAP_EFFECT_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION"
     ],
     "metadata": { "displayName": "＃ぽよ・オア・トリート", "tags": [] }
   },
@@ -99,7 +99,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA", "CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "かぷっとファンサ", "tags": [] }
   },
   {
@@ -128,7 +128,7 @@
       "CAP_HEAL",
       "CAP_MARKER",
       "CAP_DAMAGE_MOD",
-      "CAP_RUNTIME_COUNTER",
+      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
       "CAP_RESOURCE_CAPACITY_MOD"
     ],
     "metadata": { "displayName": "イモータル・ヴァンパイア", "tags": [] },
@@ -181,7 +181,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_EFFECT_CONDITION", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_EFFECT_STEP_CONDITION", "CAP_MARKER"],
     "metadata": { "displayName": "アウェイキング・ヴァンパイア", "tags": [] },
     "triggers": [
       {
@@ -233,7 +233,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_DEATH_SURVIVAL", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_DEATH_SURVIVAL",
+      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"
+    ],
     "metadata": { "displayName": "あなたにマーキング♡", "tags": [] },
     "triggers": [
       {

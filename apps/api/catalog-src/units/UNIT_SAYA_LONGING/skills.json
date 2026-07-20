@@ -77,7 +77,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_FORMULA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION"
+    ],
     "metadata": { "displayName": "禅刃再生", "tags": [] }
   },
   {

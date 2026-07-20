@@ -79,6 +79,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       expect(unitDefinition).toBeDefined();
       const skill = snapshot.skills.get(skillId as never);
       expect(skill).toBeDefined();
+      expect(skill!.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
       const trigger = skill!.triggers[0];
       expect(trigger?.eventType).toBe("RuntimeCounterChanged");
 

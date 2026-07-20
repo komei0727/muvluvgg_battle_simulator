@@ -90,7 +90,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 4 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "オッドイーブン", "tags": [] }
   },
   {
@@ -147,7 +147,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "ハイローベット", "tags": [] }
   },
   {

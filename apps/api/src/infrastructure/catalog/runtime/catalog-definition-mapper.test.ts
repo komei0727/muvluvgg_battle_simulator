@@ -128,9 +128,11 @@ const memoryDto = {
 
 const capabilityDto = {
   capabilityId: "CAP_HEAL",
-  status: "PLANNED",
+  schemaStatus: "SUPPORTED",
+  runtimeStatus: "PLANNED",
+  implementationTaskId: "TEST-001",
   description: "即時回復EffectAction",
-  requiredBy: [],
+  verification: { productionDefinitionIds: [], testCaseIds: [] },
 };
 
 describe("Catalog v2 definition mapper", () => {
@@ -219,7 +221,7 @@ describe("Catalog v2 definition mapper", () => {
   });
 
   it("UT-INFRA-MAP-013: raises CatalogShapeValidationError for a shape-invalid Capability DTO", () => {
-    expect(() => mapCapabilityDefinition({ capabilityId: "CAP_HEAL", status: "DONE" })).toThrow(
+    expect(() => mapCapabilityDefinition({ ...capabilityDto, runtimeStatus: "DONE" })).toThrow(
       CatalogShapeValidationError,
     );
   });
@@ -249,9 +251,11 @@ describe("Catalog v2 definition mapper", () => {
   it("UT-INFRA-MAP-016: maps a Capability with a Q-* id", () => {
     const capability = mapCapabilityDefinition({
       capabilityId: "Q-TGT-06",
-      status: "BLOCKED",
+      schemaStatus: "PLANNED",
+      runtimeStatus: "BLOCKED",
+      implementationTaskId: "TEST-001",
       description: "pending",
-      requiredBy: [],
+      verification: { productionDefinitionIds: [], testCaseIds: [] },
     });
     expect(capability.capabilityId).toBe("Q-TGT-06");
   });

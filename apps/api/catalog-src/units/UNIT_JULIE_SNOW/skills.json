@@ -128,7 +128,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_HEAL", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_HEAL", "CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "みんなで雪遊び！",
       "tags": []
@@ -207,8 +207,8 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": {
       "displayName": "雪合戦開始！",
@@ -272,9 +272,9 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_DAMAGE_MOD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_RESOURCE_MOD"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_RESOURCE_MUTATION"
     ],
     "metadata": {
       "displayName": "いちばんのりー！",

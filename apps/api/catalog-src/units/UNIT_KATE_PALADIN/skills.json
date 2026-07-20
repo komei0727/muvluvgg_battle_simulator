@@ -184,7 +184,7 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_RANDOM_BRANCH",
-      "CAP_RESOURCE_MOD",
+      "CAP_RESOURCE_MUTATION",
       "CAP_DAMAGE_MOD",
       "CAP_HEAL",
       "CAP_FORMULA"
@@ -281,7 +281,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "聖騎士の威光", "tags": [] }
   },
   {
@@ -301,7 +301,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "聖なる剣筋", "tags": [] },
     "triggers": [
       {

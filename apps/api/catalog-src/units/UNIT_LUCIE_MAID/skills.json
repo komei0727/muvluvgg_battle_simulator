@@ -38,7 +38,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "お嬢に近づくな……！", "tags": [] }
   },
   {
@@ -105,7 +105,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "スタンディクライン", "tags": [] }
   },
   {
@@ -144,7 +144,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "シングル・プラス", "tags": [] }
   },
   {
@@ -256,7 +256,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION"
+    ],
     "metadata": { "displayName": "スタート・プリエンプティブ", "tags": [] },
     "triggers": [
       {

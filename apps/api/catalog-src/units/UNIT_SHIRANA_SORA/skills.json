@@ -143,7 +143,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_RESOLUTION_BRANCH", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_DAMAGE_MOD"
+    ],
     "metadata": { "displayName": "期待に応えたい", "tags": [] },
     "triggers": [
       {

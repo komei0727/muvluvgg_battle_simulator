@@ -84,8 +84,8 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_CONDITION",
       "CAP_SHIELD"
     ],
     "metadata": { "displayName": "ショーダウン", "tags": [] }
@@ -130,7 +130,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_STEP_CONDITION", "CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "レイズ", "tags": [] }
   },
   {
@@ -178,7 +178,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_EFFECT_CONDITION", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_EFFECT_STEP_CONDITION", "CAP_MARKER"],
     "metadata": { "displayName": "スチール", "tags": [] }
   },
   {
@@ -221,7 +221,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_EFFECT_CONDITION", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION", "CAP_SHIELD"],
     "metadata": { "displayName": "ブラフ", "tags": [] },
     "triggers": [
       {

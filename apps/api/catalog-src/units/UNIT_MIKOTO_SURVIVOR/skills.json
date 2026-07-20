@@ -78,7 +78,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "制圧支援", "tags": [] }
   },
   {
@@ -125,7 +125,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "点射", "tags": [] }
   },
   {
@@ -179,10 +179,10 @@
     "cooldown": { "unit": "ACTION", "count": 5 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_RUNTIME_COUNTER",
-      "CAP_RESOURCE_MOD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "フェイルセーフ", "tags": [] },
     "triggers": [
@@ -217,7 +217,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "諸元修正", "tags": [] },
     "triggers": [
       {

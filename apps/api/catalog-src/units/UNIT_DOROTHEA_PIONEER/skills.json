@@ -25,7 +25,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "ノーブル・プライド", "tags": [] }
   },
   {
@@ -116,7 +116,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "融和の象徴", "tags": [] },
     "triggers": [
       {
@@ -177,7 +177,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER", "CAP_SHIELD"],
     "metadata": { "displayName": "新時代の先駆け", "tags": [] },
     "triggers": [
       {

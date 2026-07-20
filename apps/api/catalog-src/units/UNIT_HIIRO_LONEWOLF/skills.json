@@ -135,7 +135,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_DERIVED_AREA"],
     "metadata": {
       "displayName": "ペネトレイトバレット",
       "tags": []
@@ -224,10 +224,10 @@
     },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_RESOURCE_MOD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_DERIVED_TARGETS"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_DERIVED_AREA"
     ],
     "metadata": {
       "displayName": "ピアースショット",
@@ -279,7 +279,7 @@
     "traits": {
       "priorityAttack": true
     },
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER", "CAP_RESOURCE_MUTATION"],
     "metadata": {
       "displayName": "ファーストストライク",
       "tags": []

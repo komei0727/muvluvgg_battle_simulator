@@ -35,7 +35,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_COOLDOWN_MANIPULATION"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "衣擦れの調べ", "tags": [] }
   },
   {
@@ -90,7 +90,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "displayName": "百花繚乱", "tags": [] }
   },
   {
@@ -152,9 +152,9 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
+      "CAP_TARGET_DERIVED_AREA",
       "CAP_MARKER",
-      "CAP_EFFECT_CONDITION",
+      "CAP_EFFECT_STEP_CONDITION",
       "CAP_FORMULA"
     ],
     "metadata": { "displayName": "清廉なる一撃", "tags": [] }
@@ -249,7 +249,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "高貴な一礼", "tags": [] },
     "triggers": [
       {

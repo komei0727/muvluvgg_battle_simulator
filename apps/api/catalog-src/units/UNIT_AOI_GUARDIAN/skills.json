@@ -149,7 +149,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_STEP_CONDITION", "CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "捲土重来", "tags": [] },
     "triggers": [
       {

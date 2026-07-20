@@ -74,7 +74,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "いいね☆で元気だそ？", "tags": [] }
   },
   {
@@ -113,7 +113,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "ぽよビ～～ム♡", "tags": [] }
   },
   {

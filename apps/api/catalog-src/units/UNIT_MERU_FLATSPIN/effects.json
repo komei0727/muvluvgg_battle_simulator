@@ -35,7 +35,7 @@
       "operation": "SET_TO_MAX",
       "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -54,7 +54,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {

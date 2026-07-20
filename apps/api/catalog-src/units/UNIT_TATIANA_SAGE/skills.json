@@ -126,8 +126,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": {
       "displayName": "遅効の毒針",
@@ -232,8 +232,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": {
       "displayName": "逆転の方策",
@@ -362,11 +362,12 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_SHIELD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_RESOURCE_MOD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_RESOURCE_MUTATION",
       "CAP_DEATH_SURVIVAL",
-      "CAP_MARKER"
+      "CAP_MARKER",
+      "CAP_SKILL_RUNTIME_COUNTER"
     ],
     "metadata": {
       "displayName": "起死回生の一手",

@@ -194,8 +194,15 @@ function unit(
   });
 }
 
-function capability(id: string, status = "IMPLEMENTED"): CapabilityDefinition {
-  return createCapabilityDefinition({ capabilityId: id, status, description: "d", requiredBy: [] });
+function capability(id: string, status = "PLANNED"): CapabilityDefinition {
+  return createCapabilityDefinition({
+    capabilityId: id,
+    schemaStatus: "SUPPORTED",
+    runtimeStatus: status,
+    implementationTaskId: "TEST-001",
+    description: "d",
+    verification: { productionDefinitionIds: [], testCaseIds: [] },
+  });
 }
 
 function baseDefinitions(): CatalogDefinitions {
@@ -374,7 +381,7 @@ describe("buildCatalogIndex", () => {
       capabilities: [capability("CAP_HEAL", "PLANNED")],
     };
     const index = buildCatalogIndex(withCap);
-    expect(index.capabilities.get("CAP_HEAL" as never)?.status).toBe("PLANNED");
+    expect(index.capabilities.get("CAP_HEAL" as never)?.runtimeStatus).toBe("PLANNED");
   });
 
   it("UT-CAT-IDX-010: rejects a PS trigger referencing an unknown eventType", () => {
@@ -588,5 +595,63 @@ describe("buildCatalogIndex", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("UT-CAT-IDX-021: rejects a production definition that uses a schema-unsupported Capability", () => {
+    const defs = baseDefinitions();
+    const schemaPlanned = createCapabilityDefinition({
+      capabilityId: "CAP_FUTURE_SCHEMA",
+      schemaStatus: "PLANNED",
+      runtimeStatus: "PLANNED",
+      implementationTaskId: "TEST-001",
+      description: "future schema",
+      verification: { productionDefinitionIds: [], testCaseIds: [] },
+    });
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units: [unit("UNIT_001", { requiredCapabilities: ["CAP_FUTURE_SCHEMA"] })],
+        capabilities: [schemaPlanned],
+      }),
+    ).toThrowError(/UNSUPPORTED_SCHEMA_CAPABILITY/);
+  });
+
+  it("UT-CAT-IDX-022: rejects IMPLEMENTED evidence pointing to a missing production definition", () => {
+    const defs = baseDefinitions();
+    const implemented = createCapabilityDefinition({
+      capabilityId: "CAP_READY",
+      schemaStatus: "SUPPORTED",
+      runtimeStatus: "IMPLEMENTED",
+      implementationTaskId: "TEST-001",
+      description: "ready",
+      verification: {
+        productionDefinitionIds: ["ACT_MISSING"],
+        testCaseIds: ["TEST-001"],
+      },
+    });
+
+    expect(() => buildCatalogIndex({ ...defs, capabilities: [implemented] })).toThrowError(
+      /INVALID_CAPABILITY_VERIFICATION/,
+    );
+  });
+
+  it("UT-CAT-IDX-023: rejects IMPLEMENTED evidence whose production definition does not declare the Capability", () => {
+    const defs = baseDefinitions();
+    const implemented = createCapabilityDefinition({
+      capabilityId: "CAP_READY",
+      schemaStatus: "SUPPORTED",
+      runtimeStatus: "IMPLEMENTED",
+      implementationTaskId: "TEST-001",
+      description: "ready",
+      verification: {
+        productionDefinitionIds: ["ACT_DAMAGE_1"],
+        testCaseIds: ["TEST-001"],
+      },
+    });
+
+    expect(() => buildCatalogIndex({ ...defs, capabilities: [implemented] })).toThrowError(
+      /does not declare capability/,
+    );
   });
 });

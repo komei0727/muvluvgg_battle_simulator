@@ -126,9 +126,9 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_HEAL",
-      "CAP_RESOURCE_MOD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": {
       "displayName": "ザ式戦術機動剣術「貪狼」",
@@ -337,11 +337,11 @@
     },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_RUNTIME_COUNTER",
+      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
       "CAP_SHIELD",
       "CAP_HEAL",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": {
       "displayName": "ザ式戦術機動剣術・弐型「反魂」",

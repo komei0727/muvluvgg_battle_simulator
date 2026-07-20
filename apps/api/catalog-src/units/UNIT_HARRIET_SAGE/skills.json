@@ -116,9 +116,9 @@
       "CAP_MARKER",
       "CAP_DAMAGE_MOD",
       "CAP_COMPLEX_EXPIRATION",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOURCE_MOD",
-      "CAP_DERIVED_TARGETS"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_TARGET_DERIVED_AREA"
     ],
     "metadata": { "displayName": "攻撃魔法『ホーリーレイ』", "tags": [] }
   },
@@ -227,7 +227,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "強化魔法『スピードブースト』", "tags": [] },
     "triggers": [
       {

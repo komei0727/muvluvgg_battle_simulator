@@ -47,7 +47,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "さて……準備はできたわ", "tags": [] }
   },
   {
@@ -116,7 +116,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL", "CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "アライヒーリング", "tags": [] }
   },
   {
@@ -144,7 +144,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "パワーアプライ", "tags": [] }
   },
   {

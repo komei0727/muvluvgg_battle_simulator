@@ -81,7 +81,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "ブラックアウト・ラビリンス", "tags": [] }
   },
   {
@@ -128,7 +128,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_HIT_COUNT_EVASION", "CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_HIT_COUNT_EVASION", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "オーロラとの戯れ", "tags": [] }
   },
   {
@@ -157,8 +157,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_FORMULA",
-      "CAP_EFFECT_CONDITION",
-      "CAP_ADVANCED_PASSIVE_TRIGGER"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_TRIGGER_CONTEXT"
     ],
     "metadata": { "displayName": "氷結のシンフォニー", "tags": [] },
     "triggers": [
@@ -212,7 +212,7 @@
       "simultaneousActivationLimited": true,
       "exclusiveActivationGroupId": "STELLA_HP_REACTION"
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_HEAL", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_HEAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ベルセルクの洗礼", "tags": [] },
     "triggers": [
       {

@@ -296,9 +296,11 @@ describe("POST /api/v1/battle-simulations", () => {
         capabilityId,
         createCapabilityDefinition({
           capabilityId: "CAP_UNSUPPORTED",
-          status: "PLANNED",
+          schemaStatus: "SUPPORTED",
+          runtimeStatus: "PLANNED",
+          implementationTaskId: "TEST-001",
           description: "not yet implemented",
-          requiredBy: [],
+          verification: { productionDefinitionIds: ["TEST_DEFINITION"], testCaseIds: ["TEST-001"] },
         }),
       ],
     ]);

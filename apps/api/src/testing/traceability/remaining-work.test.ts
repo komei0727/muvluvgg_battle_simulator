@@ -219,7 +219,13 @@ describe("remaining work manifest (PLAN-001)", () => {
     }).filter((entry) => entry.isDirectory());
     const capabilities = JSON.parse(
       readRepositoryFile("apps/api/catalog-src/capabilities.json"),
-    ) as readonly { readonly status: string }[];
+    ) as readonly {
+      readonly capabilityId: string;
+      readonly schemaStatus: string;
+      readonly runtimeStatus: string;
+      readonly implementationTaskId: string;
+    }[];
+    const remainingTaskIds = new Set(manifest.tasks.map((task) => task.taskId));
 
     expect(unitDirectories).toHaveLength(
       manifest.current.unitCatalog.convertedProductionUnits +
@@ -243,8 +249,17 @@ describe("remaining work manifest (PLAN-001)", () => {
       manifest.baseline.memoryCatalog.unconverted,
     );
     expect(capabilities).toHaveLength(manifest.current.capabilities.total);
-    expect(capabilities.filter((capability) => capability.status === "IMPLEMENTED")).toHaveLength(
-      manifest.current.capabilities.implemented,
+    expect(
+      capabilities.filter((capability) => capability.runtimeStatus === "IMPLEMENTED"),
+    ).toHaveLength(manifest.current.capabilities.implemented);
+    expect(capabilities.every((capability) => capability.schemaStatus === "SUPPORTED")).toBe(true);
+    expect(
+      capabilities
+        .filter((capability) => capability.runtimeStatus !== "IMPLEMENTED")
+        .every((capability) => remainingTaskIds.has(capability.implementationTaskId)),
+    ).toBe(true);
+    expect(new Set(capabilities.map((capability) => capability.capabilityId)).size).toBe(
+      capabilities.length,
     );
     expect(manifest.current.capabilities.implemented).toBeGreaterThanOrEqual(
       manifest.baseline.capabilities.implemented,

@@ -39,6 +39,8 @@ export const VIOLATION_RULES = [
   "TYPE_MISMATCH",
   "EX_COST_MISMATCH",
   "UNKNOWN_CAPABILITY",
+  "UNSUPPORTED_SCHEMA_CAPABILITY",
+  "INVALID_CAPABILITY_VERIFICATION",
   "UNKNOWN_EVENT_TYPE",
   "EVENT_CATEGORY_MISMATCH",
   "UNOWNED_SKILL_REFERENCE",
@@ -185,11 +187,54 @@ function checkRequiredCapabilities(
   violations: CatalogIntegrityViolation[],
 ): void {
   for (const capabilityId of requiredCapabilities) {
-    if (!capabilities.has(capabilityId)) {
+    const capability = capabilities.get(capabilityId);
+    if (capability === undefined) {
       violations.push({
         targetId,
         rule: "UNKNOWN_CAPABILITY",
         message: `requiredCapabilities references undefined capability "${capabilityId}"`,
+      });
+    } else if (capability.schemaStatus !== "SUPPORTED") {
+      violations.push({
+        targetId,
+        rule: "UNSUPPORTED_SCHEMA_CAPABILITY",
+        message: `requiredCapabilities references capability "${capabilityId}" whose schemaStatus is "${capability.schemaStatus}"`,
+      });
+    }
+  }
+}
+
+function validateCapabilityVerification(
+  capability: CapabilityDefinition,
+  units: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (capability.runtimeStatus !== "IMPLEMENTED") {
+    return;
+  }
+
+  for (const definitionId of capability.verification.productionDefinitionIds) {
+    const definition =
+      units.get(definitionId as UnitDefinitionId) ??
+      skills.get(definitionId as SkillDefinitionId) ??
+      effectActions.get(definitionId as EffectActionDefinitionId) ??
+      memories.get(definitionId as MemoryDefinitionId);
+    if (definition === undefined) {
+      violations.push({
+        targetId: capability.capabilityId,
+        rule: "INVALID_CAPABILITY_VERIFICATION",
+        message: `verification references undefined production definition "${definitionId}"`,
+      });
+      continue;
+    }
+    if (!definition.requiredCapabilities.includes(capability.capabilityId)) {
+      violations.push({
+        targetId: capability.capabilityId,
+        rule: "INVALID_CAPABILITY_VERIFICATION",
+        message: `verification definition "${definitionId}" does not declare capability "${capability.capabilityId}"`,
       });
     }
   }
@@ -463,6 +508,10 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
     "Memory",
     violations,
   );
+
+  for (const capability of capabilities.values()) {
+    validateCapabilityVerification(capability, units, skills, effectActions, memories, violations);
+  }
 
   for (const effectAction of effectActions.values()) {
     validateEffectAction(effectAction, effectActions, skills, capabilities, violations);

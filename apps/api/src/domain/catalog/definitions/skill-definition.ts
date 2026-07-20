@@ -285,7 +285,7 @@ function collectReferencedRuntimeCounterIds(
  * （発動回数、`op: LT, value: 1`で「1回のみ」判定）や
  * `<skillDefinitionId>_CUMULATIVE_DAMAGE_RATIO`（累計被ダメージ比）といった
  * `counterUpdates`を伴わない`RUNTIME_COUNTER`参照が既に存在する
- * （`CAP_RUNTIME_COUNTER`未実装によりpreflightで拒否される、独立したフォロー
+ * （`CAP_IMPLICIT_SKILL_RUNTIME_COUNTER`によりpreflightで拒否される、独立したフォロー
  * アップIssue待ちのプレースホルダー）。これらを本Issueの対象として遡及的に
  * 壊さないため、cross-reference検証は`counterUpdates`を1件以上宣言している
  * SkillDefinitionだけに適用する（本Issueが新設する`counterUpdates`機構を実際に

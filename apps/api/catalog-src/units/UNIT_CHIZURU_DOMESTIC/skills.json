@@ -40,7 +40,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_HEAL"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_HEAL"],
     "metadata": { "displayName": "強襲掃討", "tags": [] }
   },
   {
@@ -81,7 +81,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_RESOLUTION_BRANCH"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "連単射", "tags": [] }
   },
   {
@@ -106,7 +110,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "チェーンマニューバ", "tags": [] },
     "triggers": [
       {
@@ -143,7 +147,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "ハイ・リカバリー", "tags": [] },
     "triggers": [
       {
@@ -199,7 +203,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "怒らせすぎ注意", "tags": [] },
     "triggers": [
       {

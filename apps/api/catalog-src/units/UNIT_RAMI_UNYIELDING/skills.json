@@ -58,10 +58,10 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
+      "CAP_TARGET_DERIVED_AREA",
       "CAP_HEAL",
       "CAP_FORMULA",
-      "CAP_EFFECT_CONDITION",
+      "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD"
     ],
     "metadata": { "displayName": "あっかんべー♡", "tags": [] }
@@ -108,7 +108,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "緊急防壁", "tags": [] },
     "triggers": [
       {
