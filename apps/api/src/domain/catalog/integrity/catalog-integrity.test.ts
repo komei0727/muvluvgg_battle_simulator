@@ -92,7 +92,41 @@ function asSkill(id: string, targetActionId: string): SkillDefinition {
   });
 }
 
-function psSkill(id: string, eventType: string, category: string): SkillDefinition {
+function branchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "BRANCH",
+          condition: { kind: "TRUE" },
+          thenSteps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+          elseSteps: [],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "BRANCH AS" },
+  });
+}
+
+function psSkill(
+  id: string,
+  eventType: string,
+  category: string,
+  requiredCapabilities: readonly string[] = [],
+): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
     skillType: "PS",
@@ -110,7 +144,7 @@ function psSkill(id: string, eventType: string, category: string): SkillDefiniti
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities: [],
+    requiredCapabilities,
     metadata: { displayName: "PS" },
   });
 }
@@ -408,7 +442,11 @@ describe("buildCatalogIndex", () => {
       ...defs,
       units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
       // UnitBeingAttacked is documented as TIMING, not FACT.
-      skills: [...defs.skills, psSkill("SKL_PS1", "UnitBeingAttacked", "FACT")],
+      skills: [
+        ...defs.skills,
+        psSkill("SKL_PS1", "UnitBeingAttacked", "FACT", ["CAP_TRIGGER_CONTEXT"]),
+      ],
+      capabilities: [capability("CAP_TRIGGER_CONTEXT")],
     };
     expect(() => buildCatalogIndex(withMismatch)).toThrow(CatalogIntegrityError);
     try {
@@ -425,7 +463,11 @@ describe("buildCatalogIndex", () => {
     const withEffectApplied: CatalogDefinitions = {
       ...defs,
       units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
-      skills: [...defs.skills, psSkill("SKL_PS1", "EffectApplied", "FACT")],
+      skills: [
+        ...defs.skills,
+        psSkill("SKL_PS1", "EffectApplied", "FACT", ["CAP_TRIGGER_CONTEXT"]),
+      ],
+      capabilities: [capability("CAP_TRIGGER_CONTEXT")],
     };
     const index = buildCatalogIndex(withEffectApplied);
     expect(index.skills.get("SKL_PS1" as never)).toBeDefined();
@@ -653,5 +695,36 @@ describe("buildCatalogIndex", () => {
     expect(() => buildCatalogIndex({ ...defs, capabilities: [implemented] })).toThrowError(
       /does not declare capability/,
     );
+  });
+
+  it("UT-CAT-IDX-024: rejects BRANCH/REPEAT skills without CAP_RESOLUTION_BRANCH_REPEAT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [branchSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).toThrowError(/BRANCH\/REPEAT EffectStep must declare/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [branchSkill("SKL_AS1", ["CAP_RESOLUTION_BRANCH_REPEAT"]), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-025: rejects runtime-owned trigger events without CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+        skills: [...defs.skills, psSkill("SKL_PS1", "HitPointReduced", "FACT")],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
   });
 });

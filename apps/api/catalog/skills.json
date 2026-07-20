@@ -84,7 +84,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "スウィートクレイヴ", "tags": [] }
   },
   {
@@ -132,7 +132,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "オブセッションロケット", "tags": [] }
   },
   {
@@ -152,7 +156,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ブレイジングハート", "tags": [] },
     "triggers": [
       {
@@ -296,7 +300,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "百花繚乱", "tags": [] }
   },
   {
@@ -361,7 +370,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_FORMULA"
+      "CAP_FORMULA",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "清廉なる一撃", "tags": [] }
   },
@@ -455,7 +465,12 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "高貴な一礼", "tags": [] },
     "triggers": [
       {
@@ -611,7 +626,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_STEP_CONDITION", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": [
+      "CAP_FORMULA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "捲土重来", "tags": [] },
     "triggers": [
       {
@@ -700,7 +720,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_EFFECT_STEP_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "Pスラスト", "tags": [] }
   },
@@ -1129,7 +1150,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "チェーンマニューバ", "tags": [] },
     "triggers": [
       {
@@ -1143,6 +1164,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_CHIZURU_DOMESTIC_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_CHIZURU_DOMESTIC_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -1166,7 +1207,11 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DEATH_SURVIVAL",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TRIGGER_CONTEXT"
+    ],
     "metadata": { "displayName": "ハイ・リカバリー", "tags": [] },
     "triggers": [
       {
@@ -1186,6 +1231,26 @@
             }
           ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_CHIZURU_DOMESTIC_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_CHIZURU_DOMESTIC_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -1656,7 +1721,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "アーマークラッシュ", "tags": [] }
   },
   {
@@ -1781,7 +1846,8 @@
     "requiredCapabilities": [
       "CAP_REMOVE_EFFECTS",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOURCE_MUTATION"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "ルミナグレイス", "tags": [] }
   },
@@ -1825,7 +1891,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "ソーヴィニヨン", "tags": [] }
   },
   {
@@ -1845,7 +1911,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "アイギスランバード", "tags": [] },
     "triggers": [
       {
@@ -2075,7 +2141,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "融和の象徴", "tags": [] },
     "triggers": [
       {
@@ -2101,6 +2167,26 @@
             }
           ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_DOROTHEA_PIONEER_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_DOROTHEA_PIONEER_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -2136,7 +2222,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_SHIELD"],
     "metadata": { "displayName": "新時代の先駆け", "tags": [] },
     "triggers": [
       {
@@ -2150,6 +2236,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_DOROTHEA_PIONEER_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_DOROTHEA_PIONEER_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -2501,8 +2607,9 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_HEAL",
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
-      "CAP_TARGET_DERIVED_AREA"
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TRIGGER_CONTEXT"
     ],
     "metadata": { "displayName": "リカバリーブースト", "tags": [] },
     "triggers": [
@@ -2529,6 +2636,26 @@
             }
           ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_EVIE_ECO_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_EVIE_ECO_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -2791,7 +2918,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "アタックアンプリファイ", "tags": [] },
     "triggers": [
       {
@@ -2844,7 +2971,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "ステージブースト", "tags": [] },
     "triggers": [
       {
@@ -2858,6 +2985,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_FEE_ACTOR_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_FEE_ACTOR_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -3234,7 +3381,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ぽよぽよプロテクト", "tags": [] },
     "triggers": [
       {
@@ -3338,7 +3485,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_HEAL",
       "CAP_FORMULA",
-      "CAP_EFFECT_STEP_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "＃ぽよ・オア・トリート", "tags": [] }
   },
@@ -3380,7 +3528,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_FORMULA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "かぷっとファンサ", "tags": [] }
   },
   {
@@ -3409,8 +3562,9 @@
       "CAP_HEAL",
       "CAP_MARKER",
       "CAP_DAMAGE_MOD",
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
-      "CAP_RESOURCE_CAPACITY_MOD"
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_RESOURCE_CAPACITY_MOD",
+      "CAP_TRIGGER_CONTEXT"
     ],
     "metadata": { "displayName": "イモータル・ヴァンパイア", "tags": [] },
     "triggers": [
@@ -3437,6 +3591,26 @@
             }
           ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_FLUTE_VAMPIRE_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_FLUTE_VAMPIRE_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -3514,11 +3688,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_DEATH_SURVIVAL",
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"
-    ],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "あなたにマーキング♡", "tags": [] },
     "triggers": [
       {
@@ -3532,6 +3702,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_FLUTE_VAMPIRE_PS3_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_FLUTE_VAMPIRE_PS3"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -3654,7 +3844,8 @@
       "CAP_COMPLEX_EXPIRATION",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
-      "CAP_TARGET_DERIVED_AREA"
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "攻撃魔法『ホーリーレイ』", "tags": [] }
   },
@@ -3932,7 +4123,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "ファーストストライク", "tags": [] },
     "triggers": [
       {
@@ -3946,6 +4137,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_HIIRO_LONEWOLF_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_HIIRO_LONEWOLF_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -4276,7 +4487,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "なにするかーーー！！", "tags": [] }
   },
@@ -4320,7 +4532,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "レバッ！", "tags": [] }
   },
   {
@@ -5098,7 +5314,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "ウルフズスラッシュ", "tags": [] }
   },
   {
@@ -5118,7 +5338,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "応急防御", "tags": [] },
     "triggers": [
       {
@@ -5132,6 +5352,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_KEI_JACKKNIFE_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_KEI_JACKKNIFE_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -5152,7 +5392,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "勝機の直感", "tags": [] },
     "triggers": [
       {
@@ -5687,7 +5927,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "起死回生", "tags": [] },
     "triggers": [
       {
@@ -5701,6 +5941,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_KOTOHA_REBEL_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_KOTOHA_REBEL_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -6009,7 +6269,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "フォーカススラスト", "tags": [] }
   },
   {
@@ -6057,7 +6321,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "CRTフォーカス", "tags": [] },
     "triggers": [
       {
@@ -6071,6 +6335,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_LAYLA_ENTREPRENEUR_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_LAYLA_ENTREPRENEUR_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -6420,7 +6704,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "気合い入れていこー！", "tags": [] },
     "triggers": [
       {
@@ -6792,7 +7076,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "スタンディクライン", "tags": [] }
   },
   {
@@ -6851,7 +7139,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "フィジカルガード", "tags": [] },
     "triggers": [
       {
@@ -6946,7 +7234,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOURCE_MUTATION"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "スタート・プリエンプティブ", "tags": [] },
     "triggers": [
@@ -7071,7 +7360,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_COVER_DAMAGE"],
+    "requiredCapabilities": ["CAP_COVER_DAMAGE", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ネガティブヘイト", "tags": [] },
     "triggers": [
       {
@@ -7292,7 +7581,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "わるいこはおしおき", "tags": [] }
   },
   {
@@ -7357,7 +7650,7 @@
     "traits": { "priorityAttack": true },
     "requiredCapabilities": [
       "CAP_RESOURCE_MUTATION",
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
+      "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TRIGGER_CONTEXT",
       "CAP_HEAL"
     ],
@@ -7374,6 +7667,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_LYDIA_GENIUS_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_LYDIA_GENIUS_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -7736,7 +8049,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ポストリュード", "tags": [] },
     "triggers": [
       {
@@ -8140,7 +8453,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "明鏡止水", "tags": [] },
     "triggers": [
       {
@@ -8247,7 +8560,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_FORMULA",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "新たなる力", "tags": [] }
   },
   {
@@ -8320,7 +8638,8 @@
     "requiredCapabilities": [
       "CAP_RESOURCE_MUTATION",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_COOLDOWN_MANIPULATION"
+      "CAP_COOLDOWN_MANIPULATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "フラットスピン", "tags": [] }
   },
@@ -8383,7 +8702,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "スカイドライヴ", "tags": [] }
   },
   {
@@ -8445,7 +8764,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "ハードラッシュ", "tags": [] }
   },
   {
@@ -8568,7 +8891,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "ペンタブレイド", "tags": [] }
   },
   {
@@ -8632,7 +8955,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "チェイスブレイダー", "tags": [] },
     "triggers": [
       {
@@ -9026,7 +9353,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "点射", "tags": [] }
   },
   {
@@ -9080,7 +9407,7 @@
     "cooldown": { "unit": "ACTION", "count": 5 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
+      "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_RESOURCE_MUTATION",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT"
@@ -9088,16 +9415,36 @@
     "metadata": { "displayName": "フェイルセーフ", "tags": [] },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ANY",
-        "targetSelector": "SELF",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
-          "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
-          "op": "GTE",
-          "value": 0.1
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ANY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.1
       }
     ]
   },
@@ -9462,7 +9809,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ヴォルコワの血脈Ω", "tags": [] },
     "triggers": [
       {
@@ -9498,7 +9845,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "隙ありです……！", "tags": [] },
     "triggers": [
       {
@@ -10230,7 +10577,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
     "metadata": { "displayName": "ヴォルコワの血脈A", "tags": [] },
     "triggers": [
       {
@@ -10244,6 +10591,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_OLGA_VETERAN_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_OLGA_VETERAN_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -10522,7 +10889,8 @@
       "CAP_HEAL",
       "CAP_FORMULA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "あっかんべー♡", "tags": [] }
   },
@@ -10568,7 +10936,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "緊急防壁", "tags": [] },
     "triggers": [
       {
@@ -10595,6 +10963,26 @@
           ]
         }
       }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_RAMI_UNYIELDING_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_RAMI_UNYIELDING_PS1"
+          }
+        },
+        "amount": 1
+      }
     ]
   },
   {
@@ -10618,7 +11006,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 6 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "まだ終わんないけど？", "tags": [] },
     "triggers": [
       {
@@ -11156,7 +11544,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 4 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "オッドイーブン", "tags": [] }
   },
   {
@@ -11213,7 +11606,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "ハイローベット", "tags": [] }
   },
   {
@@ -11354,7 +11747,8 @@
       "CAP_HEAL",
       "CAP_FORMULA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOURCE_MUTATION"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "禅刃再生", "tags": [] }
   },
@@ -11582,7 +11976,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_DERIVED_AREA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "セルフ・プロデュース", "tags": [] },
     "triggers": [
       {
@@ -11948,7 +12342,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "スマートバリア", "tags": [] },
     "triggers": [
       {
@@ -12207,7 +12601,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "運ではなく実力で", "tags": [] },
     "triggers": [
       {
@@ -12471,7 +12865,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "リフレイン", "tags": [] }
   },
   {
@@ -12509,7 +12908,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "コン・フオーコ", "tags": [] },
     "triggers": [
       {
@@ -12764,7 +13163,8 @@
     "requiredCapabilities": [
       "CAP_RESOURCE_MUTATION",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "スウィートルミナ", "tags": [] },
     "triggers": [
@@ -12937,7 +13337,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_HIT_COUNT_EVASION", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "オーロラとの戯れ", "tags": [] }
   },
   {
@@ -13163,7 +13568,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_STEP_CONDITION", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": [
+      "CAP_FORMULA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "レイズ", "tags": [] }
   },
   {
@@ -13211,7 +13621,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_EFFECT_STEP_CONDITION", "CAP_MARKER"],
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_MARKER",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "スチール", "tags": [] }
   },
   {
@@ -13254,7 +13669,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION", "CAP_SHIELD"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_SHIELD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "ブラフ", "tags": [] },
     "triggers": [
       {
@@ -13344,7 +13764,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "代助一避", "tags": [] },
     "triggers": [
       {
@@ -13381,7 +13801,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "再起律動", "tags": [] },
     "triggers": [
       {
@@ -14029,7 +14449,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "スキルリレイティブ", "tags": [] },
     "triggers": [
       {
@@ -14243,7 +14663,7 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
+      "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_SHIELD",
       "CAP_HEAL",
       "CAP_EFFECT_STEP_CONDITION",
@@ -14252,16 +14672,36 @@
     "metadata": { "displayName": "ザ式戦術機動剣術・弐型「反魂」", "tags": [] },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ANY",
-        "targetSelector": "SELF",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
-          "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_YUI_HEIR_PS2_CUMULATIVE_DAMAGE_RATIO",
-          "op": "GTE",
-          "value": 0.3
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_YUI_HEIR_PS2_CUMULATIVE_DAMAGE_RATIO"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_YUI_HEIR_PS2_CUMULATIVE_DAMAGE_RATIO",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ANY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.3
       }
     ]
   },
@@ -14331,7 +14771,8 @@
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_PARTIAL_PIERCING",
-      "CAP_RESOURCE_MUTATION"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "びしょ濡れだねー！", "tags": [] }
   },
@@ -14614,7 +15055,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "温泉の効能", "tags": [] },
     "triggers": [
       {
@@ -14628,6 +15069,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_YURIA_YUKATA_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_YURIA_YUKATA_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

@@ -119,6 +119,33 @@ function parseUnconvertedMemoryNames(): string[] {
     .sort();
 }
 
+function collectTestCaseIdFiles(
+  directory: string,
+  into = new Map<string, Set<string>>(),
+): Map<string, Set<string>> {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) {
+      collectTestCaseIdFiles(path, into);
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith(".test.ts")) {
+      continue;
+    }
+    const ids = new Set(
+      [
+        ...readFileSync(path, "utf8").matchAll(/\b(?:UT|IT|SCN|E2E)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g),
+      ].map((match) => match[0]),
+    );
+    for (const id of ids) {
+      const files = into.get(id) ?? new Set<string>();
+      files.add(path);
+      into.set(id, files);
+    }
+  }
+  return into;
+}
+
 describe("remaining work manifest (PLAN-001)", () => {
   it("UT-PLAN-001-001: assigns every currently uncompleted M7/M8 rule exactly once", () => {
     const manifest = readManifest();
@@ -224,8 +251,13 @@ describe("remaining work manifest (PLAN-001)", () => {
       readonly schemaStatus: string;
       readonly runtimeStatus: string;
       readonly implementationTaskId: string;
+      readonly verification: {
+        readonly productionDefinitionIds: readonly string[];
+        readonly testCaseIds: readonly string[];
+      };
     }[];
     const remainingTaskIds = new Set(manifest.tasks.map((task) => task.taskId));
+    const testCaseIdFiles = collectTestCaseIdFiles(`${repositoryRoot}/apps/api/src`);
 
     expect(unitDirectories).toHaveLength(
       manifest.current.unitCatalog.convertedProductionUnits +
@@ -261,6 +293,19 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(new Set(capabilities.map((capability) => capability.capabilityId)).size).toBe(
       capabilities.length,
     );
+    for (const capability of capabilities.filter(
+      (candidate) => candidate.runtimeStatus === "IMPLEMENTED",
+    )) {
+      expect(new Set(capability.verification.testCaseIds).size).toBe(
+        capability.verification.testCaseIds.length,
+      );
+      for (const testCaseId of capability.verification.testCaseIds) {
+        expect(
+          [...(testCaseIdFiles.get(testCaseId) ?? [])],
+          `${capability.capabilityId} verification testCaseId "${testCaseId}" must identify exactly one test file`,
+        ).toHaveLength(1);
+      }
+    }
     expect(manifest.current.capabilities.implemented).toBeGreaterThanOrEqual(
       manifest.baseline.capabilities.implemented,
     );

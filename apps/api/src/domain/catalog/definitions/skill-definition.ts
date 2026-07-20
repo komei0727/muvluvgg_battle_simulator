@@ -281,15 +281,9 @@ function collectReferencedRuntimeCounterIds(
 }
 
 /**
- * production Catalogには本Issue以前から、`<skillDefinitionId>_ACTIVATIONS`
- * （発動回数、`op: LT, value: 1`で「1回のみ」判定）や
- * `<skillDefinitionId>_CUMULATIVE_DAMAGE_RATIO`（累計被ダメージ比）といった
- * `counterUpdates`を伴わない`RUNTIME_COUNTER`参照が既に存在する
- * （`CAP_IMPLICIT_SKILL_RUNTIME_COUNTER`によりpreflightで拒否される、独立したフォロー
- * アップIssue待ちのプレースホルダー）。これらを本Issueの対象として遡及的に
- * 壊さないため、cross-reference検証は`counterUpdates`を1件以上宣言している
- * SkillDefinitionだけに適用する（本Issueが新設する`counterUpdates`機構を実際に
- * 使うskillだけが、未定義counterの誤参照を検証される）。
+ * `RUNTIME_COUNTER`参照は、同じSkillDefinitionの`counterUpdates`が更新契機を
+ * 明示しなければならない。production Catalogに残っていた暗黙counterはIssue #166で
+ * 明示定義へ移行済みであり、更新契機のない参照を再導入させない。
  */
 function assertRuntimeCounterReferencesAreDeclared(
   activationCondition: ConditionDefinition,
@@ -297,9 +291,6 @@ function assertRuntimeCounterReferencesAreDeclared(
   counterUpdates: readonly RuntimeCounterUpdateDefinition[],
   path: string,
 ): void {
-  if (counterUpdates.length === 0) {
-    return;
-  }
   const declared = new Set(counterUpdates.map((update) => update.counter));
   const referenced = new Set<RuntimeCounterId>();
   collectReferencedRuntimeCounterIds(activationCondition, referenced);

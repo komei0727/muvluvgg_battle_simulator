@@ -260,7 +260,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "起死回生", "tags": [] },
     "triggers": [
       {
@@ -274,6 +274,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_KOTOHA_REBEL_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_KOTOHA_REBEL_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

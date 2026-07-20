@@ -98,4 +98,33 @@ describe("CapabilityDefinition", () => {
       }),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-CAP-007: rejects duplicate verification identifiers", () => {
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "TEST-001",
+        description: "x",
+        verification: {
+          productionDefinitionIds: ["ACT_HEAL", "ACT_HEAL"],
+          testCaseIds: ["IT-HEAL-001"],
+        },
+      }),
+    ).toThrow(/duplicate value/);
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "TEST-001",
+        description: "x",
+        verification: {
+          productionDefinitionIds: ["ACT_HEAL"],
+          testCaseIds: ["IT-HEAL-001", "IT-HEAL-001"],
+        },
+      }),
+    ).toThrow(/duplicate value/);
+  });
 });

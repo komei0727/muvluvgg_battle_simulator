@@ -209,7 +209,7 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "明鏡止水",
       "tags": []

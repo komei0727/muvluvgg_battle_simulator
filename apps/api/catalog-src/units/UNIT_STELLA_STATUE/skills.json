@@ -128,7 +128,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_HIT_COUNT_EVASION", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "オーロラとの戯れ", "tags": [] }
   },
   {

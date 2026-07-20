@@ -278,7 +278,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "スキルリレイティブ",
       "tags": []

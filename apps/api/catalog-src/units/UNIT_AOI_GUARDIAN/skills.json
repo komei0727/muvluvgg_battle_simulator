@@ -149,7 +149,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_STEP_CONDITION", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": [
+      "CAP_FORMULA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "捲土重来", "tags": [] },
     "triggers": [
       {

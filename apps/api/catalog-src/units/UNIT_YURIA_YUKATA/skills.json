@@ -161,7 +161,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "温泉の効能", "tags": [] },
     "triggers": [
       {
@@ -175,6 +175,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_YURIA_YUKATA_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_YURIA_YUKATA_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

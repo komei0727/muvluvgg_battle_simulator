@@ -113,7 +113,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "アタックアンプリファイ", "tags": [] },
     "triggers": [
       {
@@ -166,7 +166,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "ステージブースト", "tags": [] },
     "triggers": [
       {
@@ -180,6 +180,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_FEE_ACTOR_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_FEE_ACTOR_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   },

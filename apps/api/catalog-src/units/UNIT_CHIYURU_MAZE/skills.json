@@ -76,7 +76,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_EFFECT_STEP_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "Pスラスト", "tags": [] }
   },

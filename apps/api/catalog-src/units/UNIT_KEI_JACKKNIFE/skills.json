@@ -118,7 +118,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "ウルフズスラッシュ", "tags": [] }
   },
   {
@@ -138,7 +142,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "応急防御", "tags": [] },
     "triggers": [
       {
@@ -152,6 +156,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_KEI_JACKKNIFE_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_KEI_JACKKNIFE_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -172,7 +196,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "勝機の直感", "tags": [] },
     "triggers": [
       {

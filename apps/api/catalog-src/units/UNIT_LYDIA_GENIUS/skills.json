@@ -147,7 +147,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "わるいこはおしおき", "tags": [] }
   },
   {
@@ -212,7 +216,7 @@
     "traits": { "priorityAttack": true },
     "requiredCapabilities": [
       "CAP_RESOURCE_MUTATION",
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
+      "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TRIGGER_CONTEXT",
       "CAP_HEAL"
     ],
@@ -229,6 +233,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_LYDIA_GENIUS_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_LYDIA_GENIUS_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

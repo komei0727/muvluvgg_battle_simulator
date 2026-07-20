@@ -154,7 +154,8 @@
     "requiredCapabilities": [
       "CAP_RESOURCE_MUTATION",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "スウィートルミナ", "tags": [] },
     "triggers": [

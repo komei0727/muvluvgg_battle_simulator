@@ -386,7 +386,7 @@
       "count": 99
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_IMPLICIT_SKILL_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
     "metadata": {
       "displayName": "ヴォルコワの血脈A",
       "tags": []
@@ -403,6 +403,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_OLGA_VETERAN_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_OLGA_VETERAN_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

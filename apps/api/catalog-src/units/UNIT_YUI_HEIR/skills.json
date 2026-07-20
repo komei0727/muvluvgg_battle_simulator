@@ -337,7 +337,7 @@
     },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
+      "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_SHIELD",
       "CAP_HEAL",
       "CAP_EFFECT_STEP_CONDITION",
@@ -349,16 +349,41 @@
     },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ANY",
-        "targetSelector": "SELF",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
-          "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_YUI_HEIR_PS2_CUMULATIVE_DAMAGE_RATIO",
-          "op": "GTE",
-          "value": 0.3
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_YUI_HEIR_PS2_CUMULATIVE_DAMAGE_RATIO"
+            },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "valueChanged",
+              "op": "EQ",
+              "value": true
+            }
+          ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_YUI_HEIR_PS2_CUMULATIVE_DAMAGE_RATIO",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ANY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.3
       }
     ]
   }

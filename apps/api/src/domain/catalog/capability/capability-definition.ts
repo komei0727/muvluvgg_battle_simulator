@@ -48,6 +48,16 @@ function assertNonEmptyString(value: unknown, path: string): asserts value is st
   }
 }
 
+function assertUniqueStrings(values: readonly string[], path: string): void {
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value)) {
+      throw new DomainValidationError(path, `must not contain duplicate value "${value}"`);
+    }
+    seen.add(value);
+  }
+}
+
 export function createCapabilityDefinition(
   input: CapabilityDefinitionInput,
   path = "capability",
@@ -68,6 +78,11 @@ export function createCapabilityDefinition(
   for (const [index, testCaseId] of input.verification.testCaseIds.entries()) {
     assertNonEmptyString(testCaseId, `${path}.verification.testCaseIds[${index}]`);
   }
+  assertUniqueStrings(
+    input.verification.productionDefinitionIds,
+    `${path}.verification.productionDefinitionIds`,
+  );
+  assertUniqueStrings(input.verification.testCaseIds, `${path}.verification.testCaseIds`);
   if (input.runtimeStatus === "IMPLEMENTED") {
     assertNonEmptyArray(
       input.verification.productionDefinitionIds,

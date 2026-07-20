@@ -121,14 +121,6 @@
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
-    "capabilityId": "CAP_IMPLICIT_SKILL_RUNTIME_COUNTER",
-    "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
-    "implementationTaskId": "EFF-005",
-    "description": "counterUpdates未宣言のlegacy SkillRuntime counter",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
-  },
-  {
     "capabilityId": "CAP_MARKER",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
@@ -217,10 +209,28 @@
     "verification": {
       "productionDefinitionIds": [
         "SKL_CHIYURU_NEWYEAR_PS2",
+        "SKL_CHIZURU_DOMESTIC_PS1",
+        "SKL_CHIZURU_DOMESTIC_PS2",
         "SKL_CHIZURU_DOMESTIC_PS3",
-        "SKL_TATIANA_SAGE_PS1"
+        "SKL_DOROTHEA_PIONEER_PS1",
+        "SKL_DOROTHEA_PIONEER_PS2",
+        "SKL_EVIE_ECO_PS2",
+        "SKL_FEE_ACTOR_PS2",
+        "SKL_FLUTE_VAMPIRE_PS1",
+        "SKL_FLUTE_VAMPIRE_PS3",
+        "SKL_HIIRO_LONEWOLF_PS1",
+        "SKL_KEI_JACKKNIFE_PS1",
+        "SKL_KOTOHA_REBEL_PS2",
+        "SKL_LAYLA_ENTREPRENEUR_PS1",
+        "SKL_LYDIA_GENIUS_PS2",
+        "SKL_MIKOTO_SURVIVOR_PS1",
+        "SKL_OLGA_VETERAN_PS2",
+        "SKL_RAMI_UNYIELDING_PS1",
+        "SKL_TATIANA_SAGE_PS1",
+        "SKL_YUI_HEIR_PS2",
+        "SKL_YURIA_YUKATA_PS2"
       ],
-      "testCaseIds": ["IT-CAT-PROD-010"]
+      "testCaseIds": ["IT-CAP-SKILL-RUNTIME-001", "IT-CAP-SKILL-RUNTIME-002"]
     }
   },
   {

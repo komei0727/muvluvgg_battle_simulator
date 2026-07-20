@@ -65,13 +65,28 @@ function damageEvent(
   };
 }
 
+function passiveActivatedEvent(
+  ownerUnitId: ReturnType<typeof createBattleUnitId>,
+  skillDefinitionId: string,
+): TriggerCandidateEvent {
+  return {
+    eventType: "PassiveActivated",
+    category: "FACT",
+    sourceUnitId: ownerUnitId,
+    targetUnitIds: [ownerUnitId],
+    payload: { skillDefinitionId },
+  };
+}
+
 describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on valueChanged (Issue #143 review re-fix [P1])", () => {
   it.each([
     { unitId: "UNIT_CHIYURU_NEWYEAR", skillId: "SKL_CHIYURU_NEWYEAR_PS2", maxHpRatio: 0.4 },
     { unitId: "UNIT_CHIZURU_DOMESTIC", skillId: "SKL_CHIZURU_DOMESTIC_PS3", maxHpRatio: 0.85 },
+    { unitId: "UNIT_MIKOTO_SURVIVOR", skillId: "SKL_MIKOTO_SURVIVOR_PS1", maxHpRatio: 0.1 },
     { unitId: "UNIT_TATIANA_SAGE", skillId: "SKL_TATIANA_SAGE_PS1", maxHpRatio: 0.2 },
+    { unitId: "UNIT_YUI_HEIR", skillId: "SKL_YUI_HEIR_PS2", maxHpRatio: 0.3 },
   ])(
-    "IT-CAT-PROD-010: $skillId's ($unitId) real RuntimeCounterChanged trigger condition rejects a sub-threshold (carry-only) hit and accepts a threshold-crossing hit",
+    "IT-CAP-SKILL-RUNTIME-001: $skillId's ($unitId) real RuntimeCounterChanged trigger condition rejects a sub-threshold (carry-only) hit and accepts a threshold-crossing hit",
     ({ unitId, skillId, maxHpRatio }) => {
       const catalog = loadCatalogFromDirectory(CATALOG_DIR);
       const snapshot = catalog.loadSnapshot([unitId as never], []);
@@ -136,6 +151,66 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
           { owner, skillDefinitionId: skill!.skillDefinitionId },
         ),
       ).toBe(true);
+    },
+  );
+
+  it.each([
+    ["UNIT_CHIZURU_DOMESTIC", "SKL_CHIZURU_DOMESTIC_PS1"],
+    ["UNIT_CHIZURU_DOMESTIC", "SKL_CHIZURU_DOMESTIC_PS2"],
+    ["UNIT_DOROTHEA_PIONEER", "SKL_DOROTHEA_PIONEER_PS1"],
+    ["UNIT_DOROTHEA_PIONEER", "SKL_DOROTHEA_PIONEER_PS2"],
+    ["UNIT_EVIE_ECO", "SKL_EVIE_ECO_PS2"],
+    ["UNIT_FEE_ACTOR", "SKL_FEE_ACTOR_PS2"],
+    ["UNIT_FLUTE_VAMPIRE", "SKL_FLUTE_VAMPIRE_PS1"],
+    ["UNIT_FLUTE_VAMPIRE", "SKL_FLUTE_VAMPIRE_PS3"],
+    ["UNIT_HIIRO_LONEWOLF", "SKL_HIIRO_LONEWOLF_PS1"],
+    ["UNIT_KEI_JACKKNIFE", "SKL_KEI_JACKKNIFE_PS1"],
+    ["UNIT_KOTOHA_REBEL", "SKL_KOTOHA_REBEL_PS2"],
+    ["UNIT_LAYLA_ENTREPRENEUR", "SKL_LAYLA_ENTREPRENEUR_PS1"],
+    ["UNIT_LYDIA_GENIUS", "SKL_LYDIA_GENIUS_PS2"],
+    ["UNIT_OLGA_VETERAN", "SKL_OLGA_VETERAN_PS2"],
+    ["UNIT_RAMI_UNYIELDING", "SKL_RAMI_UNYIELDING_PS1"],
+    ["UNIT_YURIA_YUKATA", "SKL_YURIA_YUKATA_PS2"],
+  ])(
+    "IT-CAP-SKILL-RUNTIME-002: %s %s increments only its own activation counter from the production PassiveActivated payload",
+    (unitId, skillId) => {
+      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+      const snapshot = catalog.loadSnapshot([unitId as never], []);
+      const unitDefinition = snapshot.units.get(unitId as never);
+      const skill = snapshot.skills.get(skillId as never);
+      expect(unitDefinition).toBeDefined();
+      expect(skill).toBeDefined();
+      expect(skill!.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
+      expect(skill!.counterUpdates).toHaveLength(1);
+      expect(skill!.counterUpdates[0]).toMatchObject({
+        kind: "INCREMENT",
+        scope: "SKILL_RUNTIME",
+        amount: 1,
+      });
+
+      const owner = actorFor(unitId, "ALLY", "B_1:unit:1", unitDefinition!.baseStats.maximumHp);
+      const unrelated = detectRuntimeCounterUpdates({
+        event: passiveActivatedEvent(owner.battleUnitId, "SKL_OTHER"),
+        units: [owner],
+        unitDefinitions: snapshot.units,
+        skillDefinitions: snapshot.skills,
+      });
+      expect(unrelated.changes).toEqual([]);
+
+      const activated = detectRuntimeCounterUpdates({
+        event: passiveActivatedEvent(owner.battleUnitId, skillId),
+        units: [owner],
+        unitDefinitions: snapshot.units,
+        skillDefinitions: snapshot.skills,
+      });
+      expect(activated.changes).toHaveLength(1);
+      expect(activated.changes[0]).toMatchObject({
+        skillDefinitionId: skill!.skillDefinitionId,
+        counter: `${skillId}_ACTIVATIONS`,
+        before: 0,
+        after: 1,
+        valueChanged: true,
+      });
     },
   );
 });

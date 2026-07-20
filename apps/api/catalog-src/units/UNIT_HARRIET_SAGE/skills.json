@@ -118,7 +118,8 @@
       "CAP_COMPLEX_EXPIRATION",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
-      "CAP_TARGET_DERIVED_AREA"
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "攻撃魔法『ホーリーレイ』", "tags": [] }
   },

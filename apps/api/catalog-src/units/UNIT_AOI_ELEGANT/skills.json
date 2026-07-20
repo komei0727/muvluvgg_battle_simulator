@@ -90,7 +90,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "百花繚乱", "tags": [] }
   },
   {
@@ -155,7 +160,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_FORMULA"
+      "CAP_FORMULA",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "清廉なる一撃", "tags": [] }
   },
@@ -249,7 +255,12 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "高貴な一礼", "tags": [] },
     "triggers": [
       {
