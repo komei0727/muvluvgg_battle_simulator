@@ -126,6 +126,7 @@ interface TestCaseDefinition {
 }
 
 const TEST_CASE_ID_PATTERN = /\b(?:UT|IT|SCN|E2E)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
+const NON_EXECUTING_TEST_MODIFIERS = new Set(["skip", "skipIf", "todo", "runIf"]);
 
 function hasTestFunctionRoot(expression: ts.Expression): boolean {
   if (ts.isIdentifier(expression)) {
@@ -136,6 +137,47 @@ function hasTestFunctionRoot(expression: ts.Expression): boolean {
   }
   if (ts.isCallExpression(expression)) {
     return hasTestFunctionRoot(expression.expression);
+  }
+  return false;
+}
+
+function hasDescribeFunctionRoot(expression: ts.Expression): boolean {
+  if (ts.isIdentifier(expression)) {
+    return expression.text === "describe";
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    return hasDescribeFunctionRoot(expression.expression);
+  }
+  if (ts.isCallExpression(expression)) {
+    return hasDescribeFunctionRoot(expression.expression);
+  }
+  return false;
+}
+
+function hasNonExecutingModifier(expression: ts.Expression): boolean {
+  if (ts.isPropertyAccessExpression(expression)) {
+    return (
+      NON_EXECUTING_TEST_MODIFIERS.has(expression.name.text) ||
+      hasNonExecutingModifier(expression.expression)
+    );
+  }
+  if (ts.isCallExpression(expression)) {
+    return hasNonExecutingModifier(expression.expression);
+  }
+  return false;
+}
+
+function isInsideNonExecutingSuite(node: ts.Node): boolean {
+  let ancestor = node.parent;
+  while (ancestor !== undefined) {
+    if (
+      ts.isCallExpression(ancestor) &&
+      hasDescribeFunctionRoot(ancestor.expression) &&
+      hasNonExecutingModifier(ancestor.expression)
+    ) {
+      return true;
+    }
+    ancestor = ancestor.parent;
   }
   return false;
 }
@@ -154,7 +196,12 @@ function collectTestCaseDefinitionsFromSource(
   const definitions: [string, TestCaseDefinition][] = [];
 
   function visit(node: ts.Node): void {
-    if (ts.isCallExpression(node) && hasTestFunctionRoot(node.expression)) {
+    if (
+      ts.isCallExpression(node) &&
+      hasTestFunctionRoot(node.expression) &&
+      !hasNonExecutingModifier(node.expression) &&
+      !isInsideNonExecutingSuite(node)
+    ) {
       const title = node.arguments[0];
       if (
         title !== undefined &&
@@ -382,6 +429,13 @@ describe("remaining work manifest (PLAN-001)", () => {
         const note = "IT-TRACE-002: an arbitrary string is not evidence";
         it("IT-TRACE-003: first definition", () => {});
         it.each([[1]])("IT-TRACE-003: duplicate definition", () => {});
+        it.skip("IT-TRACE-004: skipped test is not evidence", () => {});
+        test.todo("IT-TRACE-005: todo test is not evidence");
+        it.skipIf(true)("IT-TRACE-006: conditionally skipped test is not evidence", () => {});
+        test.runIf(false)("IT-TRACE-007: conditionally disabled test is not evidence", () => {});
+        describe.skip("disabled suite", () => {
+          it("IT-TRACE-008: test in a skipped suite is not evidence", () => {});
+        });
       `,
       "traceability.test.ts",
     );

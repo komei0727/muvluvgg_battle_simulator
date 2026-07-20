@@ -124,6 +124,39 @@ function branchSkill(id: string, requiredCapabilities: readonly string[]): Skill
   });
 }
 
+function randomBranchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "RANDOM_BRANCH",
+          mode: "WEIGHTED_ONE",
+          branches: [
+            {
+              weight: 1,
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "RANDOM_BRANCH AS" },
+  });
+}
+
 function targetingSkill(
   selector: TargetSelectorDefinitionInput,
   requiredCapabilities: readonly string[],
@@ -200,6 +233,33 @@ function branchMemory(requiredCapabilities: readonly string[]) {
     ],
     requiredCapabilities,
     metadata: { displayName: "Branch Memory" },
+  });
+}
+
+function triggeredMemory(requiredCapabilities: readonly string[]) {
+  return createMemoryDefinition({
+    memoryDefinitionId: "MEM_TRIGGERED",
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities,
+    metadata: { displayName: "Triggered Memory" },
   });
 }
 
@@ -483,10 +543,11 @@ describe("buildCatalogIndex", () => {
               },
             },
           ],
-          requiredCapabilities: [],
+          requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
           metadata: { displayName: "Memory" },
         }),
       ],
+      capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
     };
     expect(() => buildCatalogIndex(withDangling)).toThrow(CatalogIntegrityError);
     try {
@@ -842,16 +903,22 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
-        memories: [branchMemory([])],
-        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+        memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_RESOLUTION_BRANCH_REPEAT"),
+        ],
       }),
     ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
 
     expect(() =>
       buildCatalogIndex({
         ...defs,
-        memories: [branchMemory(["CAP_RESOLUTION_BRANCH_REPEAT"])],
-        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+        memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_RESOLUTION_BRANCH_REPEAT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_RESOLUTION_BRANCH_REPEAT"),
+        ],
       }),
     ).not.toThrow();
   });
@@ -861,16 +928,22 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
-        memories: [triggerContextMemory([])],
-        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+        memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_TRIGGER_CONTEXT"),
+        ],
       }),
     ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
 
     expect(() =>
       buildCatalogIndex({
         ...defs,
-        memories: [triggerContextMemory(["CAP_TRIGGER_CONTEXT"])],
-        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+        memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TRIGGER_CONTEXT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_TRIGGER_CONTEXT"),
+        ],
       }),
     ).not.toThrow();
   });
@@ -1018,4 +1091,42 @@ describe("buildCatalogIndex", () => {
       ).not.toThrow();
     },
   );
+
+  it("UT-CAT-IDX-032: rejects RANDOM_BRANCH skills without CAP_RANDOM_BRANCH", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [randomBranchSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RANDOM_BRANCH")],
+      }),
+    ).toThrowError(/must declare "CAP_RANDOM_BRANCH"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [randomBranchSkill("SKL_AS1", ["CAP_RANDOM_BRANCH"]), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RANDOM_BRANCH")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-033: rejects triggeredEffects memories without CAP_MEMORY_TRIGGERED_EFFECT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggeredMemory([])],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
+      }),
+    ).toThrowError(/must declare "CAP_MEMORY_TRIGGERED_EFFECT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggeredMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
+      }),
+    ).not.toThrow();
+  });
 });

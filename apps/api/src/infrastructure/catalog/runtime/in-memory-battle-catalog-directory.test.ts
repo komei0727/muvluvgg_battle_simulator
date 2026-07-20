@@ -161,6 +161,7 @@ function capability(id: string, status = "IMPLEMENTED"): CapabilityDefinition {
     CAP_SKILL: "SKL_AS1",
     CAP_ACTION: "ACT_DAMAGE_AS",
     CAP_MEMORY: "MEM_001",
+    CAP_MEMORY_TRIGGERED_EFFECT: "MEM_001",
   };
   const evidenceDefinitionId = evidenceDefinitionIds[id];
   return createCapabilityDefinition({
@@ -184,12 +185,13 @@ function buildDefinitions(): CatalogDefinitions {
       damageAction("ACT_DAMAGE_AS", ["CAP_ACTION"]),
       damageAction("ACT_DAMAGE_MEMORY"),
     ],
-    memories: [memory("MEM_001", ["CAP_MEMORY"])],
+    memories: [memory("MEM_001", ["CAP_MEMORY", "CAP_MEMORY_TRIGGERED_EFFECT"])],
     capabilities: [
       capability("CAP_UNIT"),
       capability("CAP_SKILL"),
       capability("CAP_ACTION"),
       capability("CAP_MEMORY"),
+      capability("CAP_MEMORY_TRIGGERED_EFFECT"),
     ],
   };
 }
@@ -224,7 +226,7 @@ describe("InMemoryBattleCatalogDirectory.loadSnapshot", () => {
       new Set(["ACT_DAMAGE_AS", "ACT_DAMAGE_MEMORY"]),
     );
     expect(new Set(snapshot.capabilities.keys())).toEqual(
-      new Set(["CAP_UNIT", "CAP_SKILL", "CAP_ACTION", "CAP_MEMORY"]),
+      new Set(["CAP_UNIT", "CAP_SKILL", "CAP_ACTION", "CAP_MEMORY", "CAP_MEMORY_TRIGGERED_EFFECT"]),
     );
   });
 

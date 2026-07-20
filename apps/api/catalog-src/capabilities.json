@@ -252,7 +252,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "RES-003",
-    "description": "BRANCH / RANDOM_BRANCH / REPEATと直前結果",
+    "description": "BRANCH / REPEATと直前結果",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []

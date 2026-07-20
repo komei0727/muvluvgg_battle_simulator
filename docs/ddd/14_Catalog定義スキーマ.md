@@ -1750,7 +1750,7 @@ metadata:
 
 旧IDは互換aliasとして残さない。`catalog-src/`内の参照と生成済み`catalog/`を同じrevisionで一括移行する。API v1はCapability定義本体を公開せず、選択不可理由のCapability IDだけを返すため、レスポンスSchemaの変更はない。
 
-実行時構造から必要Capabilityを一意に導出し、Skill/Memory自身の`requiredCapabilities`へ宣言する。非空`filters`または`["DEFAULT"]`以外の`order`は`CAP_TARGET_FILTER_ORDER`、`BINDING_DERIVED`または`area`は`CAP_TARGET_DERIVED_AREA`、`fallback`は`CAP_TARGET_BINDING_FALLBACK`を必須とする。TargetSelectorのkind/baseまたはEffectStep targetが`TRIGGER_SOURCE`/`TRIGGER_TARGET`なら`CAP_TRIGGER_CONTEXT`、EffectStep targetが`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`なら`CAP_RESOLUTION_BRANCH_REPEAT`を必須とする。Skillの`activationCondition`が`TRUE`以外なら、AS/EXは`CAP_ACTION_ACTIVATION_CONDITION`、PSは`CAP_PASSIVE_ACTIVATION_CONDITION`を必須とする。前者はR-ACT-01/02の行動選択、後者はPS候補判定・発動直前再確認という別ライフサイクルを完了境界とする。Catalog整合性検証はEffectStepの分岐・反復とselectorのfallbackを再帰走査し、宣言漏れを拒否する。
+実行時構造から必要Capabilityを一意に導出し、Skill/Memory自身の`requiredCapabilities`へ宣言する。非空`filters`または`["DEFAULT"]`以外の`order`は`CAP_TARGET_FILTER_ORDER`、`BINDING_DERIVED`または`area`は`CAP_TARGET_DERIVED_AREA`、`fallback`は`CAP_TARGET_BINDING_FALLBACK`を必須とする。TargetSelectorのkind/baseまたはEffectStep targetが`TRIGGER_SOURCE`/`TRIGGER_TARGET`なら`CAP_TRIGGER_CONTEXT`、EffectStep targetが`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`なら`CAP_RESOLUTION_BRANCH_REPEAT`を必須とする。`RANDOM_BRANCH`は`CAP_RANDOM_BRANCH`、Memoryの`triggeredEffects`は`CAP_MEMORY_TRIGGERED_EFFECT`を必須とする。Skillの`activationCondition`が`TRUE`以外なら、AS/EXは`CAP_ACTION_ACTIVATION_CONDITION`、PSは`CAP_PASSIVE_ACTIVATION_CONDITION`を必須とする。前者はR-ACT-01/02の行動選択、後者はPS候補判定・発動直前再確認という別ライフサイクルを完了境界とする。Catalog整合性検証はEffectStepの分岐・反復とselectorのfallbackを再帰走査し、宣言漏れを拒否する。
 
 ### 現Capability registry
 
@@ -1780,7 +1780,7 @@ metadata:
 | `CAP_PARTIAL_PIERCING`             | `DMG-003`    | 部分防御/シールド無視                                   |
 | `CAP_RANDOM_BRANCH`                | `RES-003`    | 確率分岐                                                |
 | `CAP_REMOVE_EFFECTS`               | `M7-001`     | 効果解除                                                |
-| `CAP_RESOLUTION_BRANCH_REPEAT`     | `RES-003`    | BRANCH / RANDOM_BRANCH / REPEATと直前結果               |
+| `CAP_RESOLUTION_BRANCH_REPEAT`     | `RES-003`    | BRANCH / REPEATと直前結果                               |
 | `CAP_RESOURCE_CAPACITY_MOD`        | `M7-002`     | 最大APなどの上限変更                                    |
 | `CAP_RESOURCE_MUTATION`            | `M7-002`     | AP / PP / EX 操作                                       |
 | `CAP_SHIELD`                       | `DMG-004`    | シールド付与                                            |

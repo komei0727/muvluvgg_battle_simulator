@@ -181,6 +181,7 @@ function containsStepKind(
 }
 
 const BRANCH_REPEAT_STEP_KINDS = new Set<EffectStepDefinition["kind"]>(["BRANCH", "REPEAT"]);
+const RANDOM_BRANCH_STEP_KINDS = new Set<EffectStepDefinition["kind"]>(["RANDOM_BRANCH"]);
 const TRIGGER_CONTEXT_EVENT_TYPES = new Set([
   "EffectApplied",
   "UnitBeingAttacked",
@@ -191,6 +192,8 @@ const LAST_RESULT_TARGET_KINDS = new Set(["LAST_ACTION_TARGETS", "LAST_DAMAGED_T
 type RuntimeStructuralCapabilityId =
   | "CAP_ACTION_ACTIVATION_CONDITION"
   | "CAP_PASSIVE_ACTIVATION_CONDITION"
+  | "CAP_MEMORY_TRIGGERED_EFFECT"
+  | "CAP_RANDOM_BRANCH"
   | "CAP_RESOLUTION_BRANCH_REPEAT"
   | "CAP_TARGET_FILTER_ORDER"
   | "CAP_TARGET_DERIVED_AREA"
@@ -241,6 +244,8 @@ function sequenceRequiresCapability(
   switch (capabilityId) {
     case "CAP_RESOLUTION_BRANCH_REPEAT":
       return stepsContainTargetReferenceKinds(sequence.steps, LAST_RESULT_TARGET_KINDS);
+    case "CAP_RANDOM_BRANCH":
+      return containsStepKind(sequence.steps, RANDOM_BRANCH_STEP_KINDS);
     case "CAP_TARGET_FILTER_ORDER":
       return sequence.targetBindings.some(({ selector }) =>
         selectorTreeSome(
@@ -315,6 +320,15 @@ function validateRuntimeCapabilityDeclarations(
       message:
         'BRANCH/REPEAT EffectStep or LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS reference must declare "CAP_RESOLUTION_BRANCH_REPEAT" in requiredCapabilities',
     });
+  }
+  if (sequences.some((sequence) => sequenceRequiresCapability(sequence, "CAP_RANDOM_BRANCH"))) {
+    requireRuntimeCapability(
+      targetId,
+      requiredCapabilities,
+      "CAP_RANDOM_BRANCH",
+      "RANDOM_BRANCH EffectStep",
+      violations,
+    );
   }
   if (activationCondition !== undefined && activationCondition.kind !== "TRUE") {
     const capabilityId =
@@ -681,6 +695,15 @@ function validateMemory(
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
+  if (memory.triggeredEffects.length > 0) {
+    requireRuntimeCapability(
+      memory.memoryDefinitionId,
+      memory.requiredCapabilities,
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "Memory triggeredEffects",
+      violations,
+    );
+  }
   validateRuntimeCapabilityDeclarations(
     memory.memoryDefinitionId,
     memory.requiredCapabilities,
