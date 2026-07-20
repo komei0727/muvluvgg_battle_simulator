@@ -363,7 +363,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
-  it('UT-R-PS-01-036 (review re-fix [P2], Issue #144 follow-up): PassiveActivationRuntimeContext.resolutionPhase: "BATTLE_START" reaches candidate detection AND reconfirmation, activating a RESOLUTION_PHASE("BATTLE_START", negate: false)-gated PS — the same mechanism already proven for "TURN_START"/"TURN_END", verified here independently of `startBattle`\'s real BattleUnit resource state (Q-BTL-05 forbids a 0-cost PS, and `createBattleUnit`/READY→RUNNING never grants PP before this point — see UT-BATTLE-015/017 in battle.test.ts, which correctly assert this candidate can never actually activate through the real creation path)', () => {
+  it('UT-R-PS-01-036 (review re-fix [P2], Issue #144 follow-up): PassiveActivationRuntimeContext.resolutionPhase: "BATTLE_START" reaches candidate detection AND reconfirmation, activating a RESOLUTION_PHASE("BATTLE_START", negate: false)-gated PS — the same mechanism already proven for "TURN_START"/"TURN_END", verified here independently of `startBattle`\'s real BattleUnit resource state (Q-BTL-05 forbids a 0-cost PS, and `createBattleUnit`/READY→RUNNING never grants PP before this point — see UT-BATTLE-017 in battle.test.ts, which correctly asserts this candidate can never actually activate through the real creation path)', () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {
       ...passiveSkillOf("SKL_PS", { ppCost: 1 }),
