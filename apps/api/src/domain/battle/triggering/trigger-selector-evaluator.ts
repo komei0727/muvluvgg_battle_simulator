@@ -37,6 +37,38 @@ function rejectEffectOwner(
 }
 
 /**
+ * レビュー指摘[P1]（Issue #144 follow-up）: `TurnStarted`/`TurnCompleting`の
+ * ように特定のBattleUnitに帰属しないグローバルな行動外イベントは、
+ * `event-recorder.ts`の発行元が`sourceUnitId`/`sourceSide`のどちらも設定
+ * しない（`resolveSourceSide`が常に`undefined`を返す）。`PassiveResolved`の
+ * ように`sourceUnitId`は持つが`targetUnitIds`を持たないイベント（PS解決は
+ * 対象を持つとは限らない）も同様に対象へ帰属しない。production Catalogは
+ * 「自身がASを使う前」（`08_ドメインイベント.md`の例）と同じ著者慣習で、
+ * こうした帰属先を持たないイベントに対しても「自身のターン開始・終了時」
+ * 「味方のPS解決後、自身に」を`sourceSelector`/`targetSelector: SELF`
+ * （`TurnStarted`/`TurnCompleting`合計39行、`PassiveResolved`1行）で表現
+ * している。他方、`SkillUseStarting`/`DamageApplied`/`PassiveActivated`など
+ * 実際にunit起因のイベントは、`sourceUnitId`（対象を持つ種別は
+ * `targetUnitIds`も）を必ず設定して発行される（`action-skill-use-
+ * resolver.ts`/`damage-application-service.ts`/`passive-activation-
+ * service.ts`確認済み）。そのため「`sourceUnitId`も`sourceSide`も持たない」
+ * 「`targetUnitIds`を持たない」ことを、それぞれ発生源・対象を特定unitへ
+ * 帰属できないイベントの判定に使ってよい — この場合`SELF`は「(帰属先が
+ * 存在しないため)所有者自身の視点で成立する」ものとして候補化する。
+ * `ALLY`/`ENEMY`はこの場合も`resolveSourceSide`が`undefined`を返すため、
+ * これまで通り不成立のままにする（帰属先を持たないイベントに陣営の概念は
+ * ない）。
+ */
+function isSourceUnattributed(event: TriggerCandidateEvent): boolean {
+  return event.sourceUnitId === undefined && event.sourceSide === undefined;
+}
+
+/** 上記`isSourceUnattributed`と対になる、`targetUnitIds`側の判定。 */
+function isTargetUnattributed(event: TriggerCandidateEvent): boolean {
+  return event.targetUnitIds === undefined || event.targetUnitIds.length === 0;
+}
+
+/**
  * R-PS-01「発生源...をConditionDefinitionで評価する」のうち`sourceSelector`部分。
  * `ALLY`/`ENEMY`はPS所有者自身を含む・含まないの区別を持たず、`resolveSourceSide`
  * が導出した発生源の陣営と所有者の`side`を比較する（自分自身か否かは`SELF`が担う）。
@@ -52,7 +84,7 @@ export function evaluateSourceSelector(
     case "ANY":
       return true;
     case "SELF":
-      return event.sourceUnitId === owner.battleUnitId;
+      return event.sourceUnitId === owner.battleUnitId || isSourceUnattributed(event);
     case "ALLY":
       return resolveSourceSide(event, unitsById) === owner.side;
     case "ENEMY": {
@@ -74,6 +106,9 @@ export function evaluateTargetSelector(
 ): boolean {
   rejectEffectOwner(selector, "trigger.targetSelector");
   if (selector === "ANY") {
+    return true;
+  }
+  if (selector === "SELF" && isTargetUnattributed(event)) {
     return true;
   }
   const targetUnitIds = event.targetUnitIds;

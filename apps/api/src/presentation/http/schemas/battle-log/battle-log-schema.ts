@@ -183,9 +183,23 @@ const RESOURCE_KIND_ENUM = ["AP", "PP", "EX_GAUGE"] as const;
 const skillUseStartingDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["skillDefinitionId", "actorUnitId", "targetUnitIds", "costResource", "costAmount"],
+  required: [
+    "skillDefinitionId",
+    "skillType",
+    "actorUnitId",
+    "targetUnitIds",
+    "costResource",
+    "costAmount",
+  ],
   properties: {
     skillDefinitionId: { type: "string" },
+    /**
+     * Issue #144 follow-up: `EVENT_PAYLOAD field: "skillType"`をこのeventType
+     * へ条件付けるproduction Catalog行（SKL_SUIRAN_CHAOS_PS3等）のため、
+     * `SkillUseCompleted`（Issue #143）と同じ理由で追加した。`SkillUseStarting`
+     * はAS/EXの使用開始時にのみ発行される（PSはこのeventTypeを発行しない）。
+     */
+    skillType: { type: "string", enum: ["AS", "EX"] },
     actorUnitId: { type: "string" },
     targetUnitIds: { type: "array", items: { type: "string" } },
     costResource: { type: "string", enum: RESOURCE_KIND_ENUM },

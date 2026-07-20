@@ -132,6 +132,13 @@ export interface BattleDomainEventPayloadMap {
   };
   readonly SkillUseStarting: {
     readonly skillDefinitionId: SkillDefinitionId;
+    /**
+     * Issue #144 follow-up: `EVENT_PAYLOAD field: "skillType"`を`SkillUseStarting`
+     * eventType（`TRIGGER_POSITION_RELATION`対象のSKL_SUIRAN_CHAOS_PS3等）へ
+     * 条件付けるproduction Catalog行が、`SkillUseCompleted`（Issue #143）と
+     * 同じ理由でこのフィールドを必要とする。
+     */
+    readonly skillType: SkillType;
     readonly actorUnitId: BattleUnitId;
     readonly targetUnitIds: readonly BattleUnitId[];
     readonly costResource: ResourceKind;
