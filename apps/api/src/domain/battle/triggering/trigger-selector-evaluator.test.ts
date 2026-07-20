@@ -68,6 +68,18 @@ describe("evaluateSourceSelector", () => {
     ).toBe(false);
   });
 
+  it("UT-R-PS-01-034 (review fix [P1], Issue #144 follow-up): SELF matches every owner for a globally-scoped event with neither sourceUnitId nor sourceSide (e.g. TurnStarted/TurnCompleting), and ALLY/ENEMY still never match it", () => {
+    const globalEvent: TriggerCandidateEvent = {
+      eventType: "TurnCompleting",
+      category: "TIMING",
+      payload: {},
+    };
+    expect(evaluateSourceSelector("SELF", owner, globalEvent, unitsById)).toBe(true);
+    expect(evaluateSourceSelector("SELF", allyOther, globalEvent, unitsById)).toBe(true);
+    expect(evaluateSourceSelector("ALLY", owner, globalEvent, unitsById)).toBe(false);
+    expect(evaluateSourceSelector("ENEMY", owner, globalEvent, unitsById)).toBe(false);
+  });
+
   it("UT-R-PS-01-012 (regression): ALLY matches by resolving sourceUnitId's side, even though the event carries no sourceSide (matches production event-recorder.ts shape)", () => {
     expect(
       evaluateSourceSelector("ALLY", owner, eventFromUnit(allyOther.battleUnitId), unitsById),
@@ -152,6 +164,20 @@ describe("evaluateTargetSelector", () => {
     expect(
       evaluateTargetSelector("SELF", owner, eventWithTargets([enemy.battleUnitId]), unitsById),
     ).toBe(false);
+  });
+
+  it("UT-R-PS-01-035 (review fix [P1], Issue #144 follow-up): SELF matches every owner for an event with no targetUnitIds at all (e.g. TurnCompleting/PassiveResolved), and ALLY/ENEMY still never match it", () => {
+    expect(evaluateTargetSelector("SELF", owner, eventWithTargets(undefined), unitsById)).toBe(
+      true,
+    );
+    expect(evaluateTargetSelector("SELF", owner, eventWithTargets([]), unitsById)).toBe(true);
+    expect(evaluateTargetSelector("SELF", ally, eventWithTargets(undefined), unitsById)).toBe(true);
+    expect(evaluateTargetSelector("ALLY", owner, eventWithTargets(undefined), unitsById)).toBe(
+      false,
+    );
+    expect(evaluateTargetSelector("ENEMY", owner, eventWithTargets(undefined), unitsById)).toBe(
+      false,
+    );
   });
 
   it("UT-R-PS-01-017: ALLY matches when at least one target shares the owner side", () => {
