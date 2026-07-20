@@ -39,6 +39,7 @@ export interface UnitChargeState {
 export interface UnitActionState {
   readonly battleUnitId: string;
   readonly ap?: ResourceValue;
+  readonly pp?: ResourceValue;
   readonly extraGauge?: ResourceValue;
   readonly cooldowns: readonly UnitCooldownState[];
   readonly charge?: UnitChargeState;
@@ -246,6 +247,7 @@ export function selectUnitActionStates(
     const finalUnit = finalUnitsById.get(entry.battleUnitId);
     const resources = finalUnit?.["resources"];
     const ap = readResourceValue(resources, "ap");
+    const pp = readResourceValue(resources, "pp");
     const extraGauge = readResourceValue(resources, "extraGauge");
 
     const cooldownsFromFinalState = readCooldownsFromFinalState(finalUnit);
@@ -269,6 +271,7 @@ export function selectUnitActionStates(
     return {
       battleUnitId: entry.battleUnitId,
       ...(ap !== undefined ? { ap } : {}),
+      ...(pp !== undefined ? { pp } : {}),
       ...(extraGauge !== undefined ? { extraGauge } : {}),
       cooldowns,
       ...(charge !== undefined ? { charge } : {}),

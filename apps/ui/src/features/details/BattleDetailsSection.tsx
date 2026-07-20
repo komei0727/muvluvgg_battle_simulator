@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Tabs } from "../../components/Tabs.js";
 import { buildRosterIndex } from "./event-formatters.js";
+import { EventCausalityTree } from "./EventCausalityTree.js";
 import { EventTimeline } from "./EventTimeline.js";
 import { RawJsonView } from "./RawJsonView.js";
 import { StateTransitionTable } from "./StateTransitionTable.js";
@@ -19,10 +20,11 @@ export interface BattleDetailsSectionProps {
   readonly logLevel: LogLevel;
 }
 
-type DetailsTab = "events" | "transitions" | "json" | "actionState";
+type DetailsTab = "events" | "transitions" | "json" | "actionState" | "causalityTree";
 
 const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] = [
   { id: "events", label: "時系列イベント" },
+  { id: "causalityTree", label: "因果ツリー" },
   { id: "transitions", label: "状態遷移" },
   { id: "json", label: "レスポンスJSON" },
   { id: "actionState", label: "ユニット状態" },
@@ -72,6 +74,11 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
             roster={roster}
             onJumpToTransition={jumpToTransition}
           />
+        </div>
+      ) : null}
+      {activeTab === "causalityTree" ? (
+        <div role="tabpanel" id="tabpanel-causalityTree" aria-labelledby="tab-causalityTree">
+          <EventCausalityTree events={response.events} roster={roster} />
         </div>
       ) : null}
       {activeTab === "transitions" ? (
