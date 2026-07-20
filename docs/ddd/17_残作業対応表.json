@@ -23,6 +23,27 @@
       "implemented": 1
     }
   },
+  "current": {
+    "rules": {
+      "total": 109,
+      "completed": 47,
+      "remaining": 62
+    },
+    "unitCatalog": {
+      "convertedProductionUnits": 69,
+      "syntheticUnits": 1,
+      "incompleteConversionRows": 96
+    },
+    "memoryCatalog": {
+      "sourceTotal": 32,
+      "converted": 6,
+      "unconverted": 26
+    },
+    "capabilities": {
+      "total": 30,
+      "implemented": 1
+    }
+  },
   "tasks": [
     { "taskId": "PLAN-001", "issue": 163, "phase": 0, "milestone": "M7" },
     { "taskId": "CAP-001", "issue": 166, "phase": 0, "milestone": "M7" },
