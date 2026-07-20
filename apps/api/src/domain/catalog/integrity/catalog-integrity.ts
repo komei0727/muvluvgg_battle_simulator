@@ -192,6 +192,7 @@ const LAST_RESULT_TARGET_KINDS = new Set(["LAST_ACTION_TARGETS", "LAST_DAMAGED_T
 type RuntimeStructuralCapabilityId =
   | "CAP_ACTION_ACTIVATION_CONDITION"
   | "CAP_PASSIVE_ACTIVATION_CONDITION"
+  | "CAP_EFFECT_STEP_CONDITION"
   | "CAP_MEMORY_TRIGGERED_EFFECT"
   | "CAP_RANDOM_BRANCH"
   | "CAP_RESOLUTION_BRANCH_REPEAT"
@@ -238,6 +239,29 @@ function stepsContainTargetReferenceKinds(
   return false;
 }
 
+function stepsContainNonTrueCondition(steps: readonly EffectStepDefinition[]): boolean {
+  for (const step of steps) {
+    if ((step.kind === "ACTION" || step.kind === "BRANCH") && step.condition.kind !== "TRUE") {
+      return true;
+    }
+    if (step.kind === "BRANCH") {
+      if (
+        stepsContainNonTrueCondition(step.thenSteps) ||
+        stepsContainNonTrueCondition(step.elseSteps)
+      ) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsContainNonTrueCondition(branch.steps))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsContainNonTrueCondition(step.steps)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function sequenceRequiresCapability(
   sequence: EffectSequence,
   capabilityId: RuntimeStructuralCapabilityId,
@@ -266,6 +290,8 @@ function sequenceRequiresCapability(
       );
     case "CAP_TARGET_BINDING_FALLBACK":
       return sequence.targetBindings.some(({ selector }) => selector.fallback !== undefined);
+    case "CAP_EFFECT_STEP_CONDITION":
+      return stepsContainNonTrueCondition(sequence.steps);
     case "CAP_TRIGGER_CONTEXT":
       return (
         sequence.targetBindings.some(({ selector }) =>
@@ -358,6 +384,7 @@ function validateRuntimeCapabilityDeclarations(
     ["CAP_TARGET_FILTER_ORDER", "Target selector filter/non-default order"],
     ["CAP_TARGET_DERIVED_AREA", "BINDING_DERIVED/area target selector"],
     ["CAP_TARGET_BINDING_FALLBACK", "Target selector fallback"],
+    ["CAP_EFFECT_STEP_CONDITION", "EffectStep non-TRUE condition"],
   ] as const) {
     if (sequences.some((sequence) => sequenceRequiresCapability(sequence, capabilityId))) {
       requireRuntimeCapability(targetId, requiredCapabilities, capabilityId, reason, violations);
@@ -601,6 +628,9 @@ function validateSkill(
   );
   for (const trigger of skill.triggers) {
     validateTrigger(trigger, skill.skillDefinitionId, violations);
+  }
+  for (const counterUpdate of skill.counterUpdates) {
+    validateTrigger(counterUpdate.trigger, skill.skillDefinitionId, violations);
   }
   checkRequiredCapabilities(
     skill.requiredCapabilities,

@@ -124,6 +124,32 @@ function branchSkill(id: string, requiredCapabilities: readonly string[]): Skill
   });
 }
 
+function conditionalActionSkill(
+  id: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TURN_NUMBER", op: "GTE", value: 1 },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Conditional AS" },
+  });
+}
+
 function randomBranchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -339,6 +365,54 @@ function runtimeCounterSkill(requiredCapabilities: readonly string[]): SkillDefi
         trigger: {
           eventType: "PassiveActivated",
           category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "SELF",
+        },
+        amount: 1,
+      },
+    ],
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Runtime counter PS" },
+  });
+}
+
+function runtimeCounterSkillWithTrigger(
+  eventType: string,
+  category: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: "SKL_PS1",
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [
+      {
+        eventType: "TurnStarted",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "SELF",
+      },
+    ],
+    counterUpdates: [
+      {
+        kind: "INCREMENT",
+        counter: "SKL_PS1_ACTIVATIONS",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType,
+          category,
           sourceSelector: "SELF",
           targetSelector: "SELF",
         },
@@ -1196,5 +1270,65 @@ describe("buildCatalogIndex", () => {
         capabilities,
       }),
     ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-035: rejects EffectStep non-TRUE conditions without CAP_EFFECT_STEP_CONDITION", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [conditionalActionSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_EFFECT_STEP_CONDITION")],
+      }),
+    ).toThrowError(/must declare "CAP_EFFECT_STEP_CONDITION"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          conditionalActionSkill("SKL_AS1", ["CAP_EFFECT_STEP_CONDITION"]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [capability("CAP_EFFECT_STEP_CONDITION")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-036: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
+    const defs = baseDefinitions();
+    const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [
+          ...defs.skills,
+          runtimeCounterSkillWithTrigger("NotARealEvent", "FACT", ["CAP_SKILL_RUNTIME_COUNTER"]),
+        ],
+        capabilities: [capability("CAP_SKILL_RUNTIME_COUNTER")],
+      }),
+    ).toThrowError(/references unknown eventType "NotARealEvent"/);
+  });
+
+  it("UT-CAT-IDX-037: rejects a Skill counterUpdates trigger whose declared category mismatches the eventType's documented category", () => {
+    const defs = baseDefinitions();
+    const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [
+          ...defs.skills,
+          // UnitBeingAttacked is documented as TIMING, not FACT (see UT-CAT-IDX-011).
+          runtimeCounterSkillWithTrigger("UnitBeingAttacked", "FACT", [
+            "CAP_SKILL_RUNTIME_COUNTER",
+            "CAP_TRIGGER_CONTEXT",
+          ]),
+        ],
+        capabilities: [capability("CAP_SKILL_RUNTIME_COUNTER"), capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/is documented as category/);
   });
 });

@@ -321,7 +321,12 @@ function isConditionalRegistrationAncestor(node: ts.Node): boolean {
     ts.isForOfStatement(node) ||
     ts.isWhileStatement(node) ||
     ts.isDoStatement(node) ||
-    ts.isCatchClause(node)
+    ts.isCatchClause(node) ||
+    // `try { if (true) throw ...; it(...) } catch {}`のように、tryブロック内の
+    // 到達可能性はifなど任意の文の組み合わせで静的に判定しきれない。個々の文を
+    // 精査するのではなく、TryStatement配下（try/catch/finally）全体を保守的に
+    // 「証跡になり得ない」として扱う。
+    ts.isTryStatement(node)
   ) {
     return true;
   }
@@ -333,10 +338,63 @@ function isConditionalRegistrationAncestor(node: ts.Node): boolean {
   );
 }
 
+/**
+ * `{ throw new Error(); it("ID", ...); }`のように、無条件で制御を抜ける文
+ * （throw/return）より後方に置かれた文はブロック内で到達不能になる。
+ * `isConditionalRegistrationAncestor`はif/switch/loop/catch/tryなど「実行される
+ * かもしれない」分岐だけを見ており、この「静的に見て絶対に実行されない」経路を
+ * 別途判定する必要がある。Blockが全体として（その親スコープから見て）確実に
+ * 抜けるかどうかは最後の文だけでは決まらない — 先頭のthrowの後に文が続いても
+ * Blockはその時点で必ず抜ける — ため、含まれるいずれかの文が無条件に抜けるかを見る。
+ *
+ * `describe("suite", () => { if (cond) return; it("ID", ...); })`のような
+ * ガード節も同じ理由で扱う必要がある。`if`はテスト呼び出しの祖先ではなく
+ * 先行する兄弟文なので`isConditionalRegistrationAncestor`では捉えられず、
+ * `cond`（真偽が静的に決まる`true`リテラルであれ、CI上でしか変わらない環境変数で
+ * あれ）を評価することもできない。then/else節のいずれかが確実に抜けるなら、
+ * ガード節全体を「後続文の到達可能性を保証できないもの」として保守的に
+ * 無条件終了と同列に扱う。
+ */
+function definitelyExitsControlFlow(statement: ts.Statement): boolean {
+  if (ts.isThrowStatement(statement) || ts.isReturnStatement(statement)) {
+    return true;
+  }
+  if (ts.isBlock(statement)) {
+    return statement.statements.some(definitelyExitsControlFlow);
+  }
+  if (ts.isIfStatement(statement)) {
+    return (
+      definitelyExitsControlFlow(statement.thenStatement) ||
+      (statement.elseStatement !== undefined && definitelyExitsControlFlow(statement.elseStatement))
+    );
+  }
+  return false;
+}
+
+function hasPrecedingUnconditionalExit(block: ts.Block | ts.SourceFile, child: ts.Node): boolean {
+  const index = block.statements.indexOf(child as ts.Statement);
+  if (index <= 0) {
+    return false;
+  }
+  for (let i = 0; i < index; i++) {
+    if (definitelyExitsControlFlow(block.statements[i]!)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isConditionallyRegisteredTest(node: ts.Node, checker: ts.TypeChecker): boolean {
+  let child: ts.Node = node;
   let ancestor = node.parent;
   while (ancestor !== undefined) {
     if (isConditionalRegistrationAncestor(ancestor)) {
+      return true;
+    }
+    if (
+      (ts.isBlock(ancestor) || ts.isSourceFile(ancestor)) &&
+      hasPrecedingUnconditionalExit(ancestor, child)
+    ) {
       return true;
     }
     if (ts.isArrowFunction(ancestor) || ts.isFunctionExpression(ancestor)) {
@@ -352,6 +410,7 @@ function isConditionallyRegisteredTest(node: ts.Node, checker: ts.TypeChecker): 
     ) {
       return true;
     }
+    child = ancestor;
     ancestor = ancestor.parent;
   }
   return false;
@@ -653,11 +712,81 @@ describe("remaining work manifest (PLAN-001)", () => {
         it("IT-TRACE-027: accessor skip option is not evidence", { get skip() { return true; } }, () => {});
         const skipOption = "skip";
         it("IT-TRACE-028: dynamic computed option is not evidence", { [skipOption]: true }, () => {});
+        try {
+          throw new Error();
+          it("IT-TRACE-029: a test after an unconditional throw inside a try block is not evidence", () => {});
+        } catch {
+          // swallow
+        }
+        try {
+          it("IT-TRACE-030: any test inside a try block is not evidence, even without a preceding throw", () => {});
+        } catch {
+          // swallow
+        }
+        try {
+          if (true) {
+            throw new Error();
+          }
+          it("IT-TRACE-031: a test after an always-true conditional throw inside a try block is not evidence", () => {});
+        } catch {
+          // swallow
+        }
       `,
       "traceability.test.ts",
     );
 
     expect(definitions.map(([id]) => id)).toEqual(["IT-TRACE-003", "IT-TRACE-003"]);
+
+    // An uncaught throw in a bare block halts evaluation of everything that
+    // follows it in the same (or an enclosing) scope, not just the rest of
+    // that block — so this case must be isolated instead of appended to the
+    // source above, or it would silently swallow every later assertion.
+    const unreachableBlockDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { it } from "vitest";
+        {
+          throw new Error();
+          it("IT-TRACE-032: a test after an unconditional throw in a bare block is not evidence", () => {});
+        }
+      `,
+      "unreachable-block.test.ts",
+    );
+    expect(unreachableBlockDefinitions).toEqual([]);
+
+    const cascadingUnreachableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { it } from "vitest";
+        {
+          it("IT-TRACE-033: a reachable test in a bare block before a throw is evidence", () => {});
+          throw new Error();
+        }
+        it("IT-TRACE-034: a test after a block that unconditionally throws is not evidence", () => {});
+      `,
+      "cascading-unreachable.test.ts",
+    );
+    expect(cascadingUnreachableDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-033"]);
+
+    const suiteGuardClauseDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it } from "vitest";
+        describe("suite with an unconditional guard clause", () => {
+          if (true) return;
+          it("IT-TRACE-035: a test after an unconditional guard-clause return is not evidence", () => {});
+        });
+        describe("suite with an environment-dependent guard clause", () => {
+          if (process.env.SKIP_SUITE) return;
+          it("IT-TRACE-036: a test after a conditional guard-clause return is not evidence", () => {});
+        });
+        describe("suite with a non-exiting if statement", () => {
+          if (someCondition) {
+            doSomething();
+          }
+          it("IT-TRACE-037: a test after a non-exiting if statement is evidence", () => {});
+        });
+      `,
+      "suite-guard-clause.test.ts",
+    );
+    expect(suiteGuardClauseDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-037"]);
 
     const shadowedDefinitions = collectTestCaseDefinitionsFromSource(
       `
