@@ -363,6 +363,48 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
+  it('UT-R-PS-01-036 (review re-fix [P2], Issue #144 follow-up): PassiveActivationRuntimeContext.resolutionPhase: "BATTLE_START" reaches candidate detection AND reconfirmation, activating a RESOLUTION_PHASE("BATTLE_START", negate: false)-gated PS — the same mechanism already proven for "TURN_START"/"TURN_END", verified here independently of `startBattle`\'s real BattleUnit resource state (Q-BTL-05 forbids a 0-cost PS, and `createBattleUnit`/READY→RUNNING never grants PP before this point — see UT-BATTLE-015/017 in battle.test.ts, which correctly assert this candidate can never actually activate through the real creation path)', () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const skill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PS", { ppCost: 1 }),
+      triggers: [
+        {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "RESOLUTION_PHASE", phase: "BATTLE_START", negate: false },
+        },
+      ],
+    };
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId,
+      currentPp: 1,
+      maximumPp: 3,
+    });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const battleStarted = recorder.record({
+      eventType: "BattleStarted",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnLimit: 5, allySlotCount: 1, enemySlotCount: 1 },
+    });
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, battleStarted, undefined, "BATTLE_START"),
+      [owner],
+    );
+    const units = runtime.onFactEvent(battleStarted, [owner]);
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(0);
+    expect(recorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
+  });
+
   it("UT-R-PS-04-012 (Issue #144 review fix [P2]): a POSITION_RELATION-gated PS whose event references a target absent from the roster is discarded deterministically at reconfirmation, not thrown", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {

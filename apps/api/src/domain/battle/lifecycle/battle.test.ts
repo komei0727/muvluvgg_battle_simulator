@@ -273,113 +273,7 @@ describe("startBattle", () => {
     expect(() => startBattle(running, NO_RANDOM(), recorder())).toThrow(DomainValidationError);
   });
 
-  it('UT-BATTLE-015 (Issue #144 follow-up, PR #150 remaining work; review fix [P2]): resolves a PS that triggers on BattleStarted, passing resolutionPhase: "BATTLE_START" to the trigger condition, using the real BattleUnit creation resource state (currentPp starts at 0; see UT-BATTLE-017 for why this PS must cost 0 PP to prove the wiring alone) (06_戦闘状態遷移.md READY→RUNNING)', () => {
-    const unitDefinitionId = createUnitDefinitionId("UNIT_001");
-    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_BATTLE_STARTED");
-    const passiveSkill: SkillDefinition = {
-      skillDefinitionId: passiveSkillDefinitionId,
-      skillType: "PS",
-      // レビュー指摘[P2]: `createBattleUnit`（実際の生成経路、UT-BATTLE-017の
-      // コメント参照）は`currentPp`を常に0で生成し、READY→RUNNINGはAP/PPを
-      // 回復しない。production Catalogに0コストのPSは1件も存在しないため、
-      // この配線自体（`resolutionPhase: "BATTLE_START"`が評価器へ届くこと）を
-      // 実際のBattleUnit生成経路で検証するには、cost 0のPSを使うしかない。
-      cost: { resource: "PP", amount: 0 },
-      activationCondition: { kind: "TRUE" },
-      triggers: [
-        {
-          eventType: "BattleStarted",
-          category: "FACT",
-          sourceSelector: "ANY",
-          targetSelector: "ANY",
-          condition: { kind: "RESOLUTION_PHASE", phase: "BATTLE_START", negate: false },
-        },
-      ],
-      counterUpdates: [],
-      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
-      cooldown: { unit: "TURN", count: 0 },
-      traits: {
-        priorityAttack: false,
-        simultaneousActivationLimited: false,
-        exclusiveActivationGroupId: null,
-        accuracy: { guaranteedHit: false },
-        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
-      },
-      requiredCapabilities: [],
-      metadata: { displayName: "SKL_PS_ON_BATTLE_STARTED", tags: [] },
-    };
-    const unitDefinitions = new DefaultUnitDefinitionMap([
-      [
-        unitDefinitionId,
-        {
-          unitDefinitionId,
-          attribute: "AGGRESSIVE",
-          unitType: "PHYSICAL",
-          role: "SUPPORT",
-          positionAptitudes: ["FRONT", "BACK"],
-          baseStats: {
-            maximumHp: 100,
-            attack: 10,
-            defense: 10,
-            criticalRate: 0.1,
-            criticalDamageBonus: 0.5,
-            affinityBonus: 0.25,
-            actionSpeed: 10,
-            maximumAp: 3,
-            maximumPp: 3,
-          },
-          extraGaugeMaximum: 100,
-          activeSkillDefinitionIds: [],
-          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
-          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
-          metadata: {
-            displayName: "Supporter",
-            characterName: "Supporter",
-            characterId: "CHAR_SUPPORTER",
-            affiliations: [],
-            tags: [],
-          },
-        },
-      ],
-    ]);
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: new Map(),
-      unitDefinitions,
-      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
-    };
-    const battleRecorder = recorder();
-    // `unit()`はドメインの実際の生成関数`createBattleUnit`をそのまま呼ぶ
-    // （UT-BATTLE-017のコメント参照）。オーバーライドなしで`currentPp`は0。
-    const battle = startBattle(
-      createBattle(
-        createBattleId("B_1"),
-        [unit("ally:1", "ALLY")],
-        [unit("enemy:1", "ENEMY")],
-        createTurnLimit(5),
-        definitions,
-      ),
-      NO_RANDOM(),
-      battleRecorder,
-    );
-
-    expect(battle.allyUnits[0]!.currentPp).toBe(0);
-
-    const events = battleRecorder.getEvents();
-    expect(events[0]!.eventType).toBe("BattleStarted");
-    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
-    expect(passiveActivated.payload).toMatchObject({
-      actorUnitId: battle.allyUnits[0]!.battleUnitId,
-      skillDefinitionId: passiveSkillDefinitionId,
-      ppBefore: 0,
-      ppAfter: 0,
-    });
-    expect(events.some((e) => e.eventType === "PassiveResolved")).toBe(true);
-  });
-
-  it("UT-BATTLE-017 (review fix [P2], Issue #144 follow-up): a BattleStarted-triggered PS with a non-zero PP cost never activates through the real BattleUnit creation path, because READY→RUNNING never recovers resources and createBattleUnit always starts currentPp at 0 (no production PS costs 0 PP today — see docs/ddd/06_戦闘状態遷移.md)", () => {
+  it("UT-BATTLE-017 (review fix [P2], Issue #144 follow-up): a BattleStarted-triggered PS with a non-zero PP cost never activates through the real BattleUnit creation path, because READY→RUNNING never recovers resources and createBattleUnit always starts currentPp at 0 — this is the only PP amount Q-BTL-05 allows (「コスト0のAS・PSは存在しない」), so BattleStarted-triggered PS activation is unreachable by today's decided contract; see passive-activation-service.test.ts's UT-R-PS-01-036 for a low-level (resource-unconstrained) proof that the resolutionPhase: \"BATTLE_START\" wiring itself is correct (docs/ddd/06_戦闘状態遷移.md)", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_BATTLE_STARTED_COSTLY");
     const passiveSkill: SkillDefinition = {
@@ -452,8 +346,8 @@ describe("startBattle", () => {
       skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
     };
     const battleRecorder = recorder();
-    // `unit()`ではなく`createBattleUnit`を直接介する実際の生成経路と同じ形
-    // （`currentPp`を明示的にオーバーライドしない）。
+    // `unit()`は`createBattleUnit`をそのまま呼ぶ（実際の生成経路と同じ形）。
+    // `currentPp`を明示的にオーバーライドしないため0のまま。
     const battle = startBattle(
       createBattle(
         createBattleId("B_1"),
