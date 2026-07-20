@@ -342,7 +342,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "お母様、見ててください……！",
       "tags": []

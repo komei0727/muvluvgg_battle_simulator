@@ -318,6 +318,50 @@ function psSkill(
   });
 }
 
+function runtimeCounterSkill(requiredCapabilities: readonly string[]): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: "SKL_PS1",
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [
+      {
+        eventType: "TurnStarted",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "SELF",
+      },
+    ],
+    counterUpdates: [
+      {
+        kind: "INCREMENT",
+        counter: "SKL_PS1_ACTIVATIONS",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "SELF",
+        },
+        amount: 1,
+      },
+    ],
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Runtime counter PS" },
+  });
+}
+
 function exSkill(id: string, amount: number): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -1126,6 +1170,30 @@ describe("buildCatalogIndex", () => {
         ...defs,
         memories: [triggeredMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
         capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-034: rejects Skill counterUpdates without CAP_SKILL_RUNTIME_COUNTER", () => {
+    const defs = baseDefinitions();
+    const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
+    const capabilities = [capability("CAP_SKILL_RUNTIME_COUNTER")];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [...defs.skills, runtimeCounterSkill([])],
+        capabilities,
+      }),
+    ).toThrowError(/must declare "CAP_SKILL_RUNTIME_COUNTER"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [...defs.skills, runtimeCounterSkill(["CAP_SKILL_RUNTIME_COUNTER"])],
+        capabilities,
       }),
     ).not.toThrow();
   });

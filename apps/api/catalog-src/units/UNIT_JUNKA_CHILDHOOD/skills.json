@@ -219,7 +219,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "ぜ～～ったい負けないから！", "tags": [] },
     "triggers": [
       {

@@ -127,31 +127,90 @@ interface TestCaseDefinition {
 
 const TEST_CASE_ID_PATTERN = /\b(?:UT|IT|SCN|E2E)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
 const NON_EXECUTING_TEST_MODIFIERS = new Set(["skip", "skipIf", "todo", "runIf"]);
+const VITEST_TEST_FUNCTIONS = new Set(["it", "test"]);
+const VITEST_SUITE_FUNCTIONS = new Set(["describe", "suite"]);
 
-function hasTestFunctionRoot(expression: ts.Expression): boolean {
+function functionRootIdentifier(expression: ts.Expression): ts.Identifier | undefined {
   if (ts.isIdentifier(expression)) {
-    return expression.text === "it" || expression.text === "test";
+    return expression;
   }
   if (ts.isPropertyAccessExpression(expression)) {
-    return hasTestFunctionRoot(expression.expression);
+    return functionRootIdentifier(expression.expression);
   }
   if (ts.isCallExpression(expression)) {
-    return hasTestFunctionRoot(expression.expression);
+    return functionRootIdentifier(expression.expression);
   }
-  return false;
+  return undefined;
 }
 
-function hasSuiteFunctionRoot(expression: ts.Expression): boolean {
-  if (ts.isIdentifier(expression)) {
-    return expression.text === "describe" || expression.text === "suite";
+function hasVitestFunctionRoot(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+  expectedImports: ReadonlySet<string>,
+): boolean {
+  const root = functionRootIdentifier(expression);
+  if (root === undefined) {
+    return false;
+  }
+  const hasMatchingImport = root
+    .getSourceFile()
+    .statements.some(
+      (statement) =>
+        ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text === "vitest" &&
+        statement.importClause?.namedBindings !== undefined &&
+        ts.isNamedImports(statement.importClause.namedBindings) &&
+        statement.importClause.namedBindings.elements.some(
+          (element) =>
+            element.name.text === root.text &&
+            expectedImports.has(element.propertyName?.text ?? element.name.text),
+        ),
+    );
+  if (!hasMatchingImport) {
+    return false;
+  }
+  const symbol = checker.getSymbolAtLocation(root);
+  return (
+    symbol?.declarations?.some((declaration) => {
+      if (!ts.isImportSpecifier(declaration)) {
+        return false;
+      }
+      let ancestor: ts.Node | undefined = declaration.parent;
+      while (ancestor !== undefined && !ts.isImportDeclaration(ancestor)) {
+        ancestor = ancestor.parent;
+      }
+      return (
+        ancestor !== undefined &&
+        ts.isImportDeclaration(ancestor) &&
+        ts.isStringLiteral(ancestor.moduleSpecifier) &&
+        ancestor.moduleSpecifier.text === "vitest" &&
+        expectedImports.has(declaration.propertyName?.text ?? declaration.name.text)
+      );
+    }) === true
+  );
+}
+
+function parameterizedCases(expression: ts.Expression): ts.Expression | undefined {
+  if (
+    ts.isCallExpression(expression) &&
+    ts.isPropertyAccessExpression(expression.expression) &&
+    (expression.expression.name.text === "each" || expression.expression.name.text === "for")
+  ) {
+    return expression.arguments[0];
   }
   if (ts.isPropertyAccessExpression(expression)) {
-    return hasSuiteFunctionRoot(expression.expression);
+    return parameterizedCases(expression.expression);
   }
   if (ts.isCallExpression(expression)) {
-    return hasSuiteFunctionRoot(expression.expression);
+    return parameterizedCases(expression.expression);
   }
-  return false;
+  return undefined;
+}
+
+function hasExecutableParameterizedCases(expression: ts.Expression): boolean {
+  const cases = parameterizedCases(expression);
+  return cases === undefined || (ts.isArrayLiteralExpression(cases) && cases.elements.length > 0);
 }
 
 function hasNonExecutingModifier(expression: ts.Expression): boolean {
@@ -167,13 +226,14 @@ function hasNonExecutingModifier(expression: ts.Expression): boolean {
   return false;
 }
 
-function isInsideNonExecutingSuite(node: ts.Node): boolean {
+function isInsideNonExecutingSuite(node: ts.Node, checker: ts.TypeChecker): boolean {
   let ancestor = node.parent;
   while (ancestor !== undefined) {
     if (
       ts.isCallExpression(ancestor) &&
-      hasSuiteFunctionRoot(ancestor.expression) &&
-      hasNonExecutingModifier(ancestor.expression)
+      hasVitestFunctionRoot(ancestor.expression, checker, VITEST_SUITE_FUNCTIONS) &&
+      (hasNonExecutingModifier(ancestor.expression) ||
+        !hasExecutableParameterizedCases(ancestor.expression))
     ) {
       return true;
     }
@@ -182,12 +242,17 @@ function isInsideNonExecutingSuite(node: ts.Node): boolean {
   return false;
 }
 
-function isSuiteCallback(node: ts.ArrowFunction | ts.FunctionExpression): boolean {
+function isSuiteCallback(
+  node: ts.ArrowFunction | ts.FunctionExpression,
+  checker: ts.TypeChecker,
+): boolean {
   const parent = node.parent;
   return (
     ts.isCallExpression(parent) &&
     parent.arguments.some((argument) => argument === node) &&
-    hasSuiteFunctionRoot(parent.expression)
+    hasVitestFunctionRoot(parent.expression, checker, VITEST_SUITE_FUNCTIONS) &&
+    !hasNonExecutingModifier(parent.expression) &&
+    hasExecutableParameterizedCases(parent.expression)
   );
 }
 
@@ -213,14 +278,14 @@ function isConditionalRegistrationAncestor(node: ts.Node): boolean {
   );
 }
 
-function isConditionallyRegisteredTest(node: ts.Node): boolean {
+function isConditionallyRegisteredTest(node: ts.Node, checker: ts.TypeChecker): boolean {
   let ancestor = node.parent;
   while (ancestor !== undefined) {
     if (isConditionalRegistrationAncestor(ancestor)) {
       return true;
     }
     if (ts.isArrowFunction(ancestor) || ts.isFunctionExpression(ancestor)) {
-      if (!isSuiteCallback(ancestor)) {
+      if (!isSuiteCallback(ancestor, checker)) {
         return true;
       }
     } else if (
@@ -248,15 +313,22 @@ function collectTestCaseDefinitionsFromSource(
     true,
     ts.ScriptKind.TS,
   );
+  const compilerOptions: ts.CompilerOptions = { noLib: true, noResolve: true, types: [] };
+  const compilerHost = ts.createCompilerHost(compilerOptions, true);
+  compilerHost.getSourceFile = () => sourceFile;
+  compilerHost.fileExists = () => true;
+  compilerHost.readFile = () => undefined;
+  const checker = ts.createProgram([file], compilerOptions, compilerHost).getTypeChecker();
   const definitions: [string, TestCaseDefinition][] = [];
 
   function visit(node: ts.Node): void {
     if (
       ts.isCallExpression(node) &&
-      hasTestFunctionRoot(node.expression) &&
+      hasVitestFunctionRoot(node.expression, checker, VITEST_TEST_FUNCTIONS) &&
       !hasNonExecutingModifier(node.expression) &&
-      !isInsideNonExecutingSuite(node) &&
-      !isConditionallyRegisteredTest(node)
+      hasExecutableParameterizedCases(node.expression) &&
+      !isInsideNonExecutingSuite(node, checker) &&
+      !isConditionallyRegisteredTest(node, checker)
     ) {
       const title = node.arguments[0];
       if (
@@ -481,6 +553,7 @@ describe("remaining work manifest (PLAN-001)", () => {
   it("UT-PLAN-001-007: counts only test titles and preserves duplicate definitions", () => {
     const definitions = collectTestCaseDefinitionsFromSource(
       `
+        import { describe, it, suite, test } from "vitest";
         // IT-TRACE-001: a comment is not evidence
         const note = "IT-TRACE-002: an arbitrary string is not evidence";
         it("IT-TRACE-003: first definition", () => {});
@@ -503,10 +576,40 @@ describe("remaining work manifest (PLAN-001)", () => {
         suite.skip("disabled suite alias", () => {
           test("IT-TRACE-012: test in a skipped suite alias is not evidence", () => {});
         });
+        it.each([])("IT-TRACE-013: empty parameter table is not evidence", () => {});
+        describe.each([])("empty parameterized suite", () => {
+          it("IT-TRACE-014: test in an empty parameterized suite is not evidence", () => {});
+        });
+        describe("shadowed Vitest binding", () => {
+          const it = (_title: string, _callback: () => void) => {};
+          it("IT-TRACE-015: a shadowed it binding is not evidence", () => {});
+        });
+        const dynamicCases = [[1]];
+        test.each(dynamicCases)("IT-TRACE-016: a dynamic parameter table is not evidence", () => {});
       `,
       "traceability.test.ts",
     );
 
     expect(definitions.map(([id]) => id)).toEqual(["IT-TRACE-003", "IT-TRACE-003"]);
+
+    const shadowedDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        const test = (_title: string, _callback: () => void) => {};
+        const it = test;
+        test("IT-TRACE-017: a local test function is not evidence", () => {});
+        it("IT-TRACE-018: a local it function is not evidence", () => {});
+      `,
+      "shadowed.test.ts",
+    );
+    expect(shadowedDefinitions).toEqual([]);
+
+    const aliasedDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { it as vitestIt } from "vitest";
+        vitestIt("IT-TRACE-019: an imported Vitest alias is evidence", () => {});
+      `,
+      "aliased.test.ts",
+    );
+    expect(aliasedDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-019"]);
   });
 });

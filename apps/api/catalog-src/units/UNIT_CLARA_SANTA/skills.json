@@ -199,7 +199,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "クララ・オン・ステージ", "tags": [] },
     "triggers": [
       {

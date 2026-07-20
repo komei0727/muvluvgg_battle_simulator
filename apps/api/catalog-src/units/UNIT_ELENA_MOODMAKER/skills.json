@@ -218,7 +218,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "リラックスだよ～♪",
       "tags": []

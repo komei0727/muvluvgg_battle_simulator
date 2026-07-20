@@ -195,6 +195,7 @@ type RuntimeStructuralCapabilityId =
   | "CAP_MEMORY_TRIGGERED_EFFECT"
   | "CAP_RANDOM_BRANCH"
   | "CAP_RESOLUTION_BRANCH_REPEAT"
+  | "CAP_SKILL_RUNTIME_COUNTER"
   | "CAP_TARGET_FILTER_ORDER"
   | "CAP_TARGET_DERIVED_AREA"
   | "CAP_TARGET_BINDING_FALLBACK"
@@ -580,6 +581,15 @@ function validateSkill(
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),
   ];
+  if (skill.counterUpdates.length > 0) {
+    requireRuntimeCapability(
+      skill.skillDefinitionId,
+      skill.requiredCapabilities,
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "Skill counterUpdates",
+      violations,
+    );
+  }
   validateRuntimeCapabilityDeclarations(
     skill.skillDefinitionId,
     skill.requiredCapabilities,

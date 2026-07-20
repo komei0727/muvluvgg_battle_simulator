@@ -165,7 +165,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "おまけで、えい！", "tags": [] },
     "triggers": [
       {

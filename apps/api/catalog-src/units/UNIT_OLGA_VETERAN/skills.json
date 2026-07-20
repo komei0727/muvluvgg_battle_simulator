@@ -289,7 +289,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "この魂、レドフカに捧げます",
       "tags": []

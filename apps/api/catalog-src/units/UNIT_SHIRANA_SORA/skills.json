@@ -146,7 +146,8 @@
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_SKILL_RUNTIME_COUNTER"
     ],
     "metadata": { "displayName": "期待に応えたい", "tags": [] },
     "triggers": [

@@ -1652,7 +1652,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "クララ・オン・ステージ", "tags": [] },
     "triggers": [
       {
@@ -2468,7 +2468,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "リラックスだよ～♪", "tags": [] },
     "triggers": [
       {
@@ -4746,7 +4746,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "ぜ～～ったい負けないから！", "tags": [] },
     "triggers": [
       {
@@ -6519,7 +6519,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_TRIGGER_CONTEXT", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "ラッキー４！", "tags": [] },
     "triggers": [
       {
@@ -8409,7 +8409,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_RESOLUTION_BRANCH_REPEAT"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_SKILL_RUNTIME_COUNTER"
+    ],
     "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {
@@ -9817,7 +9821,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "おまけで、えい！", "tags": [] },
     "triggers": [
       {
@@ -10060,7 +10064,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "お母様、見ててください……！", "tags": [] },
     "triggers": [
       {
@@ -10694,7 +10698,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "この魂、レドフカに捧げます", "tags": [] },
     "triggers": [
       {
@@ -12740,7 +12744,8 @@
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_SKILL_RUNTIME_COUNTER"
     ],
     "metadata": { "displayName": "期待に応えたい", "tags": [] },
     "triggers": [
