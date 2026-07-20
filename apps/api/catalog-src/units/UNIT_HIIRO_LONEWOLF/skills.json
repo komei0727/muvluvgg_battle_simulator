@@ -71,7 +71,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "スカーレット・ネイル",
       "tags": []
@@ -135,7 +135,11 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MUTATION",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": {
       "displayName": "ペネトレイトバレット",
       "tags": []
@@ -224,10 +228,10 @@
     },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_RESOURCE_MOD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_DERIVED_TARGETS"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_DERIVED_AREA"
     ],
     "metadata": {
       "displayName": "ピアースショット",
@@ -279,7 +283,11 @@
     "traits": {
       "priorityAttack": true
     },
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": {
       "displayName": "ファーストストライク",
       "tags": []
@@ -296,6 +304,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_HIIRO_LONEWOLF_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_HIIRO_LONEWOLF_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },

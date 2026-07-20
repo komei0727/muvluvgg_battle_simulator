@@ -142,7 +142,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "正射必中",
       "tags": []
@@ -231,7 +231,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "効力射",
       "tags": []
@@ -318,7 +318,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "カウンタースナイプ",
       "tags": []

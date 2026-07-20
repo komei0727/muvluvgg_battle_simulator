@@ -11,14 +11,17 @@ import {
   EVENT_TYPE_CATEGORIES,
 } from "../definitions/catalog-event-types.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
+import type { ConditionDefinition } from "../definitions/condition-definition.js";
 import type {
   EffectActionReference,
+  EffectSequence,
   EffectStepDefinition,
 } from "../definitions/effect-sequence.js";
 import type { MemoryDefinition } from "../definitions/memory-definition.js";
 import { toReadonlyMap } from "../../shared/readonly-map.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TriggerDefinition } from "../definitions/trigger-definition.js";
+import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
 
 /**
@@ -39,6 +42,8 @@ export const VIOLATION_RULES = [
   "TYPE_MISMATCH",
   "EX_COST_MISMATCH",
   "UNKNOWN_CAPABILITY",
+  "UNSUPPORTED_SCHEMA_CAPABILITY",
+  "INVALID_CAPABILITY_VERIFICATION",
   "UNKNOWN_EVENT_TYPE",
   "EVENT_CATEGORY_MISMATCH",
   "UNOWNED_SKILL_REFERENCE",
@@ -152,6 +157,241 @@ function validateEffectActionReferences(
   }
 }
 
+function containsStepKind(
+  steps: readonly EffectStepDefinition[],
+  kinds: ReadonlySet<EffectStepDefinition["kind"]>,
+): boolean {
+  for (const step of steps) {
+    if (kinds.has(step.kind)) {
+      return true;
+    }
+    if (step.kind === "BRANCH") {
+      if (containsStepKind(step.thenSteps, kinds) || containsStepKind(step.elseSteps, kinds)) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => containsStepKind(branch.steps, kinds))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && containsStepKind(step.steps, kinds)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const BRANCH_REPEAT_STEP_KINDS = new Set<EffectStepDefinition["kind"]>(["BRANCH", "REPEAT"]);
+const RANDOM_BRANCH_STEP_KINDS = new Set<EffectStepDefinition["kind"]>(["RANDOM_BRANCH"]);
+const TRIGGER_CONTEXT_EVENT_TYPES = new Set([
+  "EffectApplied",
+  "UnitBeingAttacked",
+  "HitPointReduced",
+]);
+const TRIGGER_CONTEXT_TARGET_KINDS = new Set(["TRIGGER_SOURCE", "TRIGGER_TARGET"]);
+const LAST_RESULT_TARGET_KINDS = new Set(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"]);
+type RuntimeStructuralCapabilityId =
+  | "CAP_ACTION_ACTIVATION_CONDITION"
+  | "CAP_PASSIVE_ACTIVATION_CONDITION"
+  | "CAP_EFFECT_STEP_CONDITION"
+  | "CAP_MEMORY_TRIGGERED_EFFECT"
+  | "CAP_RANDOM_BRANCH"
+  | "CAP_RESOLUTION_BRANCH_REPEAT"
+  | "CAP_SKILL_RUNTIME_COUNTER"
+  | "CAP_TARGET_FILTER_ORDER"
+  | "CAP_TARGET_DERIVED_AREA"
+  | "CAP_TARGET_BINDING_FALLBACK"
+  | "CAP_TRIGGER_CONTEXT";
+
+function selectorTreeSome(
+  selector: TargetSelectorDefinition,
+  predicate: (candidate: TargetSelectorDefinition) => boolean,
+): boolean {
+  return (
+    predicate(selector) ||
+    (selector.fallback !== undefined && selectorTreeSome(selector.fallback, predicate))
+  );
+}
+
+function stepsContainTargetReferenceKinds(
+  steps: readonly EffectStepDefinition[],
+  kinds: ReadonlySet<string>,
+): boolean {
+  for (const step of steps) {
+    if (step.kind === "ACTION") {
+      if (kinds.has(step.target.kind)) {
+        return true;
+      }
+    } else if (step.kind === "BRANCH") {
+      if (
+        stepsContainTargetReferenceKinds(step.thenSteps, kinds) ||
+        stepsContainTargetReferenceKinds(step.elseSteps, kinds)
+      ) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsContainTargetReferenceKinds(branch.steps, kinds))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsContainTargetReferenceKinds(step.steps, kinds)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function stepsContainNonTrueCondition(steps: readonly EffectStepDefinition[]): boolean {
+  for (const step of steps) {
+    if ((step.kind === "ACTION" || step.kind === "BRANCH") && step.condition.kind !== "TRUE") {
+      return true;
+    }
+    if (step.kind === "BRANCH") {
+      if (
+        stepsContainNonTrueCondition(step.thenSteps) ||
+        stepsContainNonTrueCondition(step.elseSteps)
+      ) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsContainNonTrueCondition(branch.steps))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsContainNonTrueCondition(step.steps)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function sequenceRequiresCapability(
+  sequence: EffectSequence,
+  capabilityId: RuntimeStructuralCapabilityId,
+): boolean {
+  switch (capabilityId) {
+    case "CAP_RESOLUTION_BRANCH_REPEAT":
+      return stepsContainTargetReferenceKinds(sequence.steps, LAST_RESULT_TARGET_KINDS);
+    case "CAP_RANDOM_BRANCH":
+      return containsStepKind(sequence.steps, RANDOM_BRANCH_STEP_KINDS);
+    case "CAP_TARGET_FILTER_ORDER":
+      return sequence.targetBindings.some(({ selector }) =>
+        selectorTreeSome(
+          selector,
+          (candidate) =>
+            candidate.filters.length > 0 ||
+            candidate.order.length !== 1 ||
+            candidate.order[0] !== "DEFAULT",
+        ),
+      );
+    case "CAP_TARGET_DERIVED_AREA":
+      return sequence.targetBindings.some(({ selector }) =>
+        selectorTreeSome(
+          selector,
+          (candidate) => candidate.kind === "BINDING_DERIVED" || candidate.area !== undefined,
+        ),
+      );
+    case "CAP_TARGET_BINDING_FALLBACK":
+      return sequence.targetBindings.some(({ selector }) => selector.fallback !== undefined);
+    case "CAP_EFFECT_STEP_CONDITION":
+      return stepsContainNonTrueCondition(sequence.steps);
+    case "CAP_TRIGGER_CONTEXT":
+      return (
+        sequence.targetBindings.some(({ selector }) =>
+          selectorTreeSome(
+            selector,
+            (candidate) =>
+              TRIGGER_CONTEXT_TARGET_KINDS.has(candidate.kind) ||
+              (candidate.base !== undefined &&
+                TRIGGER_CONTEXT_TARGET_KINDS.has(candidate.base.kind)),
+          ),
+        ) || stepsContainTargetReferenceKinds(sequence.steps, TRIGGER_CONTEXT_TARGET_KINDS)
+      );
+    default:
+      return false;
+  }
+}
+
+function requireRuntimeCapability(
+  targetId: string,
+  requiredCapabilities: readonly CapabilityId[],
+  capabilityId: RuntimeStructuralCapabilityId,
+  reason: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (!requiredCapabilities.some((id) => id === capabilityId)) {
+    violations.push({
+      targetId,
+      rule: "MISSING_REQUIRED_CAPABILITY",
+      message: `${reason} must declare "${capabilityId}" in requiredCapabilities`,
+    });
+  }
+}
+
+function validateRuntimeCapabilityDeclarations(
+  targetId: string,
+  requiredCapabilities: readonly CapabilityId[],
+  sequences: readonly EffectSequence[],
+  triggers: readonly TriggerDefinition[],
+  activationCondition: ConditionDefinition | undefined,
+  skillType: SkillDefinition["skillType"] | undefined,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (
+    (sequences.some((sequence) => containsStepKind(sequence.steps, BRANCH_REPEAT_STEP_KINDS)) ||
+      sequences.some((sequence) =>
+        sequenceRequiresCapability(sequence, "CAP_RESOLUTION_BRANCH_REPEAT"),
+      )) &&
+    !requiredCapabilities.some((id) => id === "CAP_RESOLUTION_BRANCH_REPEAT")
+  ) {
+    violations.push({
+      targetId,
+      rule: "MISSING_REQUIRED_CAPABILITY",
+      message:
+        'BRANCH/REPEAT EffectStep or LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS reference must declare "CAP_RESOLUTION_BRANCH_REPEAT" in requiredCapabilities',
+    });
+  }
+  if (sequences.some((sequence) => sequenceRequiresCapability(sequence, "CAP_RANDOM_BRANCH"))) {
+    requireRuntimeCapability(
+      targetId,
+      requiredCapabilities,
+      "CAP_RANDOM_BRANCH",
+      "RANDOM_BRANCH EffectStep",
+      violations,
+    );
+  }
+  if (activationCondition !== undefined && activationCondition.kind !== "TRUE") {
+    const capabilityId =
+      skillType === "PS" ? "CAP_PASSIVE_ACTIVATION_CONDITION" : "CAP_ACTION_ACTIVATION_CONDITION";
+    requireRuntimeCapability(
+      targetId,
+      requiredCapabilities,
+      capabilityId,
+      `${skillType ?? "Unknown"} Skill non-TRUE activationCondition`,
+      violations,
+    );
+  }
+  if (
+    (triggers.some((trigger) => TRIGGER_CONTEXT_EVENT_TYPES.has(trigger.eventType)) ||
+      sequences.some((sequence) => sequenceRequiresCapability(sequence, "CAP_TRIGGER_CONTEXT"))) &&
+    !requiredCapabilities.some((id) => id === "CAP_TRIGGER_CONTEXT")
+  ) {
+    violations.push({
+      targetId,
+      rule: "MISSING_REQUIRED_CAPABILITY",
+      message:
+        'runtime-owned trigger event or TRIGGER_SOURCE/TRIGGER_TARGET reference must declare "CAP_TRIGGER_CONTEXT" in requiredCapabilities',
+    });
+  }
+  for (const [capabilityId, reason] of [
+    ["CAP_TARGET_FILTER_ORDER", "Target selector filter/non-default order"],
+    ["CAP_TARGET_DERIVED_AREA", "BINDING_DERIVED/area target selector"],
+    ["CAP_TARGET_BINDING_FALLBACK", "Target selector fallback"],
+    ["CAP_EFFECT_STEP_CONDITION", "EffectStep non-TRUE condition"],
+  ] as const) {
+    if (sequences.some((sequence) => sequenceRequiresCapability(sequence, capabilityId))) {
+      requireRuntimeCapability(targetId, requiredCapabilities, capabilityId, reason, violations);
+    }
+  }
+}
+
 function validateTrigger(
   trigger: TriggerDefinition,
   targetId: string,
@@ -185,11 +425,54 @@ function checkRequiredCapabilities(
   violations: CatalogIntegrityViolation[],
 ): void {
   for (const capabilityId of requiredCapabilities) {
-    if (!capabilities.has(capabilityId)) {
+    const capability = capabilities.get(capabilityId);
+    if (capability === undefined) {
       violations.push({
         targetId,
         rule: "UNKNOWN_CAPABILITY",
         message: `requiredCapabilities references undefined capability "${capabilityId}"`,
+      });
+    } else if (capability.schemaStatus !== "SUPPORTED") {
+      violations.push({
+        targetId,
+        rule: "UNSUPPORTED_SCHEMA_CAPABILITY",
+        message: `requiredCapabilities references capability "${capabilityId}" whose schemaStatus is "${capability.schemaStatus}"`,
+      });
+    }
+  }
+}
+
+function validateCapabilityVerification(
+  capability: CapabilityDefinition,
+  units: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (capability.runtimeStatus !== "IMPLEMENTED") {
+    return;
+  }
+
+  for (const definitionId of capability.verification.productionDefinitionIds) {
+    const definition =
+      units.get(definitionId as UnitDefinitionId) ??
+      skills.get(definitionId as SkillDefinitionId) ??
+      effectActions.get(definitionId as EffectActionDefinitionId) ??
+      memories.get(definitionId as MemoryDefinitionId);
+    if (definition === undefined) {
+      violations.push({
+        targetId: capability.capabilityId,
+        rule: "INVALID_CAPABILITY_VERIFICATION",
+        message: `verification references undefined production definition "${definitionId}"`,
+      });
+      continue;
+    }
+    if (!definition.requiredCapabilities.includes(capability.capabilityId)) {
+      violations.push({
+        targetId: capability.capabilityId,
+        rule: "INVALID_CAPABILITY_VERIFICATION",
+        message: `verification definition "${definitionId}" does not declare capability "${capability.capabilityId}"`,
       });
     }
   }
@@ -317,8 +600,37 @@ function validateSkill(
       violations,
     );
   }
+  const sequences =
+    skill.resolution.kind === "CHARGE"
+      ? [skill.resolution, skill.resolution.chargeRelease]
+      : [skill.resolution];
+  const runtimeTriggers = [
+    ...skill.triggers,
+    ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),
+  ];
+  if (skill.counterUpdates.length > 0) {
+    requireRuntimeCapability(
+      skill.skillDefinitionId,
+      skill.requiredCapabilities,
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "Skill counterUpdates",
+      violations,
+    );
+  }
+  validateRuntimeCapabilityDeclarations(
+    skill.skillDefinitionId,
+    skill.requiredCapabilities,
+    sequences,
+    runtimeTriggers,
+    skill.activationCondition,
+    skill.skillType,
+    violations,
+  );
   for (const trigger of skill.triggers) {
     validateTrigger(trigger, skill.skillDefinitionId, violations);
+  }
+  for (const counterUpdate of skill.counterUpdates) {
+    validateTrigger(counterUpdate.trigger, skill.skillDefinitionId, violations);
   }
   checkRequiredCapabilities(
     skill.requiredCapabilities,
@@ -423,6 +735,24 @@ function validateMemory(
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
+  if (memory.triggeredEffects.length > 0) {
+    requireRuntimeCapability(
+      memory.memoryDefinitionId,
+      memory.requiredCapabilities,
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "Memory triggeredEffects",
+      violations,
+    );
+  }
+  validateRuntimeCapabilityDeclarations(
+    memory.memoryDefinitionId,
+    memory.requiredCapabilities,
+    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.effectSequence),
+    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.trigger),
+    undefined,
+    undefined,
+    violations,
+  );
   for (const triggeredEffect of memory.triggeredEffects) {
     validateTrigger(triggeredEffect.trigger, memory.memoryDefinitionId, violations);
     validateEffectActionReferences(
@@ -463,6 +793,10 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
     "Memory",
     violations,
   );
+
+  for (const capability of capabilities.values()) {
+    validateCapabilityVerification(capability, units, skills, effectActions, memories, violations);
+  }
 
   for (const effectAction of effectActions.values()) {
     validateEffectAction(effectAction, effectActions, skills, capabilities, violations);

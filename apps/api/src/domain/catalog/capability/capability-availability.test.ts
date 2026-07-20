@@ -151,7 +151,24 @@ function memoryWithCapability(
 }
 
 function capability(id: string, status: string): CapabilityDefinition {
-  return createCapabilityDefinition({ capabilityId: id, status, description: "d", requiredBy: [] });
+  const evidenceDefinitionIds: Readonly<Record<string, string>> = {
+    CAP_RESOLUTION_BRANCH_REPEAT: "SKL_AS1",
+    CAP_MEMORY_TRIGGERED_EFFECT: "MEM_001",
+    CAP_A: "UNIT_001",
+    "Q-BTL-05": "UNIT_001",
+  };
+  const evidenceDefinitionId = evidenceDefinitionIds[id];
+  return createCapabilityDefinition({
+    capabilityId: id,
+    schemaStatus: "SUPPORTED",
+    runtimeStatus: status,
+    implementationTaskId: "TEST-001",
+    description: "d",
+    verification: {
+      productionDefinitionIds: evidenceDefinitionId === undefined ? [] : [evidenceDefinitionId],
+      testCaseIds: status === "IMPLEMENTED" ? ["TEST-001"] : [],
+    },
+  });
 }
 
 function memoryWithEffectActionCapability(id: string, targetActionId: string): MemoryDefinition {
@@ -182,7 +199,7 @@ function memoryWithEffectActionCapability(id: string, targetActionId: string): M
         },
       },
     ],
-    requiredCapabilities: [],
+    requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
     metadata: { displayName: "Memory" },
   });
 }
@@ -206,22 +223,22 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     const defs: CatalogDefinitions = {
       units: [unit("UNIT_001")],
       skills: [
-        asSkill("SKL_AS1", "ACT_DAMAGE_1", ["CAP_RESOLUTION_BRANCH"]),
+        asSkill("SKL_AS1", "ACT_DAMAGE_1", ["CAP_RESOLUTION_BRANCH_REPEAT"]),
         exSkill("SKL_EX1", 7),
       ],
       effectActions: [damageAction("ACT_DAMAGE_1", ["CAP_PARTIAL_PIERCING"])],
       memories: [],
       capabilities: [
-        capability("CAP_RESOLUTION_BRANCH", "IMPLEMENTED"),
+        capability("CAP_RESOLUTION_BRANCH_REPEAT", "IMPLEMENTED"),
         capability("CAP_PARTIAL_PIERCING", "PLANNED"),
       ],
     };
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, ["UNIT_001" as never], []);
     expect(new Set(required.keys())).toEqual(
-      new Set(["CAP_RESOLUTION_BRANCH", "CAP_PARTIAL_PIERCING"]),
+      new Set(["CAP_RESOLUTION_BRANCH_REPEAT", "CAP_PARTIAL_PIERCING"]),
     );
-    expect(required.get("CAP_RESOLUTION_BRANCH" as never)).toEqual(new Set(["SKL_AS1"]));
+    expect(required.get("CAP_RESOLUTION_BRANCH_REPEAT" as never)).toEqual(new Set(["SKL_AS1"]));
     expect(required.get("CAP_PARTIAL_PIERCING" as never)).toEqual(new Set(["ACT_DAMAGE_1"]));
   });
 
@@ -230,13 +247,13 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
       units: [],
       skills: [],
       effectActions: [damageAction("ACT_ATTACK_UP")],
-      memories: [memoryWithCapability("MEM_001", ["CAP_MEMORY_DYNAMIC_EFFECT"])],
-      capabilities: [capability("CAP_MEMORY_DYNAMIC_EFFECT", "IMPLEMENTED")],
+      memories: [memoryWithCapability("MEM_001", ["CAP_MEMORY_TRIGGERED_EFFECT"])],
+      capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT", "IMPLEMENTED")],
     };
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, [], ["MEM_001" as never]);
-    expect([...required.keys()]).toEqual(["CAP_MEMORY_DYNAMIC_EFFECT"]);
-    expect(required.get("CAP_MEMORY_DYNAMIC_EFFECT" as never)).toEqual(new Set(["MEM_001"]));
+    expect([...required.keys()]).toEqual(["CAP_MEMORY_TRIGGERED_EFFECT"]);
+    expect(required.get("CAP_MEMORY_TRIGGERED_EFFECT" as never)).toEqual(new Set(["MEM_001"]));
   });
 
   it("UT-CAT-CAP-007: collects capabilities through a Memory's triggeredEffects EffectAction reference, attributed to the EffectAction (not the Memory)", () => {
@@ -245,11 +262,15 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
       skills: [],
       effectActions: [damageAction("ACT_ATTACK_UP", ["CAP_MEMORY_ACTION"])],
       memories: [memoryWithEffectActionCapability("MEM_001", "ACT_ATTACK_UP")],
-      capabilities: [capability("CAP_MEMORY_ACTION", "PLANNED")],
+      capabilities: [
+        capability("CAP_MEMORY_TRIGGERED_EFFECT", "PLANNED"),
+        capability("CAP_MEMORY_ACTION", "PLANNED"),
+      ],
     };
     const index = buildCatalogIndex(defs);
     const required = collectRequiredCapabilities(index, [], ["MEM_001" as never]);
-    expect([...required.keys()]).toEqual(["CAP_MEMORY_ACTION"]);
+    expect([...required.keys()]).toEqual(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_MEMORY_ACTION"]);
+    expect(required.get("CAP_MEMORY_TRIGGERED_EFFECT" as never)).toEqual(new Set(["MEM_001"]));
     expect(required.get("CAP_MEMORY_ACTION" as never)).toEqual(new Set(["ACT_ATTACK_UP"]));
   });
 

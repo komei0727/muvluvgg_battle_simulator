@@ -40,7 +40,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ヴィヴァーチェ", "tags": [] }
   },
   {
@@ -105,7 +105,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "アリアエナジー", "tags": [] }
   },
   {
@@ -151,7 +151,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MUTATION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "スウィートルミナ", "tags": [] },
     "triggers": [
       {

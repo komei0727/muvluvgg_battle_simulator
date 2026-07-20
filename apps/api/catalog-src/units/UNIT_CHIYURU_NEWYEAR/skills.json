@@ -82,7 +82,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_DERIVED_TARGETS", "CAP_HEAL"],
+    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_TARGET_DERIVED_AREA", "CAP_HEAL"],
     "metadata": { "displayName": "除災招福", "tags": [] }
   },
   {
@@ -163,7 +163,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "災難除け", "tags": [] },
     "triggers": [
       {

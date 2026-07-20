@@ -138,7 +138,7 @@ describe("Catalog v2 DTO JSON Schema", () => {
     expect(valid).toBe(false);
   });
 
-  it("UT-INFRA-SCHEMA-007: rejects DTOs missing requiredCapabilities/requiredBy across all artifact types", () => {
+  it("UT-INFRA-SCHEMA-007: rejects DTOs missing required Capability metadata across all artifact types", () => {
     expect(
       validateSkillDefinitionDto({
         skillDefinitionId: "SKL_001_AS1",
@@ -160,7 +160,9 @@ describe("Catalog v2 DTO JSON Schema", () => {
     expect(
       validateCapabilityDefinitionDto({
         capabilityId: "CAP_HEAL",
-        status: "PLANNED",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "PLANNED",
+        implementationTaskId: "TEST-001",
         description: "x",
       }),
     ).toBe(false);

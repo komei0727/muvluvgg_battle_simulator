@@ -85,7 +85,12 @@
       }
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_FORMULA"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_FORMULA",
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_ACTION_ACTIVATION_CONDITION"
+    ],
     "metadata": { "displayName": "アイム・ア・ヒーロー", "tags": [] }
   },
   {

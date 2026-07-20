@@ -39,7 +39,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "桶シュート！", "tags": [] }
   },
   {
@@ -97,7 +97,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "みんなで温泉入ろ♪", "tags": [] }
   },
   {
@@ -127,7 +127,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "湯上がりの牛乳", "tags": [] },
     "triggers": [
       {
@@ -161,7 +161,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "温泉の効能", "tags": [] },
     "triggers": [
       {
@@ -175,6 +175,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_YURIA_YUKATA_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_YURIA_YUKATA_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

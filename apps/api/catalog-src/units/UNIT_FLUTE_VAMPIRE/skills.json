@@ -54,10 +54,12 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
+      "CAP_TARGET_DERIVED_AREA",
       "CAP_HEAL",
       "CAP_FORMULA",
-      "CAP_EFFECT_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "＃ぽよ・オア・トリート", "tags": [] }
   },
@@ -99,7 +101,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA", "CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_FORMULA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "かぷっとファンサ", "tags": [] }
   },
   {
@@ -128,8 +135,9 @@
       "CAP_HEAL",
       "CAP_MARKER",
       "CAP_DAMAGE_MOD",
-      "CAP_RUNTIME_COUNTER",
-      "CAP_RESOURCE_CAPACITY_MOD"
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_RESOURCE_CAPACITY_MOD",
+      "CAP_TRIGGER_CONTEXT"
     ],
     "metadata": { "displayName": "イモータル・ヴァンパイア", "tags": [] },
     "triggers": [
@@ -157,6 +165,26 @@
           ]
         }
       }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_FLUTE_VAMPIRE_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_FLUTE_VAMPIRE_PS1"
+          }
+        },
+        "amount": 1
+      }
     ]
   },
   {
@@ -181,7 +209,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_EFFECT_CONDITION", "CAP_MARKER"],
+    "requiredCapabilities": [
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_MARKER",
+      "CAP_TRIGGER_CONTEXT"
+    ],
     "metadata": { "displayName": "アウェイキング・ヴァンパイア", "tags": [] },
     "triggers": [
       {
@@ -233,7 +266,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_DEATH_SURVIVAL", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_DEATH_SURVIVAL",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "あなたにマーキング♡", "tags": [] },
     "triggers": [
       {
@@ -247,6 +285,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_FLUTE_VAMPIRE_PS3_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_FLUTE_VAMPIRE_PS3"
+          }
+        },
+        "amount": 1
       }
     ]
   }

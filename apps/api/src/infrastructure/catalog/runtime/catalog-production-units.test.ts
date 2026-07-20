@@ -18,11 +18,9 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    // Issue #144: bumped when SUIRAN_CHAOS's PS1/PS2/PS3 gained
-    // POSITION_RELATION and KEI_JACKKNIFE_PS2/LILY_SINGER_PS1/SIENA_DIVA_PS1
-    // gained RESOLUTION_PHASE exclusion conditions, and catalog/ was
-    // regenerated (mise exec -- pnpm run generate-catalog).
-    expect(catalog.catalogRevision).toBe("2026-07-20.1");
+    // Issue #166: bumped when Capability schema/runtime status, task ownership,
+    // verification evidence, and task-sized Capability IDs were migrated.
+    expect(catalog.catalogRevision).toBe("2026-07-20.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

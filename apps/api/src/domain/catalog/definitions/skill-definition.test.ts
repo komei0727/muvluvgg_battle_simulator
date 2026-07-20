@@ -476,18 +476,19 @@ describe("SkillDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SKL-027: does not cross-check RUNTIME_COUNTER references when counterUpdates is empty (grandfathers pre-Issue-#143 production placeholders such as '<id>_ACTIVATIONS')", () => {
-    const result = createSkillDefinition(
-      psWithCounterInput({
-        triggerCondition: {
-          kind: "RUNTIME_COUNTER",
-          counter: "SKL_001_PS1_ACTIVATIONS",
-          op: "LT",
-          value: 1,
-        },
-      }),
-    );
-    expect(result.counterUpdates).toEqual([]);
+  it("UT-CAT-SKL-027: rejects a RUNTIME_COUNTER reference without an explicit counterUpdate", () => {
+    expect(() =>
+      createSkillDefinition(
+        psWithCounterInput({
+          triggerCondition: {
+            kind: "RUNTIME_COUNTER",
+            counter: "SKL_001_PS1_ACTIVATIONS",
+            op: "LT",
+            value: 1,
+          },
+        }),
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-SKL-026: accepts a RUNTIME_COUNTER condition nested inside AND/NOT when the counter is declared (Issue #143)", () => {

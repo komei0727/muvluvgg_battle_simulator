@@ -101,7 +101,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "リフレイン", "tags": [] }
   },
   {
@@ -139,7 +144,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "コン・フオーコ", "tags": [] },
     "triggers": [
       {
@@ -233,7 +238,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "テンポプリモ", "tags": [] },
     "triggers": [
       {

@@ -40,7 +40,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
+    "requiredCapabilities": [
+      "CAP_CRITICAL_CONTROL",
+      "CAP_MARKER",
+      "CAP_COOLDOWN_MANIPULATION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "バニー＆ベット", "tags": [] }
   },
   {
@@ -90,7 +95,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 4 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "オッドイーブン", "tags": [] }
   },
   {
@@ -147,7 +157,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "ハイローベット", "tags": [] }
   },
   {

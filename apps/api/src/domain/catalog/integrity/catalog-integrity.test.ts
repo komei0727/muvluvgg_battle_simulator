@@ -12,7 +12,10 @@ import type { EffectActionDefinition } from "../definitions/effect-action-defini
 import { createEffectActionDefinition } from "../definitions/effect-action-definition-factory.js";
 import { createMemoryDefinition } from "../definitions/memory-definition.js";
 import { createSkillDefinition, type SkillDefinition } from "../definitions/skill-definition.js";
+import type { TargetReferenceInput } from "../definitions/references.js";
+import type { TargetSelectorDefinitionInput } from "../definitions/target-selector-definition.js";
 import { createUnitDefinition, type UnitDefinition } from "../definitions/unit-definition.js";
+import type { ConditionDefinitionInput } from "../definitions/condition-definition.js";
 
 function damageAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
@@ -92,7 +95,233 @@ function asSkill(id: string, targetActionId: string): SkillDefinition {
   });
 }
 
-function psSkill(id: string, eventType: string, category: string): SkillDefinition {
+function branchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "BRANCH",
+          condition: { kind: "TRUE" },
+          thenSteps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+          elseSteps: [],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "BRANCH AS" },
+  });
+}
+
+function conditionalActionSkill(
+  id: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TURN_NUMBER", op: "GTE", value: 1 },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Conditional AS" },
+  });
+}
+
+function randomBranchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "RANDOM_BRANCH",
+          mode: "WEIGHTED_ONE",
+          branches: [
+            {
+              weight: 1,
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "RANDOM_BRANCH AS" },
+  });
+}
+
+function targetingSkill(
+  selector: TargetSelectorDefinitionInput,
+  requiredCapabilities: readonly string[],
+  target: TargetReferenceInput = { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+  activationCondition?: ConditionDefinitionInput,
+  skillType: "AS" | "PS" | "EX" = "AS",
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: skillType === "PS" ? "SKL_PS1" : skillType === "EX" ? "SKL_EX1" : "SKL_AS1",
+    skillType,
+    cost: {
+      resource: skillType === "PS" ? "PP" : skillType === "EX" ? "EX_GAUGE" : "AP",
+      amount: skillType === "EX" ? 7 : 1,
+    },
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
+      steps: [
+        {
+          kind: "ACTION",
+          target,
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    ...(activationCondition === undefined ? {} : { activationCondition }),
+    ...(skillType === "PS"
+      ? {
+          triggers: [
+            {
+              eventType: "TurnStarted",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "SELF",
+            },
+          ],
+        }
+      : {}),
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Targeting AS" },
+  });
+}
+
+function branchMemory(requiredCapabilities: readonly string[]) {
+  return createMemoryDefinition({
+    memoryDefinitionId: "MEM_BRANCH",
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          steps: [
+            {
+              kind: "BRANCH",
+              condition: { kind: "TRUE" },
+              thenSteps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                },
+              ],
+              elseSteps: [],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities,
+    metadata: { displayName: "Branch Memory" },
+  });
+}
+
+function triggeredMemory(requiredCapabilities: readonly string[]) {
+  return createMemoryDefinition({
+    memoryDefinitionId: "MEM_TRIGGERED",
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities,
+    metadata: { displayName: "Triggered Memory" },
+  });
+}
+
+function triggerContextMemory(requiredCapabilities: readonly string[]) {
+  return createMemoryDefinition({
+    memoryDefinitionId: "MEM_TRIGGER_CONTEXT",
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "HitPointReduced",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+        },
+        effectSequence: {
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities,
+    metadata: { displayName: "Trigger Context Memory" },
+  });
+}
+
+function psSkill(
+  id: string,
+  eventType: string,
+  category: string,
+  requiredCapabilities: readonly string[] = [],
+): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
     skillType: "PS",
@@ -110,8 +339,100 @@ function psSkill(id: string, eventType: string, category: string): SkillDefiniti
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities: [],
+    requiredCapabilities,
     metadata: { displayName: "PS" },
+  });
+}
+
+function runtimeCounterSkill(requiredCapabilities: readonly string[]): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: "SKL_PS1",
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [
+      {
+        eventType: "TurnStarted",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "SELF",
+      },
+    ],
+    counterUpdates: [
+      {
+        kind: "INCREMENT",
+        counter: "SKL_PS1_ACTIVATIONS",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "SELF",
+        },
+        amount: 1,
+      },
+    ],
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Runtime counter PS" },
+  });
+}
+
+function runtimeCounterSkillWithTrigger(
+  eventType: string,
+  category: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: "SKL_PS1",
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [
+      {
+        eventType: "TurnStarted",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "SELF",
+      },
+    ],
+    counterUpdates: [
+      {
+        kind: "INCREMENT",
+        counter: "SKL_PS1_ACTIVATIONS",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType,
+          category,
+          sourceSelector: "SELF",
+          targetSelector: "SELF",
+        },
+        amount: 1,
+      },
+    ],
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Runtime counter PS" },
   });
 }
 
@@ -194,8 +515,15 @@ function unit(
   });
 }
 
-function capability(id: string, status = "IMPLEMENTED"): CapabilityDefinition {
-  return createCapabilityDefinition({ capabilityId: id, status, description: "d", requiredBy: [] });
+function capability(id: string, status = "PLANNED"): CapabilityDefinition {
+  return createCapabilityDefinition({
+    capabilityId: id,
+    schemaStatus: "SUPPORTED",
+    runtimeStatus: status,
+    implementationTaskId: "TEST-001",
+    description: "d",
+    verification: { productionDefinitionIds: [], testCaseIds: [] },
+  });
 }
 
 function baseDefinitions(): CatalogDefinitions {
@@ -333,10 +661,11 @@ describe("buildCatalogIndex", () => {
               },
             },
           ],
-          requiredCapabilities: [],
+          requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
           metadata: { displayName: "Memory" },
         }),
       ],
+      capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
     };
     expect(() => buildCatalogIndex(withDangling)).toThrow(CatalogIntegrityError);
     try {
@@ -374,7 +703,7 @@ describe("buildCatalogIndex", () => {
       capabilities: [capability("CAP_HEAL", "PLANNED")],
     };
     const index = buildCatalogIndex(withCap);
-    expect(index.capabilities.get("CAP_HEAL" as never)?.status).toBe("PLANNED");
+    expect(index.capabilities.get("CAP_HEAL" as never)?.runtimeStatus).toBe("PLANNED");
   });
 
   it("UT-CAT-IDX-010: rejects a PS trigger referencing an unknown eventType", () => {
@@ -401,7 +730,11 @@ describe("buildCatalogIndex", () => {
       ...defs,
       units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
       // UnitBeingAttacked is documented as TIMING, not FACT.
-      skills: [...defs.skills, psSkill("SKL_PS1", "UnitBeingAttacked", "FACT")],
+      skills: [
+        ...defs.skills,
+        psSkill("SKL_PS1", "UnitBeingAttacked", "FACT", ["CAP_TRIGGER_CONTEXT"]),
+      ],
+      capabilities: [capability("CAP_TRIGGER_CONTEXT")],
     };
     expect(() => buildCatalogIndex(withMismatch)).toThrow(CatalogIntegrityError);
     try {
@@ -418,7 +751,11 @@ describe("buildCatalogIndex", () => {
     const withEffectApplied: CatalogDefinitions = {
       ...defs,
       units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
-      skills: [...defs.skills, psSkill("SKL_PS1", "EffectApplied", "FACT")],
+      skills: [
+        ...defs.skills,
+        psSkill("SKL_PS1", "EffectApplied", "FACT", ["CAP_TRIGGER_CONTEXT"]),
+      ],
+      capabilities: [capability("CAP_TRIGGER_CONTEXT")],
     };
     const index = buildCatalogIndex(withEffectApplied);
     expect(index.skills.get("SKL_PS1" as never)).toBeDefined();
@@ -588,5 +925,410 @@ describe("buildCatalogIndex", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("UT-CAT-IDX-021: rejects a production definition that uses a schema-unsupported Capability", () => {
+    const defs = baseDefinitions();
+    const schemaPlanned = createCapabilityDefinition({
+      capabilityId: "CAP_FUTURE_SCHEMA",
+      schemaStatus: "PLANNED",
+      runtimeStatus: "PLANNED",
+      implementationTaskId: "TEST-001",
+      description: "future schema",
+      verification: { productionDefinitionIds: [], testCaseIds: [] },
+    });
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units: [unit("UNIT_001", { requiredCapabilities: ["CAP_FUTURE_SCHEMA"] })],
+        capabilities: [schemaPlanned],
+      }),
+    ).toThrowError(/UNSUPPORTED_SCHEMA_CAPABILITY/);
+  });
+
+  it("UT-CAT-IDX-022: rejects IMPLEMENTED evidence pointing to a missing production definition", () => {
+    const defs = baseDefinitions();
+    const implemented = createCapabilityDefinition({
+      capabilityId: "CAP_READY",
+      schemaStatus: "SUPPORTED",
+      runtimeStatus: "IMPLEMENTED",
+      implementationTaskId: "TEST-001",
+      description: "ready",
+      verification: {
+        productionDefinitionIds: ["ACT_MISSING"],
+        testCaseIds: ["TEST-001"],
+      },
+    });
+
+    expect(() => buildCatalogIndex({ ...defs, capabilities: [implemented] })).toThrowError(
+      /INVALID_CAPABILITY_VERIFICATION/,
+    );
+  });
+
+  it("UT-CAT-IDX-023: rejects IMPLEMENTED evidence whose production definition does not declare the Capability", () => {
+    const defs = baseDefinitions();
+    const implemented = createCapabilityDefinition({
+      capabilityId: "CAP_READY",
+      schemaStatus: "SUPPORTED",
+      runtimeStatus: "IMPLEMENTED",
+      implementationTaskId: "TEST-001",
+      description: "ready",
+      verification: {
+        productionDefinitionIds: ["ACT_DAMAGE_1"],
+        testCaseIds: ["TEST-001"],
+      },
+    });
+
+    expect(() => buildCatalogIndex({ ...defs, capabilities: [implemented] })).toThrowError(
+      /does not declare capability/,
+    );
+  });
+
+  it("UT-CAT-IDX-024: rejects BRANCH/REPEAT skills without CAP_RESOLUTION_BRANCH_REPEAT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [branchSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [branchSkill("SKL_AS1", ["CAP_RESOLUTION_BRANCH_REPEAT"]), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-025: rejects runtime-owned trigger events without CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+        skills: [...defs.skills, psSkill("SKL_PS1", "HitPointReduced", "FACT")],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+  });
+
+  it("UT-CAT-IDX-026: rejects BRANCH/REPEAT memories without CAP_RESOLUTION_BRANCH_REPEAT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_RESOLUTION_BRANCH_REPEAT"),
+        ],
+      }),
+    ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_RESOLUTION_BRANCH_REPEAT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_RESOLUTION_BRANCH_REPEAT"),
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-027: rejects runtime-owned Memory triggers without CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_TRIGGER_CONTEXT"),
+        ],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TRIGGER_CONTEXT"])],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_TRIGGER_CONTEXT"),
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it.each([
+    {
+      capabilityId: "CAP_TARGET_FILTER_ORDER",
+      selector: {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
+      },
+    },
+    {
+      capabilityId: "CAP_TARGET_DERIVED_AREA",
+      selector: {
+        kind: "BINDING_DERIVED",
+        base: { kind: "SELF" },
+        area: { kind: "SAME_ROW_AS_BASE", includeBase: false },
+      },
+    },
+    {
+      capabilityId: "CAP_TARGET_BINDING_FALLBACK",
+      selector: {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        fallback: { kind: "SELECT", side: "ENEMY", count: 1 },
+      },
+    },
+  ])(
+    "UT-CAT-IDX-028: rejects $capabilityId-owned target structure without its Capability",
+    ({ capabilityId, selector }) => {
+      const defs = baseDefinitions();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [targetingSkill(selector, []), exSkill("SKL_EX1", 7)],
+          capabilities: [capability(capabilityId)],
+        }),
+      ).toThrowError(new RegExp(`must declare "${capabilityId}"`));
+
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [targetingSkill(selector, [capabilityId]), exSkill("SKL_EX1", 7)],
+          capabilities: [capability(capabilityId)],
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it("UT-CAT-IDX-029: rejects TRIGGER_SOURCE/TRIGGER_TARGET EffectStep references without CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [targetingSkill(selector, [], { kind: "TRIGGER_TARGET" }), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          targetingSkill(selector, ["CAP_TRIGGER_CONTEXT"], { kind: "TRIGGER_SOURCE" }),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it.each(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const)(
+    "UT-CAT-IDX-030: rejects %s EffectStep references without CAP_RESOLUTION_BRANCH_REPEAT",
+    (kind) => {
+      const defs = baseDefinitions();
+      const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [targetingSkill(selector, [], { kind }), exSkill("SKL_EX1", 7)],
+          capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+        }),
+      ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
+
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            targetingSkill(selector, ["CAP_RESOLUTION_BRANCH_REPEAT"], { kind }),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it.each([
+    { skillType: "AS" as const, capabilityId: "CAP_ACTION_ACTIVATION_CONDITION" },
+    { skillType: "EX" as const, capabilityId: "CAP_ACTION_ACTIVATION_CONDITION" },
+    { skillType: "PS" as const, capabilityId: "CAP_PASSIVE_ACTIVATION_CONDITION" },
+  ])(
+    "UT-CAT-IDX-031: rejects a non-TRUE $skillType activationCondition without $capabilityId",
+    ({ skillType, capabilityId }) => {
+      const defs = baseDefinitions();
+      const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
+      const activationCondition = { kind: "TURN_NUMBER", op: "GTE", value: 2 } as const;
+      const units = skillType === "PS" ? [unit("UNIT_001", { passive: ["SKL_PS1"] })] : defs.units;
+      const skillsWithActivationCondition = (requiredCapabilities: readonly string[]) => {
+        const activationSkill = targetingSkill(
+          selector,
+          requiredCapabilities,
+          undefined,
+          activationCondition,
+          skillType,
+        );
+        if (skillType === "PS") {
+          return [...defs.skills, activationSkill];
+        }
+        return skillType === "EX"
+          ? [asSkill("SKL_AS1", "ACT_DAMAGE_1"), activationSkill]
+          : [activationSkill, exSkill("SKL_EX1", 7)];
+      };
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          units,
+          skills: skillsWithActivationCondition([]),
+          capabilities: [capability(capabilityId)],
+        }),
+      ).toThrowError(new RegExp(`must declare "${capabilityId}"`));
+
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          units,
+          skills: skillsWithActivationCondition([capabilityId]),
+          capabilities: [capability(capabilityId)],
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it("UT-CAT-IDX-032: rejects RANDOM_BRANCH skills without CAP_RANDOM_BRANCH", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [randomBranchSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RANDOM_BRANCH")],
+      }),
+    ).toThrowError(/must declare "CAP_RANDOM_BRANCH"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [randomBranchSkill("SKL_AS1", ["CAP_RANDOM_BRANCH"]), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_RANDOM_BRANCH")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-033: rejects triggeredEffects memories without CAP_MEMORY_TRIGGERED_EFFECT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggeredMemory([])],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
+      }),
+    ).toThrowError(/must declare "CAP_MEMORY_TRIGGERED_EFFECT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggeredMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-034: rejects Skill counterUpdates without CAP_SKILL_RUNTIME_COUNTER", () => {
+    const defs = baseDefinitions();
+    const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
+    const capabilities = [capability("CAP_SKILL_RUNTIME_COUNTER")];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [...defs.skills, runtimeCounterSkill([])],
+        capabilities,
+      }),
+    ).toThrowError(/must declare "CAP_SKILL_RUNTIME_COUNTER"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [...defs.skills, runtimeCounterSkill(["CAP_SKILL_RUNTIME_COUNTER"])],
+        capabilities,
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-035: rejects EffectStep non-TRUE conditions without CAP_EFFECT_STEP_CONDITION", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [conditionalActionSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_EFFECT_STEP_CONDITION")],
+      }),
+    ).toThrowError(/must declare "CAP_EFFECT_STEP_CONDITION"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          conditionalActionSkill("SKL_AS1", ["CAP_EFFECT_STEP_CONDITION"]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [capability("CAP_EFFECT_STEP_CONDITION")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-036: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
+    const defs = baseDefinitions();
+    const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [
+          ...defs.skills,
+          runtimeCounterSkillWithTrigger("NotARealEvent", "FACT", ["CAP_SKILL_RUNTIME_COUNTER"]),
+        ],
+        capabilities: [capability("CAP_SKILL_RUNTIME_COUNTER")],
+      }),
+    ).toThrowError(/references unknown eventType "NotARealEvent"/);
+  });
+
+  it("UT-CAT-IDX-037: rejects a Skill counterUpdates trigger whose declared category mismatches the eventType's documented category", () => {
+    const defs = baseDefinitions();
+    const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units,
+        skills: [
+          ...defs.skills,
+          // UnitBeingAttacked is documented as TIMING, not FACT (see UT-CAT-IDX-011).
+          runtimeCounterSkillWithTrigger("UnitBeingAttacked", "FACT", [
+            "CAP_SKILL_RUNTIME_COUNTER",
+            "CAP_TRIGGER_CONTEXT",
+          ]),
+        ],
+        capabilities: [capability("CAP_SKILL_RUNTIME_COUNTER"), capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/is documented as category/);
   });
 });

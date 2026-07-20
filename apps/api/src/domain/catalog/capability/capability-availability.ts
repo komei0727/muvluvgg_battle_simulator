@@ -14,7 +14,7 @@ import type { SkillDefinition } from "../definitions/skill-definition.js";
  * `実装済みCapability比較器` (`13_実装計画.md` M1実装項目7). Given a selected
  * Unit/Memory graph, transitively collects every `requiredCapabilities`
  * reachable through Skill and EffectAction references, then compares it
- * against `capabilities.json`'s `IMPLEMENTED` set. The caller (a future
+ * against `capabilities.json`'s `runtimeStatus: IMPLEMENTED` set. The caller (a future
  * `SimulationPreflightValidator`, `09_アプリケーション設計.md`) turns a
  * non-empty unimplemented result into `UNSUPPORTED_RULE` — this module only
  * computes the set, since it has no knowledge of HTTP/Application error
@@ -129,7 +129,7 @@ export function findUnimplementedCapabilities(
   const unimplemented: UnimplementedCapability[] = [];
   for (const [capabilityId, requiredBy] of requiredCapabilities) {
     const capability = capabilities.get(capabilityId);
-    if (capability === undefined || capability.status !== "IMPLEMENTED") {
+    if (capability === undefined || capability.runtimeStatus !== "IMPLEMENTED") {
       unimplemented.push({ capabilityId, requiredByDefinitionIds: [...requiredBy] });
     }
   }

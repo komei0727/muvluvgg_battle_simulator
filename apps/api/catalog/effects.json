@@ -15,7 +15,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -465,7 +465,7 @@
       "formula": { "kind": "CONSTANT", "value": 0 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -876,7 +876,7 @@
       "formula": { "kind": "CONSTANT", "value": -2 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -970,7 +970,7 @@
       "formula": { "kind": "CONSTANT", "value": 0 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -1080,7 +1080,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -1117,7 +1117,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -1189,7 +1189,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -1227,7 +1227,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -1257,7 +1257,7 @@
       "formula": { "kind": "CONSTANT", "value": -3 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -1711,7 +1711,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2207,7 +2207,7 @@
       "operation": "SET",
       "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2289,7 +2289,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2358,7 +2358,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2377,7 +2377,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2395,7 +2395,7 @@
       "operation": "SET",
       "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2540,7 +2540,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2647,7 +2647,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2768,7 +2768,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -2978,7 +2978,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -4163,7 +4163,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -4387,7 +4387,7 @@
       "formula": { "kind": "CONSTANT", "value": -2 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -4476,7 +4476,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -4998,7 +4998,7 @@
       "operation": "SET_TO_MAX",
       "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -5017,7 +5017,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -5437,7 +5437,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -5448,7 +5448,7 @@
       "operation": "SET_TO_MAX",
       "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -5473,7 +5473,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -6058,7 +6058,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -6561,7 +6561,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -6654,7 +6654,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -6852,7 +6852,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -7516,7 +7516,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -7729,7 +7729,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -7995,7 +7995,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -8069,7 +8069,7 @@
       "formula": { "kind": "CONSTANT", "value": 8 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -8491,7 +8491,7 @@
       "formula": { "kind": "CONSTANT", "value": 5 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -8673,7 +8673,7 @@
       "formula": { "kind": "CONSTANT", "value": -2 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -8778,7 +8778,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -8825,7 +8825,7 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -8872,7 +8872,7 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {

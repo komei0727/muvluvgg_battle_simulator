@@ -66,7 +66,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "あったかいの、どうぞ♪",
       "tags": []
@@ -133,7 +133,11 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_ACTION_ACTIVATION_CONDITION"
+    ],
     "metadata": {
       "displayName": "私に任せて！",
       "tags": []
@@ -214,7 +218,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "リラックスだよ～♪",
       "tags": []

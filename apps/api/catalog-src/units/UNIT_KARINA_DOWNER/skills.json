@@ -42,7 +42,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "フェイスストライク", "tags": [] }
   },
   {
@@ -70,7 +74,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_MARKER_STACK_FORMULA", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_MARKER_STACK_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "とりしまり～", "tags": [] }
   },
   {
@@ -98,7 +102,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "弱点はそこかな？", "tags": [] }
   },
   {
@@ -147,8 +151,9 @@
       "CAP_MARKER",
       "CAP_TARGET_REDIRECT",
       "CAP_COVER_DAMAGE",
-      "CAP_ADVANCED_PASSIVE_TRIGGER",
-      "CAP_EFFECT_CONDITION"
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "風紀委員会の管轄だよ～", "tags": [] },
     "triggers": [
@@ -201,7 +206,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "包囲かんりょ～", "tags": [] },
     "triggers": [
       {

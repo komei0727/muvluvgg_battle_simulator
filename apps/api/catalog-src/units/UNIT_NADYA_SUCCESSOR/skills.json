@@ -56,7 +56,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ぺたぺた雪だるま",
       "tags": []
@@ -177,8 +177,8 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_DAMAGE_MOD"
     ],
     "metadata": {
@@ -218,7 +218,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "ヴォルコワの血脈Ω",
       "tags": []
@@ -275,7 +275,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "隙ありです……！",
       "tags": []
@@ -342,7 +342,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "お母様、見ててください……！",
       "tags": []

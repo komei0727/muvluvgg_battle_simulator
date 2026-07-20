@@ -87,9 +87,9 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_DERIVED_TARGETS",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_DERIVED_AREA",
       "CAP_DAMAGE_MOD",
       "CAP_CRITICAL_CONTROL"
     ],
@@ -112,7 +112,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_COVER_DAMAGE"],
+    "requiredCapabilities": ["CAP_COVER_DAMAGE", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ネガティブヘイト", "tags": [] },
     "triggers": [
       {

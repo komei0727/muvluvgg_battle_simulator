@@ -65,9 +65,14 @@ describe("Converted Definitions are immutable", () => {
   it("UT-CAT-FREEZE-003: two conversions of the same input produce deep-equal, independently-frozen definitions", () => {
     const input = {
       capabilityId: "CAP_HEAL",
-      status: "PLANNED" as const,
+      schemaStatus: "SUPPORTED" as const,
+      runtimeStatus: "PLANNED" as const,
+      implementationTaskId: "TEST-001",
       description: "即時回復",
-      requiredBy: ["SKL_001_AS1"],
+      verification: {
+        productionDefinitionIds: [] as string[],
+        testCaseIds: [] as string[],
+      },
     };
     const first = createCapabilityDefinition(input);
     const second = createCapabilityDefinition(input);

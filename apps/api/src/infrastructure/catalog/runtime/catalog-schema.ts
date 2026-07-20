@@ -236,12 +236,32 @@ export const capabilityDefinitionSchema = {
   $id: "https://muvluvgg.local/catalog/capability-definition.json",
   type: "object",
   additionalProperties: false,
-  required: ["capabilityId", "status", "description", "requiredBy"],
+  required: [
+    "capabilityId",
+    "schemaStatus",
+    "runtimeStatus",
+    "implementationTaskId",
+    "description",
+    "verification",
+  ],
   properties: {
     capabilityId: { type: "string", pattern: "^(CAP_|Q-)[A-Za-z0-9_-]*$" },
-    status: { enum: ["IMPLEMENTED", "PLANNED", "BLOCKED"] },
-    description: { type: "string" },
-    requiredBy: { type: "array", items: { type: "string" } },
+    schemaStatus: { enum: ["SUPPORTED", "PLANNED", "BLOCKED"] },
+    runtimeStatus: { enum: ["IMPLEMENTED", "PLANNED", "BLOCKED"] },
+    implementationTaskId: { type: "string", minLength: 1 },
+    description: { type: "string", minLength: 1 },
+    verification: {
+      type: "object",
+      additionalProperties: false,
+      required: ["productionDefinitionIds", "testCaseIds"],
+      properties: {
+        productionDefinitionIds: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+        },
+        testCaseIds: { type: "array", items: { type: "string", minLength: 1 } },
+      },
+    },
   },
 } as const;
 

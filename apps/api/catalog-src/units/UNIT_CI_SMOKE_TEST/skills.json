@@ -51,5 +51,67 @@
     "traits": {},
     "requiredCapabilities": [],
     "metadata": { "displayName": "CI Smoke EX", "tags": ["INTERNAL", "SMOKE_TEST", "TEMPORARY"] }
+  },
+  {
+    "skillDefinitionId": "SKL_CI_SMOKE_TEST_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CI_SMOKE_TEST_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 99 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
+    "metadata": {
+      "displayName": "CI Smoke Runtime Counter Passive",
+      "tags": ["INTERNAL", "SMOKE_TEST", "TEMPORARY"]
+    },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_CI_SMOKE_TEST_PS1_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_CI_SMOKE_TEST_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_CI_SMOKE_TEST_PS1"
+          }
+        },
+        "amount": 1
+      }
+    ]
   }
 ]

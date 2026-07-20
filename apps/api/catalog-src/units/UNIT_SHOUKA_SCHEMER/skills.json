@@ -156,7 +156,7 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "スキュア",
       "tags": []
@@ -251,7 +251,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "displayName": "アフターシェイブ",
       "tags": []

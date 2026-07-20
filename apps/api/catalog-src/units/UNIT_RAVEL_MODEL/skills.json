@@ -188,8 +188,8 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_CONTINUOUS_DAMAGE"
     ],
     "metadata": {
@@ -267,7 +267,11 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_CONDITION", "CAP_RESOLUTION_BRANCH"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": {
       "displayName": "アバンギャルドカット",
       "tags": []
@@ -308,7 +312,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "キャッチライト",
       "tags": []
@@ -370,7 +374,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "キャットウォーク",
       "tags": []

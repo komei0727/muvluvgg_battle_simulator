@@ -1,182 +1,408 @@
 [
   {
-    "capabilityId": "CAP_ADVANCED_PASSIVE_TRIGGER",
-    "status": "PLANNED",
-    "description": "高度PSトリガー",
-    "requiredBy": []
+    "capabilityId": "CAP_ACTION_ACTIVATION_CONDITION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-003",
+    "description": "AS / EXのactivationConditionを行動選択で評価する",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
-    "capabilityId": "CAP_ADVANCED_TARGETING",
-    "status": "PLANNED",
-    "description": "高度ターゲット",
-    "requiredBy": []
+    "capabilityId": "CAP_PASSIVE_ACTIVATION_CONDITION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-004",
+    "description": "PSのactivationConditionを候補判定と発動直前再確認で評価する",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_CHARGE_RESTRICTION",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-003",
     "description": "チャージ中の回避/PS制限",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_COMPLEX_EXPIRATION",
-    "status": "PLANNED",
-    "description": "複雑な失効条件",
-    "requiredBy": []
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "EFF-003",
+    "description": "ACTION/TURN期間・消費・特殊失効・親子連動",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_CONTINUOUS_DAMAGE",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-008",
     "description": "継続ダメージ(DoT)",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_CONTINUOUS_HEAL",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-005",
     "description": "継続回復",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_COOLDOWN_MANIPULATION",
-    "status": "IMPLEMENTED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M6-CD-001",
     "description": "他スキルのクールタイム短縮・リセット",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_AOI_ELEGANT_EX_CD_RESET",
+        "ACT_CHIYURU_NEWYEAR_EX_CD_RESET",
+        "ACT_CHIYURU_NEWYEAR_PS1_CD_RESET",
+        "ACT_MERU_FLATSPIN_AS1_CD_RESET",
+        "ACT_SAYA_BUNNY_EX_CD_RESET"
+      ],
+      "testCaseIds": ["IT-COOLDOWN-MANIP-PROD-001"]
+    }
   },
   {
     "capabilityId": "CAP_COVER_DAMAGE",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-006",
     "description": "肩代わり",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_CRITICAL_CONTROL",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-003",
     "description": "会心保証・会心不可",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_DAMAGE_MOD",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-002",
     "description": "与ダメージ・被ダメージ補正",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_DEATH_SURVIVAL",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-006",
     "description": "致死耐え",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
-    "capabilityId": "CAP_DERIVED_TARGETS",
-    "status": "PLANNED",
-    "description": "派生対象",
-    "requiredBy": []
+    "capabilityId": "CAP_EFFECT_RUNTIME_COUNTER",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "EFF-005",
+    "description": "AppliedEffect / EffectSequenceスコープのRuntimeCounter",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
-    "capabilityId": "CAP_EFFECT_CONDITION",
-    "status": "PLANNED",
-    "description": "Effect単位の条件",
-    "requiredBy": []
+    "capabilityId": "CAP_EFFECT_STEP_CONDITION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-004",
+    "description": "EffectStepの対象別条件・集合条件",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_FORMULA",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-001",
     "description": "動的値計算",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_HEAL",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-005",
     "description": "即時回復EffectAction",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_HIT_COUNT_EVASION",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-004",
     "description": "Nヒット回避",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_MARKER",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "EFF-004",
     "description": "固有マーカー",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_MARKER_STACK_FORMULA",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "EFF-004",
     "description": "Marker数を参照するFormula",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_MEMORY_TRIGGERED_EFFECT",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-006",
     "description": "MemoryのTriggeredEffect化(BattleStartedでのtriggeredEffects解決・AppliedEffect反映を行うMemory発動エンジン)",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_PARTIAL_PIERCING",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-003",
     "description": "部分防御/シールド無視",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_RANDOM_BRANCH",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-003",
     "description": "確率分岐",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_REMOVE_EFFECTS",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-001",
     "description": "効果解除",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
-    "capabilityId": "CAP_RESOLUTION_BRANCH",
-    "status": "PLANNED",
-    "description": "Resolution分岐",
-    "requiredBy": []
+    "capabilityId": "CAP_RESOLUTION_BRANCH_REPEAT",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-003",
+    "description": "BRANCH / REPEATと直前結果",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-002",
     "description": "最大APなどの上限変更",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
-    "capabilityId": "CAP_RESOURCE_MOD",
-    "status": "PLANNED",
+    "capabilityId": "CAP_RESOURCE_MUTATION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-002",
     "description": "AP / PP / EX 操作",
-    "requiredBy": []
-  },
-  {
-    "capabilityId": "CAP_RUNTIME_COUNTER",
-    "status": "PLANNED",
-    "description": "発動回数・累計条件",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_SHIELD",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-004",
     "description": "シールド付与",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
+    "capabilityId": "CAP_SKILL_RUNTIME_COUNTER",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M6-RC-001",
+    "description": "SkillRuntimeスコープの発動回数・累計条件",
+    "verification": {
+      "productionDefinitionIds": [
+        "SKL_CI_SMOKE_TEST_PS1",
+        "SKL_CHIYURU_NEWYEAR_PS2",
+        "SKL_CHIZURU_DOMESTIC_PS1",
+        "SKL_CHIZURU_DOMESTIC_PS2",
+        "SKL_CHIZURU_DOMESTIC_PS3",
+        "SKL_CLARA_SANTA_PS1",
+        "SKL_DOROTHEA_PIONEER_PS1",
+        "SKL_DOROTHEA_PIONEER_PS2",
+        "SKL_ELENA_MOODMAKER_PS1",
+        "SKL_EVIE_ECO_PS2",
+        "SKL_FEE_ACTOR_PS2",
+        "SKL_FLUTE_VAMPIRE_PS1",
+        "SKL_FLUTE_VAMPIRE_PS3",
+        "SKL_HIIRO_LONEWOLF_PS1",
+        "SKL_JUNKA_CHILDHOOD_PS2",
+        "SKL_KEI_JACKKNIFE_PS1",
+        "SKL_KOTOHA_REBEL_PS2",
+        "SKL_LAYLA_ENTREPRENEUR_PS1",
+        "SKL_LAYLA_ENTREPRENEUR_PS2",
+        "SKL_LYDIA_GENIUS_PS2",
+        "SKL_MAO_COMMITTEE_PS1",
+        "SKL_MIKOTO_SURVIVOR_PS1",
+        "SKL_MIRIAM_MAGE_PS1",
+        "SKL_NADYA_SUCCESSOR_PS3",
+        "SKL_OLGA_VETERAN_PS1",
+        "SKL_OLGA_VETERAN_PS2",
+        "SKL_RAMI_UNYIELDING_PS1",
+        "SKL_SHIRANA_SORA_PS1",
+        "SKL_TATIANA_SAGE_PS1",
+        "SKL_YUI_HEIR_PS2",
+        "SKL_YURIA_YUKATA_PS2"
+      ],
+      "testCaseIds": [
+        "IT-CAP-SKILL-RUNTIME-001",
+        "IT-CAP-SKILL-RUNTIME-002",
+        "IT-CAP-SKILL-RUNTIME-003",
+        "IT-CAP-SKILL-RUNTIME-004"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_SPECIFIC_IMMUNITY",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-001",
     "description": "個別状態異常無効",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
-    "capabilityId": "CAP_TARGET_FALLBACK",
-    "status": "PLANNED",
-    "description": "対象フォールバック",
-    "requiredBy": []
+    "capabilityId": "CAP_TARGET_BINDING_FALLBACK",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "TGT-003",
+    "description": "TargetBinding固定・参照時の戦闘不能skip・fallback経路判定",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
+    "capabilityId": "CAP_TARGET_DERIVED_AREA",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "TGT-001",
+    "description": "area・距離・隣接・列による派生対象",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
+    "capabilityId": "CAP_TARGET_FILTER_ORDER",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "TGT-002",
+    "description": "Target filter・order・除外選択",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   },
   {
     "capabilityId": "CAP_TARGET_REDIRECT",
-    "status": "PLANNED",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-006",
     "description": "挑発・攻撃引き寄せ",
-    "requiredBy": []
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
+    "capabilityId": "CAP_TRIGGER_CONTEXT",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-005",
+    "description": "TRIGGER_SOURCE / TRIGGER_TARGETと基本Damage事実イベント",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
   }
 ]

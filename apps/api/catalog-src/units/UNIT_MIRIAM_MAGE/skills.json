@@ -38,7 +38,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "攻撃魔法『Xプロージョン』", "tags": [] }
   },
   {
@@ -115,7 +115,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_CHARGE_RESTRICTION", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_CHARGE_RESTRICTION", "CAP_TARGET_DERIVED_AREA"],
     "metadata": { "displayName": "溜め技いくよー！", "tags": [] }
   },
   {
@@ -165,7 +165,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "おまけで、えい！", "tags": [] },
     "triggers": [
       {

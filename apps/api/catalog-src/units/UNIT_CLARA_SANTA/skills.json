@@ -29,7 +29,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "サンタクイーンズ・ケーキ", "tags": [] }
   },
   {
@@ -76,7 +76,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "届け、マイソング！", "tags": [] }
   },
   {
@@ -125,7 +125,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DERIVED_TARGETS", "CAP_TARGET_FALLBACK"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_BINDING_FALLBACK",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "アンコール！", "tags": [] }
   },
   {
@@ -159,7 +164,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "メリ～クリスマ～ス！", "tags": [] }
   },
   {
@@ -194,7 +199,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "クララ・オン・ステージ", "tags": [] },
     "triggers": [
       {

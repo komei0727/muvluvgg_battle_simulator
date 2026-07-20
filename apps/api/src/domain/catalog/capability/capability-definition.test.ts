@@ -6,15 +6,19 @@ describe("CapabilityDefinition", () => {
   it("UT-CAT-CAP-001: maps a PLANNED capability", () => {
     const result = createCapabilityDefinition({
       capabilityId: "CAP_HEAL",
-      status: "PLANNED",
+      schemaStatus: "SUPPORTED",
+      runtimeStatus: "PLANNED",
+      implementationTaskId: "TEST-001",
       description: "即時回復EffectAction",
-      requiredBy: [],
+      verification: { productionDefinitionIds: [], testCaseIds: [] },
     });
     expect(result).toEqual({
       capabilityId: "CAP_HEAL",
-      status: "PLANNED",
+      schemaStatus: "SUPPORTED",
+      runtimeStatus: "PLANNED",
+      implementationTaskId: "TEST-001",
       description: "即時回復EffectAction",
-      requiredBy: [],
+      verification: { productionDefinitionIds: [], testCaseIds: [] },
     });
   });
 
@@ -22,9 +26,11 @@ describe("CapabilityDefinition", () => {
     expect(() =>
       createCapabilityDefinition({
         capabilityId: "CAP_HEAL",
-        status: "DONE",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "DONE",
+        implementationTaskId: "TEST-001",
         description: "x",
-        requiredBy: [],
+        verification: { productionDefinitionIds: [], testCaseIds: [] },
       }),
     ).toThrow(DomainValidationError);
   });
@@ -32,21 +38,93 @@ describe("CapabilityDefinition", () => {
   it("UT-CAT-CAP-003: accepts a Q-* capability id", () => {
     const result = createCapabilityDefinition({
       capabilityId: "Q-TGT-06",
-      status: "BLOCKED",
+      schemaStatus: "SUPPORTED",
+      runtimeStatus: "BLOCKED",
+      implementationTaskId: "TEST-001",
       description: "pending spec",
-      requiredBy: [],
+      verification: { productionDefinitionIds: [], testCaseIds: [] },
     });
     expect(result.capabilityId).toBe("Q-TGT-06");
   });
 
-  it("UT-CAT-CAP-004: rejects a non-array requiredBy", () => {
+  it("UT-CAT-CAP-004: rejects malformed verification evidence", () => {
     expect(() =>
       createCapabilityDefinition({
         capabilityId: "CAP_HEAL",
-        status: "PLANNED",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "PLANNED",
+        implementationTaskId: "TEST-001",
         description: "x",
-        requiredBy: "SKL_001_AS1" as unknown as readonly string[],
+        verification: {
+          productionDefinitionIds: "SKL_001_AS1" as unknown as readonly string[],
+          testCaseIds: [],
+        },
       }),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-CAP-005: requires production and test evidence before IMPLEMENTED", () => {
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "TEST-001",
+        description: "x",
+        verification: { productionDefinitionIds: [], testCaseIds: [] },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-CAP-006: rejects empty task and verification identifiers", () => {
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: " ",
+        description: "x",
+        verification: { productionDefinitionIds: ["ACT_HEAL"], testCaseIds: [" "] },
+      }),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "TEST-001",
+        description: "x",
+        verification: { productionDefinitionIds: ["ACT_HEAL"], testCaseIds: [" "] },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-CAP-007: rejects duplicate verification identifiers", () => {
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "TEST-001",
+        description: "x",
+        verification: {
+          productionDefinitionIds: ["ACT_HEAL", "ACT_HEAL"],
+          testCaseIds: ["IT-HEAL-001"],
+        },
+      }),
+    ).toThrow(/duplicate value/);
+    expect(() =>
+      createCapabilityDefinition({
+        capabilityId: "CAP_HEAL",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "TEST-001",
+        description: "x",
+        verification: {
+          productionDefinitionIds: ["ACT_HEAL"],
+          testCaseIds: ["IT-HEAL-001", "IT-HEAL-001"],
+        },
+      }),
+    ).toThrow(/duplicate value/);
   });
 });

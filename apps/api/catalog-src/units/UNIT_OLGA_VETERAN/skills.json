@@ -158,12 +158,13 @@
     },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_RESOURCE_MOD",
+      "CAP_RESOURCE_MUTATION",
       "CAP_DAMAGE_MOD",
       "CAP_HEAL",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_DERIVED_TARGETS"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": {
       "displayName": "粛清です",
@@ -288,7 +289,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "この魂、レドフカに捧げます",
       "tags": []
@@ -386,7 +387,7 @@
       "count": 99
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
     "metadata": {
       "displayName": "ヴォルコワの血脈A",
       "tags": []
@@ -403,6 +404,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_OLGA_VETERAN_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_OLGA_VETERAN_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

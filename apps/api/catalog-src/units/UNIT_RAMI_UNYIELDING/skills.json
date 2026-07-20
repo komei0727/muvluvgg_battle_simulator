@@ -58,11 +58,12 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DERIVED_TARGETS",
+      "CAP_TARGET_DERIVED_AREA",
       "CAP_HEAL",
       "CAP_FORMULA",
-      "CAP_EFFECT_CONDITION",
-      "CAP_DAMAGE_MOD"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "あっかんべー♡", "tags": [] }
   },
@@ -108,7 +109,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "緊急防壁", "tags": [] },
     "triggers": [
       {
@@ -135,6 +136,26 @@
           ]
         }
       }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_RAMI_UNYIELDING_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_RAMI_UNYIELDING_PS1"
+          }
+        },
+        "amount": 1
+      }
     ]
   },
   {
@@ -158,7 +179,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 6 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "まだ終わんないけど？", "tags": [] },
     "triggers": [
       {

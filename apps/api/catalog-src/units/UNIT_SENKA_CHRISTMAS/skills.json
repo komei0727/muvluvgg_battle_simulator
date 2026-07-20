@@ -67,7 +67,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_EFFECT_CONDITION", "CAP_RESOLUTION_BRANCH"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "聖夜の祝砲！？", "tags": [] }
   },
   {
@@ -95,7 +99,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "プレゼント・タイム", "tags": [] }
   },
   {
@@ -133,7 +137,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_DERIVED_AREA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "セルフ・プロデュース", "tags": [] },
     "triggers": [
       {
@@ -164,7 +168,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "はらぐろさくしー", "tags": [] },
     "triggers": [
       {

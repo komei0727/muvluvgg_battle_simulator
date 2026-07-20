@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { RULE_COVERAGE } from "./rule-coverage.js";
 
@@ -119,6 +120,380 @@ function parseUnconvertedMemoryNames(): string[] {
     .sort();
 }
 
+interface TestCaseDefinition {
+  readonly file: string;
+  readonly position: number;
+}
+
+const TEST_CASE_ID_PATTERN = /\b(?:UT|IT|SCN|E2E)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
+const NON_EXECUTING_TEST_MODIFIERS = new Set(["skip", "skipIf", "todo", "runIf"]);
+const VITEST_TEST_FUNCTIONS = new Set(["it", "test"]);
+const VITEST_SUITE_FUNCTIONS = new Set(["describe", "suite"]);
+
+function functionRootIdentifier(expression: ts.Expression): ts.Identifier | undefined {
+  if (ts.isIdentifier(expression)) {
+    return expression;
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    return functionRootIdentifier(expression.expression);
+  }
+  if (ts.isCallExpression(expression)) {
+    return functionRootIdentifier(expression.expression);
+  }
+  return undefined;
+}
+
+function hasVitestFunctionRoot(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+  expectedImports: ReadonlySet<string>,
+): boolean {
+  const root = functionRootIdentifier(expression);
+  if (root === undefined) {
+    return false;
+  }
+  const hasMatchingImport = root
+    .getSourceFile()
+    .statements.some(
+      (statement) =>
+        ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text === "vitest" &&
+        statement.importClause?.namedBindings !== undefined &&
+        ts.isNamedImports(statement.importClause.namedBindings) &&
+        statement.importClause.namedBindings.elements.some(
+          (element) =>
+            element.name.text === root.text &&
+            expectedImports.has(element.propertyName?.text ?? element.name.text),
+        ),
+    );
+  if (!hasMatchingImport) {
+    return false;
+  }
+  const symbol = checker.getSymbolAtLocation(root);
+  return (
+    symbol?.declarations?.some((declaration) => {
+      if (!ts.isImportSpecifier(declaration)) {
+        return false;
+      }
+      let ancestor: ts.Node | undefined = declaration.parent;
+      while (ancestor !== undefined && !ts.isImportDeclaration(ancestor)) {
+        ancestor = ancestor.parent;
+      }
+      return (
+        ancestor !== undefined &&
+        ts.isImportDeclaration(ancestor) &&
+        ts.isStringLiteral(ancestor.moduleSpecifier) &&
+        ancestor.moduleSpecifier.text === "vitest" &&
+        expectedImports.has(declaration.propertyName?.text ?? declaration.name.text)
+      );
+    }) === true
+  );
+}
+
+function parameterizedCases(expression: ts.Expression): ts.Expression | undefined {
+  if (
+    ts.isCallExpression(expression) &&
+    ts.isPropertyAccessExpression(expression.expression) &&
+    (expression.expression.name.text === "each" || expression.expression.name.text === "for")
+  ) {
+    return expression.arguments[0];
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    return parameterizedCases(expression.expression);
+  }
+  if (ts.isCallExpression(expression)) {
+    return parameterizedCases(expression.expression);
+  }
+  return undefined;
+}
+
+function hasExecutableParameterizedCases(expression: ts.Expression): boolean {
+  const cases = parameterizedCases(expression);
+  return (
+    cases === undefined ||
+    (ts.isArrayLiteralExpression(cases) &&
+      cases.elements.length > 0 &&
+      cases.elements.every((element) => !ts.isSpreadElement(element)))
+  );
+}
+
+function propertyNameText(name: ts.PropertyName): string | undefined {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  if (ts.isComputedPropertyName(name) && ts.isStringLiteral(name.expression)) {
+    return name.expression.text;
+  }
+  return undefined;
+}
+
+function hasStaticallyExecutingOptions(options: ts.ObjectLiteralExpression): boolean {
+  for (const property of options.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      return false;
+    }
+    const name = propertyNameText(property.name);
+    if (ts.isComputedPropertyName(property.name) && name === undefined) {
+      return false;
+    }
+    if (name === "skip" || name === "todo") {
+      if (
+        !ts.isPropertyAssignment(property) ||
+        property.initializer.kind !== ts.SyntaxKind.FalseKeyword
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function isInlineCallback(node: ts.Expression | undefined): boolean {
+  return node !== undefined && (ts.isArrowFunction(node) || ts.isFunctionExpression(node));
+}
+
+function hasStaticallyExecutingCallback(call: ts.CallExpression): boolean {
+  const optionsOrCallback = call.arguments[1];
+  if (isInlineCallback(optionsOrCallback)) {
+    return true;
+  }
+  return (
+    optionsOrCallback !== undefined &&
+    ts.isObjectLiteralExpression(optionsOrCallback) &&
+    hasStaticallyExecutingOptions(optionsOrCallback) &&
+    isInlineCallback(call.arguments[2])
+  );
+}
+
+function hasNonExecutingModifier(expression: ts.Expression): boolean {
+  if (ts.isPropertyAccessExpression(expression)) {
+    return (
+      NON_EXECUTING_TEST_MODIFIERS.has(expression.name.text) ||
+      hasNonExecutingModifier(expression.expression)
+    );
+  }
+  if (ts.isCallExpression(expression)) {
+    return hasNonExecutingModifier(expression.expression);
+  }
+  return false;
+}
+
+function isInsideNonExecutingSuite(node: ts.Node, checker: ts.TypeChecker): boolean {
+  let ancestor = node.parent;
+  while (ancestor !== undefined) {
+    if (
+      ts.isCallExpression(ancestor) &&
+      hasVitestFunctionRoot(ancestor.expression, checker, VITEST_SUITE_FUNCTIONS) &&
+      (hasNonExecutingModifier(ancestor.expression) ||
+        !hasExecutableParameterizedCases(ancestor.expression) ||
+        !hasStaticallyExecutingCallback(ancestor))
+    ) {
+      return true;
+    }
+    ancestor = ancestor.parent;
+  }
+  return false;
+}
+
+function isSuiteCallback(
+  node: ts.ArrowFunction | ts.FunctionExpression,
+  checker: ts.TypeChecker,
+): boolean {
+  const parent = node.parent;
+  return (
+    ts.isCallExpression(parent) &&
+    parent.arguments.some((argument) => argument === node) &&
+    hasVitestFunctionRoot(parent.expression, checker, VITEST_SUITE_FUNCTIONS) &&
+    !hasNonExecutingModifier(parent.expression) &&
+    hasExecutableParameterizedCases(parent.expression) &&
+    hasStaticallyExecutingCallback(parent)
+  );
+}
+
+function isConditionalRegistrationAncestor(node: ts.Node): boolean {
+  if (
+    ts.isIfStatement(node) ||
+    ts.isConditionalExpression(node) ||
+    ts.isSwitchStatement(node) ||
+    ts.isForStatement(node) ||
+    ts.isForInStatement(node) ||
+    ts.isForOfStatement(node) ||
+    ts.isWhileStatement(node) ||
+    ts.isDoStatement(node) ||
+    ts.isCatchClause(node) ||
+    // `try { if (true) throw ...; it(...) } catch {}`のように、tryブロック内の
+    // 到達可能性はifなど任意の文の組み合わせで静的に判定しきれない。個々の文を
+    // 精査するのではなく、TryStatement配下（try/catch/finally）全体を保守的に
+    // 「証跡になり得ない」として扱う。
+    ts.isTryStatement(node)
+  ) {
+    return true;
+  }
+  return (
+    ts.isBinaryExpression(node) &&
+    (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      node.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  );
+}
+
+/**
+ * `{ throw new Error(); it("ID", ...); }`や
+ * `describe("suite", () => { if (cond) return; it("ID", ...); })`、
+ * `switch (process.env.MODE) { case "skip": return; } it("ID", ...);`の
+ * ように、先行する兄弟文がthrow/return/break/continueや、それらへ辿り着き得る
+ * if/switch/while/for/try/finally/labeled statementであれば、後続の`it`/`test`
+ * 呼び出しが本当に登録されるかは静的に保証できない。これらはテスト呼び出しの
+ * 祖先ではなく先行する兄弟文なので`isConditionalRegistrationAncestor`（祖先だけを
+ * 見る）では捉えられず、かといって「exitし得る構文」を個別に列挙していくやり方は
+ * 際限がなく取りこぼしを生み続ける（過去のレビューでif→switch/while/for/
+ * try-finally/labeled statementと繰り返し指摘された）。
+ *
+ * そこで発想を反転し、「後続文へ必ず読み進む」と静的に保証できる文の種類だけを
+ * 許可リストとして持ち、それ以外の構文（分岐・ループ・例外・ラベルジャンプを
+ * 含み得るもの）はすべて一律で「後続の到達可能性を保証できないもの」として
+ * 保守的に扱う。
+ */
+const CONTROL_FLOW_SAFE_STATEMENT_KINDS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.VariableStatement,
+  ts.SyntaxKind.ExpressionStatement,
+  ts.SyntaxKind.EmptyStatement,
+  ts.SyntaxKind.FunctionDeclaration,
+  ts.SyntaxKind.ClassDeclaration,
+  ts.SyntaxKind.InterfaceDeclaration,
+  ts.SyntaxKind.TypeAliasDeclaration,
+  ts.SyntaxKind.EnumDeclaration,
+  ts.SyntaxKind.ModuleDeclaration,
+  ts.SyntaxKind.ImportDeclaration,
+  ts.SyntaxKind.ImportEqualsDeclaration,
+  ts.SyntaxKind.ExportDeclaration,
+  ts.SyntaxKind.ExportAssignment,
+]);
+
+function isControlFlowSafeStatement(statement: ts.Statement): boolean {
+  if (ts.isBlock(statement)) {
+    return statement.statements.every(isControlFlowSafeStatement);
+  }
+  return CONTROL_FLOW_SAFE_STATEMENT_KINDS.has(statement.kind);
+}
+
+function hasUnsafePrecedingStatement(block: ts.Block | ts.SourceFile, child: ts.Node): boolean {
+  const index = block.statements.indexOf(child as ts.Statement);
+  if (index <= 0) {
+    return false;
+  }
+  for (let i = 0; i < index; i++) {
+    if (!isControlFlowSafeStatement(block.statements[i]!)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isConditionallyRegisteredTest(node: ts.Node, checker: ts.TypeChecker): boolean {
+  let child: ts.Node = node;
+  let ancestor = node.parent;
+  while (ancestor !== undefined) {
+    if (isConditionalRegistrationAncestor(ancestor)) {
+      return true;
+    }
+    if (
+      (ts.isBlock(ancestor) || ts.isSourceFile(ancestor)) &&
+      hasUnsafePrecedingStatement(ancestor, child)
+    ) {
+      return true;
+    }
+    if (ts.isArrowFunction(ancestor) || ts.isFunctionExpression(ancestor)) {
+      if (!isSuiteCallback(ancestor, checker)) {
+        return true;
+      }
+    } else if (
+      ts.isFunctionDeclaration(ancestor) ||
+      ts.isMethodDeclaration(ancestor) ||
+      ts.isGetAccessorDeclaration(ancestor) ||
+      ts.isSetAccessorDeclaration(ancestor) ||
+      ts.isConstructorDeclaration(ancestor)
+    ) {
+      return true;
+    }
+    child = ancestor;
+    ancestor = ancestor.parent;
+  }
+  return false;
+}
+
+function collectTestCaseDefinitionsFromSource(
+  sourceText: string,
+  file: string,
+): readonly [string, TestCaseDefinition][] {
+  const sourceFile = ts.createSourceFile(
+    file,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const compilerOptions: ts.CompilerOptions = { noLib: true, noResolve: true, types: [] };
+  const compilerHost = ts.createCompilerHost(compilerOptions, true);
+  compilerHost.getSourceFile = () => sourceFile;
+  compilerHost.fileExists = () => true;
+  compilerHost.readFile = () => undefined;
+  const checker = ts.createProgram([file], compilerOptions, compilerHost).getTypeChecker();
+  const definitions: [string, TestCaseDefinition][] = [];
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isCallExpression(node) &&
+      hasVitestFunctionRoot(node.expression, checker, VITEST_TEST_FUNCTIONS) &&
+      !hasNonExecutingModifier(node.expression) &&
+      hasExecutableParameterizedCases(node.expression) &&
+      hasStaticallyExecutingCallback(node) &&
+      !isInsideNonExecutingSuite(node, checker) &&
+      !isConditionallyRegisteredTest(node, checker)
+    ) {
+      const title = node.arguments[0];
+      if (
+        title !== undefined &&
+        (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))
+      ) {
+        for (const match of title.text.matchAll(TEST_CASE_ID_PATTERN)) {
+          definitions.push([match[0], { file, position: title.getStart(sourceFile) }]);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return definitions;
+}
+
+function collectTestCaseDefinitions(
+  directory: string,
+  into = new Map<string, TestCaseDefinition[]>(),
+): Map<string, TestCaseDefinition[]> {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) {
+      collectTestCaseDefinitions(path, into);
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith(".test.ts")) {
+      continue;
+    }
+    for (const [id, definition] of collectTestCaseDefinitionsFromSource(
+      readFileSync(path, "utf8"),
+      path,
+    )) {
+      const definitions = into.get(id) ?? [];
+      definitions.push(definition);
+      into.set(id, definitions);
+    }
+  }
+  return into;
+}
+
 describe("remaining work manifest (PLAN-001)", () => {
   it("UT-PLAN-001-001: assigns every currently uncompleted M7/M8 rule exactly once", () => {
     const manifest = readManifest();
@@ -219,7 +594,18 @@ describe("remaining work manifest (PLAN-001)", () => {
     }).filter((entry) => entry.isDirectory());
     const capabilities = JSON.parse(
       readRepositoryFile("apps/api/catalog-src/capabilities.json"),
-    ) as readonly { readonly status: string }[];
+    ) as readonly {
+      readonly capabilityId: string;
+      readonly schemaStatus: string;
+      readonly runtimeStatus: string;
+      readonly implementationTaskId: string;
+      readonly verification: {
+        readonly productionDefinitionIds: readonly string[];
+        readonly testCaseIds: readonly string[];
+      };
+    }[];
+    const remainingTaskIds = new Set(manifest.tasks.map((task) => task.taskId));
+    const testCaseDefinitions = collectTestCaseDefinitions(`${repositoryRoot}/apps/api/src`);
 
     expect(unitDirectories).toHaveLength(
       manifest.current.unitCatalog.convertedProductionUnits +
@@ -243,9 +629,31 @@ describe("remaining work manifest (PLAN-001)", () => {
       manifest.baseline.memoryCatalog.unconverted,
     );
     expect(capabilities).toHaveLength(manifest.current.capabilities.total);
-    expect(capabilities.filter((capability) => capability.status === "IMPLEMENTED")).toHaveLength(
-      manifest.current.capabilities.implemented,
+    expect(
+      capabilities.filter((capability) => capability.runtimeStatus === "IMPLEMENTED"),
+    ).toHaveLength(manifest.current.capabilities.implemented);
+    expect(capabilities.every((capability) => capability.schemaStatus === "SUPPORTED")).toBe(true);
+    expect(
+      capabilities
+        .filter((capability) => capability.runtimeStatus !== "IMPLEMENTED")
+        .every((capability) => remainingTaskIds.has(capability.implementationTaskId)),
+    ).toBe(true);
+    expect(new Set(capabilities.map((capability) => capability.capabilityId)).size).toBe(
+      capabilities.length,
     );
+    for (const capability of capabilities.filter(
+      (candidate) => candidate.runtimeStatus === "IMPLEMENTED",
+    )) {
+      expect(new Set(capability.verification.testCaseIds).size).toBe(
+        capability.verification.testCaseIds.length,
+      );
+      for (const testCaseId of capability.verification.testCaseIds) {
+        expect(
+          testCaseDefinitions.get(testCaseId) ?? [],
+          `${capability.capabilityId} verification testCaseId "${testCaseId}" must identify exactly one test definition`,
+        ).toHaveLength(1);
+      }
+    }
     expect(manifest.current.capabilities.implemented).toBeGreaterThanOrEqual(
       manifest.baseline.capabilities.implemented,
     );
@@ -262,5 +670,211 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(baseline.unitCatalog.convertedProductionUnits).toBeGreaterThan(0);
     expect(baseline.unitCatalog.syntheticUnits).toBeGreaterThanOrEqual(0);
     expect(baseline.unitCatalog.incompleteConversionRows).toBeGreaterThanOrEqual(0);
+  });
+
+  it("UT-PLAN-001-007: counts only test titles and preserves duplicate definitions", () => {
+    const definitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it, suite, test } from "vitest";
+        // IT-TRACE-001: a comment is not evidence
+        const note = "IT-TRACE-002: an arbitrary string is not evidence";
+        it("IT-TRACE-003: first definition", () => {});
+        it.each([[1]])("IT-TRACE-003: duplicate definition", () => {});
+        it.skip("IT-TRACE-004: skipped test is not evidence", () => {});
+        test.todo("IT-TRACE-005: todo test is not evidence");
+        it.skipIf(true)("IT-TRACE-006: conditionally skipped test is not evidence", () => {});
+        test.runIf(false)("IT-TRACE-007: conditionally disabled test is not evidence", () => {});
+        describe.skip("disabled suite", () => {
+          it("IT-TRACE-008: test in a skipped suite is not evidence", () => {});
+        });
+        if (false) {
+          it("IT-TRACE-009: conditionally registered test is not evidence", () => {});
+        }
+        process.env.RUN_TRACE_TEST &&
+          test("IT-TRACE-010: logical-condition test is not evidence", () => {});
+        function registerTestsLater() {
+          it("IT-TRACE-011: test in an uncalled function is not evidence", () => {});
+        }
+        suite.skip("disabled suite alias", () => {
+          test("IT-TRACE-012: test in a skipped suite alias is not evidence", () => {});
+        });
+        it.each([])("IT-TRACE-013: empty parameter table is not evidence", () => {});
+        describe.each([])("empty parameterized suite", () => {
+          it("IT-TRACE-014: test in an empty parameterized suite is not evidence", () => {});
+        });
+        describe("shadowed Vitest binding", () => {
+          const it = (_title: string, _callback: () => void) => {};
+          it("IT-TRACE-015: a shadowed it binding is not evidence", () => {});
+        });
+        const dynamicCases = [[1]];
+        test.each(dynamicCases)("IT-TRACE-016: a dynamic parameter table is not evidence", () => {});
+        it("IT-TRACE-020: options-based skipped test is not evidence", { skip: true }, () => {});
+        test("IT-TRACE-021: options-based todo test is not evidence", { todo: true }, () => {});
+        it("IT-TRACE-022: a test without a callback is not evidence");
+        describe("options-based skipped suite", { skip: true }, () => {
+          it("IT-TRACE-023: test in options-based skipped suite is not evidence", () => {});
+        });
+        it.each([...[]])("IT-TRACE-024: empty spread parameter table is not evidence", () => {});
+        it("IT-TRACE-026: computed todo option is not evidence", { ["todo"]: true }, () => {});
+        it("IT-TRACE-027: accessor skip option is not evidence", { get skip() { return true; } }, () => {});
+        const skipOption = "skip";
+        it("IT-TRACE-028: dynamic computed option is not evidence", { [skipOption]: true }, () => {});
+        try {
+          throw new Error();
+          it("IT-TRACE-029: a test after an unconditional throw inside a try block is not evidence", () => {});
+        } catch {
+          // swallow
+        }
+        try {
+          it("IT-TRACE-030: any test inside a try block is not evidence, even without a preceding throw", () => {});
+        } catch {
+          // swallow
+        }
+        try {
+          if (true) {
+            throw new Error();
+          }
+          it("IT-TRACE-031: a test after an always-true conditional throw inside a try block is not evidence", () => {});
+        } catch {
+          // swallow
+        }
+      `,
+      "traceability.test.ts",
+    );
+
+    expect(definitions.map(([id]) => id)).toEqual(["IT-TRACE-003", "IT-TRACE-003"]);
+
+    // An uncaught throw in a bare block halts evaluation of everything that
+    // follows it in the same (or an enclosing) scope, not just the rest of
+    // that block — so this case must be isolated instead of appended to the
+    // source above, or it would silently swallow every later assertion.
+    const unreachableBlockDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { it } from "vitest";
+        {
+          throw new Error();
+          it("IT-TRACE-032: a test after an unconditional throw in a bare block is not evidence", () => {});
+        }
+      `,
+      "unreachable-block.test.ts",
+    );
+    expect(unreachableBlockDefinitions).toEqual([]);
+
+    const cascadingUnreachableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { it } from "vitest";
+        {
+          it("IT-TRACE-033: a reachable test in a bare block before a throw is evidence", () => {});
+          throw new Error();
+        }
+        it("IT-TRACE-034: a test after a block that unconditionally throws is not evidence", () => {});
+      `,
+      "cascading-unreachable.test.ts",
+    );
+    expect(cascadingUnreachableDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-033"]);
+
+    const suiteGuardClauseDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it } from "vitest";
+        describe("suite with an unconditional guard clause", () => {
+          if (true) return;
+          it("IT-TRACE-035: a test after an unconditional guard-clause return is not evidence", () => {});
+        });
+        describe("suite with an environment-dependent guard clause", () => {
+          if (process.env.SKIP_SUITE) return;
+          it("IT-TRACE-036: a test after a conditional guard-clause return is not evidence", () => {});
+        });
+        describe("suite with a non-exiting if statement", () => {
+          if (someCondition) {
+            doSomething();
+          }
+          it("IT-TRACE-037: a test after a non-exiting if statement is also not evidence, since reachability through an arbitrary condition can't be proven either way", () => {});
+        });
+      `,
+      "suite-guard-clause.test.ts",
+    );
+    expect(suiteGuardClauseDefinitions).toEqual([]);
+
+    // Rather than enumerating every syntax kind that can skip past later
+    // statements (if, switch, while, for, try/finally, labeled statements,
+    // ...), only a small allowlist of statement kinds that are guaranteed to
+    // fall through unconditionally is trusted; anything else preceding a
+    // test call is rejected regardless of what it is.
+    const precedingControlFlowDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it } from "vitest";
+        describe("suite with a switch guard clause", () => {
+          switch (process.env.MODE) {
+            case "skip":
+              return;
+          }
+          it("IT-TRACE-038: a test after a switch statement is not evidence", () => {});
+        });
+        describe("suite with a while loop", () => {
+          while (process.env.RETRY) {
+            break;
+          }
+          it("IT-TRACE-039: a test after a while statement is not evidence", () => {});
+        });
+        describe("suite with a for loop", () => {
+          for (let i = 0; i < 1; i++) {
+            continue;
+          }
+          it("IT-TRACE-040: a test after a for statement is not evidence", () => {});
+        });
+        describe("suite with a try/finally statement", () => {
+          try {
+            setup();
+          } finally {
+            teardown();
+          }
+          it("IT-TRACE-041: a test after a try/finally statement is not evidence", () => {});
+        });
+        describe("suite with a labeled statement", () => {
+          outer: for (let i = 0; i < 1; i++) {
+            break outer;
+          }
+          it("IT-TRACE-042: a test after a labeled statement is not evidence", () => {});
+        });
+        describe("suite with only control-flow-safe statements", () => {
+          const value = 1;
+          setup(value);
+          it("IT-TRACE-043: a test after only control-flow-safe statements is evidence", () => {});
+        });
+      `,
+      "preceding-control-flow.test.ts",
+    );
+    expect(precedingControlFlowDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-043"]);
+
+    const shadowedDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        const test = (_title: string, _callback: () => void) => {};
+        const it = test;
+        test("IT-TRACE-017: a local test function is not evidence", () => {});
+        it("IT-TRACE-018: a local it function is not evidence", () => {});
+      `,
+      "shadowed.test.ts",
+    );
+    expect(shadowedDefinitions).toEqual([]);
+
+    const aliasedDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { it as vitestIt } from "vitest";
+        vitestIt("IT-TRACE-019: an imported Vitest alias is evidence", () => {});
+      `,
+      "aliased.test.ts",
+    );
+    expect(aliasedDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-019"]);
+
+    const staticOptionsDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it } from "vitest";
+        describe("static executing options", { skip: false, todo: false }, () => {
+          it("IT-TRACE-025: explicit executing options are evidence", { skip: false }, () => {});
+        });
+      `,
+      "static-options.test.ts",
+    );
+    expect(staticOptionsDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-025"]);
   });
 });

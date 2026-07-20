@@ -188,7 +188,7 @@
     },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_CI_SMOKE_TEST_AS1"],
-    "passiveSkillDefinitionIds": [],
+    "passiveSkillDefinitionIds": ["SKL_CI_SMOKE_TEST_PS1"],
     "extraSkillDefinitionId": "SKL_CI_SMOKE_TEST_EX",
     "requiredCapabilities": [],
     "metadata": {

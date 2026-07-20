@@ -54,7 +54,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_CONTINUOUS_HEAL"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_CONTINUOUS_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "旱天の慈雨", "tags": [] }
   },
   {
@@ -149,7 +149,13 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_EFFECT_CONDITION", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_FORMULA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TRIGGER_CONTEXT"
+    ],
     "metadata": { "displayName": "捲土重来", "tags": [] },
     "triggers": [
       {

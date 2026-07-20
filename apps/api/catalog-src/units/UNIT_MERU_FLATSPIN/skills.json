@@ -62,7 +62,13 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_FORMULA", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_FORMULA",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "新たなる力", "tags": [] }
   },
   {
@@ -133,9 +139,11 @@
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_RESOURCE_MOD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_COOLDOWN_MANIPULATION"
+      "CAP_RESOURCE_MUTATION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_COOLDOWN_MANIPULATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "フラットスピン", "tags": [] }
   },
@@ -198,7 +206,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "スカイドライヴ", "tags": [] }
   },
   {
@@ -260,7 +268,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_DAMAGE_MOD",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "ハードラッシュ", "tags": [] }
   },
   {

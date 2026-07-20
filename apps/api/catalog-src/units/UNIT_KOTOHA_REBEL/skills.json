@@ -68,11 +68,12 @@
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_PARTIAL_PIERCING",
       "CAP_HEAL",
-      "CAP_CONTINUOUS_HEAL"
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "支配への反逆", "tags": [] }
   },
@@ -117,7 +118,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER"],
     "metadata": { "displayName": "快刀乱麻", "tags": [] }
   },
   {
@@ -209,8 +210,8 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
-      "CAP_RESOLUTION_BRANCH",
-      "CAP_EFFECT_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD"
     ],
     "metadata": { "displayName": "怒髪衝天", "tags": [] }
@@ -260,7 +261,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "起死回生", "tags": [] },
     "triggers": [
       {
@@ -274,6 +275,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_KOTOHA_REBEL_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_KOTOHA_REBEL_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

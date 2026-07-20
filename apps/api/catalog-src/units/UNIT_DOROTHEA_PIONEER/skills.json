@@ -25,7 +25,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "ノーブル・プライド", "tags": [] }
   },
   {
@@ -116,7 +116,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "融和の象徴", "tags": [] },
     "triggers": [
       {
@@ -142,6 +146,26 @@
             }
           ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_DOROTHEA_PIONEER_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_DOROTHEA_PIONEER_PS1"
+          }
+        },
+        "amount": 1
       }
     ]
   },
@@ -177,7 +201,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RUNTIME_COUNTER", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "新時代の先駆け", "tags": [] },
     "triggers": [
       {
@@ -191,6 +215,26 @@
           "op": "LT",
           "value": 1
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_DOROTHEA_PIONEER_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_DOROTHEA_PIONEER_PS2"
+          }
+        },
+        "amount": 1
       }
     ]
   }

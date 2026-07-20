@@ -34,7 +34,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "飽和爆撃", "tags": [] }
   },
   {
@@ -78,7 +78,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DERIVED_TARGETS"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "制圧支援", "tags": [] }
   },
   {
@@ -125,7 +125,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION"],
+    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "点射", "tags": [] }
   },
   {
@@ -179,24 +179,49 @@
     "cooldown": { "unit": "ACTION", "count": 5 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_RUNTIME_COUNTER",
-      "CAP_RESOURCE_MOD",
-      "CAP_EFFECT_CONDITION",
-      "CAP_RESOLUTION_BRANCH"
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "フェイルセーフ", "tags": [] },
     "triggers": [
       {
-        "eventType": "DamageApplied",
+        "eventType": "RuntimeCounterChanged",
         "category": "FACT",
-        "sourceSelector": "ANY",
-        "targetSelector": "SELF",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
-          "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
-          "op": "GTE",
-          "value": 0.1
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO"
+            },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "valueChanged",
+              "op": "EQ",
+              "value": true
+            }
+          ]
         }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ANY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.1
       }
     ]
   },
@@ -217,7 +242,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_ADVANCED_PASSIVE_TRIGGER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "諸元修正", "tags": [] },
     "triggers": [
       {

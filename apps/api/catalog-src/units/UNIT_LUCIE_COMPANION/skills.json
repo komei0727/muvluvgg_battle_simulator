@@ -30,7 +30,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "メイドの本能", "tags": [] }
   },
   {
@@ -72,7 +72,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "キックアウト", "tags": [] }
   },
   {
@@ -102,7 +102,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "エイド・フロム", "tags": [] }
   },
   {
@@ -183,7 +183,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_DERIVED_TARGETS", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "ルミナス・ガード", "tags": [] },
     "triggers": [
       {

@@ -62,7 +62,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_CONDITION", "CAP_PARTIAL_PIERCING", "CAP_RESOURCE_MOD"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_PARTIAL_PIERCING",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "びしょ濡れだねー！", "tags": [] }
   },
   {
@@ -90,7 +95,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "カオスキャノン", "tags": [] }
   },
   {
@@ -139,7 +144,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_SHIELD"],
     "metadata": { "displayName": "アナーキーシールド", "tags": [] },
     "triggers": [
       {
@@ -170,7 +175,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MOD"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "フレンジーキャノン", "tags": [] },
     "triggers": [
       {
