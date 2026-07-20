@@ -210,7 +210,60 @@ function parameterizedCases(expression: ts.Expression): ts.Expression | undefine
 
 function hasExecutableParameterizedCases(expression: ts.Expression): boolean {
   const cases = parameterizedCases(expression);
-  return cases === undefined || (ts.isArrayLiteralExpression(cases) && cases.elements.length > 0);
+  return (
+    cases === undefined ||
+    (ts.isArrayLiteralExpression(cases) &&
+      cases.elements.length > 0 &&
+      cases.elements.every((element) => !ts.isSpreadElement(element)))
+  );
+}
+
+function propertyNameText(name: ts.PropertyName): string | undefined {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  if (ts.isComputedPropertyName(name) && ts.isStringLiteral(name.expression)) {
+    return name.expression.text;
+  }
+  return undefined;
+}
+
+function hasStaticallyExecutingOptions(options: ts.ObjectLiteralExpression): boolean {
+  for (const property of options.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      return false;
+    }
+    const name = propertyNameText(property.name);
+    if (ts.isComputedPropertyName(property.name) && name === undefined) {
+      return false;
+    }
+    if (name === "skip" || name === "todo") {
+      if (
+        !ts.isPropertyAssignment(property) ||
+        property.initializer.kind !== ts.SyntaxKind.FalseKeyword
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function isInlineCallback(node: ts.Expression | undefined): boolean {
+  return node !== undefined && (ts.isArrowFunction(node) || ts.isFunctionExpression(node));
+}
+
+function hasStaticallyExecutingCallback(call: ts.CallExpression): boolean {
+  const optionsOrCallback = call.arguments[1];
+  if (isInlineCallback(optionsOrCallback)) {
+    return true;
+  }
+  return (
+    optionsOrCallback !== undefined &&
+    ts.isObjectLiteralExpression(optionsOrCallback) &&
+    hasStaticallyExecutingOptions(optionsOrCallback) &&
+    isInlineCallback(call.arguments[2])
+  );
 }
 
 function hasNonExecutingModifier(expression: ts.Expression): boolean {
@@ -233,7 +286,8 @@ function isInsideNonExecutingSuite(node: ts.Node, checker: ts.TypeChecker): bool
       ts.isCallExpression(ancestor) &&
       hasVitestFunctionRoot(ancestor.expression, checker, VITEST_SUITE_FUNCTIONS) &&
       (hasNonExecutingModifier(ancestor.expression) ||
-        !hasExecutableParameterizedCases(ancestor.expression))
+        !hasExecutableParameterizedCases(ancestor.expression) ||
+        !hasStaticallyExecutingCallback(ancestor))
     ) {
       return true;
     }
@@ -252,7 +306,8 @@ function isSuiteCallback(
     parent.arguments.some((argument) => argument === node) &&
     hasVitestFunctionRoot(parent.expression, checker, VITEST_SUITE_FUNCTIONS) &&
     !hasNonExecutingModifier(parent.expression) &&
-    hasExecutableParameterizedCases(parent.expression)
+    hasExecutableParameterizedCases(parent.expression) &&
+    hasStaticallyExecutingCallback(parent)
   );
 }
 
@@ -327,6 +382,7 @@ function collectTestCaseDefinitionsFromSource(
       hasVitestFunctionRoot(node.expression, checker, VITEST_TEST_FUNCTIONS) &&
       !hasNonExecutingModifier(node.expression) &&
       hasExecutableParameterizedCases(node.expression) &&
+      hasStaticallyExecutingCallback(node) &&
       !isInsideNonExecutingSuite(node, checker) &&
       !isConditionallyRegisteredTest(node, checker)
     ) {
@@ -586,6 +642,17 @@ describe("remaining work manifest (PLAN-001)", () => {
         });
         const dynamicCases = [[1]];
         test.each(dynamicCases)("IT-TRACE-016: a dynamic parameter table is not evidence", () => {});
+        it("IT-TRACE-020: options-based skipped test is not evidence", { skip: true }, () => {});
+        test("IT-TRACE-021: options-based todo test is not evidence", { todo: true }, () => {});
+        it("IT-TRACE-022: a test without a callback is not evidence");
+        describe("options-based skipped suite", { skip: true }, () => {
+          it("IT-TRACE-023: test in options-based skipped suite is not evidence", () => {});
+        });
+        it.each([...[]])("IT-TRACE-024: empty spread parameter table is not evidence", () => {});
+        it("IT-TRACE-026: computed todo option is not evidence", { ["todo"]: true }, () => {});
+        it("IT-TRACE-027: accessor skip option is not evidence", { get skip() { return true; } }, () => {});
+        const skipOption = "skip";
+        it("IT-TRACE-028: dynamic computed option is not evidence", { [skipOption]: true }, () => {});
       `,
       "traceability.test.ts",
     );
@@ -611,5 +678,16 @@ describe("remaining work manifest (PLAN-001)", () => {
       "aliased.test.ts",
     );
     expect(aliasedDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-019"]);
+
+    const staticOptionsDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it } from "vitest";
+        describe("static executing options", { skip: false, todo: false }, () => {
+          it("IT-TRACE-025: explicit executing options are evidence", { skip: false }, () => {});
+        });
+      `,
+      "static-options.test.ts",
+    );
+    expect(staticOptionsDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-025"]);
   });
 });
