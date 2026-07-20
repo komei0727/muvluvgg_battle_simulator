@@ -268,7 +268,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "TGT-003",
-    "description": "TargetBinding固定・fallback経路・Trigger参照Context",
+    "description": "TargetBinding固定・参照時の戦闘不能skip・fallback経路判定",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {

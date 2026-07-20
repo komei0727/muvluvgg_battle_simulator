@@ -141,15 +141,15 @@ function hasTestFunctionRoot(expression: ts.Expression): boolean {
   return false;
 }
 
-function hasDescribeFunctionRoot(expression: ts.Expression): boolean {
+function hasSuiteFunctionRoot(expression: ts.Expression): boolean {
   if (ts.isIdentifier(expression)) {
-    return expression.text === "describe";
+    return expression.text === "describe" || expression.text === "suite";
   }
   if (ts.isPropertyAccessExpression(expression)) {
-    return hasDescribeFunctionRoot(expression.expression);
+    return hasSuiteFunctionRoot(expression.expression);
   }
   if (ts.isCallExpression(expression)) {
-    return hasDescribeFunctionRoot(expression.expression);
+    return hasSuiteFunctionRoot(expression.expression);
   }
   return false;
 }
@@ -172,8 +172,63 @@ function isInsideNonExecutingSuite(node: ts.Node): boolean {
   while (ancestor !== undefined) {
     if (
       ts.isCallExpression(ancestor) &&
-      hasDescribeFunctionRoot(ancestor.expression) &&
+      hasSuiteFunctionRoot(ancestor.expression) &&
       hasNonExecutingModifier(ancestor.expression)
+    ) {
+      return true;
+    }
+    ancestor = ancestor.parent;
+  }
+  return false;
+}
+
+function isSuiteCallback(node: ts.ArrowFunction | ts.FunctionExpression): boolean {
+  const parent = node.parent;
+  return (
+    ts.isCallExpression(parent) &&
+    parent.arguments.some((argument) => argument === node) &&
+    hasSuiteFunctionRoot(parent.expression)
+  );
+}
+
+function isConditionalRegistrationAncestor(node: ts.Node): boolean {
+  if (
+    ts.isIfStatement(node) ||
+    ts.isConditionalExpression(node) ||
+    ts.isSwitchStatement(node) ||
+    ts.isForStatement(node) ||
+    ts.isForInStatement(node) ||
+    ts.isForOfStatement(node) ||
+    ts.isWhileStatement(node) ||
+    ts.isDoStatement(node) ||
+    ts.isCatchClause(node)
+  ) {
+    return true;
+  }
+  return (
+    ts.isBinaryExpression(node) &&
+    (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      node.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  );
+}
+
+function isConditionallyRegisteredTest(node: ts.Node): boolean {
+  let ancestor = node.parent;
+  while (ancestor !== undefined) {
+    if (isConditionalRegistrationAncestor(ancestor)) {
+      return true;
+    }
+    if (ts.isArrowFunction(ancestor) || ts.isFunctionExpression(ancestor)) {
+      if (!isSuiteCallback(ancestor)) {
+        return true;
+      }
+    } else if (
+      ts.isFunctionDeclaration(ancestor) ||
+      ts.isMethodDeclaration(ancestor) ||
+      ts.isGetAccessorDeclaration(ancestor) ||
+      ts.isSetAccessorDeclaration(ancestor) ||
+      ts.isConstructorDeclaration(ancestor)
     ) {
       return true;
     }
@@ -200,7 +255,8 @@ function collectTestCaseDefinitionsFromSource(
       ts.isCallExpression(node) &&
       hasTestFunctionRoot(node.expression) &&
       !hasNonExecutingModifier(node.expression) &&
-      !isInsideNonExecutingSuite(node)
+      !isInsideNonExecutingSuite(node) &&
+      !isConditionallyRegisteredTest(node)
     ) {
       const title = node.arguments[0];
       if (
@@ -435,6 +491,17 @@ describe("remaining work manifest (PLAN-001)", () => {
         test.runIf(false)("IT-TRACE-007: conditionally disabled test is not evidence", () => {});
         describe.skip("disabled suite", () => {
           it("IT-TRACE-008: test in a skipped suite is not evidence", () => {});
+        });
+        if (false) {
+          it("IT-TRACE-009: conditionally registered test is not evidence", () => {});
+        }
+        process.env.RUN_TRACE_TEST &&
+          test("IT-TRACE-010: logical-condition test is not evidence", () => {});
+        function registerTestsLater() {
+          it("IT-TRACE-011: test in an uncalled function is not evidence", () => {});
+        }
+        suite.skip("disabled suite alias", () => {
+          test("IT-TRACE-012: test in a skipped suite alias is not evidence", () => {});
         });
       `,
       "traceability.test.ts",

@@ -1731,7 +1731,7 @@ metadata:
 
 `schemaStatus` はCatalogが近似なしで表現できるか、`runtimeStatus` はBattle Engineが実ライフサイクルで実行できるかを表す。production定義の`requiredCapabilities`は`schemaStatus == SUPPORTED`だけを参照できる。`SimulationPreflightValidator`は編成から推移的に集めたCapabilityの`runtimeStatus != IMPLEMENTED`を`UNSUPPORTED_RULE`としてBattle生成前に拒否する。
 
-`runtimeStatus`を`IMPLEMENTED`へ変更するには、`productionDefinitionIds`と`testCaseIds`をそれぞれ1件以上記録する。Catalog整合性検証は各production definition IDの存在と、その定義自身が同じCapabilityを`requiredCapabilities`へ宣言していることを検査する。repository traceability testはTypeScript ASTから`it`/`test`のタイトルを読み取り、各test case IDが一意なテスト定義として実在することを検査する。コメントや任意の文字列、同一ファイル内を含む重複テスト定義は証跡として受理しない。Schema/Mapperや単体関数だけの完成、fixtureだけのテストでは`IMPLEMENTED`にしない。
+`runtimeStatus`を`IMPLEMENTED`へ変更するには、`productionDefinitionIds`と`testCaseIds`をそれぞれ1件以上記録する。Catalog整合性検証は各production definition IDの存在と、その定義自身が同じCapabilityを`requiredCapabilities`へ宣言していることを検査する。repository traceability testはTypeScript ASTから、トップレベルまたは実行対象の`describe`/`suite` callbackへ無条件に登録される`it`/`test`のタイトルを読み取り、各test case IDが一意なテスト定義として実在することを検査する。コメント、任意の文字列、同一ファイル内を含む重複テスト定義、skip/todo/条件式/未呼出関数配下の非実行テストは証跡として受理しない。Schema/Mapperや単体関数だけの完成、fixtureだけのテストでは`IMPLEMENTED`にしない。
 
 `implementationTaskId`は一つだけ持たせる。複数Taskの完了を待つ広域Capabilityを作らず、各Taskがproduction定義と統合テストを提示できる機能単位へ分割する。
 
@@ -1786,7 +1786,7 @@ metadata:
 | `CAP_SHIELD`                       | `DMG-004`    | シールド付与                                            |
 | `CAP_SKILL_RUNTIME_COUNTER`        | `M6-RC-001`  | SkillRuntimeスコープの発動回数・累計条件                |
 | `CAP_SPECIFIC_IMMUNITY`            | `M7-001`     | 個別状態異常無効                                        |
-| `CAP_TARGET_BINDING_FALLBACK`      | `TGT-003`    | TargetBinding固定・fallback経路・Trigger参照Context     |
+| `CAP_TARGET_BINDING_FALLBACK`      | `TGT-003`    | TargetBinding固定・参照時の戦闘不能skip・fallback判定   |
 | `CAP_TARGET_DERIVED_AREA`          | `TGT-001`    | area・距離・隣接・列による派生対象                      |
 | `CAP_TARGET_FILTER_ORDER`          | `TGT-002`    | Target filter・order・除外選択                          |
 | `CAP_TARGET_REDIRECT`              | `DMG-006`    | 挑発・攻撃引き寄せ                                      |
