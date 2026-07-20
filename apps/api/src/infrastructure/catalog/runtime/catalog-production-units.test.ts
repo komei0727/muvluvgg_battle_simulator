@@ -20,7 +20,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     const catalog = loadCatalogFromDirectory(catalogPath());
     // Issue #166: bumped when Capability schema/runtime status, task ownership,
     // verification evidence, and task-sized Capability IDs were migrated.
-    expect(catalog.catalogRevision).toBe("2026-07-20.3");
+    expect(catalog.catalogRevision).toBe("2026-07-20.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

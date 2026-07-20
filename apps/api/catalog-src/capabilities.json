@@ -1,10 +1,21 @@
 [
   {
-    "capabilityId": "CAP_ACTIVATION_CONDITION",
+    "capabilityId": "CAP_ACTION_ACTIVATION_CONDITION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-003",
+    "description": "AS / EXのactivationConditionを行動選択で評価する",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
+    "capabilityId": "CAP_PASSIVE_ACTIVATION_CONDITION",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "RES-004",
-    "description": "TRUE以外のSkill activationCondition評価",
+    "description": "PSのactivationConditionを候補判定と発動直前再確認で評価する",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []

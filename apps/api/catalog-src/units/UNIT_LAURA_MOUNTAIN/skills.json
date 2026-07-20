@@ -164,7 +164,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_ACTIVATION_CONDITION"],
+    "requiredCapabilities": ["CAP_PASSIVE_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "みんなと一緒！", "tags": [] },
     "triggers": [
       {

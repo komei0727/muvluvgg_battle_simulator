@@ -189,7 +189,8 @@ const TRIGGER_CONTEXT_EVENT_TYPES = new Set([
 const TRIGGER_CONTEXT_TARGET_KINDS = new Set(["TRIGGER_SOURCE", "TRIGGER_TARGET"]);
 const LAST_RESULT_TARGET_KINDS = new Set(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"]);
 type RuntimeStructuralCapabilityId =
-  | "CAP_ACTIVATION_CONDITION"
+  | "CAP_ACTION_ACTIVATION_CONDITION"
+  | "CAP_PASSIVE_ACTIVATION_CONDITION"
   | "CAP_RESOLUTION_BRANCH_REPEAT"
   | "CAP_TARGET_FILTER_ORDER"
   | "CAP_TARGET_DERIVED_AREA"
@@ -298,6 +299,7 @@ function validateRuntimeCapabilityDeclarations(
   sequences: readonly EffectSequence[],
   triggers: readonly TriggerDefinition[],
   activationCondition: ConditionDefinition | undefined,
+  skillType: SkillDefinition["skillType"] | undefined,
   violations: CatalogIntegrityViolation[],
 ): void {
   if (
@@ -315,11 +317,13 @@ function validateRuntimeCapabilityDeclarations(
     });
   }
   if (activationCondition !== undefined && activationCondition.kind !== "TRUE") {
+    const capabilityId =
+      skillType === "PS" ? "CAP_PASSIVE_ACTIVATION_CONDITION" : "CAP_ACTION_ACTIVATION_CONDITION";
     requireRuntimeCapability(
       targetId,
       requiredCapabilities,
-      "CAP_ACTIVATION_CONDITION",
-      "Non-TRUE Skill activationCondition",
+      capabilityId,
+      `${skillType ?? "Unknown"} Skill non-TRUE activationCondition`,
       violations,
     );
   }
@@ -568,6 +572,7 @@ function validateSkill(
     sequences,
     runtimeTriggers,
     skill.activationCondition,
+    skill.skillType,
     violations,
   );
   for (const trigger of skill.triggers) {
@@ -681,6 +686,7 @@ function validateMemory(
     memory.requiredCapabilities,
     memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.effectSequence),
     memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.trigger),
+    undefined,
     undefined,
     violations,
   );

@@ -204,7 +204,7 @@
     "requiredCapabilities": [
       "CAP_DAMAGE_MOD",
       "CAP_TARGET_FILTER_ORDER",
-      "CAP_ACTIVATION_CONDITION"
+      "CAP_PASSIVE_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "リストリクションエッジ", "tags": [] },
     "triggers": [

@@ -129,11 +129,15 @@ function targetingSkill(
   requiredCapabilities: readonly string[],
   target: TargetReferenceInput = { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
   activationCondition?: ConditionDefinitionInput,
+  skillType: "AS" | "PS" | "EX" = "AS",
 ): SkillDefinition {
   return createSkillDefinition({
-    skillDefinitionId: "SKL_AS1",
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
+    skillDefinitionId: skillType === "PS" ? "SKL_PS1" : skillType === "EX" ? "SKL_EX1" : "SKL_AS1",
+    skillType,
+    cost: {
+      resource: skillType === "PS" ? "PP" : skillType === "EX" ? "EX_GAUGE" : "AP",
+      amount: skillType === "EX" ? 7 : 1,
+    },
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
@@ -147,6 +151,18 @@ function targetingSkill(
     },
     cooldown: { unit: "ACTION", count: 1 },
     ...(activationCondition === undefined ? {} : { activationCondition }),
+    ...(skillType === "PS"
+      ? {
+          triggers: [
+            {
+              eventType: "TurnStarted",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "SELF",
+            },
+          ],
+        }
+      : {}),
     traits: {},
     requiredCapabilities,
     metadata: { displayName: "Targeting AS" },
@@ -957,30 +973,49 @@ describe("buildCatalogIndex", () => {
     },
   );
 
-  it("UT-CAT-IDX-031: rejects a non-TRUE activationCondition without CAP_ACTIVATION_CONDITION", () => {
-    const defs = baseDefinitions();
-    const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
-    const activationCondition = { kind: "TURN_NUMBER", op: "GTE", value: 2 } as const;
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          targetingSkill(selector, [], undefined, activationCondition),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [capability("CAP_ACTIVATION_CONDITION")],
-      }),
-    ).toThrowError(/must declare "CAP_ACTIVATION_CONDITION"/);
+  it.each([
+    { skillType: "AS" as const, capabilityId: "CAP_ACTION_ACTIVATION_CONDITION" },
+    { skillType: "EX" as const, capabilityId: "CAP_ACTION_ACTIVATION_CONDITION" },
+    { skillType: "PS" as const, capabilityId: "CAP_PASSIVE_ACTIVATION_CONDITION" },
+  ])(
+    "UT-CAT-IDX-031: rejects a non-TRUE $skillType activationCondition without $capabilityId",
+    ({ skillType, capabilityId }) => {
+      const defs = baseDefinitions();
+      const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
+      const activationCondition = { kind: "TURN_NUMBER", op: "GTE", value: 2 } as const;
+      const units = skillType === "PS" ? [unit("UNIT_001", { passive: ["SKL_PS1"] })] : defs.units;
+      const skillsWithActivationCondition = (requiredCapabilities: readonly string[]) => {
+        const activationSkill = targetingSkill(
+          selector,
+          requiredCapabilities,
+          undefined,
+          activationCondition,
+          skillType,
+        );
+        if (skillType === "PS") {
+          return [...defs.skills, activationSkill];
+        }
+        return skillType === "EX"
+          ? [asSkill("SKL_AS1", "ACT_DAMAGE_1"), activationSkill]
+          : [activationSkill, exSkill("SKL_EX1", 7)];
+      };
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          units,
+          skills: skillsWithActivationCondition([]),
+          capabilities: [capability(capabilityId)],
+        }),
+      ).toThrowError(new RegExp(`must declare "${capabilityId}"`));
 
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          targetingSkill(selector, ["CAP_ACTIVATION_CONDITION"], undefined, activationCondition),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [capability("CAP_ACTIVATION_CONDITION")],
-      }),
-    ).not.toThrow();
-  });
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          units,
+          skills: skillsWithActivationCondition([capabilityId]),
+          capabilities: [capability(capabilityId)],
+        }),
+      ).not.toThrow();
+    },
+  );
 });

@@ -235,7 +235,7 @@
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_ACTIVATION_CONDITION"
+      "CAP_ACTION_ACTIVATION_CONDITION"
     ],
     "metadata": {
       "displayName": "逆転の方策",
@@ -370,7 +370,7 @@
       "CAP_DEATH_SURVIVAL",
       "CAP_MARKER",
       "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_ACTIVATION_CONDITION"
+      "CAP_PASSIVE_ACTIVATION_CONDITION"
     ],
     "metadata": {
       "displayName": "起死回生の一手",
