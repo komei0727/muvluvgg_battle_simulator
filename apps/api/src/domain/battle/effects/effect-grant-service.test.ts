@@ -89,6 +89,38 @@ describe("grantEffect (R-EFF-01/05)", () => {
     });
   });
 
+  it("PR #155 re-review [P1]: stamps appliedTurnNumber (and appliedActionId when granted during an action) on the new AppliedEffect, independent of duration.timeLimit.unit", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = context(recorder);
+    const root = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: ctx.resolutionScopeId,
+      payload: { turnNumber: 1 },
+    });
+    const units = [unit(SOURCE), unit(TARGET)];
+
+    const result = grantEffect(
+      { ...ctx, turnNumber: 3, actionId: "action-1" as never, rootEventId: root.eventId },
+      units,
+      {
+        effectActionDefinitionId: DEFINITION_A,
+        sourceId: SOURCE,
+        targetId: TARGET,
+        duplicate: true,
+        magnitude: 20,
+        durationDefinition: NO_DURATION,
+      },
+      root.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects[0]?.appliedTurnNumber).toBe(3);
+    expect(targetAfter.appliedEffects[0]?.appliedActionId).toBe("action-1");
+  });
+
   it("UT-EFF-GRANT-002: a stronger non-duplicate effect dethrones the weaker one and records EffectiveEffectChanged", () => {
     const recorder = new EventRecorder(BATTLE_ID);
     const ctx = context(recorder);

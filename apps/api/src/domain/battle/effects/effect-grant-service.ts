@@ -1,4 +1,8 @@
-import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import {
+  buildInitialDurationState,
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../model/applied-effect.js";
 import { recomputeActiveEffects } from "./effect-duplicate-resolution.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { EventRecorder } from "../events/event-recorder.js";
@@ -67,17 +71,12 @@ export function grantEffect(
     targetId: request.targetId,
     magnitude: request.magnitude,
     active: true,
-    duration: {
-      definition: request.durationDefinition,
-      ...(timeLimit !== undefined ? { timeLimitRemaining: timeLimit.count } : {}),
-      ...(request.durationDefinition.consumption !== undefined
-        ? { consumptionRemaining: request.durationDefinition.consumption.maxCount }
-        : {}),
-      ...(timeLimit?.unit === "ACTION" && context.actionId !== undefined
-        ? { grantedActionId: context.actionId }
-        : {}),
-      ...(timeLimit?.unit === "TURN" ? { grantedTurnNumber: context.turnNumber } : {}),
-    },
+    duration: buildInitialDurationState(request.durationDefinition, {
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      turnNumber: context.turnNumber,
+    }),
+    appliedTurnNumber: context.turnNumber,
+    ...(context.actionId !== undefined ? { appliedActionId: context.actionId } : {}),
     ...(request.snapshot !== undefined ? { snapshot: request.snapshot } : {}),
   };
 

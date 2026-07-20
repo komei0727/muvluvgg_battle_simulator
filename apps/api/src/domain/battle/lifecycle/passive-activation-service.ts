@@ -12,6 +12,7 @@ import {
   type EffectActionGroupContext,
   type UnitsBox,
 } from "./effect-action-group-resolver.js";
+import { applyEffectConsumptionAndExpiration } from "./effect-reactive-lifecycle.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -333,6 +334,34 @@ export class PassiveActivationRuntime {
       if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
         throw new ExecutionGuardExceededError(
           `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+        );
+      }
+      this.units = this.onFactEvent(recorded, this.units, nextDepth);
+    }
+
+    // PR #155レビュー[P1] (R-EFF-07/08): 原因イベント確定直後・PS/Memory候補
+    // 抽出前に、消費条件・特殊失効条件を`RuntimeCounterChanged`と同じタイミングで
+    // 評価する。ここで発行された`EffectExpired`/`EffectConsumptionChanged`/
+    // `EffectiveEffectChanged`/`MarkerRemoved`自体もPS/Memoryの発動契機に
+    // できる契約（`EffectApplied`等と同様）のため、再帰的に`onFactEvent`へ渡す。
+    const reactiveResult = applyEffectConsumptionAndExpiration(
+      {
+        recorder: this.context.recorder,
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        resolutionScopeId: this.context.resolutionScopeId,
+        rootEventId: this.context.rootEventId,
+      },
+      this.units,
+      event,
+      event.eventId,
+    );
+    this.units = reactiveResult.units;
+    for (const recorded of reactiveResult.events) {
+      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+        throw new ExecutionGuardExceededError(
+          `EffectExpired/EffectConsumptionChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds`,
         );
       }
       this.units = this.onFactEvent(recorded, this.units, nextDepth);

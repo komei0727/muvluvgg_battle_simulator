@@ -34,6 +34,35 @@ export interface ChargeState {
   readonly startedActionId: ActionId;
 }
 
+/**
+ * `10_API設計.md`「EffectStateResponse」の外部公開形（PR #155レビュー[P1]）。
+ * `category`/`stackMode`/`isEffective`/`value`はwire形状への変換であり、
+ * `CooldownState`と同じ方針でここでは持たない — 未加工に近い値
+ * （`duplicate`/`active`/`magnitude`）だけを保持し、Response Mapperが
+ * `toEffectStateResponseBody`で導出する。
+ *
+ * `duration`は`AppliedEffect.duration.definition.timeLimit.unit`が
+ * `ACTION`/`TURN`の場合だけ持つ。`10_API設計.md`の`EffectStateResponse.duration`
+ * は`{ unit: "ACTION" | "TURN", remaining }`しか表現できず、`BATTLE`/`HIT`/
+ * `SKILL_USE`スコープの残り回数を運べない（API契約側の既知の未対応範囲。
+ * `14_Catalog定義スキーマ.md`のDurationDefinitionが先に対応scopeを広げている）。
+ * その場合は`duration`自体を省略する（あたかも永続効果であるかのように
+ * 偽装しない代わりに、表現不能な残り回数を黙って捨てる — このPRの
+ * スコープでは契約自体の拡張までは行わない）。
+ */
+export interface EffectSnapshot {
+  readonly effectInstanceId: string;
+  readonly effectDefinitionId: string;
+  readonly sourceUnitId?: BattleUnitId;
+  readonly effectKindKey: string;
+  readonly duplicate: boolean;
+  readonly active: boolean;
+  readonly magnitude: number;
+  readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
+  readonly appliedTurnNumber: number;
+  readonly appliedActionId?: ActionId;
+}
+
 /** `08_ドメインイベント.md`「StateDelta」: 変更した項目だけを持つ。 */
 export interface UnitStateDelta {
   readonly hp?: ValueChange<number>;

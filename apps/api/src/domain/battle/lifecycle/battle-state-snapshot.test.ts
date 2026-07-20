@@ -116,6 +116,59 @@ describe("captureBattleState", () => {
     expect(snapshot.units[enemy.battleUnitId]!.cooldowns).toBeUndefined();
     expect(snapshot.units[enemy.battleUnitId]!.charge).toBeUndefined();
   });
+
+  it("PR #155 re-review [P1]: carries each unit's real AppliedEffects (10_API設計.md EffectStateResponse), instead of dropping them", () => {
+    const ally = {
+      ...unit("ally-1", "ALLY"),
+      appliedEffects: [
+        {
+          effectInstanceId: "battle-1:effect:1" as never,
+          effectActionDefinitionId: "ACT_BUFF" as never,
+          kindKey: "ACT_BUFF" as never,
+          duplicate: true,
+          sourceId: createBattleUnitId("ally-1"),
+          targetId: createBattleUnitId("ally-1"),
+          magnitude: 10,
+          duration: {
+            definition: {
+              timeLimit: { unit: "TURN" as const, count: 2 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 2,
+            grantedTurnNumber: 0,
+          },
+          active: true,
+          appliedTurnNumber: 0,
+        },
+      ],
+    };
+    const enemy = unit("enemy-1", "ENEMY");
+    const battle = createBattle(createBattleId("battle-1"), [ally], [enemy], createTurnLimit(3), {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions: new Map(),
+      skillDefinitions: new Map(),
+    });
+
+    const snapshot = captureBattleState(battle);
+
+    expect(snapshot.units[ally.battleUnitId]!.effects).toEqual([
+      {
+        effectInstanceId: "battle-1:effect:1",
+        effectDefinitionId: "ACT_BUFF",
+        sourceUnitId: ally.battleUnitId,
+        effectKindKey: "ACT_BUFF",
+        duplicate: true,
+        active: true,
+        magnitude: 10,
+        duration: { unit: "TURN", remaining: 2 },
+        appliedTurnNumber: 0,
+      },
+    ]);
+    expect(snapshot.units[enemy.battleUnitId]!.effects).toBeUndefined();
+  });
 });
 
 describe("captureUnitRoster", () => {

@@ -6,10 +6,11 @@ import type { BattleStatus } from "../model/battle-status.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
 import { decrementTurnCooldowns } from "../model/cooldown-state.js";
 import { decrementTurnEffectDurations } from "../effects/effect-duration-decrement.js";
-import { expireEffects } from "../effects/effect-expiration-service.js";
+import { decrementTurnMarkerDurations } from "../effects/marker-duration-decrement.js";
+import { expireEffects, type ExpirationRequest } from "../effects/effect-expiration-service.js";
 import type { DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { ResourceRecoveryEntry } from "../events/domain-event.js";
+import type { BattleDomainEvent, ResourceRecoveryEntry } from "../events/domain-event.js";
 import { beginNextTurn, createTurnState, isFinalTurn, type TurnState } from "./turn-state.js";
 import type { TurnLimit } from "../model/turn-limit.js";
 import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
@@ -222,11 +223,13 @@ function applyTurnCooldownDecrements(
 }
 
 /**
- * R-EFF-06: PS連鎖完了後、現在のターンより前に付与されたターン単位効果を
- * 全ユニットで1減らす（現在のターンで付与されたものは対象、
- * `decrementTurnEffectDurations`が判定して除外する）。0になった効果は
- * `expireEffects`が失効させ、重複なし効果グループの採用対象が変わった場合は
- * `EffectiveEffectChanged`も合わせて発行する（R-EFF-05）。
+ * R-EFF-06/R-EFF-10: PS連鎖完了後、現在のターンより前に付与されたターン単位
+ * 効果・Markerを全ユニットで1減らす（現在のターンで付与されたものは対象外、
+ * `decrementTurnEffectDurations`/`decrementTurnMarkerDurations`が判定する）。
+ * 0になった効果・Markerは`expireEffects`が失効させ、重複なし効果グループの
+ * 採用対象が変わった場合は`EffectiveEffectChanged`も合わせて発行する
+ * （R-EFF-05）。記録した全イベントを`events`として返し、呼び出し側が
+ * PS/Memory候補解決へ通知できるようにする（PR #155レビュー[P2]）。
  */
 function applyTurnEffectDurationDecrements(
   units: readonly BattleUnit[],
@@ -236,23 +239,45 @@ function applyTurnEffectDurationDecrements(
   resolutionScopeId: ResolutionScopeId,
   rootEventId: DomainEventId,
   parentEventId: DomainEventId,
-): { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId } {
+): {
+  readonly units: readonly BattleUnit[];
+  readonly lastEventId: DomainEventId;
+  readonly events: readonly BattleDomainEvent[];
+} {
   let working = units;
   let lastEventId = parentEventId;
+  const recordedEvents: BattleDomainEvent[] = [];
   for (const unit of units) {
-    const decrement = decrementTurnEffectDurations(unit.appliedEffects, currentTurnNumber);
-    if (decrement.changes.length === 0) {
+    const effectDecrement = decrementTurnEffectDurations(unit.appliedEffects, currentTurnNumber);
+    const markerDecrement = decrementTurnMarkerDurations(unit.markers, currentTurnNumber);
+    if (effectDecrement.changes.length === 0 && markerDecrement.changes.length === 0) {
       continue;
     }
     working = working.map((u) =>
-      u.battleUnitId === unit.battleUnitId ? { ...u, appliedEffects: decrement.effects } : u,
+      u.battleUnitId === unit.battleUnitId
+        ? { ...u, appliedEffects: effectDecrement.effects, markers: markerDecrement.markers }
+        : u,
     );
-    const toExpire = decrement.changes
-      .filter((change) => change.after === 0)
-      .map((change) => ({
-        effectInstanceId: change.effectInstanceId,
-        reason: "TIME_LIMIT" as const,
-      }));
+    const toExpire: readonly ExpirationRequest[] = [
+      ...effectDecrement.changes
+        .filter((change) => change.after === 0)
+        .map(
+          (change): ExpirationRequest => ({
+            kind: "EFFECT",
+            effectInstanceId: change.effectInstanceId,
+            reason: "TIME_LIMIT",
+          }),
+        ),
+      ...markerDecrement.changes
+        .filter((change) => change.after === 0)
+        .map(
+          (change): ExpirationRequest => ({
+            kind: "MARKER",
+            markerId: change.markerId,
+            reason: "TIME_LIMIT",
+          }),
+        ),
+    ];
     if (toExpire.length === 0) {
       continue;
     }
@@ -265,8 +290,9 @@ function applyTurnEffectDurationDecrements(
     );
     working = expireResult.units;
     lastEventId = expireResult.lastEventId;
+    recordedEvents.push(...expireResult.events);
   }
-  return { units: working, lastEventId };
+  return { units: working, lastEventId, events: recordedEvents };
 }
 
 /**
@@ -458,7 +484,7 @@ export function advanceBattle(
     turnCompleting.eventId,
   );
   // R-EFF-06: クールタイム減算と同じ「PS連鎖完了後の現在状態」から対象を
-  // 再取得し、ターン単位効果を全ユニットで1減らす。
+  // 再取得し、ターン単位効果・Markerを全ユニットで1減らす。
   const effectDurationDecrement = applyTurnEffectDurationDecrements(
     cooldownDecrement.units,
     nextTurnNumber,
@@ -468,8 +494,24 @@ export function advanceBattle(
     turnCompleting.eventId,
     cooldownDecrement.lastEventId,
   );
+  // PR #155レビュー[P2]: `EffectExpired`/`EffectiveEffectChanged`/`MarkerRemoved`
+  // それぞれに対応するPS/Memory候補を直ちに解決する（仕様「各イベントに対応
+  // する候補を直ちに解決する」）。`finalizeResolutionScope`は複数回呼んでも
+  // 安全（対象counterが無ければ即座に`this.units`を返す）ため、失効イベントを
+  // 通知した後にもう一度finalizeし、そこから新たに生じたPS発動の
+  // resolutionScope-resetカウンタも処理する。
+  let afterEffectDecrementUnits = effectDurationDecrement.units;
+  if (effectDurationDecrement.events.length > 0) {
+    for (const event of effectDurationDecrement.events) {
+      afterEffectDecrementUnits = turnEndPassiveRuntime.onFactEvent(
+        event,
+        afterEffectDecrementUnits,
+      );
+    }
+    afterEffectDecrementUnits = turnEndPassiveRuntime.finalizeResolutionScope();
+  }
   const afterEffectDecrementById = new Map(
-    effectDurationDecrement.units.map((u) => [u.battleUnitId, u]),
+    afterEffectDecrementUnits.map((u) => [u.battleUnitId, u]),
   );
   const progressedWithCooldown: Battle = {
     ...progressed,

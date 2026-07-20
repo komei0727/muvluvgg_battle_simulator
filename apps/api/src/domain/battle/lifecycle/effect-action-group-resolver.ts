@@ -3,6 +3,7 @@ import { applyCooldownManipulationAction } from "./cooldown-manipulation-applica
 import { applyDamageAction } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
 import { applyMarkerToUnit, removeMarkerFromUnit } from "../effects/marker-application-service.js";
+import { buildInitialDurationState } from "../model/applied-effect.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type {
@@ -218,6 +219,23 @@ function* resolveOneEffectActionApplication(
   // 含めない。
   const innerEventsStart = context.recorder.getEvents().length;
 
+  // PR #155再レビュー[P1]: DAMAGE/COOLDOWN_MANIPULATIONは`applyDamageAction`/
+  // `applyCooldownManipulationAction`自身へ`onFactEventForPassiveChain`を渡し、
+  // ヒット単位で即座に候補解決させている。`grantEffect`/`applyMarkerToUnit`/
+  // `removeMarkerFromUnit`はそのようなhookを持たないため、記録された内部
+  // イベント（`EffectApplied`/`EffectiveEffectChanged`/`Marker*`）が通常の
+  // AS/EX経路（`onFactEventForPassiveChain`指定あり）では候補解決へ一切
+  // 渡らず、これらをtriggerにする既存PSが発動しなかった。このヘルパーで
+  // 同じヒット単位フックの役割を代替する。
+  function forwardRecordedEventsToPassiveChain(fromIndex: number): void {
+    if (context.onFactEventForPassiveChain === undefined) {
+      return;
+    }
+    for (const event of context.recorder.getEvents().slice(fromIndex)) {
+      box.units = context.onFactEventForPassiveChain(event, box.units);
+    }
+  }
+
   if (effectAction.kind === "DAMAGE") {
     const currentActor = requireUnit(box.units, context.actorId);
     const targetAlreadyDefeated = isDefeated(
@@ -310,6 +328,7 @@ function* resolveOneEffectActionApplication(
       starting.eventId,
     );
     box.units = grantResult.units;
+    forwardRecordedEventsToPassiveChain(innerEventsStart);
     resolvedCount = application.hits.length;
     interruptedCount = 0;
     effectLastEventId = grantResult.lastEventId;
@@ -334,13 +353,17 @@ function* resolveOneEffectActionApplication(
         targetId: application.targetBattleUnitId,
         policy: effectAction.payload.stack.policy,
         stackMax: effectAction.payload.stack.max,
-        duration: { definition: effectAction.payload.duration },
+        duration: buildInitialDurationState(effectAction.payload.duration, {
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          turnNumber: context.turnNumber,
+        }),
         dispellable: effectAction.payload.duration.dispellable,
         linkedEffectGroupId: effectAction.payload.duration.linkedEffectGroupId,
       },
       starting.eventId,
     );
     box.units = markerResult.units;
+    forwardRecordedEventsToPassiveChain(innerEventsStart);
     resolvedCount = application.hits.length;
     interruptedCount = 0;
     effectLastEventId = markerResult.lastEventId;
@@ -364,6 +387,7 @@ function* resolveOneEffectActionApplication(
     );
     const removed = removeResult.lastEventId !== starting.eventId;
     box.units = removeResult.units;
+    forwardRecordedEventsToPassiveChain(innerEventsStart);
     resolvedCount = application.hits.length;
     interruptedCount = 0;
     effectLastEventId = removeResult.lastEventId;

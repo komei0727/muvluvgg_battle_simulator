@@ -4,12 +4,16 @@ import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { AppliedEffect, EffectKindKey } from "../model/applied-effect.js";
+import type { MarkerState } from "../model/marker-state.js";
 import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createMarkerId } from "../../catalog/definitions/catalog-ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const SOURCE = createBattleUnitId("enemy:1");
 const TARGET = createBattleUnitId("ally:1");
 const KIND = "ACT_BUFF_ATTACK" as EffectKindKey;
+const MARKER_A = createMarkerId("MARKER_A");
+const MARKER_B = createMarkerId("MARKER_B");
 
 function effect(overrides: {
   readonly id: string;
@@ -33,10 +37,32 @@ function effect(overrides: {
       },
     },
     active: overrides.active,
+    appliedTurnNumber: 1,
   };
 }
 
-function unitWith(appliedEffects: readonly AppliedEffect[]): BattleUnit {
+function marker(overrides: {
+  readonly markerId: ReturnType<typeof createMarkerId>;
+  readonly linkedEffectGroupId?: string | null;
+}): MarkerState {
+  return {
+    markerId: overrides.markerId,
+    sourceId: SOURCE,
+    targetId: TARGET,
+    stackCount: 1,
+    stackMax: null,
+    duration: {
+      definition: { dispellable: true, linkedEffectGroupId: overrides.linkedEffectGroupId ?? null },
+    },
+    dispellable: true,
+    linkedEffectGroupId: overrides.linkedEffectGroupId ?? null,
+  };
+}
+
+function unitWith(
+  appliedEffects: readonly AppliedEffect[],
+  markers: readonly MarkerState[] = [],
+): BattleUnit {
   return {
     battleUnitId: TARGET,
     unitDefinitionId: "UNIT_X" as never,
@@ -54,7 +80,7 @@ function unitWith(appliedEffects: readonly AppliedEffect[]): BattleUnit {
     maximumExtraGauge: 100,
     cooldowns: {},
     appliedEffects,
-    markers: [],
+    markers,
   };
 }
 
@@ -88,7 +114,7 @@ describe("expireEffects (R-EFF-04/06/07/08/09)", () => {
       ctx,
       units,
       TARGET,
-      [{ effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" }],
+      [{ kind: "EFFECT", effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" }],
       ctx.rootEvent.eventId,
     );
 
@@ -112,7 +138,7 @@ describe("expireEffects (R-EFF-04/06/07/08/09)", () => {
       ctx,
       units,
       TARGET,
-      [{ effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" }],
+      [{ kind: "EFFECT", effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" }],
       ctx.rootEvent.eventId,
     );
 
@@ -139,7 +165,7 @@ describe("expireEffects (R-EFF-04/06/07/08/09)", () => {
       ctx,
       units,
       TARGET,
-      [{ effectInstanceId: createEffectInstanceId("e2"), reason: "CONSUMPTION" }],
+      [{ kind: "EFFECT", effectInstanceId: createEffectInstanceId("e2"), reason: "CONSUMPTION" }],
       ctx.rootEvent.eventId,
     );
 
@@ -174,7 +200,13 @@ describe("expireEffects (R-EFF-04/06/07/08/09)", () => {
       ctx,
       units,
       TARGET,
-      [{ effectInstanceId: createEffectInstanceId("parent"), reason: "TIME_LIMIT" }],
+      [
+        {
+          kind: "EFFECT",
+          effectInstanceId: createEffectInstanceId("parent"),
+          reason: "TIME_LIMIT",
+        },
+      ],
       ctx.rootEvent.eventId,
     );
 
@@ -219,11 +251,151 @@ describe("expireEffects (R-EFF-04/06/07/08/09)", () => {
       ctx,
       units,
       TARGET,
-      [{ effectInstanceId: createEffectInstanceId("child"), reason: "CONSUMPTION" }],
+      [
+        {
+          kind: "EFFECT",
+          effectInstanceId: createEffectInstanceId("child"),
+          reason: "CONSUMPTION",
+        },
+      ],
       ctx.rootEvent.eventId,
     );
 
     const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
     expect(targetAfter.appliedEffects.map((e) => e.effectInstanceId)).toEqual(["parent"]);
+  });
+
+  it("PR #155 re-review [P1]: removes an expiring Marker and records MarkerRemoved", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [unitWith([], [marker({ markerId: MARKER_A })])];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [{ kind: "MARKER", markerId: MARKER_A, reason: "TIME_LIMIT" }],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.markers).toEqual([]);
+    const removed = recorder.getEvents().find((e) => e.eventType === "MarkerRemoved");
+    expect(removed?.payload).toMatchObject({ markerId: MARKER_A, reason: "TIME_LIMIT" });
+  });
+
+  it("PR #155 re-review [P1]: cascades an AppliedEffect parent's expiry to a Marker child in the same linkedEffectGroup, Marker removed before the effect expires (R-EFF-09)", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [
+      unitWith(
+        [
+          effect({
+            id: "parent",
+            magnitude: 10,
+            duplicate: true,
+            active: true,
+            linkedEffectGroupId: "GROUP_A",
+          }),
+        ],
+        [marker({ markerId: MARKER_A, linkedEffectGroupId: "GROUP_A" })],
+      ),
+    ];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [
+        {
+          kind: "EFFECT",
+          effectInstanceId: createEffectInstanceId("parent"),
+          reason: "TIME_LIMIT",
+        },
+      ],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects).toEqual([]);
+    expect(targetAfter.markers).toEqual([]);
+    const events = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "MarkerRemoved" || e.eventType === "EffectExpired");
+    expect(events.map((e) => e.eventType)).toEqual(["MarkerRemoved", "EffectExpired"]);
+    expect(events[0]?.payload).toMatchObject({
+      markerId: MARKER_A,
+      reason: "LINKED_GROUP_CASCADE",
+    });
+  });
+
+  it("PR #155 re-review [P1]: within a mixed group, the AppliedEffect is always treated as parent (documented grant-order convention), so the Marker's own independent expiry does not cascade to it (子効果だけが失効した場合、親効果は維持する)", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [
+      unitWith(
+        [
+          effect({
+            id: "parent",
+            magnitude: 5,
+            duplicate: true,
+            active: true,
+            linkedEffectGroupId: "GROUP_A",
+          }),
+        ],
+        [marker({ markerId: MARKER_A, linkedEffectGroupId: "GROUP_A" })],
+      ),
+    ];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [{ kind: "MARKER", markerId: MARKER_A, reason: "TIME_LIMIT" }],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.appliedEffects.map((e) => e.effectInstanceId)).toEqual(["parent"]);
+    expect(targetAfter.markers).toEqual([]);
+  });
+
+  it("PR #155 re-review [P1]: does not confuse two different Markers when only one shares the group", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const units = [
+      unitWith(
+        [
+          effect({
+            id: "parent",
+            magnitude: 10,
+            duplicate: true,
+            active: true,
+            linkedEffectGroupId: "GROUP_A",
+          }),
+        ],
+        [
+          marker({ markerId: MARKER_A, linkedEffectGroupId: "GROUP_A" }),
+          marker({ markerId: MARKER_B }),
+        ],
+      ),
+    ];
+
+    const result = expireEffects(
+      ctx,
+      units,
+      TARGET,
+      [
+        {
+          kind: "EFFECT",
+          effectInstanceId: createEffectInstanceId("parent"),
+          reason: "TIME_LIMIT",
+        },
+      ],
+      ctx.rootEvent.eventId,
+    );
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+    expect(targetAfter.markers.map((m) => m.markerId)).toEqual([MARKER_B]);
   });
 });

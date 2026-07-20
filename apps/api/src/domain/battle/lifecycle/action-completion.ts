@@ -5,7 +5,8 @@ import {
   type CooldownMap,
 } from "../model/cooldown-state.js";
 import { decrementActionEffectDurations } from "../effects/effect-duration-decrement.js";
-import { expireEffects } from "../effects/effect-expiration-service.js";
+import { decrementActionMarkerDurations } from "../effects/marker-duration-decrement.js";
+import { expireEffects, type ExpirationRequest } from "../effects/effect-expiration-service.js";
 import type {
   ActionId,
   DomainEventId,
@@ -152,23 +153,53 @@ export function recordActionCompletion(
     }
   }
 
-  // R-EFF-04: 対象自身（=この行動者）の行動終了時に、行動単位効果を1減らす。
-  // 今回の行動で付与されたものは対象外（`decrementActionEffectDurations`が判定）。
-  const actorForEffects = requireUnit(working, context.actorId);
-  const effectDecrement = decrementActionEffectDurations(
-    actorForEffects.appliedEffects,
-    context.actionId,
-  );
-  if (effectDecrement.changes.length > 0) {
-    working = working.map((u) =>
-      u.battleUnitId === context.actorId ? { ...u, appliedEffects: effectDecrement.effects } : u,
+  // R-EFF-04/R-EFF-10: `context.actorId`の行動終了時に、`timeLimit.owner`が
+  // 指す対象と一致する行動単位効果・Markerを1減らす（PR #155レビュー[P1]:
+  // 保持者が行動者自身とは限らない — `EFFECT_SOURCE`/`BATTLE` ownerは
+  // production Catalogに実例があるため、全ユニットを走査する。Marker期間も
+  // 同じ仕組みで減算・失効させる — 以前は`appliedEffects`しか走査しておらず、
+  // 期間付きMarkerが永久に残っていた）。今回の行動で付与されたものは対象外
+  // （`decrementActionEffectDurations`/`decrementActionMarkerDurations`が判定）。
+  for (const unitSnapshot of units) {
+    const holder = requireUnit(working, unitSnapshot.battleUnitId);
+    const effectDecrement = decrementActionEffectDurations(
+      holder.appliedEffects,
+      context.actionId,
+      context.actorId,
     );
-    const toExpire = effectDecrement.changes
-      .filter((change) => change.after === 0)
-      .map((change) => ({
-        effectInstanceId: change.effectInstanceId,
-        reason: "TIME_LIMIT" as const,
-      }));
+    const markerDecrement = decrementActionMarkerDurations(
+      holder.markers,
+      context.actionId,
+      context.actorId,
+    );
+    if (effectDecrement.changes.length === 0 && markerDecrement.changes.length === 0) {
+      continue;
+    }
+    working = working.map((u) =>
+      u.battleUnitId === holder.battleUnitId
+        ? { ...u, appliedEffects: effectDecrement.effects, markers: markerDecrement.markers }
+        : u,
+    );
+    const toExpire: readonly ExpirationRequest[] = [
+      ...effectDecrement.changes
+        .filter((change) => change.after === 0)
+        .map(
+          (change): ExpirationRequest => ({
+            kind: "EFFECT",
+            effectInstanceId: change.effectInstanceId,
+            reason: "TIME_LIMIT",
+          }),
+        ),
+      ...markerDecrement.changes
+        .filter((change) => change.after === 0)
+        .map(
+          (change): ExpirationRequest => ({
+            kind: "MARKER",
+            markerId: change.markerId,
+            reason: "TIME_LIMIT",
+          }),
+        ),
+    ];
     if (toExpire.length > 0) {
       const expireResult = expireEffects(
         {
@@ -180,7 +211,7 @@ export function recordActionCompletion(
           rootEventId: context.rootEventId,
         },
         working,
-        context.actorId,
+        holder.battleUnitId,
         toExpire,
         lastEventId,
       );

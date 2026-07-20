@@ -65,8 +65,9 @@ export interface SubUnitStateResponseBody {
 
 /**
  * `10_API設計.md`「EffectStateResponse」。`value`は効果種別ごとの構造化された
- * 値で、M7で`effectKindKey`ごとの具体Schemaが定まるまでは未確定のため
- * 開いたまま(`unknown`)にする。M7まではResponse Mapperが要素を追加することはない。
+ * 値で、`effectKindKey`ごとの具体Schemaが定まるまでは未確定のため開いたまま
+ * (`unknown`)にする（Issue #23時点のResponse Mapperは唯一Domainが持つ
+ * `magnitude`だけを`{ magnitude }`として運ぶ最小限の値を設定する）。
  */
 export interface EffectStateResponseBody {
   readonly effectInstanceId: string;
@@ -117,11 +118,12 @@ export interface ChargeStateResponseBody {
 }
 
 /**
- * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`/`effects`は対応するDomain
- * 機構がM7〜M8で実装されるまで常に空配列（`未実装機能を仮の値で成功扱いにしない`
- * の対象は「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
- * 付与されていない」ことを表す空配列は事実そのもの）。`cooldowns`/`charge`はM5で
- * 実装済みのDomain状態（`BattleUnitSnapshot`）をそのまま反映する。
+ * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`は対応するDomain機構が
+ * M8で実装されるまで常に空配列（`未実装機能を仮の値で成功扱いにしない`の対象は
+ * 「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
+ * 付与されていない」ことを表す空配列は事実そのもの）。`effects`はIssue #23
+ * （PR #155レビュー[P1]）以降、`cooldowns`/`charge`と同様M5で実装済みのDomain状態
+ * （`BattleUnitSnapshot`）をそのまま反映する。
  */
 export interface BattleUnitStateResponseBody {
   readonly battleUnitId: string;

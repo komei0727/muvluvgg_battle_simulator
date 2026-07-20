@@ -1,4 +1,9 @@
-import type { BattleResultSnapshot, ChargeState, CooldownState } from "../events/state-delta.js";
+import type {
+  BattleResultSnapshot,
+  ChargeState,
+  CooldownState,
+  EffectSnapshot,
+} from "../events/state-delta.js";
 import type { Battle } from "./battle.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import type { FormationPosition } from "../model/formation-input.js";
@@ -38,6 +43,8 @@ export interface BattleUnitSnapshot {
   readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
   >;
+  /** `10_API設計.md`「BattleUnitStateResponse.effects」（PR #155レビュー[P1]）。空の場合はキー自体を持たない。 */
+  readonly effects?: readonly EffectSnapshot[];
 }
 
 /**
@@ -88,6 +95,29 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         skillCounterCarry[skillDefinitionId] = carryValues;
       }
     }
+    const effects: EffectSnapshot[] = unit.appliedEffects.map((effect) => {
+      const timeLimit = effect.duration.definition.timeLimit;
+      const duration =
+        (timeLimit?.unit === "ACTION" || timeLimit?.unit === "TURN") &&
+        effect.duration.timeLimitRemaining !== undefined
+          ? { unit: timeLimit.unit, remaining: effect.duration.timeLimitRemaining }
+          : undefined;
+      return {
+        effectInstanceId: effect.effectInstanceId,
+        effectDefinitionId: effect.effectActionDefinitionId,
+        sourceUnitId: effect.sourceId,
+        effectKindKey: effect.kindKey,
+        duplicate: effect.duplicate,
+        active: effect.active,
+        magnitude: effect.magnitude,
+        ...(duration !== undefined ? { duration } : {}),
+        appliedTurnNumber: effect.appliedTurnNumber,
+        ...(effect.appliedActionId !== undefined
+          ? { appliedActionId: effect.appliedActionId }
+          : {}),
+      };
+    });
+
     units[unit.battleUnitId] = {
       hp: unit.currentHp,
       ap: unit.currentAp,
@@ -104,6 +134,7 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         : {}),
       ...(skillCounterSkillIds.length > 0 ? { skillCounters } : {}),
       ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
+      ...(effects.length > 0 ? { effects } : {}),
     };
   }
   return {

@@ -36,6 +36,7 @@ function consumableEffect(overrides: {
       consumptionRemaining: overrides.remaining,
     },
     active: true,
+    appliedTurnNumber: 1,
   };
 }
 

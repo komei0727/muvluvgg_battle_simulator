@@ -6,16 +6,21 @@ import {
 import type { AppliedEffect, EffectKindKey } from "../model/applied-effect.js";
 import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattleUnitId } from "../../shared/ids.js";
+import type { DurationOwner } from "../../catalog/definitions/catalog-enums.js";
 
-const TARGET = createBattleUnitId("ally:1");
-const SOURCE = createBattleUnitId("enemy:1");
 const KIND = "ACT_BUFF_ATTACK" as EffectKindKey;
 const ACTION_1 = createActionId("battle-1:action:1");
 const ACTION_2 = createActionId("battle-1:action:2");
+const HOLDER = createBattleUnitId("ally:1");
+const SOURCE = createBattleUnitId("enemy:1");
+const OTHER = createBattleUnitId("enemy:2");
 
 function actionEffect(overrides: {
   readonly id: string;
   readonly remaining: number;
+  readonly sourceId?: ReturnType<typeof createBattleUnitId>;
+  readonly targetId?: ReturnType<typeof createBattleUnitId>;
+  readonly owner?: DurationOwner;
   readonly grantedActionId?: ReturnType<typeof createActionId>;
 }): AppliedEffect {
   return {
@@ -23,12 +28,16 @@ function actionEffect(overrides: {
     effectActionDefinitionId: KIND as unknown as AppliedEffect["effectActionDefinitionId"],
     kindKey: KIND,
     duplicate: true,
-    sourceId: SOURCE,
-    targetId: TARGET,
+    sourceId: overrides.sourceId ?? SOURCE,
+    targetId: overrides.targetId ?? HOLDER,
     magnitude: 10,
     duration: {
       definition: {
-        timeLimit: { unit: "ACTION", count: 3 },
+        timeLimit: {
+          unit: "ACTION",
+          count: 3,
+          ...(overrides.owner !== undefined ? { owner: overrides.owner } : {}),
+        },
         dispellable: true,
         linkedEffectGroupId: null,
       },
@@ -38,6 +47,7 @@ function actionEffect(overrides: {
         : {}),
     },
     active: true,
+    appliedTurnNumber: 1,
   };
 }
 
@@ -52,7 +62,7 @@ function turnEffect(overrides: {
     kindKey: KIND,
     duplicate: true,
     sourceId: SOURCE,
-    targetId: TARGET,
+    targetId: HOLDER,
     magnitude: 10,
     duration: {
       definition: {
@@ -66,26 +76,69 @@ function turnEffect(overrides: {
         : {}),
     },
     active: true,
+    appliedTurnNumber: 1,
   };
 }
 
 describe("decrementActionEffectDurations (R-EFF-04)", () => {
-  it("UT-EFF-DUR-001: decrements the remaining count by 1 for an ACTION-unit effect not granted this action", () => {
+  it("UT-EFF-DUR-001: decrements a default-owner (EFFECT_TARGET) effect when its holder acts", () => {
     const effects = [actionEffect({ id: "e1", remaining: 3, grantedActionId: ACTION_1 })];
 
-    const result = decrementActionEffectDurations(effects, ACTION_2);
+    const result = decrementActionEffectDurations(effects, ACTION_2, HOLDER);
 
     expect(result.changes).toEqual([{ effectInstanceId: "e1", before: 3, after: 2 }]);
-    expect(result.effects[0]?.duration.timeLimitRemaining).toBe(2);
   });
 
   it("UT-EFF-DUR-002: does not decrement an effect granted during the current action (initial-decrement exclusion)", () => {
     const effects = [actionEffect({ id: "e1", remaining: 3, grantedActionId: ACTION_1 })];
 
-    const result = decrementActionEffectDurations(effects, ACTION_1);
+    const result = decrementActionEffectDurations(effects, ACTION_1, HOLDER);
 
     expect(result.changes).toEqual([]);
-    expect(result.effects[0]?.duration.timeLimitRemaining).toBe(3);
+  });
+
+  it("PR #155 re-review [P1]: an EFFECT_TARGET-owner effect does NOT decrement when a different unit acts", () => {
+    const effects = [actionEffect({ id: "e1", remaining: 3, grantedActionId: ACTION_1 })];
+
+    const result = decrementActionEffectDurations(effects, ACTION_2, OTHER);
+
+    expect(result.changes).toEqual([]);
+  });
+
+  it("PR #155 re-review [P1]: an EFFECT_SOURCE-owner effect decrements when the SOURCE (not the holder) acts", () => {
+    const effects = [
+      actionEffect({
+        id: "e1",
+        remaining: 3,
+        owner: "EFFECT_SOURCE",
+        sourceId: SOURCE,
+        targetId: HOLDER,
+        grantedActionId: ACTION_1,
+      }),
+    ];
+
+    const decrementedBySource = decrementActionEffectDurations(effects, ACTION_2, SOURCE);
+    expect(decrementedBySource.changes).toEqual([{ effectInstanceId: "e1", before: 3, after: 2 }]);
+
+    const notDecrementedByHolder = decrementActionEffectDurations(effects, ACTION_2, HOLDER);
+    expect(notDecrementedByHolder.changes).toEqual([]);
+  });
+
+  it("PR #155 re-review [P1]: a BATTLE-owner effect decrements when ANY unit acts, regardless of holder/source", () => {
+    const effects = [
+      actionEffect({
+        id: "e1",
+        remaining: 1,
+        owner: "BATTLE",
+        sourceId: SOURCE,
+        targetId: HOLDER,
+        grantedActionId: ACTION_1,
+      }),
+    ];
+
+    const result = decrementActionEffectDurations(effects, ACTION_2, OTHER);
+
+    expect(result.changes).toEqual([{ effectInstanceId: "e1", before: 1, after: 0 }]);
   });
 
   it("UT-EFF-DUR-003: ignores TURN-unit effects and effects without a remaining count", () => {
@@ -97,7 +150,7 @@ describe("decrementActionEffectDurations (R-EFF-04)", () => {
       },
     ];
 
-    const result = decrementActionEffectDurations(effects, ACTION_2);
+    const result = decrementActionEffectDurations(effects, ACTION_2, HOLDER);
 
     expect(result.changes).toEqual([]);
   });
@@ -105,7 +158,7 @@ describe("decrementActionEffectDurations (R-EFF-04)", () => {
   it("UT-EFF-DUR-004: does not decrement an effect already at 0 remaining", () => {
     const effects = [actionEffect({ id: "e1", remaining: 0, grantedActionId: ACTION_1 })];
 
-    const result = decrementActionEffectDurations(effects, ACTION_2);
+    const result = decrementActionEffectDurations(effects, ACTION_2, HOLDER);
 
     expect(result.changes).toEqual([]);
   });

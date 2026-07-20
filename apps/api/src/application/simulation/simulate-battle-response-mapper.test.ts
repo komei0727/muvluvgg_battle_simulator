@@ -159,7 +159,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(finalEnemy.combatStatus).toBe("DEFEATED");
   });
 
-  it("API-RESP-006: includes real combatStats from the roster and truthfully-empty shields/subUnits/effects/cooldowns (no shield/effect mechanic exists yet, and this snapshot has no active cooldowns)", () => {
+  it("API-RESP-006: includes real combatStats from the roster and truthfully-empty shields/subUnits/effects/cooldowns (no shield/subUnit mechanic exists yet, and this snapshot has no active effects or cooldowns)", () => {
     const body = toBattleSimulationResponseBody(baseResult());
     const ally = body.initialState.units[0]!;
 
@@ -175,6 +175,79 @@ describe("toBattleSimulationResponseBody", () => {
     expect(ally.subUnits).toEqual([]);
     expect(ally.effects).toEqual([]);
     expect(ally.cooldowns).toEqual([]);
+  });
+
+  it("PR #155 re-review [P1]: maps real AppliedEffects into BattleUnitStateResponse.effects (10_API設計.md EffectStateResponse), instead of always returning []", () => {
+    const withEffect = baseResult({
+      finalState: {
+        status: "COMPLETED",
+        currentTurn: 1,
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+        units: {
+          [ALLY_ID]: {
+            hp: 90,
+            ap: 1,
+            pp: 0,
+            extraGauge: 5,
+            effects: [
+              {
+                effectInstanceId: "battle-1:effect:1",
+                effectDefinitionId: "ACT_BUFF_ATTACK",
+                sourceUnitId: ALLY_ID,
+                effectKindKey: "ACT_BUFF_ATTACK",
+                duplicate: true,
+                active: true,
+                magnitude: 15,
+                duration: { unit: "TURN", remaining: 2 },
+                appliedTurnNumber: 1,
+                appliedActionId: ACTION_1,
+              },
+              {
+                effectInstanceId: "battle-1:effect:2",
+                effectDefinitionId: "ACT_DEBUFF_DEFENSE",
+                sourceUnitId: ENEMY_ID,
+                effectKindKey: "ACT_DEBUFF_DEFENSE",
+                duplicate: false,
+                active: false,
+                magnitude: -10,
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+          [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+        },
+      },
+    });
+
+    const body = toBattleSimulationResponseBody(withEffect);
+    const ally = body.finalState.units[0]!;
+
+    expect(ally.effects).toEqual([
+      {
+        effectInstanceId: "battle-1:effect:1",
+        effectDefinitionId: "ACT_BUFF_ATTACK",
+        sourceUnitId: ALLY_ID,
+        category: "BUFF",
+        effectKindKey: "ACT_BUFF_ATTACK",
+        stackMode: "STACKABLE",
+        isEffective: true,
+        value: { magnitude: 15 },
+        duration: { unit: "TURN", remaining: 2 },
+        appliedTurnNumber: 1,
+        appliedActionId: ACTION_1,
+      },
+      {
+        effectInstanceId: "battle-1:effect:2",
+        effectDefinitionId: "ACT_DEBUFF_DEFENSE",
+        sourceUnitId: ENEMY_ID,
+        category: "DEBUFF",
+        effectKindKey: "ACT_DEBUFF_DEFENSE",
+        stackMode: "NON_STACKING",
+        isEffective: false,
+        value: { magnitude: -10 },
+        appliedTurnNumber: 1,
+      },
+    ]);
   });
 
   it("API-RESP-006b (R-NUM-01 / 10_API設計.md CombatStatsResponse): converts criticalRate/affinityBonus/criticalDamageBonus from Domain's 1.0=100% ratio to percentage points, while leaving attack/defense/actionSpeed as raw magnitudes", () => {

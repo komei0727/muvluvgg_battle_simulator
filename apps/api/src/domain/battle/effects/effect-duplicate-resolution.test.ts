@@ -27,6 +27,7 @@ function effect(overrides: {
     magnitude: overrides.magnitude,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
     active: overrides.active ?? true,
+    appliedTurnNumber: 1,
   };
 }
 

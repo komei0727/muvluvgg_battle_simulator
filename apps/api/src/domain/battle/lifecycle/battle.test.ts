@@ -736,6 +736,7 @@ describe("advanceBattle", () => {
                   grantedTurnNumber: 1,
                 },
                 active: true,
+                appliedTurnNumber: 1,
               },
             ],
           }),
@@ -760,6 +761,181 @@ describe("advanceBattle", () => {
     expect(battle.allyUnits[0]!.appliedEffects).toEqual([]);
     const expired = turn2Recorder.getEvents().find((e) => e.eventType === "EffectExpired");
     expect(expired?.payload).toMatchObject({ effectInstanceId, reason: "TIME_LIMIT" });
+  });
+
+  it("PR #155 re-review [P2]: a PS that triggers on EffectExpired activates when a TURN-unit AppliedEffect expires at turn end", () => {
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_EFFECT_EXPIRED");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 0 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "EffectExpired",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "TURN", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_EFFECT_EXPIRED", tags: [] },
+    };
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_WATCHER");
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        unitDefinitionId,
+        {
+          unitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "SUPPORT",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0.1,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0.25,
+            actionSpeed: 10,
+            maximumAp: 3,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 100,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Watcher",
+            characterName: "Watcher",
+            characterId: "CHAR_WATCHER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const effectInstanceId = "B_1:effect:seed" as never;
+    let battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [
+          {
+            ...createBattleUnit(member("ally:1", { unitDefinitionId }), "ALLY", LIMITS),
+            appliedEffects: [
+              {
+                effectInstanceId,
+                effectActionDefinitionId: "ACT_BUFF" as never,
+                kindKey: "ACT_BUFF" as never,
+                duplicate: true,
+                sourceId: createBattleUnitId("ally:1"),
+                targetId: createBattleUnitId("ally:1"),
+                magnitude: 10,
+                duration: {
+                  definition: {
+                    timeLimit: { unit: "TURN", count: 1 },
+                    dispellable: true,
+                    linkedEffectGroupId: null,
+                  },
+                  timeLimitRemaining: 1,
+                  grantedTurnNumber: 1,
+                },
+                active: true,
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        ],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    const turn1Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn1Recorder);
+    const turn2Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn2Recorder);
+
+    expect(battle.allyUnits[0]!.appliedEffects).toEqual([]);
+    const activated = turn2Recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            passiveSkillDefinitionId,
+      );
+    expect(activated).toBeDefined();
+  });
+
+  it("PR #155 re-review [P1]: a real AS attack's DamageApplied consumes the attacker's OUTGOING_HIT AppliedEffect down to expiry (R-EFF-07, live wiring through the normal action pipeline)", () => {
+    const effectInstanceId = "B_1:effect:seed" as never;
+    const battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [
+          {
+            ...unit("ally:1", "ALLY"),
+            appliedEffects: [
+              {
+                effectInstanceId,
+                effectActionDefinitionId: "ACT_EVASION" as never,
+                kindKey: "ACT_EVASION" as never,
+                duplicate: true,
+                sourceId: createBattleUnitId("ally:1"),
+                targetId: createBattleUnitId("ally:1"),
+                magnitude: 1,
+                duration: {
+                  definition: {
+                    consumption: { kind: "OUTGOING_HIT", maxCount: 1 },
+                    dispellable: true,
+                    linkedEffectGroupId: null,
+                  },
+                  consumptionRemaining: 1,
+                },
+                active: true,
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        ],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        attackerDefinitions(),
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    const turnRecorder = recorder();
+    const advanced = advanceBattle(battle, NO_RANDOM(), turnRecorder);
+
+    expect(advanced.allyUnits[0]!.appliedEffects).toEqual([]);
+    const expired = turnRecorder.getEvents().find((e) => e.eventType === "EffectExpired");
+    expect(expired?.payload).toMatchObject({ effectInstanceId, reason: "CONSUMPTION" });
   });
 
   it("UT-R-PS-05-003 (Issue #34 integration): a PS that triggers on TurnStarted activates during TURN_STARTING, before the action phase runs (PP consumed, EX gauge increased)", () => {

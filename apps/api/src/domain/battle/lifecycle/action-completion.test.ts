@@ -165,6 +165,7 @@ describe("recordActionCompletion", () => {
             grantedActionId: priorActionId,
           },
           active: true,
+          appliedTurnNumber: 1,
         },
       ],
     };
@@ -190,5 +191,67 @@ describe("recordActionCompletion", () => {
       effectInstanceId: "B_1:effect:1",
       reason: "TIME_LIMIT",
     });
+  });
+
+  it("PR #155 re-review [P1]: decrements an EFFECT_SOURCE-owner AppliedEffect held on a DIFFERENT unit than the acting unit (R-EFF-04, Duration.owner)", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const priorActionId = createActionId("B_1:action:0");
+    const currentActionId = createActionId("B_1:action:1");
+    const actor: BattleUnit = { ...actorWithExpiringCooldown(), cooldowns: {} };
+    const otherHolder: BattleUnit = {
+      ...actorWithExpiringCooldown(),
+      battleUnitId: createBattleUnitId("U2"),
+      cooldowns: {},
+      appliedEffects: [
+        {
+          effectInstanceId: "B_1:effect:1" as never,
+          effectActionDefinitionId: "ACT_DEBUFF" as never,
+          kindKey: "ACT_DEBUFF" as never,
+          duplicate: true,
+          sourceId: actor.battleUnitId,
+          targetId: createBattleUnitId("U2"),
+          magnitude: -10,
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 1,
+            grantedActionId: priorActionId,
+          },
+          active: true,
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: currentActionId,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorId: actor.battleUnitId,
+      },
+      "AS",
+      seed.eventId,
+      [actor, otherHolder],
+    );
+
+    const otherAfter = result.units.find((u) => u.battleUnitId === otherHolder.battleUnitId)!;
+    expect(otherAfter.appliedEffects).toEqual([]);
+    const expired = recorder.getEvents().find((e) => e.eventType === "EffectExpired");
+    expect(expired?.payload).toMatchObject({ effectInstanceId: "B_1:effect:1" });
   });
 });

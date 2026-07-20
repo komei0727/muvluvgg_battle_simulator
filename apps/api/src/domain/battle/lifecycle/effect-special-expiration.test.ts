@@ -25,6 +25,7 @@ function effectWithExpiration(
       definition: { expiration: { conditions }, dispellable: true, linkedEffectGroupId: null },
     },
     active: true,
+    appliedTurnNumber: 1,
   };
 }
 

@@ -8,6 +8,7 @@ import type {
   BattleUnitStateResponseBody,
   ChargeStateResponseBody,
   CooldownStateResponseBody,
+  EffectStateResponseBody,
   EntityCollectionDeltaResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
@@ -20,6 +21,7 @@ import type {
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import type {
   CooldownState,
+  EffectSnapshot,
   StateDelta,
   UnitStateDelta,
 } from "../../domain/battle/events/state-delta.js";
@@ -120,6 +122,49 @@ function toChargeStateResponseBody(
   };
 }
 
+/**
+ * `10_API設計.md`「EffectStateResponse」: `category`/`stackMode`/`isEffective`/
+ * `value`はDomainの`EffectSnapshot`（未加工に近い`magnitude`/`duplicate`/`active`）
+ * から公開境界でだけ導出する。
+ *
+ * `category`はBUFF/DEBUFFの2値のみ`magnitude`の符号から機械的に導出する
+ * （PR #155レビュー[P1]の暫定対応）。`STATUS_ABNORMALITY`は状態異常を専用に
+ * 識別するCatalogデータが存在する別Issue（状態異常系EffectActionKindを追加する
+ * #25/#31/#75/#76系）が実装されるまでは判別できない — デバフ全般を一律
+ * `DEBUFF`として扱うのは、状態異常を通常デバフと誤って区別せず解除できて
+ * しまう既知の近似（実際には効いていない値を偽装するのではなく、区別
+ * できない情報を最も安全側の分類へ倒す判断）。
+ *
+ * `value`は`effectKindKey`ごとのoneOf構造化値がまだ定まっていない（M7時点、
+ * `10_API設計.md`本文にも明記）ため、唯一Domainが持つ`magnitude`だけを
+ * `{ magnitude }`として運ぶ最小限の値にする。
+ */
+function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseBody {
+  return {
+    effectInstanceId: effect.effectInstanceId,
+    effectDefinitionId: effect.effectDefinitionId,
+    ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
+    category: effect.magnitude >= 0 ? "BUFF" : "DEBUFF",
+    effectKindKey: effect.effectKindKey,
+    stackMode: effect.duplicate ? "STACKABLE" : "NON_STACKING",
+    isEffective: effect.active,
+    value: { magnitude: effect.magnitude },
+    ...(effect.duration !== undefined ? { duration: effect.duration } : {}),
+    appliedTurnNumber: effect.appliedTurnNumber,
+    ...(effect.appliedActionId !== undefined ? { appliedActionId: effect.appliedActionId } : {}),
+  };
+}
+
+/** `10_API設計.md`「BattleUnitStateResponse.effects」: 個別管理される全効果インスタンスを返す。 */
+function toEffectStateResponseBodies(
+  effects: BattleUnitSnapshot["effects"],
+): readonly EffectStateResponseBody[] {
+  if (effects === undefined) {
+    return [];
+  }
+  return effects.map(toEffectStateResponseBody);
+}
+
 function toUnitStateResponseBody(
   roster: BattleUnitRosterEntry,
   snapshot: BattleUnitSnapshot,
@@ -149,11 +194,11 @@ function toUnitStateResponseBody(
       affinityBonus: toPercentagePoints(roster.combatStats.affinityBonus),
       criticalDamageBonus: toPercentagePoints(roster.combatStats.criticalDamageBonus),
     },
-    // `10_API設計.md`「BattleUnitStateResponse」: シールド・サブユニット・効果は
-    // M7〜M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。
+    // `10_API設計.md`「BattleUnitStateResponse」: シールド・サブユニットは
+    // M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。
     shields: { physical: 0, energy: 0, untyped: 0 },
     subUnits: [],
-    effects: [],
+    effects: toEffectStateResponseBodies(snapshot.effects),
     cooldowns: toCooldownStateResponseBodies(snapshot.cooldowns),
     ...(charge !== undefined ? { charge } : {}),
   };

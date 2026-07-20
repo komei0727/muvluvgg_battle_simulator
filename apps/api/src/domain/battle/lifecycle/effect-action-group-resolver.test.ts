@@ -110,6 +110,24 @@ function applyMarkerAction(id: string, markerId: string): EffectActionDefinition
   };
 }
 
+function applyMarkerActionWithTurnDuration(id: string, markerId: string): EffectActionDefinition {
+  return {
+    kind: "APPLY_MARKER",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      markerId: markerId as never,
+      stack: { policy: "ADD", max: null },
+      duration: {
+        timeLimit: { unit: "TURN", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
 function removeMarkerAction(id: string, markerId: string): EffectActionDefinition {
   return {
     kind: "REMOVE_MARKER",
@@ -556,5 +574,102 @@ describe("applyEffectActionGroups", () => {
     const targetAfter = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
     expect(targetAfter.markers).toEqual([]);
     expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(true);
+  });
+
+  it("PR #155 re-review [P1]: APPLY_STAT_MOD's EffectApplied (and EffectiveEffectChanged, if any) reach onFactEventForPassiveChain on the normal AS/EX path, not just the internal generic capture", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const buff = statModAction("ACT_BUFF", 15);
+    const effectActions = new Map([[buff.effectActionDefinitionId, buff]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const observedEventTypes: string[] = [];
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      observedEventTypes.push(event.eventType);
+      return units;
+    });
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, buff.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    expect(observedEventTypes).toContain("EffectApplied");
+  });
+
+  it("PR #155 re-review [P1]: APPLY_MARKER's MarkerApplied reaches onFactEventForPassiveChain on the normal AS/EX path", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const mark = applyMarkerAction("ACT_MARK", "MARKER_WARNING_ROD");
+    const effectActions = new Map([[mark.effectActionDefinitionId, mark]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const observedEventTypes: string[] = [];
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      observedEventTypes.push(event.eventType);
+      return units;
+    });
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, mark.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    expect(observedEventTypes).toContain("MarkerApplied");
+  });
+
+  it("PR #155 re-review [P1]: REMOVE_MARKER's MarkerRemoved reaches onFactEventForPassiveChain on the normal AS/EX path", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemyId = createBattleUnitId("ENEMY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      markers: [
+        {
+          markerId: "MARKER_WARNING_ROD" as never,
+          sourceId: actor.battleUnitId,
+          targetId: enemyId,
+          stackCount: 1,
+          stackMax: null,
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      ],
+    });
+    const remove = removeMarkerAction("ACT_UNMARK", "MARKER_WARNING_ROD");
+    const effectActions = new Map([[remove.effectActionDefinitionId, remove]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const observedEventTypes: string[] = [];
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      observedEventTypes.push(event.eventType);
+      return units;
+    });
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    expect(observedEventTypes).toContain("MarkerRemoved");
+  });
+
+  it("PR #155 re-review [P1]: APPLY_MARKER with a TURN-unit duration initializes timeLimitRemaining/grantedTurnNumber, not just the bare definition", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const mark = applyMarkerActionWithTurnDuration("ACT_MARK", "MARKER_WARNING_ROD");
+    const effectActions = new Map([[mark.effectActionDefinitionId, mark]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, mark.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const targetAfter = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    const grantedMarker = targetAfter.markers[0];
+    expect(grantedMarker?.duration.timeLimitRemaining).toBe(2);
+    expect(grantedMarker?.duration.grantedTurnNumber).toBe(1);
   });
 });
