@@ -339,45 +339,52 @@ function isConditionalRegistrationAncestor(node: ts.Node): boolean {
 }
 
 /**
- * `{ throw new Error(); it("ID", ...); }`のように、無条件で制御を抜ける文
- * （throw/return）より後方に置かれた文はブロック内で到達不能になる。
- * `isConditionalRegistrationAncestor`はif/switch/loop/catch/tryなど「実行される
- * かもしれない」分岐だけを見ており、この「静的に見て絶対に実行されない」経路を
- * 別途判定する必要がある。Blockが全体として（その親スコープから見て）確実に
- * 抜けるかどうかは最後の文だけでは決まらない — 先頭のthrowの後に文が続いても
- * Blockはその時点で必ず抜ける — ため、含まれるいずれかの文が無条件に抜けるかを見る。
+ * `{ throw new Error(); it("ID", ...); }`や
+ * `describe("suite", () => { if (cond) return; it("ID", ...); })`、
+ * `switch (process.env.MODE) { case "skip": return; } it("ID", ...);`の
+ * ように、先行する兄弟文がthrow/return/break/continueや、それらへ辿り着き得る
+ * if/switch/while/for/try/finally/labeled statementであれば、後続の`it`/`test`
+ * 呼び出しが本当に登録されるかは静的に保証できない。これらはテスト呼び出しの
+ * 祖先ではなく先行する兄弟文なので`isConditionalRegistrationAncestor`（祖先だけを
+ * 見る）では捉えられず、かといって「exitし得る構文」を個別に列挙していくやり方は
+ * 際限がなく取りこぼしを生み続ける（過去のレビューでif→switch/while/for/
+ * try-finally/labeled statementと繰り返し指摘された）。
  *
- * `describe("suite", () => { if (cond) return; it("ID", ...); })`のような
- * ガード節も同じ理由で扱う必要がある。`if`はテスト呼び出しの祖先ではなく
- * 先行する兄弟文なので`isConditionalRegistrationAncestor`では捉えられず、
- * `cond`（真偽が静的に決まる`true`リテラルであれ、CI上でしか変わらない環境変数で
- * あれ）を評価することもできない。then/else節のいずれかが確実に抜けるなら、
- * ガード節全体を「後続文の到達可能性を保証できないもの」として保守的に
- * 無条件終了と同列に扱う。
+ * そこで発想を反転し、「後続文へ必ず読み進む」と静的に保証できる文の種類だけを
+ * 許可リストとして持ち、それ以外の構文（分岐・ループ・例外・ラベルジャンプを
+ * 含み得るもの）はすべて一律で「後続の到達可能性を保証できないもの」として
+ * 保守的に扱う。
  */
-function definitelyExitsControlFlow(statement: ts.Statement): boolean {
-  if (ts.isThrowStatement(statement) || ts.isReturnStatement(statement)) {
-    return true;
-  }
+const CONTROL_FLOW_SAFE_STATEMENT_KINDS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.VariableStatement,
+  ts.SyntaxKind.ExpressionStatement,
+  ts.SyntaxKind.EmptyStatement,
+  ts.SyntaxKind.FunctionDeclaration,
+  ts.SyntaxKind.ClassDeclaration,
+  ts.SyntaxKind.InterfaceDeclaration,
+  ts.SyntaxKind.TypeAliasDeclaration,
+  ts.SyntaxKind.EnumDeclaration,
+  ts.SyntaxKind.ModuleDeclaration,
+  ts.SyntaxKind.ImportDeclaration,
+  ts.SyntaxKind.ImportEqualsDeclaration,
+  ts.SyntaxKind.ExportDeclaration,
+  ts.SyntaxKind.ExportAssignment,
+]);
+
+function isControlFlowSafeStatement(statement: ts.Statement): boolean {
   if (ts.isBlock(statement)) {
-    return statement.statements.some(definitelyExitsControlFlow);
+    return statement.statements.every(isControlFlowSafeStatement);
   }
-  if (ts.isIfStatement(statement)) {
-    return (
-      definitelyExitsControlFlow(statement.thenStatement) ||
-      (statement.elseStatement !== undefined && definitelyExitsControlFlow(statement.elseStatement))
-    );
-  }
-  return false;
+  return CONTROL_FLOW_SAFE_STATEMENT_KINDS.has(statement.kind);
 }
 
-function hasPrecedingUnconditionalExit(block: ts.Block | ts.SourceFile, child: ts.Node): boolean {
+function hasUnsafePrecedingStatement(block: ts.Block | ts.SourceFile, child: ts.Node): boolean {
   const index = block.statements.indexOf(child as ts.Statement);
   if (index <= 0) {
     return false;
   }
   for (let i = 0; i < index; i++) {
-    if (definitelyExitsControlFlow(block.statements[i]!)) {
+    if (!isControlFlowSafeStatement(block.statements[i]!)) {
       return true;
     }
   }
@@ -393,7 +400,7 @@ function isConditionallyRegisteredTest(node: ts.Node, checker: ts.TypeChecker): 
     }
     if (
       (ts.isBlock(ancestor) || ts.isSourceFile(ancestor)) &&
-      hasPrecedingUnconditionalExit(ancestor, child)
+      hasUnsafePrecedingStatement(ancestor, child)
     ) {
       return true;
     }
@@ -781,12 +788,63 @@ describe("remaining work manifest (PLAN-001)", () => {
           if (someCondition) {
             doSomething();
           }
-          it("IT-TRACE-037: a test after a non-exiting if statement is evidence", () => {});
+          it("IT-TRACE-037: a test after a non-exiting if statement is also not evidence, since reachability through an arbitrary condition can't be proven either way", () => {});
         });
       `,
       "suite-guard-clause.test.ts",
     );
-    expect(suiteGuardClauseDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-037"]);
+    expect(suiteGuardClauseDefinitions).toEqual([]);
+
+    // Rather than enumerating every syntax kind that can skip past later
+    // statements (if, switch, while, for, try/finally, labeled statements,
+    // ...), only a small allowlist of statement kinds that are guaranteed to
+    // fall through unconditionally is trusted; anything else preceding a
+    // test call is rejected regardless of what it is.
+    const precedingControlFlowDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it } from "vitest";
+        describe("suite with a switch guard clause", () => {
+          switch (process.env.MODE) {
+            case "skip":
+              return;
+          }
+          it("IT-TRACE-038: a test after a switch statement is not evidence", () => {});
+        });
+        describe("suite with a while loop", () => {
+          while (process.env.RETRY) {
+            break;
+          }
+          it("IT-TRACE-039: a test after a while statement is not evidence", () => {});
+        });
+        describe("suite with a for loop", () => {
+          for (let i = 0; i < 1; i++) {
+            continue;
+          }
+          it("IT-TRACE-040: a test after a for statement is not evidence", () => {});
+        });
+        describe("suite with a try/finally statement", () => {
+          try {
+            setup();
+          } finally {
+            teardown();
+          }
+          it("IT-TRACE-041: a test after a try/finally statement is not evidence", () => {});
+        });
+        describe("suite with a labeled statement", () => {
+          outer: for (let i = 0; i < 1; i++) {
+            break outer;
+          }
+          it("IT-TRACE-042: a test after a labeled statement is not evidence", () => {});
+        });
+        describe("suite with only control-flow-safe statements", () => {
+          const value = 1;
+          setup(value);
+          it("IT-TRACE-043: a test after only control-flow-safe statements is evidence", () => {});
+        });
+      `,
+      "preceding-control-flow.test.ts",
+    );
+    expect(precedingControlFlowDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-043"]);
 
     const shadowedDefinitions = collectTestCaseDefinitionsFromSource(
       `
