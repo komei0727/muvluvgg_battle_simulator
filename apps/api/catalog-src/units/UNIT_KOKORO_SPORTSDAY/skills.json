@@ -116,7 +116,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER", "CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "ストイックリコイル", "tags": [] },
     "triggers": [
       {

@@ -11,6 +11,7 @@ import {
   EVENT_TYPE_CATEGORIES,
 } from "../definitions/catalog-event-types.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
+import type { ConditionDefinition } from "../definitions/condition-definition.js";
 import type {
   EffectActionReference,
   EffectSequence,
@@ -186,7 +187,10 @@ const TRIGGER_CONTEXT_EVENT_TYPES = new Set([
   "HitPointReduced",
 ]);
 const TRIGGER_CONTEXT_TARGET_KINDS = new Set(["TRIGGER_SOURCE", "TRIGGER_TARGET"]);
+const LAST_RESULT_TARGET_KINDS = new Set(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"]);
 type RuntimeStructuralCapabilityId =
+  | "CAP_ACTIVATION_CONDITION"
+  | "CAP_RESOLUTION_BRANCH_REPEAT"
   | "CAP_TARGET_FILTER_ORDER"
   | "CAP_TARGET_DERIVED_AREA"
   | "CAP_TARGET_BINDING_FALLBACK"
@@ -202,24 +206,27 @@ function selectorTreeSome(
   );
 }
 
-function stepsContainTriggerContextReference(steps: readonly EffectStepDefinition[]): boolean {
+function stepsContainTargetReferenceKinds(
+  steps: readonly EffectStepDefinition[],
+  kinds: ReadonlySet<string>,
+): boolean {
   for (const step of steps) {
     if (step.kind === "ACTION") {
-      if (TRIGGER_CONTEXT_TARGET_KINDS.has(step.target.kind)) {
+      if (kinds.has(step.target.kind)) {
         return true;
       }
     } else if (step.kind === "BRANCH") {
       if (
-        stepsContainTriggerContextReference(step.thenSteps) ||
-        stepsContainTriggerContextReference(step.elseSteps)
+        stepsContainTargetReferenceKinds(step.thenSteps, kinds) ||
+        stepsContainTargetReferenceKinds(step.elseSteps, kinds)
       ) {
         return true;
       }
     } else if (step.kind === "RANDOM_BRANCH") {
-      if (step.branches.some((branch) => stepsContainTriggerContextReference(branch.steps))) {
+      if (step.branches.some((branch) => stepsContainTargetReferenceKinds(branch.steps, kinds))) {
         return true;
       }
-    } else if (step.kind === "REPEAT" && stepsContainTriggerContextReference(step.steps)) {
+    } else if (step.kind === "REPEAT" && stepsContainTargetReferenceKinds(step.steps, kinds)) {
       return true;
     }
   }
@@ -231,6 +238,8 @@ function sequenceRequiresCapability(
   capabilityId: RuntimeStructuralCapabilityId,
 ): boolean {
   switch (capabilityId) {
+    case "CAP_RESOLUTION_BRANCH_REPEAT":
+      return stepsContainTargetReferenceKinds(sequence.steps, LAST_RESULT_TARGET_KINDS);
     case "CAP_TARGET_FILTER_ORDER":
       return sequence.targetBindings.some(({ selector }) =>
         selectorTreeSome(
@@ -260,7 +269,7 @@ function sequenceRequiresCapability(
               (candidate.base !== undefined &&
                 TRIGGER_CONTEXT_TARGET_KINDS.has(candidate.base.kind)),
           ),
-        ) || stepsContainTriggerContextReference(sequence.steps)
+        ) || stepsContainTargetReferenceKinds(sequence.steps, TRIGGER_CONTEXT_TARGET_KINDS)
       );
     default:
       return false;
@@ -288,18 +297,31 @@ function validateRuntimeCapabilityDeclarations(
   requiredCapabilities: readonly CapabilityId[],
   sequences: readonly EffectSequence[],
   triggers: readonly TriggerDefinition[],
+  activationCondition: ConditionDefinition | undefined,
   violations: CatalogIntegrityViolation[],
 ): void {
   if (
-    sequences.some((sequence) => containsStepKind(sequence.steps, BRANCH_REPEAT_STEP_KINDS)) &&
+    (sequences.some((sequence) => containsStepKind(sequence.steps, BRANCH_REPEAT_STEP_KINDS)) ||
+      sequences.some((sequence) =>
+        sequenceRequiresCapability(sequence, "CAP_RESOLUTION_BRANCH_REPEAT"),
+      )) &&
     !requiredCapabilities.some((id) => id === "CAP_RESOLUTION_BRANCH_REPEAT")
   ) {
     violations.push({
       targetId,
       rule: "MISSING_REQUIRED_CAPABILITY",
       message:
-        'BRANCH/REPEAT EffectStep must declare "CAP_RESOLUTION_BRANCH_REPEAT" in requiredCapabilities',
+        'BRANCH/REPEAT EffectStep or LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS reference must declare "CAP_RESOLUTION_BRANCH_REPEAT" in requiredCapabilities',
     });
+  }
+  if (activationCondition !== undefined && activationCondition.kind !== "TRUE") {
+    requireRuntimeCapability(
+      targetId,
+      requiredCapabilities,
+      "CAP_ACTIVATION_CONDITION",
+      "Non-TRUE Skill activationCondition",
+      violations,
+    );
   }
   if (
     (triggers.some((trigger) => TRIGGER_CONTEXT_EVENT_TYPES.has(trigger.eventType)) ||
@@ -545,6 +567,7 @@ function validateSkill(
     skill.requiredCapabilities,
     sequences,
     runtimeTriggers,
+    skill.activationCondition,
     violations,
   );
   for (const trigger of skill.triggers) {
@@ -658,6 +681,7 @@ function validateMemory(
     memory.requiredCapabilities,
     memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.effectSequence),
     memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.trigger),
+    undefined,
     violations,
   );
   for (const triggeredEffect of memory.triggeredEffects) {

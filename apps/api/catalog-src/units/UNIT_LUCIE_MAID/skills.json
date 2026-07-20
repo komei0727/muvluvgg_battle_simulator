@@ -264,7 +264,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "スタート・プリエンプティブ", "tags": [] },
     "triggers": [

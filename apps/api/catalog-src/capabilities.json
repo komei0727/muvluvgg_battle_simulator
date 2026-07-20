@@ -1,5 +1,16 @@
 [
   {
+    "capabilityId": "CAP_ACTIVATION_CONDITION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-004",
+    "description": "TRUE以外のSkill activationCondition評価",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
     "capabilityId": "CAP_CHARGE_RESTRICTION",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",

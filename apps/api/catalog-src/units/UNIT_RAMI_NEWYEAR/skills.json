@@ -199,7 +199,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD", "CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "おみくじ運試し", "tags": [] },
     "triggers": [
       {

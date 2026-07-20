@@ -106,7 +106,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SHIELD", "CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "風紀を守る一撃", "tags": [] }
   },
   {
@@ -173,7 +173,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {
@@ -255,7 +255,8 @@
       "CAP_REMOVE_EFFECTS",
       "CAP_CONTINUOUS_HEAL",
       "CAP_DAMAGE_MOD",
-      "CAP_COMPLEX_EXPIRATION"
+      "CAP_COMPLEX_EXPIRATION",
+      "CAP_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "風紀委員長としての矜持", "tags": [] },
     "triggers": [

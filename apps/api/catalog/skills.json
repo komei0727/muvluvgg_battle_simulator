@@ -2419,7 +2419,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER", "CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "私に任せて！", "tags": [] }
   },
   {
@@ -4505,7 +4505,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "防寒はバッチリ！", "tags": [] },
     "triggers": [
       {
@@ -5658,7 +5658,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER", "CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "ストイックリコイル", "tags": [] },
     "triggers": [
       {
@@ -6262,7 +6262,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "みんなと一緒！", "tags": [] },
     "triggers": [
       {
@@ -6636,7 +6636,12 @@
       }
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_FORMULA", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_FORMULA",
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_ACTIVATION_CONDITION"
+    ],
     "metadata": { "displayName": "アイム・ア・ヒーロー", "tags": [] }
   },
   {
@@ -7369,7 +7374,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "スタート・プリエンプティブ", "tags": [] },
     "triggers": [
@@ -8324,7 +8330,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SHIELD", "CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "風紀を守る一撃", "tags": [] }
   },
   {
@@ -8391,7 +8397,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {
@@ -8468,7 +8474,8 @@
       "CAP_REMOVE_EFFECTS",
       "CAP_CONTINUOUS_HEAL",
       "CAP_DAMAGE_MOD",
-      "CAP_COMPLEX_EXPIRATION"
+      "CAP_COMPLEX_EXPIRATION",
+      "CAP_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "風紀委員長としての矜持", "tags": [] },
     "triggers": [
@@ -9153,7 +9160,11 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_ACTIVATION_CONDITION"
+    ],
     "metadata": { "displayName": "リストリクションエッジ", "tags": [] },
     "triggers": [
       {
@@ -10973,7 +10984,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD", "CAP_ACTIVATION_CONDITION"],
     "metadata": { "displayName": "おみくじ運試し", "tags": [] },
     "triggers": [
       {
@@ -14339,7 +14350,8 @@
       "CAP_MARKER",
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "逆転の方策", "tags": [] }
   },
@@ -14425,7 +14437,8 @@
       "CAP_RESOURCE_MUTATION",
       "CAP_DEATH_SURVIVAL",
       "CAP_MARKER",
-      "CAP_SKILL_RUNTIME_COUNTER"
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "起死回生の一手", "tags": [] },
     "triggers": [

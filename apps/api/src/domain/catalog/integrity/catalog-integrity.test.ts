@@ -15,6 +15,7 @@ import { createSkillDefinition, type SkillDefinition } from "../definitions/skil
 import type { TargetReferenceInput } from "../definitions/references.js";
 import type { TargetSelectorDefinitionInput } from "../definitions/target-selector-definition.js";
 import { createUnitDefinition, type UnitDefinition } from "../definitions/unit-definition.js";
+import type { ConditionDefinitionInput } from "../definitions/condition-definition.js";
 
 function damageAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
@@ -127,6 +128,7 @@ function targetingSkill(
   selector: TargetSelectorDefinitionInput,
   requiredCapabilities: readonly string[],
   target: TargetReferenceInput = { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+  activationCondition?: ConditionDefinitionInput,
 ): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: "SKL_AS1",
@@ -144,6 +146,7 @@ function targetingSkill(
       ],
     },
     cooldown: { unit: "ACTION", count: 1 },
+    ...(activationCondition === undefined ? {} : { activationCondition }),
     traits: {},
     requiredCapabilities,
     metadata: { displayName: "Targeting AS" },
@@ -795,7 +798,7 @@ describe("buildCatalogIndex", () => {
         skills: [branchSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
         capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
       }),
-    ).toThrowError(/BRANCH\/REPEAT EffectStep must declare/);
+    ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
 
     expect(() =>
       buildCatalogIndex({
@@ -826,7 +829,7 @@ describe("buildCatalogIndex", () => {
         memories: [branchMemory([])],
         capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
       }),
-    ).toThrowError(/BRANCH\/REPEAT EffectStep must declare/);
+    ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
 
     expect(() =>
       buildCatalogIndex({
@@ -924,6 +927,59 @@ describe("buildCatalogIndex", () => {
           exSkill("SKL_EX1", 7),
         ],
         capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it.each(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const)(
+    "UT-CAT-IDX-030: rejects %s EffectStep references without CAP_RESOLUTION_BRANCH_REPEAT",
+    (kind) => {
+      const defs = baseDefinitions();
+      const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [targetingSkill(selector, [], { kind }), exSkill("SKL_EX1", 7)],
+          capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+        }),
+      ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
+
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            targetingSkill(selector, ["CAP_RESOLUTION_BRANCH_REPEAT"], { kind }),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it("UT-CAT-IDX-031: rejects a non-TRUE activationCondition without CAP_ACTIVATION_CONDITION", () => {
+    const defs = baseDefinitions();
+    const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
+    const activationCondition = { kind: "TURN_NUMBER", op: "GTE", value: 2 } as const;
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          targetingSkill(selector, [], undefined, activationCondition),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [capability("CAP_ACTIVATION_CONDITION")],
+      }),
+    ).toThrowError(/must declare "CAP_ACTIVATION_CONDITION"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          targetingSkill(selector, ["CAP_ACTIVATION_CONDITION"], undefined, activationCondition),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [capability("CAP_ACTIVATION_CONDITION")],
       }),
     ).not.toThrow();
   });

@@ -321,7 +321,7 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": {
       "displayName": "防寒はバッチリ！",
       "tags": []

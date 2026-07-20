@@ -201,7 +201,11 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_ACTIVATION_CONDITION"
+    ],
     "metadata": { "displayName": "リストリクションエッジ", "tags": [] },
     "triggers": [
       {

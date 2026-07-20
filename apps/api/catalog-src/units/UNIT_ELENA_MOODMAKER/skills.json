@@ -133,7 +133,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER", "CAP_ACTIVATION_CONDITION"],
     "metadata": {
       "displayName": "私に任せて！",
       "tags": []
