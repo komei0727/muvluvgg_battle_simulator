@@ -127,7 +127,8 @@
       "CAP_MARKER",
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": {
       "displayName": "遅効の毒針",

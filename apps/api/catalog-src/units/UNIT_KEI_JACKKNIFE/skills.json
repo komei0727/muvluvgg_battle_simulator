@@ -72,7 +72,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ウルフズショット", "tags": [] }
   },
   {

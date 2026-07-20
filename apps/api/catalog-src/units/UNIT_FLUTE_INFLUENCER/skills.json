@@ -35,7 +35,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ライブストリーミング！", "tags": [] }
   },
   {
@@ -74,7 +74,11 @@
     },
     "cooldown": { "unit": "TURN", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "いいね☆で元気だそ？", "tags": [] }
   },
   {
@@ -168,7 +172,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "イケてる♡イケてる", "tags": [] },
     "triggers": [
       {

@@ -71,7 +71,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "スカーレット・ネイル",
       "tags": []
@@ -135,7 +135,11 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MUTATION",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": {
       "displayName": "ペネトレイトバレット",
       "tags": []
@@ -279,7 +283,11 @@
     "traits": {
       "priorityAttack": true
     },
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": [
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": {
       "displayName": "ファーストストライク",
       "tags": []

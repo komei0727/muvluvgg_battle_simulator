@@ -208,6 +208,7 @@
     "description": "SkillRuntimeスコープの発動回数・累計条件",
     "verification": {
       "productionDefinitionIds": [
+        "SKL_CI_SMOKE_TEST_PS1",
         "SKL_CHIYURU_NEWYEAR_PS2",
         "SKL_CHIZURU_DOMESTIC_PS1",
         "SKL_CHIZURU_DOMESTIC_PS2",

@@ -126,7 +126,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ポイズンチェイス", "tags": [] },
     "triggers": [
       {
@@ -170,7 +170,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ポイズンライド", "tags": [] },
     "triggers": [
       {

@@ -235,7 +235,8 @@
       "CAP_DAMAGE_MOD",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_SHIELD",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TRIGGER_CONTEXT"
     ],
     "metadata": { "displayName": "ブラフ", "tags": [] },
     "triggers": [

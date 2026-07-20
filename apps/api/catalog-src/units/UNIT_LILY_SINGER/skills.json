@@ -64,7 +64,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "カバーは任せて！", "tags": [] }
   },
   {
@@ -167,7 +167,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ライブ開始だよ！", "tags": [] },
     "triggers": [
       {

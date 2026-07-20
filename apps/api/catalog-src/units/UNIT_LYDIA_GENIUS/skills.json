@@ -218,7 +218,8 @@
       "CAP_RESOURCE_MUTATION",
       "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TRIGGER_CONTEXT",
-      "CAP_HEAL"
+      "CAP_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "がんばるね、おにいちゃん", "tags": [] },
     "triggers": [

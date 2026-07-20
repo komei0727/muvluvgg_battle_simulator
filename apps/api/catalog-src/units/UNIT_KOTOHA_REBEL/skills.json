@@ -72,7 +72,8 @@
       "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_PARTIAL_PIERCING",
       "CAP_HEAL",
-      "CAP_CONTINUOUS_HEAL"
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "支配への反逆", "tags": [] }
   },

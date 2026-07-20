@@ -51,7 +51,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_DAMAGE_MOD", "CAP_HEAL"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_DAMAGE_MOD",
+      "CAP_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "これは没収です！", "tags": [] }
   },
   {

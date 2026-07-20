@@ -38,7 +38,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "攻撃魔法『Xプロージョン』", "tags": [] }
   },
   {

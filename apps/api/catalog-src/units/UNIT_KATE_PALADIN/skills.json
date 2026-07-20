@@ -72,7 +72,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_HEAL"],
+    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "聖剣『ディバインキャリバー』", "tags": [] }
   },
   {
@@ -243,7 +243,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": [
+      "CAP_RANDOM_BRANCH",
+      "CAP_DAMAGE_MOD",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "聖剣の峰打ち", "tags": [] }
   },
   {
@@ -281,7 +286,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "聖騎士の威光", "tags": [] }
   },
   {

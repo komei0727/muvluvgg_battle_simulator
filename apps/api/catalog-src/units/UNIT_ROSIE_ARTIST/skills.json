@@ -278,7 +278,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "エクストラ・パワーアップ！",
       "tags": []

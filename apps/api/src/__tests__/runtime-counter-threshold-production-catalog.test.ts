@@ -112,18 +112,23 @@ function lifecycleDefinitions(
   };
 }
 
-function initialSnapshotFor(unit: ReturnType<typeof createBattleUnit>): BattleStateSnapshot {
+function initialSnapshotFor(
+  units: readonly ReturnType<typeof createBattleUnit>[],
+): BattleStateSnapshot {
   return {
     status: "RUNNING",
     currentTurn: 1,
-    units: {
-      [unit.battleUnitId]: {
-        hp: unit.currentHp,
-        ap: unit.currentAp,
-        pp: unit.currentPp,
-        extraGauge: unit.currentExtraGauge,
-      },
-    },
+    units: Object.fromEntries(
+      units.map((unit) => [
+        unit.battleUnitId,
+        {
+          hp: unit.currentHp,
+          ap: unit.currentAp,
+          pp: unit.currentPp,
+          extraGauge: unit.currentExtraGauge,
+        },
+      ]),
+    ),
   };
 }
 
@@ -275,9 +280,9 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
     },
   );
 
-  it("IT-CAP-SKILL-RUNTIME-003: a production activation counter consumes PassiveActivated through RuntimeCounterChanged, StateDelta replay, and blocks the next activation", () => {
-    const unitId = "UNIT_KEI_JACKKNIFE";
-    const skillId = "SKL_KEI_JACKKNIFE_PS1";
+  it("IT-CAP-SKILL-RUNTIME-003: an executable production PS traverses TurnStarted through PassiveActivated, RuntimeCounterChanged, StateDelta replay, and next-activation blocking", () => {
+    const unitId = "UNIT_CI_SMOKE_TEST";
+    const skillId = "SKL_CI_SMOKE_TEST_PS1";
     const counterId = `${skillId}_ACTIVATIONS`;
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const snapshot = catalog.loadSnapshot([unitId as never], []);
@@ -286,7 +291,13 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       ...actorFor(unitId, "ALLY", "B_CAP_RUNTIME:unit:1", unitDefinition.baseStats.maximumHp),
       currentPp: 4,
     };
-    const initial = initialSnapshotFor(owner);
+    const enemy = actorFor(
+      unitId,
+      "ENEMY",
+      "B_CAP_RUNTIME:unit:2",
+      unitDefinition.baseStats.maximumHp,
+    );
+    const initial = initialSnapshotFor([owner, enemy]);
     const definitions = lifecycleDefinitions(snapshot, unitId, skillId);
     const recorder = new EventRecorder(createBattleId("B_CAP_RUNTIME"));
     const turnStarted = recorder.record({
@@ -297,45 +308,42 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       resolutionScopeId: recorder.nextResolutionScopeId(),
       payload: { turnNumber: 1 },
     });
-    const passiveActivated = recorder.record({
-      eventType: "PassiveActivated",
-      category: "FACT",
-      turnNumber: 1,
-      cycleNumber: 0,
-      resolutionScopeId: turnStarted.resolutionScopeId,
-      parentEventId: turnStarted.eventId,
-      rootEventId: turnStarted.eventId,
-      sourceUnitId: owner.battleUnitId,
-      payload: {
-        actorUnitId: owner.battleUnitId,
-        skillDefinitionId: skillId as never,
-        ppBefore: owner.currentPp,
-        ppAfter: owner.currentPp,
-        exBefore: owner.currentExtraGauge,
-        exAfter: owner.currentExtraGauge,
-        triggerEventId: turnStarted.eventId,
-      },
-    });
     const runtime = new PassiveActivationRuntime(
       {
         definitions,
-        random: new SequenceRandomSource([]),
+        random: new SequenceRandomSource([0.5]),
         recorder,
         turnNumber: 1,
         cycleNumber: 0,
         resolutionScopeId: turnStarted.resolutionScopeId,
         rootEventId: turnStarted.eventId,
       },
-      [owner],
+      [owner, enemy],
     );
 
-    const afterFirstActivation = runtime.onFactEvent(passiveActivated, [owner]);
-    const updatedOwner = afterFirstActivation[0]!;
+    const afterFirstActivation = runtime.onFactEvent(turnStarted, [owner, enemy]);
+    const updatedOwner = afterFirstActivation.find(
+      (unit) => unit.battleUnitId === owner.battleUnitId,
+    )!;
+    const updatedEnemy = afterFirstActivation.find(
+      (unit) => unit.battleUnitId === enemy.battleUnitId,
+    )!;
+    const passiveActivated = recorder
+      .getEvents()
+      .find((event) => event.eventType === "PassiveActivated");
     const counterChanged = recorder
       .getEvents()
       .find((event) => event.eventType === "RuntimeCounterChanged");
 
-    expect(counterChanged?.parentEventId).toBe(passiveActivated.eventId);
+    expect(passiveActivated?.payload).toMatchObject({
+      actorUnitId: owner.battleUnitId,
+      skillDefinitionId: skillId,
+      ppBefore: 4,
+      ppAfter: 3,
+      exBefore: 0,
+      exAfter: 1,
+    });
+    expect(counterChanged?.parentEventId).toBe(passiveActivated?.eventId);
     expect(counterChanged?.payload).toMatchObject({
       skillDefinitionId: skillId,
       counter: counterId,
@@ -347,6 +355,9 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       value: 1,
       carry: 0,
     });
+    expect(updatedOwner.currentPp).toBe(3);
+    expect(updatedOwner.currentExtraGauge).toBe(1);
+    expect(updatedEnemy.currentHp).toBeLessThan(enemy.currentHp);
 
     const reconstructed = replayEventDeltas(initial, recorder);
     expect(reconstructed.units[owner.battleUnitId]).toMatchObject({
@@ -354,6 +365,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       extraGauge: updatedOwner.currentExtraGauge,
       skillCounters: { [skillId]: { [counterId]: 1 } },
     });
+    expect(reconstructed.units[enemy.battleUnitId]?.hp).toBe(updatedEnemy.currentHp);
 
     const secondRecorder = new EventRecorder(createBattleId("B_CAP_RUNTIME_SECOND"));
     const secondTurnStarted = secondRecorder.record({
@@ -393,7 +405,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       ...actorFor(unitId, "ALLY", "B_CAP_CUMULATIVE:unit:1", unitDefinition.baseStats.maximumHp),
       currentPp: 0,
     };
-    const initial = initialSnapshotFor(owner);
+    const initial = initialSnapshotFor([owner]);
     const definitions = lifecycleDefinitions(snapshot, unitId, skillId);
     const recorder = new EventRecorder(createBattleId("B_CAP_CUMULATIVE"));
     const scopeId = recorder.nextResolutionScopeId();

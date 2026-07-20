@@ -38,7 +38,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MUTATION",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "アクセプトラヴ", "tags": [] }
   },
   {
@@ -135,7 +139,8 @@
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "オブセッションロケット", "tags": [] }
   },
@@ -197,7 +202,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": [
+      "CAP_CRITICAL_CONTROL",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "エモーショナルエッジ", "tags": [] },
     "triggers": [
       {
@@ -304,7 +313,8 @@
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "百花繚乱", "tags": [] }
   },
@@ -371,7 +381,8 @@
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_FORMULA",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "清廉なる一撃", "tags": [] }
   },
@@ -395,7 +406,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "優雅な足取り", "tags": [] },
     "triggers": [
       {
@@ -469,7 +480,8 @@
       "CAP_MARKER",
       "CAP_DAMAGE_MOD",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "高貴な一礼", "tags": [] },
     "triggers": [
@@ -531,7 +543,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_CONTINUOUS_HEAL"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_CONTINUOUS_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "旱天の慈雨", "tags": [] }
   },
   {
@@ -630,7 +642,8 @@
       "CAP_FORMULA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TRIGGER_CONTEXT"
     ],
     "metadata": { "displayName": "捲土重来", "tags": [] },
     "triggers": [
@@ -770,7 +783,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ポイズンチェイス", "tags": [] },
     "triggers": [
       {
@@ -814,7 +827,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ポイズンライド", "tags": [] },
     "triggers": [
       {
@@ -1080,7 +1093,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_HEAL"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "強襲掃討", "tags": [] }
   },
   {
@@ -1150,7 +1163,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "チェーンマニューバ", "tags": [] },
     "triggers": [
       {
@@ -1287,7 +1300,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER", "CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MARKER",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "怒らせすぎ注意", "tags": [] },
     "triggers": [
       {
@@ -1378,6 +1396,68 @@
     "metadata": { "displayName": "CI Smoke EX", "tags": ["INTERNAL", "SMOKE_TEST", "TEMPORARY"] }
   },
   {
+    "skillDefinitionId": "SKL_CI_SMOKE_TEST_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CI_SMOKE_TEST_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 99 },
+    "traits": {},
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
+    "metadata": {
+      "displayName": "CI Smoke Runtime Counter Passive",
+      "tags": ["INTERNAL", "SMOKE_TEST", "TEMPORARY"]
+    },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_CI_SMOKE_TEST_PS1_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_CI_SMOKE_TEST_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_CI_SMOKE_TEST_PS1"
+          }
+        },
+        "amount": 1
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_CLARA_SANTA_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 5 },
@@ -1407,7 +1487,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "サンタクイーンズ・ケーキ", "tags": [] }
   },
   {
@@ -1454,7 +1534,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "届け、マイソング！", "tags": [] }
   },
   {
@@ -1501,7 +1581,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_BINDING_FALLBACK"
+      "CAP_TARGET_BINDING_FALLBACK",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "アンコール！", "tags": [] }
   },
@@ -1536,7 +1617,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "メリ～クリスマ～ス！", "tags": [] }
   },
   {
@@ -1571,7 +1652,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "クララ・オン・ステージ", "tags": [] },
     "triggers": [
       {
@@ -1741,7 +1822,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "アーマー・ジャム", "tags": [] },
     "triggers": [
       {
@@ -1969,7 +2050,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "グローリーコール", "tags": [] },
     "triggers": [
       {
@@ -2141,7 +2222,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "融和の象徴", "tags": [] },
     "triggers": [
       {
@@ -2222,7 +2307,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "新時代の先駆け", "tags": [] },
     "triggers": [
       {
@@ -2296,7 +2381,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "あったかいの、どうぞ♪", "tags": [] }
   },
   {
@@ -2334,7 +2419,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "私に任せて！", "tags": [] }
   },
   {
@@ -2918,7 +3003,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TRIGGER_CONTEXT"
+    ],
     "metadata": { "displayName": "アタックアンプリファイ", "tags": [] },
     "triggers": [
       {
@@ -2971,7 +3060,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ステージブースト", "tags": [] },
     "triggers": [
       {
@@ -3040,7 +3129,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ヴォイドアンプリファイ", "tags": [] },
     "triggers": [
       {
@@ -3156,7 +3245,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "かぶり湯", "tags": [] }
   },
   {
@@ -3204,7 +3293,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "すべすべお肌", "tags": [] },
     "triggers": [
       {
@@ -3246,7 +3335,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "のぼせた？", "tags": [] },
     "triggers": [
       {
@@ -3288,7 +3377,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ライブストリーミング！", "tags": [] }
   },
   {
@@ -3322,7 +3411,11 @@
     },
     "cooldown": { "unit": "TURN", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "いいね☆で元気だそ？", "tags": [] }
   },
   {
@@ -3416,7 +3509,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "イケてる♡イケてる", "tags": [] },
     "triggers": [
       {
@@ -3486,7 +3579,8 @@
       "CAP_HEAL",
       "CAP_FORMULA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "＃ぽよ・オア・トリート", "tags": [] }
   },
@@ -3636,7 +3730,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION", "CAP_EFFECT_STEP_CONDITION", "CAP_MARKER"],
+    "requiredCapabilities": [
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_MARKER",
+      "CAP_TRIGGER_CONTEXT"
+    ],
     "metadata": { "displayName": "アウェイキング・ヴァンパイア", "tags": [] },
     "triggers": [
       {
@@ -3688,7 +3787,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_DEATH_SURVIVAL",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "あなたにマーキング♡", "tags": [] },
     "triggers": [
       {
@@ -3845,7 +3949,8 @@
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
       "CAP_TARGET_DERIVED_AREA",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "攻撃魔法『ホーリーレイ』", "tags": [] }
   },
@@ -3878,7 +3983,8 @@
       "CAP_SPECIFIC_IMMUNITY",
       "CAP_HIT_COUNT_EVASION",
       "CAP_COMPLEX_EXPIRATION",
-      "CAP_CONTINUOUS_HEAL"
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "防御魔法『セイントバリア』", "tags": [] }
   },
@@ -3923,7 +4029,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_COMPLEX_EXPIRATION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "治癒魔法『ヒール』", "tags": [] },
     "triggers": [
       {
@@ -4001,7 +4111,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "スカーレット・ネイル", "tags": [] }
   },
   {
@@ -4038,7 +4148,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MUTATION",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "ペネトレイトバレット", "tags": [] }
   },
   {
@@ -4123,7 +4237,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": [
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_RESOURCE_MUTATION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "ファーストストライク", "tags": [] },
     "triggers": [
       {
@@ -4488,7 +4606,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "なにするかーーー！！", "tags": [] }
   },
@@ -4705,7 +4824,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "フェイスストライク", "tags": [] }
   },
   {
@@ -4761,7 +4884,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "弱点はそこかな？", "tags": [] }
   },
   {
@@ -4811,7 +4934,8 @@
       "CAP_TARGET_REDIRECT",
       "CAP_COVER_DAMAGE",
       "CAP_TRIGGER_CONTEXT",
-      "CAP_EFFECT_STEP_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "風紀委員会の管轄だよ～", "tags": [] },
     "triggers": [
@@ -4948,7 +5072,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_HEAL"],
+    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "聖剣『ディバインキャリバー』", "tags": [] }
   },
   {
@@ -5119,7 +5243,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RANDOM_BRANCH", "CAP_DAMAGE_MOD", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": [
+      "CAP_RANDOM_BRANCH",
+      "CAP_DAMAGE_MOD",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "聖剣の峰打ち", "tags": [] }
   },
   {
@@ -5157,7 +5286,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "聖騎士の威光", "tags": [] }
   },
   {
@@ -5268,7 +5397,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ウルフズショット", "tags": [] }
   },
   {
@@ -5492,7 +5621,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "エイムグローリー", "tags": [] }
   },
@@ -5528,7 +5658,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ストイックリコイル", "tags": [] },
     "triggers": [
       {
@@ -5597,7 +5727,8 @@
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "スターターショット", "tags": [] },
     "triggers": [
@@ -5653,7 +5784,8 @@
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_CONTINUOUS_HEAL"
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "チアーエール", "tags": [] },
     "triggers": [
@@ -5739,7 +5871,8 @@
       "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_PARTIAL_PIERCING",
       "CAP_HEAL",
-      "CAP_CONTINUOUS_HEAL"
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "支配への反逆", "tags": [] }
   },
@@ -6378,7 +6511,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ラッキー４！", "tags": [] },
     "triggers": [
       {
@@ -6503,7 +6636,7 @@
       }
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_FORMULA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "アイム・ア・ヒーロー", "tags": [] }
   },
   {
@@ -6656,7 +6789,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "カバーは任せて！", "tags": [] }
   },
   {
@@ -6759,7 +6892,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ライブ開始だよ！", "tags": [] },
     "triggers": [
       {
@@ -6801,7 +6934,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "メイドの本能", "tags": [] }
   },
   {
@@ -6843,7 +6976,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "キックアウト", "tags": [] }
   },
   {
@@ -6873,7 +7006,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "エイド・フロム", "tags": [] }
   },
   {
@@ -6957,7 +7090,8 @@
     "requiredCapabilities": [
       "CAP_CONTINUOUS_HEAL",
       "CAP_TARGET_DERIVED_AREA",
-      "CAP_CONTINUOUS_DAMAGE"
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "ルミナス・ガード", "tags": [] },
     "triggers": [
@@ -7652,7 +7786,8 @@
       "CAP_RESOURCE_MUTATION",
       "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TRIGGER_CONTEXT",
-      "CAP_HEAL"
+      "CAP_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "がんばるね、おにいちゃん", "tags": [] },
     "triggers": [
@@ -7738,7 +7873,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "さて……準備はできたわ", "tags": [] }
   },
   {
@@ -7768,7 +7903,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "スナイプリフレクター", "tags": [] }
   },
   {
@@ -7807,7 +7942,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_CONTINUOUS_HEAL", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "アライヒーリング", "tags": [] }
   },
   {
@@ -7835,7 +7975,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "パワーアプライ", "tags": [] }
   },
   {
@@ -7908,7 +8048,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "シャル・ウィ・ダンス？", "tags": [] }
   },
   {
@@ -8129,7 +8269,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_DAMAGE_MOD", "CAP_HEAL"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_DAMAGE_MOD",
+      "CAP_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "これは没収です！", "tags": [] }
   },
   {
@@ -8564,7 +8709,8 @@
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_FORMULA",
       "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "新たなる力", "tags": [] }
   },
@@ -8639,7 +8785,8 @@
       "CAP_RESOURCE_MUTATION",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_COOLDOWN_MANIPULATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "フラットスピン", "tags": [] }
   },
@@ -8843,7 +8990,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ふわとろのきもち", "tags": [] }
   },
   {
@@ -8891,7 +9038,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "ペンタブレイド", "tags": [] }
   },
   {
@@ -9002,7 +9153,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "リストリクションエッジ", "tags": [] },
     "triggers": [
       {
@@ -9099,7 +9250,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "正射必中", "tags": [] }
   },
   {
@@ -9154,7 +9305,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "効力射", "tags": [] }
   },
   {
@@ -9209,7 +9360,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "カウンタースナイプ", "tags": [] },
     "triggers": [
       {
@@ -9262,7 +9413,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "飽和爆撃", "tags": [] }
   },
   {
@@ -9306,7 +9457,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "制圧支援", "tags": [] }
   },
   {
@@ -9516,7 +9667,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "攻撃魔法『Xプロージョン』", "tags": [] }
   },
   {
@@ -9715,7 +9866,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ぺたぺた雪だるま", "tags": [] }
   },
   {
@@ -9979,7 +10130,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL", "CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_HEAL",
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "イグナイト", "tags": [] }
   },
   {
@@ -10048,7 +10204,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "スタンサプレッション", "tags": [] }
   },
@@ -10160,7 +10317,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "リベンジシュート", "tags": [] },
     "triggers": [
       {
@@ -10233,7 +10390,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_CONTINUOUS_DAMAGE"
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "バイト・ザ・ビクトリー！", "tags": [] }
   },
@@ -10446,7 +10604,8 @@
       "CAP_HEAL",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_DERIVED_AREA"
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "粛清です", "tags": [] }
   },
@@ -10661,7 +10820,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ど～こ見てんのよ♪", "tags": [] }
   },
   {
@@ -11230,7 +11389,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "キャッチライト", "tags": [] },
     "triggers": [
       {
@@ -11271,7 +11430,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "キャットウォーク", "tags": [] },
     "triggers": [
       {
@@ -11442,7 +11601,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "エクストラ・パワーアップ！", "tags": [] },
     "triggers": [
       {
@@ -11494,7 +11653,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
+    "requiredCapabilities": [
+      "CAP_CRITICAL_CONTROL",
+      "CAP_MARKER",
+      "CAP_COOLDOWN_MANIPULATION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "バニー＆ベット", "tags": [] }
   },
   {
@@ -11606,7 +11770,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "ハイローベット", "tags": [] }
   },
   {
@@ -11938,7 +12106,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "プレゼント・タイム", "tags": [] }
   },
   {
@@ -12007,7 +12175,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "はらぐろさくしー", "tags": [] },
     "triggers": [
       {
@@ -12076,7 +12244,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "柊校舎の優等生", "tags": [] }
   },
@@ -12239,7 +12408,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "薄暮の宵火", "tags": [] }
   },
   {
@@ -12273,7 +12442,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "クールスラッシュ・トリプル", "tags": [] }
   },
   {
@@ -12312,7 +12481,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD"],
+    "requiredCapabilities": ["CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "バックエイムファイヤ", "tags": [] }
   },
   {
@@ -12342,7 +12511,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "スマートバリア", "tags": [] },
     "triggers": [
       {
@@ -12391,7 +12560,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "セカンドライン・セーブ", "tags": [] },
     "triggers": [
       {
@@ -12434,7 +12603,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "装いを新たに", "tags": [] }
   },
   {
@@ -12492,7 +12661,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_REMOVE_EFFECTS"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_REMOVE_EFFECTS", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "仲間想いのリカバリー", "tags": [] }
   },
   {
@@ -12698,7 +12867,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "スキュア", "tags": [] }
   },
   {
@@ -12997,7 +13166,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "テンポプリモ", "tags": [] },
     "triggers": [
       {
@@ -13049,7 +13218,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ヴィヴァーチェ", "tags": [] }
   },
   {
@@ -13114,7 +13283,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "アリアエナジー", "tags": [] }
   },
   {
@@ -13290,7 +13459,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ブラックアウト・ラビリンス", "tags": [] }
   },
   {
@@ -13673,7 +13842,8 @@
       "CAP_DAMAGE_MOD",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_SHIELD",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TRIGGER_CONTEXT"
     ],
     "metadata": { "displayName": "ブラフ", "tags": [] },
     "triggers": [
@@ -13854,7 +14024,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "追撃符", "tags": [] },
     "triggers": [
       {
@@ -14104,7 +14274,8 @@
       "CAP_MARKER",
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "遅効の毒針", "tags": [] }
   },
@@ -14378,7 +14549,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "アフターライズ", "tags": [] },
     "triggers": [
       {
@@ -14415,7 +14586,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 2 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ハイサポート", "tags": [] },
     "triggers": [
       {
@@ -14588,7 +14759,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ザ式戦術機動剣術・壱型「掩撃」", "tags": [] },
     "triggers": [
       {
@@ -14667,7 +14838,8 @@
       "CAP_SHIELD",
       "CAP_HEAL",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "ザ式戦術機動剣術・弐型「反魂」", "tags": [] },
     "triggers": [
@@ -14801,7 +14973,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "カオスキャノン", "tags": [] }
   },
   {
@@ -14881,7 +15053,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "フレンジーキャノン", "tags": [] },
     "triggers": [
       {
@@ -14933,7 +15105,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "桶シュート！", "tags": [] }
   },
   {
@@ -15021,7 +15193,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "湯上がりの牛乳", "tags": [] },
     "triggers": [
       {

@@ -56,7 +56,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ぺたぺた雪だるま",
       "tags": []

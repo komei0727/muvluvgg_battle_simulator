@@ -29,7 +29,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "サンタクイーンズ・ケーキ", "tags": [] }
   },
   {
@@ -76,7 +76,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "届け、マイソング！", "tags": [] }
   },
   {
@@ -128,7 +128,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_BINDING_FALLBACK"
+      "CAP_TARGET_BINDING_FALLBACK",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "アンコール！", "tags": [] }
   },
@@ -163,7 +164,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "メリ～クリスマ～ス！", "tags": [] }
   },
   {
@@ -198,7 +199,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "クララ・オン・ステージ", "tags": [] },
     "triggers": [
       {

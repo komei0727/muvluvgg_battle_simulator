@@ -13,12 +13,14 @@ import {
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type {
   EffectActionReference,
+  EffectSequence,
   EffectStepDefinition,
 } from "../definitions/effect-sequence.js";
 import type { MemoryDefinition } from "../definitions/memory-definition.js";
 import { toReadonlyMap } from "../../shared/readonly-map.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TriggerDefinition } from "../definitions/trigger-definition.js";
+import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
 
 /**
@@ -183,16 +185,113 @@ const TRIGGER_CONTEXT_EVENT_TYPES = new Set([
   "UnitBeingAttacked",
   "HitPointReduced",
 ]);
+const TRIGGER_CONTEXT_TARGET_KINDS = new Set(["TRIGGER_SOURCE", "TRIGGER_TARGET"]);
+type RuntimeStructuralCapabilityId =
+  | "CAP_TARGET_FILTER_ORDER"
+  | "CAP_TARGET_DERIVED_AREA"
+  | "CAP_TARGET_BINDING_FALLBACK"
+  | "CAP_TRIGGER_CONTEXT";
+
+function selectorTreeSome(
+  selector: TargetSelectorDefinition,
+  predicate: (candidate: TargetSelectorDefinition) => boolean,
+): boolean {
+  return (
+    predicate(selector) ||
+    (selector.fallback !== undefined && selectorTreeSome(selector.fallback, predicate))
+  );
+}
+
+function stepsContainTriggerContextReference(steps: readonly EffectStepDefinition[]): boolean {
+  for (const step of steps) {
+    if (step.kind === "ACTION") {
+      if (TRIGGER_CONTEXT_TARGET_KINDS.has(step.target.kind)) {
+        return true;
+      }
+    } else if (step.kind === "BRANCH") {
+      if (
+        stepsContainTriggerContextReference(step.thenSteps) ||
+        stepsContainTriggerContextReference(step.elseSteps)
+      ) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsContainTriggerContextReference(branch.steps))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsContainTriggerContextReference(step.steps)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function sequenceRequiresCapability(
+  sequence: EffectSequence,
+  capabilityId: RuntimeStructuralCapabilityId,
+): boolean {
+  switch (capabilityId) {
+    case "CAP_TARGET_FILTER_ORDER":
+      return sequence.targetBindings.some(({ selector }) =>
+        selectorTreeSome(
+          selector,
+          (candidate) =>
+            candidate.filters.length > 0 ||
+            candidate.order.length !== 1 ||
+            candidate.order[0] !== "DEFAULT",
+        ),
+      );
+    case "CAP_TARGET_DERIVED_AREA":
+      return sequence.targetBindings.some(({ selector }) =>
+        selectorTreeSome(
+          selector,
+          (candidate) => candidate.kind === "BINDING_DERIVED" || candidate.area !== undefined,
+        ),
+      );
+    case "CAP_TARGET_BINDING_FALLBACK":
+      return sequence.targetBindings.some(({ selector }) => selector.fallback !== undefined);
+    case "CAP_TRIGGER_CONTEXT":
+      return (
+        sequence.targetBindings.some(({ selector }) =>
+          selectorTreeSome(
+            selector,
+            (candidate) =>
+              TRIGGER_CONTEXT_TARGET_KINDS.has(candidate.kind) ||
+              (candidate.base !== undefined &&
+                TRIGGER_CONTEXT_TARGET_KINDS.has(candidate.base.kind)),
+          ),
+        ) || stepsContainTriggerContextReference(sequence.steps)
+      );
+    default:
+      return false;
+  }
+}
+
+function requireRuntimeCapability(
+  targetId: string,
+  requiredCapabilities: readonly CapabilityId[],
+  capabilityId: RuntimeStructuralCapabilityId,
+  reason: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (!requiredCapabilities.some((id) => id === capabilityId)) {
+    violations.push({
+      targetId,
+      rule: "MISSING_REQUIRED_CAPABILITY",
+      message: `${reason} must declare "${capabilityId}" in requiredCapabilities`,
+    });
+  }
+}
 
 function validateRuntimeCapabilityDeclarations(
   targetId: string,
   requiredCapabilities: readonly CapabilityId[],
-  sequences: readonly (readonly EffectStepDefinition[])[],
+  sequences: readonly EffectSequence[],
   triggers: readonly TriggerDefinition[],
   violations: CatalogIntegrityViolation[],
 ): void {
   if (
-    sequences.some((steps) => containsStepKind(steps, BRANCH_REPEAT_STEP_KINDS)) &&
+    sequences.some((sequence) => containsStepKind(sequence.steps, BRANCH_REPEAT_STEP_KINDS)) &&
     !requiredCapabilities.some((id) => id === "CAP_RESOLUTION_BRANCH_REPEAT")
   ) {
     violations.push({
@@ -203,15 +302,25 @@ function validateRuntimeCapabilityDeclarations(
     });
   }
   if (
-    triggers.some((trigger) => TRIGGER_CONTEXT_EVENT_TYPES.has(trigger.eventType)) &&
+    (triggers.some((trigger) => TRIGGER_CONTEXT_EVENT_TYPES.has(trigger.eventType)) ||
+      sequences.some((sequence) => sequenceRequiresCapability(sequence, "CAP_TRIGGER_CONTEXT"))) &&
     !requiredCapabilities.some((id) => id === "CAP_TRIGGER_CONTEXT")
   ) {
     violations.push({
       targetId,
       rule: "MISSING_REQUIRED_CAPABILITY",
       message:
-        'EffectApplied/UnitBeingAttacked/HitPointReduced trigger must declare "CAP_TRIGGER_CONTEXT" in requiredCapabilities',
+        'runtime-owned trigger event or TRIGGER_SOURCE/TRIGGER_TARGET reference must declare "CAP_TRIGGER_CONTEXT" in requiredCapabilities',
     });
+  }
+  for (const [capabilityId, reason] of [
+    ["CAP_TARGET_FILTER_ORDER", "Target selector filter/non-default order"],
+    ["CAP_TARGET_DERIVED_AREA", "BINDING_DERIVED/area target selector"],
+    ["CAP_TARGET_BINDING_FALLBACK", "Target selector fallback"],
+  ] as const) {
+    if (sequences.some((sequence) => sequenceRequiresCapability(sequence, capabilityId))) {
+      requireRuntimeCapability(targetId, requiredCapabilities, capabilityId, reason, violations);
+    }
   }
 }
 
@@ -425,8 +534,8 @@ function validateSkill(
   }
   const sequences =
     skill.resolution.kind === "CHARGE"
-      ? [skill.resolution.steps, skill.resolution.chargeRelease.steps]
-      : [skill.resolution.steps];
+      ? [skill.resolution, skill.resolution.chargeRelease]
+      : [skill.resolution];
   const runtimeTriggers = [
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),
@@ -547,7 +656,7 @@ function validateMemory(
   validateRuntimeCapabilityDeclarations(
     memory.memoryDefinitionId,
     memory.requiredCapabilities,
-    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.effectSequence.steps),
+    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.effectSequence),
     memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.trigger),
     violations,
   );

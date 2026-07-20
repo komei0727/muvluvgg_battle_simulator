@@ -61,7 +61,7 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ハードな準備運動……？", "tags": [] }
   },
   {
@@ -121,7 +121,7 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "心の色", "tags": [] }
   },
   {
@@ -181,7 +181,11 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "お嬢様直伝マナー講座", "tags": [] }
   },
   {
@@ -298,7 +302,7 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "臆病トナカイの聖夜", "tags": [] }
   },
   {
@@ -367,7 +371,11 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "これからも共に歩むあなたへ", "tags": [] }
   }
 ]

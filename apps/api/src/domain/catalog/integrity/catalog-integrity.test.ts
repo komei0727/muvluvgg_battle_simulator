@@ -12,6 +12,8 @@ import type { EffectActionDefinition } from "../definitions/effect-action-defini
 import { createEffectActionDefinition } from "../definitions/effect-action-definition-factory.js";
 import { createMemoryDefinition } from "../definitions/memory-definition.js";
 import { createSkillDefinition, type SkillDefinition } from "../definitions/skill-definition.js";
+import type { TargetReferenceInput } from "../definitions/references.js";
+import type { TargetSelectorDefinitionInput } from "../definitions/target-selector-definition.js";
 import { createUnitDefinition, type UnitDefinition } from "../definitions/unit-definition.js";
 
 function damageAction(id: string): EffectActionDefinition {
@@ -118,6 +120,33 @@ function branchSkill(id: string, requiredCapabilities: readonly string[]): Skill
     traits: {},
     requiredCapabilities,
     metadata: { displayName: "BRANCH AS" },
+  });
+}
+
+function targetingSkill(
+  selector: TargetSelectorDefinitionInput,
+  requiredCapabilities: readonly string[],
+  target: TargetReferenceInput = { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: "SKL_AS1",
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
+      steps: [
+        {
+          kind: "ACTION",
+          target,
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Targeting AS" },
   });
 }
 
@@ -822,6 +851,78 @@ describe("buildCatalogIndex", () => {
       buildCatalogIndex({
         ...defs,
         memories: [triggerContextMemory(["CAP_TRIGGER_CONTEXT"])],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it.each([
+    {
+      capabilityId: "CAP_TARGET_FILTER_ORDER",
+      selector: {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
+      },
+    },
+    {
+      capabilityId: "CAP_TARGET_DERIVED_AREA",
+      selector: {
+        kind: "BINDING_DERIVED",
+        base: { kind: "SELF" },
+        area: { kind: "SAME_ROW_AS_BASE", includeBase: false },
+      },
+    },
+    {
+      capabilityId: "CAP_TARGET_BINDING_FALLBACK",
+      selector: {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        fallback: { kind: "SELECT", side: "ENEMY", count: 1 },
+      },
+    },
+  ])(
+    "UT-CAT-IDX-028: rejects $capabilityId-owned target structure without its Capability",
+    ({ capabilityId, selector }) => {
+      const defs = baseDefinitions();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [targetingSkill(selector, []), exSkill("SKL_EX1", 7)],
+          capabilities: [capability(capabilityId)],
+        }),
+      ).toThrowError(new RegExp(`must declare "${capabilityId}"`));
+
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [targetingSkill(selector, [capabilityId]), exSkill("SKL_EX1", 7)],
+          capabilities: [capability(capabilityId)],
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it("UT-CAT-IDX-029: rejects TRIGGER_SOURCE/TRIGGER_TARGET EffectStep references without CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [targetingSkill(selector, [], { kind: "TRIGGER_TARGET" }), exSkill("SKL_EX1", 7)],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          targetingSkill(selector, ["CAP_TRIGGER_CONTEXT"], { kind: "TRIGGER_SOURCE" }),
+          exSkill("SKL_EX1", 7),
+        ],
         capabilities: [capability("CAP_TRIGGER_CONTEXT")],
       }),
     ).not.toThrow();

@@ -17,15 +17,15 @@ import { buildSimulationSmokeRequest } from "../infrastructure/deploy/simulation
  * smoke test only proved `GET .../battle-simulation-catalog` reports
  * `selectable: true` for a unit — that is NOT sufficient proof a battle
  * using that unit actually runs (target selectors, resolution steps, and
- * effect payloads could still be shaped incorrectly even with zero
- * `requiredCapabilities`). This exercises a REAL battle simulation, through
+ * effect payloads could still be shaped incorrectly even when every
+ * `requiredCapabilities` entry is `IMPLEMENTED`). This exercises a REAL battle simulation, through
  * the real Worker Thread, against the SAME production `catalog/` directory
  * and the SAME request-building logic (`buildSimulationSmokeRequest`) the CI
  * deploy job (`scripts/cloud-run/ci-deploy-candidate.sh` /
  * `.github/workflows/main.yml`) uses for its own post-deploy smoke test.
  *
  * See `docs/ddd/15_Unit_Memory変換台帳.md`「Issue #106: 台帳外の合成Unit」for
- * why `UNIT_CI_SMOKE_TEST` — a synthetic, zero-`requiredCapabilities` unit —
+ * why `UNIT_CI_SMOKE_TEST` — a synthetic, implemented-Capability-only unit —
  * exists: every real converted character unit still references at least one
  * `PLANNED` capability, so none of them are `selectable` yet.
  *

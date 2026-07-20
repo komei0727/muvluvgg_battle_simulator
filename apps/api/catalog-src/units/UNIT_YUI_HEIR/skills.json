@@ -224,7 +224,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "ザ式戦術機動剣術・壱型「掩撃」",
       "tags": []
@@ -341,7 +341,8 @@
       "CAP_SHIELD",
       "CAP_HEAL",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": {
       "displayName": "ザ式戦術機動剣術・弐型「反魂」",

@@ -156,7 +156,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "アフターライズ",
       "tags": []
@@ -219,7 +219,7 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ハイサポート",
       "tags": []

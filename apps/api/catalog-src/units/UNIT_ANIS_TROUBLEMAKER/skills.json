@@ -38,7 +38,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": [
+      "CAP_RESOURCE_MUTATION",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "アクセプトラヴ", "tags": [] }
   },
   {
@@ -135,7 +139,8 @@
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_CONTINUOUS_DAMAGE",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "オブセッションロケット", "tags": [] }
   },
@@ -197,7 +202,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": [
+      "CAP_CRITICAL_CONTROL",
+      "CAP_HIT_COUNT_EVASION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "エモーショナルエッジ", "tags": [] },
     "triggers": [
       {

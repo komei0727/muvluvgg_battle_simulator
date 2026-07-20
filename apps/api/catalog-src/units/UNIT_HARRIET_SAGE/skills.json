@@ -119,7 +119,8 @@
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
       "CAP_TARGET_DERIVED_AREA",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "攻撃魔法『ホーリーレイ』", "tags": [] }
   },
@@ -152,7 +153,8 @@
       "CAP_SPECIFIC_IMMUNITY",
       "CAP_HIT_COUNT_EVASION",
       "CAP_COMPLEX_EXPIRATION",
-      "CAP_CONTINUOUS_HEAL"
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "防御魔法『セイントバリア』", "tags": [] }
   },
@@ -197,7 +199,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
+    "requiredCapabilities": [
+      "CAP_CONTINUOUS_HEAL",
+      "CAP_COMPLEX_EXPIRATION",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "治癒魔法『ヒール』", "tags": [] },
     "triggers": [
       {

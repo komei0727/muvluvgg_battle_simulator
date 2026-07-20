@@ -31,7 +31,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "装いを新たに", "tags": [] }
   },
   {
@@ -94,7 +94,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_REMOVE_EFFECTS"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_REMOVE_EFFECTS", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "仲間想いのリカバリー", "tags": [] }
   },
   {

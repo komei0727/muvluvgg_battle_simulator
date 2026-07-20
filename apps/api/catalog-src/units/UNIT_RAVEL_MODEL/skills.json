@@ -312,7 +312,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "キャッチライト",
       "tags": []
@@ -374,7 +374,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "キャットウォーク",
       "tags": []

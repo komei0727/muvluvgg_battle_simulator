@@ -100,7 +100,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_CONTINUOUS_DAMAGE"
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": {
       "displayName": "バイト・ザ・ビクトリー！",
