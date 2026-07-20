@@ -73,4 +73,17 @@ test("reaches every step of unit selection through the details tabs via real Tab
   await expect(transitionsTab).toBeFocused();
   await expect(transitionsTab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel", { name: "状態遷移" })).toBeVisible();
+
+  // PR #154レビュー[P1]: 因果ツリーtabも他tabと同じくArrowだけで到達・選択
+  // できることを実keystrokeで検証する(UI-NFR-001)。Home/Endで両端へ移動できる
+  // ことも合わせて確認する。
+  const causalityTreeTab = page.getByRole("tab", { name: "因果ツリー" });
+  await page.keyboard.press("End");
+  await expect(causalityTreeTab).toBeFocused();
+  await expect(causalityTreeTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel", { name: "因果ツリー" })).toBeVisible();
+
+  await page.keyboard.press("Home");
+  await expect(eventsTab).toBeFocused();
+  await expect(eventsTab).toHaveAttribute("aria-selected", "true");
 });

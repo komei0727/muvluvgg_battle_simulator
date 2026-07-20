@@ -22,12 +22,15 @@ export interface BattleDetailsSectionProps {
 
 type DetailsTab = "events" | "transitions" | "json" | "actionState" | "causalityTree";
 
+// PR #154レビュー[P1]: causalityTreeを"events"と"transitions"の間へ挿入すると、
+// 既存e2e/keyboard.spec.tsが検証する「時系列イベント --ArrowRight--> 状態遷移」
+// のtab隣接関係が崩れる。既存tabの相対順序を変更せず、末尾に追加する。
 const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] = [
   { id: "events", label: "時系列イベント" },
-  { id: "causalityTree", label: "因果ツリー" },
   { id: "transitions", label: "状態遷移" },
   { id: "json", label: "レスポンスJSON" },
   { id: "actionState", label: "ユニット状態" },
+  { id: "causalityTree", label: "因果ツリー" },
 ];
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -76,11 +79,6 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
           />
         </div>
       ) : null}
-      {activeTab === "causalityTree" ? (
-        <div role="tabpanel" id="tabpanel-causalityTree" aria-labelledby="tab-causalityTree">
-          <EventCausalityTree events={response.events} roster={roster} />
-        </div>
-      ) : null}
       {activeTab === "transitions" ? (
         <div role="tabpanel" id="tabpanel-transitions" aria-labelledby="tab-transitions">
           <StateTransitionTable
@@ -103,6 +101,11 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
             logLevel={logLevel}
             {...(catalog !== undefined ? { catalog } : {})}
           />
+        </div>
+      ) : null}
+      {activeTab === "causalityTree" ? (
+        <div role="tabpanel" id="tabpanel-causalityTree" aria-labelledby="tab-causalityTree">
+          <EventCausalityTree events={response.events} roster={roster} />
         </div>
       ) : null}
     </div>
