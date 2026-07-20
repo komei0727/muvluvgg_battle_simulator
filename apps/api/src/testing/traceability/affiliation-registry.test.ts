@@ -2,6 +2,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+interface AffiliationSourceMemory {
+  readonly name: string;
+  readonly sourceQuote: string;
+}
+
 interface AffiliationMember {
   readonly characterId: string;
   readonly characterName: string;
@@ -11,8 +16,7 @@ interface AffiliationMember {
 interface AffiliationRegistryEntry {
   readonly affiliationId: string;
   readonly displayName: string;
-  readonly sourceMemories: readonly string[];
-  readonly sourceQuote: string;
+  readonly sourceMemories: readonly AffiliationSourceMemory[];
   readonly members: readonly AffiliationMember[];
 }
 
@@ -31,9 +35,36 @@ function readRegistry(): AffiliationRegistry {
   return JSON.parse(readRepositoryFile("docs/ddd/18_Affiliation台帳.json")) as AffiliationRegistry;
 }
 
+interface SourceQuoteLedgerRow {
+  readonly affiliationId: string;
+  readonly memoryName: string;
+  readonly sourceQuote: string;
+}
+
+function parseSourceQuoteLedgerTable(): SourceQuoteLedgerRow[] {
+  const ledger = readRepositoryFile("docs/ddd/18_Affiliation台帳.md");
+  const table = ledger.slice(
+    ledger.indexOf("## 確定した affiliationId 一覧"),
+    ledger.indexOf("## 所属キャラクター一覧（手動入力）"),
+  );
+  return table
+    .split("\n")
+    .filter((line) => line.startsWith("| `AFF_"))
+    .map((line) => {
+      const columns = line.split("|").map((column) => column.trim());
+      return {
+        affiliationId: columns[1]?.replaceAll("`", "") ?? "",
+        memoryName: columns[3]?.replaceAll("`", "") ?? "",
+        sourceQuote: (columns[4] ?? "").replace(/^「/, "").replace(/」$/, ""),
+      };
+    });
+}
+
 interface MemberLedgerRow {
   readonly affiliationId: string;
   readonly characterId: string;
+  readonly characterName: string;
+  readonly evidence: string;
 }
 
 function parseMemberLedgerTable(): MemberLedgerRow[] {
@@ -50,6 +81,8 @@ function parseMemberLedgerTable(): MemberLedgerRow[] {
       return {
         affiliationId: columns[1]?.replaceAll("`", "") ?? "",
         characterId: columns[2]?.replaceAll("`", "") ?? "",
+        characterName: columns[3] ?? "",
+        evidence: columns[4] ?? "",
       };
     });
 }
@@ -104,74 +137,98 @@ describe("affiliationId registry (CAT-001)", () => {
     }
   });
 
-  it("UT-CAT-001-003: cites a non-empty verbatim source quote for every affiliation", () => {
+  it("UT-CAT-001-003: cites a non-empty verbatim source quote for every Memory of every affiliation", () => {
     const registry = readRegistry();
     expect(registry.affiliations.length).toBeGreaterThan(0);
     for (const entry of registry.affiliations) {
       expect(entry.sourceMemories.length).toBeGreaterThan(0);
-      expect(entry.sourceQuote.trim().length).toBeGreaterThan(0);
       expect(entry.displayName.trim().length).toBeGreaterThan(0);
+      for (const sourceMemory of entry.sourceMemories) {
+        expect(sourceMemory.name.trim().length).toBeGreaterThan(0);
+        expect(sourceMemory.sourceQuote.trim().length).toBeGreaterThan(0);
+      }
     }
   });
 
   it("UT-CAT-001-004: covers exactly the Memories the ledger marks as affiliation-conditioned", () => {
     const registry = readRegistry();
     const registeredMemoryNames = [
-      ...new Set(registry.affiliations.flatMap((entry) => entry.sourceMemories)),
+      ...new Set(
+        registry.affiliations.flatMap((entry) => entry.sourceMemories.map((memory) => memory.name)),
+      ),
     ].sort();
     const ledgerMemoryNames = parseAffiliationConditionMemoryNames();
     expect(registeredMemoryNames).toEqual(ledgerMemoryNames);
   });
 
-  it("UT-CAT-001-005: cites non-empty characterId/characterName/evidence for every member and assigns each character to at most one affiliation", () => {
+  it("UT-CAT-001-004b: the affiliationId-list Markdown table cites exactly the JSON registry's per-Memory quotes, for all 11 affiliation-conditioned Memories", () => {
     const registry = readRegistry();
-    const allCharacterIds: string[] = [];
+    const registryRows = registry.affiliations
+      .flatMap((entry) =>
+        entry.sourceMemories.map(
+          (memory) => `${entry.affiliationId} ${memory.name} ${memory.sourceQuote}`,
+        ),
+      )
+      .sort();
+    const ledgerRows = parseSourceQuoteLedgerTable()
+      .map((row) => `${row.affiliationId} ${row.memoryName} ${row.sourceQuote}`)
+      .sort();
+    expect(ledgerRows).toEqual(registryRows);
+    expect(registryRows.length).toBe(11);
+  });
+
+  it("UT-CAT-001-005: cites non-empty characterId/characterName/evidence for every member, and never lists the same character twice under one affiliation", () => {
+    const registry = readRegistry();
     for (const entry of registry.affiliations) {
+      const characterIdsInEntry = entry.members.map((member) => member.characterId);
+      expect(new Set(characterIdsInEntry).size).toBe(characterIdsInEntry.length);
       for (const member of entry.members) {
         expect(member.characterId.trim().length).toBeGreaterThan(0);
         expect(member.characterName.trim().length).toBeGreaterThan(0);
         expect(member.evidence.trim().length).toBeGreaterThan(0);
-        allCharacterIds.push(member.characterId);
       }
     }
-    expect(new Set(allCharacterIds).size).toBe(allCharacterIds.length);
   });
 
-  it("UT-CAT-001-006: the manual-entry Markdown table lists exactly the JSON registry's members", () => {
+  it("UT-CAT-001-006: the manual-entry Markdown table lists exactly the JSON registry's members, including characterName and 出典", () => {
     const registry = readRegistry();
     const registryRows = registry.affiliations
       .flatMap((entry) =>
-        entry.members.map((member) => `${entry.affiliationId}:${member.characterId}`),
+        entry.members.map(
+          (member) =>
+            `${entry.affiliationId} ${member.characterId} ${member.characterName} ${member.evidence}`,
+        ),
       )
       .sort();
     const ledgerRows = parseMemberLedgerTable()
-      .map((row) => `${row.affiliationId}:${row.characterId}`)
+      .map((row) => `${row.affiliationId} ${row.characterId} ${row.characterName} ${row.evidence}`)
       .sort();
     expect(ledgerRows).toEqual(registryRows);
   });
 
-  it("UT-CAT-001-007: every registered member's production Catalog Unit(s) carry the affiliationId, and no Unit carries an unregistered one", () => {
+  it("UT-CAT-001-007: every production Catalog Unit's metadata.affiliations equals exactly the affiliationId set registered for its characterId (supports multiple affiliations per character)", () => {
     const registry = readRegistry();
-    const characterIdToAffiliationId = new Map<string, string>();
+    const characterIdToAffiliationIds = new Map<string, Set<string>>();
     for (const entry of registry.affiliations) {
       for (const member of entry.members) {
-        characterIdToAffiliationId.set(member.characterId, entry.affiliationId);
+        const set = characterIdToAffiliationIds.get(member.characterId) ?? new Set<string>();
+        set.add(entry.affiliationId);
+        characterIdToAffiliationIds.set(member.characterId, set);
       }
     }
 
     const units = readCatalogSrcUnits();
-    for (const [characterId, affiliationId] of characterIdToAffiliationId) {
-      const unitsForCharacter = units.filter((unit) => unit.metadata.characterId === characterId);
-      expect(unitsForCharacter.length).toBeGreaterThan(0);
-      for (const unit of unitsForCharacter) {
-        expect(unit.metadata.affiliations).toContain(affiliationId);
-      }
+    expect(units.length).toBeGreaterThan(0);
+    for (const unit of units) {
+      const expected = [
+        ...(characterIdToAffiliationIds.get(unit.metadata.characterId) ?? new Set<string>()),
+      ].sort();
+      const actual = [...unit.metadata.affiliations].sort();
+      expect(actual).toEqual(expected);
     }
 
-    for (const unit of units) {
-      for (const affiliationId of unit.metadata.affiliations) {
-        expect(characterIdToAffiliationId.get(unit.metadata.characterId)).toBe(affiliationId);
-      }
+    for (const characterId of characterIdToAffiliationIds.keys()) {
+      expect(units.some((unit) => unit.metadata.characterId === characterId)).toBe(true);
     }
   });
 });

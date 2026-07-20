@@ -4,8 +4,16 @@
     {
       "affiliationId": "AFF_CHAOS_MAIDEN",
       "displayName": "カオスメイデン",
-      "sourceMemories": ["Chaos Maiden", "駆け落ちフルスロットル！"],
-      "sourceQuote": "戦闘開始時に発動。カオスメイデンに所属するキャラクターの攻撃力を250上昇させる",
+      "sourceMemories": [
+        {
+          "name": "Chaos Maiden",
+          "sourceQuote": "効果１：戦闘開始時に発動。カオスメイデンに所属するキャラクターの攻撃力を250上昇させる 効果２：戦闘開始時に発動。味方全体の防御力を200上昇させる"
+        },
+        {
+          "name": "駆け落ちフルスロットル！",
+          "sourceQuote": "効果１：戦闘開始時に発動。カオスメイデンに所属するキャラクターの与えるダメージを2.5％上昇させる 効果２：戦闘開始時に発動。敵後衛の行動速度を70下降させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_YURIA_BURNES",
@@ -37,8 +45,12 @@
     {
       "affiliationId": "AFF_COLORFUL_BOUQUET",
       "displayName": "カラフルブーケ",
-      "sourceMemories": ["Colorful Bouquet"],
-      "sourceQuote": "戦闘開始時に発動。カラフルブーケに所属するキャラクターの攻撃力を250上昇させる",
+      "sourceMemories": [
+        {
+          "name": "Colorful Bouquet",
+          "sourceQuote": "効果１：戦闘開始時に発動。カラフルブーケに所属するキャラクターの攻撃力を250上昇させる 効果２：戦闘開始時に発動。味方全体の攻撃力を250上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_AOI_IKOMA",
@@ -70,8 +82,16 @@
     {
       "affiliationId": "AFF_PYXIS_MA_SOEUR",
       "displayName": "ピクシス・マスール",
-      "sourceMemories": ["Pyxis Ma Soeur", "お忍びシスターの冒険"],
-      "sourceQuote": "戦闘開始時に発動。ピクシス・マスールに所属するキャラクターの攻撃力を250上昇させる",
+      "sourceMemories": [
+        {
+          "name": "Pyxis Ma Soeur",
+          "sourceQuote": "効果１：戦闘開始時に発動。ピクシス・マスールに所属するキャラクターの攻撃力を250上昇させる 効果２：戦闘開始時に発動。味方全体の行動速度を12上昇させる"
+        },
+        {
+          "name": "お忍びシスターの冒険",
+          "sourceQuote": "効果１：戦闘開始時に発動。ピクシス・マスールに所属するキャラクターの防御力を800上昇させる 効果２：戦闘開始時に発動。物理アタッカーの攻撃力を2.5％上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_DOROTHEA_KIRKLAND",
@@ -103,8 +123,12 @@
     {
       "affiliationId": "AFF_SIRIUS_SUGAR",
       "displayName": "シリウスシュガー",
-      "sourceMemories": ["Sirius Sugar"],
-      "sourceQuote": "戦闘開始時に発動。シリウスシュガーに所属するキャラクターの攻撃力を250上昇させる",
+      "sourceMemories": [
+        {
+          "name": "Sirius Sugar",
+          "sourceQuote": "効果１：戦闘開始時に発動。シリウスシュガーに所属するキャラクターの攻撃力を250上昇させる 効果２：戦闘開始時に発動。味方全体のHPを300上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_MERU_MOMOZONO",
@@ -136,8 +160,12 @@
     {
       "affiliationId": "AFF_TREBLE_QUINTET",
       "displayName": "トレブルクインテット",
-      "sourceMemories": ["Treble Quintet"],
-      "sourceQuote": "戦闘開始時に発動。トレブルクインテットに所属するキャラクターの攻撃力を250上昇させる",
+      "sourceMemories": [
+        {
+          "name": "Treble Quintet",
+          "sourceQuote": "効果１：戦闘開始時に発動。トレブルクインテットに所属するキャラクターの攻撃力を250上昇させる 効果２：戦闘開始時に発動。味方全体の会心率を1%上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_EVIE_RENALT",
@@ -169,8 +197,12 @@
     {
       "affiliationId": "AFF_TRINITY_JEWEL",
       "displayName": "トリニティ・ジュエル",
-      "sourceMemories": ["Trinity Jewel"],
-      "sourceQuote": "戦闘開始時に発動。トリニティ・ジュエルに所属するキャラクターの攻撃力を250上昇させる",
+      "sourceMemories": [
+        {
+          "name": "Trinity Jewel",
+          "sourceQuote": "効果１：戦闘開始時に発動。トリニティ・ジュエルに所属するキャラクターの攻撃力を250上昇させる 効果２：戦闘開始時に発動。味方全体の防御力を200上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_RAVEL_BRIGHTLEAF",
@@ -192,8 +224,12 @@
     {
       "affiliationId": "AFF_FUUKI_IINKAI",
       "displayName": "風紀委員会",
-      "sourceMemories": ["風紀委員会"],
-      "sourceQuote": "戦闘開始時に発動。風紀委員会に所属するキャラクターの攻撃力を250上昇させる",
+      "sourceMemories": [
+        {
+          "name": "風紀委員会",
+          "sourceQuote": "効果１：戦闘開始時に発動。風紀委員会に所属するキャラクターの攻撃力を250上昇させる 効果２：戦闘開始時に発動。味方全体の行動速度を12上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_LILY_LAVOIE",
@@ -220,8 +256,12 @@
     {
       "affiliationId": "AFF_KURASUNA",
       "displayName": "クラスナ",
-      "sourceMemories": ["家族のかたちを象りながら"],
-      "sourceQuote": "戦闘開始時に発動。クラスナに所属するキャラクターの与えるダメージを2.5%上昇させる",
+      "sourceMemories": [
+        {
+          "name": "家族のかたちを象りながら",
+          "sourceQuote": "効果１：戦闘開始時に発動。クラスナに所属するキャラクターの与えるダメージを2.5%上昇させる 効果２：戦闘開始時に発動。コントロールの味方全員の攻撃力を1250上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_NADYA_VOLKOVA",
@@ -248,8 +288,12 @@
     {
       "affiliationId": "AFF_PRE_KURASU_A",
       "displayName": "プレ・クラスーＡ",
-      "sourceMemories": ["密着！？テントの中の珍騒動"],
-      "sourceQuote": "戦闘開始時に発動。プレ・クラスーＡに所属するキャラクターの与えるダメージを2.5％上昇させる",
+      "sourceMemories": [
+        {
+          "name": "密着！？テントの中の珍騒動",
+          "sourceQuote": "効果１：戦闘開始時に発動。プレ・クラスーＡに所属するキャラクターの与えるダメージを2.5％上昇させる 効果２：戦闘開始時に発動。味方前衛の防御力を2.5％上昇させる"
+        }
+      ],
       "members": [
         {
           "characterId": "CHAR_NOEL_ARUE",
