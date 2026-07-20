@@ -1,8 +1,9 @@
-import type {
-  BattleResultSnapshot,
-  ChargeState,
-  CooldownState,
-  EffectSnapshot,
+import {
+  toEffectSnapshot,
+  type BattleResultSnapshot,
+  type ChargeState,
+  type CooldownState,
+  type EffectSnapshot,
 } from "../events/state-delta.js";
 import type { Battle } from "./battle.js";
 import type { BattleStatus } from "../model/battle-status.js";
@@ -95,28 +96,7 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         skillCounterCarry[skillDefinitionId] = carryValues;
       }
     }
-    const effects: EffectSnapshot[] = unit.appliedEffects.map((effect) => {
-      const timeLimit = effect.duration.definition.timeLimit;
-      const duration =
-        (timeLimit?.unit === "ACTION" || timeLimit?.unit === "TURN") &&
-        effect.duration.timeLimitRemaining !== undefined
-          ? { unit: timeLimit.unit, remaining: effect.duration.timeLimitRemaining }
-          : undefined;
-      return {
-        effectInstanceId: effect.effectInstanceId,
-        effectDefinitionId: effect.effectActionDefinitionId,
-        sourceUnitId: effect.sourceId,
-        effectKindKey: effect.kindKey,
-        duplicate: effect.duplicate,
-        active: effect.active,
-        magnitude: effect.magnitude,
-        ...(duration !== undefined ? { duration } : {}),
-        appliedTurnNumber: effect.appliedTurnNumber,
-        ...(effect.appliedActionId !== undefined
-          ? { appliedActionId: effect.appliedActionId }
-          : {}),
-      };
-    });
+    const effects: readonly EffectSnapshot[] = unit.appliedEffects.map(toEffectSnapshot);
 
     units[unit.battleUnitId] = {
       hp: unit.currentHp,

@@ -183,10 +183,12 @@ export interface EntityCollectionDeltaResponseBody {
 
 /**
  * `10_API設計.md`「UnitStateDeltaResponse」の全項目。`combatStats`/`shields`/
- * `subUnits`/`effects`/`cooldowns`/`charge`は対応するDomain機構が実装される
- * M5〜M8まで、Response Mapperが値を設定することはない
- * （現行v1のRequest/Response契約を`additionalProperties: false`のまま将来へ
- * 拡張できるよう、フィールド自体は先に外部契約へ持たせておく）。
+ * `subUnits`は対応するDomain機構がM8で実装されるまで、Response Mapperが値を
+ * 設定することはない（現行v1のRequest/Response契約を`additionalProperties:
+ * false`のまま将来へ拡張できるよう、フィールド自体は先に外部契約へ持たせて
+ * おく）。`cooldowns`/`charge`はM5、`effects`はIssue #23（PR #155レビュー[P1]
+ * /Finding A）以降、実装済みのDomain状態（`StateDelta.units[].effects`）を
+ * そのまま反映する。
  */
 export interface UnitStateDeltaResponseBody {
   readonly combatStatus?: ValueChangeBody<string>;

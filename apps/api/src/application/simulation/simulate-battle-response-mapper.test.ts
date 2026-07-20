@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CooldownStateResponseBody } from "../contracts/response.js";
 import { toBattleSimulationResponseBody } from "./simulate-battle-response-mapper.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
-import { createActionId } from "../../domain/shared/event-ids.js";
+import { createActionId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
@@ -191,7 +191,7 @@ describe("toBattleSimulationResponseBody", () => {
             extraGauge: 5,
             effects: [
               {
-                effectInstanceId: "battle-1:effect:1",
+                effectInstanceId: "battle-1:effect:1" as never,
                 effectDefinitionId: "ACT_BUFF_ATTACK",
                 sourceUnitId: ALLY_ID,
                 effectKindKey: "ACT_BUFF_ATTACK",
@@ -203,7 +203,7 @@ describe("toBattleSimulationResponseBody", () => {
                 appliedActionId: ACTION_1,
               },
               {
-                effectInstanceId: "battle-1:effect:2",
+                effectInstanceId: "battle-1:effect:2" as never,
                 effectDefinitionId: "ACT_DEBUFF_DEFENSE",
                 sourceUnitId: ENEMY_ID,
                 effectKindKey: "ACT_DEBUFF_DEFENSE",
@@ -535,6 +535,120 @@ describe("toBattleSimulationResponseBody", () => {
     expect(body.stateTransitions[1]!.delta.units!["ally:1"]!.charge).toEqual({
       before: { skillDefinitionId: "SKL_D", startedActionId: "action-2", status: "CHARGING" },
       after: null,
+    });
+  });
+
+  it("PR #155 re-review round 2 [P1] fix (Finding A): maps a StateTransition's effects delta into an EntityCollectionDelta (added/updated/removed derived from before/after presence)", () => {
+    const EFFECT_1 = createEffectInstanceId("battle-1:effect:1");
+    const EFFECT_2 = createEffectInstanceId("battle-1:effect:2");
+    const beforeSnapshot = {
+      effectInstanceId: EFFECT_1,
+      effectDefinitionId: "ACT_BUFF_ATTACK",
+      effectKindKey: "ACT_BUFF_ATTACK",
+      duplicate: true,
+      active: true,
+      magnitude: 15,
+      duration: { unit: "TURN" as const, remaining: 2 },
+      appliedTurnNumber: 1,
+    };
+    const afterSnapshot = { ...beforeSnapshot, duration: { unit: "TURN" as const, remaining: 1 } };
+    const grantedSnapshot = {
+      effectInstanceId: EFFECT_2,
+      effectDefinitionId: "ACT_DEBUFF_DEFENSE",
+      effectKindKey: "ACT_DEBUFF_DEFENSE",
+      duplicate: false,
+      active: true,
+      magnitude: -10,
+      appliedTurnNumber: 1,
+    };
+
+    const body = toBattleSimulationResponseBody(
+      baseResult({
+        stateTransitions: [
+          {
+            causedBySequence: 1,
+            stateVersionBefore: 0,
+            stateVersionAfter: 1,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  effects: {
+                    [EFFECT_1]: { before: undefined, after: beforeSnapshot },
+                  },
+                },
+              },
+            },
+          },
+          {
+            causedBySequence: 2,
+            stateVersionBefore: 1,
+            stateVersionAfter: 2,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  effects: {
+                    [EFFECT_1]: { before: beforeSnapshot, after: afterSnapshot },
+                    [EFFECT_2]: { before: undefined, after: grantedSnapshot },
+                  },
+                },
+              },
+            },
+          },
+          {
+            causedBySequence: 3,
+            stateVersionBefore: 2,
+            stateVersionAfter: 3,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  effects: {
+                    [EFFECT_1]: { before: afterSnapshot, after: undefined },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(body.stateTransitions[0]!.delta.units!["ally:1"]!.effects).toEqual({
+      added: [
+        {
+          effectInstanceId: "battle-1:effect:1",
+          effectDefinitionId: "ACT_BUFF_ATTACK",
+          category: "BUFF",
+          effectKindKey: "ACT_BUFF_ATTACK",
+          stackMode: "STACKABLE",
+          isEffective: true,
+          value: { magnitude: 15 },
+          duration: { unit: "TURN", remaining: 2 },
+          appliedTurnNumber: 1,
+        },
+      ],
+      updated: [],
+      removed: [],
+    });
+    expect(body.stateTransitions[1]!.delta.units!["ally:1"]!.effects).toMatchObject({
+      added: [{ effectInstanceId: "battle-1:effect:2" }],
+      updated: [
+        {
+          id: "battle-1:effect:1",
+          before: { duration: { unit: "TURN", remaining: 2 } },
+          after: { duration: { unit: "TURN", remaining: 1 } },
+        },
+      ],
+      removed: [],
+    });
+    expect(body.stateTransitions[2]!.delta.units!["ally:1"]!.effects).toMatchObject({
+      added: [],
+      updated: [],
+      removed: [
+        {
+          id: "battle-1:effect:1",
+          before: { effectInstanceId: "battle-1:effect:1", duration: { remaining: 1 } },
+        },
+      ],
     });
   });
 

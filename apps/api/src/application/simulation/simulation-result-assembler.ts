@@ -13,7 +13,11 @@ import {
   reduceStateDeltas,
   sameChargeState,
 } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { CooldownState } from "../../domain/battle/events/state-delta.js";
+import {
+  sameEffectSnapshot,
+  type CooldownState,
+  type EffectSnapshot,
+} from "../../domain/battle/events/state-delta.js";
 import type {
   BattleOutcome,
   CompletionReason,
@@ -79,6 +83,24 @@ function cooldownStatesEqual(
   });
 }
 
+/**
+ * `effects`は`AppliedEffect`配列の付与順を保つ（`applied-effect.ts`参照）ため、
+ * 順序も含めて一致するかを比較する（PR #155再レビュー[P1]、Finding A:
+ * 以前はこのフィールド自体が比較対象になっておらず、`stateDelta`から
+ * 復元できない不整合を検出できなかった）。
+ */
+function effectSnapshotsEqual(
+  a: readonly EffectSnapshot[] | undefined,
+  b: readonly EffectSnapshot[] | undefined,
+): boolean {
+  const aEffects = a ?? [];
+  const bEffects = b ?? [];
+  if (aEffects.length !== bEffects.length) {
+    return false;
+  }
+  return aEffects.every((effect, index) => sameEffectSnapshot(effect, bEffects[index]));
+}
+
 function unitSnapshotsEqual(
   a: BattleStateSnapshot["units"][BattleUnitId],
   b: BattleStateSnapshot["units"][BattleUnitId],
@@ -89,7 +111,8 @@ function unitSnapshotsEqual(
     a.pp === b.pp &&
     a.extraGauge === b.extraGauge &&
     cooldownStatesEqual(a.cooldowns, b.cooldowns) &&
-    sameChargeState(a.charge, b.charge)
+    sameChargeState(a.charge, b.charge) &&
+    effectSnapshotsEqual(a.effects, b.effects)
   );
 }
 

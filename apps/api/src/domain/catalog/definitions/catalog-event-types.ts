@@ -77,6 +77,7 @@ export const EVENT_TYPE_CATEGORIES: Readonly<Record<string, EventCategory>> = {
   EffectMerged: "FACT",
   EffectiveEffectChanged: "FACT",
   EffectRemoved: "FACT",
+  EffectDurationReduced: "FACT",
   EffectExpired: "FACT",
   EffectConsumptionChanged: "FACT",
   // Markerイベント

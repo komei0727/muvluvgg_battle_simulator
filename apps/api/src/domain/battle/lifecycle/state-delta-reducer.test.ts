@@ -2,18 +2,34 @@ import { describe, expect, it } from "vitest";
 import { applyStateDelta, reduceStateDeltas } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 import type { StateDelta } from "../events/state-delta.js";
-import { createActionId } from "../../shared/event-ids.js";
+import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { EffectSnapshot } from "../events/state-delta.js";
 
 const UNIT_A = createBattleUnitId("unit-a");
 const UNIT_B = createBattleUnitId("unit-b");
 const COUNTER_CRIT = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
 const COUNTER_OTHER = createRuntimeCounterId("RUNTIME_COUNTER_OTHER");
+const EFFECT_1 = createEffectInstanceId("battle-1:effect:1");
+const EFFECT_2 = createEffectInstanceId("battle-1:effect:2");
+
+function effectSnapshot(overrides: Partial<EffectSnapshot> = {}): EffectSnapshot {
+  return {
+    effectInstanceId: EFFECT_1,
+    effectDefinitionId: "ACT_BUFF",
+    effectKindKey: "ACT_BUFF",
+    duplicate: true,
+    active: true,
+    magnitude: 10,
+    appliedTurnNumber: 1,
+    ...overrides,
+  };
+}
 
 function initialState(): BattleStateSnapshot {
   return {
@@ -471,6 +487,137 @@ describe("applyStateDelta", () => {
 
     expect(next.units[UNIT_A]!.skillCounterCarry).toEqual({
       [skillDefinitionId]: { [COUNTER_OTHER]: 12 },
+    });
+  });
+
+  describe("effects (PR #155 re-review round 2 [P1], Finding A)", () => {
+    it("UT-STATE-REDUCER-029: before undefined adds a new effect (EffectApplied)", () => {
+      const next = applyStateDelta(initialState(), {
+        units: {
+          [UNIT_A]: { effects: { [EFFECT_1]: { before: undefined, after: effectSnapshot() } } },
+        },
+      });
+
+      expect(next.units[UNIT_A]!.effects).toEqual([effectSnapshot()]);
+    });
+
+    it("UT-STATE-REDUCER-030: both before/after present updates an existing effect in place (EffectDurationReduced/EffectConsumptionChanged)", () => {
+      const withEffect = applyStateDelta(initialState(), {
+        units: {
+          [UNIT_A]: {
+            effects: {
+              [EFFECT_1]: {
+                before: undefined,
+                after: effectSnapshot({ duration: { unit: "TURN", remaining: 2 } }),
+              },
+            },
+          },
+        },
+      });
+
+      const next = applyStateDelta(withEffect, {
+        units: {
+          [UNIT_A]: {
+            effects: {
+              [EFFECT_1]: {
+                before: effectSnapshot({ duration: { unit: "TURN", remaining: 2 } }),
+                after: effectSnapshot({ duration: { unit: "TURN", remaining: 1 } }),
+              },
+            },
+          },
+        },
+      });
+
+      expect(next.units[UNIT_A]!.effects).toEqual([
+        effectSnapshot({ duration: { unit: "TURN", remaining: 1 } }),
+      ]);
+    });
+
+    it("UT-STATE-REDUCER-031: after undefined removes an effect (EffectExpired), leaving sibling effects and their relative order untouched", () => {
+      const withTwo = applyStateDelta(initialState(), {
+        units: {
+          [UNIT_A]: {
+            effects: {
+              [EFFECT_1]: { before: undefined, after: effectSnapshot() },
+              [EFFECT_2]: {
+                before: undefined,
+                after: effectSnapshot({ effectInstanceId: EFFECT_2, magnitude: 5 }),
+              },
+            },
+          },
+        },
+      });
+
+      const next = applyStateDelta(withTwo, {
+        units: {
+          [UNIT_A]: { effects: { [EFFECT_1]: { before: effectSnapshot(), after: undefined } } },
+        },
+      });
+
+      expect(next.units[UNIT_A]!.effects).toEqual([
+        effectSnapshot({ effectInstanceId: EFFECT_2, magnitude: 5 }),
+      ]);
+    });
+
+    it("UT-STATE-REDUCER-032: a newly-added effect is appended after existing ones, preserving AppliedEffect grant order", () => {
+      const withOne = applyStateDelta(initialState(), {
+        units: {
+          [UNIT_A]: { effects: { [EFFECT_1]: { before: undefined, after: effectSnapshot() } } },
+        },
+      });
+
+      const next = applyStateDelta(withOne, {
+        units: {
+          [UNIT_A]: {
+            effects: {
+              [EFFECT_2]: {
+                before: undefined,
+                after: effectSnapshot({ effectInstanceId: EFFECT_2, magnitude: 5 }),
+              },
+            },
+          },
+        },
+      });
+
+      expect(next.units[UNIT_A]!.effects!.map((e) => e.effectInstanceId)).toEqual([
+        EFFECT_1,
+        EFFECT_2,
+      ]);
+    });
+
+    it("UT-STATE-REDUCER-033: throws when an effect delta's before does not structurally match the current value (dropped or reordered delta)", () => {
+      const withEffect = applyStateDelta(initialState(), {
+        units: {
+          [UNIT_A]: { effects: { [EFFECT_1]: { before: undefined, after: effectSnapshot() } } },
+        },
+      });
+
+      expect(() =>
+        applyStateDelta(withEffect, {
+          units: {
+            [UNIT_A]: {
+              effects: {
+                [EFFECT_1]: {
+                  before: effectSnapshot({ magnitude: 999 }),
+                  after: effectSnapshot({ magnitude: 20 }),
+                },
+              },
+            },
+          },
+        }),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-STATE-REDUCER-034: throws when before is a snapshot but the effect does not currently exist", () => {
+      expect(() =>
+        applyStateDelta(initialState(), {
+          units: {
+            [UNIT_A]: {
+              effects: { [EFFECT_1]: { before: effectSnapshot(), after: undefined } },
+            },
+          },
+        }),
+      ).toThrow(DomainValidationError);
     });
   });
 });

@@ -11,6 +11,7 @@ import { expireEffects, type ExpirationRequest } from "../effects/effect-expirat
 import type { DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, ResourceRecoveryEntry } from "../events/domain-event.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
 import { beginNextTurn, createTurnState, isFinalTurn, type TurnState } from "./turn-state.js";
 import type { TurnLimit } from "../model/turn-limit.js";
 import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
@@ -239,6 +240,7 @@ function applyTurnEffectDurationDecrements(
   resolutionScopeId: ResolutionScopeId,
   rootEventId: DomainEventId,
   parentEventId: DomainEventId,
+  notify?: (event: BattleDomainEvent, units: readonly BattleUnit[]) => readonly BattleUnit[],
 ): {
   readonly units: readonly BattleUnit[];
   readonly lastEventId: DomainEventId;
@@ -252,6 +254,50 @@ function applyTurnEffectDurationDecrements(
     const markerDecrement = decrementTurnMarkerDurations(unit.markers, currentTurnNumber);
     if (effectDecrement.changes.length === 0 && markerDecrement.changes.length === 0) {
       continue;
+    }
+    // PR #155再レビュー[P1]（Finding A）: 0に達しない変化も`EffectDurationReduced`
+    // として記録する（`action-completion.ts`のACTION単位減算と対称）。
+    for (const change of effectDecrement.changes) {
+      const beforeEffect = unit.appliedEffects.find(
+        (e) => e.effectInstanceId === change.effectInstanceId,
+      );
+      const afterEffect = effectDecrement.effects.find(
+        (e) => e.effectInstanceId === change.effectInstanceId,
+      );
+      const reduced = recorder.record({
+        eventType: "EffectDurationReduced",
+        category: "FACT",
+        turnNumber,
+        cycleNumber: 0,
+        resolutionScopeId,
+        parentEventId: lastEventId,
+        rootEventId,
+        targetUnitIds: [unit.battleUnitId],
+        payload: {
+          effectInstanceId: change.effectInstanceId,
+          targetUnitId: unit.battleUnitId,
+          unit: "TURN",
+          before: change.before,
+          after: change.after,
+        },
+        ...(beforeEffect !== undefined && afterEffect !== undefined
+          ? {
+              stateDelta: {
+                units: {
+                  [unit.battleUnitId]: {
+                    effects: {
+                      [change.effectInstanceId]: {
+                        before: toEffectSnapshot(beforeEffect),
+                        after: toEffectSnapshot(afterEffect),
+                      },
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
+      });
+      lastEventId = reduced.eventId;
     }
     working = working.map((u) =>
       u.battleUnitId === unit.battleUnitId
@@ -282,7 +328,16 @@ function applyTurnEffectDurationDecrements(
       continue;
     }
     const expireResult = expireEffects(
-      { recorder, turnNumber, cycleNumber: 0, resolutionScopeId, rootEventId },
+      {
+        recorder,
+        turnNumber,
+        cycleNumber: 0,
+        resolutionScopeId,
+        rootEventId,
+        // PR #155再レビュー[P2]: `expireEffects`自身が各イベント直後にPS候補
+        // 解決を挟むため、呼び出し側での事後一括notifyは行わない。
+        ...(notify !== undefined ? { notify } : {}),
+      },
       working,
       unit.battleUnitId,
       toExpire,
@@ -461,21 +516,24 @@ export function advanceBattle(
     },
     [...actionPhase.allyUnits, ...actionPhase.enemyUnits],
   );
-  turnEndPassiveRuntime.onFactEvent(turnCompleting, [
+  // PR #155再レビュー[P1]: `TurnCompleting`のPS解決直後に`finalizeResolutionScope`
+  // を呼ぶと、その後のクールタイム・効果・Marker減算やそれらが誘発するPS、
+  // 最後の`TurnCompleted`自体が同じ`resolutionScopeId`（`turnEndScope`）の
+  // `RESOLUTION_SCOPE`カウンタを参照できるうちに破棄してしまう。TURN_ENDING
+  // スコープ全体（`TurnCompleting`PS→クールタイム減算→効果/Marker減算とその
+  // PS→`TurnCompleted`PS）を1本の連鎖として通知し終えてから、最後に1回だけ
+  // `finalizeResolutionScope`を呼ぶ。
+  let turnEndUnits = turnEndPassiveRuntime.onFactEvent(turnCompleting, [
     ...actionPhase.allyUnits,
     ...actionPhase.enemyUnits,
   ]);
-  const afterTurnEndPassives = turnEndPassiveRuntime.finalizeResolutionScope();
-  const allyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter((unit) => unit.side === "ALLY");
-  const enemyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter(
-    (unit) => unit.side === "ENEMY",
-  );
 
   // R-SKL-04 TURN_ENDING #2-4: PS連鎖完了後の現在状態から対象を再取得し、
   // ターン単位クールタイムを全ユニットで1減らす（現在のターンで設定された
-  // ものを除く）。
+  // ものを除く）。`CooldownReduced`/`CooldownCompleted`のPS通知は本レビューの
+  // 指摘範囲外の既存挙動のため変更しない。
   const cooldownDecrement = applyTurnCooldownDecrements(
-    afterTurnEndPassives,
+    turnEndUnits,
     nextTurnNumber,
     recorder,
     nextTurnNumber,
@@ -483,47 +541,24 @@ export function advanceBattle(
     turnCompleting.eventId,
     turnCompleting.eventId,
   );
+  turnEndUnits = cooldownDecrement.units;
   // R-EFF-06: クールタイム減算と同じ「PS連鎖完了後の現在状態」から対象を
-  // 再取得し、ターン単位効果・Markerを全ユニットで1減らす。
+  // 再取得し、ターン単位効果・Markerを全ユニットで1減らす。`EffectExpired`/
+  // `EffectiveEffectChanged`/`MarkerRemoved`それぞれに対応するPS/Memory候補を
+  // 直ちに解決する（仕様「各イベントに対応する候補を直ちに解決する」）。
   const effectDurationDecrement = applyTurnEffectDurationDecrements(
-    cooldownDecrement.units,
+    turnEndUnits,
     nextTurnNumber,
     recorder,
     nextTurnNumber,
     turnEndScope,
     turnCompleting.eventId,
     cooldownDecrement.lastEventId,
+    (event, unitsAtCall) => turnEndPassiveRuntime.onFactEvent(event, unitsAtCall),
   );
-  // PR #155レビュー[P2]: `EffectExpired`/`EffectiveEffectChanged`/`MarkerRemoved`
-  // それぞれに対応するPS/Memory候補を直ちに解決する（仕様「各イベントに対応
-  // する候補を直ちに解決する」）。`finalizeResolutionScope`は複数回呼んでも
-  // 安全（対象counterが無ければ即座に`this.units`を返す）ため、失効イベントを
-  // 通知した後にもう一度finalizeし、そこから新たに生じたPS発動の
-  // resolutionScope-resetカウンタも処理する。
-  let afterEffectDecrementUnits = effectDurationDecrement.units;
-  if (effectDurationDecrement.events.length > 0) {
-    for (const event of effectDurationDecrement.events) {
-      afterEffectDecrementUnits = turnEndPassiveRuntime.onFactEvent(
-        event,
-        afterEffectDecrementUnits,
-      );
-    }
-    afterEffectDecrementUnits = turnEndPassiveRuntime.finalizeResolutionScope();
-  }
-  const afterEffectDecrementById = new Map(
-    afterEffectDecrementUnits.map((u) => [u.battleUnitId, u]),
-  );
-  const progressedWithCooldown: Battle = {
-    ...progressed,
-    allyUnits: allyUnitsAfterTurnEndPassives.map(
-      (u) => afterEffectDecrementById.get(u.battleUnitId) ?? u,
-    ),
-    enemyUnits: enemyUnitsAfterTurnEndPassives.map(
-      (u) => afterEffectDecrementById.get(u.battleUnitId) ?? u,
-    ),
-  };
+  turnEndUnits = effectDurationDecrement.units;
 
-  recorder.record({
+  const turnCompleted = recorder.record({
     eventType: "TurnCompleted",
     category: "FACT",
     turnNumber: nextTurnNumber,
@@ -533,6 +568,18 @@ export function advanceBattle(
     rootEventId: turnCompleting.eventId,
     payload: { turnNumber: nextTurnNumber },
   });
+  turnEndPassiveRuntime.onFactEvent(turnCompleted, turnEndUnits);
+
+  // レビュー指摘[P2]: このトップレベル解決スコープ（`turnEndScope`）が完全に
+  // 終わった後で、`resetScope: "RESOLUTION_SCOPE"`のcounterを一度だけ破棄・
+  // `RuntimeCounterReset`発行する。
+  const afterTurnEndPassives = turnEndPassiveRuntime.finalizeResolutionScope();
+  const afterTurnEndPassivesById = new Map(afterTurnEndPassives.map((u) => [u.battleUnitId, u]));
+  const progressedWithCooldown: Battle = {
+    ...progressed,
+    allyUnits: progressed.allyUnits.map((u) => afterTurnEndPassivesById.get(u.battleUnitId) ?? u),
+    enemyUnits: progressed.enemyUnits.map((u) => afterTurnEndPassivesById.get(u.battleUnitId) ?? u),
+  };
 
   const afterTurnEnd = resolveVictory({
     allAlliesDefeated: allDefeated(progressedWithCooldown.allyUnits),

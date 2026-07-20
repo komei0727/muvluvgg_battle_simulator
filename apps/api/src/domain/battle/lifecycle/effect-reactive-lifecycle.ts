@@ -2,6 +2,7 @@ import { decrementConsumption } from "../effects/effect-consumption.js";
 import { expireEffects, type ExpirationRequest } from "../effects/effect-expiration-service.js";
 import { findEffectsWithSatisfiedExpiration } from "./effect-special-expiration.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
@@ -21,6 +22,16 @@ export interface EffectReactiveLifecycleContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #155再レビュー[P2]: `EffectConsumptionChanged`（および内部で呼ぶ
+   * `expireEffects`が記録する`EffectExpired`/`MarkerRemoved`/
+   * `EffectiveEffectChanged`）を記録するたびに直ちに呼び出し、PS/Memory候補
+   * 解決を挟む。未指定ならPS解決を行わない（渡されたunitsをそのまま返す）。
+   */
+  readonly notify?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 export interface EffectReactiveLifecycleResult {
@@ -45,11 +56,20 @@ export interface EffectReactiveLifecycleResult {
  * ヒットは必ずその直前に`HitConfirmed`（MISSでない確定ヒット）を経ているため、
  * 契機としての正しさは`HitConfirmed`と同値）。
  *
- * `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`/`STATUS_BLOCKED`は、それぞれ
- * 「MISSを含む命中判定到達」「`UnitBeingAttacked`」「`EffectApplicationRejected`」
- * という、現時点でこのリポジトリに存在しないイベント・区別が必要なため未対応
- * （`UnitBeingAttacked`/`EffectApplicationRejected`はいずれも別Issue管轄:
- * 前者は#25、後者は#31）。存在しない契機をここで推測して実装しない。
+ * `NEXT_OUTGOING_ATTACK`は仕様上「MISSを含む命中判定到達」が契機だが、
+ * `resolveHit()`が現状常に`true`を返すスタブのためMISSそのものが存在せず
+ * （#25でMISS実装予定）、「命中判定に到達した」と「命中が確定した」は現時点で
+ * 常に同じ瞬間を指す。そのため`OUTGOING_HIT`と同じ`DamageApplied`契機を
+ * 安全に共用できる（PR #155再レビュー[P1]）。MISSが実装された時点で両者は
+ * 分岐する（`NEXT_OUTGOING_ATTACK`はMISSでも消費するが`OUTGOING_HIT`は
+ * 消費しない）ため、#25側でこのロジックの再検討が必要になる。
+ *
+ * `NEXT_INCOMING_ATTACK`/`STATUS_BLOCKED`は、それぞれ「`UnitBeingAttacked`」
+ * 「`EffectApplicationRejected`」という、現時点でこのリポジトリに存在しない
+ * イベントが必要なため未対応（いずれも別Issue管轄: 前者は#25、後者は#31）。
+ * `LETHAL_DAMAGE`は`R-EFF-07`にトリガー条件自体が定義されていない仕様未確定の
+ * 消費種別のため、独自解釈で実装しない。存在しない契機・未確定の仕様をここで
+ * 推測して実装しない。
  */
 function consumptionKindsTriggeredForUnit(
   event: BattleDomainEvent,
@@ -60,7 +80,7 @@ function consumptionKindsTriggeredForUnit(
   }
   const kinds: ConsumptionKind[] = [];
   if (event.sourceUnitId === unitId) {
-    kinds.push("OUTGOING_HIT");
+    kinds.push("OUTGOING_HIT", "NEXT_OUTGOING_ATTACK");
   }
   if (event.payload.targetUnitId === unitId) {
     kinds.push("INCOMING_HIT");
@@ -85,6 +105,7 @@ export function applyEffectConsumptionAndExpiration(
   let working = units;
   let lastEventId = parentEventId;
   const recordedEvents: BattleDomainEvent[] = [];
+  const notify = context.notify ?? ((_event, currentUnits) => currentUnits);
 
   for (const unitSnapshot of units) {
     const holder = requireUnit(working, unitSnapshot.battleUnitId);
@@ -93,16 +114,29 @@ export function applyEffectConsumptionAndExpiration(
     let currentEffects = holder.appliedEffects;
     const consumptionExpireIds = new Set<EffectInstanceId>();
     for (const kind of triggeredKinds) {
+      const beforeDecrementEffects = currentEffects;
       const decrement = decrementConsumption(currentEffects, kind);
       if (decrement.changes.length === 0) {
         continue;
       }
       currentEffects = decrement.effects;
+      working = working.map((u) =>
+        u.battleUnitId === holder.battleUnitId ? { ...u, appliedEffects: currentEffects } : u,
+      );
       for (const change of decrement.changes) {
-        if (change.after === 0) {
-          consumptionExpireIds.add(change.effectInstanceId);
-          continue;
-        }
+        const beforeEffect = beforeDecrementEffects.find(
+          (e) => e.effectInstanceId === change.effectInstanceId,
+        );
+        const afterEffect = currentEffects.find(
+          (e) => e.effectInstanceId === change.effectInstanceId,
+        );
+        // PR #155再レビュー[P2]: 残回数が0へ達する変化も「消費条件で残回数が
+        // 変化した後」（`08_ドメインイベント.md`「EffectConsumptionChanged」）に
+        // 該当するため、`EffectExpired`に置き換えず先に記録する
+        // （`CooldownReduced`が0へ達する変化でも記録され、その後`CooldownCompleted`
+        // が続く既存の対称パターンと揃える）。記録直後に`notify`を挟み、
+        // 後続の判定（特殊失効・`expireEffects`）が最新状態を踏まえられる
+        // ようにする（`expireEffects`と同じ「各イベント直後にPS解決」原則）。
         const changed = context.recorder.record({
           eventType: "EffectConsumptionChanged",
           category: "FACT",
@@ -121,27 +155,60 @@ export function applyEffectConsumptionAndExpiration(
             before: change.before,
             after: change.after,
           },
+          // PR #155再レビュー[P1]（Finding A）: 消費条件による残り回数変化を
+          // `effects`stateDeltaとして持つ。0へ達した場合の効果除去は続けて
+          // `expireEffects`が`EffectExpired`として別途所有する。
+          ...(beforeEffect !== undefined && afterEffect !== undefined
+            ? {
+                stateDelta: {
+                  units: {
+                    [holder.battleUnitId]: {
+                      effects: {
+                        [change.effectInstanceId]: {
+                          before: toEffectSnapshot(beforeEffect),
+                          after: toEffectSnapshot(afterEffect),
+                        },
+                      },
+                    },
+                  },
+                },
+              }
+            : {}),
         });
         lastEventId = changed.eventId;
         recordedEvents.push(changed);
+        working = notify(changed, working);
+        if (change.after === 0) {
+          consumptionExpireIds.add(change.effectInstanceId);
+        }
       }
     }
-    if (currentEffects !== holder.appliedEffects) {
-      working = working.map((u) =>
-        u.battleUnitId === holder.battleUnitId ? { ...u, appliedEffects: currentEffects } : u,
-      );
-    }
 
-    const specialExpired = findEffectsWithSatisfiedExpiration(currentEffects, event);
+    // PR #155再レビュー[P2]: `TARGET_STATE`（`target: SELF`）は「この効果を保持
+    // するユニット」を指す。`notify`によるPS反応後の最新`working`から`holder`を
+    // 再取得し、`currentEffects`ではなくその時点の実効果集合を使う。
+    const holderAfterConsumption = requireUnit(working, holder.battleUnitId);
+    const specialExpired = findEffectsWithSatisfiedExpiration(
+      holderAfterConsumption.appliedEffects,
+      event,
+      {
+        owner: holderAfterConsumption,
+        getUnit: (id) => working.find((u) => u.battleUnitId === id),
+      },
+    );
 
     const toExpire: readonly ExpirationRequest[] = [
-      ...[...consumptionExpireIds].map(
-        (effectInstanceId): ExpirationRequest => ({
-          kind: "EFFECT",
-          effectInstanceId,
-          reason: "CONSUMPTION",
-        }),
-      ),
+      ...[...consumptionExpireIds]
+        .filter((id) =>
+          holderAfterConsumption.appliedEffects.some((e) => e.effectInstanceId === id),
+        )
+        .map(
+          (effectInstanceId): ExpirationRequest => ({
+            kind: "EFFECT",
+            effectInstanceId,
+            reason: "CONSUMPTION",
+          }),
+        ),
       ...specialExpired
         .filter((e) => !consumptionExpireIds.has(e.effectInstanceId))
         .map(
@@ -164,6 +231,7 @@ export function applyEffectConsumptionAndExpiration(
         ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
         resolutionScopeId: context.resolutionScopeId,
         rootEventId: context.rootEventId,
+        notify,
       },
       working,
       holder.battleUnitId,

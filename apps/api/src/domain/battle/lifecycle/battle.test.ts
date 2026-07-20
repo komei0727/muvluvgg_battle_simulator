@@ -891,6 +891,104 @@ describe("advanceBattle", () => {
     expect(activated).toBeDefined();
   });
 
+  it("PR #155 re-review round 2 [P1]: a PS that triggers on TurnCompleted activates at turn end (TurnCompleted was recorded but never notified to PassiveActivationRuntime)", () => {
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_COMPLETED");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 0 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnCompleted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "TURN", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_TURN_COMPLETED", tags: [] },
+    };
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_TURN_WATCHER");
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        unitDefinitionId,
+        {
+          unitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "SUPPORT",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0.1,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0.25,
+            actionSpeed: 10,
+            maximumAp: 3,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 100,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "TurnWatcher",
+            characterName: "TurnWatcher",
+            characterId: "CHAR_TURN_WATCHER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [{ ...createBattleUnit(member("ally:1", { unitDefinitionId }), "ALLY", LIMITS) }],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    const turn1Recorder = recorder();
+    advanceBattle(battle, NO_RANDOM(), turn1Recorder);
+
+    const activated = turn1Recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            passiveSkillDefinitionId,
+      );
+    expect(activated).toBeDefined();
+  });
+
   it("PR #155 re-review [P1]: a real AS attack's DamageApplied consumes the attacker's OUTGOING_HIT AppliedEffect down to expiry (R-EFF-07, live wiring through the normal action pipeline)", () => {
     const effectInstanceId = "B_1:effect:seed" as never;
     const battle = startBattle(

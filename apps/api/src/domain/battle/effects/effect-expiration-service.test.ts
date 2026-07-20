@@ -398,4 +398,147 @@ describe("expireEffects (R-EFF-04/06/07/08/09)", () => {
     const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
     expect(targetAfter.markers.map((m) => m.markerId)).toEqual([MARKER_B]);
   });
+
+  describe("PR #155 re-review round 2 [P2]: per-event PS interleaving (context.notify)", () => {
+    it("calls notify once per recorded event, in order, with the units updated so far", () => {
+      const recorder = new EventRecorder(BATTLE_ID);
+      const ctx = makeContext(recorder);
+      const units = [
+        unitWith([
+          effect({
+            id: "parent",
+            magnitude: 10,
+            duplicate: true,
+            active: true,
+            linkedEffectGroupId: "GROUP_A",
+          }),
+          effect({
+            id: "child",
+            magnitude: 5,
+            duplicate: true,
+            active: true,
+            linkedEffectGroupId: "GROUP_A",
+          }),
+        ]),
+      ];
+      const notified: string[] = [];
+
+      expireEffects(
+        {
+          ...ctx,
+          notify: (event, currentUnits) => {
+            notified.push(
+              `${event.eventType}:${(event.payload as { effectInstanceId: string }).effectInstanceId}`,
+            );
+            return currentUnits;
+          },
+        },
+        units,
+        TARGET,
+        [
+          {
+            kind: "EFFECT",
+            effectInstanceId: createEffectInstanceId("parent"),
+            reason: "TIME_LIMIT",
+          },
+        ],
+        ctx.rootEvent.eventId,
+      );
+
+      expect(notified).toEqual(["EffectExpired:child", "EffectExpired:parent"]);
+    });
+
+    it("uses the units returned by notify (not a stale pre-batch snapshot) to decide the next step: a reaction that removes the promotion candidate before promotion is decided prevents a stale EffectiveEffectChanged", () => {
+      const recorder = new EventRecorder(BATTLE_ID);
+      const ctx = makeContext(recorder);
+      const units = [
+        unitWith([
+          effect({ id: "e1", magnitude: 30, duplicate: false, active: true }),
+          effect({ id: "e2", magnitude: 15, duplicate: false, active: false }),
+        ]),
+      ];
+
+      const result = expireEffects(
+        {
+          ...ctx,
+          notify: (event, currentUnits) => {
+            if (event.eventType !== "EffectExpired") {
+              return currentUnits;
+            }
+            // Simulates a PS reacting to e1's expiry by independently removing e2
+            // before this function's own promotion check runs.
+            return currentUnits.map((u) =>
+              u.battleUnitId === TARGET
+                ? {
+                    ...u,
+                    appliedEffects: u.appliedEffects.filter((e) => e.effectInstanceId !== "e2"),
+                  }
+                : u,
+            );
+          },
+        },
+        units,
+        TARGET,
+        [{ kind: "EFFECT", effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" }],
+        ctx.rootEvent.eventId,
+      );
+
+      const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+      expect(targetAfter.appliedEffects).toEqual([]);
+      // A stale (pre-notify) promotion computation would have wrongly promoted e2
+      // (the only other instance in the pre-batch snapshot). The correct, current-state
+      // computation reports the active effect going from e1 to none (e2 is already gone).
+      const changed = recorder.getEvents().find((e) => e.eventType === "EffectiveEffectChanged");
+      expect(changed?.payload).toMatchObject({ beforeEffectInstanceId: "e1" });
+      expect(
+        (changed?.payload as { afterEffectInstanceId?: string }).afterEffectInstanceId,
+      ).toBeUndefined();
+    });
+
+    it("skips an already-notify-removed request instead of re-emitting a duplicate EffectExpired for it", () => {
+      const recorder = new EventRecorder(BATTLE_ID);
+      const ctx = makeContext(recorder);
+      const units = [
+        unitWith([
+          effect({ id: "e1", magnitude: 10, duplicate: true, active: true }),
+          effect({ id: "e2", magnitude: 5, duplicate: true, active: true }),
+        ]),
+      ];
+
+      const result = expireEffects(
+        {
+          ...ctx,
+          notify: (event, currentUnits) => {
+            if ((event.payload as { effectInstanceId?: string }).effectInstanceId !== "e1") {
+              return currentUnits;
+            }
+            // A PS reacting to e1's expiry independently removes e2 too.
+            return currentUnits.map((u) =>
+              u.battleUnitId === TARGET
+                ? {
+                    ...u,
+                    appliedEffects: u.appliedEffects.filter((e) => e.effectInstanceId !== "e2"),
+                  }
+                : u,
+            );
+          },
+        },
+        units,
+        TARGET,
+        [
+          { kind: "EFFECT", effectInstanceId: createEffectInstanceId("e1"), reason: "TIME_LIMIT" },
+          { kind: "EFFECT", effectInstanceId: createEffectInstanceId("e2"), reason: "TIME_LIMIT" },
+        ],
+        ctx.rootEvent.eventId,
+      );
+
+      const targetAfter = result.units.find((u) => u.battleUnitId === TARGET)!;
+      expect(targetAfter.appliedEffects).toEqual([]);
+      const expiredIds = recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectExpired")
+        .map((e) => (e.payload as { effectInstanceId: string }).effectInstanceId);
+      expect(expiredIds).toEqual(["e1"]);
+    });
+  });
 });

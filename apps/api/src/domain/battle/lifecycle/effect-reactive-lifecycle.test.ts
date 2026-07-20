@@ -159,6 +159,42 @@ describe("applyEffectConsumptionAndExpiration (R-EFF-07/08)", () => {
 
     const attackerAfter = result.units.find((u) => u.battleUnitId === ATTACKER)!;
     expect(attackerAfter.appliedEffects).toEqual([]);
+    const events = recorder.getEvents();
+    const changedIndex = events.findIndex((e) => e.eventType === "EffectConsumptionChanged");
+    const expiredIndex = events.findIndex((e) => e.eventType === "EffectExpired");
+    expect(events[changedIndex]?.payload).toMatchObject({
+      effectInstanceId: "e1",
+      consumptionKind: "OUTGOING_HIT",
+      before: 1,
+      after: 0,
+    });
+    expect(events[expiredIndex]?.payload).toMatchObject({
+      effectInstanceId: "e1",
+      reason: "CONSUMPTION",
+    });
+    expect(changedIndex).toBeGreaterThanOrEqual(0);
+    expect(expiredIndex).toBeGreaterThan(changedIndex);
+  });
+
+  it("PR #155 re-review round 2 [P1]: decrements NEXT_OUTGOING_ATTACK for the attacker on DamageApplied (MISS does not exist yet, so reaching hit-judgment and a confirmed hit are the same instant)", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const attacker = unit(ATTACKER, [
+      consumableEffect({
+        id: "e1",
+        consumptionKind: "NEXT_OUTGOING_ATTACK",
+        remaining: 1,
+        sourceId: ATTACKER,
+        targetId: ATTACKER,
+      }),
+    ]);
+    const defender = unit(DEFENDER);
+    const hit = damageAppliedEvent(recorder, ctx.resolutionScopeId, ctx.rootEventId);
+
+    const result = applyEffectConsumptionAndExpiration(ctx, [attacker, defender], hit, hit.eventId);
+
+    const attackerAfter = result.units.find((u) => u.battleUnitId === ATTACKER)!;
+    expect(attackerAfter.appliedEffects).toEqual([]);
     const expired = recorder.getEvents().find((e) => e.eventType === "EffectExpired");
     expect(expired?.payload).toMatchObject({ effectInstanceId: "e1", reason: "CONSUMPTION" });
   });
@@ -205,6 +241,43 @@ describe("applyEffectConsumptionAndExpiration (R-EFF-07/08)", () => {
     const hit = damageAppliedEvent(recorder, ctx.resolutionScopeId, ctx.rootEventId);
 
     const result = applyEffectConsumptionAndExpiration(ctx, [attacker, defender], hit, hit.eventId);
+
+    const defenderAfter = result.units.find((u) => u.battleUnitId === DEFENDER)!;
+    expect(defenderAfter.appliedEffects).toEqual([]);
+    const expired = recorder.getEvents().find((e) => e.eventType === "EffectExpired");
+    expect(expired?.payload).toMatchObject({ effectInstanceId: "e1", reason: "SPECIAL_CONDITION" });
+  });
+
+  it("PR #155 re-review round 2 [P2]: expires an effect whose expiration.conditions use TARGET_STATE (real Catalog data: UNIT_HARRIET_SAGE/effects.json's continuous heal expires when its owner (SELF) is no longer alive) instead of throwing", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    const ctx = makeContext(recorder);
+    const defeatedDefender = {
+      ...unit(DEFENDER, [
+        expiringEffect({
+          id: "e1",
+          targetId: DEFENDER,
+          conditions: [
+            {
+              kind: "TARGET_STATE",
+              target: { kind: "SELF" },
+              field: "IS_ALIVE",
+              op: "EQ",
+              value: false,
+            },
+          ],
+        }),
+      ]),
+      currentHp: 0,
+    };
+    const attacker = unit(ATTACKER);
+    const hit = damageAppliedEvent(recorder, ctx.resolutionScopeId, ctx.rootEventId);
+
+    const result = applyEffectConsumptionAndExpiration(
+      ctx,
+      [attacker, defeatedDefender],
+      hit,
+      hit.eventId,
+    );
 
     const defenderAfter = result.units.find((u) => u.battleUnitId === DEFENDER)!;
     expect(defenderAfter.appliedEffects).toEqual([]);

@@ -5,6 +5,7 @@ import {
 } from "../model/applied-effect.js";
 import { recomputeActiveEffects } from "./effect-duplicate-resolution.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
   ActionId,
@@ -124,12 +125,37 @@ export function grantEffect(
         : {}),
       ...(request.snapshot !== undefined ? { snapshot: request.snapshot } : {}),
     },
+    // PR #155再レビュー[P1]（Finding A）: 新規`AppliedEffect`の追加を`effects`
+    // stateDeltaとして持つ。`grantedEffect`は`recomputed`（付与直後の重複なし
+    // 昇格判定込み）由来のため、`active`は最終状態を反映済み。
+    stateDelta: {
+      units: {
+        [request.targetId]: {
+          effects: {
+            [grantedEffect.effectInstanceId]: {
+              before: undefined,
+              after: toEffectSnapshot(grantedEffect),
+            },
+          },
+        },
+      },
+    },
   });
   let lastEventId = applied.eventId;
 
   if (!request.duplicate) {
     const afterActive = recomputed.find((e) => e.kindKey === kindKey && !e.duplicate && e.active);
     if (beforeActive?.effectInstanceId !== afterActive?.effectInstanceId) {
+      // PR #155再レビュー[P1]（Finding A）: `afterActive`（新規昇格した場合は
+      // `grantedEffect`自身）の`effects`変化は`EffectApplied`が既に所有して
+      // いるため、ここでは「非活性化した旧採用インスタンス」だけを持つ
+      // （「一つの状態変更を複数イベントのstateDeltaへ重複して記録しない」）。
+      // `beforeActive`が`undefined`（新規グループ発足）の場合は追加で報告する
+      // 対象が無いため`stateDelta`自体を持たない。
+      const beforeActiveAfterRecompute =
+        beforeActive !== undefined
+          ? recomputed.find((e) => e.effectInstanceId === beforeActive.effectInstanceId)
+          : undefined;
       const changed = context.recorder.record({
         eventType: "EffectiveEffectChanged",
         category: "FACT",
@@ -151,6 +177,22 @@ export function grantEffect(
             ? { afterEffectInstanceId: afterActive.effectInstanceId }
             : {}),
         },
+        ...(beforeActive !== undefined && beforeActiveAfterRecompute !== undefined
+          ? {
+              stateDelta: {
+                units: {
+                  [request.targetId]: {
+                    effects: {
+                      [beforeActive.effectInstanceId]: {
+                        before: toEffectSnapshot(beforeActive),
+                        after: toEffectSnapshot(beforeActiveAfterRecompute),
+                      },
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
       });
       lastEventId = changed.eventId;
     }

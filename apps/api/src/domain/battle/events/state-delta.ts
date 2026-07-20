@@ -1,9 +1,10 @@
 import type { BattleStatus } from "../model/battle-status.js";
+import type { AppliedEffect } from "../model/applied-effect.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { ActionId } from "../../shared/event-ids.js";
+import type { ActionId, EffectInstanceId } from "../../shared/event-ids.js";
 
 export interface ValueChange<T> {
   readonly before: T;
@@ -51,7 +52,7 @@ export interface ChargeState {
  * スコープでは契約自体の拡張までは行わない）。
  */
 export interface EffectSnapshot {
-  readonly effectInstanceId: string;
+  readonly effectInstanceId: EffectInstanceId;
   readonly effectDefinitionId: string;
   readonly sourceUnitId?: BattleUnitId;
   readonly effectKindKey: string;
@@ -61,6 +62,62 @@ export interface EffectSnapshot {
   readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
   readonly appliedTurnNumber: number;
   readonly appliedActionId?: ActionId;
+}
+
+/**
+ * `AppliedEffect`（Domain）から`EffectSnapshot`（`stateDelta`/`BattleUnitSnapshot`
+ * 共通の外部公開形）を導出する（PR #155再レビュー[P1]、Finding A）。
+ * `captureBattleState`と、`EffectApplied`/`EffectDurationReduced`/`EffectExpired`/
+ * `EffectConsumptionChanged`/`EffectiveEffectChanged`を記録する各箇所が同じ
+ * 変換を共有し、`finalState.effects`と`stateTransitions`由来の復元結果が
+ * 常に同じ形になるようにする。
+ */
+export function toEffectSnapshot(effect: AppliedEffect): EffectSnapshot {
+  const timeLimit = effect.duration.definition.timeLimit;
+  const duration =
+    (timeLimit?.unit === "ACTION" || timeLimit?.unit === "TURN") &&
+    effect.duration.timeLimitRemaining !== undefined
+      ? { unit: timeLimit.unit, remaining: effect.duration.timeLimitRemaining }
+      : undefined;
+  return {
+    effectInstanceId: effect.effectInstanceId,
+    effectDefinitionId: effect.effectActionDefinitionId,
+    sourceUnitId: effect.sourceId,
+    effectKindKey: effect.kindKey,
+    duplicate: effect.duplicate,
+    active: effect.active,
+    magnitude: effect.magnitude,
+    ...(duration !== undefined ? { duration } : {}),
+    appliedTurnNumber: effect.appliedTurnNumber,
+    ...(effect.appliedActionId !== undefined ? { appliedActionId: effect.appliedActionId } : {}),
+  };
+}
+
+/**
+ * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
+ * オブジェクトとして構築されるため参照同一性では判定できない）で、
+ * フィールド単位の構造比較を行う。Reducerの`before`一致検証に使う。
+ */
+export function sameEffectSnapshot(
+  a: EffectSnapshot | undefined,
+  b: EffectSnapshot | undefined,
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.effectInstanceId === b.effectInstanceId &&
+    a.effectDefinitionId === b.effectDefinitionId &&
+    a.sourceUnitId === b.sourceUnitId &&
+    a.effectKindKey === b.effectKindKey &&
+    a.duplicate === b.duplicate &&
+    a.active === b.active &&
+    a.magnitude === b.magnitude &&
+    a.duration?.unit === b.duration?.unit &&
+    a.duration?.remaining === b.duration?.remaining &&
+    a.appliedTurnNumber === b.appliedTurnNumber &&
+    a.appliedActionId === b.appliedActionId
+  );
 }
 
 /** `08_ドメインイベント.md`「StateDelta」: 変更した項目だけを持つ。 */
@@ -116,6 +173,18 @@ export interface UnitStateDelta {
   readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
   >;
+  /**
+   * `EffectInstanceId`をキーとする、変更された`AppliedEffect`だけを持つ
+   * （PR #155再レビュー[P1]、Finding A）。`skillCounters`と同じ規約:
+   * `before: undefined`は新規付与（`EffectApplied`）、`after: undefined`は
+   * 失効・解除（`EffectExpired`）、両方存在すれば残り回数変更
+   * （`EffectDurationReduced`/`EffectConsumptionChanged`）または重複なし
+   * グループの採用切替（`EffectiveEffectChanged`、対象の`active`だけが変わる）。
+   * `Map`の挿入順は`Object.entries`の列挙順と一致し、新規追加は既存キーの
+   * 後ろへ追加されるため、独立Reducerで`appliedEffects`配列の付与順
+   * （`applied-effect.ts`参照）を保てる。
+   */
+  readonly effects?: Readonly<Record<EffectInstanceId, ValueChange<EffectSnapshot | undefined>>>;
 }
 
 /**

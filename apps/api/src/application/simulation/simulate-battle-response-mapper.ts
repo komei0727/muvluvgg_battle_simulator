@@ -292,6 +292,41 @@ function toCooldownEntityCollectionDeltaResponseBody(
 }
 
 /**
+ * `10_API設計.md`「UnitStateDeltaResponse.effects」(`EntityCollectionDelta`、
+ * PR #155再レビュー[P1]、Finding A)。`before: undefined`は新規付与
+ * （`EffectApplied`）=`added`、`after: undefined`は失効・解除
+ * （`EffectExpired`）=`removed`、両方存在すれば残り回数変更や重複なし
+ * グループの採用切替（`EffectDurationReduced`/`EffectConsumptionChanged`/
+ * `EffectiveEffectChanged`）=`updated`。`added`は`toEffectStateResponseBody`と
+ * 同じ完全な形で持たせ、`stateTransitions`単体から`finalState`を厳密に
+ * 復元できるようにする（`cooldowns`と同じ方針）。
+ */
+function toEffectEntityCollectionDeltaResponseBody(
+  effects: UnitStateDelta["effects"],
+): EntityCollectionDeltaResponseBody | undefined {
+  if (effects === undefined) {
+    return undefined;
+  }
+  const added: unknown[] = [];
+  const updated: { id: string; before: unknown; after: unknown }[] = [];
+  const removed: { id: string; before: unknown }[] = [];
+  for (const [effectInstanceId, change] of Object.entries(effects)) {
+    if (change.before === undefined && change.after !== undefined) {
+      added.push(toEffectStateResponseBody(change.after));
+    } else if (change.after === undefined && change.before !== undefined) {
+      removed.push({ id: effectInstanceId, before: toEffectStateResponseBody(change.before) });
+    } else if (change.before !== undefined && change.after !== undefined) {
+      updated.push({
+        id: effectInstanceId,
+        before: toEffectStateResponseBody(change.before),
+        after: toEffectStateResponseBody(change.after),
+      });
+    }
+  }
+  return { added, updated, removed };
+}
+
+/**
  * `10_API設計.md`「UnitStateDeltaResponse.charge」(`ValueChange`)。「値がなくなった
  * ことを表す必要がある場合だけ`after: null`を使用する」規則に従い、Domainの
  * `undefined`(未チャージ)を`null`へ明示的に変換する。`status`はM5時点で
@@ -350,6 +385,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
       : undefined;
   const cooldowns = toCooldownEntityCollectionDeltaResponseBody(delta.cooldowns);
   const charge = toChargeValueChangeResponseBody(delta.charge);
+  const effects = toEffectEntityCollectionDeltaResponseBody(delta.effects);
 
   return {
     ...(delta.hp !== undefined ? { hp: delta.hp } : {}),
@@ -357,6 +393,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
     ...(combatStatus !== undefined ? { combatStatus } : {}),
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(charge !== undefined ? { charge } : {}),
+    ...(effects !== undefined ? { effects } : {}),
   };
 }
 

@@ -409,6 +409,23 @@ export interface BattleDomainEventPayloadMap {
     readonly snapshot?: Readonly<Record<string, number>>;
   };
   /**
+   * PR #155再レビュー[P1]（Finding A）: R-EFF-04/06「行動またはターン終了時から、
+   * 各効果インスタンスの残り回数を1減らす」の、0に達しない変化を表す
+   * （0に達する変化は`EffectExpired`が表す）。`CooldownReduced`（残数が0に
+   * 達する変化でも記録され、その後`CooldownCompleted`が続く）と対称の役割 —
+   * 以前はこの変化がどのイベントにも記録されず、`stateDelta`から
+   * `finalState.effects`の残り回数を復元できなかった。`unit`は`ACTION`/`TURN`
+   * （`DurationTimeUnit`のうち時間経過で自動減算されるscope、`BATTLE`/`HIT`/
+   * `SKILL_USE`はこの契機で減らないためここでは扱わない）。
+   */
+  readonly EffectDurationReduced: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly targetUnitId: BattleUnitId;
+    readonly unit: "ACTION" | "TURN";
+    readonly before: number;
+    readonly after: number;
+  };
+  /**
    * `08_ドメインイベント.md`「EffectExpiredの順序」（R-EFF-04/06/07/08）。
    * `reason`は失効の原因（同じイベントで複数条件が同時に成立しても二重発行
    * しない、R-EFF-07「どちらかで失効した効果は二重に失効処理しない」）。

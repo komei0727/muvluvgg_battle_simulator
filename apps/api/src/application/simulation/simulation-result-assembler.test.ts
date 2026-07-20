@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { assembleSimulationResult } from "./simulation-result-assembler.js";
 import { ApplicationError } from "../contracts/application-error.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import { createActionId, createDomainEventId } from "../../domain/shared/event-ids.js";
+import {
+  createActionId,
+  createDomainEventId,
+  createEffectInstanceId,
+} from "../../domain/shared/event-ids.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
@@ -527,6 +531,170 @@ describe("assembleSimulationResult", () => {
           },
         },
       },
+    };
+
+    let error: unknown;
+    try {
+      assembleSimulationResult({
+        battleId: BATTLE_ID,
+        catalogRevision: "rev-1",
+        logLevel: "DETAILED",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+        initialState,
+        finalState,
+        events: recorder.getEvents(),
+        unitRoster: [],
+      });
+      expect.unreachable("expected assembleSimulationResult to throw");
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBeInstanceOf(ApplicationError);
+    expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+  });
+
+  it("UT-RESULT-ASSEMBLER-013 (PR #155 re-review round 2 [P1] fix, Finding A): restores a real EffectApplied->EffectDurationReduced StateDelta sequence without INTERNAL_INVARIANT_VIOLATION", () => {
+    const UNIT_A = createBattleUnitId("unit-a");
+    const effectInstanceId = createEffectInstanceId("battle-1:effect:1");
+    const effectSnapshotBefore = {
+      effectInstanceId,
+      effectDefinitionId: "ACT_BUFF",
+      effectKindKey: "ACT_BUFF",
+      duplicate: true,
+      active: true,
+      magnitude: 10,
+      duration: { unit: "TURN" as const, remaining: 2 },
+      appliedTurnNumber: 1,
+    };
+    const effectSnapshotAfter = {
+      ...effectSnapshotBefore,
+      duration: { unit: "TURN" as const, remaining: 1 },
+    };
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1.
+    recorder.record({
+      eventType: "EffectApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      targetUnitIds: [UNIT_A],
+      payload: {
+        effectInstanceId,
+        effectActionDefinitionId: "ACT_BUFF" as never,
+        sourceUnitId: UNIT_A,
+        targetUnitId: UNIT_A,
+        duplicate: true,
+        kindKey: "ACT_BUFF",
+        magnitude: 10,
+        linkedEffectGroupId: null,
+      },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            effects: { [effectInstanceId]: { before: undefined, after: effectSnapshotBefore } },
+          },
+        },
+      },
+    }); // version 1->2.
+    recorder.record({
+      eventType: "EffectDurationReduced",
+      category: "FACT",
+      turnNumber: 2,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      targetUnitIds: [UNIT_A],
+      payload: { effectInstanceId, targetUnitId: UNIT_A, unit: "TURN", before: 2, after: 1 },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            effects: {
+              [effectInstanceId]: { before: effectSnapshotBefore, after: effectSnapshotAfter },
+            },
+          },
+        },
+      },
+    }); // version 2->3.
+
+    const initialState = {
+      status: "READY" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+    };
+    const finalState = {
+      status: "RUNNING" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, effects: [effectSnapshotAfter] } },
+    };
+
+    const result = assembleSimulationResult({
+      battleId: BATTLE_ID,
+      catalogRevision: "rev-1",
+      logLevel: "DETAILED",
+      result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+      initialState,
+      finalState,
+      events: recorder.getEvents(),
+      unitRoster: [],
+    });
+
+    expect(result.finalState).toEqual(finalState);
+  });
+
+  it("UT-RESULT-ASSEMBLER-014 (PR #155 re-review round 2 [P1] fix, Finding A): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's effects disagree with initialState + stateTransitions restored through the independent Reducer (previously unitSnapshotsEqual ignored effects entirely and let this slip through)", () => {
+    const UNIT_A = createBattleUnitId("unit-a");
+    const effectInstanceId = createEffectInstanceId("battle-1:effect:1");
+    const effectSnapshot = {
+      effectInstanceId,
+      effectDefinitionId: "ACT_BUFF",
+      effectKindKey: "ACT_BUFF",
+      duplicate: true,
+      active: true,
+      magnitude: 10,
+      appliedTurnNumber: 1,
+    };
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1.
+    recorder.record({
+      eventType: "EffectApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      targetUnitIds: [UNIT_A],
+      payload: {
+        effectInstanceId,
+        effectActionDefinitionId: "ACT_BUFF" as never,
+        sourceUnitId: UNIT_A,
+        targetUnitId: UNIT_A,
+        duplicate: true,
+        kindKey: "ACT_BUFF",
+        magnitude: 10,
+        linkedEffectGroupId: null,
+      },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            effects: { [effectInstanceId]: { before: undefined, after: effectSnapshot } },
+          },
+        },
+      },
+    }); // version 1->2.
+
+    const initialState = {
+      status: "READY" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+    };
+    // The recorded delta granted the effect, but this finalState (wrongly)
+    // claims no effects at all — a state-changing event's stateDelta silently
+    // dropped from the claimed finalState.
+    const finalState = {
+      status: "RUNNING" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
     };
 
     let error: unknown;

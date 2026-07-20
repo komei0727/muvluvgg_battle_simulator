@@ -5,6 +5,7 @@ import type {
   JsonPrimitive,
   PositionRelation,
   ResolutionPhase,
+  TargetStateField,
 } from "../../catalog/definitions/condition-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -33,10 +34,14 @@ export interface TriggerConditionPayloadSource {
  *   スコープの所有者（`owner`が`skillDefinitionId`のスキルとして保持する
  *   counterだけを参照し、他スキルや他ユニットのcounterは見えない、
  *   `07_戦闘ルール詳細.md` R-EFF-11「定義されたスコープ内で管理する」）。
- *   `POSITION_RELATION`もPS所有者の`globalCoordinate`を参照するために使う。
- * - `getUnit`: `POSITION_RELATION`がevent由来のBattleUnitIdから対象の
- *   `globalCoordinate`/生存状態を解決するための参照先。未指定時は
- *   `POSITION_RELATION`を評価できずthrowする（`RUNTIME_COUNTER`と同じ隔離方針）。
+ *   `POSITION_RELATION`/`TARGET_STATE`もPS所有者（または効果保持者、
+ *   `effect-special-expiration.ts`参照）の`globalCoordinate`等を参照するために
+ *   `owner`を使う。`skillDefinitionId`は`RUNTIME_COUNTER`専用のため、
+ *   PS文脈を持たない呼び出し元（特殊失効条件評価）では省略できる
+ *   （PR #155再レビュー[P2]: `TARGET_STATE`はSkillRuntimeスコープを前提としない）。
+ * - `getUnit`: `POSITION_RELATION`/`TARGET_STATE`がevent由来のBattleUnitIdから
+ *   対象の`globalCoordinate`/生存状態等を解決するための参照先。未指定時は
+ *   いずれも評価できずthrowする（`RUNTIME_COUNTER`と同じ隔離方針）。
  * - `resolutionPhase`: 呼び出し側（`PassiveActivationRuntime`等）が1解決スコープ
  *   ごとに1回だけ決める、現在のroot/ancestorイベントが属するBattle/Turn phase
  *   （`R-PS-01`「固定のeventType分岐を増やさず」）。行動中など通常の解決スコープ
@@ -44,18 +49,20 @@ export interface TriggerConditionPayloadSource {
  */
 export interface RuntimeCounterLookupContext {
   readonly owner: BattleUnit;
-  readonly skillDefinitionId: SkillDefinitionId;
+  readonly skillDefinitionId?: SkillDefinitionId;
   readonly getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined;
   readonly resolutionPhase?: ResolutionPhase;
 }
 
 /**
- * `POSITION_RELATION.target`（`TargetReference`）をtrigger文脈で解決する。
- * `SELF`はPS所有者自身、`TRIGGER_SOURCE`/`TRIGGER_TARGET`はeventのpayload外の
- * 発生源・対象を参照する。`BINDING`はEffectSequence文脈（M7）を前提とするため、
- * `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`とともにここでは未対応とする。
+ * `POSITION_RELATION.target`/`TARGET_STATE.target`（`TargetReference`）を
+ * trigger文脈で解決する。`SELF`はPS所有者自身（または効果保持者、
+ * `effect-special-expiration.ts`参照）、`TRIGGER_SOURCE`/`TRIGGER_TARGET`は
+ * eventのpayload外の発生源・対象を参照する。`BINDING`はEffectSequence文脈（M7）を
+ * 前提とするため、`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`とともにここでは
+ * 未対応とする。
  */
-function resolvePositionRelationTargetIds(
+function resolveTargetReferenceIds(
   target: TargetReference,
   owner: BattleUnit,
   event: TriggerConditionPayloadSource,
@@ -70,7 +77,7 @@ function resolvePositionRelationTargetIds(
     default:
       throw new DomainValidationError(
         "condition.target",
-        `kind "${target.kind}" is not supported by POSITION_RELATION in trigger context (only SELF/TRIGGER_SOURCE/TRIGGER_TARGET)`,
+        `kind "${target.kind}" is not supported by POSITION_RELATION/TARGET_STATE in trigger context (only SELF/TRIGGER_SOURCE/TRIGGER_TARGET)`,
       );
   }
 }
@@ -86,6 +93,43 @@ function matchesPositionRelation(
       return (
         target.globalCoordinate.x === owner.globalCoordinate.x &&
         target.globalCoordinate.y === owner.globalCoordinate.y + frontDirectionStep(owner.side)
+      );
+  }
+}
+
+/**
+ * `TARGET_STATE.field`をBattleUnitの現在値から解決する（PR #155再レビュー[P2]）。
+ * `IS_ALIVE`/`HP_RATIO`/`ATTRIBUTE`/`POSITION_ROW`/`POSITION_COLUMN`/
+ * `RESOURCE_AP`/`RESOURCE_PP`/`RESOURCE_EX_GAUGE`はいずれも`BattleUnit`が
+ * 直接持つ実行時状態から求まる。`UNIT_TYPE`/`ROLE`はCatalogの`UnitDefinition`
+ * （`BattleUnit`は`unitDefinitionId`しか持たない）、`HAS_STATUS`は状態異常を
+ * `AppliedEffect`と区別する専用モデル（未実装、Issue #23関連の`category`同様の
+ * 保留事項）をそれぞれ前提とするため、まだ推測実装しない。
+ */
+function targetStateFieldValue(target: BattleUnit, field: TargetStateField): JsonPrimitive {
+  switch (field) {
+    case "IS_ALIVE":
+      return !isDefeated(target);
+    case "HP_RATIO":
+      return target.combatStats.maximumHp > 0 ? target.currentHp / target.combatStats.maximumHp : 0;
+    case "ATTRIBUTE":
+      return target.attribute;
+    case "POSITION_ROW":
+      return target.position.row;
+    case "POSITION_COLUMN":
+      return target.position.column;
+    case "RESOURCE_AP":
+      return target.currentAp;
+    case "RESOURCE_PP":
+      return target.currentPp;
+    case "RESOURCE_EX_GAUGE":
+      return target.currentExtraGauge;
+    case "UNIT_TYPE":
+    case "ROLE":
+    case "HAS_STATUS":
+      throw new DomainValidationError(
+        "condition.field",
+        `TARGET_STATE field "${field}" is not yet supported (requires Catalog UnitDefinition lookup or status-abnormality tracking not yet modeled)`,
       );
   }
 }
@@ -116,11 +160,12 @@ function compare(actual: unknown, op: ComparisonOperator, expected: JsonPrimitiv
 /**
  * R-PS-01「発生源、対象、陣営、スキル種別などをConditionDefinitionで評価する」の
  * うち、`08_ドメインイベント.md`「EVENT_PAYLOAD」、`RUNTIME_COUNTER`（M6最小実装、
- * Issue #143）、`POSITION_RELATION`／`RESOLUTION_PHASE`（M6、Issue #144）に対応する
- * 評価器。`TARGET_STATE`／`TARGET_HAS_MARKER`／`ALIVE_UNIT_COUNT`はMarkerState等の
- * 実行時状態(M7)を前提とするため未対応とし、呼び出し側が明確なエラーで
- * 気付けるようにする(`action-selection-policy.ts`等、他の"basic"policyと同じ
- * 隔離方針)。
+ * Issue #143）、`POSITION_RELATION`／`RESOLUTION_PHASE`（M6、Issue #144）、
+ * `TARGET_STATE`（`UNIT_TYPE`/`ROLE`/`HAS_STATUS`を除く、PR #155再レビュー[P2]）
+ * に対応する評価器。`TARGET_HAS_MARKER`／`ALIVE_UNIT_COUNT`／`LAST_RESULT`／
+ * `TURN_NUMBER`はMarkerState等の実行時状態(M7)を前提とするため未対応とし、
+ * 呼び出し側が明確なエラーで気付けるようにする(`action-selection-policy.ts`等、
+ * 他の"basic"policyと同じ隔離方針)。
  */
 export function evaluateTriggerCondition(
   condition: ConditionDefinition,
@@ -141,7 +186,7 @@ export function evaluateTriggerCondition(
       return compare(actual, condition.op, condition.value);
     }
     case "RUNTIME_COUNTER": {
-      if (context === undefined) {
+      if (context === undefined || context.skillDefinitionId === undefined) {
         throw new DomainValidationError(
           "condition",
           'kind "RUNTIME_COUNTER" requires a RuntimeCounterLookupContext (owner + skillDefinitionId)',
@@ -162,7 +207,7 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      const targetIds = resolvePositionRelationTargetIds(condition.target, owner, event);
+      const targetIds = resolveTargetReferenceIds(condition.target, owner, event);
       return targetIds.some((id) => {
         const target = getUnit(id);
         return (
@@ -172,6 +217,24 @@ export function evaluateTriggerCondition(
         );
       });
     }
+    case "TARGET_STATE": {
+      if (context?.getUnit === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "TARGET_STATE" requires a context with a getUnit lookup (owner + getUnit)',
+        );
+      }
+      const { owner, getUnit } = context;
+      const targetIds = resolveTargetReferenceIds(condition.target, owner, event);
+      return targetIds.some((id) => {
+        const target = getUnit(id);
+        if (target === undefined) {
+          return false;
+        }
+        const actual = targetStateFieldValue(target, condition.field);
+        return compare(actual, condition.op, condition.value);
+      });
+    }
     case "RESOLUTION_PHASE": {
       const matches = context?.resolutionPhase === condition.phase;
       return condition.negate ? !matches : matches;
@@ -179,7 +242,7 @@ export function evaluateTriggerCondition(
     default:
       throw new DomainValidationError(
         "condition",
-        `kind "${condition.kind}" is not supported by this basic PassiveTriggerMatcher (TARGET_STATE/TARGET_HAS_MARKER/ALIVE_UNIT_COUNT/LAST_RESULT/TURN_NUMBER are M7 scope)`,
+        `kind "${condition.kind}" is not supported by this basic PassiveTriggerMatcher (TARGET_HAS_MARKER/ALIVE_UNIT_COUNT/LAST_RESULT/TURN_NUMBER are M7 scope)`,
       );
   }
 }

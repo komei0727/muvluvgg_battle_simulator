@@ -770,6 +770,20 @@ const effectAppliedDetailsSchema = {
   },
 } as const;
 
+/** PR #155再レビュー[P1]（Finding A）: R-EFF-04/06、0に達しない残り回数の変化。`unit`は自動減算されるACTION/TURNだけ（`CooldownReduced`と対称）。 */
+const effectDurationReducedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectInstanceId", "targetUnitId", "unit", "before", "after"],
+  properties: {
+    effectInstanceId: { type: "string" },
+    targetUnitId: { type: "string" },
+    unit: { type: "string", enum: ["ACTION", "TURN"] },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 /** `08_ドメインイベント.md`「EffectExpiredの順序」（R-EFF-04/06/07/08）。 */
 const effectExpiredDetailsSchema = {
   type: "object",
@@ -913,6 +927,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
   EFFECT_APPLIED: effectAppliedDetailsSchema,
+  EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,
   EFFECT_EXPIRED: effectExpiredDetailsSchema,
   EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
   EFFECT_CONSUMPTION_CHANGED: effectConsumptionChangedDetailsSchema,

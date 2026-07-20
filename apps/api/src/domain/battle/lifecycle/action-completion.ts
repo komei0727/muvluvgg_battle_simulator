@@ -15,7 +15,7 @@ import type {
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
-import type { StateDelta } from "../events/state-delta.js";
+import { toEffectSnapshot, type StateDelta } from "../events/state-delta.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -175,6 +175,53 @@ export function recordActionCompletion(
     if (effectDecrement.changes.length === 0 && markerDecrement.changes.length === 0) {
       continue;
     }
+    // PR #155再レビュー[P1]（Finding A）: 0に達しない変化も`EffectDurationReduced`
+    // として記録する（`CooldownReduced`が0へ達する変化でも記録され、その後
+    // `CooldownCompleted`が続く既存の対称パターンと揃える）。PS通知は
+    // `CooldownReduced`と同様このイベント単体では行わない（既存の範囲外）。
+    for (const change of effectDecrement.changes) {
+      const beforeEffect = holder.appliedEffects.find(
+        (e) => e.effectInstanceId === change.effectInstanceId,
+      );
+      const afterEffect = effectDecrement.effects.find(
+        (e) => e.effectInstanceId === change.effectInstanceId,
+      );
+      const reduced = recorder.record({
+        eventType: "EffectDurationReduced",
+        category: "FACT",
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        resolutionScopeId: context.resolutionScopeId,
+        parentEventId: lastEventId,
+        rootEventId: context.rootEventId,
+        targetUnitIds: [holder.battleUnitId],
+        payload: {
+          effectInstanceId: change.effectInstanceId,
+          targetUnitId: holder.battleUnitId,
+          unit: "ACTION",
+          before: change.before,
+          after: change.after,
+        },
+        ...(beforeEffect !== undefined && afterEffect !== undefined
+          ? {
+              stateDelta: {
+                units: {
+                  [holder.battleUnitId]: {
+                    effects: {
+                      [change.effectInstanceId]: {
+                        before: toEffectSnapshot(beforeEffect),
+                        after: toEffectSnapshot(afterEffect),
+                      },
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
+      });
+      lastEventId = reduced.eventId;
+    }
     working = working.map((u) =>
       u.battleUnitId === holder.battleUnitId
         ? { ...u, appliedEffects: effectDecrement.effects, markers: markerDecrement.markers }
@@ -209,6 +256,12 @@ export function recordActionCompletion(
           actionId: context.actionId,
           resolutionScopeId: context.resolutionScopeId,
           rootEventId: context.rootEventId,
+          // PR #155再レビュー[P2]: `expireEffects`自身が各イベント直後にPS候補
+          // 解決を挟むため、ここでの事後一括notifyループは行わない
+          // （二重解決を避ける）。
+          ...(context.onFactEventForPassiveChain !== undefined
+            ? { notify: context.onFactEventForPassiveChain }
+            : {}),
         },
         working,
         holder.battleUnitId,
@@ -217,9 +270,6 @@ export function recordActionCompletion(
       );
       working = expireResult.units;
       lastEventId = expireResult.lastEventId;
-      for (const event of expireResult.events) {
-        notify(event);
-      }
     }
   }
 

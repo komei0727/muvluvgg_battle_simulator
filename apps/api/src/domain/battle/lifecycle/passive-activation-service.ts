@@ -343,7 +343,11 @@ export class PassiveActivationRuntime {
     // 抽出前に、消費条件・特殊失効条件を`RuntimeCounterChanged`と同じタイミングで
     // 評価する。ここで発行された`EffectExpired`/`EffectConsumptionChanged`/
     // `EffectiveEffectChanged`/`MarkerRemoved`自体もPS/Memoryの発動契機に
-    // できる契約（`EffectApplied`等と同様）のため、再帰的に`onFactEvent`へ渡す。
+    // できる契約（`EffectApplied`等と同様）のため、`notify`（再帰的な
+    // `onFactEvent`呼び出し、同じ深さguardを使う）を渡し、
+    // `applyEffectConsumptionAndExpiration`自身が各イベント記録の直後に
+    // 即座に呼び出せるようにする（PR #155再レビュー[P2]: 事後の一括notifyでは
+    // 後続の消費・特殊失効・昇格判定がPS反応前の古い状態を見てしまう）。
     const reactiveResult = applyEffectConsumptionAndExpiration(
       {
         recorder: this.context.recorder,
@@ -352,20 +356,20 @@ export class PassiveActivationRuntime {
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
         resolutionScopeId: this.context.resolutionScopeId,
         rootEventId: this.context.rootEventId,
+        notify: (recorded, unitsAtCall) => {
+          if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+            throw new ExecutionGuardExceededError(
+              `EffectExpired/EffectConsumptionChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds`,
+            );
+          }
+          return this.onFactEvent(recorded, unitsAtCall, nextDepth);
+        },
       },
       this.units,
       event,
       event.eventId,
     );
     this.units = reactiveResult.units;
-    for (const recorded of reactiveResult.events) {
-      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
-        throw new ExecutionGuardExceededError(
-          `EffectExpired/EffectConsumptionChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds`,
-        );
-      }
-      this.units = this.onFactEvent(recorded, this.units, nextDepth);
-    }
 
     const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
     if (!result.ok) {

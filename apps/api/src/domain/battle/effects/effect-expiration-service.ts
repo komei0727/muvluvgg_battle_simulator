@@ -1,4 +1,3 @@
-import type { AppliedEffect } from "../model/applied-effect.js";
 import { recomputeActiveEffects } from "./effect-duplicate-resolution.js";
 import {
   isLinkedGroupParent,
@@ -6,6 +5,7 @@ import {
   type LinkedGroupMember,
 } from "./linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
@@ -26,6 +26,18 @@ export interface ExpireEffectsContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #155再レビュー[P2]: `EffectExpired`/`MarkerRemoved`/`EffectiveEffectChanged`を
+   * 記録するたびに直ちに呼び出し、PS/Memory候補解決を挟む（仕様「各イベントに
+   * 対応する候補を直ちに解決する」）。戻り値の`units`をそのまま次の除去・昇格
+   * 判定へ使うため、この関数呼び出し中に発生したPS等の反応（同じグループの
+   * 別インスタンスの追加除去など）を後続処理が正しく踏まえられる。未指定なら
+   * PS解決を行わず（渡されたunitsをそのまま返す）、従来と同じ挙動になる。
+   */
+  readonly notify?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 export type EffectExpirationReason = "TIME_LIMIT" | "CONSUMPTION" | "SPECIAL_CONDITION";
@@ -97,9 +109,15 @@ function requestForCascadeChild(member: LinkedGroupMember): ExpirationRequest {
  * （両コレクション間の真の付与順序を追跡するタイムスタンプを持たないための
  * 決定的な単純化、`linked-effect-group.ts`参照）。
  *
- * EFFECT側の全削除後に一度だけ`recomputeActiveEffects`し、重複なし効果
- * グループの採用対象が変わった場合だけ`EffectiveEffectChanged`を発行する
- * （MarkerはR-EFF-05の対象外）。
+ * PR #155再レビュー[P2]: 「除去対象の決定」（cascade展開、`ordered`）は呼び出し
+ * 時点のスナップショットで一度だけ行うが、「実際の除去・イベント発行・昇格判定」は
+ * `ordered`を1件ずつ処理し、`context.notify`（未指定なら無反応）を都度挟む。
+ * 各`EffectExpired`/`MarkerRemoved`直後にその対象の重複なしkindKeyグループの
+ * 昇格判定を`context.notify`が返した最新状態から行うため、PS等の割り込みが
+ * 同じバッチ内の後続対象（同じ/別のkindKeyグループの追加除去・付与など）へ
+ * 正しく反映される。`notify`が対象を独自に除去済みにした場合は、その対象の
+ * 除去処理・重複イベント発行をスキップする（同じ状態変更を複数イベントの
+ * `stateDelta`へ重複して記録しないという既存の不変条件を維持する）。
  */
 export function expireEffects(
   context: ExpireEffectsContext,
@@ -144,46 +162,41 @@ export function expireEffects(
 
   const effectById = new Map(beforeEffects.map((e) => [e.effectInstanceId, e] as const));
   const explicitKeys = new Set(requests.map((r) => keyForRequest(r)));
+  const notify = context.notify ?? ((_event, currentUnits) => currentUnits);
 
-  const kindKeysTouched = new Set(
-    ordered
-      .filter((r): r is EffectExpirationRequest => r.kind === "EFFECT")
-      .map((r) => effectById.get(r.effectInstanceId))
-      .filter((e): e is AppliedEffect => e !== undefined && !e.duplicate)
-      .map((e) => e.kindKey),
-  );
-  const beforeActiveByKindKey = new Map(
-    [...kindKeysTouched].map((kindKey) => [
-      kindKey,
-      beforeEffects.find((e) => e.kindKey === kindKey && !e.duplicate && e.active)
-        ?.effectInstanceId,
-    ]),
-  );
-
-  const seenEffectIds = new Set(
-    ordered
-      .filter((r): r is EffectExpirationRequest => r.kind === "EFFECT")
-      .map((r) => r.effectInstanceId),
-  );
-  const seenMarkerIds = new Set(
-    ordered.filter((r): r is MarkerExpirationRequest => r.kind === "MARKER").map((r) => r.markerId),
-  );
-  const remainingEffects = beforeEffects.filter((e) => !seenEffectIds.has(e.effectInstanceId));
-  const remainingMarkers = beforeMarkers.filter((m) => !seenMarkerIds.has(m.markerId));
-  const recomputed = recomputeActiveEffects(remainingEffects);
-  const nextUnits = units.map((u) =>
-    u.battleUnitId === targetId
-      ? { ...u, appliedEffects: recomputed, markers: remainingMarkers }
-      : u,
-  );
-
+  let currentUnits = units;
   let lastEventId = parentEventId;
   const recordedEvents: BattleDomainEvent[] = [];
+
   for (const request of ordered) {
     const isCascadeChild = !explicitKeys.has(keyForRequest(request));
+    const currentTarget = requireUnit(currentUnits, targetId);
+
     if (request.kind === "EFFECT") {
+      const removedEffect = currentTarget.appliedEffects.find(
+        (e) => e.effectInstanceId === request.effectInstanceId,
+      );
+      if (removedEffect === undefined) {
+        // 既に`notify`（PS反応等）が独立に除去済み。重複してEffectExpiredを発行しない。
+        continue;
+      }
       const reason: "TIME_LIMIT" | "CONSUMPTION" | "SPECIAL_CONDITION" | "LINKED_GROUP_CASCADE" =
         isCascadeChild ? "LINKED_GROUP_CASCADE" : request.reason;
+      const kindKey = effectById.get(request.effectInstanceId)?.kindKey ?? "";
+      const wasNonDuplicateActive = !removedEffect.duplicate && removedEffect.active;
+      const beforeActive = wasNonDuplicateActive
+        ? currentTarget.appliedEffects.find(
+            (e) => e.kindKey === kindKey && !e.duplicate && e.active,
+          )?.effectInstanceId
+        : undefined;
+
+      const recomputedEffects = recomputeActiveEffects(
+        currentTarget.appliedEffects.filter((e) => e.effectInstanceId !== request.effectInstanceId),
+      );
+      currentUnits = currentUnits.map((u) =>
+        u.battleUnitId === targetId ? { ...u, appliedEffects: recomputedEffects } : u,
+      );
+
       const expired = context.recorder.record({
         eventType: "EffectExpired",
         category: "FACT",
@@ -198,19 +211,103 @@ export function expireEffects(
         payload: {
           effectInstanceId: request.effectInstanceId,
           targetUnitId: targetId,
-          kindKey: effectById.get(request.effectInstanceId)?.kindKey ?? "",
+          kindKey,
           reason,
+        },
+        // PR #155再レビュー[P1]（Finding A）: 除去された`AppliedEffect`の
+        // `effects`変化を`EffectExpired`自身が所有する。
+        stateDelta: {
+          units: {
+            [targetId]: {
+              effects: {
+                [request.effectInstanceId]: {
+                  before: toEffectSnapshot(removedEffect),
+                  after: undefined,
+                },
+              },
+            },
+          },
         },
       });
       lastEventId = expired.eventId;
       recordedEvents.push(expired);
+      currentUnits = notify(expired, currentUnits);
+
+      if (wasNonDuplicateActive) {
+        const afterTarget = requireUnit(currentUnits, targetId);
+        const afterActiveEffect = afterTarget.appliedEffects.find(
+          (e) => e.kindKey === kindKey && !e.duplicate && e.active,
+        );
+        const afterActive = afterActiveEffect?.effectInstanceId;
+        if (beforeActive !== afterActive) {
+          // PR #155再レビュー[P1]（Finding A）: `beforeActive`（=`removedEffect`）
+          // 自身の`effects`変化は`EffectExpired`が既に所有しているため、ここでは
+          // 「新たに採用された次点インスタンス」の`active`切替だけを持つ
+          // （新たな採用が無い場合は追加で報告する対象が無いため`stateDelta`
+          // 自体を持たない）。
+          const promotedBefore =
+            afterActive !== undefined
+              ? currentTarget.appliedEffects.find((e) => e.effectInstanceId === afterActive)
+              : undefined;
+          const changed = context.recorder.record({
+            eventType: "EffectiveEffectChanged",
+            category: "FACT",
+            turnNumber: context.turnNumber,
+            cycleNumber: context.cycleNumber,
+            ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+            ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+            resolutionScopeId: context.resolutionScopeId,
+            parentEventId: lastEventId,
+            rootEventId: context.rootEventId,
+            targetUnitIds: [targetId],
+            payload: {
+              targetUnitId: targetId,
+              kindKey,
+              ...(beforeActive !== undefined ? { beforeEffectInstanceId: beforeActive } : {}),
+              ...(afterActive !== undefined ? { afterEffectInstanceId: afterActive } : {}),
+            },
+            ...(afterActive !== undefined &&
+            promotedBefore !== undefined &&
+            afterActiveEffect !== undefined
+              ? {
+                  stateDelta: {
+                    units: {
+                      [targetId]: {
+                        effects: {
+                          [afterActive]: {
+                            before: toEffectSnapshot(promotedBefore),
+                            after: toEffectSnapshot(afterActiveEffect),
+                          },
+                        },
+                      },
+                    },
+                  },
+                }
+              : {}),
+          });
+          lastEventId = changed.eventId;
+          recordedEvents.push(changed);
+          currentUnits = notify(changed, currentUnits);
+        }
+      }
     } else {
+      const stillPresent = currentTarget.markers.some((m) => m.markerId === request.markerId);
+      if (!stillPresent) {
+        // 既に`notify`（PS反応等）が独立に除去済み。重複してMarkerRemovedを発行しない。
+        continue;
+      }
       const reason:
         | "TIME_LIMIT"
         | "CONSUMPTION"
         | "SPECIAL_CONDITION"
         | "EXPLICIT_REMOVE"
         | "LINKED_GROUP_CASCADE" = isCascadeChild ? "LINKED_GROUP_CASCADE" : request.reason;
+
+      const remainingMarkers = currentTarget.markers.filter((m) => m.markerId !== request.markerId);
+      currentUnits = currentUnits.map((u) =>
+        u.battleUnitId === targetId ? { ...u, markers: remainingMarkers } : u,
+      );
+
       const removed = context.recorder.record({
         eventType: "MarkerRemoved",
         category: "FACT",
@@ -226,38 +323,9 @@ export function expireEffects(
       });
       lastEventId = removed.eventId;
       recordedEvents.push(removed);
+      currentUnits = notify(removed, currentUnits);
     }
   }
 
-  for (const kindKey of kindKeysTouched) {
-    const beforeActive = beforeActiveByKindKey.get(kindKey);
-    const afterActive = recomputed.find(
-      (e) => e.kindKey === kindKey && !e.duplicate && e.active,
-    )?.effectInstanceId;
-    if (beforeActive === afterActive) {
-      continue;
-    }
-    const changed = context.recorder.record({
-      eventType: "EffectiveEffectChanged",
-      category: "FACT",
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-      resolutionScopeId: context.resolutionScopeId,
-      parentEventId: lastEventId,
-      rootEventId: context.rootEventId,
-      targetUnitIds: [targetId],
-      payload: {
-        targetUnitId: targetId,
-        kindKey,
-        ...(beforeActive !== undefined ? { beforeEffectInstanceId: beforeActive } : {}),
-        ...(afterActive !== undefined ? { afterEffectInstanceId: afterActive } : {}),
-      },
-    });
-    lastEventId = changed.eventId;
-    recordedEvents.push(changed);
-  }
-
-  return { units: nextUnits, lastEventId, events: recordedEvents };
+  return { units: currentUnits, lastEventId, events: recordedEvents };
 }
