@@ -230,7 +230,12 @@
         "SKL_YUI_HEIR_PS2",
         "SKL_YURIA_YUKATA_PS2"
       ],
-      "testCaseIds": ["IT-CAP-SKILL-RUNTIME-001", "IT-CAP-SKILL-RUNTIME-002"]
+      "testCaseIds": [
+        "IT-CAP-SKILL-RUNTIME-001",
+        "IT-CAP-SKILL-RUNTIME-002",
+        "IT-CAP-SKILL-RUNTIME-003",
+        "IT-CAP-SKILL-RUNTIME-004"
+      ]
     }
   },
   {

@@ -121,6 +121,67 @@ function branchSkill(id: string, requiredCapabilities: readonly string[]): Skill
   });
 }
 
+function branchMemory(requiredCapabilities: readonly string[]) {
+  return createMemoryDefinition({
+    memoryDefinitionId: "MEM_BRANCH",
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          steps: [
+            {
+              kind: "BRANCH",
+              condition: { kind: "TRUE" },
+              thenSteps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                },
+              ],
+              elseSteps: [],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities,
+    metadata: { displayName: "Branch Memory" },
+  });
+}
+
+function triggerContextMemory(requiredCapabilities: readonly string[]) {
+  return createMemoryDefinition({
+    memoryDefinitionId: "MEM_TRIGGER_CONTEXT",
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "HitPointReduced",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+        },
+        effectSequence: {
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities,
+    metadata: { displayName: "Trigger Context Memory" },
+  });
+}
+
 function psSkill(
   id: string,
   eventType: string,
@@ -726,5 +787,43 @@ describe("buildCatalogIndex", () => {
         capabilities: [capability("CAP_TRIGGER_CONTEXT")],
       }),
     ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+  });
+
+  it("UT-CAT-IDX-026: rejects BRANCH/REPEAT memories without CAP_RESOLUTION_BRANCH_REPEAT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [branchMemory([])],
+        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).toThrowError(/BRANCH\/REPEAT EffectStep must declare/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [branchMemory(["CAP_RESOLUTION_BRANCH_REPEAT"])],
+        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-027: rejects runtime-owned Memory triggers without CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggerContextMemory([])],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [triggerContextMemory(["CAP_TRIGGER_CONTEXT"])],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).not.toThrow();
   });
 });

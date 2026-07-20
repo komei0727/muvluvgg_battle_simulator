@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { RULE_COVERAGE } from "./rule-coverage.js";
 
@@ -119,28 +120,78 @@ function parseUnconvertedMemoryNames(): string[] {
     .sort();
 }
 
-function collectTestCaseIdFiles(
+interface TestCaseDefinition {
+  readonly file: string;
+  readonly position: number;
+}
+
+const TEST_CASE_ID_PATTERN = /\b(?:UT|IT|SCN|E2E)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
+
+function hasTestFunctionRoot(expression: ts.Expression): boolean {
+  if (ts.isIdentifier(expression)) {
+    return expression.text === "it" || expression.text === "test";
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    return hasTestFunctionRoot(expression.expression);
+  }
+  if (ts.isCallExpression(expression)) {
+    return hasTestFunctionRoot(expression.expression);
+  }
+  return false;
+}
+
+function collectTestCaseDefinitionsFromSource(
+  sourceText: string,
+  file: string,
+): readonly [string, TestCaseDefinition][] {
+  const sourceFile = ts.createSourceFile(
+    file,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const definitions: [string, TestCaseDefinition][] = [];
+
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && hasTestFunctionRoot(node.expression)) {
+      const title = node.arguments[0];
+      if (
+        title !== undefined &&
+        (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))
+      ) {
+        for (const match of title.text.matchAll(TEST_CASE_ID_PATTERN)) {
+          definitions.push([match[0], { file, position: title.getStart(sourceFile) }]);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return definitions;
+}
+
+function collectTestCaseDefinitions(
   directory: string,
-  into = new Map<string, Set<string>>(),
-): Map<string, Set<string>> {
+  into = new Map<string, TestCaseDefinition[]>(),
+): Map<string, TestCaseDefinition[]> {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = `${directory}/${entry.name}`;
     if (entry.isDirectory()) {
-      collectTestCaseIdFiles(path, into);
+      collectTestCaseDefinitions(path, into);
       continue;
     }
     if (!entry.isFile() || !entry.name.endsWith(".test.ts")) {
       continue;
     }
-    const ids = new Set(
-      [
-        ...readFileSync(path, "utf8").matchAll(/\b(?:UT|IT|SCN|E2E)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g),
-      ].map((match) => match[0]),
-    );
-    for (const id of ids) {
-      const files = into.get(id) ?? new Set<string>();
-      files.add(path);
-      into.set(id, files);
+    for (const [id, definition] of collectTestCaseDefinitionsFromSource(
+      readFileSync(path, "utf8"),
+      path,
+    )) {
+      const definitions = into.get(id) ?? [];
+      definitions.push(definition);
+      into.set(id, definitions);
     }
   }
   return into;
@@ -257,7 +308,7 @@ describe("remaining work manifest (PLAN-001)", () => {
       };
     }[];
     const remainingTaskIds = new Set(manifest.tasks.map((task) => task.taskId));
-    const testCaseIdFiles = collectTestCaseIdFiles(`${repositoryRoot}/apps/api/src`);
+    const testCaseDefinitions = collectTestCaseDefinitions(`${repositoryRoot}/apps/api/src`);
 
     expect(unitDirectories).toHaveLength(
       manifest.current.unitCatalog.convertedProductionUnits +
@@ -301,8 +352,8 @@ describe("remaining work manifest (PLAN-001)", () => {
       );
       for (const testCaseId of capability.verification.testCaseIds) {
         expect(
-          [...(testCaseIdFiles.get(testCaseId) ?? [])],
-          `${capability.capabilityId} verification testCaseId "${testCaseId}" must identify exactly one test file`,
+          testCaseDefinitions.get(testCaseId) ?? [],
+          `${capability.capabilityId} verification testCaseId "${testCaseId}" must identify exactly one test definition`,
         ).toHaveLength(1);
       }
     }
@@ -322,5 +373,19 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(baseline.unitCatalog.convertedProductionUnits).toBeGreaterThan(0);
     expect(baseline.unitCatalog.syntheticUnits).toBeGreaterThanOrEqual(0);
     expect(baseline.unitCatalog.incompleteConversionRows).toBeGreaterThanOrEqual(0);
+  });
+
+  it("UT-PLAN-001-007: counts only test titles and preserves duplicate definitions", () => {
+    const definitions = collectTestCaseDefinitionsFromSource(
+      `
+        // IT-TRACE-001: a comment is not evidence
+        const note = "IT-TRACE-002: an arbitrary string is not evidence";
+        it("IT-TRACE-003: first definition", () => {});
+        it.each([[1]])("IT-TRACE-003: duplicate definition", () => {});
+      `,
+      "traceability.test.ts",
+    );
+
+    expect(definitions.map(([id]) => id)).toEqual(["IT-TRACE-003", "IT-TRACE-003"]);
   });
 });

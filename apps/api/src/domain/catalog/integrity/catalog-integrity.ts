@@ -184,6 +184,37 @@ const TRIGGER_CONTEXT_EVENT_TYPES = new Set([
   "HitPointReduced",
 ]);
 
+function validateRuntimeCapabilityDeclarations(
+  targetId: string,
+  requiredCapabilities: readonly CapabilityId[],
+  sequences: readonly (readonly EffectStepDefinition[])[],
+  triggers: readonly TriggerDefinition[],
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (
+    sequences.some((steps) => containsStepKind(steps, BRANCH_REPEAT_STEP_KINDS)) &&
+    !requiredCapabilities.some((id) => id === "CAP_RESOLUTION_BRANCH_REPEAT")
+  ) {
+    violations.push({
+      targetId,
+      rule: "MISSING_REQUIRED_CAPABILITY",
+      message:
+        'BRANCH/REPEAT EffectStep must declare "CAP_RESOLUTION_BRANCH_REPEAT" in requiredCapabilities',
+    });
+  }
+  if (
+    triggers.some((trigger) => TRIGGER_CONTEXT_EVENT_TYPES.has(trigger.eventType)) &&
+    !requiredCapabilities.some((id) => id === "CAP_TRIGGER_CONTEXT")
+  ) {
+    violations.push({
+      targetId,
+      rule: "MISSING_REQUIRED_CAPABILITY",
+      message:
+        'EffectApplied/UnitBeingAttacked/HitPointReduced trigger must declare "CAP_TRIGGER_CONTEXT" in requiredCapabilities',
+    });
+  }
+}
+
 function validateTrigger(
   trigger: TriggerDefinition,
   targetId: string,
@@ -396,32 +427,17 @@ function validateSkill(
     skill.resolution.kind === "CHARGE"
       ? [skill.resolution.steps, skill.resolution.chargeRelease.steps]
       : [skill.resolution.steps];
-  if (
-    sequences.some((steps) => containsStepKind(steps, BRANCH_REPEAT_STEP_KINDS)) &&
-    !skill.requiredCapabilities.some((id) => id === "CAP_RESOLUTION_BRANCH_REPEAT")
-  ) {
-    violations.push({
-      targetId: skill.skillDefinitionId,
-      rule: "MISSING_REQUIRED_CAPABILITY",
-      message:
-        'BRANCH/REPEAT EffectStep must declare "CAP_RESOLUTION_BRANCH_REPEAT" in requiredCapabilities',
-    });
-  }
   const runtimeTriggers = [
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),
   ];
-  if (
-    runtimeTriggers.some((trigger) => TRIGGER_CONTEXT_EVENT_TYPES.has(trigger.eventType)) &&
-    !skill.requiredCapabilities.some((id) => id === "CAP_TRIGGER_CONTEXT")
-  ) {
-    violations.push({
-      targetId: skill.skillDefinitionId,
-      rule: "MISSING_REQUIRED_CAPABILITY",
-      message:
-        'EffectApplied/UnitBeingAttacked/HitPointReduced trigger must declare "CAP_TRIGGER_CONTEXT" in requiredCapabilities',
-    });
-  }
+  validateRuntimeCapabilityDeclarations(
+    skill.skillDefinitionId,
+    skill.requiredCapabilities,
+    sequences,
+    runtimeTriggers,
+    violations,
+  );
   for (const trigger of skill.triggers) {
     validateTrigger(trigger, skill.skillDefinitionId, violations);
   }
@@ -528,6 +544,13 @@ function validateMemory(
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
+  validateRuntimeCapabilityDeclarations(
+    memory.memoryDefinitionId,
+    memory.requiredCapabilities,
+    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.effectSequence.steps),
+    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.trigger),
+    violations,
+  );
   for (const triggeredEffect of memory.triggeredEffects) {
     validateTrigger(triggeredEffect.trigger, memory.memoryDefinitionId, violations);
     validateEffectActionReferences(

@@ -1731,7 +1731,7 @@ metadata:
 
 `schemaStatus` はCatalogが近似なしで表現できるか、`runtimeStatus` はBattle Engineが実ライフサイクルで実行できるかを表す。production定義の`requiredCapabilities`は`schemaStatus == SUPPORTED`だけを参照できる。`SimulationPreflightValidator`は編成から推移的に集めたCapabilityの`runtimeStatus != IMPLEMENTED`を`UNSUPPORTED_RULE`としてBattle生成前に拒否する。
 
-`runtimeStatus`を`IMPLEMENTED`へ変更するには、`productionDefinitionIds`と`testCaseIds`をそれぞれ1件以上記録する。Catalog整合性検証は各production definition IDの存在と、その定義自身が同じCapabilityを`requiredCapabilities`へ宣言していることを検査する。repository traceability testは各test case IDが一意な`.test.ts`ファイルに実在することを検査する。Schema/Mapperや単体関数だけの完成、fixtureだけのテストでは`IMPLEMENTED`にしない。
+`runtimeStatus`を`IMPLEMENTED`へ変更するには、`productionDefinitionIds`と`testCaseIds`をそれぞれ1件以上記録する。Catalog整合性検証は各production definition IDの存在と、その定義自身が同じCapabilityを`requiredCapabilities`へ宣言していることを検査する。repository traceability testはTypeScript ASTから`it`/`test`のタイトルを読み取り、各test case IDが一意なテスト定義として実在することを検査する。コメントや任意の文字列、同一ファイル内を含む重複テスト定義は証跡として受理しない。Schema/Mapperや単体関数だけの完成、fixtureだけのテストでは`IMPLEMENTED`にしない。
 
 `implementationTaskId`は一つだけ持たせる。複数Taskの完了を待つ広域Capabilityを作らず、各Taskがproduction定義と統合テストを提示できる機能単位へ分割する。
 
