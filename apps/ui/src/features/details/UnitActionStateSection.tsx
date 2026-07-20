@@ -63,6 +63,7 @@ function UnitActionStateGroup({
                 <span className={styles["name"]}>{roster.displayName}</span>
                 <span className={styles["resources"]}>
                   <span>AP {resourceText(actionState.ap)}</span>
+                  <span>PP {resourceText(actionState.pp)}</span>
                   <span>EX {resourceText(actionState.extraGauge)}</span>
                 </span>
               </div>

@@ -305,6 +305,164 @@ function formatChargeReleased(
   };
 }
 
+function formatPassiveActivated(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string" ||
+    typeof details["ppBefore"] !== "number" ||
+    typeof details["ppAfter"] !== "number" ||
+    typeof details["exBefore"] !== "number" ||
+    typeof details["exAfter"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」が発動しました。PP ${details["ppBefore"]} → ${details["ppAfter"]} / EX ${details["exBefore"]} → ${details["exAfter"]}`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatPassiveResolved(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string" ||
+    typeof details["resolvedStepCount"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」の効果解決が完了しました（${details["resolvedStepCount"]}step）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatPassiveInterrupted(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string" ||
+    typeof details["reason"] !== "string" ||
+    typeof details["unresolvedEffectCount"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」が中断しました（理由: ${details["reason"]}、未解決効果${details["unresolvedEffectCount"]}件）。`,
+    details,
+    severity: "negative",
+  };
+}
+
+function formatPassivePointConsumed(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["actorUnitId"] !== "string" ||
+    typeof details["skillDefinitionId"] !== "string" ||
+    typeof details["before"] !== "number" ||
+    typeof details["after"] !== "number" ||
+    typeof details["consumedAmount"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」がPPを消費しました。PP ${details["before"]} → ${details["after"]}（消費${details["consumedAmount"]}）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatResourceChanged(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["battleUnitId"] !== "string" ||
+    typeof details["resource"] !== "string" ||
+    typeof details["before"] !== "number" ||
+    typeof details["after"] !== "number" ||
+    typeof details["reason"] !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}の${details["resource"]}が${details["before"]} → ${details["after"]}になりました（理由: ${details["reason"]}）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatExtraGaugeIncreased(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["battleUnitId"] !== "string" ||
+    typeof details["causeResource"] !== "string" ||
+    typeof details["before"] !== "number" ||
+    typeof details["after"] !== "number" ||
+    typeof details["increasedAmount"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}のEXゲージが${details["before"]} → ${details["after"]}に増加しました（${details["causeResource"]}消費起因、+${details["increasedAmount"]}）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
+function formatExtraGaugeOverflowDiscarded(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["battleUnitId"] !== "string" ||
+    typeof details["requestedAmount"] !== "number" ||
+    typeof details["actualAmount"] !== "number" ||
+    typeof details["discardedAmount"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}のEXゲージが上限を超えたため${details["discardedAmount"]}を切り捨てました（要求${details["requestedAmount"]} → 実際${details["actualAmount"]}）。`,
+    details,
+    severity: "neutral",
+  };
+}
+
 function formatBattleCompleted(event: BattleLogEventResponse): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -338,6 +496,13 @@ const eventFormatters: Readonly<Record<string, EventFormatter>> = {
   DAMAGE_APPLIED: formatDamageApplied,
   UNIT_DEFEATED: formatUnitDefeated,
   BATTLE_COMPLETED: formatBattleCompleted,
+  PASSIVE_ACTIVATED: formatPassiveActivated,
+  PASSIVE_RESOLVED: formatPassiveResolved,
+  PASSIVE_INTERRUPTED: formatPassiveInterrupted,
+  PASSIVE_POINT_CONSUMED: formatPassivePointConsumed,
+  RESOURCE_CHANGED: formatResourceChanged,
+  EXTRA_GAUGE_INCREASED: formatExtraGaugeIncreased,
+  EXTRA_GAUGE_OVERFLOW_DISCARDED: formatExtraGaugeOverflowDiscarded,
 };
 
 function genericFallback(event: BattleLogEventResponse, roster: RosterIndex): EventPresentation {

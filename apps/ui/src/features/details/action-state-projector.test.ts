@@ -156,12 +156,16 @@ function responseWith(overrides: {
 }
 
 describe("selectUnitActionStates", () => {
-  it("reads AP/EX current and maximum from finalState.units[].resources (UI-UT-ACT-001)", () => {
+  it("reads AP/PP/EX current and maximum from finalState.units[].resources (UI-UT-ACT-001)", () => {
     const response = responseWith({
       finalUnits: [
         {
           battleUnitId: "ally:1",
-          resources: { ap: { current: 2, maximum: 3 }, extraGauge: { current: 40, maximum: 100 } },
+          resources: {
+            ap: { current: 2, maximum: 3 },
+            pp: { current: 5, maximum: 8 },
+            extraGauge: { current: 40, maximum: 100 },
+          },
         },
         { battleUnitId: "enemy:1" },
       ],
@@ -172,6 +176,7 @@ describe("selectUnitActionStates", () => {
     expect(states[0]).toMatchObject({
       battleUnitId: "ally:1",
       ap: { current: 2, maximum: 3 },
+      pp: { current: 5, maximum: 8 },
       extraGauge: { current: 40, maximum: 100 },
     });
   });
@@ -184,6 +189,7 @@ describe("selectUnitActionStates", () => {
     const states = selectUnitActionStates(response, roster, "DETAILED");
 
     expect(states[0]?.ap).toBeUndefined();
+    expect(states[0]?.pp).toBeUndefined();
     expect(states[0]?.extraGauge).toBeUndefined();
     expect(states[0]?.cooldowns).toEqual([]);
     expect(states[0]?.charge).toBeUndefined();

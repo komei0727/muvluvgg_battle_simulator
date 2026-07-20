@@ -330,4 +330,165 @@ describe("formatEvent", () => {
     expect(presentation.summary).toContain("エー");
     expect(presentation.summary).toContain("SKILL_2");
   });
+
+  it("resolves PASSIVE_ACTIVATED with the skill id and PP/EX change (R-PS-05)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "PASSIVE_ACTIVATED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKL_PS_1",
+          ppBefore: 5,
+          ppAfter: 3,
+          exBefore: 10,
+          exAfter: 12,
+          triggerEventId: "evt-1",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.title).toBe("PASSIVE_ACTIVATED");
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKL_PS_1");
+    expect(presentation.summary).toContain("PP 5 → 3");
+    expect(presentation.summary).toContain("EX 10 → 12");
+    expect(presentation.severity).toBe("neutral");
+  });
+
+  it("resolves PASSIVE_RESOLVED with the resolved step count", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "PASSIVE_RESOLVED",
+        sourceUnitId: "ally:1",
+        details: { actorUnitId: "ally:1", skillDefinitionId: "SKL_PS_1", resolvedStepCount: 3 },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKL_PS_1");
+    expect(presentation.summary).toContain("3");
+    expect(presentation.severity).toBe("neutral");
+  });
+
+  it("resolves PASSIVE_INTERRUPTED with the reason and unresolved effect count as negative severity (R-PS-05 #6)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "PASSIVE_INTERRUPTED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKL_PS_1",
+          reason: "OWNER_DEFEATED",
+          unresolvedEffectCount: 2,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKL_PS_1");
+    expect(presentation.summary).toContain("OWNER_DEFEATED");
+    expect(presentation.summary).toContain("2");
+    expect(presentation.severity).toBe("negative");
+  });
+
+  it("resolves PASSIVE_POINT_CONSUMED with the before/after PP and consumed amount (R-PS-05 #2)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "PASSIVE_POINT_CONSUMED",
+        sourceUnitId: "ally:1",
+        details: {
+          actorUnitId: "ally:1",
+          skillDefinitionId: "SKL_PS_1",
+          before: 5,
+          after: 3,
+          consumedAmount: 2,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("SKL_PS_1");
+    expect(presentation.summary).toContain("5 → 3");
+    expect(presentation.severity).toBe("neutral");
+  });
+
+  it("resolves RESOURCE_CHANGED with the resource kind, before/after, and reason", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "RESOURCE_CHANGED",
+        sourceUnitId: "ally:1",
+        details: {
+          battleUnitId: "ally:1",
+          resource: "PP",
+          before: 5,
+          after: 3,
+          delta: -2,
+          reason: "SKILL_COST",
+          causeEventId: "evt-1",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("PP");
+    expect(presentation.summary).toContain("5 → 3");
+    expect(presentation.summary).toContain("SKILL_COST");
+    expect(presentation.severity).toBe("neutral");
+  });
+
+  it("resolves EXTRA_GAUGE_INCREASED with the cause resource and increased amount (R-ACT-03)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EXTRA_GAUGE_INCREASED",
+        sourceUnitId: "ally:1",
+        details: {
+          battleUnitId: "ally:1",
+          causeResource: "PP",
+          before: 10,
+          after: 12,
+          increasedAmount: 2,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("10 → 12");
+    expect(presentation.summary).toContain("PP");
+    expect(presentation.severity).toBe("neutral");
+  });
+
+  it("resolves EXTRA_GAUGE_OVERFLOW_DISCARDED as a DIAGNOSTIC event with the discarded amount", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EXTRA_GAUGE_OVERFLOW_DISCARDED",
+        category: "DIAGNOSTIC",
+        sourceUnitId: "ally:1",
+        details: {
+          battleUnitId: "ally:1",
+          requestedAmount: 15,
+          actualAmount: 10,
+          discardedAmount: 5,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("5");
+    expect(presentation.severity).toBe("neutral");
+  });
 });

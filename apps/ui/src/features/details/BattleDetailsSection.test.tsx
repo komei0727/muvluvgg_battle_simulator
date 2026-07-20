@@ -37,7 +37,7 @@ const response: BattleSimulationResponse = {
 };
 
 describe("BattleDetailsSection", () => {
-  it("switches between events, transitions, and JSON within a single page (UI-AC-010)", async () => {
+  it("switches between events, transitions, JSON, unit state, and the causality tree within a single page (UI-AC-010)", async () => {
     const user = userEvent.setup();
     render(<BattleDetailsSection response={response} logLevel="DETAILED" />);
 
@@ -51,6 +51,9 @@ describe("BattleDetailsSection", () => {
 
     await user.click(screen.getByRole("tab", { name: "ユニット状態" }));
     expect(screen.getByText("ALLY ACTION STATE")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "因果ツリー" }));
+    expect(screen.getByRole("button", { name: /BATTLE_STARTED/ })).toBeInTheDocument();
   });
 
   it("jumps from an event's state transition link to the transitions tab", async () => {
