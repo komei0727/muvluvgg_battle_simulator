@@ -545,6 +545,176 @@ describe("detectRuntimeCounterUpdates", () => {
       }),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-RCOUNTER-M-012 (review re-re-fix [P2]): multiple counterUpdates definitions matching the same event and targeting the same counter are all applied, in array order, not collapsed into one", () => {
+    const skill = passiveSkillOf("SKL_PS_DUP_COUNTER", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_DUP",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+      },
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_DUP",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 2,
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const result = detectRuntimeCounterUpdates({
+      event: critEvent(owner.battleUnitId),
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(result.changes.map((c) => ({ before: c.before, after: c.after }))).toEqual([
+      { before: 0, after: 1 },
+      { before: 1, after: 3 },
+    ]);
+    expect(
+      result.units[0]?.skillCounters?.[skill.skillDefinitionId]?.["RUNTIME_COUNTER_DUP" as never],
+    ).toEqual({ value: 3, carry: 0 });
+  });
+
+  it("UT-RCOUNTER-M-013 (review re-re-fix [P2]): the matched set is fixed from the state passed in, not re-evaluated after an earlier entry's own effect — a later entry that only becomes newly-true is not retroactively added", () => {
+    const skill = passiveSkillOf("SKL_PS_NO_RETRO_MATCH", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_NO_RETRO_A",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+      },
+      {
+        // このcounterUpdates自体はCriticalCheckResolvedにマッチするが、
+        // conditionが「counterAが既に1」を要求する。マッチング確定時点
+        // (このイベント到着直後、上のentryもまだ未適用)ではAは0なので
+        // 不一致のはずである。
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_NO_RETRO_C",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "RUNTIME_COUNTER",
+            counter: "RUNTIME_COUNTER_NO_RETRO_A",
+            op: "EQ",
+            value: 1,
+          },
+        },
+        amount: 1,
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const result = detectRuntimeCounterUpdates({
+      event: critEvent(owner.battleUnitId),
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    // 修正前（毎回`this.units`から再検出する方式）だと、1件目の適用で
+    // counterAが1になった後の再検出でこの2件目が新たに一致してしまう
+    // （遡及的な追加）。マッチングを1回だけ確定する現在の実装ではこの
+    // 2件目は最後まで一致しない。
+    expect(result.changes.map((c) => c.counter)).toEqual(["RUNTIME_COUNTER_NO_RETRO_A"]);
+    expect(
+      result.units[0]?.skillCounters?.[skill.skillDefinitionId]?.[
+        "RUNTIME_COUNTER_NO_RETRO_C" as never
+      ],
+    ).toBeUndefined();
+  });
+
+  it("UT-RCOUNTER-M-014 (review re-re-fix [P2]): an entry that matched against the state passed in is still applied even though an earlier entry in the same batch already changed the state its condition read", () => {
+    const skill = passiveSkillOf("SKL_PS_NO_VANISH_MATCH", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_NO_VANISH_A",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+      },
+      {
+        // マッチング確定時点(counterAはまだ0)ではconditionが真なので一致する。
+        // 1件目の適用でcounterAが1になっても、この2件目は消えてはならない。
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_NO_VANISH_E",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "RUNTIME_COUNTER",
+            counter: "RUNTIME_COUNTER_NO_VANISH_A",
+            op: "EQ",
+            value: 0,
+          },
+        },
+        amount: 1,
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const result = detectRuntimeCounterUpdates({
+      event: critEvent(owner.battleUnitId),
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(result.changes.map((c) => c.counter)).toEqual([
+      "RUNTIME_COUNTER_NO_VANISH_A",
+      "RUNTIME_COUNTER_NO_VANISH_E",
+    ]);
+    expect(
+      result.units[0]?.skillCounters?.[skill.skillDefinitionId]?.[
+        "RUNTIME_COUNTER_NO_VANISH_E" as never
+      ],
+    ).toEqual({ value: 1, carry: 0 });
+  });
 });
 
 describe("collectResolutionScopeResets (review fix [P2])", () => {

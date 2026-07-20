@@ -109,35 +109,44 @@ function applyUpdate(
   };
 }
 
+/** `matchRuntimeCounterUpdates`が1件マッチしたとして報告する、更新前の(所有者・スキル・更新定義)の組。 */
+export interface MatchedRuntimeCounterUpdate {
+  readonly ownerUnitId: BattleUnitId;
+  readonly skillDefinitionId: SkillDefinitionId;
+  /** 定義オブジェクト自身を識別子として使う。同じcounterへの複数`counterUpdates`定義（レビュー再々指摘[P2]）でも、配列上の別エントリとして区別できる。 */
+  readonly update: RuntimeCounterUpdateDefinition;
+}
+
 /**
- * `R-EFF-11`/`08_ドメインイベント.md`「イベント発行と処理」#3: 対象イベントに
- * 対応する`counterUpdates`（M6最小実装、`SKILL_RUNTIME`スコープ、Issue #143）を
- * 検出し、決定的に更新する。呼び出し側はPS/Memory候補抽出より前に呼び出し、
- * 変化があった件数分だけ`RuntimeCounterChanged`を発行する。
+ * `R-EFF-11`/`08_ドメインイベント.md`「イベント発行と処理」#3の「マッチング」段階
+ * だけを行う。`input.units`（原因イベント確定直後の状態）に対して`trigger`が
+ * 一致する`counterUpdates`定義を、決定論的な順序（Unit→Unitが持つPS→
+ * `counterUpdates`配列順）で列挙するだけで、値は一切適用しない。
  *
- * `Battle`／`BattleUnit`スコープは`createRuntimeCounterUpdateDefinition`
- * （Catalogロード時点）が既に拒否するため、ここへ到達するのは`SKILL_RUNTIME`
- * だけのはずである。それでも到達した場合（Catalogを経由しない直接構築など）に
- * 未対応のまま実行を続けないよう、防御的にも明示的に拒否する（レビュー指摘[P2]）。
+ * レビュー再々指摘[P2]: マッチする集合と順序は、原因イベント直後の状態から
+ * 一度だけ確定しなければならない（R-EFF-11「原因イベントの状態変更確定後、
+ * PS/Memory候補抽出前にcounter更新を決定する」）。呼び出し側がこの結果を
+ * `input.units`のスナップショットに対して1回だけ計算し、以降のPS連鎖による
+ * 状態変化でこの集合を再評価（追加・除外）してはならない — 各エントリの
+ * before/after/carryだけを`applyMatchedRuntimeCounterUpdate`で適用時点の
+ * 最新状態から計算し直す。
  */
-export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
-  readonly units: readonly BattleUnit[];
-  readonly changes: readonly RuntimeCounterUpdateResult[];
-} {
+export function matchRuntimeCounterUpdates(
+  input: RuntimeCounterMatchInput,
+): readonly MatchedRuntimeCounterUpdate[] {
   const { event, unitDefinitions, skillDefinitions } = input;
   const unitsById = new Map(input.units.map((u) => [u.battleUnitId, u] as const));
-  const changes: RuntimeCounterUpdateResult[] = [];
-  let workingUnits = input.units;
+  const matched: MatchedRuntimeCounterUpdate[] = [];
 
-  for (const originalOwner of input.units) {
-    if (isDefeated(originalOwner)) {
+  for (const owner of input.units) {
+    if (isDefeated(owner)) {
       continue;
     }
-    const unitDefinition = unitDefinitions.get(originalOwner.unitDefinitionId);
+    const unitDefinition = unitDefinitions.get(owner.unitDefinitionId);
     if (unitDefinition === undefined) {
       throw new DomainValidationError(
         "unitDefinitions",
-        `no UnitDefinition found for unitDefinitionId "${originalOwner.unitDefinitionId}" (battleUnitId "${originalOwner.battleUnitId}")`,
+        `no UnitDefinition found for unitDefinitionId "${owner.unitDefinitionId}" (battleUnitId "${owner.battleUnitId}")`,
       );
     }
     for (const skillId of unitDefinition.passiveSkillDefinitionIds) {
@@ -155,57 +164,111 @@ export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
             `scope "${update.scope}" is not supported yet (Issue #143 only implements SKILL_RUNTIME scope)`,
           );
         }
-        if (!matchesUpdateTrigger(update, originalOwner, skillId, event, unitsById)) {
+        if (!matchesUpdateTrigger(update, owner, skillId, event, unitsById)) {
           continue;
         }
-        const currentOwner = workingUnits.find(
-          (u) => u.battleUnitId === originalOwner.battleUnitId,
-        );
-        if (currentOwner === undefined) {
-          throw new DomainValidationError(
-            "units",
-            `battleUnitId "${originalOwner.battleUnitId}" disappeared while applying counterUpdates`,
-          );
-        }
-        const existingCounters = currentOwner.skillCounters?.[skillId] ?? {};
-        const carryBefore = existingCounters[update.counter]?.carry ?? 0;
-        const applied = applyUpdate(update, existingCounters, currentOwner, event);
-        // レビュー指摘[P1]: 閾値未到達（value不変）でも`applied.counters`の`carry`
-        // （繰り越し端数）は必ず`workingUnits`へ反映する。ここで`continue`すると
-        // 次回の更新が繰り越し前のcarryから再計算され、複数回に分けて閾値へ
-        // 到達する累計ダメージが正しく積み上がらない。
-        const updatedOwner: BattleUnit = {
-          ...currentOwner,
-          skillCounters: { ...currentOwner.skillCounters, [skillId]: applied.counters },
-        };
-        workingUnits = workingUnits.map((u) =>
-          u.battleUnitId === updatedOwner.battleUnitId ? updatedOwner : u,
-        );
-        // レビュー指摘[P2]: `value`(公開値)が変わらなくても`carry`(内部端数)が
-        // 変化した場合は`RuntimeCounterChanged`を発行する。ここで完全に
-        // skipすると、可変状態(carry)が変化したこと自体がイベント列から
-        // 追跡できなくなる（対象3スキルでは閾値未到達ヒットの方が通常経路）。
-        // `valueChanged`をpayloadへ含めるのは、この関数の呼び出し側
-        // （Catalog側の閾値到達PS）が「carryだけの変化」と「実際の閾値到達」を
-        // 区別できるようにするため（レビュー再々レビュー[P1]）。
-        const valueChanged = applied.before !== applied.after;
-        if (!valueChanged && applied.carry === carryBefore) {
-          continue;
-        }
-        changes.push({
-          ownerUnitId: originalOwner.battleUnitId,
-          skillDefinitionId: skillId,
-          counter: update.counter,
-          before: applied.before,
-          after: applied.after,
-          carry: applied.carry,
-          carryBefore,
-          valueChanged,
-        });
+        matched.push({ ownerUnitId: owner.battleUnitId, skillDefinitionId: skillId, update });
       }
     }
   }
 
+  return matched;
+}
+
+/**
+ * `matchRuntimeCounterUpdates`が確定した1件の`MatchedRuntimeCounterUpdate`を、
+ * 呼び出し時点の`units`（先行`RuntimeCounterChanged`の候補解決を経た最新状態
+ * でありうる）に対して適用する（レビュー再々指摘[P2]）。`before`/`after`/`carry`は
+ * 常にこの時点の実状態から計算するため、マッチングを確定した時点の状態とは
+ * 異なりうる。
+ */
+export function applyMatchedRuntimeCounterUpdate(
+  matched: MatchedRuntimeCounterUpdate,
+  units: readonly BattleUnit[],
+  event: TriggerCandidateEvent,
+): {
+  readonly units: readonly BattleUnit[];
+  readonly change: RuntimeCounterUpdateResult | undefined;
+} {
+  const owner = units.find((u) => u.battleUnitId === matched.ownerUnitId);
+  if (owner === undefined) {
+    throw new DomainValidationError(
+      "units",
+      `battleUnitId "${matched.ownerUnitId}" disappeared while applying counterUpdates`,
+    );
+  }
+  const { skillDefinitionId, update } = matched;
+  const existingCounters = owner.skillCounters?.[skillDefinitionId] ?? {};
+  const carryBefore = existingCounters[update.counter]?.carry ?? 0;
+  const applied = applyUpdate(update, existingCounters, owner, event);
+  // レビュー指摘[P1]: 閾値未到達（value不変）でも`applied.counters`の`carry`
+  // （繰り越し端数）は必ず`units`へ反映する。ここで反映しないと次回の更新が
+  // 繰り越し前のcarryから再計算され、複数回に分けて閾値へ到達する累計ダメージが
+  // 正しく積み上がらない。
+  const updatedOwner: BattleUnit = {
+    ...owner,
+    skillCounters: { ...owner.skillCounters, [skillDefinitionId]: applied.counters },
+  };
+  const nextUnits = units.map((u) =>
+    u.battleUnitId === updatedOwner.battleUnitId ? updatedOwner : u,
+  );
+  // レビュー指摘[P2]: `value`(公開値)が変わらなくても`carry`(内部端数)が
+  // 変化した場合は`RuntimeCounterChanged`を発行する。ここで完全にno-op扱い
+  // すると、可変状態(carry)が変化したこと自体がイベント列から追跡できなくなる
+  // （対象3スキルでは閾値未到達ヒットの方が通常経路）。`valueChanged`をpayloadへ
+  // 含めるのは、この関数の呼び出し側（Catalog側の閾値到達PS）が「carryだけの
+  // 変化」と「実際の閾値到達」を区別できるようにするため（レビュー再々レビュー[P1]）。
+  const valueChanged = applied.before !== applied.after;
+  if (!valueChanged && applied.carry === carryBefore) {
+    return { units: nextUnits, change: undefined };
+  }
+  return {
+    units: nextUnits,
+    change: {
+      ownerUnitId: matched.ownerUnitId,
+      skillDefinitionId,
+      counter: update.counter,
+      before: applied.before,
+      after: applied.after,
+      carry: applied.carry,
+      carryBefore,
+      valueChanged,
+    },
+  };
+}
+
+/**
+ * `R-EFF-11`/`08_ドメインイベント.md`「イベント発行と処理」#3: 対象イベントに
+ * 対応する`counterUpdates`（M6最小実装、`SKILL_RUNTIME`スコープ、Issue #143）を
+ * 検出し、決定的に更新する。呼び出し側はPS/Memory候補抽出より前に呼び出し、
+ * 変化があった件数分だけ`RuntimeCounterChanged`を発行する。
+ *
+ * `matchRuntimeCounterUpdates`＋`applyMatchedRuntimeCounterUpdate`の単純な
+ * 合成（マッチングを1回確定し、`input.units`から順に適用するだけ）。PS連鎖の
+ * 候補解決を挟まず1回で結果がほしい呼び出し側（テスト、集計）向けに残す。
+ * `PassiveActivationRuntime`のように各`RuntimeCounterChanged`の候補解決を
+ * 挟む必要がある呼び出し側は、代わりに2つの関数を個別に使う。
+ *
+ * `Battle`／`BattleUnit`スコープは`createRuntimeCounterUpdateDefinition`
+ * （Catalogロード時点）が既に拒否するため、ここへ到達するのは`SKILL_RUNTIME`
+ * だけのはずである。それでも到達した場合（Catalogを経由しない直接構築など）に
+ * 未対応のまま実行を続けないよう、防御的にも明示的に拒否する（レビュー指摘[P2]、
+ * `matchRuntimeCounterUpdates`が担う）。
+ */
+export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
+  readonly units: readonly BattleUnit[];
+  readonly changes: readonly RuntimeCounterUpdateResult[];
+} {
+  const matched = matchRuntimeCounterUpdates(input);
+  const changes: RuntimeCounterUpdateResult[] = [];
+  let workingUnits = input.units;
+  for (const entry of matched) {
+    const result = applyMatchedRuntimeCounterUpdate(entry, workingUnits, input.event);
+    workingUnits = result.units;
+    if (result.change !== undefined) {
+      changes.push(result.change);
+    }
+  }
   return { units: workingUnits, changes };
 }
 

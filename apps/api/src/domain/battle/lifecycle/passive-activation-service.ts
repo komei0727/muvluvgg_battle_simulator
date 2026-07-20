@@ -27,8 +27,9 @@ import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError, ExecutionGuardExceededError } from "../../shared/errors.js";
 import { detectPassiveCandidates } from "../triggering/passive-trigger-matcher.js";
 import {
+  applyMatchedRuntimeCounterUpdate,
   collectResolutionScopeResets,
-  detectRuntimeCounterUpdates,
+  matchRuntimeCounterUpdates,
 } from "../triggering/runtime-counter-matcher.js";
 import { resetRuntimeCounter } from "../model/runtime-counter-state.js";
 import {
@@ -203,63 +204,43 @@ export class PassiveActivationRuntime {
    * 呼び出し元のコンテキストに依存するため、ここではguardに触れない —
    * レビュー指摘[P1]参照）。
    *
-   * レビュー指摘[P2]、レビュー再指摘[P2]: 同一原因イベントで複数counterが
-   * 変化する場合、「units反映→record→(呼び出し側の)候補解決」を1件ずつ行う
-   * ため、このメソッドをgeneratorにし、1件`record`するたびに`yield`して
-   * 呼び出し側へ制御を返す。呼び出し側（`onFactEvent`の再帰呼び出し／
-   * `activatePassiveCandidate`の`TIMING_EVENT`）が`for...of`でその候補解決を
-   * 終えてから次の`.next()`を呼ぶため、後続counterの`this.units`反映は先行する
-   * counterの候補解決が完了した後になる。
+   * レビュー指摘[P2]、レビュー再指摘[P2]、レビュー再々指摘[P2]: 同一原因
+   * イベントで複数counterが変化する場合、「units反映→record→(呼び出し側の)
+   * 候補解決」を1件ずつ行うため、このメソッドをgeneratorにし、1件`record`
+   * するたびに`yield`して呼び出し側へ制御を返す。呼び出し側（`onFactEvent`の
+   * 再帰呼び出し／`activatePassiveCandidate`の`TIMING_EVENT`）が`for...of`で
+   * その候補解決を終えてから次の`.next()`を呼ぶため、後続counterの
+   * `this.units`反映は先行するcounterの候補解決が完了した後になる。
    *
-   * `detectRuntimeCounterUpdates`を最初に1回だけ呼んで全件を事前計算すると、
-   * 先行counterの候補解決（PS連鎖）がまだ処理していない後続counterの
-   * `before`/`after`/`carry`を書き換えても、事前計算した古い値でその変更を
-   * 上書きしてしまう（修正前の不具合、レビュー再指摘[P2]）。そのため、この
-   * ループは`yield`から戻るたびに`detectRuntimeCounterUpdates`を`this.units`
-   * （＝直前の候補解決後の最新状態）から取り直し、まだ処理していない
-   * (ownerUnitId, skillDefinitionId, counter)の中で最初の1件だけを適用する。
-   * 既に処理済みの組は`processed`で除外し、同じ更新を二重適用しない。
-   * `detectRuntimeCounterUpdates`自体は決定論的な順序（`R-EFF-11`の確定順）で
-   * 候補を返すため、処理済みを読み飛ばすだけで相対順序は保たれる。
+   * マッチする`counterUpdates`定義の集合と順序（`matchRuntimeCounterUpdates`）は
+   * 原因イベント直後の`this.units`から一度だけ確定し、以降のPS連鎖による状態
+   * 変化でこの集合を再評価（追加・除外）しない（R-EFF-11「原因イベントの状態
+   * 変更確定後、PS/Memory候補抽出前にcounter更新を決定する」）。同じcounterを
+   * 更新する複数定義も、配列上の別エントリとして区別されるため両方適用される
+   * （processed済み判定によって2件目以降が失われない）。各エントリの
+   * `before`/`after`/`carry`だけは`applyMatchedRuntimeCounterUpdate`が適用時点の
+   * `this.units`（＝直前の候補解決後の最新状態）から計算し直す — マッチング
+   * 確定時の値をそのまま使うと、先行counterの候補解決（PS連鎖）がまだ処理して
+   * いない後続counterの変更を古い値で上書きしてしまう（修正前の不具合）。
    */
   private *detectAndRecordRuntimeCounterChanges(
     causingEvent: BattleDomainEvent,
     skillUseId?: SkillUseId,
   ): Generator<BattleDomainEvent, void, unknown> {
     const triggerEvent = this.toTriggerEvent(causingEvent);
-    const processed = new Set<string>();
-    while (true) {
-      const counterUpdate = detectRuntimeCounterUpdates({
-        event: triggerEvent,
-        units: this.units,
-        unitDefinitions: this.context.definitions.unitDefinitions,
-        skillDefinitions: this.context.definitions.skillDefinitions,
-      });
-      const change = counterUpdate.changes.find(
-        (candidate) =>
-          !processed.has(
-            `${candidate.ownerUnitId}:${candidate.skillDefinitionId}:${candidate.counter}`,
-          ),
-      );
+    const matched = matchRuntimeCounterUpdates({
+      event: triggerEvent,
+      units: this.units,
+      unitDefinitions: this.context.definitions.unitDefinitions,
+      skillDefinitions: this.context.definitions.skillDefinitions,
+    });
+    for (const entry of matched) {
+      const result = applyMatchedRuntimeCounterUpdate(entry, this.units, triggerEvent);
+      this.units = result.units;
+      const change = result.change;
       if (change === undefined) {
-        return;
+        continue;
       }
-      processed.add(`${change.ownerUnitId}:${change.skillDefinitionId}:${change.counter}`);
-
-      const owner = requireUnit(this.units, change.ownerUnitId);
-      const updatedOwner: BattleUnit = {
-        ...owner,
-        skillCounters: {
-          ...owner.skillCounters,
-          [change.skillDefinitionId]: {
-            ...owner.skillCounters?.[change.skillDefinitionId],
-            [change.counter]: { value: change.after, carry: change.carry },
-          },
-        },
-      };
-      this.units = this.units.map((u) =>
-        u.battleUnitId === updatedOwner.battleUnitId ? updatedOwner : u,
-      );
 
       const carryChanged = change.carry !== change.carryBefore;
       const recorded = this.context.recorder.record({

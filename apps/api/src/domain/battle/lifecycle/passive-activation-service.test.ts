@@ -2234,9 +2234,10 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       .getEvents()
       .filter((e) => e.eventType === "RuntimeCounterChanged" && e.payload.counter === counterB);
     // First: mutatorSkill's PassiveActivated-triggered write (0 -> 10).
-    // Second: originalSkill's TurnStarted-triggered write, re-detected
-    // against the now-current state (10 -> 11), not the stale pre-computed
-    // (0 -> 1) snapshot taken before the mutator ran.
+    // Second: originalSkill's TurnStarted-triggered entry, applied against
+    // the now-current state (10 -> 11) at the point the outer generator
+    // reaches it, not the stale pre-computed (0 -> 1) snapshot taken before
+    // the mutator ran.
     expect(counterBChanges.map((e) => e.payload)).toMatchObject([
       { before: 0, after: 10 },
       { before: 10, after: 11 },
@@ -2246,6 +2247,157 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(finalOwner.skillCounters?.[originalSkill.skillDefinitionId]).toEqual({
       [counterA]: { value: 1, carry: 0 },
       [counterB]: { value: 11, carry: 0 },
+    });
+  });
+
+  it("review re-re-fix [P2]: an originalSkill entry that matched the causing event before a PS chain ran is still applied afterward, even though the PS chain changed the counter its match condition depended on", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_COUNTER_NO_VANISH_OWNER");
+    const counterA = createRuntimeCounterId("RUNTIME_COUNTER_NO_VANISH_A");
+    const counterE = createRuntimeCounterId("RUNTIME_COUNTER_NO_VANISH_E");
+    const mutatorSkillId = createSkillDefinitionId("SKL_PS_COUNTER_NO_VANISH_MUTATOR");
+    // レビュー再々指摘[P2]の再現: counterEのマッチング条件(counterA==0)は、
+    // TurnStarted到着直後(counterAはまだ0)の時点では真であり一致が確定する。
+    // その後mutatorSkillがcounterAの変化に反応して連鎖的にcounterAをさらに
+    // 書き換えても、既に確定済みのcounterEの一致は取り消されてはならない
+    // (before/afterの再計算だけが最新状態を反映する)。
+    const originalSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_COUNTER_NO_VANISH_ORIGINAL"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterA,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+        {
+          kind: "INCREMENT",
+          counter: counterE,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "RUNTIME_COUNTER", counter: counterA, op: "EQ", value: 0 },
+          },
+          amount: 1,
+        },
+        {
+          // mutatorSkillの発動でcounterAをさらに書き換える。TurnStartedには
+          // マッチしないため最初の一括マッチングには含まれない。
+          kind: "INCREMENT",
+          counter: counterA,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "PassiveActivated",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+            condition: {
+              kind: "EVENT_PAYLOAD",
+              field: "skillDefinitionId",
+              op: "EQ",
+              value: mutatorSkillId,
+            },
+          },
+          amount: 5,
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_COUNTER_NO_VANISH_ORIGINAL", tags: [] },
+    };
+    const mutatorSkill: SkillDefinition = {
+      skillDefinitionId: mutatorSkillId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 0 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "RuntimeCounterChanged",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterA },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_COUNTER_NO_VANISH_MUTATOR", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          unitDefinitionId,
+          unitDefinitionOf(unitDefinitionId, [
+            originalSkill.skillDefinitionId,
+            mutatorSkill.skillDefinitionId,
+          ]),
+        ],
+      ]),
+      new Map([
+        [originalSkill.skillDefinitionId, originalSkill],
+        [mutatorSkill.skillDefinitionId, mutatorSkill],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+
+    const counterAChanges = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterChanged" && e.payload.counter === counterA);
+    expect(counterAChanges.map((e) => e.payload)).toMatchObject([
+      { before: 0, after: 1 },
+      { before: 1, after: 6 },
+    ]);
+
+    // counterE's match was locked in against the pre-mutator state (A === 0)
+    // and must still fire even though A is now 6 by the time the outer
+    // generator reaches this entry.
+    const counterEChanges = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "RuntimeCounterChanged" && e.payload.counter === counterE);
+    expect(counterEChanges.map((e) => e.payload)).toMatchObject([{ before: 0, after: 1 }]);
+
+    const finalOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(finalOwner.skillCounters?.[originalSkill.skillDefinitionId]).toEqual({
+      [counterA]: { value: 6, carry: 0 },
+      [counterE]: { value: 1, carry: 0 },
     });
   });
 });
