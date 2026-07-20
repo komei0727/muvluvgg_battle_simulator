@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_MIRIAM_MAGE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],
     "displayName": "【元気印の大魔導士】ミリアム・ヘイワード",
     "characterName": "ミリアム・ヘイワード",

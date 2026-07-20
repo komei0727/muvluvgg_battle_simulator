@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_LUNA_HUNGRY_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TRINITY_JEWEL"],
     "tags": [],
     "displayName": "【博識なハングリーガール】ルナ・メロウ",
     "characterName": "ルナ・メロウ",

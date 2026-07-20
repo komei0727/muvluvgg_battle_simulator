@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_NANAE_COMMANDER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],
     "displayName": "【オールラウンダーな統率者】鳴滝七彩",
     "characterName": "鳴滝七彩",

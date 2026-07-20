@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_DOROTHEA_PIONEER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],
     "displayName": "【新たなる時代の導き手】ドロテア・カークランド",
     "characterName": "ドロテア・カークランド",

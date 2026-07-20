@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_KARINA_DOWNER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_FUUKI_IINKAI"],
     "tags": [],
     "displayName": "【ダウナーギャルな副委員長】カリナ・ジェンティーレ",
     "characterName": "カリナ・ジェンティーレ",

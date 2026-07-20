@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_RAVEL_MODEL_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TRINITY_JEWEL"],
     "tags": [],
     "displayName": "【気高きランウェイモデル】レイヴェル・ブライトリーフ",
     "characterName": "レイヴェル・ブライトリーフ",

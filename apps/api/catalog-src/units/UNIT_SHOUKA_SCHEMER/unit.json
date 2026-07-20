@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_SHOUKA_SCHEMER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_FUUKI_IINKAI"],
     "tags": [],
     "displayName": "【風紀委員会の策謀家】姜小花",
     "characterName": "姜小花",

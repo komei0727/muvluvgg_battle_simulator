@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_NADYA_SUCCESSOR_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_KURASUNA"],
     "tags": [],
     "displayName": "【輝ける次代の娘】ナージャ・ヴォルコワ",
     "characterName": "ナージャ・ヴォルコワ",

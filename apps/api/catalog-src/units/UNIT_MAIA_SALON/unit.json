@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_MAIA_SALON_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],
     "displayName": "【眠れる社交界の淑女】夕凪舞亜",
     "characterName": "夕凪舞亜",

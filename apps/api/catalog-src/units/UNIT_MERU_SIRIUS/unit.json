@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_MERU_SIRIUS_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],
     "displayName": "【シリウスシュガーのエース】桃園める",
     "characterName": "桃園める",

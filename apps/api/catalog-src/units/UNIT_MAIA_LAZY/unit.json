@@ -24,7 +24,7 @@
   "extraSkillDefinitionId": "SKL_MAIA_LAZY_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],
     "displayName": "【温厚篤実な面倒くさがり】夕凪舞亜",
     "characterName": "夕凪舞亜",

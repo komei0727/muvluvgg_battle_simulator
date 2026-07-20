@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_LILY_HERO_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_FUUKI_IINKAI"],
     "tags": [],
     "displayName": "【正義のヒーロー】リリー・ラヴォア",
     "characterName": "リリー・ラヴォア",

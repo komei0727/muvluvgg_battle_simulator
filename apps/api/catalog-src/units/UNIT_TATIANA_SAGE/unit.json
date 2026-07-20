@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_TATIANA_SAGE_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_KURASUNA"],
     "tags": [],
     "displayName": "【理解深き老成の智者】タチアナ・ドロズドヴァ",
     "characterName": "タチアナ・ドロズドヴァ",

@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_SUIRAN_CHAOS_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【混沌の立役者】劉翠蘭",
     "characterName": "劉翠蘭",

@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_EVIE_ECO_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【省エネ主義の天才ハッカー】エヴィ・レーナルト",
     "characterName": "エヴィ・レーナルト",

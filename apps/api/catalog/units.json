@@ -20,7 +20,7 @@
     "extraSkillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【愛を求めるトラブルメーカー】アニス・ベネット",
       "characterName": "アニス・ベネット",
@@ -48,7 +48,7 @@
     "extraSkillDefinitionId": "SKL_AOI_ELEGANT_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【優雅なる規律の花】生駒葵",
       "characterName": "生駒葵",
@@ -76,7 +76,7 @@
     "extraSkillDefinitionId": "SKL_AOI_GUARDIAN_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【厳格な規律の守護者】生駒葵",
       "characterName": "生駒葵",
@@ -104,7 +104,7 @@
     "extraSkillDefinitionId": "SKL_CHIYURU_MAZE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【博識なメイズの探求者】月ヶ瀬ちゆる",
       "characterName": "月ヶ瀬ちゆる",
@@ -132,7 +132,7 @@
     "extraSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【新春のメイズ研究者】月ヶ瀬ちゆる",
       "characterName": "月ヶ瀬ちゆる",
@@ -224,7 +224,7 @@
     "extraSkillDefinitionId": "SKL_CLARA_SANTA_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【聖夜のサンタシンガー】綺羅クララ",
       "characterName": "綺羅クララ",
@@ -252,7 +252,7 @@
     "extraSkillDefinitionId": "SKL_CLARA_TSUNDERE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【正々堂々なミス・ツンデレ】綺羅クララ",
       "characterName": "綺羅クララ",
@@ -284,7 +284,7 @@
     "extraSkillDefinitionId": "SKL_DOROTHEA_GRACE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
       "displayName": "【ノーブル・グレイス】ドロテア・カークランド",
       "characterName": "ドロテア・カークランド",
@@ -312,7 +312,7 @@
     "extraSkillDefinitionId": "SKL_DOROTHEA_PIONEER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
       "displayName": "【新たなる時代の導き手】ドロテア・カークランド",
       "characterName": "ドロテア・カークランド",
@@ -340,7 +340,7 @@
     "extraSkillDefinitionId": "SKL_ELENA_MOODMAKER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_KURASUNA"],
       "tags": [],
       "displayName": "【心色見つめるムードメーカー】エレーナ・パステルコワ",
       "characterName": "エレーナ・パステルコワ",
@@ -368,7 +368,7 @@
     "extraSkillDefinitionId": "SKL_EVIE_ECO_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【省エネ主義の天才ハッカー】エヴィ・レーナルト",
       "characterName": "エヴィ・レーナルト",
@@ -396,7 +396,7 @@
     "extraSkillDefinitionId": "SKL_EVIE_KYONSHI_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【キョンシーハッカー】エヴィ・レーナルト",
       "characterName": "エヴィ・レーナルト",
@@ -424,7 +424,7 @@
     "extraSkillDefinitionId": "SKL_FEE_ACTOR_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【空っぽのアクター】フィー・ドレーゼ",
       "characterName": "フィー・ドレーゼ",
@@ -452,7 +452,7 @@
     "extraSkillDefinitionId": "SKL_FEE_BATH_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【自己に揺れる白湯気】フィー・ドレーゼ",
       "characterName": "フィー・ドレーゼ",
@@ -480,7 +480,7 @@
     "extraSkillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【ギャルインフルエンサー】フルート・メルヴィル",
       "characterName": "フルート・メルヴィル",
@@ -512,7 +512,7 @@
     "extraSkillDefinitionId": "SKL_FLUTE_VAMPIRE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【＃激カワ吸血鬼配信者♪】フルート・メルヴィル",
       "characterName": "フルート・メルヴィル",
@@ -540,7 +540,7 @@
     "extraSkillDefinitionId": "SKL_HARRIET_SAGE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
       "displayName": "【憎まれ口の大賢者】ハリエット・ミルズ",
       "characterName": "ハリエット・ミルズ",
@@ -596,7 +596,7 @@
     "extraSkillDefinitionId": "SKL_JULIE_SNOW_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
       "displayName": "【雪山もこもこ少女】ジュリー・ステイシー",
       "characterName": "ジュリー・ステイシー",
@@ -652,7 +652,7 @@
     "extraSkillDefinitionId": "SKL_KARINA_DOWNER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
       "displayName": "【ダウナーギャルな副委員長】カリナ・ジェンティーレ",
       "characterName": "カリナ・ジェンティーレ",
@@ -684,7 +684,7 @@
     "extraSkillDefinitionId": "SKL_KATE_PALADIN_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
       "displayName": "【人見知りの聖騎士】ケイト・フルニエ",
       "characterName": "ケイト・フルニエ",
@@ -744,7 +744,7 @@
     "extraSkillDefinitionId": "SKL_KOKORO_SPORTSDAY_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
       "displayName": "【体育祭のサポート役】樋向心香",
       "characterName": "樋向心香",
@@ -804,7 +804,7 @@
     "extraSkillDefinitionId": "SKL_LAURA_MOUNTAIN_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
       "displayName": "【みんなを見守る山ガール】黒森ラウラ",
       "characterName": "黒森ラウラ",
@@ -832,7 +832,7 @@
     "extraSkillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【戦うアントレプレナー】レイラ・ジェンキンス",
       "characterName": "レイラ・ジェンキンス",
@@ -860,7 +860,7 @@
     "extraSkillDefinitionId": "SKL_LILY_HERO_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
       "displayName": "【正義のヒーロー】リリー・ラヴォア",
       "characterName": "リリー・ラヴォア",
@@ -888,7 +888,7 @@
     "extraSkillDefinitionId": "SKL_LILY_SINGER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
       "displayName": "【想い響かせるヒーローシンガー】リリー・ラヴォア",
       "characterName": "リリー・ラヴォア",
@@ -920,7 +920,7 @@
     "extraSkillDefinitionId": "SKL_LUCIE_COMPANION_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
       "displayName": "【連れ添い歩む傍らの友】リュシー・ムーアクロフト",
       "characterName": "リュシー・ムーアクロフト",
@@ -948,7 +948,7 @@
     "extraSkillDefinitionId": "SKL_LUCIE_MAID_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
       "displayName": "【忠義の狂犬メイド】リュシー・ムーアクロフト",
       "characterName": "リュシー・ムーアクロフト",
@@ -980,7 +980,7 @@
     "extraSkillDefinitionId": "SKL_LUNA_HUNGRY_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TRINITY_JEWEL"],
       "tags": [],
       "displayName": "【博識なハングリーガール】ルナ・メロウ",
       "characterName": "ルナ・メロウ",
@@ -1008,7 +1008,7 @@
     "extraSkillDefinitionId": "SKL_LYDIA_GENIUS_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TRINITY_JEWEL"],
       "tags": [],
       "displayName": "【純真無垢なるジーニアス】リディア・エルドリッジ",
       "characterName": "リディア・エルドリッジ",
@@ -1041,7 +1041,7 @@
     "extraSkillDefinitionId": "SKL_MAIA_LAZY_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【温厚篤実な面倒くさがり】夕凪舞亜",
       "characterName": "夕凪舞亜",
@@ -1069,7 +1069,7 @@
     "extraSkillDefinitionId": "SKL_MAIA_SALON_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【眠れる社交界の淑女】夕凪舞亜",
       "characterName": "夕凪舞亜",
@@ -1097,7 +1097,7 @@
     "extraSkillDefinitionId": "SKL_MAO_COMMITTEE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
       "displayName": "【ポンコツいいんちょ】大賀真桜",
       "characterName": "大賀真桜",
@@ -1157,7 +1157,7 @@
     "extraSkillDefinitionId": "SKL_MERU_FLATSPIN_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【蒼き穹舞うフラットスピン】桃園める",
       "characterName": "桃園める",
@@ -1185,7 +1185,7 @@
     "extraSkillDefinitionId": "SKL_MERU_SIRIUS_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【シリウスシュガーのエース】桃園める",
       "characterName": "桃園める",
@@ -1273,7 +1273,7 @@
     "extraSkillDefinitionId": "SKL_MIRIAM_MAGE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
       "displayName": "【元気印の大魔導士】ミリアム・ヘイワード",
       "characterName": "ミリアム・ヘイワード",
@@ -1305,7 +1305,7 @@
     "extraSkillDefinitionId": "SKL_NADYA_SUCCESSOR_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_KURASUNA"],
       "tags": [],
       "displayName": "【輝ける次代の娘】ナージャ・ヴォルコワ",
       "characterName": "ナージャ・ヴォルコワ",
@@ -1333,7 +1333,7 @@
     "extraSkillDefinitionId": "SKL_NANAE_COMMANDER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【オールラウンダーな統率者】鳴滝七彩",
       "characterName": "鳴滝七彩",
@@ -1361,7 +1361,7 @@
     "extraSkillDefinitionId": "SKL_NOEL_RUMBLE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
       "displayName": "【体育祭の暴れん坊】ノエル・アルエ",
       "characterName": "ノエル・アルエ",
@@ -1389,7 +1389,7 @@
     "extraSkillDefinitionId": "SKL_OLGA_VETERAN_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_KURASUNA"],
       "tags": [],
       "displayName": "【歴戦の鉄母】オルガ・ヴォルコワ",
       "characterName": "オルガ・ヴォルコワ",
@@ -1421,7 +1421,7 @@
     "extraSkillDefinitionId": "SKL_RAMI_NEWYEAR_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【大吉ハッピーニューイヤー】朽葉ラミ",
       "characterName": "朽葉ラミ",
@@ -1453,7 +1453,7 @@
     "extraSkillDefinitionId": "SKL_RAMI_UNYIELDING_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【負けず嫌いな不屈少女】朽葉ラミ",
       "characterName": "朽葉ラミ",
@@ -1481,7 +1481,7 @@
     "extraSkillDefinitionId": "SKL_RAVEL_MODEL_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TRINITY_JEWEL"],
       "tags": [],
       "displayName": "【気高きランウェイモデル】レイヴェル・ブライトリーフ",
       "characterName": "レイヴェル・ブライトリーフ",
@@ -1513,7 +1513,7 @@
     "extraSkillDefinitionId": "SKL_ROSIE_ARTIST_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【空想造形アーティスト】ロージー・ヒューズ",
       "characterName": "ロージー・ヒューズ",
@@ -1541,7 +1541,7 @@
     "extraSkillDefinitionId": "SKL_SAYA_BUNNY_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【発情バニー】紫雲沙耶",
       "characterName": "紫雲沙耶",
@@ -1569,7 +1569,7 @@
     "extraSkillDefinitionId": "SKL_SAYA_LONGING_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【渇望秘めし淑女】紫雲沙耶",
       "characterName": "紫雲沙耶",
@@ -1597,7 +1597,7 @@
     "extraSkillDefinitionId": "SKL_SENKA_CHRISTMAS_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【クリスマスコーデの参謀】姫川泉花",
       "characterName": "姫川泉花",
@@ -1625,7 +1625,7 @@
     "extraSkillDefinitionId": "SKL_SENKA_SCHEMER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【自称腹黒の深謀策士】姫川泉花",
       "characterName": "姫川泉花",
@@ -1653,7 +1653,7 @@
     "extraSkillDefinitionId": "SKL_SHIRANA_LUCKY_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【純白のラッキーガール】一条白奈",
       "characterName": "一条白奈",
@@ -1681,7 +1681,7 @@
     "extraSkillDefinitionId": "SKL_SHIRANA_SORA_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
       "displayName": "【期待応える輝きの穹】一条白奈",
       "characterName": "一条白奈",
@@ -1713,7 +1713,7 @@
     "extraSkillDefinitionId": "SKL_SHOUKA_SCHEMER_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
       "displayName": "【風紀委員会の策謀家】姜小花",
       "characterName": "姜小花",
@@ -1741,7 +1741,7 @@
     "extraSkillDefinitionId": "SKL_SIENA_DIVA_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク",
       "characterName": "シエナ・クラーク",
@@ -1769,7 +1769,7 @@
     "extraSkillDefinitionId": "SKL_SIENA_OFFSTAGE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【舞台を降りた元歌姫】シエナ・クラーク",
       "characterName": "シエナ・クラーク",
@@ -1829,7 +1829,7 @@
     "extraSkillDefinitionId": "SKL_SUIRAN_CASINO_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【恥じらうカジノラビット】劉翠蘭",
       "characterName": "劉翠蘭",
@@ -1861,7 +1861,7 @@
     "extraSkillDefinitionId": "SKL_SUIRAN_CHAOS_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【混沌の立役者】劉翠蘭",
       "characterName": "劉翠蘭",
@@ -1925,7 +1925,7 @@
     "extraSkillDefinitionId": "SKL_TATIANA_SAGE_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_KURASUNA"],
       "tags": [],
       "displayName": "【理解深き老成の智者】タチアナ・ドロズドヴァ",
       "characterName": "タチアナ・ドロズドヴァ",
@@ -1953,7 +1953,7 @@
     "extraSkillDefinitionId": "SKL_URUU_TIMID_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
       "displayName": "【臆病な褒められたがり少女】波瀬うるう",
       "characterName": "波瀬うるう",
@@ -2009,7 +2009,7 @@
     "extraSkillDefinitionId": "SKL_YURIA_WILDCARD_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【享楽のワイルドカード】ユリア・バーンズ",
       "characterName": "ユリア・バーンズ",
@@ -2037,7 +2037,7 @@
     "extraSkillDefinitionId": "SKL_YURIA_YUKATA_EX",
     "requiredCapabilities": [],
     "metadata": {
-      "affiliations": [],
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
       "displayName": "【はだけるわんぱく浴衣】ユリア・バーンズ",
       "characterName": "ユリア・バーンズ",

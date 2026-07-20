@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_URUU_TIMID_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],
     "displayName": "【臆病な褒められたがり少女】波瀬うるう",
     "characterName": "波瀬うるう",

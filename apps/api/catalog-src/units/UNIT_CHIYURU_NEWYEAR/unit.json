@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],
     "displayName": "【新春のメイズ研究者】月ヶ瀬ちゆる",
     "characterName": "月ヶ瀬ちゆる",

@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_ELENA_MOODMAKER_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_KURASUNA"],
     "tags": [],
     "displayName": "【心色見つめるムードメーカー】エレーナ・パステルコワ",
     "characterName": "エレーナ・パステルコワ",

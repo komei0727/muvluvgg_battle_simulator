@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_SIENA_DIVA_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク",
     "characterName": "シエナ・クラーク",

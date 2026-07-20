@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_ROSIE_ARTIST_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],
     "displayName": "【空想造形アーティスト】ロージー・ヒューズ",
     "characterName": "ロージー・ヒューズ",

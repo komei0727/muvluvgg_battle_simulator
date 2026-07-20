@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_FEE_ACTOR_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【空っぽのアクター】フィー・ドレーゼ",
     "characterName": "フィー・ドレーゼ",

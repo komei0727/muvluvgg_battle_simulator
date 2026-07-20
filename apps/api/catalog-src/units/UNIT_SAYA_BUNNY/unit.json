@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_SAYA_BUNNY_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【発情バニー】紫雲沙耶",
     "characterName": "紫雲沙耶",

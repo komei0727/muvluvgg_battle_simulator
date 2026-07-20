@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_LAURA_MOUNTAIN_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PRE_KURASU_A"],
     "tags": [],
     "displayName": "【みんなを見守る山ガール】黒森ラウラ",
     "characterName": "黒森ラウラ",

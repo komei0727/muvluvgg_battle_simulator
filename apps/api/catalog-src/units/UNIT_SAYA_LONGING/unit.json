@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_SAYA_LONGING_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],
     "displayName": "【渇望秘めし淑女】紫雲沙耶",
     "characterName": "紫雲沙耶",

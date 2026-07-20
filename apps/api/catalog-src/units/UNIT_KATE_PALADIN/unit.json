@@ -23,7 +23,7 @@
   "extraSkillDefinitionId": "SKL_KATE_PALADIN_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],
     "displayName": "【人見知りの聖騎士】ケイト・フルニエ",
     "characterName": "ケイト・フルニエ",

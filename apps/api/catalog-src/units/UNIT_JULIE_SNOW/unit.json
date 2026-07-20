@@ -19,7 +19,7 @@
   "extraSkillDefinitionId": "SKL_JULIE_SNOW_EX",
   "requiredCapabilities": [],
   "metadata": {
-    "affiliations": [],
+    "affiliations": ["AFF_PRE_KURASU_A"],
     "tags": [],
     "displayName": "【雪山もこもこ少女】ジュリー・ステイシー",
     "characterName": "ジュリー・ステイシー",
