@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "baselineDate": "2026-07-20",
+  "roadmapIssue": 158,
+  "baseline": {
+    "rules": {
+      "total": 109,
+      "completedThroughM6": 47,
+      "remaining": 62
+    },
+    "unitCatalog": {
+      "convertedProductionUnits": 69,
+      "syntheticUnits": 1,
+      "incompleteConversionRows": 96
+    },
+    "memoryCatalog": {
+      "sourceTotal": 32,
+      "converted": 6,
+      "unconverted": 26
+    },
+    "capabilities": {
+      "total": 30,
+      "implemented": 1
+    }
+  },
+  "tasks": [
+    { "taskId": "PLAN-001", "issue": 163, "phase": 0, "milestone": "M7" },
+    { "taskId": "CAP-001", "issue": 166, "phase": 0, "milestone": "M7" },
+    { "taskId": "CAT-001", "issue": 161, "phase": 0, "milestone": "M7" },
+    { "taskId": "EFF-001", "issue": 164, "phase": 1, "milestone": "M7" },
+    { "taskId": "EFF-002", "issue": 165, "phase": 1, "milestone": "M7" },
+    { "taskId": "EFF-003", "issue": 159, "phase": 1, "milestone": "M7" },
+    { "taskId": "EFF-004", "issue": 160, "phase": 1, "milestone": "M7" },
+    { "taskId": "EFF-005", "issue": 162, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-001", "issue": 175, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-002", "issue": 174, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-003", "issue": 173, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-004", "issue": 171, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-005", "issue": 172, "phase": 1, "milestone": "M7" },
+    { "taskId": "TGT-001", "issue": 170, "phase": 1, "milestone": "M7" },
+    { "taskId": "TGT-002", "issue": 169, "phase": 1, "milestone": "M7" },
+    { "taskId": "TGT-003", "issue": 168, "phase": 1, "milestone": "M7" },
+    { "taskId": "TGT-004", "issue": 167, "phase": 1, "milestone": "M7" },
+    { "taskId": "M7-001", "issue": 181, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-002", "issue": 185, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-003", "issue": 180, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-004", "issue": 183, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-005", "issue": 184, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-006", "issue": 179, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-007", "issue": 178, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-008", "issue": 176, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-009", "issue": 182, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-010", "issue": 177, "phase": 2, "milestone": "M7" },
+    { "taskId": "DMG-001", "issue": 195, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-002", "issue": 192, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-003", "issue": 196, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-004", "issue": 194, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-005", "issue": 190, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-006", "issue": 188, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-007", "issue": 187, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-008", "issue": 189, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-009", "issue": 193, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-010", "issue": 191, "phase": 3, "milestone": "M8" },
+    { "taskId": "DMG-011", "issue": 186, "phase": 3, "milestone": "M8" },
+    { "taskId": "REL-001", "issue": 202, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-002", "issue": 199, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-003", "issue": 200, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-004", "issue": 203, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-005", "issue": 198, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-006", "issue": 197, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-007", "issue": 201, "phase": 4, "milestone": "M9" }
+  ],
+  "ruleAssignments": [
+    { "taskId": "RES-001", "ruleIds": ["R-NUM-04"] },
+    {
+      "taskId": "M7-003",
+      "ruleIds": ["R-ORD-01", "R-ACT-01", "R-ACT-02", "R-SKL-05", "R-STS-01", "R-STS-02"]
+    },
+    { "taskId": "EFF-002", "ruleIds": ["R-ORD-04", "R-EFF-05"] },
+    {
+      "taskId": "TGT-001",
+      "ruleIds": ["R-TGT-03", "R-TGT-04", "R-TGT-05", "R-TGT-06", "R-TGT-09"]
+    },
+    { "taskId": "TGT-004", "ruleIds": ["R-TGT-08"] },
+    { "taskId": "TGT-003", "ruleIds": ["R-TGT-10"] },
+    { "taskId": "RES-003", "ruleIds": ["R-SKL-07", "R-SKL-08"] },
+    {
+      "taskId": "M7-006",
+      "ruleIds": ["R-MEM-01", "R-MEM-02", "R-MEM-03", "R-MEM-04"]
+    },
+    { "taskId": "RES-002", "ruleIds": ["R-ACTN-01"] },
+    {
+      "taskId": "M7-004",
+      "ruleIds": ["R-HIT-02", "R-HIT-03", "R-DMG-02", "R-STS-03", "R-STS-04"]
+    },
+    { "taskId": "M7-005", "ruleIds": ["R-HEAL-01", "R-HEAL-02", "R-HEAL-03"] },
+    { "taskId": "EFF-001", "ruleIds": ["R-EFF-01"] },
+    { "taskId": "M7-001", "ruleIds": ["R-EFF-02", "R-EFF-03"] },
+    {
+      "taskId": "EFF-003",
+      "ruleIds": ["R-EFF-04", "R-EFF-06", "R-EFF-07", "R-EFF-08", "R-EFF-09"]
+    },
+    { "taskId": "EFF-004", "ruleIds": ["R-EFF-10"] },
+    { "taskId": "EFF-005", "ruleIds": ["R-EFF-11"] },
+    { "taskId": "DMG-001", "ruleIds": ["R-SKL-03", "R-ACTN-02", "R-DMG-05"] },
+    { "taskId": "DMG-006", "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"] },
+    { "taskId": "DMG-002", "ruleIds": ["R-DMG-03", "R-DMG-04"] },
+    { "taskId": "DMG-004", "ruleIds": ["R-SHD-01", "R-SHD-02", "R-SHD-03"] },
+    { "taskId": "DMG-005", "ruleIds": ["R-SUB-01", "R-SUB-02"] },
+    { "taskId": "DMG-007", "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"] },
+    { "taskId": "DMG-008", "ruleIds": ["R-DOT-01", "R-DOT-02", "R-DOT-03", "R-DOT-04"] }
+  ],
+  "conversionThemeAssignments": [
+    {
+      "milestone": "M7",
+      "theme": "TARGET_EXCLUDE_RESOLVED_UNIT",
+      "rowCount": 8,
+      "taskId": "TGT-002"
+    },
+    { "milestone": "M7", "theme": "AOE_PER_TARGET_CONDITION", "rowCount": 7, "taskId": "RES-004" },
+    { "milestone": "M7", "theme": "REMOVE_BUFF_CATEGORY", "rowCount": 5, "taskId": "M7-001" },
+    {
+      "milestone": "M7",
+      "theme": "TARGET_STATE_QUERY_BUFF_DEBUFF",
+      "rowCount": 5,
+      "taskId": "M7-001"
+    },
+    { "milestone": "M7", "theme": "HP_DIRECT_COST", "rowCount": 4, "taskId": "M7-002" },
+    { "milestone": "M7", "theme": "TARGET_ORDER_MARKER_COUNT", "rowCount": 4, "taskId": "TGT-002" },
+    { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
+    { "milestone": "M7", "theme": "REMOVE_EFFECTS_COUNT_LIMIT", "rowCount": 3, "taskId": "M7-001" },
+    { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "RES-005" },
+    {
+      "milestone": "M7",
+      "theme": "EFFECT_IMMUNITY_STATUS_GRANULARITY",
+      "rowCount": 2,
+      "taskId": "M7-001"
+    },
+    {
+      "milestone": "M7",
+      "theme": "REMOVE_EFFECTS_CATEGORY_GAP",
+      "rowCount": 2,
+      "taskId": "M7-001"
+    },
+    { "milestone": "M7", "theme": "RESOURCE_GAIN_MOD", "rowCount": 2, "taskId": "M7-002" },
+    {
+      "milestone": "M7",
+      "theme": "TARGET_ORDER_STAT_LOWEST_OR_SPEED",
+      "rowCount": 2,
+      "taskId": "TGT-002"
+    },
+    {
+      "milestone": "M7",
+      "theme": "TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE",
+      "rowCount": 2,
+      "taskId": "TGT-002"
+    },
+    { "milestone": "M7", "theme": "TRIGGER_PAYLOAD_FILTER", "rowCount": 2, "taskId": "RES-005" },
+    {
+      "milestone": "M7",
+      "theme": "DYNAMIC_DURATION_ON_REAPPLY",
+      "rowCount": 1,
+      "taskId": "EFF-003"
+    },
+    { "milestone": "M7", "theme": "HEAL_DISTRIBUTE", "rowCount": 1, "taskId": "M7-005" },
+    {
+      "milestone": "M7",
+      "theme": "ON_ATTACK_BONUS_DAMAGE_BUFF",
+      "rowCount": 1,
+      "taskId": "M7-004"
+    },
+    {
+      "milestone": "M7",
+      "theme": "SET_THRESHOLD_ACTIVATION_CONDITION",
+      "rowCount": 1,
+      "taskId": "RES-004"
+    },
+    { "milestone": "M7", "theme": "STACK_LIMIT_ON_STAT_MOD", "rowCount": 1, "taskId": "EFF-002" },
+    {
+      "milestone": "M7",
+      "theme": "TARGET_FILTER_MARKER_BY_AREA",
+      "rowCount": 1,
+      "taskId": "TGT-002"
+    },
+    {
+      "milestone": "M7",
+      "theme": "TARGET_FILTER_MARKER_COUNT_THRESHOLD",
+      "rowCount": 1,
+      "taskId": "TGT-002"
+    },
+    { "milestone": "M7", "theme": "TRIGGER_POSITION_RELATION", "rowCount": 1, "taskId": "RES-005" },
+    { "milestone": "M8", "theme": "HP_RATIO_SCALE_FORMULA", "rowCount": 7, "taskId": "DMG-002" },
+    {
+      "milestone": "M8",
+      "theme": "POST_DAMAGE_CRITICAL_BRANCH",
+      "rowCount": 6,
+      "taskId": "DMG-003"
+    },
+    {
+      "milestone": "M8",
+      "theme": "DYNAMIC_DAMAGE_MOD_CONDITION",
+      "rowCount": 5,
+      "taskId": "DMG-002"
+    },
+    { "milestone": "M8", "theme": "DAMAGE_LINK", "rowCount": 4, "taskId": "DMG-007" },
+    {
+      "milestone": "M8",
+      "theme": "POST_DAMAGE_SURVIVAL_BRANCH",
+      "rowCount": 3,
+      "taskId": "DMG-003"
+    },
+    { "milestone": "M8", "theme": "SUBUNIT_DURATION", "rowCount": 3, "taskId": "DMG-005" },
+    {
+      "milestone": "M8",
+      "theme": "CONFUSION_OR_DAMAGE_TO_HEAL",
+      "rowCount": 2,
+      "taskId": "DMG-009"
+    },
+    { "milestone": "M8", "theme": "REFLECT_DAMAGE", "rowCount": 1, "taskId": "DMG-006" },
+    { "milestone": "M8", "theme": "SHIELD_DECAY_OVER_TIME", "rowCount": 1, "taskId": "DMG-004" },
+    {
+      "milestone": "M8",
+      "theme": "SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF",
+      "rowCount": 1,
+      "taskId": "DMG-005"
+    },
+    { "milestone": "M8", "theme": "TEMP_PIERCING_GRANT", "rowCount": 1, "taskId": "DMG-003" }
+  ],
+  "unconvertedMemoryAssignments": [
+    { "name": "おパンツ咥えたドラネコ", "taskId": "M7-007" },
+    { "name": "カオスメイデンツインテ祭り♡", "taskId": "M7-007" },
+    { "name": "メイド３人のおもてなし？", "taskId": "M7-007" },
+    { "name": "桃園家のお正月", "taskId": "M7-007" },
+    { "name": "絶対命令行使権！", "taskId": "M7-007" },
+    { "name": "１日ユーロ・タワー体験", "taskId": "M7-007" },
+    { "name": "Chaos Maiden", "taskId": "M7-008" },
+    { "name": "Colorful Bouquet", "taskId": "M7-008" },
+    { "name": "Pyxis Ma Soeur", "taskId": "M7-008" },
+    { "name": "Sirius Sugar", "taskId": "M7-008" },
+    { "name": "Treble Quintet", "taskId": "M7-008" },
+    { "name": "Trinity Jewel", "taskId": "M7-008" },
+    { "name": "お傍にいるのはいつでもピコですよ♪", "taskId": "M7-008" },
+    { "name": "お忍びシスターの冒険", "taskId": "M7-008" },
+    { "name": "エッ◯な罰ゲームやってみた", "taskId": "M7-008" },
+    { "name": "不満と不安", "taskId": "M7-008" },
+    { "name": "安心する香り", "taskId": "M7-008" },
+    { "name": "家族のかたちを象りながら", "taskId": "M7-008" },
+    { "name": "密着！？テントの中の珍騒動", "taskId": "M7-008" },
+    { "name": "少女たちとの邂逅", "taskId": "M7-008" },
+    { "name": "忙しい時のまどろみ", "taskId": "M7-008" },
+    { "name": "新年のご挨拶", "taskId": "M7-008" },
+    { "name": "気になる装備", "taskId": "M7-008" },
+    { "name": "腐れ縁で犬猿の仲？", "taskId": "M7-008" },
+    { "name": "風紀委員会", "taskId": "M7-008" },
+    { "name": "駆け落ちフルスロットル！", "taskId": "M7-008" }
+  ]
+}
