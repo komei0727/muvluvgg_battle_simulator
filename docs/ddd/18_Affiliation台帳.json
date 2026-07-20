@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "affiliations": [
+    {
+      "affiliationId": "AFF_CHAOS_MAIDEN",
+      "displayName": "カオスメイデン",
+      "sourceMemories": ["Chaos Maiden", "駆け落ちフルスロットル！"],
+      "sourceQuote": "戦闘開始時に発動。カオスメイデンに所属するキャラクターの攻撃力を250上昇させる"
+    },
+    {
+      "affiliationId": "AFF_COLORFUL_BOUQUET",
+      "displayName": "カラフルブーケ",
+      "sourceMemories": ["Colorful Bouquet"],
+      "sourceQuote": "戦闘開始時に発動。カラフルブーケに所属するキャラクターの攻撃力を250上昇させる"
+    },
+    {
+      "affiliationId": "AFF_PYXIS_MA_SOEUR",
+      "displayName": "ピクシス・マスール",
+      "sourceMemories": ["Pyxis Ma Soeur", "お忍びシスターの冒険"],
+      "sourceQuote": "戦闘開始時に発動。ピクシス・マスールに所属するキャラクターの攻撃力を250上昇させる"
+    },
+    {
+      "affiliationId": "AFF_SIRIUS_SUGAR",
+      "displayName": "シリウスシュガー",
+      "sourceMemories": ["Sirius Sugar"],
+      "sourceQuote": "戦闘開始時に発動。シリウスシュガーに所属するキャラクターの攻撃力を250上昇させる"
+    },
+    {
+      "affiliationId": "AFF_TREBLE_QUINTET",
+      "displayName": "トレブルクインテット",
+      "sourceMemories": ["Treble Quintet"],
+      "sourceQuote": "戦闘開始時に発動。トレブルクインテットに所属するキャラクターの攻撃力を250上昇させる"
+    },
+    {
+      "affiliationId": "AFF_TRINITY_JEWEL",
+      "displayName": "トリニティ・ジュエル",
+      "sourceMemories": ["Trinity Jewel"],
+      "sourceQuote": "戦闘開始時に発動。トリニティ・ジュエルに所属するキャラクターの攻撃力を250上昇させる"
+    },
+    {
+      "affiliationId": "AFF_FUUKI_IINKAI",
+      "displayName": "風紀委員会",
+      "sourceMemories": ["風紀委員会"],
+      "sourceQuote": "戦闘開始時に発動。風紀委員会に所属するキャラクターの攻撃力を250上昇させる"
+    },
+    {
+      "affiliationId": "AFF_KURASUNA",
+      "displayName": "クラスナ",
+      "sourceMemories": ["家族のかたちを象りながら"],
+      "sourceQuote": "戦闘開始時に発動。クラスナに所属するキャラクターの与えるダメージを2.5%上昇させる"
+    },
+    {
+      "affiliationId": "AFF_PRE_KURASU_A",
+      "displayName": "プレ・クラスーＡ",
+      "sourceMemories": ["密着！？テントの中の珍騒動"],
+      "sourceQuote": "戦闘開始時に発動。プレ・クラスーＡに所属するキャラクターの与えるダメージを2.5％上昇させる"
+    }
+  ]
+}

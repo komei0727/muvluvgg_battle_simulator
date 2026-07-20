@@ -241,7 +241,7 @@ metadata:
 | `affiliations`  | string[] | ✓    | 所属ID。空配列可             |
 | `tags`          | string[] | ✓    | 任意タグ。空配列可           |
 
-`affiliations` は Memory の所属フィルタで使用する。所属不明の場合は空配列にし、所属フィルタを必要とする Memory の Catalog 化時に補完する。
+`affiliations` は Memory の所属フィルタで使用する。所属不明の場合は空配列にし、所属フィルタを必要とする Memory の Catalog 化時に補完する。`affiliationId`（`AFF_*`）の確定済み一覧・採番方針・Unit metadata 更新方針は [`18_Affiliation台帳.md`](./18_Affiliation台帳.md) を参照。表示名の字面一致のみでは補完しない。
 
 ---
 
