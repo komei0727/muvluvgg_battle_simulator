@@ -922,4 +922,48 @@ describe("SimulateBattleUseCase", () => {
     expect(caught).toBeInstanceOf(ApplicationError);
     expect((caught as ApplicationError).code).toBe("EXECUTION_LIMIT_EXCEEDED");
   });
+
+  it("review re-fix [P1]: a legitimate 5v5, 99-turn, all-WAIT boundary battle (10_API設計.md's 'must comfortably handle a normal 99-turn battle' contract) completes without hitting EXECUTION_LIMIT_EXCEEDED", () => {
+    // レビュー再指摘[P1]: 旧`DEFAULT_MAX_TOTAL_EVENTS`(20,000)は、5対5・現行
+    // ユニットの最大AP(4)で全員がWAITを選択する境界ケース(1ターン最大40行動、
+    // 行動イベントだけで概算23,760件)を処理できなかった。この境界を実際に
+    // `SimulateBattleUseCase`経由で走らせ、実行ガードに引っかからないことを
+    // 確認する(`event-recorder.ts`のコメントに実測値の詳細を記載)。
+    const waitUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_WAIT_ONLY"),
+      // レビュー指摘[P1]の実測前提(「現在のユニットの最大APは4」)を再現する。
+      baseStats: { ...unitDefinition("UNIT_WAIT_ONLY").baseStats, maximumAp: 4 },
+    };
+    const units = new Map([[createUnitDefinitionId("UNIT_WAIT_ONLY"), waitUnit]]);
+    const catalog = new FakeBattleCatalog(units);
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_BOUNDARY"]),
+      randomSourceFactory: new SequenceRandomSourceFactory(new Array(1000).fill(0.99)),
+      clock: new ManualClock(0),
+    });
+    const fiveSlots = [
+      slot("UNIT_WAIT_ONLY", 0, "FRONT"),
+      slot("UNIT_WAIT_ONLY", 1, "FRONT"),
+      slot("UNIT_WAIT_ONLY", 2, "FRONT"),
+      slot("UNIT_WAIT_ONLY", 0, "REAR"),
+      slot("UNIT_WAIT_ONLY", 1, "REAR"),
+    ];
+
+    const result = useCase.execute(
+      command({
+        allyFormation: { slots: fiveSlots, memoryDefinitionIds: [] },
+        enemyFormation: { slots: fiveSlots, memoryDefinitionIds: [] },
+        turnLimit: 99,
+        logLevel: "DETAILED",
+      }),
+      testContext(),
+    );
+
+    expect(result.finalState.currentTurn).toBe(99);
+    // The old 20,000 cap would have failed this legitimate battle; the
+    // recalibrated cap must clear it with margin to spare.
+    expect(result.events.length).toBeGreaterThan(20_000);
+    expect(result.events.length).toBeLessThan(1_000_000);
+  });
 });

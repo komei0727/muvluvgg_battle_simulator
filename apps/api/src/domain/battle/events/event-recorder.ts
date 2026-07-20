@@ -26,8 +26,18 @@ import { ExecutionGuardExceededError } from "../../shared/errors.js";
  * `RuntimeCounterChanged`を自身の更新契機にするCatalog定義（`PassiveActivationRuntime`
  * 側にも専用の再帰深度Guardを設けている）のような、複数解決スコープにまたがる
  * 想定外のイベント量産をBattle全体で捕捉する最終防衛線として機能する。
+ *
+ * レビュー再指摘[P1]: 旧値（20,000）は`10_API設計.md`「正常な99ターン戦闘を
+ * 十分扱える値にする」契約を満たさなかった。5対5・現行ユニットの最大AP(4)・
+ * `logLevel: DETAILED`・99ターンの境界シナリオを実測すると、全員WAITの
+ * 最小系（AP消費・EX増加・ActionWaited等のみ）で約25,554件、全員が毎ターン
+ * 攻撃（ダメージ計算・適用込み）する系で約164,154件、各ユニットが
+ * `DamageApplied`に反応する簡易防御PSを持つ系で約203,754件になる
+ * （測定手順はPR再レビュー対応時のスクリプトを参照）。実行ガードは
+ * 「異常な暴走生成」を止める最終防衛線であり、正常系の実測ワーストケースを
+ * 詰めすぎないよう、最大実測値(約204,000件)の約5倍の余裕を確保する。
  */
-export const DEFAULT_MAX_TOTAL_EVENTS = 20_000;
+export const DEFAULT_MAX_TOTAL_EVENTS = 1_000_000;
 
 export interface RecordEventInput<Type extends BattleDomainEventType> {
   readonly eventType: Type;

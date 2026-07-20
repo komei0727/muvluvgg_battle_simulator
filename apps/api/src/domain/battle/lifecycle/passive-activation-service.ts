@@ -203,30 +203,49 @@ export class PassiveActivationRuntime {
    * 呼び出し元のコンテキストに依存するため、ここではguardに触れない —
    * レビュー指摘[P1]参照）。
    *
-   * レビュー指摘[P2]: 同一原因イベントで複数counterが変化する場合、対象は
-   * `detectRuntimeCounterUpdates`が原因イベント時点の`this.units`から決定論的に
-   * 一括算出する（`R-EFF-11`の確定順）が、`this.units`への反映自体は1件ずつ
-   * 行う — このメソッドをgeneratorにし、1件`record`するたびに`yield`して
+   * レビュー指摘[P2]、レビュー再指摘[P2]: 同一原因イベントで複数counterが
+   * 変化する場合、「units反映→record→(呼び出し側の)候補解決」を1件ずつ行う
+   * ため、このメソッドをgeneratorにし、1件`record`するたびに`yield`して
    * 呼び出し側へ制御を返す。呼び出し側（`onFactEvent`の再帰呼び出し／
    * `activatePassiveCandidate`の`TIMING_EVENT`）が`for...of`でその候補解決を
    * 終えてから次の`.next()`を呼ぶため、後続counterの`this.units`反映は先行する
-   * counterの候補解決が完了した後になる。全件をまとめて`this.units`へ反映して
-   * から全イベントを発行すると、最初の`RuntimeCounterChanged`に反応する候補が、
-   * まだ自身のイベントを発行していない後続counterの値まで観測できてしまう
-   * （修正前の不具合）。
+   * counterの候補解決が完了した後になる。
+   *
+   * `detectRuntimeCounterUpdates`を最初に1回だけ呼んで全件を事前計算すると、
+   * 先行counterの候補解決（PS連鎖）がまだ処理していない後続counterの
+   * `before`/`after`/`carry`を書き換えても、事前計算した古い値でその変更を
+   * 上書きしてしまう（修正前の不具合、レビュー再指摘[P2]）。そのため、この
+   * ループは`yield`から戻るたびに`detectRuntimeCounterUpdates`を`this.units`
+   * （＝直前の候補解決後の最新状態）から取り直し、まだ処理していない
+   * (ownerUnitId, skillDefinitionId, counter)の中で最初の1件だけを適用する。
+   * 既に処理済みの組は`processed`で除外し、同じ更新を二重適用しない。
+   * `detectRuntimeCounterUpdates`自体は決定論的な順序（`R-EFF-11`の確定順）で
+   * 候補を返すため、処理済みを読み飛ばすだけで相対順序は保たれる。
    */
   private *detectAndRecordRuntimeCounterChanges(
     causingEvent: BattleDomainEvent,
     skillUseId?: SkillUseId,
   ): Generator<BattleDomainEvent, void, unknown> {
     const triggerEvent = this.toTriggerEvent(causingEvent);
-    const counterUpdate = detectRuntimeCounterUpdates({
-      event: triggerEvent,
-      units: this.units,
-      unitDefinitions: this.context.definitions.unitDefinitions,
-      skillDefinitions: this.context.definitions.skillDefinitions,
-    });
-    for (const change of counterUpdate.changes) {
+    const processed = new Set<string>();
+    while (true) {
+      const counterUpdate = detectRuntimeCounterUpdates({
+        event: triggerEvent,
+        units: this.units,
+        unitDefinitions: this.context.definitions.unitDefinitions,
+        skillDefinitions: this.context.definitions.skillDefinitions,
+      });
+      const change = counterUpdate.changes.find(
+        (candidate) =>
+          !processed.has(
+            `${candidate.ownerUnitId}:${candidate.skillDefinitionId}:${candidate.counter}`,
+          ),
+      );
+      if (change === undefined) {
+        return;
+      }
+      processed.add(`${change.ownerUnitId}:${change.skillDefinitionId}:${change.counter}`);
+
       const owner = requireUnit(this.units, change.ownerUnitId);
       const updatedOwner: BattleUnit = {
         ...owner,
