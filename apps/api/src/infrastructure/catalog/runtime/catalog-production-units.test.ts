@@ -23,7 +23,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // expiration, and linkedEffectGroup cascade (R-EFF-04/06/07/08/09) wired
     // the real lifecycle (`capabilities.json`, production integration tests
     // `IT-CAP-COMPLEX-EXPIRATION-PROD-001〜003`).
-    expect(catalog.catalogRevision).toBe("2026-07-21.7");
+    expect(catalog.catalogRevision).toBe("2026-07-21.8");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

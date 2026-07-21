@@ -2562,5 +2562,54 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(updatedOwner.appliedEffects).toHaveLength(1);
       expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
     });
+
+    it("UT-R-EFF-08-011 (レビュー再指摘[P1]、PS連鎖内部イベント): expires an effect whose expiration.conditions matches a PassiveActivated event yielded from inside the PS chain itself (not routed through onFactEvent)", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+      const skill = passiveSkillOf("SKL_PS", { ppCost: 0 });
+      const owner = unit("OWNER", "ALLY", { attack: 10, unitDefinitionId });
+      const ownerWithEffect: BattleUnit = {
+        ...owner,
+        combatStats: { ...owner.combatStats, attack: 8 },
+        appliedEffects: [
+          conditionalEffect(owner.battleUnitId, [
+            {
+              kind: "EVENT_PAYLOAD",
+              field: "skillDefinitionId",
+              op: "EQ",
+              value: skill.skillDefinitionId,
+            },
+          ]),
+        ],
+      };
+      const definitions = definitionsOf(
+        new Map([
+          [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        ]),
+        new Map([[skill.skillDefinitionId, skill]]),
+        new Map([[STAT_MOD_ID, statModDefinition()]]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        ownerWithEffect,
+      ]);
+
+      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]);
+
+      // `PassiveActivated`自体は`activatePassiveCandidate`（PS連鎖の内部）が直接
+      // yieldするイベントで、`onFactEvent`を経由しない。この効果はその
+      // `PassiveActivated`自身のpayload(`skillDefinitionId`)を条件にしているため、
+      // 修正前（トップレベルの`onFactEvent`だけがR-EFF-08を評価していた頃）は
+      // 一切失効しなかった。
+      const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(updatedOwner.appliedEffects).toHaveLength(0);
+      expect(updatedOwner.combatStats.attack).toBe(10);
+
+      const eventTypes = recorder.getEvents().map((e) => e.eventType);
+      const passiveActivatedIndex = eventTypes.indexOf("PassiveActivated");
+      const expiredIndex = eventTypes.indexOf("EffectExpired");
+      expect(passiveActivatedIndex).toBeGreaterThanOrEqual(0);
+      expect(expiredIndex).toBeGreaterThan(passiveActivatedIndex);
+    });
   });
 });

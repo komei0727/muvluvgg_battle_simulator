@@ -119,6 +119,21 @@ export interface PassiveChainDependencies {
    * 渡す。1解決スコープの全体を通じて固定（呼び出し側が決める）。
    */
   readonly resolutionPhase?: ResolutionPhase;
+  /**
+   * レビュー再指摘[P2]（PR #209）: R-EFF-08（`expiration.conditions`）は
+   * 「関連するドメインイベント発行後、PS/Memory候補抽出前に評価する」契約
+   * のため、トップレベルの`event`だけでなく、PS連鎖の内部で発行される
+   * `TIMING_EVENT`/`EFFECT_RESOLVED`の各イベント（`PassiveActivated`・
+   * `EffectActionStarting`・`DamageApplied`等）に対しても同じ契約を満たす
+   * 必要がある。呼び出し側（`combat/`/`effects/`へ依存できない`triggering/`の
+   * 代わりに`lifecycle/PassiveActivationRuntime`）が注入する。`event`に対して
+   * 特殊失効条件が成立した効果があれば失効させ、その結果新たに発行された
+   * イベント（`EffectExpired`・`CombatStatChanged`等）を返す。未指定、または
+   * 該当なしの場合は空配列を返す契約とする。
+   */
+  readonly applyExpirationConditions?: (
+    event: TriggerCandidateEvent,
+  ) => readonly TriggerCandidateEvent[];
 }
 
 export type PassiveChainResult =
@@ -153,12 +168,29 @@ interface ChainState {
 /**
  * `event`の候補グループを検出し、スタック先頭へ積んで完全に解決してからpopする。
  * PS深度Guardはpush直後、候補処理を始める前に確認する。
+ *
+ * レビュー再指摘[P2]（PR #209）: 候補検出の直前に`deps.applyExpirationConditions`
+ * （R-EFF-08）を呼び、`event`に対して成立した特殊失効条件を先に処理する。
+ * 新たに発行された各イベントは、`event`自身の候補解決より前に、この
+ * `resolveEvent`自身へ再帰させて完全に解決する（自身の`expiration.conditions`
+ * 評価・候補解決を含む）。`resolveEvent`はトップレベルの`onFactEvent`からも
+ * PS連鎖内部の`TIMING_EVENT`/`EFFECT_RESOLVED`からも呼ばれる唯一の共通経路
+ * のため、ここに置くことで呼び出し元ごとの配線を必要としない。
  */
 function resolveEvent(
   event: TriggerCandidateEvent,
   state: ChainState,
   deps: PassiveChainDependencies,
 ): PassiveChainLimitViolationReason | undefined {
+  if (deps.applyExpirationConditions !== undefined) {
+    for (const causedEvent of deps.applyExpirationConditions(event)) {
+      const violation = resolveEvent(causedEvent, state, deps);
+      if (violation !== undefined) {
+        return violation;
+      }
+    }
+  }
+
   const candidates = detectLimitedCandidates(event, deps);
   state.stack = pushCandidateGroups(state.stack, [{ event, candidates }]);
 

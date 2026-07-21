@@ -206,18 +206,19 @@ export function expireEffects(
   }
 
   const seedIds = new Set(seeds.map((seed) => seed.effectInstanceId));
-  // レビュー指摘[P2]（PR #209）: Catalogの`linkedEffectGroupId`は同グループ所属を
-  // 表すフラットな値で、親子の役割を区別するフィールドを持たない。以前は
+  // レビュー再指摘[P2]（PR #209）: Catalogの`linkedEffectGroupId`は同グループ
+  // 所属を表すフラットな値で、それ単独では親子の役割を区別しない。以前は
   // 失効理由（`CONSUMPTION`かどうか）から役割を推測していたが、実production
   // Catalog（`UNIT_HARRIET_SAGE`の`HARRIET_BARRIER`）では`ACT_HARRIET_SAGE_
   // AS2_IMMUNITY`自身が`consumption: INCOMING_HIT`を持ちながら、その失効は
   // 同グループの`ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL`へカスケードする必要が
-  // ある。そのためAppliedEffectだけで構成されるグループでは、失効理由を問わず
-  // 同じ`linkedEffectGroupId`を共有する全インスタンスへ対称にカスケードする。
-  // R-EFF-09が明示する「子効果だけが消費条件で失効した場合、親効果は維持する」
-  // 例外は、`AppliedEffect`と`MarkerState`の親子関係（Markerが親、
-  // AppliedEffectが子）を前提とした規則であり、Marker自体が未実装(EFF-004)の
-  // 現状では到達しない — Marker実装時にこの例外を再導入する。
+  // あり、理由ベースの推測では区別できなかった。加えて全メンバーへ対称に
+  // カスケードすると、R-EFF-09「子効果だけが消費条件で失効した場合、親効果は
+  // 維持する」という非対称な例外を満たせない。`collectLinkedGroupCascade`
+  // （`model/applied-effect-linked-group.ts`）が、Catalogが明示する
+  // `linkedEffectGroupRole`（`PARENT`/`CHILD`）を見て、`CHILD`ロールの
+  // seedからはカスケードを起こさない（`PARENT`ロール、またはロールを持たない
+  // レガシーグループのseedは従来どおり理由を問わずカスケードする）。
   const cascadeIds = collectLinkedGroupCascade(units, seedIds);
   const reasonById = new Map<
     EffectInstanceId,

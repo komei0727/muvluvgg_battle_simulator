@@ -1566,15 +1566,19 @@ duration:
     conditions: []
   dispellable: true
   linkedEffectGroupId: null
+  linkedEffectGroupRole: null
 ```
 
-| フィールド            | 型          | 必須 | 制約             |
-| --------------------- | ----------- | ---- | ---------------- |
-| `timeLimit`           | object      | —    | 省略時は即時効果 |
-| `consumption`         | object      | —    | 消費型効果       |
-| `expiration`          | object      | —    | 特殊失効         |
-| `dispellable`         | boolean     | —    | 省略時 true      |
-| `linkedEffectGroupId` | string/null | —    | 親子連動         |
+| フィールド              | 型          | 必須 | 制約                                                                                                              |
+| ----------------------- | ----------- | ---- | ----------------------------------------------------------------------------------------------------------------- |
+| `timeLimit`             | object      | —    | 省略時は即時効果                                                                                                  |
+| `consumption`           | object      | —    | 消費型効果                                                                                                        |
+| `expiration`            | object      | —    | 特殊失効                                                                                                          |
+| `dispellable`           | boolean     | —    | 省略時 true                                                                                                       |
+| `linkedEffectGroupId`   | string/null | —    | 親子連動                                                                                                          |
+| `linkedEffectGroupRole` | enum        | —    | `PARENT` / `CHILD`。`linkedEffectGroupId`必須。省略時は理由を問わずグループ全体へ対称にカスケードするレガシー扱い |
+
+`linkedEffectGroupRole`（R-EFF-09）: `linkedEffectGroupId`が同じ`AppliedEffect`間のカスケード方向を明示する。`PARENT`が失効すると理由を問わず同グループ全体（他の`PARENT`・`CHILD`）へカスケードするが、`CHILD`が単独で失効してもカスケードしない（「子効果だけが消費条件で失効した場合、親効果は維持する」）。どちらのメンバーも`linkedEffectGroupRole`を持たないグループは従来どおり対称にカスケードする。
 
 ### timeLimit.unit
 

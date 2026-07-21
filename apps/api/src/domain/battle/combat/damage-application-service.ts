@@ -245,6 +245,29 @@ export function applyDamageAction(
     );
     notifyNewEvents(context, working, judgmentEventsStart);
 
+    // レビュー再指摘 PR #209[P1]: `UnitBeingAttacked`／`NEXT_OUTGOING_ATTACK`消費が
+    // 発火したPS連鎖は`working`を書き換え得る（対象を回復・戦闘不能にする等）。
+    // `08_ドメインイベント.md`のTIMINGイベント契約どおり、命中・会心・ダメージ計算
+    // に入る前に発生源・対象の生存を再検証し、計算用ステータスも`working`から
+    // 取り直す。対象変更・挑発・肩代わり（R-SHD-*/R-SUB-*/R-LNK-*）はM8未実装の
+    // ため、このヒットの対象自体を差し替える処理は行わない（関数冒頭コメント参照）。
+    const attackerAfterTiming = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
+    if (isDefeated(attackerAfterTiming)) {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+
+    const targetAfterTiming = findUnit(
+      working,
+      hit.targetBattleUnitId,
+      "hits[].targetBattleUnitId",
+    );
+    if (isDefeated(targetAfterTiming)) {
+      outcomes.push(skip(hit));
+      continue;
+    }
+
     if (!resolveHit()) {
       outcomes.push(skip(hit));
       continue;
@@ -272,8 +295,8 @@ export function applyDamageAction(
 
     const critical = resolveCritical(
       damageAction.payload.critical.mode,
-      createPercentage(currentAttacker.combatStats.criticalRate),
-      currentAttacker.combatStats.criticalDamageBonus,
+      createPercentage(attackerAfterTiming.combatStats.criticalRate),
+      attackerAfterTiming.combatStats.criticalDamageBonus,
       random,
     );
 
@@ -299,11 +322,11 @@ export function applyDamageAction(
 
     const defenseIgnoreRate = damageAction.payload.piercing.defenseIgnoreRate;
     const damageResult = calculateDamage({
-      attackerAttack: currentAttacker.combatStats.attack,
-      attackerAttribute: currentAttacker.attribute,
-      attackerAffinityBonus: currentAttacker.combatStats.affinityBonus,
-      defenderDefense: target.combatStats.defense,
-      defenderAttribute: target.attribute,
+      attackerAttack: attackerAfterTiming.combatStats.attack,
+      attackerAttribute: attackerAfterTiming.attribute,
+      attackerAffinityBonus: attackerAfterTiming.combatStats.affinityBonus,
+      defenderDefense: targetAfterTiming.combatStats.defense,
+      defenderAttribute: targetAfterTiming.attribute,
       defenseIgnoreRate,
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
@@ -327,8 +350,8 @@ export function applyDamageAction(
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
         targetUnitId: hit.targetBattleUnitId,
-        attackerAttack: currentAttacker.combatStats.attack,
-        defenderDefense: target.combatStats.defense,
+        attackerAttack: attackerAfterTiming.combatStats.attack,
+        defenderDefense: targetAfterTiming.combatStats.defense,
         effectiveDefense: damageResult.effectiveDefense,
         defenseIgnoreRate,
         skillPower: damageResult.skillPower,
@@ -341,21 +364,15 @@ export function applyDamageAction(
       },
     });
 
-    // レビュー修正 PR #209 続き: `target`は命中判定〜ダメージ計算のスナップ
-    // ショット（攻撃力・防御力等の計算に使うのは正しい、攻撃者側と同じ理由
-    // — 消費で失う直前のstat補正もその攻撃自身には効くべき）だが、HP自体は
-    // ダメージ計算に使う値ではなく現在の実状態そのもの。`UnitBeingAttacked`
-    // 通知（EFF-003）でPSが対象を回復・シールドする余地ができたため、
-    // stale `target.currentHp`から引くと、その回復分がダメージ計算前に
-    // 静かに失われる。現在の`working`状態から取り直したHPを起点にする。
-    const currentTarget = findUnit(working, target.battleUnitId, "hits[].targetBattleUnitId");
-    const hpBefore = currentTarget.currentHp;
+    // `targetAfterTiming`取得後、ここまでは`recorder.record`のみでPS連鎖の
+    // 介在がないため、HPも`targetAfterTiming`からそのまま起点にできる。
+    const hpBefore = targetAfterTiming.currentHp;
     const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
     const updatedTarget: BattleUnit = {
-      ...currentTarget,
-      currentHp: createHitPoint(hpAfter, currentTarget.combatStats.maximumHp),
+      ...targetAfterTiming,
+      currentHp: createHitPoint(hpAfter, targetAfterTiming.combatStats.maximumHp),
     };
-    working.set(target.battleUnitId, updatedTarget);
+    working.set(targetAfterTiming.battleUnitId, updatedTarget);
 
     const damageApplied = context.recorder.record({
       eventType: "DamageApplied",
@@ -380,7 +397,7 @@ export function applyDamageAction(
         defeated: isDefeated(updatedTarget),
       },
       stateDelta: {
-        units: { [target.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+        units: { [targetAfterTiming.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
       },
     });
 
@@ -389,10 +406,11 @@ export function applyDamageAction(
     // 解決する（`onFactEventForPassiveChain`未指定ならPS解決を省略する）。
     // 致死ヒットでも`DamageApplied`起点のPS（例:「味方がダメージを受けた時」）を
     // `UnitDefeated`だけに上書きして見逃さないよう、両方を個別にフックへ渡す
-    // （PR #141レビュー[P1]）。
+    // （PR #141レビュー[P1]）。`targetAfterTiming`はこの直前の生存再検証で既に
+    // 生存確定済みのため、新規致死判定は`updatedTarget`のみで足りる。
     lastEventId = damageApplied.eventId;
     const factEvents: BattleDomainEvent[] = [damageApplied];
-    if (!isDefeated(target) && isDefeated(updatedTarget)) {
+    if (isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",
@@ -404,8 +422,8 @@ export function applyDamageAction(
         parentEventId: damageApplied.eventId,
         rootEventId: context.rootEventId,
         sourceUnitId: attacker.battleUnitId,
-        targetUnitIds: [target.battleUnitId],
-        payload: { unitId: target.battleUnitId, causeEventId: damageApplied.eventId },
+        targetUnitIds: [targetAfterTiming.battleUnitId],
+        payload: { unitId: targetAfterTiming.battleUnitId, causeEventId: damageApplied.eventId },
       });
       factEvents.push(unitDefeated);
       lastEventId = unitDefeated.eventId;
@@ -429,14 +447,14 @@ export function applyDamageAction(
     lastEventId = consumeAndExpire(
       context,
       working,
-      currentAttacker.battleUnitId,
+      attackerAfterTiming.battleUnitId,
       "OUTGOING_HIT",
       lastEventId,
     );
     lastEventId = consumeAndExpire(
       context,
       working,
-      target.battleUnitId,
+      targetAfterTiming.battleUnitId,
       "INCOMING_HIT",
       lastEventId,
     );
