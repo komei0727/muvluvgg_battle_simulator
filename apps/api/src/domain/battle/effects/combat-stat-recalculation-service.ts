@@ -85,17 +85,23 @@ export function computeCombatStats(
     byStat.set(definition.payload.stat, bucket);
   }
 
+  // PR #208レビュー[P2]: 効果を持つstatだけを`unit.combatStats`からの差分更新に
+  // すると、あるstatの最後の効果が失効・解除されて`byStat`にエントリが
+  // 無くなった時、そのstatだけ補正後の値が残ってしまう。常に全statを
+  // `baseCombatStats`から再導出することで、効果が0件のstatも正しく基準値へ
+  // 戻す（R-STA-04「次の状態変更後、影響を受ける戦闘中ステータスを再計算する」）。
   const changedStats: StatChange[] = [];
-  const nextCombatStats: Record<keyof CombatStats, number> = { ...unit.combatStats };
-  for (const [stat, bucket] of byStat) {
+  const nextCombatStats: Record<keyof CombatStats, number> = { ...unit.baseCombatStats };
+  for (const stat of Object.keys(STAT_FIELD) as StatKind[]) {
     const field = STAT_FIELD[stat];
+    const bucket = byStat.get(stat);
     const before = unit.combatStats[field];
     const after = calculateCombatStat({
       baseValue: unit.baseCombatStats[field],
       formationBonus: ZERO_PERCENTAGE,
       aptitudePenalty: ZERO_PERCENTAGE,
-      ratioEffects: bucket.ratio,
-      fixedCorrection: combineEffects(bucket.fixed),
+      ratioEffects: bucket?.ratio ?? [],
+      fixedCorrection: combineEffects(bucket?.fixed ?? []),
     });
     nextCombatStats[field] = after;
     if (before !== after) {

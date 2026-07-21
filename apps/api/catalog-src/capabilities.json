@@ -353,19 +353,12 @@
   {
     "capabilityId": "CAP_STAT_MOD",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "IMPLEMENTED",
-    "implementationTaskId": "EFF-002",
-    "description": "APPLY_STAT_MODによる継続stat補正のCombatStat再計算・重複なし最強選択への反映（AppliedEffect自体の個別付与・保持はEFF-001で実装済み）",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "EFF-003",
+    "description": "APPLY_STAT_MODによる継続stat補正のCombatStat再計算・重複なし最強選択への反映（AppliedEffect自体の個別付与・保持はEFF-001、CombatStat再計算・R-EFF-05選択はEFF-002で実装済み。ACTION/TURN期間の減算・EffectExpired・除去の実ライフサイクルがEFF-003で完成するまで、期間付きStat Modifierを戦闘終了まで残留させてしまうためpreflightで拒否し続ける — PR #208レビュー[P1]）",
     "verification": {
-      "productionDefinitionIds": [
-        "ACT_ANIS_TROUBLEMAKER_AS1_ATK_UP",
-        "ACT_ANIS_TROUBLEMAKER_AS1_CRIT_UP",
-        "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN",
-        "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP",
-        "ACT_CLARA_TSUNDERE_AS2_DEF_DOWN",
-        "ACT_CLARA_TSUNDERE_PS2_SPEED_UP"
-      ],
-      "testCaseIds": ["IT-STAT-MOD-PROD-001", "UT-R-EFF-01-021", "UT-R-ORD-04-001"]
+      "productionDefinitionIds": [],
+      "testCaseIds": []
     }
   },
   {

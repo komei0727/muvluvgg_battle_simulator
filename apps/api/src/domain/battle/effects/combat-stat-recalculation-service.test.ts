@@ -199,6 +199,20 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
 
     expect(result.combatStats).toEqual(BASE_COMBAT_STATS);
   });
+
+  it("UT-R-STA-04-020 (boundary, PR #208レビュー[P2]): removing the only AppliedEffect on a stat resets it to baseCombatStats and reports the change, even though the unit's current combatStats still carries the stale corrected value", () => {
+    const def = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
+    // Simulates the moment right after the effect that produced attack=120 has
+    // been removed from appliedEffects (e.g. by a future expiration/removal
+    // Issue): `combatStats` still holds the stale corrected value, but
+    // `appliedEffects` is already empty.
+    const target = unit({ combatStats: { ...BASE_COMBAT_STATS, attack: 120 }, appliedEffects: [] });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    expect(result.combatStats.attack).toBe(100);
+    expect(result.changedStats).toContainEqual({ stat: "ATTACK", before: 120, after: 100 });
+  });
 });
 
 function createRoot() {

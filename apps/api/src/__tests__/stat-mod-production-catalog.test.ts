@@ -11,12 +11,16 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
 
 /**
  * EFF-002 (Issue #165): exercises the REAL production `catalog/`
- * `APPLY_STAT_MOD` `EffectActionDefinition` payload — which `CAP_STAT_MOD`
- * (now `IMPLEMENTED`) unblocks in `apps/api/catalog/capabilities.json` — through
- * the REAL domain executors (`grantEffect`/`recalculateCombatStats`). This
- * proves both the catalog-src wiring and R-STA-02〜04's CombatStat
- * recalculation are correct against unmodified production data, mirroring
- * `cooldown-manipulation-production-catalog.test.ts` (Issue #129).
+ * `APPLY_STAT_MOD` `EffectActionDefinition` payload through the REAL domain
+ * executors (`grantEffect`/`recalculateCombatStats`), bypassing preflight —
+ * `CAP_STAT_MOD` itself stays `PLANNED` (`apps/api/catalog/capabilities.json`)
+ * until EFF-003 wires ACTION/TURN duration expiration (PR #208 review [P1]),
+ * so no production battle can reach this path yet. This proves both the
+ * catalog-src wiring and R-STA-02〜04's CombatStat recalculation are correct
+ * against unmodified production data, mirroring
+ * `cooldown-manipulation-production-catalog.test.ts` (Issue #129, which
+ * exercises `applyCooldownManipulationAction` the same way while
+ * `CAP_COOLDOWN_MANIPULATION` was still gated).
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));

@@ -288,7 +288,13 @@ function* resolveOneEffectActionApplication(
     // R-EFF-05/R-STA-02〜04: 付与直後にCombatStatを再計算し、実際に変化した
     // statごとに`CombatStatChanged`を、重複なしグループの採用対象が変わった
     // 場合は`EffectiveEffectChanged`も発行する
-    // （`combat-stat-recalculation-service.ts`）。
+    // （`combat-stat-recalculation-service.ts`）。PR #208レビュー[P1]:
+    // `CAP_STAT_MOD`（`capabilities.json`）は依然`PLANNED`（実装対象EFF-003）の
+    // ままとする — この再計算自体は正しく動くが、ACTION/TURN期間の減算・
+    // `EffectExpired`・除去の実ライフサイクル（EFF-003）が無いため、期間付き
+    // Stat Modifierを付与すると戦闘終了まで残留してしまう。production
+    // Catalogの全`APPLY_STAT_MOD`行が`CAP_STAT_MOD`を要求するため、preflightが
+    // EFF-003完了までこの分岐へ実際に到達させない。
     const magnitude = resolveBasicFormula(
       effectAction.payload.formula,
       "effectAction.payload.formula",
