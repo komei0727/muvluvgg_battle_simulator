@@ -679,6 +679,23 @@ function validateEffectAction(
       });
     }
   }
+  // PR #207再レビュー[P1]: EFF-001はAppliedEffectレジストリ・EffectApplied・
+  // StateDeltaだけを実装し、CombatStat再計算（R-EFF-05/R-STA-02〜04、EFF-002の
+  // スコープ）は行わない。`APPLY_STAT_MOD`をこの状態でresolverへ到達させると、
+  // 効いていない補正を`EffectActionCompleted.resultKind: "APPLIED"`として
+  // 成功扱いにしてしまう。production Catalogの全行へ`CAP_STAT_MOD`を後付けした
+  // だけでは、宣言漏れの新規/カスタムCatalogがこの検証をすり抜けてしまうため、
+  // `COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体を
+  // 拒否する」検証をkindレベルで強制する。
+  if (effectAction.kind === "APPLY_STAT_MOD") {
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_STAT_MOD")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message: `APPLY_STAT_MOD must declare "CAP_STAT_MOD" in requiredCapabilities`,
+      });
+    }
+  }
   checkRequiredCapabilities(
     effectAction.requiredCapabilities,
     effectAction.effectActionDefinitionId,

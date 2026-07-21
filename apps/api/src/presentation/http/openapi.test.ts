@@ -502,6 +502,69 @@ describe("OpenAPI document", () => {
     expect(validate(matched), JSON.stringify(validate.errors)).toBe(true);
   });
 
+  it("UT-R-EFF-01-029 (08_ドメインイベント.md EffectApplied payload; PR #207レビュー[P2]): validates EffectApplied.details.expirationConditions as a real (recursive) ConditionDefinition union, not an arbitrary object", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+
+    const validNested = {
+      ...base,
+      details: {
+        ...basePayload,
+        expirationConditions: [
+          {
+            kind: "AND",
+            conditions: [
+              { kind: "TRUE" },
+              {
+                kind: "NOT",
+                condition: {
+                  kind: "TARGET_HAS_MARKER",
+                  target: { kind: "SELF" },
+                  markerId: "MARKER_1",
+                },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    expect(validate(validNested), JSON.stringify(validate.errors)).toBe(true);
+
+    // Not a real ConditionDefinition variant (unknown "kind" and a field no
+    // variant declares): a permissive `{ type: "object" }` items schema would
+    // wrongly accept this.
+    const invalidCondition = {
+      ...base,
+      details: {
+        ...basePayload,
+        expirationConditions: [{ kind: "NOT_A_REAL_KIND", somethingElse: 1 }],
+      },
+    };
+    expect(validate(invalidCondition)).toBe(false);
+  });
+
   it("API-OPENAPI-005 (regression: M5 review [P1] found COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // A mapped type over `BattleDomainEventType` forces a compile error (missing
     // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event

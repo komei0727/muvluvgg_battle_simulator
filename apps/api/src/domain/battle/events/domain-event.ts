@@ -405,8 +405,12 @@ export interface BattleDomainEventPayloadMap {
     readonly durationUnit?: DurationTimeUnit;
     readonly durationOwner?: DurationOwner;
     readonly initialRemaining?: number;
+    /** インスタンス自身の残り回数（付与直後は`initialRemaining`と同値。R-EFF-04/06の減算は`EffectDurationReduced`が別途表す、EFF-003スコープ）。 */
+    readonly remainingCount?: number;
     readonly consumptionKind?: ConsumptionKind;
     readonly consumptionMaxCount?: number;
+    /** インスタンス自身の消費残り回数（付与直後は`consumptionMaxCount`と同値。R-EFF-07の消費は`EffectConsumptionChanged`が別途表す、EFF-003スコープ）。 */
+    readonly consumptionRemaining?: number;
     readonly expirationConditions?: readonly ConditionDefinition[];
     readonly linkedEffectGroupId: string | null;
     readonly grantedActionId?: ActionId;

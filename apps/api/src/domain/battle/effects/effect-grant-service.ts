@@ -105,12 +105,18 @@ export function grantEffect(
       ...(timeLimit !== undefined
         ? { durationUnit: timeLimit.unit, initialRemaining: timeLimit.count }
         : {}),
+      ...(newEffect.duration.timeLimitRemaining !== undefined
+        ? { remainingCount: newEffect.duration.timeLimitRemaining }
+        : {}),
       ...(timeLimit?.owner !== undefined ? { durationOwner: timeLimit.owner } : {}),
       ...(request.durationDefinition.consumption !== undefined
         ? {
             consumptionKind: request.durationDefinition.consumption.kind,
             consumptionMaxCount: request.durationDefinition.consumption.maxCount,
           }
+        : {}),
+      ...(newEffect.duration.consumptionRemaining !== undefined
+        ? { consumptionRemaining: newEffect.duration.consumptionRemaining }
         : {}),
       ...(request.durationDefinition.expiration !== undefined
         ? { expirationConditions: request.durationDefinition.expiration.conditions }

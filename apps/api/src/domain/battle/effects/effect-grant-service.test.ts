@@ -304,4 +304,44 @@ describe("grantEffect", () => {
     expect(applied!.payload).not.toHaveProperty("durationOwner");
     expect(applied!.payload).not.toHaveProperty("expirationConditions");
   });
+
+  it("UT-R-EFF-01-028 (08_ドメインイベント.md EffectApplied payload: 初期回数、残り回数; PR #207レビュー[P2]): carries the instance's own remainingCount/consumptionRemaining, not just the definition's static initialRemaining/consumptionMaxCount", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const durationWithConsumption: DurationDefinition = {
+      timeLimit: { unit: "TURN", count: 2 },
+      consumption: { kind: "OUTGOING_HIT", maxCount: 3 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+
+    grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 20,
+        durationDefinition: durationWithConsumption,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({
+      initialRemaining: 2,
+      remainingCount: 2,
+      consumptionMaxCount: 3,
+      consumptionRemaining: 3,
+    });
+  });
 });
