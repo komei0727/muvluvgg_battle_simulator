@@ -6,6 +6,7 @@ import {
   battleSimulationRequestDocSchema,
   battleSimulationResponseDocSchema,
 } from "./schemas/simulation/simulation-schema.js";
+import { conditionDefinitionDetailsSchema } from "./schemas/battle-log/battle-log-schema.js";
 import { registerHealthRoutes, type ReadinessPort } from "./routes/health-routes.js";
 import {
   registerCatalogRoute,
@@ -255,6 +256,16 @@ export async function buildServer(
       };
     },
   });
+
+  // PR #207再レビュー[P1]: `ConditionDefinition`（`EffectApplied.details.expirationConditions`
+  // が参照する、AND/OR/NOTで自己参照する唯一の再帰的Catalog schema）を
+  // Fastifyの共有schemaとして登録する。`$id`/`$ref`をこのファイル内へ埋め込む
+  // だけでは、`@fastify/swagger`のOpenAPI生成が`$ref`を`#/components/schemas/def-N`
+  // へ書き換えるにもかかわらず、対応する定義を`components.schemas`へ実際には
+  // 配置しない（未登録のためswaggerのref resolverが本体を解決できない）。
+  // `addSchema`でFastify自身のschemaストアへ登録することで、生成された
+  // OpenAPI文書上でも`$ref`が実在する定義を指すようにする。
+  app.addSchema(conditionDefinitionDetailsSchema);
 
   if (options.docsEnabled ?? false) {
     await app.register(fastifySwaggerUi, { routePrefix: "/docs" });

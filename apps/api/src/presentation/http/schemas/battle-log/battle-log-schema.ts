@@ -725,24 +725,43 @@ const CONSUMPTION_KIND_ENUM = [
 
 const COMPARISON_OPERATOR_ENUM = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
 const jsonPrimitiveSchema = { type: ["string", "number", "boolean"] } as const;
+/**
+ * `references.ts`の`createTargetReference`と1:1対応する制約（PR #207再レビュー
+ * [P2]）: `BINDING`は`targetBindingId`必須、それ以外のkindは同fieldを禁止する
+ * （ドメイン側「must not be set when kind is ... (only valid when kind is
+ * BINDING)」）。`targetBindingId`を常にoptionalとする単一schemaでは、
+ * ドメインが拒否する組み合わせ（例: `SELF`に`targetBindingId`を付与）も
+ * 有効と判定してしまうため、`oneOf`でBINDING形と非BINDING形を分ける。
+ */
 const targetReferenceDetailsSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["kind"],
-  properties: {
-    kind: {
-      type: "string",
-      enum: [
-        "BINDING",
-        "SELF",
-        "TRIGGER_SOURCE",
-        "TRIGGER_TARGET",
-        "LAST_ACTION_TARGETS",
-        "LAST_DAMAGED_TARGETS",
-      ],
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "targetBindingId"],
+      properties: {
+        kind: { const: "BINDING" },
+        targetBindingId: { type: "string" },
+      },
     },
-    targetBindingId: { type: "string" },
-  },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind"],
+      properties: {
+        kind: {
+          type: "string",
+          enum: [
+            "SELF",
+            "TRIGGER_SOURCE",
+            "TRIGGER_TARGET",
+            "LAST_ACTION_TARGETS",
+            "LAST_DAMAGED_TARGETS",
+          ],
+        },
+      },
+    },
+  ],
 } as const;
 
 /**
@@ -755,9 +774,9 @@ const targetReferenceDetailsSchema = {
  * `ajv.compile()`実行時にschemaツリー内の`$id`を自動的に索引するため、
  * 個別の`addSchema`登録は不要。
  */
-const CONDITION_DEFINITION_SCHEMA_ID =
+export const CONDITION_DEFINITION_SCHEMA_ID =
   "https://muvluvgg-battle-simulator/schemas/ConditionDefinition";
-const conditionDefinitionDetailsSchema = {
+export const conditionDefinitionDetailsSchema = {
   $id: CONDITION_DEFINITION_SCHEMA_ID,
   oneOf: [
     {
