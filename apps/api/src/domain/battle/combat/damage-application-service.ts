@@ -76,15 +76,34 @@ export interface DamageEventContext {
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
   /**
-   * R-EFF-07: `ownerUnitId`が保持する`kind`一致の消費条件効果を1消費し、0に
-   * なったインスタンスを即時に失効させる（`EffectConsumptionChanged`/
-   * `EffectExpired`発行、CombatStat再計算を含む）。`onFactEventForPassiveChain`と
-   * 同じ理由（Domain層のmodule境界により`combat/`は`effects/`へ依存できない）で
+   * R-EFF-07: `ownerUnitId`が保持する`kind`一致の消費条件効果を1消費する
+   * （`EffectConsumptionChanged`発行）。`onFactEventForPassiveChain`と同じ理由
+   * （Domain層のmodule境界により`combat/`は`effects/`へ依存できない）で
    * 呼び出し側（`lifecycle/`）が注入する。未指定なら消費条件を評価しない。
+   *
+   * レビュー再々指摘[P1]（PR #209）: 消費回数が0になったインスタンスの実際の
+   * 除去・CombatStat再計算は、この呼び出しの中では行わない場合がある
+   * （`NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`は`14_Catalog定義スキーマ.md`
+   * 「上限に到達した効果は、該当するEffectActionの解決後に失効する」契約のため、
+   * 呼び出し側の実装が`finalizeConsumedEffectDurations`まで遅延させる）。この
+   * ヒットの会心・ダメージ計算は、消費し終えた直後の`units`（まだ除去前の
+   * combatStats）をそのまま使ってよい。
    */
   readonly consumeEffectDuration?: (
     ownerUnitId: BattleUnitId,
     kind: ConsumptionKind,
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
+  /**
+   * レビュー再々指摘[P1]（PR #209）: `consumeEffectDuration`が遅延させた
+   * 消費済みインスタンス（`NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`）を、
+   * このEffectAction（`applyDamageAction`1回分、全ヒット）の解決完了後に
+   * まとめて失効させる（`EffectExpired`発行、CombatStat再計算を含む）。
+   * `consumeEffectDuration`と同じ理由で呼び出し側が注入する。未指定、または
+   * 遅延対象が無ければ何もしない。
+   */
+  readonly finalizeConsumedEffectDurations?: (
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
   ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
@@ -467,6 +486,25 @@ export function applyDamageAction(
       isCritical: critical.isCritical,
       damage: damageResult.finalDamage,
     });
+  }
+
+  // レビュー再々指摘[P1]（PR #209）: `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`
+  // の消費で0になったインスタンスは、このEffectAction（全ヒット）の解決が
+  // 終わった今ここで初めて実際に失効させる（`consumeEffectDuration`は消費の
+  // 記録だけを行い、除去とCombatStat再計算をここまで遅延させている）。
+  // 中断（使用者の戦闘不能）でループを抜けた場合も、既に消費済みの分は
+  // ここで確定させる。
+  if (context.finalizeConsumedEffectDurations !== undefined) {
+    const finalizeEventsStart = context.recorder.getEvents().length;
+    const finalized = context.finalizeConsumedEffectDurations(
+      Array.from(working.values()),
+      lastEventId,
+    );
+    for (const unit of finalized.units) {
+      working.set(unit.battleUnitId, unit);
+    }
+    lastEventId = finalized.lastEventId;
+    notifyNewEvents(context, working, finalizeEventsStart);
   }
 
   return {

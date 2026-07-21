@@ -26,6 +26,7 @@ import type {
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../events/domain-event.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -123,30 +124,61 @@ function countHits(applications: readonly EffectActionApplication[]): number {
 }
 
 /**
+ * レビュー再々指摘[P1]（PR #209）: `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`
+ * は「効果ownerが次に攻撃/攻撃対象になった時点」で消費するが（R-EFF-07）、
+ * `14_Catalog定義スキーマ.md`「上限に到達した効果は、該当するEffectActionの
+ * 解決後に失効する」契約により、実際の除去・CombatStat再計算はその攻撃
+ * （EffectAction）自身の解決が終わるまで遅延させる必要がある。即時に除去
+ * すると、その効果が本来押し上げるはずの会心率・攻撃力・防御力等が、まさに
+ * その効果を消費させた攻撃自身の計算から失われてしまう（実Catalogの
+ * `ACT_FEE_ACTOR_PS1_CRIT_UP`/`ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF`等、
+ * `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`を持つ`APPLY_STAT_MOD`が該当）。
+ * `OUTGOING_HIT`/`INCOMING_HIT`はヒット確定後に消費するため、消費時点で
+ * そのヒット自身の計算は既に終わっており、この遅延は不要（即時失効のまま）。
+ */
+const DEFERRED_EXPIRY_CONSUMPTION_KINDS: ReadonlySet<ConsumptionKind> = new Set([
+  "NEXT_OUTGOING_ATTACK",
+  "NEXT_INCOMING_ATTACK",
+]);
+
+/**
  * R-EFF-07: `damage-application-service.ts`（`combat/`）が`effects/`へ直接
  * 依存できない（Domain層のmodule境界、`onFactEventForPassiveChain`と同じ
- * 理由）ため、`DamageEventContext.consumeEffectDuration`として注入する
- * クロージャを組み立てる。消費・失効・CombatStat再計算を1つのownerUnitId/kind
- * 呼び出しごとに行う。
+ * 理由）ため、`DamageEventContext.consumeEffectDuration`/
+ * `finalizeConsumedEffectDurations`として注入する一対のクロージャを組み立てる。
+ * `DEFERRED_EXPIRY_CONSUMPTION_KINDS`に属するkindの消費で0になったインスタンス
+ * は即座には失効させず、`pendingExpirySeeds`へ貯めておき、
+ * `finalizeConsumedEffectDurations`（呼び出し側が1回の`applyDamageAction`＝
+ * 1EffectActionの全ヒット解決後に1回だけ呼ぶ）でまとめて失効させる。
  */
-function buildConsumeEffectDuration(
-  context: EffectActionGroupContext,
-): NonNullable<DamageEventContext["consumeEffectDuration"]> {
-  return (ownerUnitId, kind, units, callParentEventId) => {
+function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
+  readonly consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]>;
+  readonly finalizeConsumedEffectDurations: NonNullable<
+    DamageEventContext["finalizeConsumedEffectDurations"]
+  >;
+} {
+  const pendingExpirySeeds: ExpirationSeed[] = [];
+  const eventContext = {
+    recorder: context.recorder,
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    skillUseId: context.skillUseId,
+    resolutionScopeId: context.actionScope,
+    rootEventId: context.rootEventId,
+  };
+
+  const consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]> = (
+    ownerUnitId,
+    kind,
+    units,
+    callParentEventId,
+  ) => {
     const consumption = consumeEffectDurations(units, ownerUnitId, kind);
     if (consumption.changes.length === 0) {
       return { units, lastEventId: callParentEventId };
     }
-    const eventContext = {
-      recorder: context.recorder,
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      skillUseId: context.skillUseId,
-      resolutionScopeId: context.actionScope,
-      rootEventId: context.rootEventId,
-    };
-    let lastEventId = emitEffectConsumptionChangedEvents(
+    const lastEventId = emitEffectConsumptionChangedEvents(
       eventContext,
       consumption.units,
       consumption.changes,
@@ -159,20 +191,41 @@ function buildConsumeEffectDuration(
         effectInstanceId: change.effectInstanceId,
         reason: "CONSUMPTION",
       }));
-    let resultUnits = consumption.units;
-    if (seeds.length > 0) {
-      const expiry = expireEffects(
-        eventContext,
-        consumption.units,
-        seeds,
-        context.definitions.effectActions,
-        lastEventId,
-      );
-      resultUnits = expiry.units;
-      lastEventId = expiry.lastEventId;
+    if (seeds.length === 0) {
+      return { units: consumption.units, lastEventId };
     }
-    return { units: resultUnits, lastEventId };
+    if (DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind)) {
+      pendingExpirySeeds.push(...seeds);
+      return { units: consumption.units, lastEventId };
+    }
+    const expiry = expireEffects(
+      eventContext,
+      consumption.units,
+      seeds,
+      context.definitions.effectActions,
+      lastEventId,
+    );
+    return { units: expiry.units, lastEventId: expiry.lastEventId };
   };
+
+  const finalizeConsumedEffectDurations: NonNullable<
+    DamageEventContext["finalizeConsumedEffectDurations"]
+  > = (units, parentEventId) => {
+    if (pendingExpirySeeds.length === 0) {
+      return { units, lastEventId: parentEventId };
+    }
+    const seeds = pendingExpirySeeds.splice(0, pendingExpirySeeds.length);
+    const expiry = expireEffects(
+      eventContext,
+      units,
+      seeds,
+      context.definitions.effectActions,
+      parentEventId,
+    );
+    return { units: expiry.units, lastEventId: expiry.lastEventId };
+  };
+
+  return { consumeEffectDuration, finalizeConsumedEffectDurations };
 }
 
 /** R-SKL-06 #5: DAMAGE適用結果からEffectActionCompletedのresultKindを導く。 */
@@ -285,6 +338,8 @@ function* resolveOneEffectActionApplication(
     const targetAlreadyDefeated = isDefeated(
       requireUnit(box.units, application.targetBattleUnitId),
     );
+    const { consumeEffectDuration, finalizeConsumedEffectDurations } =
+      buildConsumeEffectDurationHooks(context);
     const damageResult = applyDamageAction(
       currentActor,
       application.hits,
@@ -301,7 +356,8 @@ function* resolveOneEffectActionApplication(
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
         skillDefinitionId: context.skillDefinitionId,
-        consumeEffectDuration: buildConsumeEffectDuration(context),
+        consumeEffectDuration,
+        finalizeConsumedEffectDurations,
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
