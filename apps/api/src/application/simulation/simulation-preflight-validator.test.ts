@@ -73,6 +73,27 @@ function damageAction(
   );
 }
 
+function statModAction(
+  id: string,
+  requiredCapabilities: readonly string[] = [],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 20 },
+        stacking: { mode: "STACKABLE" },
+        duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function asSkill(
   id: string,
   targetActionId: string,
@@ -103,27 +124,6 @@ function asSkill(
     requiredCapabilities,
     metadata: { displayName: "AS" },
   });
-}
-
-function statModAction(
-  id: string,
-  requiredCapabilities: readonly string[] = [],
-): EffectActionDefinition {
-  return createEffectActionDefinition(
-    {
-      effectActionDefinitionId: id,
-      kind: "APPLY_STAT_MOD",
-      payload: {
-        stat: "ATTACK",
-        valueType: "FIXED",
-        formula: { kind: "CONSTANT", value: 20 },
-        stacking: { mode: "STACKABLE" },
-        duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
-      },
-      requiredCapabilities,
-    },
-    "effectAction",
-  );
 }
 
 function memoryWithCapability(
@@ -382,70 +382,6 @@ describe("runPreflight", () => {
     }
   });
 
-  it("UT-R-EFF-01-027 (PR #207レビュー[P1]): rejects with UNSUPPORTED_RULE before Battle generation when a Skill uses APPLY_STAT_MOD, which declares CAP_STAT_MOD (still PLANNED pending EFF-002's CombatStat recalculation)", () => {
-    const capabilityId = createCapabilityId("CAP_STAT_MOD");
-    const cmd = command({
-      allyFormation: {
-        slots: [
-          {
-            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
-            position: { column: 0, row: "FRONT" },
-          },
-        ],
-        memoryDefinitionIds: [],
-      },
-      enemyFormation: {
-        slots: [
-          {
-            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
-            position: { column: 0, row: "FRONT" },
-          },
-        ],
-        memoryDefinitionIds: [],
-      },
-    });
-    const unit: UnitDefinition = {
-      ...unitDefinition("UNIT_A"),
-      activeSkillDefinitionIds: [createSkillDefinitionId("SKL_STAT_MOD")],
-    };
-    const snap = snapshot({
-      units: new Map([[createUnitDefinitionId("UNIT_A"), unit]]),
-      skills: new Map<SkillDefinitionId, SkillDefinition>([
-        [createSkillDefinitionId("SKL_STAT_MOD"), asSkill("SKL_STAT_MOD", "ACT_STAT_MOD")],
-      ]),
-      effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
-        [
-          createEffectActionDefinitionId("ACT_STAT_MOD"),
-          statModAction("ACT_STAT_MOD", [capabilityId]),
-        ],
-      ]),
-      capabilities: new Map([
-        [
-          capabilityId,
-          createCapabilityDefinition({
-            capabilityId: "CAP_STAT_MOD",
-            schemaStatus: "SUPPORTED",
-            runtimeStatus: "PLANNED",
-            implementationTaskId: "EFF-002",
-            description: "APPLY_STAT_MODのCombatStat再計算",
-            verification: { productionDefinitionIds: [], testCaseIds: [] },
-          }),
-        ],
-      ]),
-    });
-
-    try {
-      runPreflight(cmd, snap);
-      expect.fail("expected runPreflight to throw");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ApplicationError);
-      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
-      expect((error as ApplicationError).violations).toContainEqual(
-        expect.objectContaining({ ruleId: capabilityId, definitionId: "ACT_STAT_MOD" }),
-      );
-    }
-  });
-
   it("UT-PREFLIGHT-008 (R-FRM-06): attributes the violation to the EffectAction referenced by a Skill's resolution steps", () => {
     const capabilityId = createCapabilityId("CAP_ACTION_GATED");
     const cmd = command({
@@ -505,6 +441,71 @@ describe("runPreflight", () => {
       expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
       expect((error as ApplicationError).violations).toContainEqual(
         expect.objectContaining({ ruleId: capabilityId, definitionId: "ACT_GATED" }),
+      );
+    }
+  });
+
+  it("UT-PREFLIGHT-011 (PR #208再レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a Skill uses APPLY_STAT_MOD, which declares CAP_STAT_MOD (PLANNED — EFF-003 must wire ACTION/TURN duration expiration before this can be safely IMPLEMENTED)", () => {
+    const capabilityId = createCapabilityId("CAP_STAT_MOD");
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+      enemyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+    });
+    const unit: UnitDefinition = {
+      ...unitDefinition("UNIT_A"),
+      activeSkillDefinitionIds: [createSkillDefinitionId("SKL_STAT_MOD")],
+    };
+    const snap = snapshot({
+      units: new Map([[createUnitDefinitionId("UNIT_A"), unit]]),
+      skills: new Map<SkillDefinitionId, SkillDefinition>([
+        [createSkillDefinitionId("SKL_STAT_MOD"), asSkill("SKL_STAT_MOD", "ACT_STAT_MOD")],
+      ]),
+      effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+        [
+          createEffectActionDefinitionId("ACT_STAT_MOD"),
+          statModAction("ACT_STAT_MOD", [capabilityId]),
+        ],
+      ]),
+      capabilities: new Map([
+        [
+          capabilityId,
+          createCapabilityDefinition({
+            capabilityId: "CAP_STAT_MOD",
+            schemaStatus: "SUPPORTED",
+            runtimeStatus: "PLANNED",
+            implementationTaskId: "EFF-003",
+            description:
+              "APPLY_STAT_MODのCombatStat再計算はEFF-002で実装済みだが、ACTION/TURN期間の失効(EFF-003)が無いため引き続きPLANNED",
+            verification: { productionDefinitionIds: [], testCaseIds: [] },
+          }),
+        ],
+      ]),
+    });
+
+    try {
+      runPreflight(cmd, snap);
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "ACT_STAT_MOD" }),
       );
     }
   });

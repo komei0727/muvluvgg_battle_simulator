@@ -79,10 +79,19 @@ describe("buildBattleObservation", () => {
     const { reduceStateDeltas } =
       await import("../../domain/battle/lifecycle/state-delta-reducer.js");
     const events = recordSampleEvents();
+    const combatStats = {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+    };
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats } },
     };
 
     const observation = buildBattleObservation({

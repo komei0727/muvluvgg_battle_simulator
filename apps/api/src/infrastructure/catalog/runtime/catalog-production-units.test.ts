@@ -18,11 +18,13 @@ function catalogPath(): string {
 describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () => {
   it("IT-CAT-PROD-001: loads all 10 units from catalog/ without an integrity violation", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
-    // Issue #164: bumped when all production APPLY_STAT_MOD EffectAction
-    // definitions were gated behind the new CAP_STAT_MOD capability
-    // (PLANNED, EFF-002) so preflight rejects them until CombatStat
-    // recalculation is implemented.
-    expect(catalog.catalogRevision).toBe("2026-07-21.2");
+    // Issue #165 (EFF-002, PR #208 review [P1]): CAP_STAT_MOD stays PLANNED
+    // (now pointing at EFF-003) even though R-STA-02〜04's CombatStat
+    // recalculation and R-EFF-05's effective effect selection are wired,
+    // because ACTION/TURN duration decrement/EffectExpired/removal (EFF-003)
+    // isn't implemented yet — unblocking preflight now would let
+    // time-limited Stat Modifiers linger for the rest of the battle.
+    expect(catalog.catalogRevision).toBe("2026-07-21.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -277,7 +277,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "SCENARIO"],
   },
-  { ruleId: "R-ORD-04", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-ORD-04",
+    testCaseIds: ["UT-ACTION-QUEUE-009", "UT-ACTION-QUEUE-010", "UT-R-ORD-04-001"],
+    kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
+  },
 
   // ACT: 行動
   { ruleId: "R-ACT-01", testCaseIds: [], kinds: [] },
@@ -742,6 +746,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-EFF-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-04", testCaseIds: [], kinds: [] },
+  // R-EFF-05: PR #208レビュー[P2]。`effective-effect-selector.ts`の選択規則
+  // 自体（次点繰上げ含む）はUT-R-EFF-05-001〜013で単体検証済みだが、Catalog
+  // Schemaの`APPLY_STAT_MOD.stacking.mode`が現状"STACKABLE"しか許可せず、
+  // `effect-action-group-resolver.ts`も`duplicate: true`固定で付与するため、
+  // 実ライフサイクル（`resolveActionPhase`等）からduplicate:falseの重複なし
+  // 経路・最強選択・次点繰上げ・`EffectiveEffectChanged`のいずれにも到達
+  // できない。NON_STACKABLEのCatalog表現・Mapper・実ライフサイクルの
+  // シナリオテストが揃うまで未完了のまま残す。
   { ruleId: "R-EFF-05", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-06", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-07", testCaseIds: [], kinds: [] },

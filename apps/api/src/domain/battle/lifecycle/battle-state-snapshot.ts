@@ -5,6 +5,7 @@ import {
   type CooldownState,
   type EffectSnapshot,
 } from "../events/state-delta.js";
+import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import type { Battle } from "./battle.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import type { FormationPosition } from "../model/formation-input.js";
@@ -25,6 +26,8 @@ export interface BattleUnitSnapshot {
   readonly ap: number;
   readonly pp: number;
   readonly extraGauge: number;
+  /** R-STA-04: AppliedEffectの付与・失効・解除のたびに再計算される現在の実効値。常に存在する（`BattleUnitRosterEntry.combatStats`は不変な開始時点のスナップショット）。 */
+  readonly combatStats: CombatStats;
   /** 空でない場合だけ持つ(`captureBattleState`はクールタイムが1件も無いユニットへ`{}`を書かない)。 */
   readonly cooldowns?: Readonly<Record<SkillDefinitionId, CooldownState>>;
   readonly charge?: ChargeState;
@@ -96,11 +99,13 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         skillCounterCarry[skillDefinitionId] = carryValues;
       }
     }
+    const effective = selectEffectiveInstances(unit.appliedEffects);
     units[unit.battleUnitId] = {
       hp: unit.currentHp,
       ap: unit.currentAp,
       pp: unit.currentPp,
       extraGauge: unit.currentExtraGauge,
+      combatStats: unit.combatStats,
       ...(cooldownIds.length > 0 ? { cooldowns } : {}),
       ...(unit.charge !== undefined
         ? {
@@ -113,7 +118,11 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
       ...(skillCounterSkillIds.length > 0 ? { skillCounters } : {}),
       ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
       ...(unit.appliedEffects.length > 0
-        ? { effects: unit.appliedEffects.map(toEffectSnapshot) }
+        ? {
+            effects: unit.appliedEffects.map((effect) =>
+              toEffectSnapshot(effect, effective.has(effect.effectInstanceId)),
+            ),
+          }
         : {}),
     };
   }
@@ -128,7 +137,12 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
 /**
  * `10_API設計.md`「BattleUnitStateResponse」のうち、`BattleUnit`生成後は戦闘中
  * 不変な項目（配置、座標、開始戦闘ステータス、リソース最大値）だけを抜き出した
- * 静的roster。可変値(HP/AP/PP/EX)は`captureBattleState`が別途持つ。
+ * 静的roster。可変値(HP/AP/PP/EX)、および`R-STA-04`でAppliedEffectの付与・失効・
+ * 解除のたびに再計算される現在の戦闘中ステータスは`captureBattleState`
+ * （`BattleUnitSnapshot.combatStats`）が別途持つ。`combatStats`は`baseCombatStats`
+ * （編成補正・適性補正だけを反映した不変の基準値）を写す — このrosterは
+ * `startBattle`より前に1回だけ生成されるため、いずれの値でも現状は同じ結果に
+ * なるが、意図をより正確に表す方を選ぶ。
  */
 export interface BattleUnitRosterEntry {
   readonly battleUnitId: BattleUnitId;
@@ -150,7 +164,7 @@ export function captureUnitRoster(battle: Battle): readonly BattleUnitRosterEntr
     side: unit.side,
     position: unit.position,
     globalCoordinate: unit.globalCoordinate,
-    combatStats: unit.combatStats,
+    combatStats: unit.baseCombatStats,
     maximumAp: unit.maximumAp,
     maximumPp: unit.maximumPp,
     maximumExtraGauge: unit.maximumExtraGauge,

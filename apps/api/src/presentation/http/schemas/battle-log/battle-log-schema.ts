@@ -1012,6 +1012,45 @@ const effectAppliedDetailsSchema = {
   },
 } as const;
 
+const STAT_KIND_ENUM = [
+  "MAXIMUM_HP",
+  "ATTACK",
+  "DEFENSE",
+  "CRITICAL_RATE",
+  "CRITICAL_DAMAGE_BONUS",
+  "AFFINITY_BONUS",
+  "ACTION_SPEED",
+] as const;
+
+/** `EffectiveEffectChanged`（R-EFF-05）。`before`/`after`はグループに1件も採用中のインスタンスが無い場合だけ省略する。 */
+const effectiveEffectChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "kindKey"],
+  properties: {
+    battleUnitId: { type: "string" },
+    kindKey: { type: "string" },
+    before: { type: "string" },
+    after: { type: "string" },
+  },
+} as const;
+
+const COMBAT_STAT_CHANGE_REASON_ENUM = ["EFFECT_APPLIED"] as const;
+
+/** `CombatStatChanged`（R-STA-04）。実際に値が変わったstatごとに発行する。 */
+const combatStatChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "stat", "before", "after", "reason"],
+  properties: {
+    battleUnitId: { type: "string" },
+    stat: { type: "string", enum: STAT_KIND_ENUM },
+    before: { type: "number" },
+    after: { type: "number" },
+    reason: { type: "string", enum: COMBAT_STAT_CHANGE_REASON_ENUM },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -1064,6 +1103,8 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
   EFFECT_APPLIED: effectAppliedDetailsSchema,
+  EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
+  COMBAT_STAT_CHANGED: combatStatChangedDetailsSchema,
 } as const;
 
 /**

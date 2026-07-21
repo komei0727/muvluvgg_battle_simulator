@@ -68,6 +68,13 @@ describe("createBattleUnit", () => {
     expect(unit.globalCoordinate).toEqual({ x: 0, y: 2 });
     expect(unit.combatStats.attack).toBe(10);
   });
+
+  it("UT-R-STA-04-009: baseCombatStats starts equal to the formation/aptitude-only starting stats, independent from the mutable combatStats field", () => {
+    const unit = createBattleUnit(member(), "ALLY", LIMITS);
+
+    expect(unit.baseCombatStats).toEqual(unit.combatStats);
+    expect(unit.baseCombatStats).toEqual(member().combatStats);
+  });
 });
 
 describe("isDefeated", () => {

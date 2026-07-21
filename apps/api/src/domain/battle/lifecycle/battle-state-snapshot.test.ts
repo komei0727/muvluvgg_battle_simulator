@@ -84,8 +84,20 @@ describe("captureBattleState", () => {
 
     expect(snapshot.status).toBe("READY");
     expect(snapshot.currentTurn).toBe(0);
-    expect(snapshot.units[ally.battleUnitId]).toEqual({ hp: 100, ap: 0, pp: 0, extraGauge: 0 });
-    expect(snapshot.units[enemy.battleUnitId]).toEqual({ hp: 100, ap: 0, pp: 0, extraGauge: 0 });
+    expect(snapshot.units[ally.battleUnitId]).toEqual({
+      hp: 100,
+      ap: 0,
+      pp: 0,
+      extraGauge: 0,
+      combatStats: ally.combatStats,
+    });
+    expect(snapshot.units[enemy.battleUnitId]).toEqual({
+      hp: 100,
+      ap: 0,
+      pp: 0,
+      extraGauge: 0,
+      combatStats: enemy.combatStats,
+    });
   });
 
   it("UT-STATE-SNAPSHOT-003: carries each unit's real cooldowns (including their ACTION/TURN setting scope) and charge, instead of dropping them (10_API設計.md BattleUnitStateResponse)", () => {
@@ -158,6 +170,7 @@ describe("captureBattleState", () => {
         sourceUnitId: appliedEffect.sourceId,
         kindKey: effectDefinitionId,
         duplicate: true,
+        isEffective: true,
         magnitude: 20,
         duration: { unit: "TURN", remaining: 2 },
         appliedTurnNumber: 1,

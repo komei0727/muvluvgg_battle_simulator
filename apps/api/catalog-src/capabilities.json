@@ -354,8 +354,8 @@
     "capabilityId": "CAP_STAT_MOD",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
-    "implementationTaskId": "EFF-002",
-    "description": "APPLY_STAT_MODによる継続stat補正のCombatStat再計算・重複なし最強選択への反映（AppliedEffect自体の個別付与・保持はEFF-001で実装済み）",
+    "implementationTaskId": "EFF-003",
+    "description": "APPLY_STAT_MODによる継続stat補正のCombatStat再計算・重複なし最強選択への反映（AppliedEffect自体の個別付与・保持はEFF-001、CombatStat再計算・R-EFF-05選択はEFF-002で実装済み。ACTION/TURN期間の減算・EffectExpired・除去の実ライフサイクルがEFF-003で完成するまで、期間付きStat Modifierを戦闘終了まで残留させてしまうためpreflightで拒否し続ける — PR #208レビュー[P1]）",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []

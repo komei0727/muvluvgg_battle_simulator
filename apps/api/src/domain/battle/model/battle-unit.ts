@@ -32,6 +32,17 @@ export interface BattleUnit {
   readonly position: FormationPosition;
   readonly globalCoordinate: GlobalCoordinate;
   readonly combatStats: CombatStats;
+  /**
+   * `07_戦闘ルール詳細.md` R-STA-04: 編成補正・配置適性補正だけを反映した、
+   * 戦闘中不変の基準値（R-STA-01の`基本値 × (1+編成補正-適性補正)`部分）。
+   * `combatStats`（現在の実効値）はAppliedEffectの付与・失効・解除のたびに
+   * 再計算されるが、再計算のたびに直前の`combatStats`を新しい基準にすると
+   * 誤差が蓄積し、かつ効果の付与順に計算結果が依存してしまう。常にこの不変な
+   * 基準へ`R-STA-02`/`R-STA-03`で合成した戦闘中割合補正・固定値補正を適用し
+   * 直すことで、`combatStats`は現在有効なAppliedEffect集合だけから毎回同じ
+   * 結果を導出できる（`combat-stat-recalculation.ts`参照）。
+   */
+  readonly baseCombatStats: CombatStats;
   readonly currentHp: number;
   readonly currentAp: number;
   readonly currentPp: number;
@@ -75,6 +86,7 @@ export function createBattleUnit(
     position: member.position,
     globalCoordinate: member.globalCoordinate,
     combatStats: member.combatStats,
+    baseCombatStats: member.combatStats,
     currentHp: createHitPoint(member.combatStats.maximumHp, member.combatStats.maximumHp),
     currentAp: createActionPoint(0, limits.maximumAp),
     currentPp: createPassivePoint(0, limits.maximumPp),

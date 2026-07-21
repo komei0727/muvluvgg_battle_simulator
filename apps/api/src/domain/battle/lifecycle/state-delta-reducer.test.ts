@@ -15,13 +15,23 @@ const UNIT_B = createBattleUnitId("unit-b");
 const COUNTER_CRIT = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
 const COUNTER_OTHER = createRuntimeCounterId("RUNTIME_COUNTER_OTHER");
 
+const COMBAT_STATS = {
+  maximumHp: 100,
+  attack: 10,
+  defense: 10,
+  criticalRate: 0,
+  actionSpeed: 10,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
+
 function initialState(): BattleStateSnapshot {
   return {
     status: "READY",
     currentTurn: 0,
     units: {
-      [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0 },
-      [UNIT_B]: { hp: 100, ap: 0, pp: 0, extraGauge: 0 },
+      [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS },
+      [UNIT_B]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS },
     },
   };
 }
@@ -49,8 +59,20 @@ describe("applyStateDelta", () => {
 
     const next = applyStateDelta(initialState(), delta);
 
-    expect(next.units[UNIT_A]).toEqual({ hp: 80, ap: 0, pp: 0, extraGauge: 0 });
-    expect(next.units[UNIT_B]).toEqual({ hp: 100, ap: 0, pp: 0, extraGauge: 0 });
+    expect(next.units[UNIT_A]).toEqual({
+      hp: 80,
+      ap: 0,
+      pp: 0,
+      extraGauge: 0,
+      combatStats: COMBAT_STATS,
+    });
+    expect(next.units[UNIT_B]).toEqual({
+      hp: 100,
+      ap: 0,
+      pp: 0,
+      extraGauge: 0,
+      combatStats: COMBAT_STATS,
+    });
   });
 
   it("UT-STATE-REDUCER-004: an empty delta returns an equivalent state unchanged", () => {
@@ -481,6 +503,7 @@ describe("applyStateDelta", () => {
       sourceUnitId: UNIT_A,
       kindKey: "EFFECT_ACTION_ATK_UP",
       duplicate: true,
+      isEffective: true,
       magnitude: 10,
       appliedTurnNumber: 1,
     };
@@ -501,6 +524,7 @@ describe("applyStateDelta", () => {
       sourceUnitId: UNIT_A,
       kindKey: "EFFECT_ACTION_ATK_UP",
       duplicate: true,
+      isEffective: true,
       magnitude: 10,
       appliedTurnNumber: 1,
     };
@@ -530,6 +554,7 @@ describe("applyStateDelta", () => {
       sourceUnitId: UNIT_A,
       kindKey: "EFFECT_ACTION_ATK_UP",
       duplicate: true,
+      isEffective: true,
       magnitude: 10,
       appliedTurnNumber: 1,
     };
@@ -569,8 +594,8 @@ describe("reduceStateDeltas", () => {
       status: "COMPLETED",
       currentTurn: 1,
       units: {
-        [UNIT_A]: { hp: 100, ap: 2, pp: 3, extraGauge: 0 },
-        [UNIT_B]: { hp: 80, ap: 3, pp: 3, extraGauge: 0 },
+        [UNIT_A]: { hp: 100, ap: 2, pp: 3, extraGauge: 0, combatStats: COMBAT_STATS },
+        [UNIT_B]: { hp: 80, ap: 3, pp: 3, extraGauge: 0, combatStats: COMBAT_STATS },
       },
     });
   });

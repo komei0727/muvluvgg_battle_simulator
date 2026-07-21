@@ -99,6 +99,15 @@ const ENEMY_NEAREST: TargetSelectorDefinition = {
   includeDefeated: false,
 };
 
+const ALLY_ALL: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ALLY",
+  count: "ALL",
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
 function damageEffectAction(
   id: string,
   criticalMode: "NORMAL" | "GUARANTEED" | "PREVENTED" = "PREVENTED",
@@ -128,6 +137,31 @@ function healEffectAction(id: string): EffectActionDefinition {
     requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { formula: { kind: "CONSTANT", value: 10 }, overheal: "DISCARD" },
+  };
+}
+
+function statModEffectAction(
+  id: string,
+  stat: "ATTACK" | "DEFENSE" | "ACTION_SPEED",
+  valueType: "RATIO" | "FIXED",
+  value: number,
+): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      stat,
+      valueType,
+      formula: { kind: "CONSTANT", value },
+      stacking: { mode: "STACKABLE" },
+      duration: {
+        timeLimit: { unit: "TURN", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
   };
 }
 
@@ -564,8 +598,20 @@ describe("resolveActionPhase", () => {
         status: "RUNNING",
         currentTurn: 1,
         units: {
-          [ally.battleUnitId]: { ap: 1, pp: 3, hp: 100, extraGauge: 10 },
-          [enemy.battleUnitId]: { ap: 0, pp: 3, hp: 100, extraGauge: 0 },
+          [ally.battleUnitId]: {
+            ap: 1,
+            pp: 3,
+            hp: 100,
+            extraGauge: 10,
+            combatStats: ally.combatStats,
+          },
+          [enemy.battleUnitId]: {
+            ap: 0,
+            pp: 3,
+            hp: 100,
+            extraGauge: 0,
+            combatStats: enemy.combatStats,
+          },
         },
       },
       stateTransitions,
@@ -673,6 +719,48 @@ describe("resolveActionPhase", () => {
       (u) => u.battleUnitId === createBattleUnitId("ALLY_2"),
     )!;
     expect(updatedSlowAlly.currentAp).toBe(1); // untouched: the phase stopped before ALLY_2's turn.
+  });
+
+  it("UT-R-ORD-04-001 (real lifecycle wiring): when an action's APPLY_STAT_MOD changes a remaining unit's actionSpeed, the queue reorders and emits ActionQueueReordered with the before/after speeds", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SPEED_BUFFER");
+    // ALLY_1 acts first (faster) and buffs every ally's ACTION_SPEED, including
+    // ALLY_2's — the only unit still waiting in this cycle's queue.
+    const allyFast = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SPEED_BUFFER",
+      actionSpeed: 20,
+      limits: { maximumAp: 1 },
+    });
+    const allySlow = unit("ALLY_2", "ALLY", { actionSpeed: 5, limits: { maximumAp: 1 } });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const speedBuff = statModEffectAction("ACT_SPEED_BUFF", "ACTION_SPEED", "FIXED", 50);
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_SPEED_BUFF", 1, ALLY_ALL)]]]),
+      new Map([[speedBuff.effectActionDefinitionId, speedBuff]]),
+    );
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [allyFast, allySlow],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const updatedSlowAlly = result.allyUnits.find(
+      (u) => u.battleUnitId === createBattleUnitId("ALLY_2"),
+    )!;
+    expect(updatedSlowAlly.combatStats.actionSpeed).toBe(55);
+
+    const reordered = ctx.recorder.getEvents().find((e) => e.eventType === "ActionQueueReordered")!;
+    expect(reordered.payload).toEqual({
+      before: [{ battleUnitId: allySlow.battleUnitId, actionSpeed: 5 }],
+      after: [{ battleUnitId: allySlow.battleUnitId, actionSpeed: 55 }],
+    });
   });
 
   it("UT-ACTION-PHASE-004: throws when a resolved plan targets a non-DAMAGE EffectAction (M6/M7 scope)", () => {
@@ -1514,6 +1602,7 @@ describe("resolveActionPhase", () => {
           ap: ally.currentAp,
           pp: ally.currentPp,
           extraGauge: ally.currentExtraGauge,
+          combatStats: ally.combatStats,
           cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
         },
         [enemy.battleUnitId]: {
@@ -1521,6 +1610,7 @@ describe("resolveActionPhase", () => {
           ap: enemy.currentAp,
           pp: enemy.currentPp,
           extraGauge: enemy.currentExtraGauge,
+          combatStats: enemy.combatStats,
         },
       },
     };
