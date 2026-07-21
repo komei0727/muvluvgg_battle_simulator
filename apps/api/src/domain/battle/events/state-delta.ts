@@ -1,9 +1,10 @@
 import type { BattleStatus } from "../model/battle-status.js";
+import type { AppliedEffect } from "../model/applied-effect.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { ActionId } from "../../shared/event-ids.js";
+import type { ActionId, EffectInstanceId } from "../../shared/event-ids.js";
 
 export interface ValueChange<T> {
   readonly before: T;
@@ -32,6 +33,53 @@ export interface CooldownState {
 export interface ChargeState {
   readonly skillDefinitionId: SkillDefinitionId;
   readonly startedActionId: ActionId;
+}
+
+/**
+ * `10_API設計.md`「EffectStateResponse」の外部公開形のうち、R-EFF-01が要求する
+ * 未加工の値だけを持つ（`isEffective`はR-EFF-05の最強選択結果でありEFF-002の
+ * スコープ、`category`/`stackMode`/構造化`value`はEffectStateResponseへの
+ * wire変換でありResponse Mapperの実装まで含めてEFF-002以降のスコープ）。
+ * `duration`は`AppliedEffect.duration.definition.timeLimit.unit`が`ACTION`/
+ * `TURN`の場合だけ持つ（`10_API設計.md`の`EffectStateResponse.duration`が
+ * 表現できる範囲、`BATTLE`/`HIT`/`SKILL_USE`は対象外）。
+ */
+export interface EffectSnapshot {
+  readonly effectInstanceId: EffectInstanceId;
+  readonly effectDefinitionId: string;
+  readonly sourceUnitId: BattleUnitId;
+  readonly kindKey: string;
+  readonly duplicate: boolean;
+  readonly magnitude: number;
+  readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
+  readonly appliedTurnNumber: number;
+  readonly appliedActionId?: ActionId;
+}
+
+/**
+ * `AppliedEffect`（Domain）から`EffectSnapshot`（`stateDelta`/`BattleUnitSnapshot`
+ * 共通の外部公開形）を導出する。`captureBattleState`と`EffectApplied`を記録する
+ * `effect-grant-service.ts`が同じ変換を共有し、`finalState.effects`と
+ * `stateTransitions`由来の復元結果が常に同じ形になるようにする。
+ */
+export function toEffectSnapshot(effect: AppliedEffect): EffectSnapshot {
+  const timeLimit = effect.duration.definition.timeLimit;
+  const duration =
+    (timeLimit?.unit === "ACTION" || timeLimit?.unit === "TURN") &&
+    effect.duration.timeLimitRemaining !== undefined
+      ? { unit: timeLimit.unit, remaining: effect.duration.timeLimitRemaining }
+      : undefined;
+  return {
+    effectInstanceId: effect.effectInstanceId,
+    effectDefinitionId: effect.effectActionDefinitionId,
+    sourceUnitId: effect.sourceId,
+    kindKey: effect.kindKey,
+    duplicate: effect.duplicate,
+    magnitude: effect.magnitude,
+    ...(duration !== undefined ? { duration } : {}),
+    appliedTurnNumber: effect.appliedTurnNumber,
+    ...(effect.appliedActionId !== undefined ? { appliedActionId: effect.appliedActionId } : {}),
+  };
 }
 
 /** `08_ドメインイベント.md`「StateDelta」: 変更した項目だけを持つ。 */
@@ -87,6 +135,14 @@ export interface UnitStateDelta {
   readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
   >;
+  /**
+   * `EffectInstanceId`をキーとする、変更された`AppliedEffect`だけを持つ
+   * （R-EFF-01）。`skillCounters`と同じ規約: `before: undefined`は新規付与
+   * （`EffectApplied`）を表す。`after: undefined`（失効・解除）や両方存在する
+   * 場合（残り回数変更・重複なしグループの採用切替）は後続Issue（EFF-002/003）
+   * が発行するイベントの`stateDelta`が使う — このIssueでは新規付与だけを扱う。
+   */
+  readonly effects?: Readonly<Record<EffectInstanceId, ValueChange<EffectSnapshot | undefined>>>;
 }
 
 /**

@@ -712,6 +712,53 @@ const runtimeCounterResetDetailsSchema = {
   },
 } as const;
 
+const DURATION_TIME_UNIT_ENUM = ["ACTION", "TURN", "BATTLE", "HIT", "SKILL_USE"] as const;
+const CONSUMPTION_KIND_ENUM = [
+  "NEXT_OUTGOING_ATTACK",
+  "NEXT_INCOMING_ATTACK",
+  "INCOMING_HIT",
+  "OUTGOING_HIT",
+  "STATUS_BLOCKED",
+  "LETHAL_DAMAGE",
+] as const;
+
+/**
+ * `EffectApplied`（R-EFF-01）。新しい効果インスタンス追加後に発行する。
+ * `durationUnit`/`initialRemaining`は`timeLimit`を持つ場合、`consumptionKind`/
+ * `consumptionMaxCount`は`consumption`を持つ場合だけ存在する。
+ */
+const effectAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "effectActionDefinitionId",
+    "sourceUnitId",
+    "targetUnitId",
+    "duplicate",
+    "kindKey",
+    "magnitude",
+    "linkedEffectGroupId",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    targetUnitId: { type: "string" },
+    duplicate: { type: "boolean" },
+    kindKey: { type: "string" },
+    magnitude: { type: "number" },
+    durationUnit: { type: "string", enum: DURATION_TIME_UNIT_ENUM },
+    initialRemaining: { type: "integer", minimum: 1 },
+    consumptionKind: { type: "string", enum: CONSUMPTION_KIND_ENUM },
+    consumptionMaxCount: { type: "integer", minimum: 1 },
+    linkedEffectGroupId: { type: ["string", "null"] },
+    grantedActionId: { type: "string" },
+    grantedTurnNumber: { type: "integer", minimum: 1 },
+    snapshot: { type: "object", additionalProperties: { type: "number" } },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -763,6 +810,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   SKILL_USE_INTERRUPTED: skillUseInterruptedDetailsSchema,
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
+  EFFECT_APPLIED: effectAppliedDetailsSchema,
 } as const;
 
 /**

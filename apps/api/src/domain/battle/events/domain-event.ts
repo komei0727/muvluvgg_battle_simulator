@@ -1,6 +1,7 @@
 import type {
   ActionId,
   DomainEventId,
+  EffectInstanceId,
   ResolutionScopeId,
   SkillUseId,
 } from "../../shared/event-ids.js";
@@ -10,8 +11,10 @@ import type { ReservedActionKind } from "../action/action-queue.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { Side } from "../../shared/side.js";
 import type {
+  ConsumptionKind,
   CriticalMode,
   DamageType,
+  DurationTimeUnit,
   ResourceKind,
   SkillType,
 } from "../../catalog/definitions/catalog-enums.js";
@@ -376,6 +379,31 @@ export interface BattleDomainEventPayloadMap {
     readonly counter: RuntimeCounterId;
     readonly skillDefinitionId: SkillDefinitionId;
     readonly before: number;
+  };
+  /**
+   * `05_ドメインモデル.md`「AppliedEffect」/`08_ドメインイベント.md`「EffectApplied
+   * payload」（R-EFF-01）。新しい効果インスタンスを追加した直後に発行する。
+   * `kindKey`は`EffectKindKey`（現状`EffectActionDefinitionId`をそのまま使う、
+   * `applied-effect.ts`参照）。`durationUnit`/`initialRemaining`は`timeLimit`を
+   * 持つ場合だけ、`consumptionKind`/`consumptionMaxCount`は`consumption`を持つ
+   * 場合だけ存在する。両方とも持たない場合は戦闘終了まで保持される。
+   */
+  readonly EffectApplied: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly targetUnitId: BattleUnitId;
+    readonly duplicate: boolean;
+    readonly kindKey: string;
+    readonly magnitude: number;
+    readonly durationUnit?: DurationTimeUnit;
+    readonly initialRemaining?: number;
+    readonly consumptionKind?: ConsumptionKind;
+    readonly consumptionMaxCount?: number;
+    readonly linkedEffectGroupId: string | null;
+    readonly grantedActionId?: ActionId;
+    readonly grantedTurnNumber?: number;
+    readonly snapshot?: Readonly<Record<string, number>>;
   };
 }
 

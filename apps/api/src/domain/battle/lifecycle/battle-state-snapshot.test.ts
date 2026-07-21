@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { captureBattleState, captureUnitRoster } from "./battle-state-snapshot.js";
-import { createActionId } from "../../shared/event-ids.js";
+import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattle } from "./battle.js";
 import { createBattleUnit, type BattleUnitResourceLimits } from "../model/battle-unit.js";
+import {
+  buildInitialDurationState,
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import { createTurnLimit } from "../model/turn-limit.js";
 import type { Side } from "../../shared/side.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
+  createEffectActionDefinitionId,
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
@@ -115,6 +121,49 @@ describe("captureBattleState", () => {
     });
     expect(snapshot.units[enemy.battleUnitId]!.cooldowns).toBeUndefined();
     expect(snapshot.units[enemy.battleUnitId]!.charge).toBeUndefined();
+  });
+
+  it("UT-R-EFF-01-012: captures each unit's individually-held AppliedEffect instances (05_ドメインモデル.md AppliedEffect, R-EFF-01)", () => {
+    const effectDefinitionId = createEffectActionDefinitionId("ACT_ATK_UP");
+    const appliedEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectActionDefinitionId: effectDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(effectDefinitionId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ally-1"),
+      targetId: createBattleUnitId("ally-1"),
+      magnitude: 20,
+      duration: buildInitialDurationState(
+        { timeLimit: { unit: "TURN", count: 2 }, dispellable: true, linkedEffectGroupId: null },
+        { turnNumber: 1 },
+      ),
+      appliedTurnNumber: 1,
+    };
+    const ally = { ...unit("ally-1", "ALLY"), appliedEffects: [appliedEffect] };
+    const enemy = unit("enemy-1", "ENEMY");
+    const battle = createBattle(createBattleId("battle-1"), [ally], [enemy], createTurnLimit(3), {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions: new Map(),
+      skillDefinitions: new Map(),
+    });
+
+    const snapshot = captureBattleState(battle);
+
+    expect(snapshot.units[ally.battleUnitId]!.effects).toEqual([
+      {
+        effectInstanceId: appliedEffect.effectInstanceId,
+        effectDefinitionId: effectDefinitionId,
+        sourceUnitId: appliedEffect.sourceId,
+        kindKey: effectDefinitionId,
+        duplicate: true,
+        magnitude: 20,
+        duration: { unit: "TURN", remaining: 2 },
+        appliedTurnNumber: 1,
+      },
+    ]);
+    expect(snapshot.units[enemy.battleUnitId]!.effects).toBeUndefined();
   });
 });
 

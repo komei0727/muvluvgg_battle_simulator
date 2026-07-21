@@ -117,11 +117,16 @@ export interface ChargeStateResponseBody {
 }
 
 /**
- * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`/`effects`は対応するDomain
- * 機構がM7〜M8で実装されるまで常に空配列（`未実装機能を仮の値で成功扱いにしない`
- * の対象は「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
- * 付与されていない」ことを表す空配列は事実そのもの）。`cooldowns`/`charge`はM5で
- * 実装済みのDomain状態（`BattleUnitSnapshot`）をそのまま反映する。
+ * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`は対応するDomain機構が
+ * 実装されるまで常に空配列（`未実装機能を仮の値で成功扱いにしない`の対象は
+ * 「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
+ * 付与されていない」ことを表す空配列は事実そのもの）。`effects`も同じ理由で
+ * 常に空配列のままだが、理由が異なる: `AppliedEffect`自体（個別インスタンス
+ * 保持・`EffectApplied`・StateDelta・独立Reducer復元）はEFF-001（R-EFF-01）で
+ * 実装済みだが、`EffectStateResponseBody`が要求する`effectKindKey`の採用可否
+ * （`isEffective`）はEFF-002（R-EFF-05の重複なし最強選択）が確定させるまで
+ * 導出できない。`cooldowns`/`charge`はM5で実装済みのDomain状態
+ * （`BattleUnitSnapshot`）をそのまま反映する。
  */
 export interface BattleUnitStateResponseBody {
   readonly battleUnitId: string;

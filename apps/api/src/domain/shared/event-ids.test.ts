@@ -3,6 +3,7 @@ import { DomainValidationError } from "./errors.js";
 import {
   createActionId,
   createDomainEventId,
+  createEffectInstanceId,
   createResolutionScopeId,
   createSkillUseId,
 } from "./event-ids.js";
@@ -26,5 +27,13 @@ describe("Event ID brands", () => {
 
   it("UT-EVENT-ID-005: creates a ResolutionScopeId from a non-empty string", () => {
     expect(createResolutionScopeId("battle-1:scope:1")).toBe("battle-1:scope:1");
+  });
+
+  it("UT-EVENT-ID-006: creates an EffectInstanceId from a non-empty string", () => {
+    expect(createEffectInstanceId("battle-1:effect:1")).toBe("battle-1:effect:1");
+  });
+
+  it("UT-EVENT-ID-007: rejects an empty EffectInstanceId", () => {
+    expect(() => createEffectInstanceId("")).toThrow(DomainValidationError);
   });
 });

@@ -63,6 +63,26 @@ function damageAction(id: string, hitCount = 1): EffectActionDefinition {
   };
 }
 
+function statModAction(id: string): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      stat: "ATTACK",
+      valueType: "FIXED",
+      formula: { kind: "CONSTANT", value: 20 },
+      stacking: { mode: "STACKABLE" },
+      duration: {
+        timeLimit: { unit: "TURN", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
 function cooldownManipulationAction(
   id: string,
   targetSkillDefinitionId: ReturnType<typeof createSkillDefinitionId>,
@@ -428,5 +448,84 @@ describe("applyEffectActionGroups", () => {
     const completed = events.find((e) => e.eventType === "EffectActionCompleted")!;
     expect(completed.parentEventId).toBe(cooldownCompleted.eventId);
     expect(completed.parentEventId).not.toBe(starting.eventId);
+  });
+
+  it("UT-R-EFF-01-021 (R-EFF-01, real lifecycle wiring): an APPLY_STAT_MOD ACTION step grants an AppliedEffect through the real Catalog -> EffectSequence -> AppliedEffect -> event pipeline, emitting EffectApplied before EffectActionCompleted(APPLIED)", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const statMod = statModAction("ACT_ATK_UP");
+    const effectActions = new Map([[statMod.effectActionDefinitionId, statMod]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, statMod.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectApplied",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+    expect(result.resolvedCount).toBe(1);
+    expect(result.interruptedCount).toBe(0);
+
+    const grantedTarget = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(grantedTarget.appliedEffects).toHaveLength(1);
+    expect(grantedTarget.appliedEffects[0]).toMatchObject({
+      effectActionDefinitionId: statMod.effectActionDefinitionId,
+      sourceId: actor.battleUnitId,
+      targetId: enemy.battleUnitId,
+      duplicate: true,
+      magnitude: 20,
+      appliedTurnNumber: 1,
+    });
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectApplied" }
+    >;
+    expect(applied.payload.effectInstanceId).toBe(
+      grantedTarget.appliedEffects[0]!.effectInstanceId,
+    );
+
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("APPLIED");
+    expect(completed.parentEventId).toBe(applied.eventId);
+  });
+
+  it("UT-R-EFF-01-022 (R-EFF-01, mirrors UT-R-SKL-06-011): onFactEventForPassiveChain is invoked for the EffectApplied event an APPLY_STAT_MOD grant records, not just DAMAGE/COOLDOWN_MANIPULATION's own hit-unit events", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const statMod = statModAction("ACT_ATK_UP");
+    const effectActions = new Map([[statMod.effectActionDefinitionId, statMod]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const observedEventTypes: string[] = [];
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      observedEventTypes.push(event.eventType);
+      return units;
+    });
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, statMod.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    expect(observedEventTypes).toContain("EffectApplied");
   });
 });

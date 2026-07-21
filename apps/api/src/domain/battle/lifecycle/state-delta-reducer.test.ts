@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyStateDelta, reduceStateDeltas } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
-import type { StateDelta } from "../events/state-delta.js";
-import { createActionId } from "../../shared/event-ids.js";
+import type { EffectSnapshot, StateDelta } from "../events/state-delta.js";
+import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
@@ -472,6 +472,78 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_A]!.skillCounterCarry).toEqual({
       [skillDefinitionId]: { [COUNTER_OTHER]: 12 },
     });
+  });
+
+  it("UT-R-EFF-01-009: applies an EffectApplied-style delta (before: undefined) as a new entry in the effects registry", () => {
+    const effect: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "EFFECT_ACTION_ATK_UP",
+      sourceUnitId: UNIT_A,
+      kindKey: "EFFECT_ACTION_ATK_UP",
+      duplicate: true,
+      magnitude: 10,
+      appliedTurnNumber: 1,
+    };
+
+    const next = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: { effects: { [effect.effectInstanceId]: { before: undefined, after: effect } } },
+      },
+    });
+
+    expect(next.units[UNIT_B]!.effects).toEqual([effect]);
+  });
+
+  it("UT-R-EFF-01-010: individually retains multiple effect instances granted to the same unit (R-EFF-01: no merging, even for duplicate-allowed effects of the same kind)", () => {
+    const first: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "EFFECT_ACTION_ATK_UP",
+      sourceUnitId: UNIT_A,
+      kindKey: "EFFECT_ACTION_ATK_UP",
+      duplicate: true,
+      magnitude: 10,
+      appliedTurnNumber: 1,
+    };
+    const second: EffectSnapshot = {
+      ...first,
+      effectInstanceId: createEffectInstanceId("battle-1:effect:2"),
+    };
+
+    const withFirst = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: { effects: { [first.effectInstanceId]: { before: undefined, after: first } } },
+      },
+    });
+    const next = applyStateDelta(withFirst, {
+      units: {
+        [UNIT_B]: { effects: { [second.effectInstanceId]: { before: undefined, after: second } } },
+      },
+    });
+
+    expect(next.units[UNIT_B]!.effects).toEqual([first, second]);
+  });
+
+  it("UT-R-EFF-01-011: throws when an effect delta's before does not match the current entry (dropped or reordered delta)", () => {
+    const effect: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "EFFECT_ACTION_ATK_UP",
+      sourceUnitId: UNIT_A,
+      kindKey: "EFFECT_ACTION_ATK_UP",
+      duplicate: true,
+      magnitude: 10,
+      appliedTurnNumber: 1,
+    };
+    const staleBefore: EffectSnapshot = { ...effect, magnitude: 999 };
+
+    expect(() =>
+      applyStateDelta(initialState(), {
+        units: {
+          [UNIT_B]: {
+            effects: { [effect.effectInstanceId]: { before: staleBefore, after: effect } },
+          },
+        },
+      }),
+    ).toThrow(DomainValidationError);
   });
 });
 

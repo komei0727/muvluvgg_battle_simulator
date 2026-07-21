@@ -550,6 +550,7 @@ describe("OpenAPI document", () => {
       SkillUseInterrupted: true,
       RuntimeCounterChanged: true,
       RuntimeCounterReset: true,
+      EffectApplied: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

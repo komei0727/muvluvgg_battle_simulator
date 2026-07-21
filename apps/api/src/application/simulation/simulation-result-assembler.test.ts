@@ -2,9 +2,16 @@ import { describe, expect, it } from "vitest";
 import { assembleSimulationResult } from "./simulation-result-assembler.js";
 import { ApplicationError } from "../contracts/application-error.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import { createActionId, createDomainEventId } from "../../domain/shared/event-ids.js";
+import {
+  createActionId,
+  createDomainEventId,
+  createEffectInstanceId,
+} from "../../domain/shared/event-ids.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createSkillDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
@@ -527,6 +534,86 @@ describe("assembleSimulationResult", () => {
           },
         },
       },
+    };
+
+    let error: unknown;
+    try {
+      assembleSimulationResult({
+        battleId: BATTLE_ID,
+        catalogRevision: "rev-1",
+        logLevel: "DETAILED",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+        initialState,
+        finalState,
+        events: recorder.getEvents(),
+        unitRoster: [],
+      });
+      expect.unreachable("expected assembleSimulationResult to throw");
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBeInstanceOf(ApplicationError);
+    expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+  });
+
+  it("UT-R-EFF-01-013 (R-EFF-01): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's applied effects disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore effects, mirroring UT-RESULT-ASSEMBLER-011's cooldowns regression)", () => {
+    const UNIT_A = createBattleUnitId("unit-a");
+    const effectInstanceId = createEffectInstanceId("battle-1:effect:1");
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1.
+    recorder.record({
+      eventType: "EffectApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: UNIT_A,
+      targetUnitIds: [UNIT_A],
+      payload: {
+        effectInstanceId,
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATK_UP"),
+        sourceUnitId: UNIT_A,
+        targetUnitId: UNIT_A,
+        duplicate: true,
+        kindKey: "ACT_ATK_UP",
+        magnitude: 20,
+        linkedEffectGroupId: null,
+      },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            effects: {
+              [effectInstanceId]: {
+                before: undefined,
+                after: {
+                  effectInstanceId,
+                  effectDefinitionId: "ACT_ATK_UP",
+                  sourceUnitId: UNIT_A,
+                  kindKey: "ACT_ATK_UP",
+                  duplicate: true,
+                  magnitude: 20,
+                  appliedTurnNumber: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    }); // version 1->2.
+
+    const initialState = {
+      status: "READY" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+    };
+    // The recorded delta grants an effect with magnitude 20, but this
+    // finalState (wrongly) claims no effects at all — a state-changing
+    // event's stateDelta silently dropped the real value.
+    const finalState = {
+      status: "RUNNING" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
     };
 
     let error: unknown;

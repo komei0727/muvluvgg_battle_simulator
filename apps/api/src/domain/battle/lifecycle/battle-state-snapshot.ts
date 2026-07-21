@@ -1,4 +1,10 @@
-import type { BattleResultSnapshot, ChargeState, CooldownState } from "../events/state-delta.js";
+import {
+  toEffectSnapshot,
+  type BattleResultSnapshot,
+  type ChargeState,
+  type CooldownState,
+  type EffectSnapshot,
+} from "../events/state-delta.js";
 import type { Battle } from "./battle.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import type { FormationPosition } from "../model/formation-input.js";
@@ -38,6 +44,8 @@ export interface BattleUnitSnapshot {
   readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
   >;
+  /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
+  readonly effects?: readonly EffectSnapshot[];
 }
 
 /**
@@ -104,6 +112,9 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         : {}),
       ...(skillCounterSkillIds.length > 0 ? { skillCounters } : {}),
       ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
+      ...(unit.appliedEffects.length > 0
+        ? { effects: unit.appliedEffects.map(toEffectSnapshot) }
+        : {}),
     };
   }
   return {
