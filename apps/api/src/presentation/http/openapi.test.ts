@@ -668,6 +668,106 @@ describe("OpenAPI document", () => {
     expect(validate(withTarget({ kind: "SELF", targetBindingId: "TGT_1" }))).toBe(false);
   });
 
+  it("UT-R-EFF-01-032 (condition-definition.ts TARGET_STATE_FIELD_TYPES; PR #207再レビュー[P2]): rejects a TARGET_STATE value whose type doesn't match its field's Domain-mandated type", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+    function withCondition(field: string, value: unknown) {
+      return {
+        ...base,
+        details: {
+          ...basePayload,
+          expirationConditions: [
+            { kind: "TARGET_STATE", target: { kind: "SELF" }, field, op: "EQ", value },
+          ],
+        },
+      };
+    }
+
+    // Valid per `TARGET_STATE_FIELD_TYPES` (condition-definition.ts): one
+    // representative field per Domain-mandated value type.
+    expect(validate(withCondition("IS_ALIVE", true)), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(withCondition("HP_RATIO", 0.5)), JSON.stringify(validate.errors)).toBe(true);
+    expect(
+      validate(withCondition("ATTRIBUTE", "AGGRESSIVE")),
+      JSON.stringify(validate.errors),
+    ).toBe(true);
+
+    // Invalid: a boolean-typed field given a string value (a single
+    // `value: { type: ["string","number","boolean"] }` shared across every
+    // field would wrongly accept this).
+    expect(validate(withCondition("IS_ALIVE", "yes"))).toBe(false);
+    // Invalid: a number-typed field given a boolean value.
+    expect(validate(withCondition("HP_RATIO", true))).toBe(false);
+    // Invalid: a string-typed field given a number value.
+    expect(validate(withCondition("ATTRIBUTE", 1))).toBe(false);
+  });
+
+  it("UT-R-EFF-01-033 (condition-definition.ts RUNTIME_COUNTER modulo assertInteger({min:1}); PR #207再レビュー[P2]): rejects a RUNTIME_COUNTER modulo that is 0 or non-integer", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+    function withModulo(modulo: unknown) {
+      return {
+        ...base,
+        details: {
+          ...basePayload,
+          expirationConditions: [
+            { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_X", op: "EQ", value: 1, modulo },
+          ],
+        },
+      };
+    }
+
+    expect(validate(withModulo(1)), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(withModulo(3)), JSON.stringify(validate.errors)).toBe(true);
+    // Invalid: assertInteger(..., { min: 1 }) rejects both 0 and non-integers.
+    expect(validate(withModulo(0))).toBe(false);
+    expect(validate(withModulo(1.5))).toBe(false);
+  });
+
   it("API-OPENAPI-005 (regression: M5 review [P1] found COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // A mapped type over `BattleDomainEventType` forces a compile error (missing
     // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event

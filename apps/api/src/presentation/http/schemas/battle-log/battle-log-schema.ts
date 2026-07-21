@@ -820,6 +820,24 @@ export const conditionDefinitionDetailsSchema = {
         condition: { $ref: CONDITION_DEFINITION_SCHEMA_ID },
       },
     },
+    // `condition-definition.ts`の`TARGET_STATE_FIELD_TYPES`（PR #207再レビュー
+    // [P2]）: fieldごとに`value`の型が固定されている（`IS_ALIVE`はboolean、
+    // `HP_RATIO`/`RESOURCE_*`はnumber、それ以外はstringのみ）。単一の
+    // `value: string | number | boolean`では、Domainが拒否する組み合わせ
+    // （例: `IS_ALIVE`にstring値）も有効と判定してしまうため、fieldの型別に
+    // 3つのvariantへ分ける。
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "field", "op", "value"],
+      properties: {
+        kind: { const: "TARGET_STATE" },
+        target: targetReferenceDetailsSchema,
+        field: { const: "IS_ALIVE" },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "boolean" },
+      },
+    },
     {
       type: "object",
       additionalProperties: false,
@@ -829,22 +847,25 @@ export const conditionDefinitionDetailsSchema = {
         target: targetReferenceDetailsSchema,
         field: {
           type: "string",
-          enum: [
-            "IS_ALIVE",
-            "HP_RATIO",
-            "ATTRIBUTE",
-            "UNIT_TYPE",
-            "ROLE",
-            "POSITION_ROW",
-            "POSITION_COLUMN",
-            "HAS_STATUS",
-            "RESOURCE_AP",
-            "RESOURCE_PP",
-            "RESOURCE_EX_GAUGE",
-          ],
+          enum: ["HP_RATIO", "RESOURCE_AP", "RESOURCE_PP", "RESOURCE_EX_GAUGE"],
         },
         op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
-        value: jsonPrimitiveSchema,
+        value: { type: "number" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "field", "op", "value"],
+      properties: {
+        kind: { const: "TARGET_STATE" },
+        target: targetReferenceDetailsSchema,
+        field: {
+          type: "string",
+          enum: ["ATTRIBUTE", "UNIT_TYPE", "ROLE", "POSITION_ROW", "POSITION_COLUMN", "HAS_STATUS"],
+        },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "string" },
       },
     },
     {
@@ -897,7 +918,11 @@ export const conditionDefinitionDetailsSchema = {
         counter: { type: "string" },
         op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
         value: { type: "number" },
-        modulo: { type: "number" },
+        // `condition-definition.ts`: `assertInteger(input.modulo, ..., { min: 1 })`
+        // （PR #207再レビュー[P2]）。`TURN_NUMBER.modulo`は`assertFinite`のみで
+        // 整数・下限制約を持たないため、同じ`modulo`名でも`type: "number"`の
+        // ままにする（下のTURN_NUMBER variant）。
+        modulo: { type: "integer", minimum: 1 },
       },
     },
     {
