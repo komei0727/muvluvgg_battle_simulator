@@ -12,8 +12,9 @@ import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.
 import {
   reduceStateDeltas,
   sameChargeState,
+  sameEffectSnapshot,
 } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { CooldownState } from "../../domain/battle/events/state-delta.js";
+import type { CooldownState, EffectSnapshot } from "../../domain/battle/events/state-delta.js";
 import type {
   BattleOutcome,
   CompletionReason,
@@ -79,6 +80,23 @@ function cooldownStatesEqual(
   });
 }
 
+/**
+ * R-EFF-01: 個別管理される効果インスタンス配列を、付与順（挿入順）どおりに
+ * 比較する。`toEffectSnapshot`/独立Reducerの`applyEffectDeltas`はどちらも
+ * 常に付与順を保つため、順序の違いも復元不一致として検出する。
+ */
+function effectsEqual(
+  a: readonly EffectSnapshot[] | undefined,
+  b: readonly EffectSnapshot[] | undefined,
+): boolean {
+  const aEffects = a ?? [];
+  const bEffects = b ?? [];
+  if (aEffects.length !== bEffects.length) {
+    return false;
+  }
+  return aEffects.every((effect, index) => sameEffectSnapshot(effect, bEffects[index]));
+}
+
 function unitSnapshotsEqual(
   a: BattleStateSnapshot["units"][BattleUnitId],
   b: BattleStateSnapshot["units"][BattleUnitId],
@@ -89,7 +107,8 @@ function unitSnapshotsEqual(
     a.pp === b.pp &&
     a.extraGauge === b.extraGauge &&
     cooldownStatesEqual(a.cooldowns, b.cooldowns) &&
-    sameChargeState(a.charge, b.charge)
+    sameChargeState(a.charge, b.charge) &&
+    effectsEqual(a.effects, b.effects)
   );
 }
 

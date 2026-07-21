@@ -155,6 +155,57 @@ describe("OpenAPI document", () => {
     );
   });
 
+  it("UT-R-EFF-01-030 (PR #207再レビュー[P1]): every $ref in the real app.swagger() document resolves to an existing local JSON pointer (ConditionDefinition's AND/OR/NOT self-reference must not become a dangling #/components/schemas/def-N)", () => {
+    function resolvePointer(document: unknown, pointer: string): unknown {
+      if (!pointer.startsWith("#/")) {
+        throw new Error(`only local JSON pointers are supported, got "${pointer}"`);
+      }
+      const segments = pointer
+        .slice(2)
+        .split("/")
+        .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
+      let node: unknown = document;
+      for (const segment of segments) {
+        if (typeof node !== "object" || node === null || !(segment in node)) {
+          return undefined;
+        }
+        node = (node as Record<string, unknown>)[segment];
+      }
+      return node;
+    }
+
+    function collectRefs(node: unknown, into: Set<string>): void {
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          collectRefs(item, into);
+        }
+        return;
+      }
+      if (typeof node !== "object" || node === null) {
+        return;
+      }
+      const record = node as Record<string, unknown>;
+      if (typeof record.$ref === "string") {
+        into.add(record.$ref);
+      }
+      for (const value of Object.values(record)) {
+        collectRefs(value, into);
+      }
+    }
+
+    const document = app.swagger();
+    const refs = new Set<string>();
+    collectRefs(document, refs);
+
+    // ConditionDefinition (expirationConditions items) is the only recursive
+    // Catalog schema in this document, so at least one $ref must exist to
+    // exercise this assertion meaningfully.
+    expect(refs.size).toBeGreaterThan(0);
+    for (const ref of refs) {
+      expect(resolvePointer(document, ref), `dangling $ref: "${ref}"`).toBeDefined();
+    }
+  });
+
   it("API-OPENAPI-006 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」/10_API設計.md「GETの200／304」): documents GET /api/v1/battle-simulation-catalog with 200, 304, 406, and 500", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
@@ -502,6 +553,221 @@ describe("OpenAPI document", () => {
     expect(validate(matched), JSON.stringify(validate.errors)).toBe(true);
   });
 
+  it("UT-R-EFF-01-029 (08_ドメインイベント.md EffectApplied payload; PR #207レビュー[P2]): validates EffectApplied.details.expirationConditions as a real (recursive) ConditionDefinition union, not an arbitrary object", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+
+    const validNested = {
+      ...base,
+      details: {
+        ...basePayload,
+        expirationConditions: [
+          {
+            kind: "AND",
+            conditions: [
+              { kind: "TRUE" },
+              {
+                kind: "NOT",
+                condition: {
+                  kind: "TARGET_HAS_MARKER",
+                  target: { kind: "SELF" },
+                  markerId: "MARKER_1",
+                },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    expect(validate(validNested), JSON.stringify(validate.errors)).toBe(true);
+
+    // Not a real ConditionDefinition variant (unknown "kind" and a field no
+    // variant declares): a permissive `{ type: "object" }` items schema would
+    // wrongly accept this.
+    const invalidCondition = {
+      ...base,
+      details: {
+        ...basePayload,
+        expirationConditions: [{ kind: "NOT_A_REAL_KIND", somethingElse: 1 }],
+      },
+    };
+    expect(validate(invalidCondition)).toBe(false);
+  });
+
+  it("UT-R-EFF-01-031 (references.ts createTargetReference; PR #207再レビュー[P2]): rejects a BINDING TargetReference missing targetBindingId and a non-BINDING TargetReference that sets it, matching the domain constraint exactly", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+    function withTarget(target: unknown) {
+      return {
+        ...base,
+        details: {
+          ...basePayload,
+          expirationConditions: [{ kind: "POSITION_RELATION", target, relation: "IN_FRONT_OF" }],
+        },
+      };
+    }
+
+    // Valid per `createTargetReference` (references.ts): BINDING requires
+    // targetBindingId, every other kind must omit it.
+    expect(
+      validate(withTarget({ kind: "BINDING", targetBindingId: "TGT_1" })),
+      JSON.stringify(validate.errors),
+    ).toBe(true);
+    expect(validate(withTarget({ kind: "SELF" })), JSON.stringify(validate.errors)).toBe(true);
+
+    // Invalid: BINDING without the required targetBindingId.
+    expect(validate(withTarget({ kind: "BINDING" }))).toBe(false);
+    // Invalid: a non-BINDING kind must not carry targetBindingId (a
+    // permissive "targetBindingId is always optional" schema would wrongly
+    // accept this, even though the domain rejects it as "must not be set
+    // when kind is ... (only valid when kind is BINDING)").
+    expect(validate(withTarget({ kind: "SELF", targetBindingId: "TGT_1" }))).toBe(false);
+  });
+
+  it("UT-R-EFF-01-032 (condition-definition.ts TARGET_STATE_FIELD_TYPES; PR #207再レビュー[P2]): rejects a TARGET_STATE value whose type doesn't match its field's Domain-mandated type", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+    function withCondition(field: string, value: unknown) {
+      return {
+        ...base,
+        details: {
+          ...basePayload,
+          expirationConditions: [
+            { kind: "TARGET_STATE", target: { kind: "SELF" }, field, op: "EQ", value },
+          ],
+        },
+      };
+    }
+
+    // Valid per `TARGET_STATE_FIELD_TYPES` (condition-definition.ts): one
+    // representative field per Domain-mandated value type.
+    expect(validate(withCondition("IS_ALIVE", true)), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(withCondition("HP_RATIO", 0.5)), JSON.stringify(validate.errors)).toBe(true);
+    expect(
+      validate(withCondition("ATTRIBUTE", "AGGRESSIVE")),
+      JSON.stringify(validate.errors),
+    ).toBe(true);
+
+    // Invalid: a boolean-typed field given a string value (a single
+    // `value: { type: ["string","number","boolean"] }` shared across every
+    // field would wrongly accept this).
+    expect(validate(withCondition("IS_ALIVE", "yes"))).toBe(false);
+    // Invalid: a number-typed field given a boolean value.
+    expect(validate(withCondition("HP_RATIO", true))).toBe(false);
+    // Invalid: a string-typed field given a number value.
+    expect(validate(withCondition("ATTRIBUTE", 1))).toBe(false);
+  });
+
+  it("UT-R-EFF-01-033 (condition-definition.ts RUNTIME_COUNTER modulo assertInteger({min:1}); PR #207再レビュー[P2]): rejects a RUNTIME_COUNTER modulo that is 0 or non-integer", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+    function withModulo(modulo: unknown) {
+      return {
+        ...base,
+        details: {
+          ...basePayload,
+          expirationConditions: [
+            { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_X", op: "EQ", value: 1, modulo },
+          ],
+        },
+      };
+    }
+
+    expect(validate(withModulo(1)), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(withModulo(3)), JSON.stringify(validate.errors)).toBe(true);
+    // Invalid: assertInteger(..., { min: 1 }) rejects both 0 and non-integers.
+    expect(validate(withModulo(0))).toBe(false);
+    expect(validate(withModulo(1.5))).toBe(false);
+  });
+
   it("API-OPENAPI-005 (regression: M5 review [P1] found COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // A mapped type over `BattleDomainEventType` forces a compile error (missing
     // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event
@@ -550,6 +816,7 @@ describe("OpenAPI document", () => {
       SkillUseInterrupted: true,
       RuntimeCounterChanged: true,
       RuntimeCounterReset: true,
+      EffectApplied: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

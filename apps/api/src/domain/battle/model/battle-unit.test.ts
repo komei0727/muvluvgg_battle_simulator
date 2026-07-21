@@ -4,6 +4,7 @@ import {
   createBattleUnitsFromParty,
   isDefeated,
   recoverTurnResources,
+  requireUnit,
   type BattleUnitResourceLimits,
 } from "./battle-unit.js";
 import type { BattleParty, BattlePartyMember } from "./battle-party.js";
@@ -52,6 +53,12 @@ describe("createBattleUnit", () => {
     expect(unit.maximumAp).toBe(3);
     expect(unit.maximumPp).toBe(3);
     expect(unit.maximumExtraGauge).toBe(100);
+  });
+
+  it("UT-R-EFF-01-008: starts with no applied effects (individually-held registry, 05_ドメインモデル.md AppliedEffect)", () => {
+    const unit = createBattleUnit(member(), "ALLY", LIMITS);
+
+    expect(unit.appliedEffects).toEqual([]);
   });
 
   it("UT-BATTLE-UNIT-002: carries the member's position, coordinate, and combat stats through unchanged", () => {
@@ -170,5 +177,19 @@ describe("createBattleUnitsFromParty", () => {
     };
 
     expect(() => createBattleUnitsFromParty(party, new Map())).toThrow(DomainValidationError);
+  });
+});
+
+describe("requireUnit", () => {
+  it("UT-R-EFF-01-014: returns the unit matching the given BattleUnitId", () => {
+    const unit = createBattleUnit(member(), "ALLY", LIMITS);
+
+    expect(requireUnit([unit], unit.battleUnitId)).toBe(unit);
+  });
+
+  it("UT-R-EFF-01-015: throws when no unit matches the given BattleUnitId", () => {
+    const unit = createBattleUnit(member(), "ALLY", LIMITS);
+
+    expect(() => requireUnit([unit], createBattleUnitId("MISSING"))).toThrow(DomainValidationError);
   });
 });

@@ -7,10 +7,12 @@ import type {
 import {
   createActionId,
   createDomainEventId,
+  createEffectInstanceId,
   createResolutionScopeId,
   createSkillUseId,
   type ActionId,
   type DomainEventId,
+  type EffectInstanceId,
   type ResolutionScopeId,
   type SkillUseId,
 } from "../../shared/event-ids.js";
@@ -69,6 +71,7 @@ export class EventRecorder {
   private actionCounter = 0;
   private skillUseCounter = 0;
   private scopeCounter = 0;
+  private effectInstanceCounter = 0;
   private readonly recordedEvents: BattleDomainEvent[] = [];
   private readonly maxTotalEvents: number;
 
@@ -92,6 +95,12 @@ export class EventRecorder {
   nextResolutionScopeId(): ResolutionScopeId {
     this.scopeCounter += 1;
     return createResolutionScopeId(`${this.battleId}:scope:${this.scopeCounter}`);
+  }
+
+  /** `05_ドメインモデル.md`「AppliedEffect」: 新しい効果インスタンスを付与するたびに採番する。 */
+  nextEffectInstanceId(): EffectInstanceId {
+    this.effectInstanceCounter += 1;
+    return createEffectInstanceId(`${this.battleId}:effect:${this.effectInstanceCounter}`);
   }
 
   /**

@@ -1,6 +1,7 @@
 import type {
   ActionId,
   DomainEventId,
+  EffectInstanceId,
   ResolutionScopeId,
   SkillUseId,
 } from "../../shared/event-ids.js";
@@ -10,8 +11,11 @@ import type { ReservedActionKind } from "../action/action-queue.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { Side } from "../../shared/side.js";
 import type {
+  ConsumptionKind,
   CriticalMode,
   DamageType,
+  DurationOwner,
+  DurationTimeUnit,
   ResourceKind,
   SkillType,
 } from "../../catalog/definitions/catalog-enums.js";
@@ -22,7 +26,10 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { RuntimeCounterScope } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
-import type { ConditionKind } from "../../catalog/definitions/condition-definition.js";
+import type {
+  ConditionDefinition,
+  ConditionKind,
+} from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectStepDefinition } from "../../catalog/definitions/effect-sequence.js";
 
@@ -376,6 +383,39 @@ export interface BattleDomainEventPayloadMap {
     readonly counter: RuntimeCounterId;
     readonly skillDefinitionId: SkillDefinitionId;
     readonly before: number;
+  };
+  /**
+   * `05_ドメインモデル.md`「AppliedEffect」/`08_ドメインイベント.md`「EffectApplied
+   * payload」（R-EFF-01）。新しい効果インスタンスを追加した直後に発行する。
+   * `kindKey`は`EffectKindKey`（現状`EffectActionDefinitionId`をそのまま使う、
+   * `applied-effect.ts`参照）。`durationUnit`/`durationOwner`/`initialRemaining`は
+   * `timeLimit`を持つ場合だけ（`durationOwner`はさらに`timeLimit.owner`が
+   * 明示された場合だけ）、`consumptionKind`/`consumptionMaxCount`は`consumption`
+   * を持つ場合だけ、`expirationConditions`は`expiration`を持つ場合だけ存在する。
+   * いずれも持たない場合は戦闘終了まで保持される。
+   */
+  readonly EffectApplied: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly targetUnitId: BattleUnitId;
+    readonly duplicate: boolean;
+    readonly kindKey: string;
+    readonly magnitude: number;
+    readonly durationUnit?: DurationTimeUnit;
+    readonly durationOwner?: DurationOwner;
+    readonly initialRemaining?: number;
+    /** インスタンス自身の残り回数（付与直後は`initialRemaining`と同値。R-EFF-04/06の減算は`EffectDurationReduced`が別途表す、EFF-003スコープ）。 */
+    readonly remainingCount?: number;
+    readonly consumptionKind?: ConsumptionKind;
+    readonly consumptionMaxCount?: number;
+    /** インスタンス自身の消費残り回数（付与直後は`consumptionMaxCount`と同値。R-EFF-07の消費は`EffectConsumptionChanged`が別途表す、EFF-003スコープ）。 */
+    readonly consumptionRemaining?: number;
+    readonly expirationConditions?: readonly ConditionDefinition[];
+    readonly linkedEffectGroupId: string | null;
+    readonly grantedActionId?: ActionId;
+    readonly grantedTurnNumber?: number;
+    readonly snapshot?: Readonly<Record<string, number>>;
   };
 }
 

@@ -2,6 +2,7 @@ import type { BattleStateSnapshot, BattleUnitSnapshot } from "./battle-state-sna
 import type {
   ChargeState,
   CooldownState,
+  EffectSnapshot,
   StateDelta,
   UnitStateDelta,
   ValueChange,
@@ -9,6 +10,7 @@ import type {
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { EffectInstanceId } from "../../shared/event-ids.js";
 
 function assertBeforeMatches<T>(path: string, current: T, change: ValueChange<T>): void {
   if (current !== change.before) {
@@ -43,6 +45,67 @@ function assertChargeBeforeMatches(
       `delta.before (${JSON.stringify(change.before)}) does not match the current value (${JSON.stringify(current)}); the delta sequence is dropped, reordered, or duplicated`,
     );
   }
+}
+
+/**
+ * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
+ * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
+ * 単位の構造比較を行う。
+ */
+export function sameEffectSnapshot(
+  a: EffectSnapshot | undefined,
+  b: EffectSnapshot | undefined,
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.effectInstanceId === b.effectInstanceId &&
+    a.effectDefinitionId === b.effectDefinitionId &&
+    a.sourceUnitId === b.sourceUnitId &&
+    a.kindKey === b.kindKey &&
+    a.duplicate === b.duplicate &&
+    a.magnitude === b.magnitude &&
+    a.duration?.unit === b.duration?.unit &&
+    a.duration?.remaining === b.duration?.remaining &&
+    a.appliedTurnNumber === b.appliedTurnNumber &&
+    a.appliedActionId === b.appliedActionId
+  );
+}
+
+/**
+ * R-EFF-01: `EffectInstanceId`をキーとする`EffectSnapshot`の差分を適用する。
+ * `Map`の挿入順を使い、既存キーの更新は位置を保ったまま、新規キー
+ * （`before: undefined`）は末尾へ追加する（`applied-effect.ts`のarray順=付与順を
+ * 独立Reducerでも保つ）。
+ */
+function applyEffectDeltas(
+  path: string,
+  current: readonly EffectSnapshot[] | undefined,
+  deltas: UnitStateDelta["effects"],
+): readonly EffectSnapshot[] | undefined {
+  if (deltas === undefined) {
+    return current;
+  }
+  const byId = new Map((current ?? []).map((effect) => [effect.effectInstanceId, effect] as const));
+  for (const [effectInstanceId, change] of Object.entries(deltas) as [
+    EffectInstanceId,
+    ValueChange<EffectSnapshot | undefined>,
+  ][]) {
+    const existing = byId.get(effectInstanceId);
+    if (!sameEffectSnapshot(existing, change.before)) {
+      throw new DomainValidationError(
+        `${path}[${effectInstanceId}]`,
+        `delta.before (${JSON.stringify(change.before)}) does not match the current value (${JSON.stringify(existing)}); the delta sequence is dropped, reordered, or duplicated`,
+      );
+    }
+    if (change.after === undefined) {
+      byId.delete(effectInstanceId);
+    } else {
+      byId.set(effectInstanceId, change.after);
+    }
+  }
+  return [...byId.values()];
 }
 
 function applyUnitDelta(
@@ -82,6 +145,7 @@ function applyUnitDelta(
     delta.skillCounterCarry,
     { pruneEmptySkillEntries: true },
   );
+  const effects = applyEffectDeltas(`${path}.effects`, unit.effects, delta.effects);
   return {
     hp: delta.hp?.after ?? unit.hp,
     ap: delta.ap?.after ?? unit.ap,
@@ -91,6 +155,7 @@ function applyUnitDelta(
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
     ...(skillCounters !== undefined ? { skillCounters } : {}),
     ...(skillCounterCarry !== undefined ? { skillCounterCarry } : {}),
+    ...(effects !== undefined && effects.length > 0 ? { effects } : {}),
   };
 }
 

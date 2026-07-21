@@ -481,6 +481,27 @@ function cooldownManipulationAction(
   );
 }
 
+function statModAction(
+  id: string,
+  requiredCapabilities: readonly string[] = ["CAP_STAT_MOD"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 20 },
+        stacking: { mode: "STACKABLE" },
+        duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function unit(
   id: string,
   overrides: {
@@ -922,6 +943,44 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_CD_RESET",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-EFF-01-025 (PR #207レビュー[P1]): accepts an APPLY_STAT_MOD that declares the required CAP_STAT_MOD capability", () => {
+    const defs = baseDefinitions();
+    const withStatMod: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, statModAction("ACT_STAT_MOD")],
+      capabilities: [capability("CAP_STAT_MOD")],
+    };
+
+    const index = buildCatalogIndex(withStatMod);
+
+    expect(index.effectActions.get("ACT_STAT_MOD" as never)).toBeDefined();
+  });
+
+  it("UT-R-EFF-01-026 (PR #207レビュー[P1]): rejects an APPLY_STAT_MOD missing the required CAP_STAT_MOD capability, so an incomplete resolver path can't be reached from custom Catalog data", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, statModAction("ACT_STAT_MOD", [])],
+      capabilities: [capability("CAP_STAT_MOD")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_STAT_MOD",
         ),
       ).toBe(true);
     }

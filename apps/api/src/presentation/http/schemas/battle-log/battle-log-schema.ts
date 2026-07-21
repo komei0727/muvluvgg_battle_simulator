@@ -712,6 +712,306 @@ const runtimeCounterResetDetailsSchema = {
   },
 } as const;
 
+const DURATION_TIME_UNIT_ENUM = ["ACTION", "TURN", "BATTLE", "HIT", "SKILL_USE"] as const;
+const DURATION_OWNER_ENUM = ["EFFECT_TARGET", "EFFECT_SOURCE", "BATTLE"] as const;
+const CONSUMPTION_KIND_ENUM = [
+  "NEXT_OUTGOING_ATTACK",
+  "NEXT_INCOMING_ATTACK",
+  "INCOMING_HIT",
+  "OUTGOING_HIT",
+  "STATUS_BLOCKED",
+  "LETHAL_DAMAGE",
+] as const;
+
+const COMPARISON_OPERATOR_ENUM = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
+const jsonPrimitiveSchema = { type: ["string", "number", "boolean"] } as const;
+/**
+ * `references.ts`の`createTargetReference`と1:1対応する制約（PR #207再レビュー
+ * [P2]）: `BINDING`は`targetBindingId`必須、それ以外のkindは同fieldを禁止する
+ * （ドメイン側「must not be set when kind is ... (only valid when kind is
+ * BINDING)」）。`targetBindingId`を常にoptionalとする単一schemaでは、
+ * ドメインが拒否する組み合わせ（例: `SELF`に`targetBindingId`を付与）も
+ * 有効と判定してしまうため、`oneOf`でBINDING形と非BINDING形を分ける。
+ */
+const targetReferenceDetailsSchema = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "targetBindingId"],
+      properties: {
+        kind: { const: "BINDING" },
+        targetBindingId: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind"],
+      properties: {
+        kind: {
+          type: "string",
+          enum: [
+            "SELF",
+            "TRIGGER_SOURCE",
+            "TRIGGER_TARGET",
+            "LAST_ACTION_TARGETS",
+            "LAST_DAMAGED_TARGETS",
+          ],
+        },
+      },
+    },
+  ],
+} as const;
+
+/**
+ * `condition-definition.ts`の`ConditionDefinition`と1:1対応するOpenAPI schema
+ * （PR #207レビュー[P2]: `{ type: "object" }`のような任意許容ではなく、
+ * `kind`を判別子にした実際の構造を検証する）。`AND`/`OR`/`NOT`は自身を再帰的に
+ * 参照するため、`$id`を持つ独立schemaとして定義し`$ref`で自己参照する
+ * （fastify/@fastify/swaggerを含むこのリポジトリで初めての`$id`/`$ref`使用 —
+ * `ConditionDefinition`が唯一循環構造を持つCatalog型のため）。AJVは
+ * `ajv.compile()`実行時にschemaツリー内の`$id`を自動的に索引するため、
+ * 個別の`addSchema`登録は不要。
+ */
+export const CONDITION_DEFINITION_SCHEMA_ID =
+  "https://muvluvgg-battle-simulator/schemas/ConditionDefinition";
+export const conditionDefinitionDetailsSchema = {
+  $id: CONDITION_DEFINITION_SCHEMA_ID,
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind"],
+      properties: { kind: { const: "TRUE" } },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "conditions"],
+      properties: {
+        kind: { const: "AND" },
+        conditions: {
+          type: "array",
+          minItems: 1,
+          items: { $ref: CONDITION_DEFINITION_SCHEMA_ID },
+        },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "conditions"],
+      properties: {
+        kind: { const: "OR" },
+        conditions: {
+          type: "array",
+          minItems: 1,
+          items: { $ref: CONDITION_DEFINITION_SCHEMA_ID },
+        },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "condition"],
+      properties: {
+        kind: { const: "NOT" },
+        condition: { $ref: CONDITION_DEFINITION_SCHEMA_ID },
+      },
+    },
+    // `condition-definition.ts`の`TARGET_STATE_FIELD_TYPES`（PR #207再レビュー
+    // [P2]）: fieldごとに`value`の型が固定されている（`IS_ALIVE`はboolean、
+    // `HP_RATIO`/`RESOURCE_*`はnumber、それ以外はstringのみ）。単一の
+    // `value: string | number | boolean`では、Domainが拒否する組み合わせ
+    // （例: `IS_ALIVE`にstring値）も有効と判定してしまうため、fieldの型別に
+    // 3つのvariantへ分ける。
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "field", "op", "value"],
+      properties: {
+        kind: { const: "TARGET_STATE" },
+        target: targetReferenceDetailsSchema,
+        field: { const: "IS_ALIVE" },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "boolean" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "field", "op", "value"],
+      properties: {
+        kind: { const: "TARGET_STATE" },
+        target: targetReferenceDetailsSchema,
+        field: {
+          type: "string",
+          enum: ["HP_RATIO", "RESOURCE_AP", "RESOURCE_PP", "RESOURCE_EX_GAUGE"],
+        },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "number" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "field", "op", "value"],
+      properties: {
+        kind: { const: "TARGET_STATE" },
+        target: targetReferenceDetailsSchema,
+        field: {
+          type: "string",
+          enum: ["ATTRIBUTE", "UNIT_TYPE", "ROLE", "POSITION_ROW", "POSITION_COLUMN", "HAS_STATUS"],
+        },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "markerId"],
+      properties: {
+        kind: { const: "TARGET_HAS_MARKER" },
+        target: targetReferenceDetailsSchema,
+        markerId: { type: "string" },
+        countCondition: {
+          type: "object",
+          additionalProperties: false,
+          required: ["op", "value"],
+          properties: {
+            op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+            value: { type: "number" },
+          },
+        },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "field", "op", "value"],
+      properties: {
+        kind: { const: "EVENT_PAYLOAD" },
+        field: { type: "string" },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: jsonPrimitiveSchema,
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "field", "op", "value"],
+      properties: {
+        kind: { const: "LAST_RESULT" },
+        field: { type: "string" },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: jsonPrimitiveSchema,
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "counter", "op", "value"],
+      properties: {
+        kind: { const: "RUNTIME_COUNTER" },
+        counter: { type: "string" },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "number" },
+        // `condition-definition.ts`: `assertInteger(input.modulo, ..., { min: 1 })`
+        // （PR #207再レビュー[P2]）。`TURN_NUMBER.modulo`は`assertFinite`のみで
+        // 整数・下限制約を持たないため、同じ`modulo`名でも`type: "number"`の
+        // ままにする（下のTURN_NUMBER variant）。
+        modulo: { type: "integer", minimum: 1 },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "op", "value"],
+      properties: {
+        kind: { const: "TURN_NUMBER" },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "number" },
+        modulo: { type: "number" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "side", "excludeSelf", "op", "value"],
+      properties: {
+        kind: { const: "ALIVE_UNIT_COUNT" },
+        side: { type: "string", enum: ["ALLY", "ENEMY", "ALL"] },
+        excludeSelf: { type: "boolean" },
+        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        value: { type: "number" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "relation"],
+      properties: {
+        kind: { const: "POSITION_RELATION" },
+        target: targetReferenceDetailsSchema,
+        relation: { type: "string", enum: ["IN_FRONT_OF"] },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "phase", "negate"],
+      properties: {
+        kind: { const: "RESOLUTION_PHASE" },
+        phase: { type: "string", enum: ["BATTLE_START", "TURN_START", "TURN_END"] },
+        negate: { type: "boolean" },
+      },
+    },
+  ],
+} as const;
+
+/**
+ * `EffectApplied`（R-EFF-01）。新しい効果インスタンス追加後に発行する。
+ * `durationUnit`/`initialRemaining`は`timeLimit`を持つ場合、`consumptionKind`/
+ * `consumptionMaxCount`は`consumption`を持つ場合だけ存在する。
+ */
+const effectAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "effectActionDefinitionId",
+    "sourceUnitId",
+    "targetUnitId",
+    "duplicate",
+    "kindKey",
+    "magnitude",
+    "linkedEffectGroupId",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    targetUnitId: { type: "string" },
+    duplicate: { type: "boolean" },
+    kindKey: { type: "string" },
+    magnitude: { type: "number" },
+    durationUnit: { type: "string", enum: DURATION_TIME_UNIT_ENUM },
+    durationOwner: { type: "string", enum: DURATION_OWNER_ENUM },
+    initialRemaining: { type: "integer", minimum: 1 },
+    remainingCount: { type: "integer", minimum: 0 },
+    consumptionKind: { type: "string", enum: CONSUMPTION_KIND_ENUM },
+    consumptionMaxCount: { type: "integer", minimum: 1 },
+    consumptionRemaining: { type: "integer", minimum: 0 },
+    expirationConditions: { type: "array", items: conditionDefinitionDetailsSchema },
+    linkedEffectGroupId: { type: ["string", "null"] },
+    grantedActionId: { type: "string" },
+    grantedTurnNumber: { type: "integer", minimum: 1 },
+    snapshot: { type: "object", additionalProperties: { type: "number" } },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -763,6 +1063,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   SKILL_USE_INTERRUPTED: skillUseInterruptedDetailsSchema,
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
+  EFFECT_APPLIED: effectAppliedDetailsSchema,
 } as const;
 
 /**

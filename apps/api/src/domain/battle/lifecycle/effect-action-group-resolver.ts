@@ -1,6 +1,7 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import { applyDamageAction } from "../combat/damage-application-service.js";
+import { grantEffect } from "../effects/effect-grant-service.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type {
   EffectActionApplication,
@@ -15,6 +16,7 @@ import type {
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../events/domain-event.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
@@ -90,6 +92,21 @@ export interface UnitsBox {
 export type EffectResolutionStep =
   | { readonly kind: "TIMING_EVENT"; readonly event: BattleDomainEvent }
   | { readonly kind: "EFFECT_RESOLVED"; readonly events: readonly BattleDomainEvent[] };
+
+/**
+ * R-DMG-01の`resolveSkillPower`/`resolveActionDamageMultiplier`と同じ「基本
+ * FormulaEvaluator」方針: `CONSTANT`だけを評価する（binding・イベントpayload・
+ * 直前結果・Marker参照などを含む一般Formula評価器はIssue #74のスコープ）。
+ */
+function resolveBasicFormula(formula: FormulaDefinition, path: string): number {
+  if (formula.kind !== "CONSTANT") {
+    throw new DomainValidationError(
+      path,
+      `kind "${formula.kind}" is not supported by this basic EffectActionGroupResolver (general FormulaEvaluator is Issue #74 scope)`,
+    );
+  }
+  return formula.value;
+}
 
 function countHits(applications: readonly EffectActionApplication[]): number {
   return applications.reduce((sum, application) => sum + application.hits.length, 0);
@@ -262,10 +279,62 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
     effectLastEventId = cooldownResult.lastEventId;
     resultKind = cooldownResult.changed ? "APPLIED" : "SKIPPED";
+  } else if (effectAction.kind === "APPLY_STAT_MOD") {
+    // R-EFF-01: 継続stat補正をAppliedEffectとして個別に付与する（レジストリ
+    // 追加・`EffectApplied`・StateDelta・独立Reducer復元まで）。`stacking.mode`は
+    // 現状"STACKABLE"しかCatalogスキーマに存在しないため、重複あり
+    // (duplicate: true)として扱う（`applied-effect.ts`のコメント参照）。
+    // このAppliedEffectをCombatStat計算へ反映する処理（R-EFF-05/R-STA-02〜04の
+    // 重複なし最強選択・再計算・`CombatStatChanged`）はEFF-002のスコープで、
+    // ここではまだ行わない。production Catalogの全`APPLY_STAT_MOD`行は
+    // `CAP_STAT_MOD`（`PLANNED`、`capabilities.json`）を要求するため、
+    // preflightがEFF-002完了までこの分岐へ実際に到達させない
+    // （PR #207レビュー[P1]: 未実装の計算を伴わずに`resultKind: "APPLIED"`を
+    // 返すことは、Capabilityで拒否しない限り「効いていない補正を成功扱い
+    // にする」ことになるため）。
+    const magnitude = resolveBasicFormula(
+      effectAction.payload.formula,
+      "effectAction.payload.formula",
+    );
+    const grantResult = grantEffect(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      {
+        effectActionDefinitionId: application.effectActionDefinitionId,
+        sourceId: context.actorId,
+        targetId: application.targetBattleUnitId,
+        duplicate: true,
+        magnitude,
+        durationDefinition: effectAction.payload.duration,
+      },
+      starting.eventId,
+    );
+    box.units = grantResult.units;
+    // `grantEffect`は`applyDamageAction`/`applyCooldownManipulationAction`と
+    // 異なりヒット単位のPS連鎖フックを持たないため、記録した`EffectApplied`を
+    // ここで`onFactEventForPassiveChain`へ転送する（AS/EX経路のみ。PS自身の
+    // EffectSequence解決経路では`innerEvents`が同じ役割を果たす）。
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    }
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = grantResult.lastEventId;
+    resultKind = "APPLIED";
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
