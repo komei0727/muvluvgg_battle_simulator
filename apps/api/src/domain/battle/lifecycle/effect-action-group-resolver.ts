@@ -1,8 +1,17 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
-import { applyDamageAction } from "../combat/damage-application-service.js";
+import {
+  applyDamageAction,
+  type DamageEventContext,
+} from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
 import { recalculateCombatStats } from "../effects/combat-stat-recalculation-service.js";
+import {
+  emitEffectConsumptionChangedEvents,
+  expireEffects,
+  type ExpirationSeed,
+} from "../effects/duration-expiry-service.js";
+import { consumeEffectDurations } from "../model/applied-effect-duration.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type {
   EffectActionApplication,
@@ -111,6 +120,59 @@ function resolveBasicFormula(formula: FormulaDefinition, path: string): number {
 
 function countHits(applications: readonly EffectActionApplication[]): number {
   return applications.reduce((sum, application) => sum + application.hits.length, 0);
+}
+
+/**
+ * R-EFF-07: `damage-application-service.ts`（`combat/`）が`effects/`へ直接
+ * 依存できない（Domain層のmodule境界、`onFactEventForPassiveChain`と同じ
+ * 理由）ため、`DamageEventContext.consumeEffectDuration`として注入する
+ * クロージャを組み立てる。消費・失効・CombatStat再計算を1つのownerUnitId/kind
+ * 呼び出しごとに行う。
+ */
+function buildConsumeEffectDuration(
+  context: EffectActionGroupContext,
+): NonNullable<DamageEventContext["consumeEffectDuration"]> {
+  return (ownerUnitId, kind, units, callParentEventId) => {
+    const consumption = consumeEffectDurations(units, ownerUnitId, kind);
+    if (consumption.changes.length === 0) {
+      return { units, lastEventId: callParentEventId };
+    }
+    const eventContext = {
+      recorder: context.recorder,
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.actionScope,
+      rootEventId: context.rootEventId,
+    };
+    let lastEventId = emitEffectConsumptionChangedEvents(
+      eventContext,
+      consumption.units,
+      consumption.changes,
+      callParentEventId,
+    );
+    const seeds: ExpirationSeed[] = consumption.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        effectInstanceId: change.effectInstanceId,
+        reason: "CONSUMPTION",
+      }));
+    let resultUnits = consumption.units;
+    if (seeds.length > 0) {
+      const expiry = expireEffects(
+        eventContext,
+        consumption.units,
+        seeds,
+        context.definitions.effectActions,
+        lastEventId,
+      );
+      resultUnits = expiry.units;
+      lastEventId = expiry.lastEventId;
+    }
+    return { units: resultUnits, lastEventId };
+  };
 }
 
 /** R-SKL-06 #5: DAMAGE適用結果からEffectActionCompletedのresultKindを導く。 */
@@ -239,6 +301,7 @@ function* resolveOneEffectActionApplication(
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
         skillDefinitionId: context.skillDefinitionId,
+        consumeEffectDuration: buildConsumeEffectDuration(context),
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
@@ -288,13 +351,12 @@ function* resolveOneEffectActionApplication(
     // R-EFF-05/R-STA-02〜04: 付与直後にCombatStatを再計算し、実際に変化した
     // statごとに`CombatStatChanged`を、重複なしグループの採用対象が変わった
     // 場合は`EffectiveEffectChanged`も発行する
-    // （`combat-stat-recalculation-service.ts`）。PR #208レビュー[P1]:
-    // `CAP_STAT_MOD`（`capabilities.json`）は依然`PLANNED`（実装対象EFF-003）の
-    // ままとする — この再計算自体は正しく動くが、ACTION/TURN期間の減算・
-    // `EffectExpired`・除去の実ライフサイクル（EFF-003）が無いため、期間付き
-    // Stat Modifierを付与すると戦闘終了まで残留してしまう。production
-    // Catalogの全`APPLY_STAT_MOD`行が`CAP_STAT_MOD`を要求するため、preflightが
-    // EFF-003完了までこの分岐へ実際に到達させない。
+    // （`combat-stat-recalculation-service.ts`）。EFF-003（Issue #159）で
+    // ACTION/TURN期間の減算・消費条件・特殊失効・`EffectExpired`・除去の実
+    // ライフサイクル（`action-completion.ts`/`battle.ts`/
+    // `damage-application-service.ts`が呼ぶ`duration-expiry-service.ts`）が
+    // 完成したため、`CAP_STAT_MOD`は`capabilities.json`で`IMPLEMENTED`に
+    // 変わっている — 期間付きStat Modifierも正しく失効・除去される。
     const magnitude = resolveBasicFormula(
       effectAction.payload.formula,
       "effectAction.payload.formula",
@@ -337,6 +399,7 @@ function* resolveOneEffectActionApplication(
       application.targetBattleUnitId,
       context.definitions.effectActions,
       grantResult.lastEventId,
+      "EFFECT_APPLIED",
     );
     box.units = recalculation.units;
     // `grantEffect`/`recalculateCombatStats`は`applyDamageAction`/

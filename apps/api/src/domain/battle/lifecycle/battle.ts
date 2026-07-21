@@ -5,6 +5,12 @@ import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
 import { decrementTurnCooldowns } from "../model/cooldown-state.js";
+import { decrementTurnEffectDurations } from "../model/applied-effect-duration.js";
+import {
+  emitEffectDurationReducedEvents,
+  expireEffects,
+  type ExpirationSeed,
+} from "../effects/duration-expiry-service.js";
 import type { DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ResourceRecoveryEntry } from "../events/domain-event.js";
@@ -414,27 +420,87 @@ export function advanceBattle(
     enemyUnits: enemyUnitsAfterTurnEndPassives.map((u) => cooldownById.get(u.battleUnitId) ?? u),
   };
 
+  // `06_戦闘状態遷移.md` TURN_ENDING #5-7 / R-EFF-06: クールタイム減算後、ターン
+  // 単位効果の残り回数を全ユニットで1減らし、0になったインスタンスを即時に
+  // 失効させる（重複なし最強効果の次点繰上げは`expireEffects`が
+  // `recalculateCombatStats`経由で自然に反映する）。
+  const turnDurationDecrement = decrementTurnEffectDurations(
+    [...progressedWithCooldown.allyUnits, ...progressedWithCooldown.enemyUnits],
+    nextTurnNumber,
+  );
+  let lastTurnEndEventId = cooldownDecrement.lastEventId;
+  let unitsAfterEffectDuration = turnDurationDecrement.units;
+  if (turnDurationDecrement.changes.length > 0) {
+    lastTurnEndEventId = emitEffectDurationReducedEvents(
+      {
+        recorder,
+        turnNumber: nextTurnNumber,
+        cycleNumber: 0,
+        resolutionScopeId: turnEndScope,
+        rootEventId: turnCompleting.eventId,
+      },
+      unitsAfterEffectDuration,
+      turnDurationDecrement.changes,
+      lastTurnEndEventId,
+    );
+
+    const seeds: ExpirationSeed[] = turnDurationDecrement.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        effectInstanceId: change.effectInstanceId,
+        reason: "TIME_LIMIT",
+      }));
+    if (seeds.length > 0) {
+      const expiry = expireEffects(
+        {
+          recorder,
+          turnNumber: nextTurnNumber,
+          cycleNumber: 0,
+          resolutionScopeId: turnEndScope,
+          rootEventId: turnCompleting.eventId,
+        },
+        unitsAfterEffectDuration,
+        seeds,
+        battle.definitions.effectActions,
+        lastTurnEndEventId,
+      );
+      unitsAfterEffectDuration = expiry.units;
+      lastTurnEndEventId = expiry.lastEventId;
+    }
+  }
+  const effectDurationById = new Map(unitsAfterEffectDuration.map((u) => [u.battleUnitId, u]));
+  const progressedWithEffectDuration: Battle = {
+    ...progressedWithCooldown,
+    allyUnits: progressedWithCooldown.allyUnits.map(
+      (u) => effectDurationById.get(u.battleUnitId) ?? u,
+    ),
+    enemyUnits: progressedWithCooldown.enemyUnits.map(
+      (u) => effectDurationById.get(u.battleUnitId) ?? u,
+    ),
+  };
+
   recorder.record({
     eventType: "TurnCompleted",
     category: "FACT",
     turnNumber: nextTurnNumber,
     cycleNumber: 0,
     resolutionScopeId: turnEndScope,
-    parentEventId: cooldownDecrement.lastEventId,
+    parentEventId: lastTurnEndEventId,
     rootEventId: turnCompleting.eventId,
     payload: { turnNumber: nextTurnNumber },
   });
 
   const afterTurnEnd = resolveVictory({
-    allAlliesDefeated: allDefeated(progressedWithCooldown.allyUnits),
-    allEnemiesDefeated: allDefeated(progressedWithCooldown.enemyUnits),
+    allAlliesDefeated: allDefeated(progressedWithEffectDuration.allyUnits),
+    allEnemiesDefeated: allDefeated(progressedWithEffectDuration.enemyUnits),
     turnLimitReached: isFinalTurn(turnState),
   });
   if (afterTurnEnd !== undefined) {
-    return complete(progressedWithCooldown, afterTurnEnd, recorder);
+    return complete(progressedWithEffectDuration, afterTurnEnd, recorder);
   }
 
-  return progressedWithCooldown;
+  return progressedWithEffectDuration;
 }
 
 /** BattleCompletedを発行する。勝敗確定契機が複数あるため、単一の親イベントには紐付けずルート化する。 */

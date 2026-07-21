@@ -70,6 +70,7 @@ export function sameEffectSnapshot(
     a.magnitude === b.magnitude &&
     a.duration?.unit === b.duration?.unit &&
     a.duration?.remaining === b.duration?.remaining &&
+    a.consumptionRemaining === b.consumptionRemaining &&
     a.appliedTurnNumber === b.appliedTurnNumber &&
     a.appliedActionId === b.appliedActionId
   );

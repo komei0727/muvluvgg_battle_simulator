@@ -819,6 +819,9 @@ describe("OpenAPI document", () => {
       EffectApplied: true,
       EffectiveEffectChanged: true,
       CombatStatChanged: true,
+      EffectDurationReduced: true,
+      EffectConsumptionChanged: true,
+      EffectExpired: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

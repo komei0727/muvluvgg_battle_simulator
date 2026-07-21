@@ -13,6 +13,7 @@ import { resolveHit } from "./hit-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
+import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
@@ -74,6 +75,19 @@ export interface DamageEventContext {
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
+  /**
+   * R-EFF-07: `ownerUnitId`が保持する`kind`一致の消費条件効果を1消費し、0に
+   * なったインスタンスを即時に失効させる（`EffectConsumptionChanged`/
+   * `EffectExpired`発行、CombatStat再計算を含む）。`onFactEventForPassiveChain`と
+   * 同じ理由（Domain層のmodule境界により`combat/`は`effects/`へ依存できない）で
+   * 呼び出し側（`lifecycle/`）が注入する。未指定なら消費条件を評価しない。
+   */
+  readonly consumeEffectDuration?: (
+    ownerUnitId: BattleUnitId,
+    kind: ConsumptionKind,
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -96,6 +110,51 @@ function findUnit(
     throw new DomainValidationError(path, `references an unknown BattleUnitId: "${id}"`);
   }
   return unit;
+}
+
+/**
+ * R-EFF-07: `context.consumeEffectDuration`（呼び出し側が注入する、`combat/`は
+ * `effects/`へ依存できないため）へ委譲し、`ownerUnitId`が保持する`kind`一致の
+ * 消費条件効果を1消費・必要なら失効させる。フック未指定、または該当効果が
+ * 無い場合は`workingMap`を変更せず`parentEventId`をそのまま返す。
+ */
+function consumeAndExpire(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  ownerUnitId: BattleUnitId,
+  kind: ConsumptionKind,
+  parentEventId: DomainEventId,
+): DomainEventId {
+  if (context.consumeEffectDuration === undefined) {
+    return parentEventId;
+  }
+  const result = context.consumeEffectDuration(
+    ownerUnitId,
+    kind,
+    Array.from(workingMap.values()),
+    parentEventId,
+  );
+  for (const unit of result.units) {
+    workingMap.set(unit.battleUnitId, unit);
+  }
+  return result.lastEventId;
+}
+
+/** `08_ドメインイベント.md`の一般的な流儀: 記録済みの新規イベントをPS即時連鎖フックへ順に転送する。 */
+function notifyNewEvents(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  eventsStart: number,
+): void {
+  if (context.onFactEventForPassiveChain === undefined) {
+    return;
+  }
+  for (const event of context.recorder.getEvents().slice(eventsStart)) {
+    const updatedUnits = context.onFactEventForPassiveChain(event, Array.from(workingMap.values()));
+    for (const unit of updatedUnits) {
+      workingMap.set(unit.battleUnitId, unit);
+    }
+  }
 }
 
 /**
@@ -136,7 +195,31 @@ export function applyDamageAction(
 
     const target = findUnit(working, hit.targetBattleUnitId, "hits[].targetBattleUnitId");
 
-    if (isDefeated(target) || !resolveHit()) {
+    if (isDefeated(target)) {
+      outcomes.push(skip(hit));
+      continue;
+    }
+
+    // R-EFF-07: 命中判定に到達した時点（MISS/命中を問わない）で
+    // NEXT_OUTGOING_ATTACK（攻撃者側）/NEXT_INCOMING_ATTACK（対象側）を消費する。
+    const judgmentEventsStart = context.recorder.getEvents().length;
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      currentAttacker.battleUnitId,
+      "NEXT_OUTGOING_ATTACK",
+      lastEventId,
+    );
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      target.battleUnitId,
+      "NEXT_INCOMING_ATTACK",
+      lastEventId,
+    );
+    notifyNewEvents(context, working, judgmentEventsStart);
+
+    if (!resolveHit()) {
       outcomes.push(skip(hit));
       continue;
     }
@@ -234,8 +317,15 @@ export function applyDamageAction(
 
     const hpBefore = target.currentHp;
     const hpAfter = Math.max(0, target.currentHp - damageResult.finalDamage);
+    // R-EFF-07レビュー修正: `target`は命中判定時点のスナップショット（ダメージ
+    // 計算はこの時点の値を使うのが正しい、攻撃者側と同じ理由）だが、HPの
+    // 書き戻し先は`working`の現在状態（NEXT_INCOMING_ATTACK消費による
+    // `appliedEffects`変化を含む）でなければならない。stale `target`を直接
+    // spreadすると、命中判定〜ダメージ確定の間に`consumeAndExpire`が
+    // `working`へ加えた変更を上書きして消してしまう。
+    const currentTarget = findUnit(working, target.battleUnitId, "hits[].targetBattleUnitId");
     const updatedTarget: BattleUnit = {
-      ...target,
+      ...currentTarget,
       currentHp: createHitPoint(hpAfter, target.combatStats.maximumHp),
     };
     working.set(target.battleUnitId, updatedTarget);
@@ -305,6 +395,25 @@ export function applyDamageAction(
         }
       }
     }
+
+    // R-EFF-07: このヒットがMISSでなく確定した時点でOUTGOING_HIT（攻撃者側）/
+    // INCOMING_HIT（対象側）を消費する。
+    const hitEventsStart = context.recorder.getEvents().length;
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      currentAttacker.battleUnitId,
+      "OUTGOING_HIT",
+      lastEventId,
+    );
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      target.battleUnitId,
+      "INCOMING_HIT",
+      lastEventId,
+    );
+    notifyNewEvents(context, working, hitEventsStart);
 
     outcomes.push({
       targetBattleUnitId: hit.targetBattleUnitId,

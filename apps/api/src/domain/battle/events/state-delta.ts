@@ -44,7 +44,10 @@ export interface ChargeState {
  * 同種グループの最強1件だけが`true`になる。`duration`は
  * `AppliedEffect.duration.definition.timeLimit.unit`が`ACTION`/`TURN`の場合だけ
  * 持つ（`10_API設計.md`の`EffectStateResponse.duration`が表現できる範囲、
- * `BATTLE`/`HIT`/`SKILL_USE`は対象外）。
+ * `BATTLE`/`HIT`/`SKILL_USE`は対象外）。`consumptionRemaining`（EFF-003、
+ * R-EFF-07）は`10_API設計.md`の`EffectStateResponse`が公開契約として持たない
+ * 内部専用フィールド — `EffectConsumptionChanged`のstateDelta・独立Reducer
+ * 復元のためだけに保持する。
  */
 export interface EffectSnapshot {
   readonly effectInstanceId: EffectInstanceId;
@@ -55,6 +58,7 @@ export interface EffectSnapshot {
   readonly isEffective: boolean;
   readonly magnitude: number;
   readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
+  readonly consumptionRemaining?: number;
   readonly appliedTurnNumber: number;
   readonly appliedActionId?: ActionId;
 }
@@ -83,6 +87,9 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     isEffective,
     magnitude: effect.magnitude,
     ...(duration !== undefined ? { duration } : {}),
+    ...(effect.duration.consumptionRemaining !== undefined
+      ? { consumptionRemaining: effect.duration.consumptionRemaining }
+      : {}),
     appliedTurnNumber: effect.appliedTurnNumber,
     ...(effect.appliedActionId !== undefined ? { appliedActionId: effect.appliedActionId } : {}),
   };

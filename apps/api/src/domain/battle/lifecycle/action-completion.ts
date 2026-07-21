@@ -4,6 +4,13 @@ import {
   startCooldown,
   type CooldownMap,
 } from "../model/cooldown-state.js";
+import { decrementActionEffectDurations } from "../model/applied-effect-duration.js";
+import {
+  emitEffectDurationReducedEvents,
+  expireEffects,
+  type ExpirationSeed,
+} from "../effects/duration-expiry-service.js";
+import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
 import type {
   ActionId,
   DomainEventId,
@@ -16,6 +23,8 @@ import type { StateDelta } from "../events/state-delta.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 
 interface ActionCompletionContext {
   readonly actionId: ActionId;
@@ -24,6 +33,8 @@ interface ActionCompletionContext {
   readonly turnNumber: number;
   readonly cycleNumber: number;
   readonly actorId: BattleUnitId;
+  /** R-EFF-04: 行動単位効果の残り回数減算・失効・CombatStat再計算に使うEffectActionDefinitionの参照表。 */
+  readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   /**
    * レビュー再々レビュー[P2]: `ActionCompleting`/`CooldownReduced`/
    * `CooldownCompleted`/`ActionCompleted`を、呼び出し元が保有する
@@ -150,6 +161,67 @@ export function recordActionCompletion(
     }
   }
 
+  // `06_戦闘状態遷移.md` COMPLETING #6-8 / R-EFF-04: クールタイム減算後、行動単位
+  // 効果の残り回数を減らし、0になったインスタンスを即時に失効させる。
+  // `timeLimit.owner`が`EFFECT_SOURCE`/`BATTLE`の場合、保持ユニット
+  // （`effect.targetId`）が行動者と異なることがあるため、全ユニットを対象に
+  // 走査する（`decrementActionEffectDurations`自身がowner解決を行う）。
+  const durationDecrement = decrementActionEffectDurations(
+    working,
+    context.actorId,
+    context.actionId,
+  );
+  if (durationDecrement.changes.length > 0) {
+    working = durationDecrement.units;
+    const reducedEventsStart = recorder.getEvents().length;
+    lastEventId = emitEffectDurationReducedEvents(
+      {
+        recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        resolutionScopeId: context.resolutionScopeId,
+        rootEventId: context.rootEventId,
+      },
+      working,
+      durationDecrement.changes,
+      lastEventId,
+    );
+    for (const event of recorder.getEvents().slice(reducedEventsStart)) {
+      notify(event);
+    }
+
+    const seeds: ExpirationSeed[] = durationDecrement.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        effectInstanceId: change.effectInstanceId,
+        reason: "TIME_LIMIT",
+      }));
+    if (seeds.length > 0) {
+      const expiryEventsStart = recorder.getEvents().length;
+      const expiry = expireEffects(
+        {
+          recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+        },
+        working,
+        seeds,
+        context.effectActions,
+        lastEventId,
+      );
+      working = expiry.units;
+      lastEventId = expiry.lastEventId;
+      for (const event of recorder.getEvents().slice(expiryEventsStart)) {
+        notify(event);
+      }
+    }
+  }
+
   const actionCompleted = recorder.record({
     eventType: "ActionCompleted",
     category: "FACT",
@@ -162,6 +234,41 @@ export function recordActionCompletion(
     sourceUnitId: context.actorId,
     payload: { actorUnitId: context.actorId, effectiveActionType },
   });
+  lastEventId = actionCompleted.eventId;
+
+  // R-EFF-08: `ActionCompleted`発行後、PS/Memory候補抽出（`notify`）前に
+  // `expiration.conditions`を評価する。
+  const conditionMatches = findEffectsMatchingExpirationCondition(working, {
+    payload: actionCompleted.payload,
+    sourceUnitId: context.actorId,
+  });
+  if (conditionMatches.length > 0) {
+    const expirationEventsStart = recorder.getEvents().length;
+    const seeds: ExpirationSeed[] = conditionMatches.map((match) => ({
+      battleUnitId: match.battleUnitId,
+      effectInstanceId: match.effectInstanceId,
+      reason: "EXPIRATION_CONDITION",
+    }));
+    const expiry = expireEffects(
+      {
+        recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        resolutionScopeId: context.resolutionScopeId,
+        rootEventId: context.rootEventId,
+      },
+      working,
+      seeds,
+      context.effectActions,
+      lastEventId,
+    );
+    working = expiry.units;
+    for (const event of recorder.getEvents().slice(expirationEventsStart)) {
+      notify(event);
+    }
+  }
+
   notify(actionCompleted);
   return { completedEventId: actionCompleted.eventId, units: working };
 }

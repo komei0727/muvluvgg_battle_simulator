@@ -6,6 +6,13 @@ import {
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { consumeEffectDurations } from "../model/applied-effect-duration.js";
+import {
+  emitEffectConsumptionChangedEvents,
+  expireEffects,
+} from "../effects/duration-expiry-service.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
@@ -15,6 +22,7 @@ import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createUnitDefinitionId,
+  type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
@@ -124,6 +132,101 @@ function damageEventContext(): DamageEventContext {
     rootEventId: actionStarted.eventId,
     parentEventId: actionStarted.eventId,
     skillDefinitionId: createSkillDefinitionId("SKL_ATTACK"),
+  };
+}
+
+const STAT_MOD_DEFINITION_ID = createEffectActionDefinitionId("ACT_ATK_UP");
+
+function statModDefinition(): EffectActionDefinition {
+  return {
+    effectActionDefinitionId: STAT_MOD_DEFINITION_ID,
+    kind: "APPLY_STAT_MOD",
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0 },
+      stacking: { mode: "STACKABLE" },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+  };
+}
+
+function consumptionEffect(
+  id: string,
+  ownerId: ReturnType<typeof createBattleUnitId>,
+  kind: "NEXT_OUTGOING_ATTACK" | "NEXT_INCOMING_ATTACK" | "OUTGOING_HIT" | "INCOMING_HIT",
+  consumptionRemaining: number,
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: STAT_MOD_DEFINITION_ID,
+    kindKey: effectKindKeyFromDefinitionId(STAT_MOD_DEFINITION_ID),
+    duplicate: true,
+    sourceId: ownerId,
+    targetId: ownerId,
+    magnitude: 0.2,
+    duration: {
+      definition: {
+        consumption: { kind, maxCount: consumptionRemaining },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      consumptionRemaining,
+    },
+    appliedTurnNumber: 1,
+  };
+}
+
+/**
+ * `DamageEventContext.consumeEffectDuration`は`combat/`が`effects/`へ依存
+ * できないため呼び出し側が注入する（`effect-action-group-resolver.ts`の
+ * `buildConsumeEffectDuration`と同じ役割）。テストファイルはDomain層の
+ * module境界の対象外のため、ここでは`effects/`の実装をそのまま使う。
+ */
+function testConsumeEffectDuration(
+  recorder: EventRecorder,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): NonNullable<DamageEventContext["consumeEffectDuration"]> {
+  return (ownerUnitId, kind, units, parentEventId) => {
+    const consumption = consumeEffectDurations(units, ownerUnitId, kind);
+    if (consumption.changes.length === 0) {
+      return { units, lastEventId: parentEventId };
+    }
+    const eventContext = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId: parentEventId,
+    };
+    let lastEventId = emitEffectConsumptionChangedEvents(
+      eventContext,
+      consumption.units,
+      consumption.changes,
+      parentEventId,
+    );
+    const seeds = consumption.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        effectInstanceId: change.effectInstanceId,
+        reason: "CONSUMPTION" as const,
+      }));
+    let resultUnits = consumption.units;
+    if (seeds.length > 0) {
+      const expiry = expireEffects(
+        eventContext,
+        consumption.units,
+        seeds,
+        effectActions,
+        lastEventId,
+      );
+      resultUnits = expiry.units;
+      lastEventId = expiry.lastEventId;
+    }
+    return { units: resultUnits, lastEventId };
   };
 }
 
@@ -424,5 +527,133 @@ describe("applyDamageAction", () => {
     // ally is damaged") is not silently skipped just because the hit also
     // happened to be lethal.
     expect(seenEventTypes).toEqual(["DamageApplied", "UnitDefeated"]);
+  });
+
+  it("UT-R-EFF-07-007 (R-EFF-07 NEXT_OUTGOING_ATTACK/OUTGOING_HIT): consumes the attacker's matching effects when a hit reaches judgment and is confirmed (not MISS)", () => {
+    const nextAttackEffect = consumptionEffect(
+      "eff-next-outgoing",
+      createBattleUnitId("ATTACKER"),
+      "NEXT_OUTGOING_ATTACK",
+      1,
+    );
+    const outgoingHitEffect = consumptionEffect(
+      "eff-outgoing-hit",
+      createBattleUnitId("ATTACKER"),
+      "OUTGOING_HIT",
+      2,
+    );
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [nextAttackEffect, outgoingHitEffect],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+      },
+    );
+
+    const updatedAttacker = result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!;
+    expect(updatedAttacker.appliedEffects).toHaveLength(1);
+    expect(updatedAttacker.appliedEffects[0]!.effectInstanceId).toBe(
+      outgoingHitEffect.effectInstanceId,
+    );
+    expect(updatedAttacker.appliedEffects[0]!.duration.consumptionRemaining).toBe(1);
+  });
+
+  it("UT-R-EFF-07-008 (R-EFF-07 NEXT_INCOMING_ATTACK/INCOMING_HIT): consumes the target's matching effects when it is attacked and the hit is confirmed", () => {
+    const nextIncomingEffect = consumptionEffect(
+      "eff-next-incoming",
+      createBattleUnitId("TARGET"),
+      "NEXT_INCOMING_ATTACK",
+      1,
+    );
+    const incomingHitEffect = consumptionEffect(
+      "eff-incoming-hit",
+      createBattleUnitId("TARGET"),
+      "INCOMING_HIT",
+      2,
+    );
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [nextIncomingEffect, incomingHitEffect],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+      },
+    );
+
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(1);
+    expect(updatedTarget.appliedEffects[0]!.effectInstanceId).toBe(
+      incomingHitEffect.effectInstanceId,
+    );
+    expect(updatedTarget.appliedEffects[0]!.duration.consumptionRemaining).toBe(1);
+  });
+
+  it("UT-R-EFF-07-009 (R-EFF-07 boundary/expiry): a NEXT_OUTGOING_ATTACK effect at maxCount 1 expires (EffectConsumptionChanged then EffectExpired) after being consumed", () => {
+    const nextAttackEffect = consumptionEffect(
+      "eff-next-outgoing",
+      createBattleUnitId("ATTACKER"),
+      "NEXT_OUTGOING_ATTACK",
+      1,
+    );
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [nextAttackEffect],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+    const context: DamageEventContext = {
+      ...baseContext,
+      consumeEffectDuration: testConsumeEffectDuration(
+        baseContext.recorder,
+        new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+      ),
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    const updatedAttacker = result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!;
+    expect(updatedAttacker.appliedEffects).toHaveLength(0);
+
+    const types = context.recorder.getEvents().map((e) => e.eventType);
+    expect(types).toContain("EffectConsumptionChanged");
+    expect(types).toContain("EffectExpired");
+    expect(types.indexOf("EffectConsumptionChanged")).toBeLessThan(types.indexOf("EffectExpired"));
   });
 });

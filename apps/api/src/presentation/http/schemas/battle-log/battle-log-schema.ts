@@ -1035,7 +1035,7 @@ const effectiveEffectChangedDetailsSchema = {
   },
 } as const;
 
-const COMBAT_STAT_CHANGE_REASON_ENUM = ["EFFECT_APPLIED"] as const;
+const COMBAT_STAT_CHANGE_REASON_ENUM = ["EFFECT_APPLIED", "EFFECT_EXPIRED"] as const;
 
 /** `CombatStatChanged`（R-STA-04）。実際に値が変わったstatごとに発行する。 */
 const combatStatChangedDetailsSchema = {
@@ -1048,6 +1048,65 @@ const combatStatChangedDetailsSchema = {
     before: { type: "number" },
     after: { type: "number" },
     reason: { type: "string", enum: COMBAT_STAT_CHANGE_REASON_ENUM },
+  },
+} as const;
+
+/** `EffectDurationReduced`（R-EFF-04/06、EFF-003）。行動・ターン単位効果の残り回数を1減らすたびに発行する。 */
+const effectDurationReducedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectInstanceId", "battleUnitId", "unit", "before", "after"],
+  properties: {
+    effectInstanceId: { type: "string" },
+    battleUnitId: { type: "string" },
+    unit: { type: "string", enum: ["ACTION", "TURN"] },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+/** `EffectConsumptionChanged`（R-EFF-07、EFF-003）。消費条件の成立ごとに消費残り回数の変化を発行する。 */
+const effectConsumptionChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectInstanceId", "battleUnitId", "kind", "before", "after"],
+  properties: {
+    effectInstanceId: { type: "string" },
+    battleUnitId: { type: "string" },
+    kind: { type: "string", enum: CONSUMPTION_KIND_ENUM },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+const EFFECT_EXPIRATION_REASON_ENUM = [
+  "TIME_LIMIT",
+  "CONSUMPTION",
+  "EXPIRATION_CONDITION",
+  "LINKED_GROUP_CASCADE",
+] as const;
+
+/** `EffectExpired`（R-EFF-04/06/07/08/09、EFF-003）。効果インスタンスの失効直後に発行する。 */
+const effectExpiredDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "battleUnitId",
+    "effectActionDefinitionId",
+    "kindKey",
+    "reason",
+    "linkedEffectGroupId",
+    "cascaded",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    battleUnitId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    kindKey: { type: "string" },
+    reason: { type: "string", enum: EFFECT_EXPIRATION_REASON_ENUM },
+    linkedEffectGroupId: { type: ["string", "null"] },
+    cascaded: { type: "boolean" },
   },
 } as const;
 
@@ -1105,6 +1164,9 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_APPLIED: effectAppliedDetailsSchema,
   EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
   COMBAT_STAT_CHANGED: combatStatChangedDetailsSchema,
+  EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,
+  EFFECT_CONSUMPTION_CHANGED: effectConsumptionChangedDetailsSchema,
+  EFFECT_EXPIRED: effectExpiredDetailsSchema,
 } as const;
 
 /**
