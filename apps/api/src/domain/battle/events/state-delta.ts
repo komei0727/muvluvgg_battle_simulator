@@ -1,5 +1,6 @@
 import type { BattleStatus } from "../model/battle-status.js";
 import type { AppliedEffect } from "../model/applied-effect.js";
+import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -36,13 +37,14 @@ export interface ChargeState {
 }
 
 /**
- * `10_API設計.md`「EffectStateResponse」の外部公開形のうち、R-EFF-01が要求する
- * 未加工の値だけを持つ（`isEffective`はR-EFF-05の最強選択結果でありEFF-002の
- * スコープ、`category`/`stackMode`/構造化`value`はEffectStateResponseへの
- * wire変換でありResponse Mapperの実装まで含めてEFF-002以降のスコープ）。
- * `duration`は`AppliedEffect.duration.definition.timeLimit.unit`が`ACTION`/
- * `TURN`の場合だけ持つ（`10_API設計.md`の`EffectStateResponse.duration`が
- * 表現できる範囲、`BATTLE`/`HIT`/`SKILL_USE`は対象外）。
+ * `10_API設計.md`「EffectStateResponse」の外部公開形のうち、R-EFF-01/R-EFF-05が
+ * 要求する値を持つ（`category`/`stackMode`/構造化`value`はEffectStateResponseへの
+ * wire変換でありResponse Mapperの責務）。`isEffective`はR-EFF-05の選択結果
+ * （`effective-effect-selector.ts`）— 重複あり効果は常に`true`、重複なし効果は
+ * 同種グループの最強1件だけが`true`になる。`duration`は
+ * `AppliedEffect.duration.definition.timeLimit.unit`が`ACTION`/`TURN`の場合だけ
+ * 持つ（`10_API設計.md`の`EffectStateResponse.duration`が表現できる範囲、
+ * `BATTLE`/`HIT`/`SKILL_USE`は対象外）。
  */
 export interface EffectSnapshot {
   readonly effectInstanceId: EffectInstanceId;
@@ -50,6 +52,7 @@ export interface EffectSnapshot {
   readonly sourceUnitId: BattleUnitId;
   readonly kindKey: string;
   readonly duplicate: boolean;
+  readonly isEffective: boolean;
   readonly magnitude: number;
   readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
   readonly appliedTurnNumber: number;
@@ -60,9 +63,11 @@ export interface EffectSnapshot {
  * `AppliedEffect`（Domain）から`EffectSnapshot`（`stateDelta`/`BattleUnitSnapshot`
  * 共通の外部公開形）を導出する。`captureBattleState`と`EffectApplied`を記録する
  * `effect-grant-service.ts`が同じ変換を共有し、`finalState.effects`と
- * `stateTransitions`由来の復元結果が常に同じ形になるようにする。
+ * `stateTransitions`由来の復元結果が常に同じ形になるようにする。`isEffective`は
+ * `AppliedEffect`自身が持たない導出値（R-EFF-05）のため、呼び出し側
+ * （`effective-effect-selector.ts`の選択結果）が渡す。
  */
-export function toEffectSnapshot(effect: AppliedEffect): EffectSnapshot {
+export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): EffectSnapshot {
   const timeLimit = effect.duration.definition.timeLimit;
   const duration =
     (timeLimit?.unit === "ACTION" || timeLimit?.unit === "TURN") &&
@@ -75,6 +80,7 @@ export function toEffectSnapshot(effect: AppliedEffect): EffectSnapshot {
     sourceUnitId: effect.sourceId,
     kindKey: effect.kindKey,
     duplicate: effect.duplicate,
+    isEffective,
     magnitude: effect.magnitude,
     ...(duration !== undefined ? { duration } : {}),
     appliedTurnNumber: effect.appliedTurnNumber,
@@ -143,6 +149,12 @@ export interface UnitStateDelta {
    * が発行するイベントの`stateDelta`が使う — このIssueでは新規付与だけを扱う。
    */
   readonly effects?: Readonly<Record<EffectInstanceId, ValueChange<EffectSnapshot | undefined>>>;
+  /**
+   * R-STA-04: `CombatStatChanged`が単独で所有する差分。実際に値が変わった
+   * `CombatStats`のフィールドだけをキーとして持つ（`hp`/`ap`と同じ「変更した
+   * 項目だけを記録する」規約）。
+   */
+  readonly combatStats?: Readonly<Partial<Record<keyof CombatStats, ValueChange<number>>>>;
 }
 
 /**

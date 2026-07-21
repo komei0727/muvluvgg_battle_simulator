@@ -1430,6 +1430,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           ap: owner.currentAp,
           pp: owner.currentPp,
           extraGauge: owner.currentExtraGauge,
+          combatStats: owner.combatStats,
           skillCounters: { [skill.skillDefinitionId]: { [counterId]: 1 } },
         },
       },
@@ -1635,6 +1636,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           ap: owner.currentAp,
           pp: owner.currentPp,
           extraGauge: owner.currentExtraGauge,
+          combatStats: owner.combatStats,
         },
       },
     };
@@ -1714,6 +1716,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       ap: finalOwner.currentAp,
       pp: finalOwner.currentPp,
       extraGauge: finalOwner.currentExtraGauge,
+      combatStats: finalOwner.combatStats,
       skillCounters: { [skill.skillDefinitionId]: {} },
     });
   });

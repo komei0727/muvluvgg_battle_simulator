@@ -120,19 +120,14 @@ export interface ChargeStateResponseBody {
  * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`は対応するDomain機構が
  * 実装されるまで常に空配列（`未実装機能を仮の値で成功扱いにしない`の対象は
  * 「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
- * 付与されていない」ことを表す空配列は事実そのもの）。`effects`も同じ理由で
- * 常に空配列のままだが、理由が異なる: `AppliedEffect`自体（個別インスタンス
- * 保持・`EffectApplied`・StateDelta・独立Reducer復元）はEFF-001（R-EFF-01）で
- * 実装済みだが、`EffectStateResponseBody`が要求する`effectKindKey`の採用可否
- * （`isEffective`）はEFF-002（R-EFF-05の重複なし最強選択）が確定させるまで
- * 導出できない。この空配列が実データを隠さないことは、EFF-001が
- * `APPLY_STAT_MOD`の全production Catalog行へ`CAP_STAT_MOD`（`PLANNED`、
- * `capabilities.json`）を要求させたことで保証する — `AppliedEffect`が実際に
- * `battle/effects`（`grantEffect`）を経由して個別付与されるのは現状
- * `APPLY_STAT_MOD`だけであり、preflightがこの`Capability`を`IMPLEMENTED`に
- * なるまで拒否するため、`snapshot.units[id].effects`が非空になる
- * production battleは現状存在しない（PR #207レビュー[P1]）。`cooldowns`/
- * `charge`はM5で実装済みのDomain状態（`BattleUnitSnapshot`）をそのまま反映する。
+ * 付与されていない」ことを表す空配列は事実そのもの）。`effects`はEFF-002
+ * （R-EFF-05の重複なし最強選択・CombatStat再計算）で`snapshot.effects`
+ * （`isEffective`を含む）を実際にマップする。`APPLY_STAT_MOD`はCatalogの
+ * `stacking.mode`が現状`STACKABLE`しか持てないため、productionで観測される
+ * `effects`は常に`isEffective: true`・`stackMode: "STACKABLE"`になる
+ * （`effect-stacking-policy.ts`の`NON_STACKABLE`分岐は現状ドメイン層の単体
+ * テストだけが到達する）。`cooldowns`/`charge`はM5で実装済みのDomain状態
+ * （`BattleUnitSnapshot`）をそのまま反映する。
  */
 export interface BattleUnitStateResponseBody {
   readonly battleUnitId: string;

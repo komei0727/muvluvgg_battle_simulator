@@ -4,6 +4,7 @@ import {
   type AppliedEffect,
 } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
+import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
@@ -54,7 +55,7 @@ export function grantEffect(
   request: GrantEffectRequest,
   parentEventId: DomainEventId,
 ): GrantEffectResult {
-  requireUnit(units, request.targetId);
+  const target = requireUnit(units, request.targetId);
   const kindKey = effectKindKeyFromDefinitionId(request.effectActionDefinitionId);
   const timeLimit = request.durationDefinition.timeLimit;
 
@@ -74,6 +75,16 @@ export function grantEffect(
     ...(context.actionId !== undefined ? { appliedActionId: context.actionId } : {}),
     ...(request.snapshot !== undefined ? { snapshot: request.snapshot } : {}),
   };
+
+  // R-EFF-05: この新規インスタンス自身が採用対象かどうかは、対象の既存効果を
+  // 含めた選択結果から決まる（重複あり効果は常にtrue、重複なし効果は同種
+  // グループ内で最強の場合だけtrue）。この付与によって他の既存インスタンスの
+  // 採用可否が変化した場合の`EffectiveEffectChanged`は、呼び出し側のCombatStat
+  // 再計算（`combat-stat-recalculation-service.ts`）が扱う — ここでは新規
+  // インスタンス自身の`EffectApplied.stateDelta`だけを正しく組み立てる。
+  const isEffective = selectEffectiveInstances([...target.appliedEffects, newEffect]).has(
+    newEffect.effectInstanceId,
+  );
 
   const nextUnits = units.map((unit) =>
     unit.battleUnitId === request.targetId
@@ -135,7 +146,7 @@ export function grantEffect(
           effects: {
             [newEffect.effectInstanceId]: {
               before: undefined,
-              after: toEffectSnapshot(newEffect),
+              after: toEffectSnapshot(newEffect, isEffective),
             },
           },
         },

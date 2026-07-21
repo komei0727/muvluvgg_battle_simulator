@@ -817,6 +817,8 @@ describe("OpenAPI document", () => {
       RuntimeCounterChanged: true,
       RuntimeCounterReset: true,
       EffectApplied: true,
+      EffectiveEffectChanged: true,
+      CombatStatChanged: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

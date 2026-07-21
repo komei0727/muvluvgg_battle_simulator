@@ -126,6 +126,7 @@ function initialSnapshotFor(
           ap: unit.currentAp,
           pp: unit.currentPp,
           extraGauge: unit.currentExtraGauge,
+          combatStats: unit.combatStats,
         },
       ]),
     ),

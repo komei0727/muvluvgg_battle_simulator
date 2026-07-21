@@ -8,6 +8,7 @@ import type {
   BattleUnitStateResponseBody,
   ChargeStateResponseBody,
   CooldownStateResponseBody,
+  EffectStateResponseBody,
   EntityCollectionDeltaResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
@@ -20,6 +21,7 @@ import type {
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import type {
   CooldownState,
+  EffectSnapshot,
   StateDelta,
   UnitStateDelta,
 } from "../../domain/battle/events/state-delta.js";
@@ -120,6 +122,31 @@ function toChargeStateResponseBody(
   };
 }
 
+/**
+ * `10_API設計.md`「EffectStateResponse」。`category`はBUFF/DEBUFFを効果量の
+ * 符号から導く — `AppliedEffect`を実際に付与できる唯一の経路（`grantEffect`、
+ * `APPLY_STAT_MOD`由来）はまだ状態異常（`APPLY_STATUS`）を生成しないため、
+ * `STATUS_ABNORMALITY`へ分類すべき`EffectSnapshot`は現状存在しない。`value`は
+ * `effectKindKey`ごとの具体Schema（`oneOf`によるdiscriminated union）が定まる
+ * までは、`EffectSnapshot`が実際に持つ`magnitude`だけを構造化して返す
+ * （`response.ts`の`EffectStateResponseBody.value`コメント参照）。
+ */
+function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseBody {
+  return {
+    effectInstanceId: effect.effectInstanceId,
+    effectDefinitionId: effect.effectDefinitionId,
+    ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
+    category: effect.magnitude >= 0 ? "BUFF" : "DEBUFF",
+    effectKindKey: effect.kindKey,
+    stackMode: effect.duplicate ? "STACKABLE" : "NON_STACKING",
+    isEffective: effect.isEffective,
+    value: { magnitude: effect.magnitude },
+    ...(effect.duration !== undefined ? { duration: effect.duration } : {}),
+    appliedTurnNumber: effect.appliedTurnNumber,
+    ...(effect.appliedActionId !== undefined ? { appliedActionId: effect.appliedActionId } : {}),
+  };
+}
+
 function toUnitStateResponseBody(
   roster: BattleUnitRosterEntry,
   snapshot: BattleUnitSnapshot,
@@ -135,32 +162,29 @@ function toUnitStateResponseBody(
     },
     coordinate: { x: roster.globalCoordinate.x, y: roster.globalCoordinate.y },
     combatStatus: combatStatusOf(snapshot.hp),
-    hp: { current: snapshot.hp, maximum: roster.combatStats.maximumHp },
+    hp: { current: snapshot.hp, maximum: snapshot.combatStats.maximumHp },
     resources: {
       ap: { current: snapshot.ap, maximum: roster.maximumAp },
       pp: { current: snapshot.pp, maximum: roster.maximumPp },
       extraGauge: { current: snapshot.extraGauge, maximum: roster.maximumExtraGauge },
     },
+    // R-STA-04: AppliedEffectの付与・失効・解除のたびに再計算される現在値
+    // (`snapshot.combatStats`) を返す。`roster.combatStats`は編成補正・適性補正
+    // だけを反映した開始時点の基準値であり、この応答が表す時点の実効値とは
+    // 別物（`battle-state-snapshot.ts`のフィールドコメント参照）。
     combatStats: {
-      attack: roster.combatStats.attack,
-      defense: roster.combatStats.defense,
-      criticalRate: toPercentagePoints(roster.combatStats.criticalRate),
-      actionSpeed: roster.combatStats.actionSpeed,
-      affinityBonus: toPercentagePoints(roster.combatStats.affinityBonus),
-      criticalDamageBonus: toPercentagePoints(roster.combatStats.criticalDamageBonus),
+      attack: snapshot.combatStats.attack,
+      defense: snapshot.combatStats.defense,
+      criticalRate: toPercentagePoints(snapshot.combatStats.criticalRate),
+      actionSpeed: snapshot.combatStats.actionSpeed,
+      affinityBonus: toPercentagePoints(snapshot.combatStats.affinityBonus),
+      criticalDamageBonus: toPercentagePoints(snapshot.combatStats.criticalDamageBonus),
     },
     // `10_API設計.md`「BattleUnitStateResponse」: シールド・サブユニットは
-    // M7〜M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。`effects`は
-    // `snapshot.effects`（EFF-001で実装済みのDomain state）を意図的にまだ
-    // マップしない — `EffectStateResponseBody`が要求する`isEffective`は
-    // EFF-002（R-EFF-05の重複なし最強選択）が確定させるまで導出できないため
-    // （`response.ts`のBattleUnitStateResponseBodyコメント参照）。`snapshot.effects`
-    // は`CAP_STAT_MOD`（`PLANNED`）がpreflightで拒否する現状、production
-    // battleでは常に空のため、このマップ省略が実データを隠すことはない
-    // （PR #207レビュー[P1]）。
+    // M7〜M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。
     shields: { physical: 0, energy: 0, untyped: 0 },
     subUnits: [],
-    effects: [],
+    effects: (snapshot.effects ?? []).map(toEffectStateResponseBody),
     cooldowns: toCooldownStateResponseBodies(snapshot.cooldowns),
     ...(charge !== undefined ? { charge } : {}),
   };

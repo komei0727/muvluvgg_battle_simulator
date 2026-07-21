@@ -18,6 +18,7 @@ import type {
   DurationTimeUnit,
   ResourceKind,
   SkillType,
+  StatKind,
 } from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
@@ -417,7 +418,39 @@ export interface BattleDomainEventPayloadMap {
     readonly grantedTurnNumber?: number;
     readonly snapshot?: Readonly<Record<string, number>>;
   };
+  /**
+   * `08_ドメインイベント.md`「EffectiveEffectChanged」: R-EFF-05の重複なし効果で
+   * 採用対象が変わった時に、`EffectKindKey`ごとに発行する。`before`/`after`は
+   * 採用中のインスタンスID（グループに1件も無ければ`undefined`）。同時に複数の
+   * `EffectKindKey`グループの採用対象が変わった場合は、グループごとに別の
+   * イベントとして発行する。
+   */
+  readonly EffectiveEffectChanged: {
+    readonly battleUnitId: BattleUnitId;
+    readonly kindKey: string;
+    readonly before?: EffectInstanceId;
+    readonly after?: EffectInstanceId;
+  };
+  /**
+   * `08_ドメインイベント.md`「CombatStatChanged」: R-STA-04の再計算後、実際に
+   * 値が変わったstatごとに発行する（変化が無いstatでは発行しない）。
+   */
+  readonly CombatStatChanged: {
+    readonly battleUnitId: BattleUnitId;
+    readonly stat: StatKind;
+    readonly before: number;
+    readonly after: number;
+    readonly reason: CombatStatChangeReason;
+  };
 }
+
+/**
+ * `07_戦闘ルール詳細.md` R-STA-04が列挙する再計算契機のうち、現時点で実際に
+ * 到達可能なもの（`APPLY_STAT_MOD`の付与、`combat-stat-recalculation-service.ts`）
+ * だけを持つ。「更新・解除・失効」「メモリー効果の有効/無効条件の変化」は
+ * それぞれEFF-003/M7-001/RES-005のスコープで到達可能になった時点で追加する。
+ */
+export type CombatStatChangeReason = "EFFECT_APPLIED";
 
 /**
  * `08_ドメインイベント.md`「EffectActionCompleted payload」。M6時点では

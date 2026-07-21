@@ -19,6 +19,26 @@ const SKL_D = createSkillDefinitionId("SKL_D");
 const ACTION_1 = createActionId("action-1");
 const ACTION_2 = createActionId("action-2");
 
+// R-NUM-01: 割合はDomain内部で1.0=100%として保持する（`percentage.ts`）。
+const ALLY_COMBAT_STATS = {
+  maximumHp: 100,
+  attack: 10,
+  defense: 10,
+  criticalRate: 0.05,
+  actionSpeed: 10,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
+const ENEMY_COMBAT_STATS = {
+  maximumHp: 100,
+  attack: 8,
+  defense: 8,
+  criticalRate: 0.05,
+  actionSpeed: 8,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
+
 function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBattleResult {
   return {
     battleId: BATTLE_ID,
@@ -30,8 +50,8 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
       status: "READY",
       currentTurn: 0,
       units: {
-        [ALLY_ID]: { hp: 100, ap: 0, pp: 0, extraGauge: 0 },
-        [ENEMY_ID]: { hp: 100, ap: 0, pp: 0, extraGauge: 0 },
+        [ALLY_ID]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: ALLY_COMBAT_STATS },
+        [ENEMY_ID]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: ENEMY_COMBAT_STATS },
       },
     },
     finalState: {
@@ -39,8 +59,8 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
       currentTurn: 1,
       result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
       units: {
-        [ALLY_ID]: { hp: 90, ap: 1, pp: 0, extraGauge: 5 },
-        [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+        [ALLY_ID]: { hp: 90, ap: 1, pp: 0, extraGauge: 5, combatStats: ALLY_COMBAT_STATS },
+        [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0, combatStats: ENEMY_COMBAT_STATS },
       },
     },
     events: [],
@@ -52,16 +72,7 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
         side: "ALLY",
         position: { column: "LEFT", row: "FRONT" },
         globalCoordinate: { x: 0, y: 2 },
-        // R-NUM-01: 割合はDomain内部で1.0=100%として保持する（`percentage.ts`）。
-        combatStats: {
-          maximumHp: 100,
-          attack: 10,
-          defense: 10,
-          criticalRate: 0.05,
-          actionSpeed: 10,
-          criticalDamageBonus: 0.5,
-          affinityBonus: 0,
-        },
+        combatStats: ALLY_COMBAT_STATS,
         maximumAp: 3,
         maximumPp: 2,
         maximumExtraGauge: 100,
@@ -72,15 +83,7 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
         side: "ENEMY",
         position: { column: "CENTER", row: "BACK" },
         globalCoordinate: { x: 1, y: 0 },
-        combatStats: {
-          maximumHp: 100,
-          attack: 8,
-          defense: 8,
-          criticalRate: 0.05,
-          actionSpeed: 8,
-          criticalDamageBonus: 0.5,
-          affinityBonus: 0,
-        },
+        combatStats: ENEMY_COMBAT_STATS,
         maximumAp: 3,
         maximumPp: 2,
         maximumExtraGauge: 100,
@@ -178,24 +181,24 @@ describe("toBattleSimulationResponseBody", () => {
   });
 
   it("API-RESP-006b (R-NUM-01 / 10_API設計.md CombatStatsResponse): converts criticalRate/affinityBonus/criticalDamageBonus from Domain's 1.0=100% ratio to percentage points, while leaving attack/defense/actionSpeed as raw magnitudes", () => {
-    const roster = baseResult().unitRoster;
-    const ally = roster[0]!;
+    const base = baseResult();
+    const distinctCombatStats = {
+      ...ALLY_COMBAT_STATS,
+      attack: 123,
+      defense: 45,
+      actionSpeed: 67,
+      criticalRate: 0.1,
+      affinityBonus: 0.25,
+      criticalDamageBonus: 0.5,
+    };
     const withDistinctRatios = baseResult({
-      unitRoster: [
-        {
-          ...ally,
-          combatStats: {
-            ...ally.combatStats,
-            attack: 123,
-            defense: 45,
-            actionSpeed: 67,
-            criticalRate: 0.1,
-            affinityBonus: 0.25,
-            criticalDamageBonus: 0.5,
-          },
+      initialState: {
+        ...base.initialState,
+        units: {
+          ...base.initialState.units,
+          [ALLY_ID]: { ...base.initialState.units[ALLY_ID]!, combatStats: distinctCombatStats },
         },
-        roster[1]!,
-      ],
+      },
     });
 
     const body = toBattleSimulationResponseBody(withDistinctRatios);
@@ -317,6 +320,7 @@ describe("toBattleSimulationResponseBody", () => {
               ap: 1,
               pp: 0,
               extraGauge: 5,
+              combatStats: ALLY_COMBAT_STATS,
               cooldowns: {
                 [SKL_A]: { unit: "ACTION", remaining: 2, setActionId: ACTION_1 },
                 [SKL_B]: { unit: "TURN", remaining: 1, setTurnNumber: 3 },
@@ -327,7 +331,13 @@ describe("toBattleSimulationResponseBody", () => {
               },
               charge: { skillDefinitionId: SKL_D, startedActionId: ACTION_2 },
             },
-            [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+            [ENEMY_ID]: {
+              hp: 0,
+              ap: 0,
+              pp: 0,
+              extraGauge: 0,
+              combatStats: ENEMY_COMBAT_STATS,
+            },
           },
         },
       }),
@@ -359,9 +369,16 @@ describe("toBattleSimulationResponseBody", () => {
                 ap: 1,
                 pp: 0,
                 extraGauge: 5,
+                combatStats: ALLY_COMBAT_STATS,
                 cooldowns: { [SKL_A]: { unit: "ACTION", remaining: 2 } },
               },
-              [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+              [ENEMY_ID]: {
+                hp: 0,
+                ap: 0,
+                pp: 0,
+                extraGauge: 0,
+                combatStats: ENEMY_COMBAT_STATS,
+              },
             },
           },
         }),
@@ -383,6 +400,7 @@ describe("toBattleSimulationResponseBody", () => {
                 ap: 1,
                 pp: 0,
                 extraGauge: 5,
+                combatStats: ALLY_COMBAT_STATS,
                 cooldowns: {
                   [SKL_A]: {
                     unit: "ACTION",
@@ -392,7 +410,13 @@ describe("toBattleSimulationResponseBody", () => {
                   },
                 },
               },
-              [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0 },
+              [ENEMY_ID]: {
+                hp: 0,
+                ap: 0,
+                pp: 0,
+                extraGauge: 0,
+                combatStats: ENEMY_COMBAT_STATS,
+              },
             },
           },
         }),

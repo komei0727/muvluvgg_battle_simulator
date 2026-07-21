@@ -2,6 +2,7 @@ import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import { applyDamageAction } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
+import { recalculateCombatStats } from "../effects/combat-stat-recalculation-service.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type {
   EffectActionApplication,
@@ -284,18 +285,15 @@ function* resolveOneEffectActionApplication(
     // 追加・`EffectApplied`・StateDelta・独立Reducer復元まで）。`stacking.mode`は
     // 現状"STACKABLE"しかCatalogスキーマに存在しないため、重複あり
     // (duplicate: true)として扱う（`applied-effect.ts`のコメント参照）。
-    // このAppliedEffectをCombatStat計算へ反映する処理（R-EFF-05/R-STA-02〜04の
-    // 重複なし最強選択・再計算・`CombatStatChanged`）はEFF-002のスコープで、
-    // ここではまだ行わない。production Catalogの全`APPLY_STAT_MOD`行は
-    // `CAP_STAT_MOD`（`PLANNED`、`capabilities.json`）を要求するため、
-    // preflightがEFF-002完了までこの分岐へ実際に到達させない
-    // （PR #207レビュー[P1]: 未実装の計算を伴わずに`resultKind: "APPLIED"`を
-    // 返すことは、Capabilityで拒否しない限り「効いていない補正を成功扱い
-    // にする」ことになるため）。
+    // R-EFF-05/R-STA-02〜04: 付与直後にCombatStatを再計算し、実際に変化した
+    // statごとに`CombatStatChanged`を、重複なしグループの採用対象が変わった
+    // 場合は`EffectiveEffectChanged`も発行する
+    // （`combat-stat-recalculation-service.ts`）。
     const magnitude = resolveBasicFormula(
       effectAction.payload.formula,
       "effectAction.payload.formula",
     );
+    const beforeGrantUnits = box.units;
     const grantResult = grantEffect(
       {
         recorder: context.recorder,
@@ -318,10 +316,29 @@ function* resolveOneEffectActionApplication(
       starting.eventId,
     );
     box.units = grantResult.units;
-    // `grantEffect`は`applyDamageAction`/`applyCooldownManipulationAction`と
-    // 異なりヒット単位のPS連鎖フックを持たないため、記録した`EffectApplied`を
-    // ここで`onFactEventForPassiveChain`へ転送する（AS/EX経路のみ。PS自身の
-    // EffectSequence解決経路では`innerEvents`が同じ役割を果たす）。
+    const recalculation = recalculateCombatStats(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      beforeGrantUnits,
+      box.units,
+      application.targetBattleUnitId,
+      context.definitions.effectActions,
+      grantResult.lastEventId,
+    );
+    box.units = recalculation.units;
+    // `grantEffect`/`recalculateCombatStats`は`applyDamageAction`/
+    // `applyCooldownManipulationAction`と異なりヒット単位のPS連鎖フックを
+    // 持たないため、記録した`EffectApplied`/`EffectiveEffectChanged`/
+    // `CombatStatChanged`をここで`onFactEventForPassiveChain`へ転送する
+    // （AS/EX経路のみ。PS自身のEffectSequence解決経路では`innerEvents`が
+    // 同じ役割を果たす）。
     if (context.onFactEventForPassiveChain !== undefined) {
       for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
         box.units = context.onFactEventForPassiveChain(event, box.units);
@@ -329,7 +346,7 @@ function* resolveOneEffectActionApplication(
     }
     resolvedCount = application.hits.length;
     interruptedCount = 0;
-    effectLastEventId = grantResult.lastEventId;
+    effectLastEventId = recalculation.lastEventId;
     resultKind = "APPLIED";
   } else {
     throw new DomainValidationError(

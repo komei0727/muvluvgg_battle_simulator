@@ -473,6 +473,7 @@ describe("applyEffectActionGroups", () => {
       "EffectStepStarting",
       "EffectActionStarting",
       "EffectApplied",
+      "CombatStatChanged",
       "EffectActionCompleted",
       "EffectStepCompleted",
     ]);
@@ -498,6 +499,21 @@ describe("applyEffectActionGroups", () => {
       grantedTarget.appliedEffects[0]!.effectInstanceId,
     );
 
+    const combatStatChanged = recorder
+      .getEvents()
+      .find((e) => e.eventType === "CombatStatChanged") as Extract<
+      BattleDomainEvent,
+      { eventType: "CombatStatChanged" }
+    >;
+    expect(combatStatChanged.payload).toMatchObject({
+      battleUnitId: enemy.battleUnitId,
+      stat: "ATTACK",
+      before: 20,
+      after: 40,
+      reason: "EFFECT_APPLIED",
+    });
+    expect(combatStatChanged.parentEventId).toBe(applied.eventId);
+
     const completed = recorder
       .getEvents()
       .find((e) => e.eventType === "EffectActionCompleted") as Extract<
@@ -505,7 +521,7 @@ describe("applyEffectActionGroups", () => {
       { eventType: "EffectActionCompleted" }
     >;
     expect(completed.payload.resultKind).toBe("APPLIED");
-    expect(completed.parentEventId).toBe(applied.eventId);
+    expect(completed.parentEventId).toBe(combatStatChanged.eventId);
   });
 
   it("UT-R-EFF-01-022 (R-EFF-01, mirrors UT-R-SKL-06-011): onFactEventForPassiveChain is invoked for the EffectApplied event an APPLY_STAT_MOD grant records, not just DAMAGE/COOLDOWN_MANIPULATION's own hit-unit events", () => {

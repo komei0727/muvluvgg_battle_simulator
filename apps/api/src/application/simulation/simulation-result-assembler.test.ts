@@ -15,6 +15,15 @@ import {
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
+const COMBAT_STATS = {
+  maximumHp: 100,
+  attack: 10,
+  defense: 10,
+  criticalRate: 0,
+  actionSpeed: 10,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
 
 function recordBattleStarted(recorder: EventRecorder): void {
   recorder.record({
@@ -325,12 +334,12 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
     };
     const finalState = {
       status: "RUNNING" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
     };
 
     const result = assembleSimulationResult({
@@ -385,7 +394,7 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
     };
     const finalState = {
       status: "RUNNING" as const,
@@ -396,6 +405,7 @@ describe("assembleSimulationResult", () => {
           ap: 1,
           pp: 0,
           extraGauge: 0,
+          combatStats: COMBAT_STATS,
           cooldowns: { [skillDefinitionId]: { unit: "ACTION" as const, remaining: 1 } },
         },
       },
@@ -439,7 +449,7 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
     };
     // The recorded delta sets remaining to 2, but this finalState (wrongly)
     // claims 3 — a state-changing event's stateDelta silently dropped the real
@@ -453,6 +463,7 @@ describe("assembleSimulationResult", () => {
           ap: 1,
           pp: 0,
           extraGauge: 0,
+          combatStats: COMBAT_STATS,
           cooldowns: { [skillDefinitionId]: { unit: "ACTION" as const, remaining: 3 } },
         },
       },
@@ -513,7 +524,7 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
     };
     // Claims a different setActionId than the one the delta actually recorded.
     const finalState = {
@@ -525,6 +536,7 @@ describe("assembleSimulationResult", () => {
           ap: 1,
           pp: 0,
           extraGauge: 0,
+          combatStats: COMBAT_STATS,
           cooldowns: {
             [skillDefinitionId]: {
               unit: "ACTION" as const,
@@ -592,6 +604,7 @@ describe("assembleSimulationResult", () => {
                   sourceUnitId: UNIT_A,
                   kindKey: "ACT_ATK_UP",
                   duplicate: true,
+                  isEffective: true,
                   magnitude: 20,
                   appliedTurnNumber: 1,
                 },
@@ -605,7 +618,7 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
     };
     // The recorded delta grants an effect with magnitude 20, but this
     // finalState (wrongly) claims no effects at all — a state-changing
@@ -613,7 +626,7 @@ describe("assembleSimulationResult", () => {
     const finalState = {
       status: "RUNNING" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0 } },
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
     };
 
     let error: unknown;

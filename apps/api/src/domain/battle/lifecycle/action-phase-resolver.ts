@@ -2,7 +2,11 @@ import { requireUnit, type ActionResolutionResult } from "./action-resolution-sh
 import { resolveWait } from "./action-wait-resolver.js";
 import { resolveSkillUse } from "./action-skill-use-resolver.js";
 import { resolveChargeStart, resolveChargeRelease } from "./action-charge-resolver.js";
-import { createActionQueue, type ReservedActionKind } from "../action/action-queue.js";
+import {
+  createActionQueue,
+  reorderRemainingQueue,
+  type ReservedActionKind,
+} from "../action/action-queue.js";
 import { isExUsable, selectAsCandidate } from "../action/action-selection-policy.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
@@ -263,6 +267,7 @@ export function resolveActionPhase(
         continue;
       }
 
+      const beforeActionUnits = units;
       const resolution = resolveOneAction(
         reservation.battleUnitId,
         reservation.reservedActionKind,
@@ -294,6 +299,39 @@ export function resolveActionPhase(
         }
         const removedIds = new Set(newlyDefeated.map((entry) => entry.battleUnitId));
         remaining = remaining.filter((entry) => !removedIds.has(entry.battleUnitId));
+      }
+
+      // R-ORD-04: 現在の1行動(とPS/Memory連鎖)完了・戦闘不能者除去の後、未行動者の
+      // 行動速度が実際に変わっていた場合だけ並べ直す。予約種別(AS/EX)は
+      // `reorderRemainingQueue`が維持する。
+      if (remaining.length > 0) {
+        const speedChanged = remaining.some(
+          (entry) =>
+            requireUnit(beforeActionUnits, entry.battleUnitId).combatStats.actionSpeed !==
+            requireUnit(units, entry.battleUnitId).combatStats.actionSpeed,
+        );
+        if (speedChanged) {
+          const before = remaining.map((entry) => ({
+            battleUnitId: entry.battleUnitId,
+            actionSpeed: requireUnit(beforeActionUnits, entry.battleUnitId).combatStats.actionSpeed,
+          }));
+          const reordered = reorderRemainingQueue(remaining, units);
+          const after = reordered.map((entry) => ({
+            battleUnitId: entry.battleUnitId,
+            actionSpeed: requireUnit(units, entry.battleUnitId).combatStats.actionSpeed,
+          }));
+          recorder.record({
+            eventType: "ActionQueueReordered",
+            category: "FACT",
+            turnNumber,
+            cycleNumber,
+            resolutionScopeId: resolution.actionScope,
+            parentEventId: resolution.completedEventId,
+            rootEventId: resolution.rootEventId,
+            payload: { before, after },
+          });
+          remaining = reordered;
+        }
       }
 
       const { ally, enemy } = splitBySide(units);

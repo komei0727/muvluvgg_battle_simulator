@@ -7,6 +7,7 @@ import type {
   UnitStateDelta,
   ValueChange,
 } from "../events/state-delta.js";
+import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -65,6 +66,7 @@ export function sameEffectSnapshot(
     a.sourceUnitId === b.sourceUnitId &&
     a.kindKey === b.kindKey &&
     a.duplicate === b.duplicate &&
+    a.isEffective === b.isEffective &&
     a.magnitude === b.magnitude &&
     a.duration?.unit === b.duration?.unit &&
     a.duration?.remaining === b.duration?.remaining &&
@@ -108,6 +110,30 @@ function applyEffectDeltas(
   return [...byId.values()];
 }
 
+/**
+ * R-STA-04: `CombatStatChanged`が持つ`combatStats`差分を適用する。`hp`/`ap`と
+ * 同じ`assertBeforeMatches`規約だが、フィールドごとに個別のキーを持つ複合値
+ * のため`hp`のような単一フィールドの比較を`CombatStats`の各キーへ繰り返す。
+ */
+function applyCombatStatsDelta(
+  path: string,
+  current: CombatStats,
+  deltas: UnitStateDelta["combatStats"],
+): CombatStats {
+  if (deltas === undefined) {
+    return current;
+  }
+  const next: Record<keyof CombatStats, number> = { ...current };
+  for (const [field, change] of Object.entries(deltas) as [
+    keyof CombatStats,
+    ValueChange<number>,
+  ][]) {
+    assertBeforeMatches(`${path}.${field}`, current[field], change);
+    next[field] = change.after;
+  }
+  return next;
+}
+
 function applyUnitDelta(
   path: string,
   unit: BattleUnitSnapshot,
@@ -146,11 +172,17 @@ function applyUnitDelta(
     { pruneEmptySkillEntries: true },
   );
   const effects = applyEffectDeltas(`${path}.effects`, unit.effects, delta.effects);
+  const combatStats = applyCombatStatsDelta(
+    `${path}.combatStats`,
+    unit.combatStats,
+    delta.combatStats,
+  );
   return {
     hp: delta.hp?.after ?? unit.hp,
     ap: delta.ap?.after ?? unit.ap,
     pp: delta.pp?.after ?? unit.pp,
     extraGauge: delta.extraGauge?.after ?? unit.extraGauge,
+    combatStats,
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
     ...(skillCounters !== undefined ? { skillCounters } : {}),
