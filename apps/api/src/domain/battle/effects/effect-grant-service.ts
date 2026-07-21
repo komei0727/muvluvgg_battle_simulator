@@ -105,11 +105,15 @@ export function grantEffect(
       ...(timeLimit !== undefined
         ? { durationUnit: timeLimit.unit, initialRemaining: timeLimit.count }
         : {}),
+      ...(timeLimit?.owner !== undefined ? { durationOwner: timeLimit.owner } : {}),
       ...(request.durationDefinition.consumption !== undefined
         ? {
             consumptionKind: request.durationDefinition.consumption.kind,
             consumptionMaxCount: request.durationDefinition.consumption.maxCount,
           }
+        : {}),
+      ...(request.durationDefinition.expiration !== undefined
+        ? { expirationConditions: request.durationDefinition.expiration.conditions }
         : {}),
       ...(newEffect.duration.grantedActionId !== undefined
         ? { grantedActionId: newEffect.duration.grantedActionId }

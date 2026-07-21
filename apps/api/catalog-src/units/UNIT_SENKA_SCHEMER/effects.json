@@ -67,7 +67,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -80,7 +80,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -93,7 +93,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {

@@ -63,7 +63,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "BATTLE", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -104,7 +104,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 2 }, "dispellable": true }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {

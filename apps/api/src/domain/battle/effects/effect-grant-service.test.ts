@@ -236,4 +236,72 @@ describe("grantEffect", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-R-EFF-01-023 (08_ドメインイベント.md EffectApplied payload: duration owner and expiration conditions): carries timeLimit.owner and expiration.conditions in the recorded event when the duration definition has them", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const durationWithOwnerAndExpiration: DurationDefinition = {
+      timeLimit: { unit: "TURN", count: 2, owner: "EFFECT_SOURCE" },
+      expiration: { conditions: [{ kind: "TRUE" }] },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+
+    grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 20,
+        durationDefinition: durationWithOwnerAndExpiration,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({
+      durationOwner: "EFFECT_SOURCE",
+      expirationConditions: [{ kind: "TRUE" }],
+    });
+  });
+
+  it("UT-R-EFF-01-024: omits durationOwner/expirationConditions when the duration definition has neither", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 20,
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).not.toHaveProperty("durationOwner");
+    expect(applied!.payload).not.toHaveProperty("expirationConditions");
+  });
 });

@@ -125,8 +125,14 @@ export interface ChargeStateResponseBody {
  * 保持・`EffectApplied`・StateDelta・独立Reducer復元）はEFF-001（R-EFF-01）で
  * 実装済みだが、`EffectStateResponseBody`が要求する`effectKindKey`の採用可否
  * （`isEffective`）はEFF-002（R-EFF-05の重複なし最強選択）が確定させるまで
- * 導出できない。`cooldowns`/`charge`はM5で実装済みのDomain状態
- * （`BattleUnitSnapshot`）をそのまま反映する。
+ * 導出できない。この空配列が実データを隠さないことは、EFF-001が
+ * `APPLY_STAT_MOD`の全production Catalog行へ`CAP_STAT_MOD`（`PLANNED`、
+ * `capabilities.json`）を要求させたことで保証する — `AppliedEffect`が実際に
+ * `battle/effects`（`grantEffect`）を経由して個別付与されるのは現状
+ * `APPLY_STAT_MOD`だけであり、preflightがこの`Capability`を`IMPLEMENTED`に
+ * なるまで拒否するため、`snapshot.units[id].effects`が非空になる
+ * production battleは現状存在しない（PR #207レビュー[P1]）。`cooldowns`/
+ * `charge`はM5で実装済みのDomain状態（`BattleUnitSnapshot`）をそのまま反映する。
  */
 export interface BattleUnitStateResponseBody {
   readonly battleUnitId: string;

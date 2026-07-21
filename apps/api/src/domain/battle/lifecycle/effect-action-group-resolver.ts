@@ -280,9 +280,18 @@ function* resolveOneEffectActionApplication(
     effectLastEventId = cooldownResult.lastEventId;
     resultKind = cooldownResult.changed ? "APPLIED" : "SKIPPED";
   } else if (effectAction.kind === "APPLY_STAT_MOD") {
-    // R-EFF-01: 継続stat補正をAppliedEffectとして付与する。`stacking.mode`は
+    // R-EFF-01: 継続stat補正をAppliedEffectとして個別に付与する（レジストリ
+    // 追加・`EffectApplied`・StateDelta・独立Reducer復元まで）。`stacking.mode`は
     // 現状"STACKABLE"しかCatalogスキーマに存在しないため、重複あり
     // (duplicate: true)として扱う（`applied-effect.ts`のコメント参照）。
+    // このAppliedEffectをCombatStat計算へ反映する処理（R-EFF-05/R-STA-02〜04の
+    // 重複なし最強選択・再計算・`CombatStatChanged`）はEFF-002のスコープで、
+    // ここではまだ行わない。production Catalogの全`APPLY_STAT_MOD`行は
+    // `CAP_STAT_MOD`（`PLANNED`、`capabilities.json`）を要求するため、
+    // preflightがEFF-002完了までこの分岐へ実際に到達させない
+    // （PR #207レビュー[P1]: 未実装の計算を伴わずに`resultKind: "APPLIED"`を
+    // 返すことは、Capabilityで拒否しない限り「効いていない補正を成功扱い
+    // にする」ことになるため）。
     const magnitude = resolveBasicFormula(
       effectAction.payload.formula,
       "effectAction.payload.formula",

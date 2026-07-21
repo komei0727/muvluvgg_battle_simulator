@@ -54,7 +54,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -95,7 +95,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -121,7 +121,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -162,7 +162,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }

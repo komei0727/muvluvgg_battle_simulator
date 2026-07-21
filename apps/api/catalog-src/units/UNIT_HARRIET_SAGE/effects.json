@@ -49,7 +49,7 @@
         "linkedEffectGroupId": "HARRIET_CURSE_LINK"
       }
     },
-    "requiredCapabilities": ["CAP_MARKER", "CAP_COMPLEX_EXPIRATION"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_COMPLEX_EXPIRATION", "CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -172,7 +172,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

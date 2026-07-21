@@ -713,6 +713,7 @@ const runtimeCounterResetDetailsSchema = {
 } as const;
 
 const DURATION_TIME_UNIT_ENUM = ["ACTION", "TURN", "BATTLE", "HIT", "SKILL_USE"] as const;
+const DURATION_OWNER_ENUM = ["EFFECT_TARGET", "EFFECT_SOURCE", "BATTLE"] as const;
 const CONSUMPTION_KIND_ENUM = [
   "NEXT_OUTGOING_ATTACK",
   "NEXT_INCOMING_ATTACK",
@@ -749,9 +750,14 @@ const effectAppliedDetailsSchema = {
     kindKey: { type: "string" },
     magnitude: { type: "number" },
     durationUnit: { type: "string", enum: DURATION_TIME_UNIT_ENUM },
+    durationOwner: { type: "string", enum: DURATION_OWNER_ENUM },
     initialRemaining: { type: "integer", minimum: 1 },
     consumptionKind: { type: "string", enum: CONSUMPTION_KIND_ENUM },
     consumptionMaxCount: { type: "integer", minimum: 1 },
+    // `ConditionDefinition`はkindごとの構造化union（`condition-definition.ts`）で、
+    // このOpenAPI詳細schemaではまだ完全にモデル化していない（`snapshot`と同じ
+    // 「実データを流したまま公開文書だけ緩く近似する」方針）。
+    expirationConditions: { type: "array", items: { type: "object" } },
     linkedEffectGroupId: { type: ["string", "null"] },
     grantedActionId: { type: "string" },
     grantedTurnNumber: { type: "integer", minimum: 1 },

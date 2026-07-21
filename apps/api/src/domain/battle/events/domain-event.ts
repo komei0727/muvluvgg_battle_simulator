@@ -14,6 +14,7 @@ import type {
   ConsumptionKind,
   CriticalMode,
   DamageType,
+  DurationOwner,
   DurationTimeUnit,
   ResourceKind,
   SkillType,
@@ -25,7 +26,10 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { RuntimeCounterScope } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import type { BattleId, BattleUnitId } from "../../shared/ids.js";
-import type { ConditionKind } from "../../catalog/definitions/condition-definition.js";
+import type {
+  ConditionDefinition,
+  ConditionKind,
+} from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectStepDefinition } from "../../catalog/definitions/effect-sequence.js";
 
@@ -384,9 +388,11 @@ export interface BattleDomainEventPayloadMap {
    * `05_ドメインモデル.md`「AppliedEffect」/`08_ドメインイベント.md`「EffectApplied
    * payload」（R-EFF-01）。新しい効果インスタンスを追加した直後に発行する。
    * `kindKey`は`EffectKindKey`（現状`EffectActionDefinitionId`をそのまま使う、
-   * `applied-effect.ts`参照）。`durationUnit`/`initialRemaining`は`timeLimit`を
-   * 持つ場合だけ、`consumptionKind`/`consumptionMaxCount`は`consumption`を持つ
-   * 場合だけ存在する。両方とも持たない場合は戦闘終了まで保持される。
+   * `applied-effect.ts`参照）。`durationUnit`/`durationOwner`/`initialRemaining`は
+   * `timeLimit`を持つ場合だけ（`durationOwner`はさらに`timeLimit.owner`が
+   * 明示された場合だけ）、`consumptionKind`/`consumptionMaxCount`は`consumption`
+   * を持つ場合だけ、`expirationConditions`は`expiration`を持つ場合だけ存在する。
+   * いずれも持たない場合は戦闘終了まで保持される。
    */
   readonly EffectApplied: {
     readonly effectInstanceId: EffectInstanceId;
@@ -397,9 +403,11 @@ export interface BattleDomainEventPayloadMap {
     readonly kindKey: string;
     readonly magnitude: number;
     readonly durationUnit?: DurationTimeUnit;
+    readonly durationOwner?: DurationOwner;
     readonly initialRemaining?: number;
     readonly consumptionKind?: ConsumptionKind;
     readonly consumptionMaxCount?: number;
+    readonly expirationConditions?: readonly ConditionDefinition[];
     readonly linkedEffectGroupId: string | null;
     readonly grantedActionId?: ActionId;
     readonly grantedTurnNumber?: number;

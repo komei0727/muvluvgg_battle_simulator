@@ -717,7 +717,7 @@ metadata:
 | `HEAL`                     | 即時回復                               | `CAP_HEAL`                     |
 | `APPLY_CONTINUOUS_HEAL`    | 行動/ターン時の継続回復                | `CAP_CONTINUOUS_HEAL`          |
 | `APPLY_CONTINUOUS_DAMAGE`  | 行動/ターン時の継続ダメージ（DoT）     | `CAP_CONTINUOUS_DAMAGE`        |
-| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正 | なし                           |
+| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正 | `CAP_STAT_MOD`                 |
 | `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正              | `CAP_DAMAGE_MOD`               |
 | `APPLY_HEALING_MOD`        | 回復量増減                             | `CAP_HEAL`                     |
 | `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                     | `CAP_RESOURCE_MUTATION`        |

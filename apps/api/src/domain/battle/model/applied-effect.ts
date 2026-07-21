@@ -13,6 +13,16 @@ import type { DurationDefinition } from "../../catalog/definitions/duration-defi
  * アクション定義からの付与だけを同種とみなす、現時点で唯一実データから導出
  * できる粒度。どの`EffectKindKey`が現在の計算へ採用されているか（R-EFF-05の
  * 最強選択）はこのIssueのスコープ外（EFF-002）で、ここでは鍵の導出だけを扱う。
+ *
+ * この導出規則はplaceholderであり、確定した公開契約ではない
+ * （PR #207レビュー[P2]）: 異なるスキル由来の同種効果（例: 2つの異なるASが
+ * 与える「攻撃力+10%」）を同じ`kindKey`へグループ化できないため、EFF-002が
+ * R-STA-03を実装する際に導出規則自体を差し替える可能性が高い。この値は
+ * `EffectApplied`イベントの`details.kindKey`として`BattleLogEventResponse`
+ * 経由で外部公開されるが、`CAP_STAT_MOD`（`PLANNED`）がpreflightで拒否する
+ * 現状、`APPLY_STAT_MOD`由来の`EffectApplied`はproduction battleで発行され
+ * 得ない（`grantEffect`を呼ぶ唯一の経路）。したがって実際のCatalogデータに
+ * 基づく`kindKey`値へ外部が依存する余地は現状存在しない。
  */
 export type EffectKindKey = Brand<string, "EffectKindKey">;
 

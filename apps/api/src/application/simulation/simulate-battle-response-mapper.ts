@@ -154,7 +154,10 @@ function toUnitStateResponseBody(
     // `snapshot.effects`（EFF-001で実装済みのDomain state）を意図的にまだ
     // マップしない — `EffectStateResponseBody`が要求する`isEffective`は
     // EFF-002（R-EFF-05の重複なし最強選択）が確定させるまで導出できないため
-    // （`response.ts`のBattleUnitStateResponseBodyコメント参照）。
+    // （`response.ts`のBattleUnitStateResponseBodyコメント参照）。`snapshot.effects`
+    // は`CAP_STAT_MOD`（`PLANNED`）がpreflightで拒否する現状、production
+    // battleでは常に空のため、このマップ省略が実データを隠すことはない
+    // （PR #207レビュー[P1]）。
     shields: { physical: 0, energy: 0, untyped: 0 },
     subUnits: [],
     effects: [],
