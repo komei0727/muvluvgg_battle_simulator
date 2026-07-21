@@ -4,12 +4,13 @@ import {
   type PassiveActivationRuntimeContext,
 } from "./passive-activation-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import { createActionId } from "../../shared/event-ids.js";
+import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createRuntimeCounterId,
@@ -25,6 +26,7 @@ import type { Side } from "../../shared/side.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { applyStateDelta } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
@@ -2401,6 +2403,164 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(finalOwner.skillCounters?.[originalSkill.skillDefinitionId]).toEqual({
       [counterA]: { value: 6, carry: 0 },
       [counterE]: { value: 1, carry: 0 },
+    });
+  });
+
+  describe("R-EFF-08 (expiration.conditions, レビュー修正 PR #209)", () => {
+    const STAT_MOD_ID = createEffectActionDefinitionId("ACT_CURSE_ATK_DOWN");
+
+    function statModDefinition(): EffectActionDefinition {
+      return {
+        effectActionDefinitionId: STAT_MOD_ID,
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "RATIO",
+          formula: { kind: "CONSTANT", value: 0 },
+          stacking: { mode: "STACKABLE" },
+          duration: { dispellable: true, linkedEffectGroupId: null },
+        },
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+      };
+    }
+
+    function conditionalEffect(
+      holderId: ReturnType<typeof createBattleUnitId>,
+      conditions: readonly ConditionDefinition[],
+    ): AppliedEffect {
+      return {
+        effectInstanceId: createEffectInstanceId("effect-curse"),
+        effectActionDefinitionId: STAT_MOD_ID,
+        kindKey: effectKindKeyFromDefinitionId(STAT_MOD_ID),
+        duplicate: true,
+        sourceId: holderId,
+        targetId: holderId,
+        magnitude: -0.2,
+        duration: {
+          definition: { expiration: { conditions }, dispellable: true, linkedEffectGroupId: null },
+        },
+        appliedTurnNumber: 1,
+      };
+    }
+
+    it("UT-R-EFF-08-008 (レビュー指摘[P2]、任意のFACT/TIMINGイベントに接続): expires a matching effect on a non-ActionCompleted event (TurnStarted), before that event's own PS candidates resolve", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+      const owner = unit("OWNER", "ALLY", { attack: 10, unitDefinitionId });
+      const ownerWithEffect: BattleUnit = {
+        ...owner,
+        combatStats: { ...owner.combatStats, attack: 8 },
+        appliedEffects: [
+          conditionalEffect(owner.battleUnitId, [
+            { kind: "EVENT_PAYLOAD", field: "turnNumber", op: "EQ", value: 1 },
+          ]),
+        ],
+      };
+      const skill = passiveSkillOf("SKL_ON_TURN_START", { ppCost: 0 });
+      const definitions = definitionsOf(
+        new Map([
+          [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        ]),
+        new Map([[skill.skillDefinitionId, skill]]),
+        new Map([[STAT_MOD_ID, statModDefinition()]]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        ownerWithEffect,
+      ]);
+
+      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]);
+
+      const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(updatedOwner.appliedEffects).toHaveLength(0);
+      expect(updatedOwner.combatStats.attack).toBe(10);
+
+      const eventTypes = recorder.getEvents().map((e) => e.eventType);
+      const expiredIndex = eventTypes.indexOf("EffectExpired");
+      const combatStatChangedIndex = eventTypes.indexOf("CombatStatChanged");
+      const passiveActivatedIndex = eventTypes.indexOf("PassiveActivated");
+      expect(expiredIndex).toBeGreaterThanOrEqual(0);
+      expect(combatStatChangedIndex).toBeGreaterThan(expiredIndex);
+      // The TurnStarted-triggered PS's own candidate resolution (PassiveActivated)
+      // must come after the expiration-condition cascade for the SAME event.
+      expect(passiveActivatedIndex).toBeGreaterThan(combatStatChangedIndex);
+    });
+
+    it("UT-R-EFF-08-009 (production Catalog ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL相当、TARGET_STATE/SELF/IS_ALIVE): expires an effect whose holder is defeated by the event just recorded", () => {
+      const holder = unit("HOLDER", "ALLY", { attack: 10, currentHp: 0 });
+      const holderWithEffect: BattleUnit = {
+        ...holder,
+        combatStats: { ...holder.combatStats, attack: 8 },
+        appliedEffects: [
+          conditionalEffect(holder.battleUnitId, [
+            {
+              kind: "TARGET_STATE",
+              target: { kind: "SELF" },
+              field: "IS_ALIVE",
+              op: "EQ",
+              value: false,
+            },
+          ]),
+        ],
+      };
+      const definitions = definitionsOf(
+        new Map(),
+        new Map(),
+        new Map([[STAT_MOD_ID, statModDefinition()]]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const unitDefeated = recorder.record({
+        eventType: "UnitDefeated",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        parentEventId: turnStarted.eventId,
+        rootEventId: turnStarted.eventId,
+        targetUnitIds: [holder.battleUnitId],
+        payload: { unitId: holder.battleUnitId, causeEventId: turnStarted.eventId },
+      });
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        holderWithEffect,
+      ]);
+
+      const updatedUnits = runtime.onFactEvent(unitDefeated, [holderWithEffect]);
+
+      const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updatedHolder.appliedEffects).toHaveLength(0);
+      expect(updatedHolder.combatStats.attack).toBe(10);
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(true);
+    });
+
+    it("UT-R-EFF-08-010: does nothing (no EffectExpired) when no expiration.conditions matches the event", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_A");
+      const owner = unit("OWNER", "ALLY", { attack: 10, unitDefinitionId });
+      const ownerWithEffect: BattleUnit = {
+        ...owner,
+        appliedEffects: [
+          conditionalEffect(owner.battleUnitId, [
+            { kind: "EVENT_PAYLOAD", field: "turnNumber", op: "EQ", value: 999 },
+          ]),
+        ],
+      };
+      const definitions = definitionsOf(
+        new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [])]]),
+        new Map(),
+        new Map([[STAT_MOD_ID, statModDefinition()]]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        ownerWithEffect,
+      ]);
+
+      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]);
+
+      const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(updatedOwner.appliedEffects).toHaveLength(1);
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
     });
   });
 });

@@ -197,6 +197,20 @@ export interface BattleDomainEventPayloadMap {
     readonly targetUnitIds: readonly BattleUnitId[];
     readonly resultKind: EffectActionResultKind;
   };
+  /**
+   * `08_ドメインイベント.md`「UnitBeingAttacked」: 攻撃対象が確定した直後
+   * （命中判定・ダメージ計算より前）に、ヒットごとに発行する（`TIMING`）。
+   * R-EFF-07: `NEXT_INCOMING_ATTACK`消費条件はこのイベントの発行時点で
+   * 消費する。EFF-003（Issue #159、レビュー修正 PR #209）が発行位置を
+   * 最小追加した — `TRIGGER_SOURCE`/`TRIGGER_TARGET`のPS対象解決自体は
+   * RES-005（Issue #172）のスコープのまま。
+   */
+  readonly UnitBeingAttacked: {
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+    readonly targetUnitId: BattleUnitId;
+  };
   readonly HitConfirmed: {
     readonly skillDefinitionId: SkillDefinitionId;
     readonly effectActionDefinitionId: EffectActionDefinitionId;

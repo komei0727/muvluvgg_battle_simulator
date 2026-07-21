@@ -206,16 +206,19 @@ export function expireEffects(
   }
 
   const seedIds = new Set(seeds.map((seed) => seed.effectInstanceId));
-  // R-EFF-09「子効果だけが消費条件で失効した場合、親効果は維持する」: Catalogの
-  // `linkedEffectGroupId`は単なる同グループ所属のフラットな値で、親子の役割を
-  // 区別するフィールドを持たない。そのため役割は失効理由から導く —
-  // `CONSUMPTION`（消費条件）で失効したインスタンスは常に「子」としてグループを
-  // カスケードしない。`TIME_LIMIT`/`EXPIRATION_CONDITION`（時間制限・特殊失効）
-  // で失効したインスタンスは「親」としてグループ全体をカスケードする。
-  const cascadeSeedIds = new Set(
-    seeds.filter((seed) => seed.reason !== "CONSUMPTION").map((seed) => seed.effectInstanceId),
-  );
-  const cascadeIds = collectLinkedGroupCascade(units, cascadeSeedIds);
+  // レビュー指摘[P2]（PR #209）: Catalogの`linkedEffectGroupId`は同グループ所属を
+  // 表すフラットな値で、親子の役割を区別するフィールドを持たない。以前は
+  // 失効理由（`CONSUMPTION`かどうか）から役割を推測していたが、実production
+  // Catalog（`UNIT_HARRIET_SAGE`の`HARRIET_BARRIER`）では`ACT_HARRIET_SAGE_
+  // AS2_IMMUNITY`自身が`consumption: INCOMING_HIT`を持ちながら、その失効は
+  // 同グループの`ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL`へカスケードする必要が
+  // ある。そのためAppliedEffectだけで構成されるグループでは、失効理由を問わず
+  // 同じ`linkedEffectGroupId`を共有する全インスタンスへ対称にカスケードする。
+  // R-EFF-09が明示する「子効果だけが消費条件で失効した場合、親効果は維持する」
+  // 例外は、`AppliedEffect`と`MarkerState`の親子関係（Markerが親、
+  // AppliedEffectが子）を前提とした規則であり、Marker自体が未実装(EFF-004)の
+  // 現状では到達しない — Marker実装時にこの例外を再導入する。
+  const cascadeIds = collectLinkedGroupCascade(units, seedIds);
   const reasonById = new Map<
     EffectInstanceId,
     { reason: EffectExpirationReason; cascaded: boolean }

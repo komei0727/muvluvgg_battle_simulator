@@ -590,6 +590,7 @@ describe("SimulateBattleUseCase", () => {
         "SKILL_USE_STARTED",
         "EFFECT_STEP_STARTING",
         "EFFECT_ACTION_STARTING",
+        "UNIT_BEING_ATTACKED",
         "HIT_CONFIRMED",
         "CRITICAL_CHECK_RESOLVED",
         "DAMAGE_CALCULATED",

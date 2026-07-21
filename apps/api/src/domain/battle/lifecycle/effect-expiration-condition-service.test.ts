@@ -158,4 +158,56 @@ describe("findEffectsMatchingExpirationCondition", () => {
       { battleUnitId: targetB.battleUnitId, effectInstanceId: effectB.effectInstanceId },
     ]);
   });
+
+  it("UT-R-EFF-08-006 (レビュー修正 PR #209、production Catalog ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL): TARGET_STATE/SELF/IS_ALIVE resolves SELF to the effect's own holder unit (not a PS owner) and does not throw", () => {
+    const alive = unit("target-1");
+    const targetStateCondition: ConditionDefinition = {
+      kind: "TARGET_STATE",
+      target: { kind: "SELF" },
+      field: "IS_ALIVE",
+      op: "EQ",
+      value: false,
+    };
+    const effect = effectWithConditions("effect-1", alive, [targetStateCondition]);
+    const withEffect = { ...alive, appliedEffects: [effect] };
+
+    const notMatched = findEffectsMatchingExpirationCondition([withEffect], { payload: {} });
+    expect(notMatched).toHaveLength(0);
+
+    const defeated = { ...alive, currentHp: 0 };
+    const withDefeatedHolder = { ...defeated, appliedEffects: [effect] };
+    const matched = findEffectsMatchingExpirationCondition([withDefeatedHolder], { payload: {} });
+    expect(matched).toEqual([
+      { battleUnitId: alive.battleUnitId, effectInstanceId: effect.effectInstanceId },
+    ]);
+  });
+
+  it("UT-R-EFF-08-007: SELF resolves independently per instance across multiple units — one holder's death does not affect another holder's own TARGET_STATE/SELF evaluation", () => {
+    const aliveHolder = unit("alive-holder");
+    const defeatedHolder = { ...unit("defeated-holder"), currentHp: 0 };
+    const targetStateCondition: ConditionDefinition = {
+      kind: "TARGET_STATE",
+      target: { kind: "SELF" },
+      field: "IS_ALIVE",
+      op: "EQ",
+      value: false,
+    };
+    const effectOnAlive = effectWithConditions("effect-alive", aliveHolder, [targetStateCondition]);
+    const effectOnDefeated = effectWithConditions("effect-defeated", defeatedHolder, [
+      targetStateCondition,
+    ]);
+    const units = [
+      { ...aliveHolder, appliedEffects: [effectOnAlive] },
+      { ...defeatedHolder, appliedEffects: [effectOnDefeated] },
+    ];
+
+    const matches = findEffectsMatchingExpirationCondition(units, { payload: {} });
+
+    expect(matches).toEqual([
+      {
+        battleUnitId: defeatedHolder.battleUnitId,
+        effectInstanceId: effectOnDefeated.effectInstanceId,
+      },
+    ]);
+  });
 });

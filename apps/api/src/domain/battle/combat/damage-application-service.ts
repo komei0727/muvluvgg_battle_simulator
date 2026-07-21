@@ -200,21 +200,47 @@ export function applyDamageAction(
       continue;
     }
 
-    // R-EFF-07: 命中判定に到達した時点（MISS/命中を問わない）で
-    // NEXT_OUTGOING_ATTACK（攻撃者側）/NEXT_INCOMING_ATTACK（対象側）を消費する。
+    // `08_ドメインイベント.md`「UnitBeingAttacked」: 攻撃対象が確定した直後
+    // （命中判定・ダメージ計算より前）に発行する。R-EFF-07:
+    // `NEXT_INCOMING_ATTACK`はこの発行時点で消費する。
+    const unitBeingAttackedEventsStart = context.recorder.getEvents().length;
+    const unitBeingAttacked = context.recorder.record({
+      eventType: "UnitBeingAttacked",
+      category: "TIMING",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        skillDefinitionId: context.skillDefinitionId,
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+        targetUnitId: hit.targetBattleUnitId,
+      },
+    });
+    lastEventId = unitBeingAttacked.eventId;
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      target.battleUnitId,
+      "NEXT_INCOMING_ATTACK",
+      lastEventId,
+    );
+    notifyNewEvents(context, working, unitBeingAttackedEventsStart);
+
+    // R-EFF-07: `NEXT_OUTGOING_ATTACK`は攻撃者が命中判定に到達した時点
+    // （MISS/命中を問わない）で消費する。専用のドメインイベントは持たない。
     const judgmentEventsStart = context.recorder.getEvents().length;
     lastEventId = consumeAndExpire(
       context,
       working,
       currentAttacker.battleUnitId,
       "NEXT_OUTGOING_ATTACK",
-      lastEventId,
-    );
-    lastEventId = consumeAndExpire(
-      context,
-      working,
-      target.battleUnitId,
-      "NEXT_INCOMING_ATTACK",
       lastEventId,
     );
     notifyNewEvents(context, working, judgmentEventsStart);
@@ -315,18 +341,19 @@ export function applyDamageAction(
       },
     });
 
-    const hpBefore = target.currentHp;
-    const hpAfter = Math.max(0, target.currentHp - damageResult.finalDamage);
-    // R-EFF-07レビュー修正: `target`は命中判定時点のスナップショット（ダメージ
-    // 計算はこの時点の値を使うのが正しい、攻撃者側と同じ理由）だが、HPの
-    // 書き戻し先は`working`の現在状態（NEXT_INCOMING_ATTACK消費による
-    // `appliedEffects`変化を含む）でなければならない。stale `target`を直接
-    // spreadすると、命中判定〜ダメージ確定の間に`consumeAndExpire`が
-    // `working`へ加えた変更を上書きして消してしまう。
+    // レビュー修正 PR #209 続き: `target`は命中判定〜ダメージ計算のスナップ
+    // ショット（攻撃力・防御力等の計算に使うのは正しい、攻撃者側と同じ理由
+    // — 消費で失う直前のstat補正もその攻撃自身には効くべき）だが、HP自体は
+    // ダメージ計算に使う値ではなく現在の実状態そのもの。`UnitBeingAttacked`
+    // 通知（EFF-003）でPSが対象を回復・シールドする余地ができたため、
+    // stale `target.currentHp`から引くと、その回復分がダメージ計算前に
+    // 静かに失われる。現在の`working`状態から取り直したHPを起点にする。
     const currentTarget = findUnit(working, target.battleUnitId, "hits[].targetBattleUnitId");
+    const hpBefore = currentTarget.currentHp;
+    const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
     const updatedTarget: BattleUnit = {
       ...currentTarget,
-      currentHp: createHitPoint(hpAfter, target.combatStats.maximumHp),
+      currentHp: createHitPoint(hpAfter, currentTarget.combatStats.maximumHp),
     };
     working.set(target.battleUnitId, updatedTarget);
 

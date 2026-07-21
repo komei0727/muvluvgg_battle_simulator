@@ -523,4 +523,112 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       cascaded: false,
     });
   });
+
+  it("IT-CAP-COMPLEX-EXPIRATION-PROD-005 (レビュー修正 PR #209): UNIT_HARRIET_SAGE's HARRIET_BARRIER cascades ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL when ACT_HARRIET_SAGE_AS2_IMMUNITY expires via its OWN consumption (INCOMING_HIT), proving cascade eligibility does not depend on the seed's expiration reason", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot(["UNIT_HARRIET_SAGE" as never], []);
+    const immunity = snapshot.effectActions.get("ACT_HARRIET_SAGE_AS2_IMMUNITY" as never);
+    const continuousHeal = snapshot.effectActions.get(
+      "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL" as never,
+    );
+    expect(immunity?.kind).toBe("APPLY_STATUS");
+    expect(continuousHeal?.kind).toBe("APPLY_CONTINUOUS_HEAL");
+    if (immunity?.kind !== "APPLY_STATUS" || continuousHeal?.kind !== "APPLY_CONTINUOUS_HEAL") {
+      return;
+    }
+    expect(immunity.payload.duration.consumption).toEqual({ kind: "INCOMING_HIT", maxCount: 2 });
+    expect(immunity.payload.duration.linkedEffectGroupId).toBe("HARRIET_BARRIER");
+    expect(continuousHeal.payload.duration.linkedEffectGroupId).toBe("HARRIET_BARRIER");
+
+    const owner = actorFor("UNIT_HARRIET_SAGE", "owner-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+
+    const grantImmunity = grantEffect(
+      context,
+      [owner],
+      {
+        effectActionDefinitionId: immunity.effectActionDefinitionId,
+        sourceId: owner.battleUnitId,
+        targetId: owner.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        durationDefinition: immunity.payload.duration,
+      },
+      rootEventId,
+    );
+    let units = grantImmunity.units;
+    const grantHeal = grantEffect(
+      context,
+      units,
+      {
+        effectActionDefinitionId: continuousHeal.effectActionDefinitionId,
+        sourceId: owner.battleUnitId,
+        targetId: owner.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        durationDefinition: continuousHeal.payload.duration,
+      },
+      grantImmunity.lastEventId,
+    );
+    units = grantHeal.units;
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)!.appliedEffects).toHaveLength(
+      2,
+    );
+
+    // Consume both INCOMING_HIT stacks so the IMMUNITY parent itself expires
+    // via CONSUMPTION (not TIME_LIMIT) — this is the exact HARRIET_BARRIER
+    // scenario the review flagged: cascade eligibility must not depend on
+    // the seed's own expiration reason.
+    let lastEventId = grantHeal.lastEventId;
+    for (let i = 0; i < 2; i++) {
+      const consumption = consumeEffectDurations(units, owner.battleUnitId, "INCOMING_HIT");
+      expect(consumption.changes).toHaveLength(1);
+      units = consumption.units;
+      lastEventId = emitEffectConsumptionChangedEvents(
+        context,
+        units,
+        consumption.changes,
+        lastEventId,
+      );
+      if (consumption.changes[0]!.after === 0) {
+        const expiry = expireEffects(
+          context,
+          units,
+          [
+            {
+              battleUnitId: owner.battleUnitId,
+              effectInstanceId: consumption.changes[0]!.effectInstanceId,
+              reason: "CONSUMPTION",
+            },
+          ],
+          snapshot.effectActions,
+          lastEventId,
+        );
+        units = expiry.units;
+        lastEventId = expiry.lastEventId;
+      }
+    }
+
+    const finalOwner = units.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(finalOwner.appliedEffects).toHaveLength(0);
+    const expiredEvents = recorder.getEvents().filter((e) => e.eventType === "EffectExpired");
+    expect(expiredEvents).toHaveLength(2);
+    expect(expiredEvents[0]!.payload).toMatchObject({
+      effectInstanceId: grantHeal.appliedEffect.effectInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(expiredEvents[1]!.payload).toMatchObject({
+      effectInstanceId: grantImmunity.appliedEffect.effectInstanceId,
+      reason: "CONSUMPTION",
+      cascaded: false,
+    });
+  });
 });

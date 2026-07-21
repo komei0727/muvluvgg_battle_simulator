@@ -331,6 +331,19 @@ const effectActionCompletedDetailsSchema = {
   },
 } as const;
 
+/** `UnitBeingAttacked`（R-EFF-07、EFF-003）。攻撃対象が確定した直後、命中判定より前に発行する。 */
+const unitBeingAttackedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "effectActionDefinitionId", "hitIndex", "targetUnitId"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+  },
+} as const;
+
 const hitConfirmedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1136,6 +1149,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_STEP_COMPLETED: effectStepCompletedDetailsSchema,
   EFFECT_ACTION_STARTING: effectActionStartingDetailsSchema,
   EFFECT_ACTION_COMPLETED: effectActionCompletedDetailsSchema,
+  UNIT_BEING_ATTACKED: unitBeingAttackedDetailsSchema,
   HIT_CONFIRMED: hitConfirmedDetailsSchema,
   CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,

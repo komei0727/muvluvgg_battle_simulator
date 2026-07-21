@@ -514,4 +514,146 @@ describe("evaluateTriggerCondition", () => {
       expect(evaluateTriggerCondition(condition, { payload: {} })).toBe(true);
     });
   });
+
+  describe("TARGET_STATE (レビュー修正 PR #209、EFF-003: production Catalogの ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL が TARGET_STATE/SELF/IS_ALIVE を使用)", () => {
+    it("UT-R-PS-01-028: IS_ALIVE/SELF matches the owner's own alive state", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-029: IS_ALIVE/SELF reflects a defeated owner", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { currentHp: 0 });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: false,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-030: HP_RATIO/TRIGGER_TARGET compares the resolved target's current/maximum HP ratio", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const target = unitAt("TARGET", "ENEMY", "FRONT", "LEFT", { currentHp: 30 });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "TRIGGER_TARGET" },
+        field: "HP_RATIO",
+        op: "LTE",
+        value: 0.3,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {}, targetUnitIds: [target.battleUnitId] },
+          {
+            owner,
+            skillDefinitionId: SKILL_ID,
+            getUnit: (id) => (id === target.battleUnitId ? target : undefined),
+          },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-031: ATTRIBUTE/POSITION_ROW/POSITION_COLUMN/RESOURCE_* resolve from the target's own BattleUnit fields", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "RIGHT", {
+        attribute: "SHY",
+        currentAp: 2,
+        currentPp: 1,
+        currentExtraGauge: 40,
+      });
+      const context = { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner };
+      const check = (
+        field:
+          | "ATTRIBUTE"
+          | "POSITION_ROW"
+          | "POSITION_COLUMN"
+          | "RESOURCE_AP"
+          | "RESOURCE_PP"
+          | "RESOURCE_EX_GAUGE",
+        value: string | number,
+      ): boolean =>
+        evaluateTriggerCondition(
+          { kind: "TARGET_STATE", target: { kind: "SELF" }, field, op: "EQ", value },
+          { payload: {} },
+          context,
+        );
+
+      expect(check("ATTRIBUTE", "SHY")).toBe(true);
+      expect(check("POSITION_ROW", "BACK")).toBe(true);
+      expect(check("POSITION_COLUMN", "RIGHT")).toBe(true);
+      expect(check("RESOURCE_AP", 2)).toBe(true);
+      expect(check("RESOURCE_PP", 1)).toBe(true);
+      expect(check("RESOURCE_EX_GAUGE", 40)).toBe(true);
+    });
+
+    it("UT-R-PS-01-032: throws when no context with getUnit is supplied", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(() => evaluateTriggerCondition(condition, { payload: {} })).toThrow(
+        DomainValidationError,
+      );
+    });
+
+    it("UT-R-PS-01-033: resolving to an unknown/absent target does not match", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "TRIGGER_TARGET" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => undefined },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-034: a field requiring unimplemented Catalog/state-ailment lookups (UNIT_TYPE/ROLE/HAS_STATUS) throws a clear DomainValidationError", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "HAS_STATUS",
+        op: "EQ",
+        value: "STUN",
+      };
+      expect(() =>
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
 });

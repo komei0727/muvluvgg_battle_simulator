@@ -30,12 +30,18 @@
     "implementationTaskId": "EFF-003",
     "description": "ACTION/TURN期間・消費・特殊失効・親子連動",
     "verification": {
-      "productionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_ATKDOWN", "ACT_HARRIET_SAGE_AS1_DMGDOWN"],
+      "productionDefinitionIds": [
+        "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+        "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+        "ACT_HARRIET_SAGE_AS2_IMMUNITY",
+        "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL"
+      ],
       "testCaseIds": [
         "IT-CAP-COMPLEX-EXPIRATION-PROD-001",
         "IT-CAP-COMPLEX-EXPIRATION-PROD-002",
         "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
-        "IT-CAP-COMPLEX-EXPIRATION-PROD-004"
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-004",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-005"
       ]
     }
   },

@@ -10,7 +10,6 @@ import {
   expireEffects,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
-import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
 import type {
   ActionId,
   DomainEventId,
@@ -234,41 +233,12 @@ export function recordActionCompletion(
     sourceUnitId: context.actorId,
     payload: { actorUnitId: context.actorId, effectiveActionType },
   });
-  lastEventId = actionCompleted.eventId;
-
-  // R-EFF-08: `ActionCompleted`発行後、PS/Memory候補抽出（`notify`）前に
-  // `expiration.conditions`を評価する。
-  const conditionMatches = findEffectsMatchingExpirationCondition(working, {
-    payload: actionCompleted.payload,
-    sourceUnitId: context.actorId,
-  });
-  if (conditionMatches.length > 0) {
-    const expirationEventsStart = recorder.getEvents().length;
-    const seeds: ExpirationSeed[] = conditionMatches.map((match) => ({
-      battleUnitId: match.battleUnitId,
-      effectInstanceId: match.effectInstanceId,
-      reason: "EXPIRATION_CONDITION",
-    }));
-    const expiry = expireEffects(
-      {
-        recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        actionId: context.actionId,
-        resolutionScopeId: context.resolutionScopeId,
-        rootEventId: context.rootEventId,
-      },
-      working,
-      seeds,
-      context.effectActions,
-      lastEventId,
-    );
-    working = expiry.units;
-    for (const event of recorder.getEvents().slice(expirationEventsStart)) {
-      notify(event);
-    }
-  }
-
+  // レビュー指摘[P2]（PR #209）: R-EFF-08（`expiration.conditions`）の評価は
+  // `ActionCompleted`だけでなく`DamageApplied`/`UnitDefeated`等すべてのFACT/
+  // TIMINGイベントに対して行う必要があるため、`PassiveActivationRuntime.
+  // onFactEvent`（`notify`が`context.onFactEventForPassiveChain`経由で呼ぶ
+  // 唯一の共通経路）へ一元化した。`action-completion.ts`固有のここでの評価は
+  // 削除し、`notify(actionCompleted)`自身がその配線を担う。
   notify(actionCompleted);
   return { completedEventId: actionCompleted.eventId, units: working };
 }

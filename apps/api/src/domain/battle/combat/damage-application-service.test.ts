@@ -525,8 +525,10 @@ describe("applyDamageAction", () => {
     // Both facts from this one lethal hit must reach the hook, in causal
     // order, so a third party's DamageApplied-triggered PS (e.g. "when an
     // ally is damaged") is not silently skipped just because the hit also
-    // happened to be lethal.
-    expect(seenEventTypes).toEqual(["DamageApplied", "UnitDefeated"]);
+    // happened to be lethal. `UnitBeingAttacked` (R-EFF-07, EFF-003) also
+    // reaches the hook, ahead of both — the target was determined attackable
+    // before hit judgment, damage calculation, or defeat.
+    expect(seenEventTypes).toEqual(["UnitBeingAttacked", "DamageApplied", "UnitDefeated"]);
   });
 
   it("UT-R-EFF-07-007 (R-EFF-07 NEXT_OUTGOING_ATTACK/OUTGOING_HIT): consumes the attacker's matching effects when a hit reaches judgment and is confirmed (not MISS)", () => {
@@ -617,6 +619,69 @@ describe("applyDamageAction", () => {
     expect(updatedTarget.appliedEffects[0]!.duration.consumptionRemaining).toBe(1);
   });
 
+  it("UT-R-EFF-07-010 (レビュー修正 PR #209、R-EFF-07/08_ドメインイベント.md UnitBeingAttacked): records a real UnitBeingAttacked event when the target is determined attackable, and consumes NEXT_INCOMING_ATTACK causally after it (not merely before hit judgment)", () => {
+    const nextIncomingEffect = consumptionEffect(
+      "eff-next-incoming",
+      createBattleUnitId("TARGET"),
+      "NEXT_INCOMING_ATTACK",
+      1,
+    );
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [nextIncomingEffect],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+      },
+    );
+
+    const events = baseContext.recorder.getEvents();
+    const unitBeingAttacked = events.find((e) => e.eventType === "UnitBeingAttacked");
+    const consumptionChanged = events.find((e) => e.eventType === "EffectConsumptionChanged");
+    expect(unitBeingAttacked).toBeDefined();
+    expect(unitBeingAttacked!.payload).toMatchObject({
+      targetUnitId: createBattleUnitId("TARGET"),
+      hitIndex: 1,
+    });
+    expect(unitBeingAttacked!.sourceUnitId).toBe(createBattleUnitId("ATTACKER"));
+    expect(consumptionChanged).toBeDefined();
+    expect(consumptionChanged!.parentEventId).toBe(unitBeingAttacked!.eventId);
+  });
+
+  it("UT-R-EFF-07-011: does not record UnitBeingAttacked for a hit skipped because the target is already defeated", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = defeated(unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }));
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(context.recorder.getEvents().some((e) => e.eventType === "UnitBeingAttacked")).toBe(
+      false,
+    );
+  });
+
   it("UT-R-EFF-07-009 (R-EFF-07 boundary/expiry): a NEXT_OUTGOING_ATTACK effect at maxCount 1 expires (EffectConsumptionChanged then EffectExpired) after being consumed", () => {
     const nextAttackEffect = consumptionEffect(
       "eff-next-outgoing",
@@ -655,5 +720,41 @@ describe("applyDamageAction", () => {
     expect(types).toContain("EffectConsumptionChanged");
     expect(types).toContain("EffectExpired");
     expect(types.indexOf("EffectConsumptionChanged")).toBeLessThan(types.indexOf("EffectExpired"));
+  });
+
+  it("UT-R-EFF-07-012 (レビュー修正 PR #209 続き — hpBefore/hpAfter staleness): an HP change made by a PS reacting to UnitBeingAttacked (before hit judgment) is reflected as the damage baseline, not silently discarded", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+    // Simulate a PS that heals the target by 5 HP the instant it becomes an
+    // attack target (reacting to UnitBeingAttacked, before hit judgment).
+    const contextWithHeal: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) =>
+        event.eventType === "UnitBeingAttacked"
+          ? units.map((u) =>
+              u.battleUnitId === target.battleUnitId ? { ...u, currentHp: u.currentHp + 5 } : u,
+            )
+          : units,
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      contextWithHeal,
+    );
+
+    // attack(30) - defense(10) = 20 damage. Baseline must be the healed HP
+    // (100 + 5 = 105), not the stale pre-heal snapshot (100).
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.currentHp).toBe(85);
+    const damageApplied = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageApplied")!;
+    expect(damageApplied.payload).toMatchObject({ hpBefore: 105, hpAfter: 85 });
   });
 });

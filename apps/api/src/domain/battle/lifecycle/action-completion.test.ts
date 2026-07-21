@@ -363,73 +363,9 @@ describe("recordActionCompletion", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(true);
   });
 
-  it("UT-R-EFF-08-006 (R-EFF-08): expires an effect whose expiration.conditions matches the ActionCompleted payload, after ActionCompleted is recorded but before its own PS candidates resolve", () => {
-    const recorder = new EventRecorder(createBattleId("B_1"));
-    const seed = recorder.record({
-      eventType: "TurnStarted",
-      category: "FACT",
-      turnNumber: 1,
-      cycleNumber: 0,
-      resolutionScopeId: recorder.nextResolutionScopeId(),
-      payload: { turnNumber: 1 },
-    });
-    const actor = plainUnit("U1");
-    const conditionalEffect: AppliedEffect = {
-      effectInstanceId: createEffectInstanceId("effect-1"),
-      effectActionDefinitionId: STAT_MOD_DEFINITION_ID,
-      kindKey: effectKindKeyFromDefinitionId(STAT_MOD_DEFINITION_ID),
-      duplicate: true,
-      sourceId: actor.battleUnitId,
-      targetId: actor.battleUnitId,
-      magnitude: 0.2,
-      duration: {
-        definition: {
-          expiration: {
-            conditions: [
-              { kind: "EVENT_PAYLOAD", field: "effectiveActionType", op: "EQ", value: "AS" },
-            ],
-          },
-          dispellable: true,
-          linkedEffectGroupId: null,
-        },
-      },
-      appliedTurnNumber: 1,
-    };
-    const actorWithEffect = {
-      ...actor,
-      appliedEffects: [conditionalEffect],
-      combatStats: { ...actor.combatStats, attack: 12 },
-    };
-    const seenEventTypes: string[] = [];
-
-    const result = recordActionCompletion(
-      recorder,
-      {
-        actionId: createActionId("B_1:action:1"),
-        resolutionScopeId: recorder.nextResolutionScopeId(),
-        rootEventId: seed.eventId,
-        turnNumber: 1,
-        cycleNumber: 1,
-        actorId: actor.battleUnitId,
-        effectActions: new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
-        onFactEventForPassiveChain: (event, units) => {
-          seenEventTypes.push(event.eventType);
-          return units;
-        },
-      },
-      "AS",
-      seed.eventId,
-      [actorWithEffect],
-    );
-
-    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
-    expect(updated.appliedEffects).toHaveLength(0);
-    expect(updated.combatStats.attack).toBe(10);
-    expect(seenEventTypes).toEqual([
-      "ActionCompleting",
-      "EffectExpired",
-      "CombatStatChanged",
-      "ActionCompleted",
-    ]);
-  });
+  // R-EFF-08 (expiration.conditions) wiring moved to
+  // `PassiveActivationRuntime.onFactEvent` (レビュー指摘[P2]、PR #209) so it
+  // applies to every FACT/TIMING event, not just `ActionCompleted` — see
+  // `passive-activation-service.test.ts`'s `onFactEvent` describe block for
+  // the equivalent coverage.
 });

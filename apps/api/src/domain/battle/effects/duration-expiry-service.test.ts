@@ -226,16 +226,21 @@ describe("expireEffects", () => {
     });
   });
 
-  it("UT-R-EFF-09-006 (R-EFF-09): a child expiring independently (consumption) does not cascade to the parent", () => {
+  it("UT-R-EFF-09-006 (R-EFF-09 レビュー修正 PR #209/HARRIET_BARRIER): a member expiring via CONSUMPTION also cascades to the rest of its linkedEffectGroupId — role is not inferred from expiration reason", () => {
     const def = statModDefinition("ACT_LINK");
     const target = unit("target-1");
-    const parent = effect("parent", target.battleUnitId, def.effectActionDefinitionId, {
+    const immunity = effect("immunity", target.battleUnitId, def.effectActionDefinitionId, {
       duration: { definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" } },
     });
-    const child = effect("child", target.battleUnitId, def.effectActionDefinitionId, {
-      duration: { definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" } },
-    });
-    const withEffects = { ...target, appliedEffects: [parent, child] };
+    const continuousHeal = effect(
+      "continuous-heal",
+      target.battleUnitId,
+      def.effectActionDefinitionId,
+      {
+        duration: { definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" } },
+      },
+    );
+    const withEffects = { ...target, appliedEffects: [immunity, continuousHeal] };
     const { recorder, rootEventId } = createRoot();
 
     const result = expireEffects(
@@ -244,7 +249,7 @@ describe("expireEffects", () => {
       [
         {
           battleUnitId: target.battleUnitId,
-          effectInstanceId: child.effectInstanceId,
+          effectInstanceId: immunity.effectInstanceId,
           reason: "CONSUMPTION",
         },
       ],
@@ -253,14 +258,17 @@ describe("expireEffects", () => {
     );
 
     const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
-    expect(updated.appliedEffects.map((eff) => eff.effectInstanceId)).toEqual([
-      parent.effectInstanceId,
-    ]);
+    expect(updated.appliedEffects).toHaveLength(0);
 
     const expiredEvents = recorder.getEvents().filter((ev) => ev.eventType === "EffectExpired");
-    expect(expiredEvents).toHaveLength(1);
+    expect(expiredEvents).toHaveLength(2);
     expect(expiredEvents[0]!.payload).toMatchObject({
-      effectInstanceId: child.effectInstanceId,
+      effectInstanceId: continuousHeal.effectInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(expiredEvents[1]!.payload).toMatchObject({
+      effectInstanceId: immunity.effectInstanceId,
       reason: "CONSUMPTION",
       cascaded: false,
     });

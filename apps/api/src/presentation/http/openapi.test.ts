@@ -791,6 +791,7 @@ describe("OpenAPI document", () => {
       EffectStepCompleted: true,
       EffectActionStarting: true,
       EffectActionCompleted: true,
+      UnitBeingAttacked: true,
       HitConfirmed: true,
       CriticalCheckResolved: true,
       DamageCalculated: true,
