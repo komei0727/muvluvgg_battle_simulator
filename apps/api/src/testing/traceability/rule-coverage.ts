@@ -903,49 +903,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
-  {
-    ruleId: "R-EFF-11",
-    testCaseIds: [
-      "UT-R-EFF-11-001",
-      "UT-R-EFF-11-002",
-      "UT-R-EFF-11-003",
-      "UT-R-EFF-11-004",
-      "UT-R-EFF-11-005",
-      "UT-R-EFF-11-006",
-      "UT-R-EFF-11-007",
-      "UT-R-EFF-11-008",
-      "UT-R-EFF-11-009",
-      "UT-R-EFF-11-010",
-      "UT-R-EFF-11-011",
-      "UT-R-EFF-11-012",
-      "UT-R-EFF-11-013",
-      "UT-R-EFF-11-014",
-      "UT-R-EFF-11-015",
-      "UT-R-EFF-11-016",
-      "UT-CAT-RCU-011",
-      "UT-CAT-RCU-015",
-      "UT-CAT-DUR-015",
-      "UT-CAT-DUR-016",
-      "UT-CAT-DUR-017",
-      "UT-CAT-DUR-018",
-      "UT-CAT-DUR-019",
-      "UT-CAT-DUR-020",
-      "UT-CAT-IDX-038",
-      "UT-CAT-IDX-039",
-      "UT-CAT-IDX-040",
-      "UT-RCOUNTER-EFF-001",
-      "UT-RCOUNTER-EFF-002",
-      "UT-RCOUNTER-EFF-003",
-      "UT-RCOUNTER-EFF-004",
-      "UT-RCOUNTER-EFF-005",
-      "UT-RCOUNTER-EFF-006",
-      "UT-RCOUNTER-EFF-007",
-      "UT-RCOUNTER-EFF-008",
-      "UT-RCOUNTER-EFF-009",
-      "UT-RCOUNTER-EFF-010",
-    ],
-    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
-  },
+  // PR #211レビュー[P1]: `13_実装計画.md`のM7完了条件は「R-EFF-11がAppliedEffect／
+  // EffectSequenceスコープを含めて台帳上で完了する」ことを要求する。AppliedEffect
+  // スコープはEFF-005（Issue #162）で実装・検証済み（`12_テスト戦略.md`「RuntimeCounter
+  // 条件（EFF-005・AppliedEffectスコープ）」に該当テストIDを列挙）だが、EffectSequence
+  // スコープは実行時識別子を持つResolverが存在せず未実装（EFF-006／Issue #212へ分割）。
+  // このルールは台帳上まだ完了扱いにできないため、testCaseIdsは空のまま維持する
+  // （`17_残作業対応表.json`のruleAssignmentsでEFF-006へ割り当て済み）。
+  { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定
   // R-END-01の2つの判定タイミング区分を#9で両方カバーした:

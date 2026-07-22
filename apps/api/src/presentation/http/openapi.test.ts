@@ -7,7 +7,10 @@ import {
   battleSimulationResponseDocSchema,
   cooldownStateResponseSchema,
 } from "./schemas/simulation/simulation-schema.js";
-import { battleLogEventResponseDocSchema } from "./schemas/battle-log/battle-log-schema.js";
+import {
+  battleLogEventResponseDocSchema,
+  runtimeCounterChangedDetailsSchema,
+} from "./schemas/battle-log/battle-log-schema.js";
 import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 import type { BattleSimulationResponseBody } from "../../application/contracts/response.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
@@ -875,5 +878,48 @@ describe("OpenAPI document", () => {
     expect(
       validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 0, setAtActionId: "a-1" }),
     ).toBe(false);
+  });
+
+  it("API-OPENAPI-007 (PR #211 review [P2] fix): runtimeCounterChangedDetailsSchema enforces the SKILL_RUNTIME/APPLIED_EFFECT scope XOR — accepts exactly one matching id field, rejects both missing, both present, or a mismatched scope field", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(runtimeCounterChangedDetailsSchema);
+
+    const skillRuntime = {
+      ownerUnitId: "unit-1",
+      scope: "SKILL_RUNTIME",
+      counter: "RUNTIME_COUNTER_1",
+      skillDefinitionId: "SKL_1",
+      before: 0,
+      after: 1,
+      carry: 0,
+      valueChanged: true,
+    };
+    const appliedEffect = {
+      ownerUnitId: "unit-1",
+      scope: "APPLIED_EFFECT",
+      counter: "RUNTIME_COUNTER_1",
+      effectInstanceId: "battle-1:effect:1",
+      before: 0,
+      after: 1,
+      carry: 0,
+      valueChanged: true,
+    };
+
+    expect(validate(skillRuntime), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(appliedEffect), JSON.stringify(validate.errors)).toBe(true);
+
+    // Both missing.
+    const { skillDefinitionId: _omitted1, ...skillRuntimeMissingId } = skillRuntime;
+    expect(validate(skillRuntimeMissingId)).toBe(false);
+    const { effectInstanceId: _omitted2, ...appliedEffectMissingId } = appliedEffect;
+    expect(validate(appliedEffectMissingId)).toBe(false);
+
+    // Both present (mismatched scope's id also supplied).
+    expect(validate({ ...skillRuntime, effectInstanceId: "battle-1:effect:1" })).toBe(false);
+    expect(validate({ ...appliedEffect, skillDefinitionId: "SKL_1" })).toBe(false);
+
+    // Mismatched: SKILL_RUNTIME scope carrying the APPLIED_EFFECT-shaped id instead.
+    const { skillDefinitionId: _omitted3, ...skillRuntimeBase } = skillRuntime;
+    expect(validate({ ...skillRuntimeBase, effectInstanceId: "battle-1:effect:1" })).toBe(false);
   });
 });

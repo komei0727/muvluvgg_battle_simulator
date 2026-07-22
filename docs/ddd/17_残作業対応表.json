@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 109,
-      "completed": 56,
-      "remaining": 53
+      "completed": 55,
+      "remaining": 54
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -53,6 +53,7 @@
     { "taskId": "EFF-003", "issue": 159, "phase": 1, "milestone": "M7" },
     { "taskId": "EFF-004", "issue": 160, "phase": 1, "milestone": "M7" },
     { "taskId": "EFF-005", "issue": 162, "phase": 1, "milestone": "M7" },
+    { "taskId": "EFF-006", "issue": 212, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-001", "issue": 175, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-002", "issue": 174, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-003", "issue": 173, "phase": 1, "milestone": "M7" },
@@ -116,6 +117,7 @@
     },
     { "taskId": "M7-005", "ruleIds": ["R-HEAL-01", "R-HEAL-02", "R-HEAL-03"] },
     { "taskId": "M7-001", "ruleIds": ["R-EFF-02", "R-EFF-03"] },
+    { "taskId": "EFF-006", "ruleIds": ["R-EFF-11"] },
     { "taskId": "DMG-001", "ruleIds": ["R-SKL-03", "R-ACTN-02", "R-DMG-05"] },
     { "taskId": "DMG-006", "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"] },
     { "taskId": "DMG-002", "ruleIds": ["R-DMG-03", "R-DMG-04"] },

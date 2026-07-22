@@ -134,6 +134,21 @@ export interface PassiveChainDependencies {
   readonly applyExpirationConditions?: (
     event: TriggerCandidateEvent,
   ) => readonly TriggerCandidateEvent[];
+  /**
+   * PR #211レビュー[P1]: `R-EFF-11`（`AppliedEffect`スコープ、EFF-005/Issue #162）の
+   * `counterUpdates`更新も、`applyExpirationConditions`と同じ理由で
+   * トップレベルの`event`だけでなくPS連鎖内部の各イベント（PS自身がyieldする
+   * `PassiveActivated`・`EffectActionStarting`、PS効果由来の`DamageApplied`等、
+   * `onFactEvent`を経由しないイベント）に対しても届ける必要がある。`event`に
+   * 一致する`AppliedEffect`スコープの`counterUpdates`があれば更新し、
+   * `RuntimeCounterChanged`イベントを返す。`resolveEvent`は`event`自身の
+   * `expiration.conditions`評価・候補抽出より前にこれを呼ぶ（R-EFF-11「原因
+   * イベントの状態変更確定後、PS/Memory候補抽出前にcounter更新を決定する」）。
+   * 未指定、または該当なしの場合は空配列を返す契約とする。
+   */
+  readonly applyEffectRuntimeCounterUpdates?: (
+    event: TriggerCandidateEvent,
+  ) => readonly TriggerCandidateEvent[];
 }
 
 export type PassiveChainResult =
@@ -169,6 +184,13 @@ interface ChainState {
  * `event`の候補グループを検出し、スタック先頭へ積んで完全に解決してからpopする。
  * PS深度Guardはpush直後、候補処理を始める前に確認する。
  *
+ * PR #211レビュー[P1]: `deps.applyEffectRuntimeCounterUpdates`（R-EFF-11、
+ * `AppliedEffect`スコープ）を`deps.applyExpirationConditions`（R-EFF-08）より
+ * 先に呼ぶ — counter更新は特殊失効条件評価・候補抽出より前に確定させる
+ * （R-EFF-11「原因イベントの状態変更確定後、PS/Memory候補抽出前にcounter
+ * 更新を決定する」）。新たに発行された`RuntimeCounterChanged`も、`event`自身の
+ * 候補解決より前にこの`resolveEvent`自身へ再帰させて完全に解決する。
+ *
  * レビュー再指摘[P2]（PR #209）: 候補検出の直前に`deps.applyExpirationConditions`
  * （R-EFF-08）を呼び、`event`に対して成立した特殊失効条件を先に処理する。
  * 新たに発行された各イベントは、`event`自身の候補解決より前に、この
@@ -182,6 +204,15 @@ function resolveEvent(
   state: ChainState,
   deps: PassiveChainDependencies,
 ): PassiveChainLimitViolationReason | undefined {
+  if (deps.applyEffectRuntimeCounterUpdates !== undefined) {
+    for (const causedEvent of deps.applyEffectRuntimeCounterUpdates(event)) {
+      const violation = resolveEvent(causedEvent, state, deps);
+      if (violation !== undefined) {
+        return violation;
+      }
+    }
+  }
+
   if (deps.applyExpirationConditions !== undefined) {
     for (const causedEvent of deps.applyExpirationConditions(event)) {
       const violation = resolveEvent(causedEvent, state, deps);

@@ -2620,7 +2620,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     const hitCounterId = createRuntimeCounterId("RUNTIME_COUNTER_HIT_COUNT");
     const effectActionDefinitionId = createEffectActionDefinitionId("ACT_EFF_CURSE");
 
-    function curseDefinition(): DurationDefinition {
+    function curseDefinition(threshold = 2): DurationDefinition {
       return {
         dispellable: true,
         linkedEffectGroupId: null,
@@ -2640,12 +2640,14 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           },
         ],
         expiration: {
-          conditions: [{ kind: "RUNTIME_COUNTER", counter: hitCounterId, op: "GTE", value: 2 }],
+          conditions: [
+            { kind: "RUNTIME_COUNTER", counter: hitCounterId, op: "GTE", value: threshold },
+          ],
         },
       };
     }
 
-    function curseEffect(): AppliedEffect {
+    function curseEffect(threshold = 2): AppliedEffect {
       return {
         effectInstanceId: createEffectInstanceId("effect-curse"),
         effectActionDefinitionId,
@@ -2654,7 +2656,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: createBattleUnitId("ENEMY"),
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
-        duration: { definition: curseDefinition(), counters: {} },
+        duration: { definition: curseDefinition(threshold), counters: {} },
         appliedTurnNumber: 1,
       };
     }
@@ -2714,9 +2716,16 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         [hitCounterId]: { value: 1, carry: 0 },
       });
 
-      const runtimeCounterChanged = recorder
+      // PR #211レビュー[P1]: この`hit1`は`onFactEvent`のトップレベル呼び出しと
+      // `resolvePassiveChain`が注入する`deps.applyEffectRuntimeCounterUpdates`の
+      // 両方から`resolveEvent`経由で到達しうる — `processedEffectRuntimeCounterEventIds`
+      // ガードにより二重加算されず、`RuntimeCounterChanged`はちょうど1件だけ
+      // 発行されることを明示的に固定する。
+      const runtimeCounterChangedEvents = recorder
         .getEvents()
-        .find((e) => e.eventType === "RuntimeCounterChanged")!;
+        .filter((e) => e.eventType === "RuntimeCounterChanged");
+      expect(runtimeCounterChangedEvents).toHaveLength(1);
+      const runtimeCounterChanged = runtimeCounterChangedEvents[0]!;
       expect(runtimeCounterChanged.parentEventId).toBe(hit1.eventId);
       expect(runtimeCounterChanged.payload).toMatchObject({
         ownerUnitId: holder.battleUnitId,
@@ -2827,6 +2836,89 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(updatedHolder.appliedEffects[0]!.duration.counters).toEqual({
         [hitCounterId]: { value: 1, carry: 0 },
       });
+    });
+
+    it("UT-R-EFF-11-017 (PR #211 review [P1]): a DamageApplied event caused by a PS's own EffectSequence (chain-internal, never reaches onFactEvent directly) still updates the target's AppliedEffect counter and its expiration.conditions", () => {
+      const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_ATTACKER");
+      const attackDamage = damageEffectAction("ACT_EFF_ATTACK_DAMAGE");
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const attackSkill = passiveSkillOf("SKL_PS_ATTACK", {
+        ppCost: 1,
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            {
+              targetBindingId: enemyBindingId,
+              selector: {
+                kind: "SELECT",
+                side: "ENEMY",
+                count: "ALL",
+                filters: [],
+                order: ["DEFAULT"],
+                includeDefeated: false,
+              },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: enemyBindingId },
+              actions: [{ effectActionDefinitionId: attackDamage.effectActionDefinitionId }],
+            },
+          ],
+        },
+      });
+      const attacker = unit("ATTACKER", "ALLY", {
+        unitDefinitionId: attackerUnitDefinitionId,
+        currentPp: 3,
+        attack: 100,
+      });
+      const holderWithEffect = {
+        ...unit("HOLDER", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId, maximumHp: 1000 }),
+        appliedEffects: [curseEffect(1)],
+      };
+      const definitions = definitionsOf(
+        new Map([
+          [
+            attackerUnitDefinitionId,
+            unitDefinitionOf(attackerUnitDefinitionId, [attackSkill.skillDefinitionId]),
+          ],
+          [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+        ]),
+        new Map([[attackSkill.skillDefinitionId, attackSkill]]),
+        new Map([[attackDamage.effectActionDefinitionId, attackDamage]]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [attacker, holderWithEffect],
+      );
+
+      const units = runtime.onFactEvent(turnStarted, [attacker, holderWithEffect]);
+
+      const events = recorder.getEvents();
+      expect(events.some((e) => e.eventType === "DamageApplied")).toBe(true);
+      const damageApplied = events.find((e) => e.eventType === "DamageApplied")!;
+      const runtimeCounterChangedEvents = events.filter(
+        (e) => e.eventType === "RuntimeCounterChanged",
+      );
+      expect(runtimeCounterChangedEvents).toHaveLength(1);
+      const runtimeCounterChanged = runtimeCounterChangedEvents[0]!;
+      expect(runtimeCounterChanged.payload).toMatchObject({
+        scope: "APPLIED_EFFECT",
+        counter: hitCounterId,
+        effectInstanceId: curseEffect().effectInstanceId,
+        before: 0,
+        after: 1,
+      });
+      expect(runtimeCounterChanged.parentEventId).toBe(damageApplied.eventId);
+
+      const updatedHolder = units.find((u) => u.battleUnitId === "HOLDER")!;
+      expect(updatedHolder.appliedEffects).toHaveLength(0);
+      const expired = events.find((e) => e.eventType === "EffectExpired");
+      expect(expired).toBeDefined();
     });
   });
 });

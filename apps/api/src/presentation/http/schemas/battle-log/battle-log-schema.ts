@@ -686,29 +686,61 @@ const RUNTIME_COUNTER_SCOPE_ENUM = [
   "EFFECT_SEQUENCE",
 ] as const;
 
+const RUNTIME_COUNTER_CHANGED_COMMON_REQUIRED = [
+  "ownerUnitId",
+  "scope",
+  "counter",
+  "before",
+  "after",
+  "carry",
+  "valueChanged",
+] as const;
+
 /**
  * `RuntimeCounterChanged`（M6最小実装、Issue #143。`APPLIED_EFFECT`スコープは
  * EFF-005/Issue #162で追加）。`carry`は観測用の繰り越し端数。`valueChanged`
  * （`before !== after`）は、carryのみの変化でもこのイベント自体は発行される
  * （追跡性のため）ことと区別するためのフィールド（レビュー再々々レビュー[P1]、
  * Issue #143）。`skillDefinitionId`/`effectInstanceId`は`scope`に応じて排他的に
- * 存在する（`domain-event.ts`の同名フィールドと同じ規約）。
+ * 存在する（`domain-event.ts`の同名フィールドと同じ規約）。`cooldownStateResponseSchema`
+ * （`10_API設計.md`「CooldownStateResponse」）と同じ理由（PR #211レビュー[P2]）で
+ * `oneOf`によるXOR制約を強制する — 現在実際に発行されるscopeは`SKILL_RUNTIME`／
+ * `APPLIED_EFFECT`のみ（`BATTLE`／`BATTLE_UNIT`／`EFFECT_SEQUENCE`はCatalogロード
+ * 時点で拒否されるため発行されない）のため、`oneOf`はこの2 variantだけを列挙する。
  */
-const runtimeCounterChangedDetailsSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["ownerUnitId", "scope", "counter", "before", "after", "carry", "valueChanged"],
-  properties: {
-    ownerUnitId: { type: "string" },
-    scope: { type: "string", enum: RUNTIME_COUNTER_SCOPE_ENUM },
-    counter: { type: "string" },
-    skillDefinitionId: { type: "string" },
-    effectInstanceId: { type: "string" },
-    before: { type: "number" },
-    after: { type: "number" },
-    carry: { type: "number" },
-    valueChanged: { type: "boolean" },
-  },
+export const runtimeCounterChangedDetailsSchema = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: [...RUNTIME_COUNTER_CHANGED_COMMON_REQUIRED, "skillDefinitionId"],
+      properties: {
+        ownerUnitId: { type: "string" },
+        scope: { const: "SKILL_RUNTIME" },
+        counter: { type: "string" },
+        skillDefinitionId: { type: "string" },
+        before: { type: "number" },
+        after: { type: "number" },
+        carry: { type: "number" },
+        valueChanged: { type: "boolean" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: [...RUNTIME_COUNTER_CHANGED_COMMON_REQUIRED, "effectInstanceId"],
+      properties: {
+        ownerUnitId: { type: "string" },
+        scope: { const: "APPLIED_EFFECT" },
+        counter: { type: "string" },
+        effectInstanceId: { type: "string" },
+        before: { type: "number" },
+        after: { type: "number" },
+        carry: { type: "number" },
+        valueChanged: { type: "boolean" },
+      },
+    },
+  ],
 } as const;
 
 /** `RuntimeCounterReset`（M6最小実装、Issue #143）。解決スコープ終了後にcounterを破棄した時。 */

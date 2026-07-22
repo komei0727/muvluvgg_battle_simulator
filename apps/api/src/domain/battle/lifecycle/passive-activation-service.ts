@@ -149,6 +149,28 @@ export class PassiveActivationRuntime {
    * 経路のため、専用のカウンタで管理する。
    */
   private expirationConditionDepth = 0;
+  /**
+   * PR #211レビュー[P1]: `applyEffectRuntimeCounterUpdates`（`AppliedEffect`
+   * スコープ、R-EFF-11）の自己再誘発を検出する再帰深度。`expirationConditionDepth`
+   * とは独立した別の自己再誘発経路のため、専用のカウンタで管理する。
+   */
+  private effectRuntimeCounterDepth = 0;
+  /**
+   * PR #211レビュー[P1]: `applyEffectRuntimeCounterUpdates`は`onFactEvent`の
+   * トップレベル呼び出し（`event`自身の状態変更を確定させ、原因となった
+   * `RuntimeCounterChanged`を`onFactEvent`へ再帰させ`SkillRuntime`counter検出
+   * 等を含む完全な扱いを与えるため）と、`resolvePassiveChain`へ注入する
+   * `deps.applyEffectRuntimeCounterUpdates`（PS連鎖内部の`TIMING_EVENT`/
+   * `EFFECT_RESOLVED`イベントを届けるため）の両方から呼ばれる。
+   * `resolvePassiveChain`の最初の`resolveEvent(initialEvent, ...)`呼び出しは
+   * `onFactEvent`が渡す同じトップレベル`event`（`TriggerCandidateEvent`化した
+   * もの）を再び処理するため、同じ`DomainEventId`を二重に処理しないよう
+   * 一度処理した`DomainEventId`を記録する（`R-EFF-08`の`applyExpirationConditions`
+   * が「units変異後は対象が見つからずno-opになる」自然な冪等性で二重発行を
+   * 避けるのと異なり、counter加算は同じeventに対して毎回マッチしうるため
+   * 明示的なガードが必要）。
+   */
+  private readonly processedEffectRuntimeCounterEventIds = new Set<DomainEventId>();
 
   constructor(context: PassiveActivationRuntimeContext, initialUnits: readonly BattleUnit[]) {
     this.context = context;
@@ -210,6 +232,10 @@ export class PassiveActivationRuntime {
         ? { resolutionPhase: this.context.resolutionPhase }
         : {}),
       applyExpirationConditions: (event) => this.applyExpirationConditionsForChain(event),
+      applyEffectRuntimeCounterUpdates: (event) =>
+        this.applyEffectRuntimeCounterUpdates(event).map((recorded) =>
+          this.toTriggerEvent(recorded),
+        ),
     };
   }
 
@@ -326,15 +352,26 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-005/Issue #162）:
-   * `detectAndRecordRuntimeCounterChanges`（`SKILL_RUNTIME`スコープ）の
-   * `AppliedEffect`スコープ版。原因イベントに起因する各効果インスタンス自身の
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-005/Issue #162、
+   * PR #211レビュー[P1]で`onFactEvent`専用から`resolvePassiveChain`共通経路へ
+   * 拡張）: `SkillRuntime`スコープの`detectAndRecordRuntimeCounterChanges`の
+   * `AppliedEffect`スコープ版。`event`に一致する各効果インスタンス自身の
    * `duration.definition.counterUpdates`を検出し、`RuntimeCounterChanged`
-   * （`scope: APPLIED_EFFECT`、`effectInstanceId`）を発行する。R-EFF-08の
-   * `expiration.conditions`評価（`applyExpirationConditions`）より必ず先に
-   * `onFactEvent`から呼ぶ — 更新後のcounter値をその評価が読めるようにする
-   * （R-EFF-11「原因イベントの状態変更確定後、PS/Memory候補抽出前にcounter
-   * 更新を決定する」の同じ規則）。
+   * （`scope: APPLIED_EFFECT`、`effectInstanceId`）を発行する。
+   * `applyExpirationConditionsForChain`（R-EFF-08）より必ず先に呼ぶ — 更新後の
+   * counter値をその評価が読めるようにする（R-EFF-11「原因イベントの状態変更
+   * 確定後、PS/Memory候補抽出前にcounter更新を決定する」の同じ規則）。
+   *
+   * `onFactEvent`のトップレベル呼び出し（`event`自身をこのメソッドへ直接渡し、
+   * 発行された`RuntimeCounterChanged`を`this.onFactEvent`へ再帰させ`SkillRuntime`
+   * counter検出等を含む完全な扱いを与える）と、`resolvePassiveChain`へ注入する
+   * `deps.applyEffectRuntimeCounterUpdates`（PS自身がyieldする`PassiveActivated`・
+   * `EffectActionStarting`、PS効果由来の`DamageApplied`等、`onFactEvent`を
+   * 経由しないPS連鎖内部のイベントに同じ処理を届ける）の両方から呼ばれる。
+   * `resolvePassiveChain`の最初の`resolveEvent(initialEvent, ...)`は`onFactEvent`
+   * が渡すトップレベル`event`を再び処理するため、`processedEffectRuntimeCounterEventIds`
+   * で同じ`DomainEventId`の二重処理を防ぐ（R-EFF-08の自然な冪等性とは異なり、
+   * counter加算は同じeventに対して毎回マッチしうるため明示的なガードが必要）。
    *
    * `AppliedEffect`は`SkillRuntime`と異なり`resetScope: RESOLUTION_SCOPE`を
    * 持たない（効果インスタンス自身の失効がcounterの破棄を兼ねる）ため、
@@ -348,75 +385,97 @@ export class PassiveActivationRuntime {
    * キー自体の有無（`INCREMENT`の初回はキーが存在しない）を含めて実状態と
    * 厳密に一致させる必要がある（`skillCounterCarry`と同様、値の有無で
    * キーの有無も変わりうる）。
+   *
+   * PS連鎖内部から呼ばれる可能性があるため`this.onFactEvent`は呼ばない
+   * （`applyExpirationConditionsForChain`と同じ制約）。再帰depthは専用の
+   * `this.effectRuntimeCounterDepth`で管理する。
    */
-  private *detectAndRecordEffectRuntimeCounterChanges(
-    causingEvent: BattleDomainEvent,
-    skillUseId?: SkillUseId,
-  ): Generator<BattleDomainEvent, void, unknown> {
-    const triggerEvent = this.toTriggerEvent(causingEvent);
-    const matched = matchEffectRuntimeCounterUpdates(this.units, triggerEvent);
-    for (const entry of matched) {
-      const holderBefore = requireUnit(this.units, entry.battleUnitId);
-      const effectBefore = holderBefore.appliedEffects.find(
-        (effect) => effect.effectInstanceId === entry.effectInstanceId,
-      );
-      const result = applyMatchedEffectRuntimeCounterUpdate(entry, this.units, triggerEvent);
-      this.units = result.units;
-      const change = result.change;
-      if (change === undefined) {
-        continue;
+  private applyEffectRuntimeCounterUpdates(
+    event: TriggerCandidateEvent,
+  ): readonly BattleDomainEvent[] {
+    const eventId = this.eventIdOf(event);
+    if (this.processedEffectRuntimeCounterEventIds.has(eventId)) {
+      return [];
+    }
+    this.processedEffectRuntimeCounterEventIds.add(eventId);
+
+    const matched = matchEffectRuntimeCounterUpdates(this.units, event);
+    if (matched.length === 0) {
+      return [];
+    }
+    this.effectRuntimeCounterDepth += 1;
+    try {
+      if (this.effectRuntimeCounterDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+        throw new ExecutionGuardExceededError(
+          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a DurationDefinition.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+        );
       }
+      const recordedEvents: BattleDomainEvent[] = [];
+      for (const entry of matched) {
+        const holderBefore = requireUnit(this.units, entry.battleUnitId);
+        const effectBefore = holderBefore.appliedEffects.find(
+          (effect) => effect.effectInstanceId === entry.effectInstanceId,
+        );
+        const result = applyMatchedEffectRuntimeCounterUpdate(entry, this.units, event);
+        this.units = result.units;
+        const change = result.change;
+        if (change === undefined) {
+          continue;
+        }
 
-      const holderAfter = requireUnit(this.units, change.battleUnitId);
-      const effectAfter = holderAfter.appliedEffects.find(
-        (effect) => effect.effectInstanceId === change.effectInstanceId,
-      )!;
-      const isEffective = selectEffectiveInstances(
-        holderAfter.appliedEffects.map((effect) => ({
-          effectInstanceId: effect.effectInstanceId,
-          kindKey: effect.kindKey,
-          duplicate: effect.duplicate,
-          magnitude: effect.magnitude,
-        })),
-      ).has(change.effectInstanceId);
-      const beforeSnapshot = toEffectSnapshot(effectBefore!, isEffective);
-      const afterSnapshot = toEffectSnapshot(effectAfter, isEffective);
+        const holderAfter = requireUnit(this.units, change.battleUnitId);
+        const effectAfter = holderAfter.appliedEffects.find(
+          (effect) => effect.effectInstanceId === change.effectInstanceId,
+        )!;
+        const isEffective = selectEffectiveInstances(
+          holderAfter.appliedEffects.map((effect) => ({
+            effectInstanceId: effect.effectInstanceId,
+            kindKey: effect.kindKey,
+            duplicate: effect.duplicate,
+            magnitude: effect.magnitude,
+          })),
+        ).has(change.effectInstanceId);
+        const beforeSnapshot = toEffectSnapshot(effectBefore!, isEffective);
+        const afterSnapshot = toEffectSnapshot(effectAfter, isEffective);
 
-      const recorded = this.context.recorder.record({
-        eventType: "RuntimeCounterChanged",
-        category: "FACT",
-        turnNumber: this.context.turnNumber,
-        cycleNumber: this.context.cycleNumber,
-        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
-        ...(skillUseId !== undefined ? { skillUseId } : {}),
-        resolutionScopeId: this.context.resolutionScopeId,
-        parentEventId: causingEvent.eventId,
-        rootEventId: this.context.rootEventId,
-        sourceUnitId: change.battleUnitId,
-        payload: {
-          ownerUnitId: change.battleUnitId,
-          scope: "APPLIED_EFFECT",
-          counter: change.counter,
-          effectInstanceId: change.effectInstanceId,
-          before: change.before,
-          after: change.after,
-          carry: change.carry,
-          valueChanged: change.valueChanged,
-        },
-        stateDelta: {
-          units: {
-            [change.battleUnitId]: {
-              effects: {
-                [change.effectInstanceId]: {
-                  before: beforeSnapshot,
-                  after: afterSnapshot,
+        const recorded = this.context.recorder.record({
+          eventType: "RuntimeCounterChanged",
+          category: "FACT",
+          turnNumber: this.context.turnNumber,
+          cycleNumber: this.context.cycleNumber,
+          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+          resolutionScopeId: this.context.resolutionScopeId,
+          parentEventId: eventId,
+          rootEventId: this.context.rootEventId,
+          sourceUnitId: change.battleUnitId,
+          payload: {
+            ownerUnitId: change.battleUnitId,
+            scope: "APPLIED_EFFECT",
+            counter: change.counter,
+            effectInstanceId: change.effectInstanceId,
+            before: change.before,
+            after: change.after,
+            carry: change.carry,
+            valueChanged: change.valueChanged,
+          },
+          stateDelta: {
+            units: {
+              [change.battleUnitId]: {
+                effects: {
+                  [change.effectInstanceId]: {
+                    before: beforeSnapshot,
+                    after: afterSnapshot,
+                  },
                 },
               },
             },
           },
-        },
-      });
-      yield recorded;
+        });
+        recordedEvents.push(recorded);
+      }
+      return recordedEvents;
+    } finally {
+      this.effectRuntimeCounterDepth -= 1;
     }
   }
 
@@ -450,14 +509,18 @@ export class PassiveActivationRuntime {
       this.units = this.onFactEvent(recorded, this.units, nextDepth);
     }
 
-    // EFF-005/Issue #162: `AppliedEffect`スコープのcounter更新も、上の
-    // `SKILL_RUNTIME`スコープと同じくR-EFF-08（`applyExpirationConditions`）より
-    // 先に確定させる — 更新後の値をそのまま`expiration.conditions`が読めるように
-    // する（R-EFF-11の同じ規則）。
-    for (const recorded of this.detectAndRecordEffectRuntimeCounterChanges(event)) {
+    // EFF-005/Issue #162（PR #211レビュー[P1]）: `AppliedEffect`スコープの
+    // counter更新も、上の`SKILL_RUNTIME`スコープと同じくR-EFF-08
+    // （`applyExpirationConditions`）より先に確定させる — 更新後の値をそのまま
+    // `expiration.conditions`が読めるようにする（R-EFF-11の同じ規則）。
+    // `applyEffectRuntimeCounterUpdates`自身が`processedEffectRuntimeCounterEventIds`
+    // で二重処理を防ぐため、後続の`resolvePassiveChain`（`deps.
+    // applyEffectRuntimeCounterUpdates`が同じ`triggerEvent`を再度処理しようと
+    // しても）安全にno-opになる。
+    for (const recorded of this.applyEffectRuntimeCounterUpdates(triggerEvent)) {
       if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
         throw new ExecutionGuardExceededError(
-          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a DurationDefinition.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
       this.units = this.onFactEvent(recorded, this.units, nextDepth);
