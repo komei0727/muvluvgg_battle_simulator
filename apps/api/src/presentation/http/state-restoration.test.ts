@@ -259,13 +259,13 @@ function applyCooldownsDelta(
  * の`id`/`before`/`after`は`unknown`型のため、Markerの形へ実行時にキャストする）。
  */
 function applyMarkersDelta(
-  current: readonly MarkerStateResponseBody[],
+  current: readonly MarkerStateResponseBody[] | undefined,
   delta: UnitStateDeltaResponseBody["markers"],
 ): readonly MarkerStateResponseBody[] {
   if (delta === undefined) {
-    return current;
+    return current ?? [];
   }
-  let next = [...current];
+  let next = [...(current ?? [])];
   for (const entry of delta.added) {
     next = [...next, entry as MarkerStateResponseBody];
   }
@@ -928,7 +928,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
       (u) => u.unitDefinitionId === "UNIT_MARKER_DEF",
     );
     expect(defenderFinal?.markers).toHaveLength(1);
-    const marker = defenderFinal!.markers[0]!;
+    const marker = defenderFinal!.markers![0]!;
     expect(marker.markerId).toBe("MARKER_STATE_RESTORE_TEST");
     expect(marker.stackCount).toBe(1);
     expect(marker.stackMax).toBe(3);

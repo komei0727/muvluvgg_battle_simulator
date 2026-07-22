@@ -49,6 +49,7 @@ export const VIOLATION_RULES = [
   "UNOWNED_SKILL_REFERENCE",
   "MISSING_REQUIRED_CAPABILITY",
   "UNSUPPORTED_MARKER_LINKED_GROUP",
+  "UNSUPPORTED_MARKER_DURATION",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -697,24 +698,43 @@ function validateEffectAction(
       });
     }
   }
-  // PR #210レビュー[P2]: R-EFF-09は同じ`linkedEffectGroupId`を持つ`AppliedEffect`と
-  // `MarkerState`を同一の親子連動グループとして扱う契約だが、EFF-004時点の
-  // `collectMarkerLinkedGroupCascade`（`marker-linked-group.ts`）は`MarkerState`
-  // 同士のカスケードだけを実装している（`AppliedEffect`をまたぐカスケードは
-  // 利用するproduction Marker定義が現れるまで対象外）。`APPLY_MARKER`の
-  // `duration.linkedEffectGroupId`がschema上は自由に設定できてしまうため、
-  // 対応が完成するまでCatalogロード時点で明示的に拒否し、preflightを通過した
-  // 定義が実際にはカスケードされない状態を防ぐ。
-  if (
-    effectAction.kind === "APPLY_MARKER" &&
-    effectAction.payload.duration.linkedEffectGroupId !== null
-  ) {
-    violations.push({
-      targetId: effectAction.effectActionDefinitionId,
-      rule: "UNSUPPORTED_MARKER_LINKED_GROUP",
-      message:
-        "APPLY_MARKER.duration.linkedEffectGroupId is not yet supported: the AppliedEffect<->MarkerState cross-type linkedEffectGroup cascade (R-EFF-09) is not implemented (marker-linked-group.ts only cascades Marker-to-Marker)",
-    });
+  // PR #210再レビュー[P2]: `marker-duration.ts`はACTION/TURN単位のDuration
+  // 減算だけを実装する（`BATTLE`は本来減算不要のため対象外扱いで問題ない）。
+  // `consumption`（消費条件）・`expiration`（特殊失効条件）・`HIT`/`SKILL_USE`
+  // 単位の`timeLimit`はschema上`APPLY_MARKER`へ設定できてしまうが、実装が
+  // 存在しないため、指定してもMarkerが消費・失効しないまま`CAP_MARKER`
+  // （`IMPLEMENTED`）がpreflightを素通りさせてしまう。対応するまでCatalog
+  // ロード時点で明示的に拒否する。
+  if (effectAction.kind === "APPLY_MARKER") {
+    const duration = effectAction.payload.duration;
+    if (duration.consumption !== undefined) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_MARKER_DURATION",
+        message:
+          "APPLY_MARKER.duration.consumption is not yet supported: Marker consumption (R-EFF-07 equivalent) is not implemented (marker-duration.ts)",
+      });
+    }
+    if (duration.expiration !== undefined) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_MARKER_DURATION",
+        message:
+          "APPLY_MARKER.duration.expiration is not yet supported: Marker special expiration conditions (R-EFF-08 equivalent) are not implemented",
+      });
+    }
+    if (
+      duration.timeLimit !== undefined &&
+      duration.timeLimit.unit !== "ACTION" &&
+      duration.timeLimit.unit !== "TURN" &&
+      duration.timeLimit.unit !== "BATTLE"
+    ) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_MARKER_DURATION",
+        message: `APPLY_MARKER.duration.timeLimit.unit "${duration.timeLimit.unit}" is not yet supported: only ACTION/TURN decrement and BATTLE (no decrement) are implemented (marker-duration.ts)`,
+      });
+    }
   }
   checkRequiredCapabilities(
     effectAction.requiredCapabilities,
@@ -722,6 +742,89 @@ function validateEffectAction(
     capabilities,
     violations,
   );
+}
+
+/**
+ * `linkedEffectGroupId`を持つ`DurationDefinition`を運ぶkindだけ値を返す
+ * `undefined`は「このkindはDurationを持たない」または「Durationはあるが
+ * `linkedEffectGroupId`がnull」を表す。`isMarker`は`APPLY_MARKER`（`MarkerState`
+ * を生成する）かどうかを表し、それ以外のDuration保持kindはすべて`AppliedEffect`
+ * を生成する（`05_ドメインモデル.md`「AppliedEffect」参照）。網羅的な`switch`とし、
+ * 新しいkindが`effect-action-definition.ts`へ追加された際にこの関数の更新漏れを
+ * コンパイルエラーとして検出する。
+ */
+function linkedEffectGroupIdOf(
+  effectAction: EffectActionDefinition,
+): { readonly groupId: string; readonly isMarker: boolean } | undefined {
+  switch (effectAction.kind) {
+    case "APPLY_CONTINUOUS_HEAL":
+    case "APPLY_CONTINUOUS_DAMAGE":
+    case "APPLY_STAT_MOD":
+    case "APPLY_DAMAGE_MOD":
+    case "APPLY_HEALING_MOD":
+    case "MODIFY_RESOURCE_CAPACITY":
+    case "APPLY_STATUS":
+    case "APPLY_SHIELD":
+    case "EFFECT_IMMUNITY":
+    case "APPLY_DEATH_SURVIVAL":
+    case "APPLY_TARGET_REDIRECT":
+    case "APPLY_COVER":
+    case "APPLY_REFLECT": {
+      const groupId = effectAction.payload.duration.linkedEffectGroupId;
+      return groupId === null ? undefined : { groupId, isMarker: false };
+    }
+    case "APPLY_MARKER": {
+      const groupId = effectAction.payload.duration.linkedEffectGroupId;
+      return groupId === null ? undefined : { groupId, isMarker: true };
+    }
+    case "DAMAGE":
+    case "HEAL":
+    case "MODIFY_RESOURCE":
+    case "REMOVE_EFFECTS":
+    case "REMOVE_MARKER":
+    case "APPLY_SUBUNIT":
+    case "COOLDOWN_MANIPULATION":
+      return undefined;
+    default: {
+      const exhaustive: never = effectAction;
+      throw new Error(`unhandled EffectActionDefinition kind: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/**
+ * PR #210再レビュー[P2]: R-EFF-09は同じ`linkedEffectGroupId`を持つ`AppliedEffect`と
+ * `MarkerState`を同一の親子連動グループとして扱う契約だが、EFF-004時点の
+ * `collectMarkerLinkedGroupCascade`（`marker-linked-group.ts`）は`MarkerState`
+ * 同士のカスケードだけを実装している（`AppliedEffect`をまたぐカスケードは
+ * 利用するproduction Marker定義が現れるまで対象外）。Marker同士のグループは
+ * 実装済みのため拒否しない — 同じ`linkedEffectGroupId`が`APPLY_MARKER`と
+ * それ以外のDuration保持kindの両方で使われている場合（cross-type）だけを
+ * Catalogロード時点で明示的に拒否し、preflightを通過した定義が実際には
+ * カスケードされない状態を防ぐ。単一Definitionだけでは判定できないため、
+ * 全`EffectActionDefinition`が出揃った後にCatalog全体を横断して検証する。
+ */
+function validateMarkerLinkedGroupCascadeSupport(
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const nonMarkerGroupIds = new Set<string>();
+  for (const effectAction of effectActions.values()) {
+    const info = linkedEffectGroupIdOf(effectAction);
+    if (info !== undefined && !info.isMarker) {
+      nonMarkerGroupIds.add(info.groupId);
+    }
+  }
+  for (const effectAction of effectActions.values()) {
+    const info = linkedEffectGroupIdOf(effectAction);
+    if (info !== undefined && info.isMarker && nonMarkerGroupIds.has(info.groupId)) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_MARKER_LINKED_GROUP",
+        message: `APPLY_MARKER.duration.linkedEffectGroupId "${info.groupId}" is shared with a non-Marker EffectActionDefinition: the AppliedEffect<->MarkerState cross-type linkedEffectGroup cascade (R-EFF-09) is not implemented (marker-linked-group.ts only cascades Marker-to-Marker)`,
+      });
+    }
+  }
 }
 
 /**
@@ -838,6 +941,7 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
   for (const effectAction of effectActions.values()) {
     validateEffectAction(effectAction, effectActions, skills, capabilities, violations);
   }
+  validateMarkerLinkedGroupCascadeSupport(effectActions, violations);
   for (const skill of skills.values()) {
     validateSkill(skill, effectActions, capabilities, violations);
   }

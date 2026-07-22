@@ -159,7 +159,15 @@ export interface BattleUnitStateResponseBody {
   readonly shields: ShieldStateResponseBody;
   readonly subUnits: readonly SubUnitStateResponseBody[];
   readonly effects: readonly EffectStateResponseBody[];
-  readonly markers: readonly MarkerStateResponseBody[];
+  /**
+   * PR #210再レビュー[P2]: `10_API設計.md`「schemaVersion」の後方互換規則は
+   * 「任意プロパティの追加」だけを許す。`effects`等は元々v1契約の必須項目だが、
+   * `markers`はEFF-004でv1のまま新規追加したフィールドのため、既存の厳密な
+   * v1デコーダ（`additionalProperties: false`のschemaを保持するクライアント）を
+   * 壊さないよう任意にする — Response Mapperは常に値を設定する（`effects`と
+   * 同じ「まだ何も付与されていない」を表す空配列を含む）。
+   */
+  readonly markers?: readonly MarkerStateResponseBody[];
   readonly cooldowns: readonly CooldownStateResponseBody[];
   readonly charge?: ChargeStateResponseBody;
 }

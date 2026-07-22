@@ -387,7 +387,6 @@ const battleUnitStateResponseSchema = {
     "shields",
     "subUnits",
     "effects",
-    "markers",
     "cooldowns",
   ],
   properties: {

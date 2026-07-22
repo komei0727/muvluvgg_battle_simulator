@@ -865,14 +865,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`CAP_MARKER_STACK_FORMULA`）はcontext付きFormulaEvaluatorを要するため
   // RES-001（Issue #175）のスコープ、`TARGET_HAS_MARKER`Condition評価は
   // RES-004（Issue #171）、`HAS_MARKER`TargetSelector評価はTGT-002
-  // （Issue #169）のスコープとして残す。`AppliedEffect`をまたぐ
-  // linkedEffectGroupカスケードは未実装であり、`catalog-integrity.ts`が
-  // `APPLY_MARKER.duration.linkedEffectGroupId`を非nullにする定義をCatalog
-  // ロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_LINKED_GROUP`、PR #210
-  // レビュー[P2]、`marker-linked-group.ts`参照）。API応答（`BattleUnitStateResponse.
-  // markers`/`UnitStateDeltaResponse.markers`）と、独立Reducer復元の一致判定
-  // （`simulation-result-assembler.ts`の`unitSnapshotsEqual`）へもMarkerを
-  // 反映した（PR #210レビュー[P1]/[P2]）。
+  // （Issue #169）のスコープとして残す。`AppliedEffect`をまたぐlinkedEffectGroup
+  // カスケード（cross-type）は未実装であり、`catalog-integrity.ts`が同じ
+  // `linkedEffectGroupId`を`APPLY_MARKER`と非Marker種別の両方が使う組合せを
+  // Catalogロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_LINKED_GROUP`、
+  // PR #210再レビュー[P2]）。Marker同士のグループは実装済みのため拒否しない。
+  // 同様に、schema上は許容されるが未実装のMarker Duration機構（`consumption`、
+  // `expiration`、`HIT`/`SKILL_USE`単位の`timeLimit`）も同じCatalog integrity
+  // パスで`UNSUPPORTED_MARKER_DURATION`として拒否する（PR #210再レビュー[P2]）。
+  // API応答（`BattleUnitStateResponse.markers`/`UnitStateDeltaResponse.markers`、
+  // `markers`はv1後方互換のため任意プロパティとして追加）と、独立Reducer復元の
+  // 一致判定（`simulation-result-assembler.ts`の`unitSnapshotsEqual`）へも
+  // Markerを反映した（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。
   {
     ruleId: "R-EFF-10",
     testCaseIds: [
@@ -892,6 +896,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-10-014",
       "UT-R-EFF-10-015",
       "UT-R-EFF-10-016",
+      "UT-R-EFF-10-017",
+      "UT-R-EFF-10-018",
       "IT-MARKER-PROD-001",
       "IT-MARKER-PROD-002",
     ],

@@ -197,7 +197,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケードは未実装であり、対応するproduction定義（APPLY_MARKER.duration.linkedEffectGroupIdを非nullにする定義）はCatalogロード時点で明示的に拒否する（PR #210レビュー[P2]）。BattleUnitStateResponse.markers/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]）。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -226,6 +226,8 @@
         "UT-R-EFF-10-014",
         "UT-R-EFF-10-015",
         "UT-R-EFF-10-016",
+        "UT-R-EFF-10-017",
+        "UT-R-EFF-10-018",
         "IT-MARKER-PROD-001",
         "IT-MARKER-PROD-002"
       ]
