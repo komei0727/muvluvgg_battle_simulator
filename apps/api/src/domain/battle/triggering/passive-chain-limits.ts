@@ -9,11 +9,22 @@
 export interface PassiveChainLimits {
   readonly maxPassiveDepth: number;
   readonly maxEffectsPerScope: number;
+  /**
+   * PR #211レビュー[P1]: `resolveEvent`（`resolve-passive-chain.ts`）が
+   * `deps.applyEffectRuntimeCounterUpdates`（R-EFF-11、`AppliedEffect`スコープ、
+   * EFF-005/Issue #162）へ再帰する深さの上限。`RuntimeCounterChanged`を自身の
+   * `counterUpdates.trigger`に持つ誤ったCatalog定義が、PS連鎖内部（`onFactEvent`
+   * を経由しない`resolveEvent`自身の再帰）で無限に自己再生成することを検出する。
+   * `maxPassiveDepth`/`maxEffectsPerScope`とは独立した別の再帰経路のため、
+   * 専用の上限を持つ。
+   */
+  readonly maxEffectRuntimeCounterDepth: number;
 }
 
 export type PassiveChainLimitViolationReason =
   | "MAX_PASSIVE_DEPTH_EXCEEDED"
-  | "MAX_EFFECTS_PER_SCOPE_EXCEEDED";
+  | "MAX_EFFECTS_PER_SCOPE_EXCEEDED"
+  | "MAX_EFFECT_RUNTIME_COUNTER_DEPTH_EXCEEDED";
 
 export type PassiveChainLimitCheck =
   | { readonly ok: true }
@@ -34,5 +45,14 @@ export function checkEffectsResolvedCount(
 ): PassiveChainLimitCheck {
   return count > limits.maxEffectsPerScope
     ? { ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" }
+    : { ok: true };
+}
+
+export function checkEffectRuntimeCounterDepth(
+  depth: number,
+  limits: PassiveChainLimits,
+): PassiveChainLimitCheck {
+  return depth > limits.maxEffectRuntimeCounterDepth
+    ? { ok: false, reason: "MAX_EFFECT_RUNTIME_COUNTER_DEPTH_EXCEEDED" }
     : { ok: true };
 }

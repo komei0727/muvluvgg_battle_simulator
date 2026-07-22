@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_PASSIVE_CHAIN_LIMITS,
   PassiveActivationRuntime,
   type PassiveActivationRuntimeContext,
 } from "./passive-activation-service.js";
@@ -2914,11 +2915,271 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         after: 1,
       });
       expect(runtimeCounterChanged.parentEventId).toBe(damageApplied.eventId);
+      // PR #211レビュー[P2]: 原因イベント（PS自身のEffectSequenceが発行した
+      // DamageApplied）が持つskillUseIdをRuntimeCounterChangedへ引き継ぐこと —
+      // 「同じSkillUse解決に属するイベントは同じskillUseIdを持つ」不変条件。
+      expect(damageApplied.skillUseId).toBeDefined();
+      expect(runtimeCounterChanged.skillUseId).toBe(damageApplied.skillUseId);
 
       const updatedHolder = units.find((u) => u.battleUnitId === "HOLDER")!;
       expect(updatedHolder.appliedEffects).toHaveLength(0);
       const expired = events.find((e) => e.eventType === "EffectExpired");
       expect(expired).toBeDefined();
+    });
+
+    it("UT-R-EFF-11-018 (PR #211 review [P1]): a DurationDefinition.counterUpdates that re-triggers itself from the RuntimeCounterChanged it causes, entirely inside the PS-chain-internal path (never reaching onFactEvent), throws a deterministic ExecutionGuardExceededError instead of recursing forever", () => {
+      const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_SELF_REGEN_ATTACKER");
+      const attackDamage = damageEffectAction("ACT_EFF_SELF_REGEN_ATTACK_DAMAGE");
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY_SELF_REGEN");
+      const attackSkill = passiveSkillOf("SKL_PS_SELF_REGEN_ATTACK", {
+        ppCost: 1,
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            {
+              targetBindingId: enemyBindingId,
+              selector: {
+                kind: "SELECT",
+                side: "ENEMY",
+                count: "ALL",
+                filters: [],
+                order: ["DEFAULT"],
+                includeDefeated: false,
+              },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: enemyBindingId },
+              actions: [{ effectActionDefinitionId: attackDamage.effectActionDefinitionId }],
+            },
+          ],
+        },
+      });
+      const attacker = unit("ATTACKER", "ALLY", {
+        unitDefinitionId: attackerUnitDefinitionId,
+        currentPp: 3,
+        attack: 100,
+      });
+      const selfRegenCounterId = createRuntimeCounterId("RUNTIME_COUNTER_EFF_SELF_REGEN");
+      const selfRegenEffectActionDefinitionId = createEffectActionDefinitionId(
+        "ACT_EFF_SELF_REGEN_CURSE",
+      );
+      const selfRegenEffect: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("effect-self-regen"),
+        effectActionDefinitionId: selfRegenEffectActionDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(selfRegenEffectActionDefinitionId),
+        duplicate: true,
+        sourceId: createBattleUnitId("ATTACKER"),
+        targetId: createBattleUnitId("HOLDER"),
+        magnitude: 0,
+        duration: {
+          definition: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            counterUpdates: [
+              {
+                kind: "INCREMENT",
+                counter: selfRegenCounterId,
+                scope: "APPLIED_EFFECT",
+                trigger: {
+                  eventType: "DamageApplied",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                  condition: { kind: "TRUE" },
+                },
+                amount: 1,
+              },
+              {
+                // このcounterの再更新契機が、自身の変化で発行される
+                // `RuntimeCounterChanged`自身になっている（誤ったCatalog定義）。
+                // PS自身のEffectSequenceが発行した`DamageApplied`（chain内部、
+                // `onFactEvent`を経由しない）から誘発されるため、`onFactEvent`の
+                // `counterUpdateDepth`は一切増加しない — `resolveEvent`自身の
+                // 再帰専用ガード（`ChainState.effectRuntimeCounterDepth`）が
+                // 正しく機能しなければ、この再帰は無限に続く。
+                kind: "INCREMENT",
+                counter: selfRegenCounterId,
+                scope: "APPLIED_EFFECT",
+                trigger: {
+                  eventType: "RuntimeCounterChanged",
+                  category: "FACT",
+                  sourceSelector: "ANY",
+                  targetSelector: "ANY",
+                  condition: {
+                    kind: "EVENT_PAYLOAD",
+                    field: "counter",
+                    op: "EQ",
+                    value: selfRegenCounterId,
+                  },
+                },
+                amount: 1,
+              },
+            ],
+          },
+          counters: {},
+        },
+        appliedTurnNumber: 1,
+      };
+      const holderWithEffect = {
+        ...unit("HOLDER", "ENEMY", {
+          unitDefinitionId: enemyUnitDefinitionId,
+          maximumHp: 1000,
+        }),
+        appliedEffects: [selfRegenEffect],
+      };
+      const definitions = definitionsOf(
+        new Map([
+          [
+            attackerUnitDefinitionId,
+            unitDefinitionOf(attackerUnitDefinitionId, [attackSkill.skillDefinitionId]),
+          ],
+          [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+        ]),
+        new Map([[attackSkill.skillDefinitionId, attackSkill]]),
+        new Map([[attackDamage.effectActionDefinitionId, attackDamage]]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      // A small maxEffectRuntimeCounterDepth keeps this test fast and
+      // deterministic instead of looping many rounds before failing.
+      const context: PassiveActivationRuntimeContext = {
+        ...contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        limits: { ...DEFAULT_PASSIVE_CHAIN_LIMITS, maxEffectRuntimeCounterDepth: 3 },
+      };
+      const runtime = new PassiveActivationRuntime(context, [attacker, holderWithEffect]);
+
+      let caught: unknown;
+      try {
+        runtime.onFactEvent(turnStarted, [attacker, holderWithEffect]);
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(ExecutionGuardExceededError);
+    });
+
+    it("UT-R-EFF-11-019 (PR #211 review [P1]): a second AppliedEffect counter that matches the same causing event is applied against state updated by the first counter's own candidate chain, not a stale pre-computed value", () => {
+      const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+      const counterA = createRuntimeCounterId("RUNTIME_COUNTER_EFF_RACE_A");
+      const counterB = createRuntimeCounterId("RUNTIME_COUNTER_EFF_RACE_B");
+      const effectA: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("effect-race-a"),
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_EFF_RACE_A"),
+        kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_EFF_RACE_A")),
+        duplicate: true,
+        sourceId: enemy.battleUnitId,
+        targetId: createBattleUnitId("HOLDER"),
+        magnitude: 0,
+        duration: {
+          definition: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            counterUpdates: [
+              {
+                kind: "INCREMENT",
+                counter: counterA,
+                scope: "APPLIED_EFFECT",
+                trigger: {
+                  eventType: "DamageApplied",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                  condition: { kind: "TRUE" },
+                },
+                amount: 1,
+              },
+            ],
+          },
+          counters: {},
+        },
+        appliedTurnNumber: 1,
+      };
+      // レビュー再指摘[P1]の再現: `effectB`はDamageAppliedへ直接一致するcounterB
+      // 更新（+1）に加えて、`effectA`のRuntimeCounterChanged（counterA）に反応して
+      // "横から"counterBを大きく書き換える2件目のcounterUpdatesを持つ。修正前は
+      // DamageApplied起点で一括計算したcounterBのbefore/after(0->1)を使っていた
+      // ため、この横からの書き換え(0->10)を上書きしてしまっていた。
+      const effectB: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("effect-race-b"),
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_EFF_RACE_B"),
+        kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_EFF_RACE_B")),
+        duplicate: true,
+        sourceId: enemy.battleUnitId,
+        targetId: createBattleUnitId("HOLDER"),
+        magnitude: 0,
+        duration: {
+          definition: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            counterUpdates: [
+              {
+                kind: "INCREMENT",
+                counter: counterB,
+                scope: "APPLIED_EFFECT",
+                trigger: {
+                  eventType: "DamageApplied",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                  condition: { kind: "TRUE" },
+                },
+                amount: 1,
+              },
+              {
+                kind: "INCREMENT",
+                counter: counterB,
+                scope: "APPLIED_EFFECT",
+                trigger: {
+                  eventType: "RuntimeCounterChanged",
+                  category: "FACT",
+                  sourceSelector: "SELF",
+                  targetSelector: "ANY",
+                  condition: { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterA },
+                },
+                amount: 10,
+              },
+            ],
+          },
+          counters: {},
+        },
+        appliedTurnNumber: 1,
+      };
+      const holderWithEffects = {
+        ...unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId }),
+        appliedEffects: [effectA, effectB],
+      };
+      const definitions = definitionsOf(
+        new Map([
+          [holderUnitDefinitionId, unitDefinitionOf(holderUnitDefinitionId, [])],
+          [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+        ]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [enemy, holderWithEffects],
+      );
+
+      const hit1 = hitEvent(recorder, turnStarted, enemy);
+      runtime.onFactEvent(hit1, [enemy, holderWithEffects]);
+
+      const counterBChanges = recorder
+        .getEvents()
+        .filter((e) => e.eventType === "RuntimeCounterChanged" && e.payload.counter === counterB);
+      // First: effectB's RuntimeCounterChanged-triggered "side" write (0 -> 10),
+      // resolved as part of counterA's own candidate chain. Second: effectB's
+      // DamageApplied-triggered entry, applied against the now-current state
+      // (10 -> 11) once the outer loop reaches it — not the stale
+      // pre-computed (0 -> 1) snapshot taken before the side write ran.
+      expect(counterBChanges.map((e) => e.payload)).toMatchObject([
+        { before: 0, after: 10 },
+        { before: 10, after: 11 },
+      ]);
     });
   });
 });

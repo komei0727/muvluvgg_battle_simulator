@@ -24,7 +24,11 @@ import type { DomainEventId } from "../../shared/event-ids.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const POSITION = { column: "LEFT", row: "FRONT" } as const;
-const GENEROUS_LIMITS = { maxPassiveDepth: 10, maxEffectsPerScope: 10 };
+const GENEROUS_LIMITS = {
+  maxPassiveDepth: 10,
+  maxEffectsPerScope: 10,
+  maxEffectRuntimeCounterDepth: 10,
+};
 
 function unit(id: string): BattleUnit {
   const member: BattlePartyMember = {
@@ -322,7 +326,7 @@ describe("resolvePassiveChain", () => {
         yield resolvedStep([event("NEXT")]);
         return DONE;
       },
-      limits: { maxPassiveDepth: 3, maxEffectsPerScope: 1000 },
+      limits: { maxPassiveDepth: 3, maxEffectsPerScope: 1000, maxEffectRuntimeCounterDepth: 10 },
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_PASSIVE_DEPTH_EXCEEDED" });
@@ -346,7 +350,7 @@ describe("resolvePassiveChain", () => {
         }
         return DONE;
       },
-      limits: { maxPassiveDepth: 10, maxEffectsPerScope: 3 },
+      limits: { maxPassiveDepth: 10, maxEffectsPerScope: 3, maxEffectRuntimeCounterDepth: 10 },
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
@@ -377,8 +381,12 @@ describe("resolvePassiveChain", () => {
       });
     }
 
-    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 1 }).ok).toBe(true);
-    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 0 })).toEqual({
+    expect(
+      run({ maxPassiveDepth: 10, maxEffectsPerScope: 1, maxEffectRuntimeCounterDepth: 10 }).ok,
+    ).toBe(true);
+    expect(
+      run({ maxPassiveDepth: 10, maxEffectsPerScope: 0, maxEffectRuntimeCounterDepth: 10 }),
+    ).toEqual({
       ok: false,
       reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED",
     });
@@ -411,7 +419,7 @@ describe("resolvePassiveChain", () => {
         return DONE;
       },
       // Depth is generous; only the effects guard should be able to stop this.
-      limits: { maxPassiveDepth: 1000, maxEffectsPerScope: 3 },
+      limits: { maxPassiveDepth: 1000, maxEffectsPerScope: 3, maxEffectRuntimeCounterDepth: 10 },
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
@@ -466,10 +474,14 @@ describe("resolvePassiveChain", () => {
 
     // If the cancelled attack were (incorrectly) counted, this generous-but-tight
     // limit of exactly 1 would be exceeded by the evade PS's own effect.
-    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 1 }).ok).toBe(true);
+    expect(
+      run({ maxPassiveDepth: 10, maxEffectsPerScope: 1, maxEffectRuntimeCounterDepth: 10 }).ok,
+    ).toBe(true);
     // If the evade PS's own effect were (incorrectly) never counted at all, this
     // zero limit would not trip.
-    expect(run({ maxPassiveDepth: 10, maxEffectsPerScope: 0 })).toEqual({
+    expect(
+      run({ maxPassiveDepth: 10, maxEffectsPerScope: 0, maxEffectRuntimeCounterDepth: 10 }),
+    ).toEqual({
       ok: false,
       reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED",
     });
