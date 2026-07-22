@@ -7,10 +7,13 @@ import type { LinkedEffectGroupRole } from "../../catalog/definitions/duration-d
  * （R-EFF-09）を`MarkerState`同士に適用する。R-EFF-09が明示する
  * 「同じ`linkedEffectGroupId`を持つ`AppliedEffect`と`MarkerState`は親子連動
  * グループとして扱う」のうち、`AppliedEffect`と`MarkerState`をまたぐカスケード
- * （production Catalogに`linkedEffectGroupId`を持つMarker定義が現状存在しない
- * ため、`duration-expiry-service.ts`側の`expireEffects`との相互配線は本Issueの
- * 検証対象に含めない）は将来Task化し、この関数は`MarkerState`同士の対称な
- * カスケードだけを扱う。
+ * （`duration-expiry-service.ts`側の`expireEffects`との相互配線）は未実装のため、
+ * `catalog-integrity.ts`の`validateEffectAction`が`APPLY_MARKER.duration.
+ * linkedEffectGroupId`を非nullにするproduction定義をCatalogロード時点で明示的に
+ * 拒否する（`UNSUPPORTED_MARKER_LINKED_GROUP`、PR #210レビュー[P2]）。対応が
+ * 完成するまでMarkerが`AppliedEffect`とlinkedEffectGroupを共有する定義自体が
+ * preflightを通過しないため、この関数は`MarkerState`同士の対称なカスケードだけを
+ * 扱えばよい。
  */
 export function collectMarkerLinkedGroupCascade(
   units: readonly BattleUnit[],

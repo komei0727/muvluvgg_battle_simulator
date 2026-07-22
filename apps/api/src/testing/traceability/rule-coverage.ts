@@ -866,8 +866,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // RES-001（Issue #175）のスコープ、`TARGET_HAS_MARKER`Condition評価は
   // RES-004（Issue #171）、`HAS_MARKER`TargetSelector評価はTGT-002
   // （Issue #169）のスコープとして残す。`AppliedEffect`をまたぐ
-  // linkedEffectGroupカスケードは利用するproduction Marker定義が現れるまで
-  // 対象外（`marker-linked-group.ts`参照）。
+  // linkedEffectGroupカスケードは未実装であり、`catalog-integrity.ts`が
+  // `APPLY_MARKER.duration.linkedEffectGroupId`を非nullにする定義をCatalog
+  // ロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_LINKED_GROUP`、PR #210
+  // レビュー[P2]、`marker-linked-group.ts`参照）。API応答（`BattleUnitStateResponse.
+  // markers`/`UnitStateDeltaResponse.markers`）と、独立Reducer復元の一致判定
+  // （`simulation-result-assembler.ts`の`unitSnapshotsEqual`）へもMarkerを
+  // 反映した（PR #210レビュー[P1]/[P2]）。
   {
     ruleId: "R-EFF-10",
     testCaseIds: [
@@ -883,6 +888,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "UT-R-EFF-10-012",
+      "UT-R-EFF-10-013",
+      "UT-R-EFF-10-014",
+      "UT-R-EFF-10-015",
+      "UT-R-EFF-10-016",
       "IT-MARKER-PROD-001",
       "IT-MARKER-PROD-002",
     ],

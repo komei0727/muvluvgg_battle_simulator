@@ -10,6 +10,7 @@ import type {
   CooldownStateResponseBody,
   EffectStateResponseBody,
   EntityCollectionDeltaResponseBody,
+  MarkerStateResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
 } from "../contracts/response.js";
@@ -22,6 +23,7 @@ import type {
 import type {
   CooldownState,
   EffectSnapshot,
+  MarkerSnapshot,
   StateDelta,
   UnitStateDelta,
 } from "../../domain/battle/events/state-delta.js";
@@ -147,6 +149,23 @@ function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseB
   };
 }
 
+/**
+ * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1]):
+ * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`は直近の付与者を表す
+ * 監査用の値で常に存在する — `MarkerState`はAppliedEffectと異なり付与元不明の
+ * インスタンスを持たない）。
+ */
+function toMarkerStateResponseBody(marker: MarkerSnapshot): MarkerStateResponseBody {
+  return {
+    markerInstanceId: marker.markerInstanceId,
+    markerId: marker.markerId,
+    sourceUnitId: marker.sourceUnitId,
+    stackCount: marker.stackCount,
+    stackMax: marker.stackMax,
+    ...(marker.duration !== undefined ? { duration: marker.duration } : {}),
+  };
+}
+
 function toUnitStateResponseBody(
   roster: BattleUnitRosterEntry,
   snapshot: BattleUnitSnapshot,
@@ -185,6 +204,7 @@ function toUnitStateResponseBody(
     shields: { physical: 0, energy: 0, untyped: 0 },
     subUnits: [],
     effects: (snapshot.effects ?? []).map(toEffectStateResponseBody),
+    markers: (snapshot.markers ?? []).map(toMarkerStateResponseBody),
     cooldowns: toCooldownStateResponseBodies(snapshot.cooldowns),
     ...(charge !== undefined ? { charge } : {}),
   };
@@ -312,6 +332,41 @@ function toChargeValueChangeResponseBody(
 }
 
 /**
+ * `10_API設計.md`「UnitStateDeltaResponse.markers」(`EntityCollectionDelta`、
+ * R-EFF-10、PR #210レビュー[P1]): `state-delta.ts`の`UnitStateDelta.markers`
+ * （`MarkerInstanceId`をキーとする`ValueChange<MarkerSnapshot | undefined>`）を、
+ * `toCooldownEntityCollectionDeltaResponseBody`と同じ`added`/`updated`/`removed`
+ * 変換へ写す。`before: undefined`は新規付与（`MarkerApplied`）、
+ * `after: undefined`は除去（`MarkerRemoved`）、両方存在する場合はスタック/
+ * Duration変更（`MarkerUpdated`）を表す — `effects`と異なりcooldownsのような
+ * 数値sentinelを使わず、`state-delta.ts`のbefore/after自体がこの意味を持つ。
+ */
+function toMarkerEntityCollectionDeltaResponseBody(
+  markers: UnitStateDelta["markers"],
+): EntityCollectionDeltaResponseBody | undefined {
+  if (markers === undefined) {
+    return undefined;
+  }
+  const added: unknown[] = [];
+  const updated: { id: string; before: unknown; after: unknown }[] = [];
+  const removed: { id: string; before: unknown }[] = [];
+  for (const [markerInstanceId, change] of Object.entries(markers)) {
+    if (change.before === undefined) {
+      added.push(toMarkerStateResponseBody(change.after!));
+    } else if (change.after === undefined) {
+      removed.push({ id: markerInstanceId, before: toMarkerStateResponseBody(change.before) });
+    } else {
+      updated.push({
+        id: markerInstanceId,
+        before: toMarkerStateResponseBody(change.before),
+        after: toMarkerStateResponseBody(change.after),
+      });
+    }
+  }
+  return { added, updated, removed };
+}
+
+/**
  * `08_ドメインイベント.md`のフラットな`hp`/`ap`/`pp`/`extraGauge`を、
  * `10_API設計.md`「UnitStateDeltaResponse」の`hp`/`resources.{ap,pp,extraGauge}`
  * 形へ組み替える。`hp`が0を跨ぐ変化を伴う場合は、Domainが明示的には記録しない
@@ -335,6 +390,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
       ? { before: combatStatusBefore, after: combatStatusAfter }
       : undefined;
   const cooldowns = toCooldownEntityCollectionDeltaResponseBody(delta.cooldowns);
+  const markers = toMarkerEntityCollectionDeltaResponseBody(delta.markers);
   const charge = toChargeValueChangeResponseBody(delta.charge);
 
   return {
@@ -342,6 +398,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
     ...(resources !== undefined ? { resources } : {}),
     ...(combatStatus !== undefined ? { combatStatus } : {}),
     ...(cooldowns !== undefined ? { cooldowns } : {}),
+    ...(markers !== undefined ? { markers } : {}),
     ...(charge !== undefined ? { charge } : {}),
   };
 }

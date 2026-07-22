@@ -155,7 +155,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケードは利用するproduction Marker定義が現れるまで対象外。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケードは未実装であり、対応するproduction定義（APPLY_MARKER.duration.linkedEffectGroupIdを非nullにする定義）はCatalogロード時点で明示的に拒否する（PR #210レビュー[P2]）。BattleUnitStateResponse.markers/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]）。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -180,6 +180,10 @@
         "UT-R-EFF-10-010",
         "UT-R-EFF-10-011",
         "UT-R-EFF-10-012",
+        "UT-R-EFF-10-013",
+        "UT-R-EFF-10-014",
+        "UT-R-EFF-10-015",
+        "UT-R-EFF-10-016",
         "IT-MARKER-PROD-001",
         "IT-MARKER-PROD-002"
       ]

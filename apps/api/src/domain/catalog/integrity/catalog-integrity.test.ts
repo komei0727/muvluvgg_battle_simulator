@@ -502,6 +502,26 @@ function statModAction(
   );
 }
 
+function markerAction(
+  id: string,
+  linkedEffectGroupId: string | null = null,
+  requiredCapabilities: readonly string[] = ["CAP_MARKER"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_MARKER",
+      payload: {
+        markerId: "MARKER_TEST",
+        stack: { policy: "ADD", max: null },
+        duration: { dispellable: true, linkedEffectGroupId },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function unit(
   id: string,
   overrides: {
@@ -981,6 +1001,44 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_STAT_MOD",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-EFF-10-015 (R-EFF-10, PR #210レビュー[P2]): accepts an APPLY_MARKER with linkedEffectGroupId: null", () => {
+    const defs = baseDefinitions();
+    const withMarker: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, markerAction("ACT_MARKER", null)],
+      capabilities: [capability("CAP_MARKER")],
+    };
+
+    const index = buildCatalogIndex(withMarker);
+
+    expect(index.effectActions.get("ACT_MARKER" as never)).toBeDefined();
+  });
+
+  it("UT-R-EFF-10-016 (R-EFF-10, PR #210レビュー[P2]): rejects an APPLY_MARKER with a non-null linkedEffectGroupId, since the AppliedEffect<->MarkerState cross-type linkedEffectGroup cascade (R-EFF-09) is not yet implemented", () => {
+    const defs = baseDefinitions();
+    const withLinkedMarker: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, markerAction("ACT_MARKER", "GROUP_1")],
+      capabilities: [capability("CAP_MARKER")],
+    };
+
+    try {
+      buildCatalogIndex(withLinkedMarker);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNSUPPORTED_MARKER_LINKED_GROUP" && v.targetId === "ACT_MARKER",
         ),
       ).toBe(true);
     }

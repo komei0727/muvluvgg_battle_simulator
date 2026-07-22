@@ -48,6 +48,7 @@ export const VIOLATION_RULES = [
   "EVENT_CATEGORY_MISMATCH",
   "UNOWNED_SKILL_REFERENCE",
   "MISSING_REQUIRED_CAPABILITY",
+  "UNSUPPORTED_MARKER_LINKED_GROUP",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -695,6 +696,25 @@ function validateEffectAction(
         message: `APPLY_STAT_MOD must declare "CAP_STAT_MOD" in requiredCapabilities`,
       });
     }
+  }
+  // PR #210レビュー[P2]: R-EFF-09は同じ`linkedEffectGroupId`を持つ`AppliedEffect`と
+  // `MarkerState`を同一の親子連動グループとして扱う契約だが、EFF-004時点の
+  // `collectMarkerLinkedGroupCascade`（`marker-linked-group.ts`）は`MarkerState`
+  // 同士のカスケードだけを実装している（`AppliedEffect`をまたぐカスケードは
+  // 利用するproduction Marker定義が現れるまで対象外）。`APPLY_MARKER`の
+  // `duration.linkedEffectGroupId`がschema上は自由に設定できてしまうため、
+  // 対応が完成するまでCatalogロード時点で明示的に拒否し、preflightを通過した
+  // 定義が実際にはカスケードされない状態を防ぐ。
+  if (
+    effectAction.kind === "APPLY_MARKER" &&
+    effectAction.payload.duration.linkedEffectGroupId !== null
+  ) {
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "UNSUPPORTED_MARKER_LINKED_GROUP",
+      message:
+        "APPLY_MARKER.duration.linkedEffectGroupId is not yet supported: the AppliedEffect<->MarkerState cross-type linkedEffectGroup cascade (R-EFF-09) is not implemented (marker-linked-group.ts only cascades Marker-to-Marker)",
+    });
   }
   checkRequiredCapabilities(
     effectAction.requiredCapabilities,

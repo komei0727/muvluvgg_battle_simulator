@@ -13,8 +13,13 @@ import {
   reduceStateDeltas,
   sameChargeState,
   sameEffectSnapshot,
+  sameMarkerSnapshot,
 } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { CooldownState, EffectSnapshot } from "../../domain/battle/events/state-delta.js";
+import type {
+  CooldownState,
+  EffectSnapshot,
+  MarkerSnapshot,
+} from "../../domain/battle/events/state-delta.js";
 import type {
   BattleOutcome,
   CompletionReason,
@@ -97,6 +102,24 @@ function effectsEqual(
   return aEffects.every((effect, index) => sameEffectSnapshot(effect, bEffects[index]));
 }
 
+/**
+ * R-EFF-10: `effectsEqual`と同じ「付与順どおりの比較」を`MarkerState`へ適用する
+ * （PR #210レビュー[P2]: `unitSnapshotsEqual`がMarkerを比較していなかったため、
+ * Marker deltaの欠落・誤更新があっても独立Reducer復元の不一致として検出
+ * できなかった）。
+ */
+function markersEqual(
+  a: readonly MarkerSnapshot[] | undefined,
+  b: readonly MarkerSnapshot[] | undefined,
+): boolean {
+  const aMarkers = a ?? [];
+  const bMarkers = b ?? [];
+  if (aMarkers.length !== bMarkers.length) {
+    return false;
+  }
+  return aMarkers.every((marker, index) => sameMarkerSnapshot(marker, bMarkers[index]));
+}
+
 function unitSnapshotsEqual(
   a: BattleStateSnapshot["units"][BattleUnitId],
   b: BattleStateSnapshot["units"][BattleUnitId],
@@ -108,7 +131,8 @@ function unitSnapshotsEqual(
     a.extraGauge === b.extraGauge &&
     cooldownStatesEqual(a.cooldowns, b.cooldowns) &&
     sameChargeState(a.charge, b.charge) &&
-    effectsEqual(a.effects, b.effects)
+    effectsEqual(a.effects, b.effects) &&
+    markersEqual(a.markers, b.markers)
   );
 }
 
