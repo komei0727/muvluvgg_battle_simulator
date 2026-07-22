@@ -4,6 +4,12 @@ import {
   type ConditionDefinition,
   type ConditionDefinitionInput,
 } from "./condition-definition.js";
+import {
+  createRuntimeCounterUpdateDefinition,
+  type RuntimeCounterUpdateDefinition,
+  type RuntimeCounterUpdateDefinitionInput,
+} from "./runtime-counter-update-definition.js";
+import type { RuntimeCounterId } from "./catalog-ids.js";
 import type { TargetBindingScope } from "./references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import {
@@ -21,6 +27,7 @@ const DURATION_ALLOWED_KEYS = [
   "dispellable",
   "linkedEffectGroupId",
   "linkedEffectGroupRole",
+  "counterUpdates",
 ] as const;
 const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner"] as const;
 const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount"] as const;
@@ -72,6 +79,15 @@ export interface DurationDefinition {
   readonly dispellable: boolean;
   readonly linkedEffectGroupId: string | null;
   readonly linkedEffectGroupRole?: LinkedEffectGroupRole;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープ（EFF-005、
+   * Issue #162）。この効果インスタンス自身が所有するRuntimeCounterの更新契機を
+   * 宣言する。`scope`は常に`APPLIED_EFFECT`（他スコープはこの位置では意味を
+   * 持たないため拒否する）。`expiration.conditions`の`RUNTIME_COUNTER`参照は、
+   * 同じ`DurationDefinition`の`counterUpdates`に宣言された counter だけを
+   * 参照できる（`skill-definition.ts`の同名規則と同じ「参照は宣言必須」方針）。
+   */
+  readonly counterUpdates?: readonly RuntimeCounterUpdateDefinition[];
 }
 
 export interface DurationTimeLimitInput {
@@ -96,6 +112,7 @@ export interface DurationDefinitionInput {
   readonly dispellable?: boolean;
   readonly linkedEffectGroupId?: string | null;
   readonly linkedEffectGroupRole?: string;
+  readonly counterUpdates?: readonly RuntimeCounterUpdateDefinitionInput[];
 }
 
 function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationTimeLimit {
@@ -114,6 +131,55 @@ function createConsumption(input: DurationConsumptionInput, path: string): Durat
   assertEnumValue(input.kind, CONSUMPTION_KINDS, `${path}.kind`);
   assertInteger(input.maxCount, `${path}.maxCount`, { min: 1 });
   return { kind: input.kind, maxCount: input.maxCount };
+}
+
+/**
+ * `RUNTIME_COUNTER` Conditionが参照するcounterは、`R-EFF-11`の所有範囲規則により
+ * 同じ`DurationDefinition`が宣言する`counterUpdates`に存在するものだけを許可する
+ * （`skill-definition.ts`の`assertRuntimeCounterReferencesAreDeclared`と同じ方針、
+ * EFF-005/Issue #162）。AND/OR/NOTを再帰的に辿る。
+ */
+function collectReferencedRuntimeCounterIds(
+  condition: ConditionDefinition,
+  into: Set<RuntimeCounterId>,
+): void {
+  switch (condition.kind) {
+    case "AND":
+    case "OR":
+      condition.conditions.forEach((c) => collectReferencedRuntimeCounterIds(c, into));
+      return;
+    case "NOT":
+      collectReferencedRuntimeCounterIds(condition.condition, into);
+      return;
+    case "RUNTIME_COUNTER":
+      into.add(condition.counter);
+      return;
+    default:
+      return;
+  }
+}
+
+function assertRuntimeCounterReferencesAreDeclared(
+  expiration: DurationExpiration | undefined,
+  counterUpdates: readonly RuntimeCounterUpdateDefinition[],
+  path: string,
+): void {
+  if (expiration === undefined) {
+    return;
+  }
+  const declared = new Set(counterUpdates.map((update) => update.counter));
+  const referenced = new Set<RuntimeCounterId>();
+  expiration.conditions.forEach((condition) =>
+    collectReferencedRuntimeCounterIds(condition, referenced),
+  );
+  for (const counter of referenced) {
+    if (!declared.has(counter)) {
+      throw new DomainValidationError(
+        `${path}.counterUpdates`,
+        `RUNTIME_COUNTER references undeclared counter "${counter}" (must appear in counterUpdates)`,
+      );
+    }
+  }
 }
 
 /**
@@ -145,6 +211,20 @@ export function createDurationDefinition(
     linkedEffectGroupId = input.linkedEffectGroupId;
   }
 
+  if (input.counterUpdates !== undefined) {
+    assertArray(input.counterUpdates, `${path}.counterUpdates`);
+  }
+  const counterUpdates = (input.counterUpdates ?? []).map((c, i) => {
+    const update = createRuntimeCounterUpdateDefinition(c, `${path}.counterUpdates[${i}]`);
+    if (update.scope !== "APPLIED_EFFECT") {
+      throw new DomainValidationError(
+        `${path}.counterUpdates[${i}].scope`,
+        `must be "APPLIED_EFFECT" when declared on a DurationDefinition, got "${update.scope}"`,
+      );
+    }
+    return update;
+  });
+
   const result: {
     timeLimit?: DurationTimeLimit;
     consumption?: DurationConsumption;
@@ -152,7 +232,11 @@ export function createDurationDefinition(
     dispellable: boolean;
     linkedEffectGroupId: string | null;
     linkedEffectGroupRole?: LinkedEffectGroupRole;
+    counterUpdates?: readonly RuntimeCounterUpdateDefinition[];
   } = { dispellable, linkedEffectGroupId };
+  if (counterUpdates.length > 0) {
+    result.counterUpdates = counterUpdates;
+  }
 
   if (input.linkedEffectGroupRole !== undefined) {
     if (linkedEffectGroupId === null) {
@@ -184,5 +268,6 @@ export function createDurationDefinition(
       ),
     };
   }
+  assertRuntimeCounterReferencesAreDeclared(result.expiration, counterUpdates, path);
   return result;
 }

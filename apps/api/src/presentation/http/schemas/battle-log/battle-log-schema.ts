@@ -678,32 +678,32 @@ const skillUseInterruptedDetailsSchema = {
   },
 } as const;
 
-const RUNTIME_COUNTER_SCOPE_ENUM = ["BATTLE", "BATTLE_UNIT", "SKILL_RUNTIME"] as const;
+const RUNTIME_COUNTER_SCOPE_ENUM = [
+  "BATTLE",
+  "BATTLE_UNIT",
+  "SKILL_RUNTIME",
+  "APPLIED_EFFECT",
+  "EFFECT_SEQUENCE",
+] as const;
 
 /**
- * `RuntimeCounterChanged`（M6最小実装、Issue #143）。`carry`は観測用の繰り越し
- * 端数。`valueChanged`（`before !== after`）は、carryのみの変化でもこの
- * イベント自体は発行される（追跡性のため）ことと区別するためのフィールド
- * （レビュー再々々レビュー[P1]、Issue #143）。
+ * `RuntimeCounterChanged`（M6最小実装、Issue #143。`APPLIED_EFFECT`スコープは
+ * EFF-005/Issue #162で追加）。`carry`は観測用の繰り越し端数。`valueChanged`
+ * （`before !== after`）は、carryのみの変化でもこのイベント自体は発行される
+ * （追跡性のため）ことと区別するためのフィールド（レビュー再々々レビュー[P1]、
+ * Issue #143）。`skillDefinitionId`/`effectInstanceId`は`scope`に応じて排他的に
+ * 存在する（`domain-event.ts`の同名フィールドと同じ規約）。
  */
 const runtimeCounterChangedDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "ownerUnitId",
-    "scope",
-    "counter",
-    "skillDefinitionId",
-    "before",
-    "after",
-    "carry",
-    "valueChanged",
-  ],
+  required: ["ownerUnitId", "scope", "counter", "before", "after", "carry", "valueChanged"],
   properties: {
     ownerUnitId: { type: "string" },
     scope: { type: "string", enum: RUNTIME_COUNTER_SCOPE_ENUM },
     counter: { type: "string" },
     skillDefinitionId: { type: "string" },
+    effectInstanceId: { type: "string" },
     before: { type: "number" },
     after: { type: "number" },
     carry: { type: "number" },

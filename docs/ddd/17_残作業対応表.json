@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 109,
-      "completed": 55,
-      "remaining": 54
+      "completed": 56,
+      "remaining": 53
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -116,7 +116,6 @@
     },
     { "taskId": "M7-005", "ruleIds": ["R-HEAL-01", "R-HEAL-02", "R-HEAL-03"] },
     { "taskId": "M7-001", "ruleIds": ["R-EFF-02", "R-EFF-03"] },
-    { "taskId": "EFF-005", "ruleIds": ["R-EFF-11"] },
     { "taskId": "DMG-001", "ruleIds": ["R-SKL-03", "R-ACTN-02", "R-DMG-05"] },
     { "taskId": "DMG-006", "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"] },
     { "taskId": "DMG-002", "ruleIds": ["R-DMG-03", "R-DMG-04"] },

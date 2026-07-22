@@ -12,6 +12,7 @@ import {
 } from "../definitions/catalog-event-types.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { ConditionDefinition } from "../definitions/condition-definition.js";
+import type { DurationDefinition } from "../definitions/duration-definition.js";
 import type {
   EffectActionReference,
   EffectSequence,
@@ -194,6 +195,7 @@ const LAST_RESULT_TARGET_KINDS = new Set(["LAST_ACTION_TARGETS", "LAST_DAMAGED_T
 type RuntimeStructuralCapabilityId =
   | "CAP_ACTION_ACTIVATION_CONDITION"
   | "CAP_PASSIVE_ACTIVATION_CONDITION"
+  | "CAP_EFFECT_RUNTIME_COUNTER"
   | "CAP_EFFECT_STEP_CONDITION"
   | "CAP_MEMORY_TRIGGERED_EFFECT"
   | "CAP_RANDOM_BRANCH"
@@ -735,6 +737,35 @@ function validateEffectAction(
         message: `APPLY_MARKER.duration.timeLimit.unit "${duration.timeLimit.unit}" is not yet supported: only ACTION/TURN decrement and BATTLE (no decrement) are implemented (marker-duration.ts)`,
       });
     }
+    // EFF-005/Issue #162: `AppliedEffect`スコープのRuntimeCounter更新
+    // （`counterUpdates`）はschema上`APPLY_MARKER`へも設定できてしまうが、
+    // `MarkerState`の期間機構自体（consumption/expiration/HIT・SKILL_USE単位
+    // timeLimit）が上と同じ理由で未実装のため、counterUpdatesだけを宣言しても
+    // 更新もexpiration評価も行われない。他のUNSUPPORTED_MARKER_DURATIONと
+    // 同じくCatalogロード時点で明示的に拒否する。
+    if (duration.counterUpdates !== undefined && duration.counterUpdates.length > 0) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_MARKER_DURATION",
+        message:
+          "APPLY_MARKER.duration.counterUpdates is not yet supported: Marker RuntimeCounter (R-EFF-11 AppliedEffect scope) requires Marker expiration, which is not implemented",
+      });
+    }
+  } else {
+    const duration = durationOf(effectAction);
+    if (
+      duration !== undefined &&
+      duration.counterUpdates !== undefined &&
+      duration.counterUpdates.length > 0
+    ) {
+      requireRuntimeCapability(
+        effectAction.effectActionDefinitionId,
+        effectAction.requiredCapabilities,
+        "CAP_EFFECT_RUNTIME_COUNTER",
+        "EffectActionDefinition duration.counterUpdates",
+        violations,
+      );
+    }
   }
   checkRequiredCapabilities(
     effectAction.requiredCapabilities,
@@ -742,6 +773,44 @@ function validateEffectAction(
     capabilities,
     violations,
   );
+}
+
+/**
+ * `DurationDefinition`を運ぶkindだけ値を返す（`APPLY_MARKER`を含む）。
+ * EFF-005/Issue #162: `AppliedEffect`スコープのRuntimeCounter（`counterUpdates`）
+ * 宣言に`CAP_EFFECT_RUNTIME_COUNTER`を要求する検証のために、`duration`本体を
+ * kindを問わず取り出す。`linkedEffectGroupIdOf`と同じ網羅的`switch`。
+ */
+function durationOf(effectAction: EffectActionDefinition): DurationDefinition | undefined {
+  switch (effectAction.kind) {
+    case "APPLY_CONTINUOUS_HEAL":
+    case "APPLY_CONTINUOUS_DAMAGE":
+    case "APPLY_STAT_MOD":
+    case "APPLY_DAMAGE_MOD":
+    case "APPLY_HEALING_MOD":
+    case "MODIFY_RESOURCE_CAPACITY":
+    case "APPLY_STATUS":
+    case "APPLY_SHIELD":
+    case "EFFECT_IMMUNITY":
+    case "APPLY_DEATH_SURVIVAL":
+    case "APPLY_TARGET_REDIRECT":
+    case "APPLY_COVER":
+    case "APPLY_REFLECT":
+    case "APPLY_MARKER":
+      return effectAction.payload.duration;
+    case "DAMAGE":
+    case "HEAL":
+    case "MODIFY_RESOURCE":
+    case "REMOVE_EFFECTS":
+    case "REMOVE_MARKER":
+    case "APPLY_SUBUNIT":
+    case "COOLDOWN_MANIPULATION":
+      return undefined;
+    default: {
+      const exhaustive: never = effectAction;
+      throw new Error(`unhandled EffectActionDefinition kind: ${JSON.stringify(exhaustive)}`);
+    }
+  }
 }
 
 /**

@@ -66,6 +66,13 @@ export interface EffectSnapshot {
   readonly consumptionRemaining?: number;
   readonly appliedTurnNumber: number;
   readonly appliedActionId?: ActionId;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープの公開値
+   * （EFF-005/Issue #162）。`skillCounters`と同じく内部端数（`carry`）は含まない
+   * （`battle-state-snapshot.ts`の`skillCounters`公開規約と同じ）。
+   * `definition.counterUpdates`を持つ場合だけ存在する。
+   */
+  readonly counters?: Readonly<Record<RuntimeCounterId, number>>;
 }
 
 /**
@@ -97,6 +104,16 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
       : {}),
     appliedTurnNumber: effect.appliedTurnNumber,
     ...(effect.appliedActionId !== undefined ? { appliedActionId: effect.appliedActionId } : {}),
+    ...(effect.duration.counters !== undefined
+      ? {
+          counters: Object.fromEntries(
+            Object.entries(effect.duration.counters).map(([counter, entry]) => [
+              counter as RuntimeCounterId,
+              entry.value,
+            ]),
+          ),
+        }
+      : {}),
   };
 }
 

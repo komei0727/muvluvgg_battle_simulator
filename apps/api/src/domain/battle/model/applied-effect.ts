@@ -3,6 +3,7 @@ import type { ActionId, EffectInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { RuntimeCounterMap } from "./runtime-counter-state.js";
 
 /**
  * `07_戦闘ルール詳細.md` R-STA-03: 重複なし効果を同種としてグループ化する鍵
@@ -45,6 +46,15 @@ export interface EffectDurationState {
   readonly grantedActionId?: ActionId;
   /** `definition.timeLimit.unit === "TURN"`の場合、付与されたターン番号（R-EFF-06の初回減算除外判定に使う）。 */
   readonly grantedTurnNumber?: number;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープ（R-EFF-11、
+   * EFF-005/Issue #162）。`definition.counterUpdates`が存在する場合だけ空の
+   * マップから始まる（`AppliedEffect`／`MarkerState`のどちらも同じ
+   * `EffectDurationState`を再利用するため、両方が対象になり得る — ただし
+   * `MarkerState`の`counterUpdates`はCatalogロード時点で拒否されるため
+   * 現状は`AppliedEffect`だけが実際に使う）。
+   */
+  readonly counters?: RuntimeCounterMap;
 }
 
 /** R-EFF-01: `DurationDefinition`から付与直後の`EffectDurationState`を組み立てる。 */
@@ -63,6 +73,9 @@ export function buildInitialDurationState(
       ? { grantedActionId: context.actionId }
       : {}),
     ...(timeLimit?.unit === "TURN" ? { grantedTurnNumber: context.turnNumber } : {}),
+    ...(definition.counterUpdates !== undefined && definition.counterUpdates.length > 0
+      ? { counters: {} }
+      : {}),
   };
 }
 

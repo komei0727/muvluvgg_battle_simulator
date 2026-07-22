@@ -27,6 +27,7 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
+import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { applyStateDelta } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
@@ -2610,6 +2611,222 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       const expiredIndex = eventTypes.indexOf("EffectExpired");
       expect(passiveActivatedIndex).toBeGreaterThanOrEqual(0);
       expect(expiredIndex).toBeGreaterThan(passiveActivatedIndex);
+    });
+  });
+
+  describe("RuntimeCounter APPLIED_EFFECT scope (R-EFF-11, EFF-005/Issue #162)", () => {
+    const holderUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_HOLDER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_ENEMY");
+    const hitCounterId = createRuntimeCounterId("RUNTIME_COUNTER_HIT_COUNT");
+    const effectActionDefinitionId = createEffectActionDefinitionId("ACT_EFF_CURSE");
+
+    function curseDefinition(): DurationDefinition {
+      return {
+        dispellable: true,
+        linkedEffectGroupId: null,
+        counterUpdates: [
+          {
+            kind: "INCREMENT",
+            counter: hitCounterId,
+            scope: "APPLIED_EFFECT",
+            trigger: {
+              eventType: "DamageApplied",
+              category: "FACT",
+              sourceSelector: "ENEMY",
+              targetSelector: "SELF",
+              condition: { kind: "TRUE" },
+            },
+            amount: 1,
+          },
+        ],
+        expiration: {
+          conditions: [{ kind: "RUNTIME_COUNTER", counter: hitCounterId, op: "GTE", value: 2 }],
+        },
+      };
+    }
+
+    function curseEffect(): AppliedEffect {
+      return {
+        effectInstanceId: createEffectInstanceId("effect-curse"),
+        effectActionDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
+        duplicate: true,
+        sourceId: createBattleUnitId("ENEMY"),
+        targetId: createBattleUnitId("HOLDER"),
+        magnitude: 0,
+        duration: { definition: curseDefinition(), counters: {} },
+        appliedTurnNumber: 1,
+      };
+    }
+
+    function hitEvent(
+      recorder: EventRecorder,
+      turnStarted: BattleDomainEvent,
+      enemy: BattleUnit,
+    ): BattleDomainEvent {
+      return recorder.record({
+        eventType: "DamageApplied",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: enemy.battleUnitId,
+        targetUnitIds: [createBattleUnitId("HOLDER")],
+        payload: {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_EFF_CURSE_HIT"),
+          hitIndex: 1,
+          targetUnitId: createBattleUnitId("HOLDER"),
+          calculatedDamage: 10,
+          hitPointDamage: 10,
+          hpBefore: 100,
+          hpAfter: 90,
+          defeated: false,
+        },
+      });
+    }
+
+    it("UT-R-EFF-11-014 (EFF-005 Issue #162): increments the effect instance's own counter, emits RuntimeCounterChanged with effectInstanceId (not skillDefinitionId), and does not throw", () => {
+      const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+      const holder = { ...unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId }) };
+      const holderWithEffect = { ...holder, appliedEffects: [curseEffect()] };
+      const definitions = definitionsOf(
+        new Map([
+          [holderUnitDefinitionId, unitDefinitionOf(holderUnitDefinitionId, [])],
+          [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+        ]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [enemy, holderWithEffect],
+      );
+
+      const hit1 = hitEvent(recorder, turnStarted, enemy);
+      const units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]);
+
+      const updatedHolder = units.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updatedHolder.appliedEffects).toHaveLength(1);
+      expect(updatedHolder.appliedEffects[0]!.duration.counters).toEqual({
+        [hitCounterId]: { value: 1, carry: 0 },
+      });
+
+      const runtimeCounterChanged = recorder
+        .getEvents()
+        .find((e) => e.eventType === "RuntimeCounterChanged")!;
+      expect(runtimeCounterChanged.parentEventId).toBe(hit1.eventId);
+      expect(runtimeCounterChanged.payload).toMatchObject({
+        ownerUnitId: holder.battleUnitId,
+        scope: "APPLIED_EFFECT",
+        counter: hitCounterId,
+        effectInstanceId: curseEffect().effectInstanceId,
+        before: 0,
+        after: 1,
+        carry: 0,
+        valueChanged: true,
+      });
+      expect(runtimeCounterChanged.payload).not.toHaveProperty("skillDefinitionId");
+    });
+
+    it("UT-R-EFF-11-015 (EFF-005 Issue #162): once the counter reaches the expiration.conditions threshold, the effect instance expires (R-EFF-08 evaluates the freshly updated counter)", () => {
+      const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+      const holder = unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId });
+      const holderWithEffect = { ...holder, appliedEffects: [curseEffect()] };
+      const definitions = definitionsOf(
+        new Map([
+          [holderUnitDefinitionId, unitDefinitionOf(holderUnitDefinitionId, [])],
+          [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+        ]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [enemy, holderWithEffect],
+      );
+
+      const hit1 = hitEvent(recorder, turnStarted, enemy);
+      let units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]);
+      expect(
+        units.find((u) => u.battleUnitId === holder.battleUnitId)?.appliedEffects,
+      ).toHaveLength(1);
+
+      const hit2 = hitEvent(recorder, turnStarted, enemy);
+      units = runtime.onFactEvent(hit2, units);
+
+      const updatedHolder = units.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updatedHolder.appliedEffects).toHaveLength(0);
+
+      const eventTypes = recorder.getEvents().map((e) => e.eventType);
+      const secondRuntimeCounterChangedIndex = eventTypes.lastIndexOf("RuntimeCounterChanged");
+      const expiredIndex = eventTypes.indexOf("EffectExpired");
+      expect(expiredIndex).toBeGreaterThan(secondRuntimeCounterChangedIndex);
+    });
+
+    it("UT-R-EFF-11-016 (EFF-005 Issue #162): a RuntimeCounterChanged stateDelta.units[holder].effects[instanceId] before/after round-trips through the independent Reducer", () => {
+      const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+      const holder = unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId });
+      const holderWithEffect = { ...holder, appliedEffects: [curseEffect()] };
+      const definitions = definitionsOf(
+        new Map([
+          [holderUnitDefinitionId, unitDefinitionOf(holderUnitDefinitionId, [])],
+          [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+        ]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [enemy, holderWithEffect],
+      );
+
+      const hit1 = hitEvent(recorder, turnStarted, enemy);
+      const units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]);
+      const updatedHolder = units.find((u) => u.battleUnitId === holder.battleUnitId)!;
+
+      const initialSnapshot: BattleStateSnapshot = {
+        status: "RUNNING",
+        currentTurn: 1,
+        units: {
+          [holder.battleUnitId]: {
+            hp: holder.currentHp,
+            ap: holder.currentAp,
+            pp: holder.currentPp,
+            extraGauge: holder.currentExtraGauge,
+            combatStats: holder.combatStats,
+            effects: [
+              {
+                effectInstanceId: curseEffect().effectInstanceId,
+                effectDefinitionId: effectActionDefinitionId,
+                sourceUnitId: enemy.battleUnitId,
+                kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
+                duplicate: true,
+                isEffective: true,
+                magnitude: 0,
+                appliedTurnNumber: 1,
+                counters: {},
+              },
+            ],
+          },
+        },
+      };
+
+      const runtimeCounterChanged = recorder
+        .getEvents()
+        .find((e) => e.eventType === "RuntimeCounterChanged")!;
+      const restored = applyStateDelta(initialSnapshot, runtimeCounterChanged.stateDelta!);
+
+      expect(restored.units[holder.battleUnitId]?.effects?.[0]?.counters).toEqual({
+        [hitCounterId]: 1,
+      });
+      expect(updatedHolder.appliedEffects[0]!.duration.counters).toEqual({
+        [hitCounterId]: { value: 1, carry: 0 },
+      });
     });
   });
 });

@@ -50,6 +50,26 @@ function assertChargeBeforeMatches(
 }
 
 /**
+ * `RuntimeCounter`の`AppliedEffect`スコープ公開値（EFF-005/Issue #162）。
+ * `counters`はキー数が可変な複合値のため、`sameChargeState`と同じ理由で参照
+ * 同一性ではなく構造比較を行う。
+ */
+function sameCounters(
+  a: Readonly<Record<RuntimeCounterId, number>> | undefined,
+  b: Readonly<Record<RuntimeCounterId, number>> | undefined,
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  const aEntries = Object.entries(a);
+  const bEntries = Object.entries(b);
+  if (aEntries.length !== bEntries.length) {
+    return false;
+  }
+  return aEntries.every(([counter, value]) => b[counter as RuntimeCounterId] === value);
+}
+
+/**
  * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
  * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
  * 単位の構造比較を行う。
@@ -73,7 +93,8 @@ export function sameEffectSnapshot(
     a.duration?.remaining === b.duration?.remaining &&
     a.consumptionRemaining === b.consumptionRemaining &&
     a.appliedTurnNumber === b.appliedTurnNumber &&
-    a.appliedActionId === b.appliedActionId
+    a.appliedActionId === b.appliedActionId &&
+    sameCounters(a.counters, b.counters)
   );
 }
 

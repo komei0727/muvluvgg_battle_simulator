@@ -8,6 +8,7 @@ import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createRuntimeCounterId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
@@ -209,5 +210,86 @@ describe("findEffectsMatchingExpirationCondition", () => {
         effectInstanceId: effectOnDefeated.effectInstanceId,
       },
     ]);
+  });
+
+  describe("RUNTIME_COUNTER (APPLIED_EFFECT scope, EFF-005/Issue #162)", () => {
+    const HIT_COUNTER = createRuntimeCounterId("RUNTIME_COUNTER_HIT_COUNT");
+
+    function effectWithCounter(
+      id: string,
+      target: BattleUnit,
+      conditions: readonly ConditionDefinition[],
+      counterValue: number,
+    ): AppliedEffect {
+      const definition: DurationDefinition = {
+        expiration: { conditions },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      };
+      return {
+        effectInstanceId: createEffectInstanceId(id),
+        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        kindKey: effectKindKeyFromDefinitionId(EFFECT_ACTION_DEFINITION_ID),
+        duplicate: true,
+        sourceId: target.battleUnitId,
+        targetId: target.battleUnitId,
+        magnitude: 10,
+        duration: { definition, counters: { [HIT_COUNTER]: { value: counterValue, carry: 0 } } },
+        appliedTurnNumber: 1,
+      };
+    }
+
+    it("UT-R-EFF-11-011: RUNTIME_COUNTER reads the effect instance's own counters (not the holder's SkillRuntime counters) and does not throw", () => {
+      const target = unit("target-1");
+      const condition: ConditionDefinition = {
+        kind: "RUNTIME_COUNTER",
+        counter: HIT_COUNTER,
+        op: "GTE",
+        value: 3,
+      };
+      const effect = effectWithCounter("effect-1", target, [condition], 3);
+      const withEffect = { ...target, appliedEffects: [effect] };
+
+      const matches = findEffectsMatchingExpirationCondition([withEffect], { payload: {} });
+
+      expect(matches).toEqual([
+        { battleUnitId: target.battleUnitId, effectInstanceId: effect.effectInstanceId },
+      ]);
+    });
+
+    it("UT-R-EFF-11-012: does not match when the effect instance's counter has not reached the threshold", () => {
+      const target = unit("target-1");
+      const condition: ConditionDefinition = {
+        kind: "RUNTIME_COUNTER",
+        counter: HIT_COUNTER,
+        op: "GTE",
+        value: 3,
+      };
+      const effect = effectWithCounter("effect-1", target, [condition], 2);
+      const withEffect = { ...target, appliedEffects: [effect] };
+
+      const matches = findEffectsMatchingExpirationCondition([withEffect], { payload: {} });
+
+      expect(matches).toHaveLength(0);
+    });
+
+    it("UT-R-EFF-11-013: each effect instance's counters are isolated from other instances (per-instance ownership)", () => {
+      const target = unit("target-1");
+      const condition: ConditionDefinition = {
+        kind: "RUNTIME_COUNTER",
+        counter: HIT_COUNTER,
+        op: "GTE",
+        value: 3,
+      };
+      const belowThreshold = effectWithCounter("effect-below", target, [condition], 1);
+      const atThreshold = effectWithCounter("effect-at", target, [condition], 3);
+      const withEffects = { ...target, appliedEffects: [belowThreshold, atThreshold] };
+
+      const matches = findEffectsMatchingExpirationCondition([withEffects], { payload: {} });
+
+      expect(matches).toEqual([
+        { battleUnitId: target.battleUnitId, effectInstanceId: atThreshold.effectInstanceId },
+      ]);
+    });
   });
 });

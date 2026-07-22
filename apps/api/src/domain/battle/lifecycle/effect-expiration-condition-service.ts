@@ -25,11 +25,10 @@ export interface ExpiringEffectInstance {
  * `owner`（`TARGET_STATE`の`SELF`が指す対象）が効果インスタンスごとに変わる
  * （固定のPS所有者という概念が無い）。`getUnit`も`units`全体から解決できる
  * ようにし、`TARGET_STATE`（`ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL`が実際に
- * 使う`SELF`/`IS_ALIVE`を含む）を評価可能にする。`RUNTIME_COUNTER`はAppliedEffect
- * に対応する所有スキルの文脈が無いため`skillDefinitionId`を渡さず、これを
- * 参照する`expiration.conditions`は`evaluateTriggerCondition`が明示的にthrowする
- * （同じ「未対応は明確なエラー」方針、現時点で本Issueが対象とするproduction
- * Catalog行は存在しない）。
+ * 使う`SELF`/`IS_ALIVE`を含む）を評価可能にする。`RUNTIME_COUNTER`は
+ * `effect.duration.counters`（`AppliedEffect`スコープ、EFF-005/Issue #162）を
+ * `context.effectCounters`として渡す — `skillDefinitionId`の代わりにこの
+ * counter mapを使って評価する。
  */
 export function findEffectsMatchingExpirationCondition(
   units: readonly BattleUnit[],
@@ -44,7 +43,7 @@ export function findEffectsMatchingExpirationCondition(
       if (conditions === undefined || conditions.length === 0) {
         continue;
       }
-      const context = { owner: unit, getUnit };
+      const context = { owner: unit, getUnit, effectCounters: effect.duration.counters ?? {} };
       if (conditions.some((condition) => evaluateTriggerCondition(condition, event, context))) {
         matches.push({
           battleUnitId: unit.battleUnitId,

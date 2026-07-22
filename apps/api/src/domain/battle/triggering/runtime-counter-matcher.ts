@@ -73,7 +73,14 @@ function readNumberPayloadField(event: TriggerCandidateEvent, field: string): nu
   return value;
 }
 
-function applyUpdate(
+/**
+ * `INCREMENT`/`CUMULATIVE_DAMAGE_THRESHOLD`の適用そのものはscope非依存
+ * （`runtime-counter-state.ts`参照）。EFF-005/Issue #162の`runtime-counter-
+ * effect-matcher.ts`（`AppliedEffect`スコープ）も同じ関数を再利用する — `owner`は
+ * `CUMULATIVE_DAMAGE_THRESHOLD`が参照する`combatStats.maximumHp`の持ち主
+ * （`SKILL_RUNTIME`ではスキル所有者、`APPLIED_EFFECT`では効果の保持者）を渡す。
+ */
+export function applyUpdate(
   update: RuntimeCounterUpdateDefinition,
   counters: RuntimeCounterMap,
   owner: BattleUnit,

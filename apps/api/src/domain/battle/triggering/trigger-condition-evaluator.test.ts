@@ -248,6 +248,49 @@ describe("evaluateTriggerCondition", () => {
         ),
       ).toBe(false);
     });
+
+    describe("APPLIED_EFFECT scope (EFF-005, Issue #162)", () => {
+      it("UT-R-EFF-11-007: reads the counter from context.effectCounters when supplied, without requiring skillDefinitionId", () => {
+        expect(
+          evaluateTriggerCondition(
+            condition,
+            { payload: {} },
+            { owner: ownerWithCounter(), effectCounters: { [COUNTER_ID]: { value: 2, carry: 0 } } },
+          ),
+        ).toBe(true);
+      });
+
+      it("UT-R-EFF-11-008: an absent counter in effectCounters defaults to value 0", () => {
+        expect(
+          evaluateTriggerCondition(
+            condition,
+            { payload: {} },
+            { owner: ownerWithCounter(), effectCounters: {} },
+          ),
+        ).toBe(false);
+      });
+
+      it("UT-R-EFF-11-009: effectCounters is isolated from the owner's skillCounters (AppliedEffect scope has no visibility into SkillRuntime scope)", () => {
+        const owner = ownerWithCounter(5);
+        expect(
+          evaluateTriggerCondition(condition, { payload: {} }, { owner, effectCounters: {} }),
+        ).toBe(false);
+      });
+
+      it("UT-R-EFF-11-010: effectCounters takes precedence over skillDefinitionId when both are supplied", () => {
+        expect(
+          evaluateTriggerCondition(
+            condition,
+            { payload: {} },
+            {
+              owner: ownerWithCounter(0),
+              skillDefinitionId: SKILL_ID,
+              effectCounters: { [COUNTER_ID]: { value: 1, carry: 0 } },
+            },
+          ),
+        ).toBe(true);
+      });
+    });
   });
 
   describe("POSITION_RELATION (Issue #144, TRIGGER_POSITION_RELATION)", () => {

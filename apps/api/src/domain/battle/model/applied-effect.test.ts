@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildInitialDurationState, effectKindKeyFromDefinitionId } from "./applied-effect.js";
 import { createActionId } from "../../shared/event-ids.js";
-import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import {
+  createRuntimeCounterId,
+  type EffectActionDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 
 describe("effectKindKeyFromDefinitionId", () => {
@@ -75,5 +78,39 @@ describe("buildInitialDurationState", () => {
     const state = buildInitialDurationState(definition, { turnNumber: 1 });
 
     expect(state.grantedActionId).toBeUndefined();
+  });
+
+  it("UT-R-EFF-11-005 (EFF-005 Issue #162): starts with an empty counters map when the definition declares counterUpdates", () => {
+    const definition: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: null,
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: createRuntimeCounterId("RUNTIME_COUNTER_HIT_COUNT"),
+          scope: "APPLIED_EFFECT",
+          trigger: {
+            eventType: "HitPointReduced",
+            category: "FACT",
+            sourceSelector: "ENEMY",
+            targetSelector: "SELF",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+        },
+      ],
+    };
+
+    const state = buildInitialDurationState(definition, { turnNumber: 1 });
+
+    expect(state.counters).toEqual({});
+  });
+
+  it("UT-R-EFF-11-006 (EFF-005 Issue #162): omits counters when the definition declares no counterUpdates", () => {
+    const definition: DurationDefinition = { dispellable: true, linkedEffectGroupId: null };
+
+    const state = buildInitialDurationState(definition, { turnNumber: 1 });
+
+    expect(state.counters).toBeUndefined();
   });
 });

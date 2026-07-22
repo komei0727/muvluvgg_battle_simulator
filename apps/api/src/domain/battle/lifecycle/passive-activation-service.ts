@@ -15,6 +15,8 @@ import {
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
 import { expireEffects, type ExpirationSeed } from "../effects/duration-expiry-service.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
+import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
@@ -33,6 +35,10 @@ import {
   collectResolutionScopeResets,
   matchRuntimeCounterUpdates,
 } from "../triggering/runtime-counter-matcher.js";
+import {
+  applyMatchedEffectRuntimeCounterUpdate,
+  matchEffectRuntimeCounterUpdates,
+} from "../triggering/runtime-counter-effect-matcher.js";
 import { resetRuntimeCounter } from "../model/runtime-counter-state.js";
 import {
   createEmptyPassiveActivationGuard,
@@ -320,6 +326,101 @@ export class PassiveActivationRuntime {
   }
 
   /**
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-005/Issue #162）:
+   * `detectAndRecordRuntimeCounterChanges`（`SKILL_RUNTIME`スコープ）の
+   * `AppliedEffect`スコープ版。原因イベントに起因する各効果インスタンス自身の
+   * `duration.definition.counterUpdates`を検出し、`RuntimeCounterChanged`
+   * （`scope: APPLIED_EFFECT`、`effectInstanceId`）を発行する。R-EFF-08の
+   * `expiration.conditions`評価（`applyExpirationConditions`）より必ず先に
+   * `onFactEvent`から呼ぶ — 更新後のcounter値をその評価が読めるようにする
+   * （R-EFF-11「原因イベントの状態変更確定後、PS/Memory候補抽出前にcounter
+   * 更新を決定する」の同じ規則）。
+   *
+   * `AppliedEffect`は`SkillRuntime`と異なり`resetScope: RESOLUTION_SCOPE`を
+   * 持たない（効果インスタンス自身の失効がcounterの破棄を兼ねる）ため、
+   * `RuntimeCounterReset`は発行しない。`stateDelta`は`skillCounters`のような
+   * 専用キーを持たず、`EffectDurationReduced`等と同じ`effects[instanceId]`の
+   * 完全なbefore/afterスナップショット差し替えを使う（`toEffectSnapshot`が
+   * `counters`を含む値へ変換する）。`before`は`skillCounters`の「値0でも
+   * キーを保持する」規約を流用せず、更新前の実際の`AppliedEffect`から
+   * `toEffectSnapshot`で導出する — `effects`のstateDeltaは`sameEffectSnapshot`
+   * による構造完全一致で検証される（`applyEffectDeltas`）ため、`counters`
+   * キー自体の有無（`INCREMENT`の初回はキーが存在しない）を含めて実状態と
+   * 厳密に一致させる必要がある（`skillCounterCarry`と同様、値の有無で
+   * キーの有無も変わりうる）。
+   */
+  private *detectAndRecordEffectRuntimeCounterChanges(
+    causingEvent: BattleDomainEvent,
+    skillUseId?: SkillUseId,
+  ): Generator<BattleDomainEvent, void, unknown> {
+    const triggerEvent = this.toTriggerEvent(causingEvent);
+    const matched = matchEffectRuntimeCounterUpdates(this.units, triggerEvent);
+    for (const entry of matched) {
+      const holderBefore = requireUnit(this.units, entry.battleUnitId);
+      const effectBefore = holderBefore.appliedEffects.find(
+        (effect) => effect.effectInstanceId === entry.effectInstanceId,
+      );
+      const result = applyMatchedEffectRuntimeCounterUpdate(entry, this.units, triggerEvent);
+      this.units = result.units;
+      const change = result.change;
+      if (change === undefined) {
+        continue;
+      }
+
+      const holderAfter = requireUnit(this.units, change.battleUnitId);
+      const effectAfter = holderAfter.appliedEffects.find(
+        (effect) => effect.effectInstanceId === change.effectInstanceId,
+      )!;
+      const isEffective = selectEffectiveInstances(
+        holderAfter.appliedEffects.map((effect) => ({
+          effectInstanceId: effect.effectInstanceId,
+          kindKey: effect.kindKey,
+          duplicate: effect.duplicate,
+          magnitude: effect.magnitude,
+        })),
+      ).has(change.effectInstanceId);
+      const beforeSnapshot = toEffectSnapshot(effectBefore!, isEffective);
+      const afterSnapshot = toEffectSnapshot(effectAfter, isEffective);
+
+      const recorded = this.context.recorder.record({
+        eventType: "RuntimeCounterChanged",
+        category: "FACT",
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        ...(skillUseId !== undefined ? { skillUseId } : {}),
+        resolutionScopeId: this.context.resolutionScopeId,
+        parentEventId: causingEvent.eventId,
+        rootEventId: this.context.rootEventId,
+        sourceUnitId: change.battleUnitId,
+        payload: {
+          ownerUnitId: change.battleUnitId,
+          scope: "APPLIED_EFFECT",
+          counter: change.counter,
+          effectInstanceId: change.effectInstanceId,
+          before: change.before,
+          after: change.after,
+          carry: change.carry,
+          valueChanged: change.valueChanged,
+        },
+        stateDelta: {
+          units: {
+            [change.battleUnitId]: {
+              effects: {
+                [change.effectInstanceId]: {
+                  before: beforeSnapshot,
+                  after: afterSnapshot,
+                },
+              },
+            },
+          },
+        },
+      });
+      yield recorded;
+    }
+  }
+
+  /**
    * `applyDamageAction`等が確定させたFACT/TIMINGイベントの都度呼び出す
    * トップレベルのエントリーポイント。PS発動で変化した`units`をそのまま返す。
    *
@@ -341,6 +442,19 @@ export class PassiveActivationRuntime {
 
     const nextDepth = counterUpdateDepth + 1;
     for (const recorded of this.detectAndRecordRuntimeCounterChanges(event)) {
+      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+        throw new ExecutionGuardExceededError(
+          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+        );
+      }
+      this.units = this.onFactEvent(recorded, this.units, nextDepth);
+    }
+
+    // EFF-005/Issue #162: `AppliedEffect`スコープのcounter更新も、上の
+    // `SKILL_RUNTIME`スコープと同じくR-EFF-08（`applyExpirationConditions`）より
+    // 先に確定させる — 更新後の値をそのまま`expiration.conditions`が読めるように
+    // する（R-EFF-11の同じ規則）。
+    for (const recorded of this.detectAndRecordEffectRuntimeCounterChanges(event)) {
       if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
         throw new ExecutionGuardExceededError(
           `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
