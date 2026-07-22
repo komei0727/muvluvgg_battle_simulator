@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { advanceBattle, createBattle, startBattle } from "./battle.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
@@ -105,6 +107,50 @@ function damageEffectAction(id: string): EffectActionDefinition {
       damageModifiers: [],
       link: { enabled: false },
     },
+  };
+}
+
+function statModDefinition(id: string): EffectActionDefinition {
+  return {
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    kind: "APPLY_STAT_MOD",
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0 },
+      stacking: { mode: "STACKABLE" },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+  };
+}
+
+function turnEffect(
+  id: string,
+  effectActionDefinitionId: EffectActionDefinitionId,
+  ownerUnit: BattleUnit,
+  timeLimitRemaining: number,
+  grantedTurnNumber: number,
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId,
+    kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
+    duplicate: true,
+    sourceId: ownerUnit.battleUnitId,
+    targetId: ownerUnit.battleUnitId,
+    magnitude: 0.2,
+    duration: {
+      definition: {
+        timeLimit: { unit: "TURN", count: timeLimitRemaining },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      timeLimitRemaining,
+      grantedTurnNumber,
+    },
+    appliedTurnNumber: grantedTurnNumber,
   };
 }
 
@@ -708,6 +754,75 @@ describe("advanceBattle", () => {
       remaining: 2,
       setTurnNumber: 1,
     });
+  });
+
+  it("UT-R-EFF-06-006 (R-EFF-06 #1/Q-EFF-12): does not decrement a TURN-unit AppliedEffect granted on the current turn", () => {
+    const def = statModDefinition("ACT_TURN_BUFF");
+    const definitions: BattleDefinitions = {
+      ...NO_SKILLS,
+      effectActions: new Map([[def.effectActionDefinitionId, def]]),
+    };
+    const ally = unit("ally:1", "ALLY");
+    const effect = turnEffect("effect-1", def.effectActionDefinitionId, ally, 2, 1);
+    let battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [{ ...ally, appliedEffects: [effect] }],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    const turn1Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn1Recorder);
+
+    expect(battle.allyUnits[0]!.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
+    expect(
+      turn1Recorder.getEvents().filter((e) => e.eventType === "EffectDurationReduced"),
+    ).toHaveLength(0);
+  });
+
+  it("UT-R-EFF-06-007 (R-EFF-06 #2/#5/#6, R-STA-04): decrements a TURN-unit AppliedEffect at the next turn's end, and expires + reverts CombatStat at 0 remaining", () => {
+    const def = statModDefinition("ACT_TURN_BUFF");
+    const definitions: BattleDefinitions = {
+      ...NO_SKILLS,
+      effectActions: new Map([[def.effectActionDefinitionId, def]]),
+    };
+    const ally = unit("ally:1", "ALLY");
+    const effect = turnEffect("effect-1", def.effectActionDefinitionId, ally, 1, 1);
+    const allyWithEffect = {
+      ...ally,
+      appliedEffects: [effect],
+      combatStats: { ...ally.combatStats, attack: 12 },
+    };
+    let battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [allyWithEffect],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    battle = advanceBattle(battle, NO_RANDOM(), recorder());
+    const turn2Recorder = recorder();
+    battle = advanceBattle(battle, NO_RANDOM(), turn2Recorder);
+
+    expect(battle.allyUnits[0]!.appliedEffects).toHaveLength(0);
+    expect(battle.allyUnits[0]!.combatStats.attack).toBe(10);
+    const types = turn2Recorder.getEvents().map((e) => e.eventType);
+    expect(types).toContain("EffectDurationReduced");
+    expect(types).toContain("EffectExpired");
+    expect(types).toContain("CombatStatChanged");
+    expect(types.indexOf("EffectDurationReduced")).toBeLessThan(types.indexOf("EffectExpired"));
+    expect(types.indexOf("EffectExpired")).toBeLessThan(types.indexOf("CombatStatChanged"));
+    expect(types.indexOf("CombatStatChanged")).toBeLessThan(types.indexOf("TurnCompleted"));
   });
 
   it("UT-R-PS-05-003 (Issue #34 integration): a PS that triggers on TurnStarted activates during TURN_STARTING, before the action phase runs (PP consumed, EX gauge increased)", () => {

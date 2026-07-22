@@ -13,6 +13,7 @@ import { resolveHit } from "./hit-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
+import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
@@ -74,6 +75,38 @@ export interface DamageEventContext {
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
+  /**
+   * R-EFF-07: `ownerUnitId`が保持する`kind`一致の消費条件効果を1消費する
+   * （`EffectConsumptionChanged`発行）。`onFactEventForPassiveChain`と同じ理由
+   * （Domain層のmodule境界により`combat/`は`effects/`へ依存できない）で
+   * 呼び出し側（`lifecycle/`）が注入する。未指定なら消費条件を評価しない。
+   *
+   * レビュー再々指摘[P1]（PR #209）: 消費回数が0になったインスタンスの実際の
+   * 除去・CombatStat再計算は、この呼び出しの中では行わない場合がある
+   * （`NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`は`14_Catalog定義スキーマ.md`
+   * 「上限に到達した効果は、該当するEffectActionの解決後に失効する」契約のため、
+   * 呼び出し側の実装が`finalizeConsumedEffectDurations`まで遅延させる）。この
+   * ヒットの会心・ダメージ計算は、消費し終えた直後の`units`（まだ除去前の
+   * combatStats）をそのまま使ってよい。
+   */
+  readonly consumeEffectDuration?: (
+    ownerUnitId: BattleUnitId,
+    kind: ConsumptionKind,
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
+  /**
+   * レビュー再々指摘[P1]（PR #209）: `consumeEffectDuration`が遅延させた
+   * 消費済みインスタンス（`NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`）を、
+   * このEffectAction（`applyDamageAction`1回分、全ヒット）の解決完了後に
+   * まとめて失効させる（`EffectExpired`発行、CombatStat再計算を含む）。
+   * `consumeEffectDuration`と同じ理由で呼び出し側が注入する。未指定、または
+   * 遅延対象が無ければ何もしない。
+   */
+  readonly finalizeConsumedEffectDurations?: (
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -96,6 +129,51 @@ function findUnit(
     throw new DomainValidationError(path, `references an unknown BattleUnitId: "${id}"`);
   }
   return unit;
+}
+
+/**
+ * R-EFF-07: `context.consumeEffectDuration`（呼び出し側が注入する、`combat/`は
+ * `effects/`へ依存できないため）へ委譲し、`ownerUnitId`が保持する`kind`一致の
+ * 消費条件効果を1消費・必要なら失効させる。フック未指定、または該当効果が
+ * 無い場合は`workingMap`を変更せず`parentEventId`をそのまま返す。
+ */
+function consumeAndExpire(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  ownerUnitId: BattleUnitId,
+  kind: ConsumptionKind,
+  parentEventId: DomainEventId,
+): DomainEventId {
+  if (context.consumeEffectDuration === undefined) {
+    return parentEventId;
+  }
+  const result = context.consumeEffectDuration(
+    ownerUnitId,
+    kind,
+    Array.from(workingMap.values()),
+    parentEventId,
+  );
+  for (const unit of result.units) {
+    workingMap.set(unit.battleUnitId, unit);
+  }
+  return result.lastEventId;
+}
+
+/** `08_ドメインイベント.md`の一般的な流儀: 記録済みの新規イベントをPS即時連鎖フックへ順に転送する。 */
+function notifyNewEvents(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  eventsStart: number,
+): void {
+  if (context.onFactEventForPassiveChain === undefined) {
+    return;
+  }
+  for (const event of context.recorder.getEvents().slice(eventsStart)) {
+    const updatedUnits = context.onFactEventForPassiveChain(event, Array.from(workingMap.values()));
+    for (const unit of updatedUnits) {
+      workingMap.set(unit.battleUnitId, unit);
+    }
+  }
 }
 
 /**
@@ -136,7 +214,80 @@ export function applyDamageAction(
 
     const target = findUnit(working, hit.targetBattleUnitId, "hits[].targetBattleUnitId");
 
-    if (isDefeated(target) || !resolveHit()) {
+    if (isDefeated(target)) {
+      outcomes.push(skip(hit));
+      continue;
+    }
+
+    // `08_ドメインイベント.md`「UnitBeingAttacked」: 攻撃対象が確定した直後
+    // （命中判定・ダメージ計算より前）に発行する。R-EFF-07:
+    // `NEXT_INCOMING_ATTACK`はこの発行時点で消費する。
+    const unitBeingAttackedEventsStart = context.recorder.getEvents().length;
+    const unitBeingAttacked = context.recorder.record({
+      eventType: "UnitBeingAttacked",
+      category: "TIMING",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        skillDefinitionId: context.skillDefinitionId,
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+        targetUnitId: hit.targetBattleUnitId,
+      },
+    });
+    lastEventId = unitBeingAttacked.eventId;
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      target.battleUnitId,
+      "NEXT_INCOMING_ATTACK",
+      lastEventId,
+    );
+    notifyNewEvents(context, working, unitBeingAttackedEventsStart);
+
+    // R-EFF-07: `NEXT_OUTGOING_ATTACK`は攻撃者が命中判定に到達した時点
+    // （MISS/命中を問わない）で消費する。専用のドメインイベントは持たない。
+    const judgmentEventsStart = context.recorder.getEvents().length;
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      currentAttacker.battleUnitId,
+      "NEXT_OUTGOING_ATTACK",
+      lastEventId,
+    );
+    notifyNewEvents(context, working, judgmentEventsStart);
+
+    // レビュー再指摘 PR #209[P1]: `UnitBeingAttacked`／`NEXT_OUTGOING_ATTACK`消費が
+    // 発火したPS連鎖は`working`を書き換え得る（対象を回復・戦闘不能にする等）。
+    // `08_ドメインイベント.md`のTIMINGイベント契約どおり、命中・会心・ダメージ計算
+    // に入る前に発生源・対象の生存を再検証し、計算用ステータスも`working`から
+    // 取り直す。対象変更・挑発・肩代わり（R-SHD-*/R-SUB-*/R-LNK-*）はM8未実装の
+    // ため、このヒットの対象自体を差し替える処理は行わない（関数冒頭コメント参照）。
+    const attackerAfterTiming = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
+    if (isDefeated(attackerAfterTiming)) {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+
+    const targetAfterTiming = findUnit(
+      working,
+      hit.targetBattleUnitId,
+      "hits[].targetBattleUnitId",
+    );
+    if (isDefeated(targetAfterTiming)) {
+      outcomes.push(skip(hit));
+      continue;
+    }
+
+    if (!resolveHit()) {
       outcomes.push(skip(hit));
       continue;
     }
@@ -163,8 +314,8 @@ export function applyDamageAction(
 
     const critical = resolveCritical(
       damageAction.payload.critical.mode,
-      createPercentage(currentAttacker.combatStats.criticalRate),
-      currentAttacker.combatStats.criticalDamageBonus,
+      createPercentage(attackerAfterTiming.combatStats.criticalRate),
+      attackerAfterTiming.combatStats.criticalDamageBonus,
       random,
     );
 
@@ -190,11 +341,11 @@ export function applyDamageAction(
 
     const defenseIgnoreRate = damageAction.payload.piercing.defenseIgnoreRate;
     const damageResult = calculateDamage({
-      attackerAttack: currentAttacker.combatStats.attack,
-      attackerAttribute: currentAttacker.attribute,
-      attackerAffinityBonus: currentAttacker.combatStats.affinityBonus,
-      defenderDefense: target.combatStats.defense,
-      defenderAttribute: target.attribute,
+      attackerAttack: attackerAfterTiming.combatStats.attack,
+      attackerAttribute: attackerAfterTiming.attribute,
+      attackerAffinityBonus: attackerAfterTiming.combatStats.affinityBonus,
+      defenderDefense: targetAfterTiming.combatStats.defense,
+      defenderAttribute: targetAfterTiming.attribute,
       defenseIgnoreRate,
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
@@ -218,8 +369,8 @@ export function applyDamageAction(
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
         targetUnitId: hit.targetBattleUnitId,
-        attackerAttack: currentAttacker.combatStats.attack,
-        defenderDefense: target.combatStats.defense,
+        attackerAttack: attackerAfterTiming.combatStats.attack,
+        defenderDefense: targetAfterTiming.combatStats.defense,
         effectiveDefense: damageResult.effectiveDefense,
         defenseIgnoreRate,
         skillPower: damageResult.skillPower,
@@ -232,13 +383,15 @@ export function applyDamageAction(
       },
     });
 
-    const hpBefore = target.currentHp;
-    const hpAfter = Math.max(0, target.currentHp - damageResult.finalDamage);
+    // `targetAfterTiming`取得後、ここまでは`recorder.record`のみでPS連鎖の
+    // 介在がないため、HPも`targetAfterTiming`からそのまま起点にできる。
+    const hpBefore = targetAfterTiming.currentHp;
+    const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
     const updatedTarget: BattleUnit = {
-      ...target,
-      currentHp: createHitPoint(hpAfter, target.combatStats.maximumHp),
+      ...targetAfterTiming,
+      currentHp: createHitPoint(hpAfter, targetAfterTiming.combatStats.maximumHp),
     };
-    working.set(target.battleUnitId, updatedTarget);
+    working.set(targetAfterTiming.battleUnitId, updatedTarget);
 
     const damageApplied = context.recorder.record({
       eventType: "DamageApplied",
@@ -263,7 +416,7 @@ export function applyDamageAction(
         defeated: isDefeated(updatedTarget),
       },
       stateDelta: {
-        units: { [target.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+        units: { [targetAfterTiming.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
       },
     });
 
@@ -272,10 +425,11 @@ export function applyDamageAction(
     // 解決する（`onFactEventForPassiveChain`未指定ならPS解決を省略する）。
     // 致死ヒットでも`DamageApplied`起点のPS（例:「味方がダメージを受けた時」）を
     // `UnitDefeated`だけに上書きして見逃さないよう、両方を個別にフックへ渡す
-    // （PR #141レビュー[P1]）。
+    // （PR #141レビュー[P1]）。`targetAfterTiming`はこの直前の生存再検証で既に
+    // 生存確定済みのため、新規致死判定は`updatedTarget`のみで足りる。
     lastEventId = damageApplied.eventId;
     const factEvents: BattleDomainEvent[] = [damageApplied];
-    if (!isDefeated(target) && isDefeated(updatedTarget)) {
+    if (isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",
@@ -287,8 +441,8 @@ export function applyDamageAction(
         parentEventId: damageApplied.eventId,
         rootEventId: context.rootEventId,
         sourceUnitId: attacker.battleUnitId,
-        targetUnitIds: [target.battleUnitId],
-        payload: { unitId: target.battleUnitId, causeEventId: damageApplied.eventId },
+        targetUnitIds: [targetAfterTiming.battleUnitId],
+        payload: { unitId: targetAfterTiming.battleUnitId, causeEventId: damageApplied.eventId },
       });
       factEvents.push(unitDefeated);
       lastEventId = unitDefeated.eventId;
@@ -306,6 +460,25 @@ export function applyDamageAction(
       }
     }
 
+    // R-EFF-07: このヒットがMISSでなく確定した時点でOUTGOING_HIT（攻撃者側）/
+    // INCOMING_HIT（対象側）を消費する。
+    const hitEventsStart = context.recorder.getEvents().length;
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      attackerAfterTiming.battleUnitId,
+      "OUTGOING_HIT",
+      lastEventId,
+    );
+    lastEventId = consumeAndExpire(
+      context,
+      working,
+      targetAfterTiming.battleUnitId,
+      "INCOMING_HIT",
+      lastEventId,
+    );
+    notifyNewEvents(context, working, hitEventsStart);
+
     outcomes.push({
       targetBattleUnitId: hit.targetBattleUnitId,
       hitIndex: hit.hitIndex,
@@ -313,6 +486,25 @@ export function applyDamageAction(
       isCritical: critical.isCritical,
       damage: damageResult.finalDamage,
     });
+  }
+
+  // レビュー再々指摘[P1]（PR #209）: `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`
+  // の消費で0になったインスタンスは、このEffectAction（全ヒット）の解決が
+  // 終わった今ここで初めて実際に失効させる（`consumeEffectDuration`は消費の
+  // 記録だけを行い、除去とCombatStat再計算をここまで遅延させている）。
+  // 中断（使用者の戦闘不能）でループを抜けた場合も、既に消費済みの分は
+  // ここで確定させる。
+  if (context.finalizeConsumedEffectDurations !== undefined) {
+    const finalizeEventsStart = context.recorder.getEvents().length;
+    const finalized = context.finalizeConsumedEffectDurations(
+      Array.from(working.values()),
+      lastEventId,
+    );
+    for (const unit of finalized.units) {
+      working.set(unit.battleUnitId, unit);
+    }
+    lastEventId = finalized.lastEventId;
+    notifyNewEvents(context, working, finalizeEventsStart);
   }
 
   return {

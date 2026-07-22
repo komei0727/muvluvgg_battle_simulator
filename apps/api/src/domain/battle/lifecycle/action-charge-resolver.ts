@@ -147,6 +147,7 @@ export function resolveChargeStart(
       turnNumber,
       cycleNumber,
       actorId,
+      effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (event, unitsForChain) =>
         passiveRuntime.onFactEvent(event, unitsForChain),
     },
@@ -318,6 +319,7 @@ export function resolveChargeRelease(
       turnNumber,
       cycleNumber,
       actorId,
+      effectActions: definitions.effectActions,
       // レビュー再々レビュー[P2]: `ActionCompleting`/Cooldown更新/`ActionCompleted`
       // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする
       // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に

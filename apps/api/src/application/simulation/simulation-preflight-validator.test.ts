@@ -445,7 +445,7 @@ describe("runPreflight", () => {
     }
   });
 
-  it("UT-PREFLIGHT-011 (PR #208再レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a Skill uses APPLY_STAT_MOD, which declares CAP_STAT_MOD (PLANNED — EFF-003 must wire ACTION/TURN duration expiration before this can be safely IMPLEMENTED)", () => {
+  it("UT-PREFLIGHT-011 (PR #208再レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a Skill uses APPLY_STAT_MOD backed by a synthetic PLANNED capability (CAP_STAT_MOD is IMPLEMENTED in the real capabilities.json since EFF-003; this test fixture constructs its own PLANNED capability set to exercise the generic preflight rejection mechanism)", () => {
     const capabilityId = createCapabilityId("CAP_STAT_MOD");
     const cmd = command({
       allyFormation: {

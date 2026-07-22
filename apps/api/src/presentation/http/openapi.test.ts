@@ -791,6 +791,7 @@ describe("OpenAPI document", () => {
       EffectStepCompleted: true,
       EffectActionStarting: true,
       EffectActionCompleted: true,
+      UnitBeingAttacked: true,
       HitConfirmed: true,
       CriticalCheckResolved: true,
       DamageCalculated: true,
@@ -819,6 +820,9 @@ describe("OpenAPI document", () => {
       EffectApplied: true,
       EffectiveEffectChanged: true,
       CombatStatChanged: true,
+      EffectDurationReduced: true,
+      EffectConsumptionChanged: true,
+      EffectExpired: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

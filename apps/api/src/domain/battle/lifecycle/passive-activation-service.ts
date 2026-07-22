@@ -12,6 +12,8 @@ import {
   type EffectActionGroupContext,
   type UnitsBox,
 } from "./effect-action-group-resolver.js";
+import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
+import { expireEffects, type ExpirationSeed } from "../effects/duration-expiry-service.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -133,6 +135,14 @@ export class PassiveActivationRuntime {
   private units: readonly BattleUnit[];
   private guard: PassiveActivationGuard;
   private readonly recordedEventIdOf = new Map<TriggerCandidateEvent, DomainEventId>();
+  /**
+   * R-EFF-08の自己再誘発（`applyExpirationConditionsForChain`が発行した
+   * `EffectExpired`/`CombatStatChanged`がさらに別の`expiration.conditions`を
+   * 成立させ続ける）を検出する再帰深度。`RuntimeCounterChanged`用の
+   * `MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH`とは独立した別の自己再誘発
+   * 経路のため、専用のカウンタで管理する。
+   */
+  private expirationConditionDepth = 0;
 
   constructor(context: PassiveActivationRuntimeContext, initialUnits: readonly BattleUnit[]) {
     this.context = context;
@@ -193,6 +203,7 @@ export class PassiveActivationRuntime {
       ...(this.context.resolutionPhase !== undefined
         ? { resolutionPhase: this.context.resolutionPhase }
         : {}),
+      applyExpirationConditions: (event) => this.applyExpirationConditionsForChain(event),
     };
   }
 
@@ -338,6 +349,24 @@ export class PassiveActivationRuntime {
       this.units = this.onFactEvent(recorded, this.units, nextDepth);
     }
 
+    // レビュー指摘[P2]（PR #209）: R-EFF-08は「関連するドメインイベント発行後、
+    // PS/Memory候補の抽出前に評価する」ことを要求する。`onFactEvent`はFACT/
+    // TIMINGイベントの都度呼ばれる唯一の共通経路（`ActionCompleted`だけでなく
+    // `DamageApplied`/`UnitDefeated`/`TurnCompleted`等すべて）のため、ここで
+    // 評価すれば個別の呼び出し元ごとに配線し直す必要がない。失効で新たに
+    // 発行された`EffectExpired`等も、この`event`自身のPS候補解決より前に
+    // 自身のPS候補解決を終える（再帰depthは`RuntimeCounterChanged`と同じ
+    // 上限を共有する）。
+    this.units = this.applyExpirationConditions(event, nextDepth);
+
+    // レビュー再指摘[P2]（PR #209）: 上記はトップレベルの`event`しかカバーせず、
+    // PS連鎖の内部（`activatePassiveCandidate`が直接yieldする`PassiveActivated`・
+    // `EffectActionStarting`等）は`onFactEvent`を経由しないため見落とされていた。
+    // `resolvePassiveChain`（`resolve-passive-chain.ts`の`resolveEvent`）へ
+    // `applyExpirationConditionsForChain`を`deps.applyExpirationConditions`として
+    // 注入し、PS連鎖内部の各イベントに対しても候補抽出直前に同じ評価を行う。
+    // トップレベルの`event`自身は上の呼び出しで既に失効済みのため、
+    // `resolveEvent`側の評価は該当なし（no-op）になる — 二重発行はしない。
     const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
     if (!result.ok) {
       throw new ExecutionGuardExceededError(
@@ -346,6 +375,115 @@ export class PassiveActivationRuntime {
     }
     this.guard = result.activationGuard;
     return this.units;
+  }
+
+  /**
+   * R-EFF-08: `event`に対して`expiration.conditions`が成立した効果インスタンスを
+   * 即時に失効させる（トップレベルの`onFactEvent`専用）。新たに発行された
+   * イベント（`EffectExpired`・`CombatStatChanged`等）は`this.onFactEvent`へ
+   * 再帰させ、`RuntimeCounterChanged`検出・自身の`expiration.conditions`評価・
+   * PS候補解決を含めて完全に解決する（このメソッドは常にトップレベルの
+   * `onFactEvent`から呼ばれ、進行中の`resolvePassiveChain`の内側からは呼ばれない
+   * ため、新しい`resolvePassiveChain`呼び出しを起こしても安全）。
+   */
+  private applyExpirationConditions(
+    event: BattleDomainEvent,
+    depth: number,
+  ): readonly BattleUnit[] {
+    const matches = findEffectsMatchingExpirationCondition(this.units, event);
+    if (matches.length === 0) {
+      return this.units;
+    }
+    if (depth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+      throw new ExecutionGuardExceededError(
+        `expiration.conditions self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
+      );
+    }
+    const seeds: ExpirationSeed[] = matches.map((match) => ({
+      battleUnitId: match.battleUnitId,
+      effectInstanceId: match.effectInstanceId,
+      reason: "EXPIRATION_CONDITION",
+    }));
+    const eventsStart = this.context.recorder.getEvents().length;
+    const expiry = expireEffects(
+      {
+        recorder: this.context.recorder,
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        resolutionScopeId: this.context.resolutionScopeId,
+        rootEventId: this.context.rootEventId,
+      },
+      this.units,
+      seeds,
+      this.context.definitions.effectActions,
+      event.eventId,
+    );
+    let units = expiry.units;
+    for (const newEvent of this.context.recorder.getEvents().slice(eventsStart)) {
+      units = this.onFactEvent(newEvent, units, depth);
+    }
+    return units;
+  }
+
+  /**
+   * R-EFF-08: `event`に対して`expiration.conditions`が成立した効果インスタンスを
+   * 即時に失効させ、新たに発行されたイベント（`EffectExpired`・
+   * `CombatStatChanged`等）を`TriggerCandidateEvent`として返す。`resolveEvent`
+   * （`triggering/resolve-passive-chain.ts`）が`deps.applyExpirationConditions`
+   * として呼び出し、返されたイベントそれぞれを自身へ再帰させて候補解決する。
+   * これは`applyExpirationConditions`（上記、トップレベルの`event`専用）を
+   * 補完し、PS連鎖の内部（`activatePassiveCandidate`が直接yieldする
+   * `PassiveActivated`・`EffectActionStarting`等、`onFactEvent`を経由しない
+   * イベント）にも同じ評価を届ける。このメソッド自身は`this.onFactEvent`を
+   * 呼ばない（進行中の`resolvePassiveChain`呼び出しの内側から呼ばれる可能性が
+   * あり、新しい`resolvePassiveChain`を起こすと進行中のguard/stackを上書き
+   * してしまうため、`onFactEvent`と同じ制約を持つ）。再帰depthは
+   * `applyExpirationConditions`とは別の専用カウンタ
+   * （`this.expirationConditionDepth`）で管理する。
+   */
+  private applyExpirationConditionsForChain(
+    event: TriggerCandidateEvent,
+  ): readonly TriggerCandidateEvent[] {
+    const matches = findEffectsMatchingExpirationCondition(this.units, event);
+    if (matches.length === 0) {
+      return [];
+    }
+    this.expirationConditionDepth += 1;
+    try {
+      if (this.expirationConditionDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+        throw new ExecutionGuardExceededError(
+          `expiration.conditions self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
+        );
+      }
+      const seeds: ExpirationSeed[] = matches.map((match) => ({
+        battleUnitId: match.battleUnitId,
+        effectInstanceId: match.effectInstanceId,
+        reason: "EXPIRATION_CONDITION",
+      }));
+      const eventsStart = this.context.recorder.getEvents().length;
+      const expiry = expireEffects(
+        {
+          recorder: this.context.recorder,
+          turnNumber: this.context.turnNumber,
+          cycleNumber: this.context.cycleNumber,
+          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+          resolutionScopeId: this.context.resolutionScopeId,
+          rootEventId: this.context.rootEventId,
+        },
+        this.units,
+        seeds,
+        this.context.definitions.effectActions,
+        this.eventIdOf(event),
+      );
+      this.units = expiry.units;
+      return this.context.recorder
+        .getEvents()
+        .slice(eventsStart)
+        .map((newEvent) => this.toTriggerEvent(newEvent));
+    } finally {
+      this.expirationConditionDepth -= 1;
+    }
   }
 
   /**

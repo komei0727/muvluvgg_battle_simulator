@@ -250,6 +250,7 @@ describe("recalculateCombatStats — CombatStatChanged/EffectiveEffectChanged配
       afterUnits[0]!.battleUnitId,
       new Map([[def.effectActionDefinitionId, def]]),
       rootEventId,
+      "EFFECT_APPLIED",
     );
 
     const updated = result.units.find((u) => u.battleUnitId === afterUnits[0]!.battleUnitId)!;
@@ -282,6 +283,7 @@ describe("recalculateCombatStats — CombatStatChanged/EffectiveEffectChanged配
       afterUnits[0]!.battleUnitId,
       new Map(),
       rootEventId,
+      "EFFECT_APPLIED",
     );
 
     expect(recorder.getEvents().filter((e) => e.eventType === "CombatStatChanged")).toHaveLength(0);
@@ -311,6 +313,7 @@ describe("recalculateCombatStats — CombatStatChanged/EffectiveEffectChanged配
       afterUnits[0]!.battleUnitId,
       new Map([[def.effectActionDefinitionId, def]]),
       rootEventId,
+      "EFFECT_APPLIED",
     );
 
     const events = recorder.getEvents().filter((e) => e.eventType === "EffectiveEffectChanged");
@@ -348,6 +351,7 @@ describe("recalculateCombatStats — CombatStatChanged/EffectiveEffectChanged配
       afterUnits[0]!.battleUnitId,
       new Map([[def.effectActionDefinitionId, def]]),
       rootEventId,
+      "EFFECT_APPLIED",
     );
 
     expect(

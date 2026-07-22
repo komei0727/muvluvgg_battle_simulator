@@ -20,6 +20,7 @@ const DURATION_ALLOWED_KEYS = [
   "expiration",
   "dispellable",
   "linkedEffectGroupId",
+  "linkedEffectGroupRole",
 ] as const;
 const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner"] as const;
 const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount"] as const;
@@ -35,6 +36,7 @@ const CONSUMPTION_KINDS = [
   "STATUS_BLOCKED",
   "LETHAL_DAMAGE",
 ] as const;
+const LINKED_EFFECT_GROUP_ROLES = ["PARENT", "CHILD"] as const;
 
 export interface DurationTimeLimit {
   readonly unit: DurationTimeUnit;
@@ -51,12 +53,25 @@ export interface DurationExpiration {
   readonly conditions: readonly ConditionDefinition[];
 }
 
+/**
+ * R-EFF-09: 同じ`linkedEffectGroupId`を持つ`AppliedEffect`間のカスケード方向を
+ * 明示する。`PARENT`が失効すると理由を問わず同グループ全体へカスケードする
+ * （R-EFF-09「グループの親効果が失効・解除された場合、同じグループの子効果と
+ * Markerも同時に失効させる」）が、`CHILD`が単独で失効してもカスケードしない
+ * （R-EFF-09「子効果だけが消費条件で失効した場合、親効果は維持する」）。
+ * どちらのメンバーも`linkedEffectGroupRole`を持たない（レガシー）グループでは
+ * 従来どおり対称にカスケードする — グループ内のどのメンバーが失効理由を持つかを
+ * `expireEffects`の呼び出し側の`ExpirationSeedReason`から推測しない。
+ */
+export type LinkedEffectGroupRole = (typeof LINKED_EFFECT_GROUP_ROLES)[number];
+
 export interface DurationDefinition {
   readonly timeLimit?: DurationTimeLimit;
   readonly consumption?: DurationConsumption;
   readonly expiration?: DurationExpiration;
   readonly dispellable: boolean;
   readonly linkedEffectGroupId: string | null;
+  readonly linkedEffectGroupRole?: LinkedEffectGroupRole;
 }
 
 export interface DurationTimeLimitInput {
@@ -80,6 +95,7 @@ export interface DurationDefinitionInput {
   readonly expiration?: DurationExpirationInput;
   readonly dispellable?: boolean;
   readonly linkedEffectGroupId?: string | null;
+  readonly linkedEffectGroupRole?: string;
 }
 
 function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationTimeLimit {
@@ -135,7 +151,23 @@ export function createDurationDefinition(
     expiration?: DurationExpiration;
     dispellable: boolean;
     linkedEffectGroupId: string | null;
+    linkedEffectGroupRole?: LinkedEffectGroupRole;
   } = { dispellable, linkedEffectGroupId };
+
+  if (input.linkedEffectGroupRole !== undefined) {
+    if (linkedEffectGroupId === null) {
+      throw new DomainValidationError(
+        `${path}.linkedEffectGroupRole`,
+        "requires linkedEffectGroupId to be set",
+      );
+    }
+    assertEnumValue(
+      input.linkedEffectGroupRole,
+      LINKED_EFFECT_GROUP_ROLES,
+      `${path}.linkedEffectGroupRole`,
+    );
+    result.linkedEffectGroupRole = input.linkedEffectGroupRole;
+  }
 
   if (input.timeLimit !== undefined) {
     result.timeLimit = createTimeLimit(input.timeLimit, `${path}.timeLimit`);

@@ -197,6 +197,20 @@ export interface BattleDomainEventPayloadMap {
     readonly targetUnitIds: readonly BattleUnitId[];
     readonly resultKind: EffectActionResultKind;
   };
+  /**
+   * `08_ドメインイベント.md`「UnitBeingAttacked」: 攻撃対象が確定した直後
+   * （命中判定・ダメージ計算より前）に、ヒットごとに発行する（`TIMING`）。
+   * R-EFF-07: `NEXT_INCOMING_ATTACK`消費条件はこのイベントの発行時点で
+   * 消費する。EFF-003（Issue #159、レビュー修正 PR #209）が発行位置を
+   * 最小追加した — `TRIGGER_SOURCE`/`TRIGGER_TARGET`のPS対象解決自体は
+   * RES-005（Issue #172）のスコープのまま。
+   */
+  readonly UnitBeingAttacked: {
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+    readonly targetUnitId: BattleUnitId;
+  };
   readonly HitConfirmed: {
     readonly skillDefinitionId: SkillDefinitionId;
     readonly effectActionDefinitionId: EffectActionDefinitionId;
@@ -432,6 +446,49 @@ export interface BattleDomainEventPayloadMap {
     readonly after?: EffectInstanceId;
   };
   /**
+   * `EffectApplied`のコメントが予告する`EffectDurationReduced`（EFF-003）。
+   * R-EFF-04/06: 行動単位・ターン単位効果の残り回数を1減らすたび（0になる
+   * 減算も含む）に発行する。`CooldownReduced`と同じ「減算そのものを
+   * 独立Reducer復元可能にする」役割 — `EffectExpired`は0になった後の失効
+   * 事実だけを表し、この事件自体（`before`/`after`のstateDelta）は持たない
+   * ため、両方をあわせて発行する。
+   */
+  readonly EffectDurationReduced: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly battleUnitId: BattleUnitId;
+    readonly unit: Extract<DurationTimeUnit, "ACTION" | "TURN">;
+    readonly before: number;
+    readonly after: number;
+  };
+  /**
+   * `08_ドメインイベント.md`「効果イベント」EffectConsumptionChanged。R-EFF-07:
+   * 消費条件の成立ごとに、消費残り回数の変化を発行する（0になる消費も含む）。
+   */
+  readonly EffectConsumptionChanged: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly battleUnitId: BattleUnitId;
+    readonly kind: ConsumptionKind;
+    readonly before: number;
+    readonly after: number;
+  };
+  /**
+   * `08_ドメインイベント.md`「効果イベント」EffectExpired/「EffectExpiredの順序」。
+   * R-EFF-04/06/07/08: 残り回数（時間制限・消費）が0になった、または
+   * `expiration.conditions`が成立した効果インスタンスを即時に失効させた直後に
+   * 発行する。R-EFF-09: `linkedEffectGroupId`を共有する子効果の連動失効も
+   * `cascaded: true`として同じイベント種別で表す（子を先に、親を後に発行する）。
+   */
+  readonly EffectExpired: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly battleUnitId: BattleUnitId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly kindKey: string;
+    readonly reason: EffectExpirationReason;
+    readonly linkedEffectGroupId: string | null;
+    /** R-EFF-09: 親効果の失効・解除に連動して失効した子効果である場合`true`。 */
+    readonly cascaded: boolean;
+  };
+  /**
    * `08_ドメインイベント.md`「CombatStatChanged」: R-STA-04の再計算後、実際に
    * 値が変わったstatごとに発行する（変化が無いstatでは発行しない）。
    */
@@ -446,11 +503,23 @@ export interface BattleDomainEventPayloadMap {
 
 /**
  * `07_戦闘ルール詳細.md` R-STA-04が列挙する再計算契機のうち、現時点で実際に
- * 到達可能なもの（`APPLY_STAT_MOD`の付与、`combat-stat-recalculation-service.ts`）
- * だけを持つ。「更新・解除・失効」「メモリー効果の有効/無効条件の変化」は
- * それぞれEFF-003/M7-001/RES-005のスコープで到達可能になった時点で追加する。
+ * 到達可能なもの（`APPLY_STAT_MOD`の付与・EFF-003の失効）だけを持つ。
+ * 「メモリー効果の有効/無効条件の変化」はRES-005のスコープで到達可能になった
+ * 時点で追加する。
  */
-export type CombatStatChangeReason = "EFFECT_APPLIED";
+export type CombatStatChangeReason = "EFFECT_APPLIED" | "EFFECT_EXPIRED";
+
+/**
+ * `07_戦闘ルール詳細.md` R-EFF-04/06/07/08/09: 効果インスタンスが失効した理由。
+ * `LINKED_GROUP_CASCADE`は、自身は時間制限・消費・特殊失効のいずれにも達して
+ * いないが、`linkedEffectGroupId`を共有する親効果の失効・解除に連動して失効
+ * した子効果自身の理由（`EffectExpired.cascaded`も併せて`true`にする）。
+ */
+export type EffectExpirationReason =
+  | "TIME_LIMIT"
+  | "CONSUMPTION"
+  | "EXPIRATION_CONDITION"
+  | "LINKED_GROUP_CASCADE";
 
 /**
  * `08_ドメインイベント.md`「EffectActionCompleted payload」。M6時点では

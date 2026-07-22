@@ -26,10 +26,24 @@
   {
     "capabilityId": "CAP_COMPLEX_EXPIRATION",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-003",
     "description": "ACTION/TURN期間・消費・特殊失効・親子連動",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+        "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+        "ACT_HARRIET_SAGE_AS2_IMMUNITY",
+        "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL"
+      ],
+      "testCaseIds": [
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-001",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-002",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-004",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-005"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_CONTINUOUS_DAMAGE",
@@ -275,10 +289,29 @@
   {
     "capabilityId": "CAP_STAT_MOD",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-003",
-    "description": "APPLY_STAT_MODによる継続stat補正のCombatStat再計算・重複なし最強選択への反映（AppliedEffect自体の個別付与・保持はEFF-001、CombatStat再計算・R-EFF-05選択はEFF-002で実装済み。ACTION/TURN期間の減算・EffectExpired・除去の実ライフサイクルがEFF-003で完成するまで、期間付きStat Modifierを戦闘終了まで残留させてしまうためpreflightで拒否し続ける — PR #208レビュー[P1]）",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "APPLY_STAT_MODによる継続stat補正のCombatStat再計算・重複なし最強選択への反映（AppliedEffect自体の個別付与・保持はEFF-001、CombatStat再計算・R-EFF-05選択はEFF-002で実装済み。ACTION/TURN期間の減算・消費条件・特殊失効・EffectExpired・除去の実ライフサイクルはEFF-003で完成した — 期間付きStat Modifierが戦闘終了まで残留する問題は解消済み、PR #208レビュー[P1]）",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_ANIS_TROUBLEMAKER_AS1_ATK_UP",
+        "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN",
+        "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP",
+        "ACT_CLARA_TSUNDERE_AS2_DEF_DOWN",
+        "ACT_CLARA_TSUNDERE_PS2_SPEED_UP",
+        "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN",
+        "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
+        "ACT_KARINA_DOWNER_PS1_ATTACKER_ATKDOWN",
+        "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP",
+        "ACT_FEE_ACTOR_PS1_CRIT_UP"
+      ],
+      "testCaseIds": [
+        "IT-STAT-MOD-PROD-001",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-001",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-002",
+        "IT-CAP-COMPLEX-EXPIRATION-PROD-003"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_TARGET_BINDING_FALLBACK",

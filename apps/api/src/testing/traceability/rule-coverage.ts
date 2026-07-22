@@ -745,7 +745,35 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   { ruleId: "R-EFF-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-EFF-04", testCaseIds: [], kinds: [] },
+  // R-EFF-04: EFF-003（Issue #159）。行動単位期間の減算・失効
+  // （`applied-effect-duration.ts`のowner解決、`duration-expiry-service.ts`の
+  // cascade・CombatStat再計算、`action-completion.ts`への実ライフサイクル
+  // 配線）。`IT-CAP-COMPLEX-EXPIRATION-PROD-001`がEFFECT_TARGET/EFFECT_SOURCE/
+  // BATTLEの3種類のownerを実production Catalogデータで検証する。
+  {
+    ruleId: "R-EFF-04",
+    testCaseIds: [
+      "UT-R-EFF-04-001",
+      "UT-R-EFF-04-002",
+      "UT-R-EFF-04-003",
+      "UT-R-EFF-04-004",
+      "UT-R-EFF-04-005",
+      "UT-R-EFF-04-006",
+      "UT-R-EFF-04-007",
+      "UT-R-EFF-04-008",
+      "UT-R-EFF-04-009",
+      "UT-R-EFF-04-010",
+      "UT-R-EFF-04-011",
+      "UT-R-EFF-04-012",
+      "UT-R-EFF-04-013",
+      "UT-R-EFF-04-014",
+      "UT-R-EFF-04-015",
+      "UT-R-EFF-04-016",
+      "UT-R-EFF-04-017",
+      "IT-CAP-COMPLEX-EXPIRATION-PROD-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // R-EFF-05: PR #208レビュー[P2]。`effective-effect-selector.ts`の選択規則
   // 自体（次点繰上げ含む）はUT-R-EFF-05-001〜013で単体検証済みだが、Catalog
   // Schemaの`APPLY_STAT_MOD.stacking.mode`が現状"STACKABLE"しか許可せず、
@@ -755,10 +783,79 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // できない。NON_STACKABLEのCatalog表現・Mapper・実ライフサイクルの
   // シナリオテストが揃うまで未完了のまま残す。
   { ruleId: "R-EFF-05", testCaseIds: [], kinds: [] },
-  { ruleId: "R-EFF-06", testCaseIds: [], kinds: [] },
-  { ruleId: "R-EFF-07", testCaseIds: [], kinds: [] },
-  { ruleId: "R-EFF-08", testCaseIds: [], kinds: [] },
-  { ruleId: "R-EFF-09", testCaseIds: [], kinds: [] },
+  // R-EFF-06: EFF-003。ターン単位期間の減算・失効（`battle.ts`のTURN_ENDING
+  // 配線）。`IT-CAP-COMPLEX-EXPIRATION-PROD-002`が実production Catalogの
+  // TURN単位`duration`で検証する。
+  {
+    ruleId: "R-EFF-06",
+    testCaseIds: [
+      "UT-R-EFF-06-001",
+      "UT-R-EFF-06-002",
+      "UT-R-EFF-06-003",
+      "UT-R-EFF-06-004",
+      "UT-R-EFF-06-005",
+      "UT-R-EFF-06-006",
+      "UT-R-EFF-06-007",
+      "IT-CAP-COMPLEX-EXPIRATION-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+  // R-EFF-07: EFF-003。消費条件（NEXT_OUTGOING_ATTACK/NEXT_INCOMING_ATTACK/
+  // OUTGOING_HIT/INCOMING_HIT、`damage-application-service.ts`への実
+  // ライフサイクル配線）。`STATUS_BLOCKED`は状態付与無効化の仕組み自体が
+  // 未実装（M7-001）のため到達不能のまま残す。`IT-CAP-COMPLEX-EXPIRATION-
+  // PROD-003`が実production CatalogのNEXT_OUTGOING_ATTACK消費で検証する。
+  {
+    ruleId: "R-EFF-07",
+    testCaseIds: [
+      "UT-R-EFF-07-001",
+      "UT-R-EFF-07-002",
+      "UT-R-EFF-07-003",
+      "UT-R-EFF-07-004",
+      "UT-R-EFF-07-005",
+      "UT-R-EFF-07-006",
+      "UT-R-EFF-07-007",
+      "UT-R-EFF-07-008",
+      "UT-R-EFF-07-009",
+      "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+  // R-EFF-08: EFF-003。`expiration.conditions`評価（`effect-expiration-
+  // condition-service.ts`、`action-completion.ts`への実ライフサイクル配線）。
+  // production Catalogに`expiration.conditions`を非空で定義する行が現状
+  // 存在しないため、`IT-`（production Catalog）レベルの検証対象は無い —
+  // R-EFF-01と同様、実ライフサイクル関数（`recordActionCompletion`）への
+  // 到達自体はUT-R-EFF-08-006が検証する。
+  {
+    ruleId: "R-EFF-08",
+    testCaseIds: [
+      "UT-R-EFF-08-001",
+      "UT-R-EFF-08-002",
+      "UT-R-EFF-08-003",
+      "UT-R-EFF-08-004",
+      "UT-R-EFF-08-005",
+      "UT-R-EFF-08-006",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
+  // R-EFF-09: EFF-003。linkedEffectGroupの親子連動カスケード
+  // （`applied-effect-linked-group.ts`、`duration-expiry-service.ts`の
+  // 子優先順序）。`IT-CAP-COMPLEX-EXPIRATION-PROD-004`がUNIT_HARRIET_SAGEの
+  // 実`linkedEffectGroupId`（`HARRIET_CURSE_LINK`）で検証する。
+  {
+    ruleId: "R-EFF-09",
+    testCaseIds: [
+      "UT-R-EFF-09-001",
+      "UT-R-EFF-09-002",
+      "UT-R-EFF-09-003",
+      "UT-R-EFF-09-004",
+      "UT-R-EFF-09-005",
+      "UT-R-EFF-09-006",
+      "IT-CAP-COMPLEX-EXPIRATION-PROD-004",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
   { ruleId: "R-EFF-10", testCaseIds: [], kinds: [] },
   { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 

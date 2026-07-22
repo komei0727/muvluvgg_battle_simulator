@@ -167,6 +167,7 @@ export function resolveWait(
       turnNumber,
       cycleNumber,
       actorId,
+      effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (event, unitsForChain) =>
         passiveRuntime.onFactEvent(event, unitsForChain),
     },

@@ -12,15 +12,14 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
 /**
  * EFF-002 (Issue #165): exercises the REAL production `catalog/`
  * `APPLY_STAT_MOD` `EffectActionDefinition` payload through the REAL domain
- * executors (`grantEffect`/`recalculateCombatStats`), bypassing preflight —
- * `CAP_STAT_MOD` itself stays `PLANNED` (`apps/api/catalog/capabilities.json`)
- * until EFF-003 wires ACTION/TURN duration expiration (PR #208 review [P1]),
- * so no production battle can reach this path yet. This proves both the
- * catalog-src wiring and R-STA-02〜04's CombatStat recalculation are correct
- * against unmodified production data, mirroring
- * `cooldown-manipulation-production-catalog.test.ts` (Issue #129, which
- * exercises `applyCooldownManipulationAction` the same way while
- * `CAP_COOLDOWN_MANIPULATION` was still gated).
+ * executors (`grantEffect`/`recalculateCombatStats`). `CAP_STAT_MOD` has
+ * since been flipped to `IMPLEMENTED` by EFF-003 (Issue #159, which wired
+ * ACTION/TURN duration expiration — see `effect-duration-production-catalog.test.ts`
+ * for the corresponding decrement/expiry proof), so this path is reachable
+ * from production battles. This proves the catalog-src wiring and
+ * R-STA-02〜04's CombatStat recalculation are correct against unmodified
+ * production data, mirroring `cooldown-manipulation-production-catalog.test.ts`
+ * (Issue #129).
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
@@ -112,6 +111,7 @@ describe("production Catalog APPLY_STAT_MOD (EFF-002, R-STA-02〜04/R-EFF-05)", 
         actor.battleUnitId,
         snapshot.effectActions,
         grantResult.lastEventId,
+        "EFFECT_APPLIED",
       );
 
       const field = (

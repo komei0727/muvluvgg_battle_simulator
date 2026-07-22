@@ -10,6 +10,7 @@ import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { AppliedEffect, EffectKindKey } from "../model/applied-effect.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { CombatStatChangeReason } from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { StatKind } from "../../catalog/definitions/catalog-enums.js";
@@ -163,6 +164,7 @@ export function recalculateCombatStats(
   targetId: BattleUnitId,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
+  reason: CombatStatChangeReason,
 ): RecalculateCombatStatsResult {
   const beforeTarget = requireUnit(beforeUnits, targetId);
   const target = requireUnit(units, targetId);
@@ -255,7 +257,7 @@ export function recalculateCombatStats(
         stat: change.stat,
         before: change.before,
         after: change.after,
-        reason: "EFFECT_APPLIED",
+        reason,
       },
       stateDelta: {
         units: {

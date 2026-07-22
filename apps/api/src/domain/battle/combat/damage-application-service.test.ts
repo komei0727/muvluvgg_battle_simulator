@@ -6,6 +6,13 @@ import {
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { consumeEffectDurations } from "../model/applied-effect-duration.js";
+import {
+  emitEffectConsumptionChangedEvents,
+  expireEffects,
+} from "../effects/duration-expiry-service.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
@@ -15,6 +22,7 @@ import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createUnitDefinitionId,
+  type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
@@ -124,6 +132,101 @@ function damageEventContext(): DamageEventContext {
     rootEventId: actionStarted.eventId,
     parentEventId: actionStarted.eventId,
     skillDefinitionId: createSkillDefinitionId("SKL_ATTACK"),
+  };
+}
+
+const STAT_MOD_DEFINITION_ID = createEffectActionDefinitionId("ACT_ATK_UP");
+
+function statModDefinition(): EffectActionDefinition {
+  return {
+    effectActionDefinitionId: STAT_MOD_DEFINITION_ID,
+    kind: "APPLY_STAT_MOD",
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0 },
+      stacking: { mode: "STACKABLE" },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+  };
+}
+
+function consumptionEffect(
+  id: string,
+  ownerId: ReturnType<typeof createBattleUnitId>,
+  kind: "NEXT_OUTGOING_ATTACK" | "NEXT_INCOMING_ATTACK" | "OUTGOING_HIT" | "INCOMING_HIT",
+  consumptionRemaining: number,
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: STAT_MOD_DEFINITION_ID,
+    kindKey: effectKindKeyFromDefinitionId(STAT_MOD_DEFINITION_ID),
+    duplicate: true,
+    sourceId: ownerId,
+    targetId: ownerId,
+    magnitude: 0.2,
+    duration: {
+      definition: {
+        consumption: { kind, maxCount: consumptionRemaining },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      consumptionRemaining,
+    },
+    appliedTurnNumber: 1,
+  };
+}
+
+/**
+ * `DamageEventContext.consumeEffectDuration`は`combat/`が`effects/`へ依存
+ * できないため呼び出し側が注入する（`effect-action-group-resolver.ts`の
+ * `buildConsumeEffectDuration`と同じ役割）。テストファイルはDomain層の
+ * module境界の対象外のため、ここでは`effects/`の実装をそのまま使う。
+ */
+function testConsumeEffectDuration(
+  recorder: EventRecorder,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): NonNullable<DamageEventContext["consumeEffectDuration"]> {
+  return (ownerUnitId, kind, units, parentEventId) => {
+    const consumption = consumeEffectDurations(units, ownerUnitId, kind);
+    if (consumption.changes.length === 0) {
+      return { units, lastEventId: parentEventId };
+    }
+    const eventContext = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId: parentEventId,
+    };
+    let lastEventId = emitEffectConsumptionChangedEvents(
+      eventContext,
+      consumption.units,
+      consumption.changes,
+      parentEventId,
+    );
+    const seeds = consumption.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        effectInstanceId: change.effectInstanceId,
+        reason: "CONSUMPTION" as const,
+      }));
+    let resultUnits = consumption.units;
+    if (seeds.length > 0) {
+      const expiry = expireEffects(
+        eventContext,
+        consumption.units,
+        seeds,
+        effectActions,
+        lastEventId,
+      );
+      resultUnits = expiry.units;
+      lastEventId = expiry.lastEventId;
+    }
+    return { units: resultUnits, lastEventId };
   };
 }
 
@@ -422,7 +525,236 @@ describe("applyDamageAction", () => {
     // Both facts from this one lethal hit must reach the hook, in causal
     // order, so a third party's DamageApplied-triggered PS (e.g. "when an
     // ally is damaged") is not silently skipped just because the hit also
-    // happened to be lethal.
-    expect(seenEventTypes).toEqual(["DamageApplied", "UnitDefeated"]);
+    // happened to be lethal. `UnitBeingAttacked` (R-EFF-07, EFF-003) also
+    // reaches the hook, ahead of both — the target was determined attackable
+    // before hit judgment, damage calculation, or defeat.
+    expect(seenEventTypes).toEqual(["UnitBeingAttacked", "DamageApplied", "UnitDefeated"]);
+  });
+
+  it("UT-R-EFF-07-007 (R-EFF-07 NEXT_OUTGOING_ATTACK/OUTGOING_HIT): consumes the attacker's matching effects when a hit reaches judgment and is confirmed (not MISS)", () => {
+    const nextAttackEffect = consumptionEffect(
+      "eff-next-outgoing",
+      createBattleUnitId("ATTACKER"),
+      "NEXT_OUTGOING_ATTACK",
+      1,
+    );
+    const outgoingHitEffect = consumptionEffect(
+      "eff-outgoing-hit",
+      createBattleUnitId("ATTACKER"),
+      "OUTGOING_HIT",
+      2,
+    );
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [nextAttackEffect, outgoingHitEffect],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+      },
+    );
+
+    const updatedAttacker = result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!;
+    expect(updatedAttacker.appliedEffects).toHaveLength(1);
+    expect(updatedAttacker.appliedEffects[0]!.effectInstanceId).toBe(
+      outgoingHitEffect.effectInstanceId,
+    );
+    expect(updatedAttacker.appliedEffects[0]!.duration.consumptionRemaining).toBe(1);
+  });
+
+  it("UT-R-EFF-07-008 (R-EFF-07 NEXT_INCOMING_ATTACK/INCOMING_HIT): consumes the target's matching effects when it is attacked and the hit is confirmed", () => {
+    const nextIncomingEffect = consumptionEffect(
+      "eff-next-incoming",
+      createBattleUnitId("TARGET"),
+      "NEXT_INCOMING_ATTACK",
+      1,
+    );
+    const incomingHitEffect = consumptionEffect(
+      "eff-incoming-hit",
+      createBattleUnitId("TARGET"),
+      "INCOMING_HIT",
+      2,
+    );
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [nextIncomingEffect, incomingHitEffect],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+      },
+    );
+
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(1);
+    expect(updatedTarget.appliedEffects[0]!.effectInstanceId).toBe(
+      incomingHitEffect.effectInstanceId,
+    );
+    expect(updatedTarget.appliedEffects[0]!.duration.consumptionRemaining).toBe(1);
+  });
+
+  it("UT-R-EFF-07-010 (レビュー修正 PR #209、R-EFF-07/08_ドメインイベント.md UnitBeingAttacked): records a real UnitBeingAttacked event when the target is determined attackable, and consumes NEXT_INCOMING_ATTACK causally after it (not merely before hit judgment)", () => {
+    const nextIncomingEffect = consumptionEffect(
+      "eff-next-incoming",
+      createBattleUnitId("TARGET"),
+      "NEXT_INCOMING_ATTACK",
+      1,
+    );
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [nextIncomingEffect],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+      },
+    );
+
+    const events = baseContext.recorder.getEvents();
+    const unitBeingAttacked = events.find((e) => e.eventType === "UnitBeingAttacked");
+    const consumptionChanged = events.find((e) => e.eventType === "EffectConsumptionChanged");
+    expect(unitBeingAttacked).toBeDefined();
+    expect(unitBeingAttacked!.payload).toMatchObject({
+      targetUnitId: createBattleUnitId("TARGET"),
+      hitIndex: 1,
+    });
+    expect(unitBeingAttacked!.sourceUnitId).toBe(createBattleUnitId("ATTACKER"));
+    expect(consumptionChanged).toBeDefined();
+    expect(consumptionChanged!.parentEventId).toBe(unitBeingAttacked!.eventId);
+  });
+
+  it("UT-R-EFF-07-011: does not record UnitBeingAttacked for a hit skipped because the target is already defeated", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = defeated(unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }));
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(context.recorder.getEvents().some((e) => e.eventType === "UnitBeingAttacked")).toBe(
+      false,
+    );
+  });
+
+  it("UT-R-EFF-07-009 (R-EFF-07 boundary/expiry): a NEXT_OUTGOING_ATTACK effect at maxCount 1 expires (EffectConsumptionChanged then EffectExpired) after being consumed", () => {
+    const nextAttackEffect = consumptionEffect(
+      "eff-next-outgoing",
+      createBattleUnitId("ATTACKER"),
+      "NEXT_OUTGOING_ATTACK",
+      1,
+    );
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [nextAttackEffect],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+    const context: DamageEventContext = {
+      ...baseContext,
+      consumeEffectDuration: testConsumeEffectDuration(
+        baseContext.recorder,
+        new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+      ),
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    const updatedAttacker = result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!;
+    expect(updatedAttacker.appliedEffects).toHaveLength(0);
+
+    const types = context.recorder.getEvents().map((e) => e.eventType);
+    expect(types).toContain("EffectConsumptionChanged");
+    expect(types).toContain("EffectExpired");
+    expect(types.indexOf("EffectConsumptionChanged")).toBeLessThan(types.indexOf("EffectExpired"));
+  });
+
+  it("UT-R-EFF-07-012 (レビュー修正 PR #209 続き — hpBefore/hpAfter staleness): an HP change made by a PS reacting to UnitBeingAttacked (before hit judgment) is reflected as the damage baseline, not silently discarded", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+    // Simulate a PS that heals the target by 5 HP the instant it becomes an
+    // attack target (reacting to UnitBeingAttacked, before hit judgment).
+    const contextWithHeal: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) =>
+        event.eventType === "UnitBeingAttacked"
+          ? units.map((u) =>
+              u.battleUnitId === target.battleUnitId ? { ...u, currentHp: u.currentHp + 5 } : u,
+            )
+          : units,
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      contextWithHeal,
+    );
+
+    // attack(30) - defense(10) = 20 damage. Baseline must be the healed HP
+    // (100 + 5 = 105), not the stale pre-heal snapshot (100).
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.currentHp).toBe(85);
+    const damageApplied = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageApplied")!;
+    expect(damageApplied.payload).toMatchObject({ hpBefore: 105, hpAfter: 85 });
   });
 });

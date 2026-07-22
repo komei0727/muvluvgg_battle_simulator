@@ -4,12 +4,14 @@ import {
   type EffectActionGroupContext,
 } from "./effect-action-group-resolver.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { EffectSequencePlan } from "../skill/skill-resolution-service.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -19,6 +21,7 @@ import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
@@ -191,6 +194,7 @@ describe("applyEffectActionGroups", () => {
     expect(emitted).toEqual([
       "EffectStepStarting",
       "EffectActionStarting",
+      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageCalculated",
@@ -244,6 +248,7 @@ describe("applyEffectActionGroups", () => {
       "EffectStepSkipped",
       "EffectStepStarting",
       "EffectActionStarting",
+      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageCalculated",
@@ -322,6 +327,7 @@ describe("applyEffectActionGroups", () => {
     expect(emitted).toEqual([
       "EffectStepStarting",
       "EffectActionStarting",
+      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageCalculated",
@@ -543,5 +549,87 @@ describe("applyEffectActionGroups", () => {
     applyEffectActionGroups(plan, [actor, enemy], context);
 
     expect(observedEventTypes).toContain("EffectApplied");
+  });
+
+  it("UT-R-EFF-07-013 (レビュー再々指摘[P1]、PR #209、実Catalog ACT_MERU_FLATSPIN_PS1_ATK_UP相当): a NEXT_OUTGOING_ATTACK-consumed ATTACK buff still boosts the damage of the very attack that consumes it, then is actually removed afterward", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const attack = damageAction("ACT_ATTACK");
+    // 実Catalog `ACT_MERU_FLATSPIN_PS1_ATK_UP` 相当: ATTACK +40%(RATIO)、
+    // NEXT_OUTGOING_ATTACK消費(maxCount 1)。
+    const consumedAtkBuffId = createEffectActionDefinitionId("ACT_ATK_BUFF_CONSUMED");
+    const consumedAtkBuffDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: null,
+      consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+    };
+    const consumedAtkBuff: EffectActionDefinition = {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: consumedAtkBuffId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        stat: "ATTACK",
+        valueType: "RATIO",
+        formula: { kind: "CONSTANT", value: 0.4 },
+        stacking: { mode: "STACKABLE" },
+        duration: consumedAtkBuffDuration,
+      },
+    };
+    // `grantEffect`/`recalculateCombatStats`が既に適用済みの状態を模す
+    // （`attack: 20`の基準値に対し+40%で28）。
+    const buffInstance: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("buff-1"),
+      effectActionDefinitionId: consumedAtkBuffId,
+      kindKey: effectKindKeyFromDefinitionId(consumedAtkBuffId),
+      duplicate: true,
+      sourceId: actor.battleUnitId,
+      targetId: actor.battleUnitId,
+      magnitude: 0.4,
+      duration: {
+        definition: consumedAtkBuffDuration,
+        consumptionRemaining: 1,
+      },
+      appliedTurnNumber: 1,
+    };
+    const actorWithBuff: BattleUnit = {
+      ...actor,
+      combatStats: { ...actor.combatStats, attack: 28 },
+      appliedEffects: [buffInstance],
+    };
+    const effectActions = new Map([
+      [attack.effectActionDefinitionId, attack],
+      [consumedAtkBuff.effectActionDefinitionId, consumedAtkBuff],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actorWithBuff, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+    };
+
+    const result = applyEffectActionGroups(plan, [actorWithBuff, enemy], context);
+
+    // 消費させた本人の攻撃自身が、まだ除去されていないバフの補正込みの
+    // attack(28)を使って計算されている。
+    const damageCalculated = recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageCalculated") as Extract<
+      BattleDomainEvent,
+      { eventType: "DamageCalculated" }
+    >;
+    expect(damageCalculated.payload.attackerAttack).toBe(28);
+
+    // その後、当該EffectActionの解決完了までにバフは実際に除去され、
+    // combatStatsも基準値(20)へ戻る。
+    const finalActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(finalActor.appliedEffects).toHaveLength(0);
+    expect(finalActor.combatStats.attack).toBe(20);
+
+    const eventTypes = recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes).toContain("EffectExpired");
+    expect(eventTypes).toContain("CombatStatChanged");
+    expect(eventTypes.indexOf("DamageApplied")).toBeLessThan(eventTypes.indexOf("EffectExpired"));
+    expect(result.interruptedCount).toBe(0);
   });
 });

@@ -96,7 +96,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 },
-        "linkedEffectGroupId": "HARRIET_BARRIER"
+        "linkedEffectGroupId": "HARRIET_BARRIER",
+        "linkedEffectGroupRole": "PARENT"
       },
       "damageThreshold": {
         "op": "GT",
@@ -119,7 +120,8 @@
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2 },
-        "linkedEffectGroupId": "HARRIET_BARRIER"
+        "linkedEffectGroupId": "HARRIET_BARRIER",
+        "linkedEffectGroupRole": "CHILD"
       }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],

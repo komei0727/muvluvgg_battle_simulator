@@ -16,13 +16,12 @@ import type { DurationDefinition } from "../../catalog/definitions/duration-defi
  *
  * この導出規則はplaceholderであり、確定した公開契約ではない
  * （PR #207レビュー[P2]）: 異なるスキル由来の同種効果（例: 2つの異なるASが
- * 与える「攻撃力+10%」）を同じ`kindKey`へグループ化できないため、EFF-002が
- * R-STA-03を実装する際に導出規則自体を差し替える可能性が高い。この値は
- * `EffectApplied`イベントの`details.kindKey`として`BattleLogEventResponse`
- * 経由で外部公開されるが、`CAP_STAT_MOD`（`PLANNED`）がpreflightで拒否する
- * 現状、`APPLY_STAT_MOD`由来の`EffectApplied`はproduction battleで発行され
- * 得ない（`grantEffect`を呼ぶ唯一の経路）。したがって実際のCatalogデータに
- * 基づく`kindKey`値へ外部が依存する余地は現状存在しない。
+ * 与える「攻撃力+10%」）を同じ`kindKey`へグループ化できないため、将来
+ * R-STA-03の導出規則自体を差し替える可能性が高い。この値は`EffectApplied`
+ * イベントの`details.kindKey`として`BattleLogEventResponse`経由で外部公開
+ * される。EFF-003（Issue #159）が`CAP_STAT_MOD`を`IMPLEMENTED`にしたため、
+ * `APPLY_STAT_MOD`由来の`EffectApplied`は実際にproduction battleで発行され
+ * 得る — 外部依存が生じた場合はこのplaceholder規則の見直しを優先する。
  */
 export type EffectKindKey = Brand<string, "EffectKindKey">;
 
