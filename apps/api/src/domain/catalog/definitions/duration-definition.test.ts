@@ -163,4 +163,122 @@ describe("DurationDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  const incomingHitTrigger = {
+    eventType: "HitPointReduced",
+    category: "FACT",
+    sourceSelector: "ENEMY",
+    targetSelector: "SELF",
+  } as const;
+
+  it("UT-CAT-DUR-015 (EFF-005 Issue #162): maps counterUpdates with scope APPLIED_EFFECT", () => {
+    const result = createDurationDefinition(
+      {
+        counterUpdates: [
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_HIT_COUNT",
+            scope: "APPLIED_EFFECT",
+            trigger: incomingHitTrigger,
+            amount: 1,
+          },
+        ],
+      },
+      "duration",
+      undefined,
+    );
+    expect(result.counterUpdates).toEqual([
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_HIT_COUNT",
+        scope: "APPLIED_EFFECT",
+        trigger: { ...incomingHitTrigger, condition: { kind: "TRUE" } },
+        amount: 1,
+      },
+    ]);
+  });
+
+  it("UT-CAT-DUR-016 (EFF-005 Issue #162): omits counterUpdates when not declared", () => {
+    const result = createDurationDefinition({ dispellable: true }, "duration", undefined);
+    expect(result).not.toHaveProperty("counterUpdates");
+  });
+
+  it("UT-CAT-DUR-017 (EFF-005 Issue #162): rejects counterUpdates with a scope other than APPLIED_EFFECT", () => {
+    expect(() =>
+      createDurationDefinition(
+        {
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_HIT_COUNT",
+              scope: "SKILL_RUNTIME",
+              trigger: incomingHitTrigger,
+              amount: 1,
+            },
+          ],
+        },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-018 (EFF-005 Issue #162): allows expiration.conditions to reference a counter declared in counterUpdates", () => {
+    const result = createDurationDefinition(
+      {
+        counterUpdates: [
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_HIT_COUNT",
+            scope: "APPLIED_EFFECT",
+            trigger: incomingHitTrigger,
+            amount: 1,
+          },
+        ],
+        expiration: {
+          conditions: [
+            { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_HIT_COUNT", op: "GTE", value: 3 },
+          ],
+        },
+      },
+      "duration",
+      undefined,
+    );
+    expect(result.expiration).toEqual({
+      conditions: [
+        { kind: "RUNTIME_COUNTER", counter: "RUNTIME_COUNTER_HIT_COUNT", op: "GTE", value: 3 },
+      ],
+    });
+  });
+
+  it("UT-CAT-DUR-019 (EFF-005 Issue #162): rejects expiration.conditions RUNTIME_COUNTER reference not declared in counterUpdates", () => {
+    expect(() =>
+      createDurationDefinition(
+        {
+          expiration: {
+            conditions: [
+              {
+                kind: "RUNTIME_COUNTER",
+                counter: "RUNTIME_COUNTER_HIT_COUNT",
+                op: "GTE",
+                value: 3,
+              },
+            ],
+          },
+        },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-020 (EFF-005 Issue #162): rejects a non-array counterUpdates", () => {
+    expect(() =>
+      createDurationDefinition(
+        { counterUpdates: "not-an-array" as unknown as never[] },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -11,6 +11,7 @@ import type { TargetReference } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
 
 /**
@@ -36,9 +37,14 @@ export interface TriggerConditionPayloadSource {
  * - `skillDefinitionId`: `RUNTIME_COUNTER`が参照する`SkillRuntime`スコープの
  *   所有スキル（`owner`が`skillDefinitionId`のスキルとして保持するcounterだけを
  *   参照し、他スキルや他ユニットのcounterは見えない、`07_戦闘ルール詳細.md`
- *   R-EFF-11「定義されたスコープ内で管理する」）。`AppliedEffect`は所有スキルを
- *   持たないため、R-EFF-08呼び出しでは省略できる — その場合`RUNTIME_COUNTER`は
- *   評価できずthrowする。
+ *   R-EFF-11「定義されたスコープ内で管理する」）。
+ * - `effectCounters`: `RUNTIME_COUNTER`が参照する`AppliedEffect`スコープの
+ *   counter（EFF-005/Issue #162）。R-EFF-08（`expiration.conditions`）は
+ *   評価対象の`AppliedEffect`自身が持つ`duration.counters`をここへ渡す —
+ *   `AppliedEffect`は所有スキルを持たないため`skillDefinitionId`の代わりに
+ *   このcounter mapを使う。`effectCounters`が渡された場合は`skillDefinitionId`
+ *   より優先する（両方渡ることは呼び出し側の設計上想定しないが、優先順位は
+ *   決定的にする）。どちらも指定しない場合は評価できずthrowする。
  * - `getUnit`: `POSITION_RELATION`/`TARGET_STATE`がevent由来のBattleUnitIdから
  *   対象の`globalCoordinate`/生存状態/その他フィールドを解決するための参照先。
  *   未指定時はどちらも評価できずthrowする（`RUNTIME_COUNTER`と同じ隔離方針）。
@@ -50,6 +56,7 @@ export interface TriggerConditionPayloadSource {
 export interface RuntimeCounterLookupContext {
   readonly owner: BattleUnit;
   readonly skillDefinitionId?: SkillDefinitionId;
+  readonly effectCounters?: RuntimeCounterMap;
   readonly getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined;
   readonly resolutionPhase?: ResolutionPhase;
 }
@@ -186,14 +193,18 @@ export function evaluateTriggerCondition(
       return compare(actual, condition.op, condition.value);
     }
     case "RUNTIME_COUNTER": {
-      if (context?.skillDefinitionId === undefined) {
+      let value: number;
+      if (context?.effectCounters !== undefined) {
+        value = context.effectCounters[condition.counter]?.value ?? 0;
+      } else if (context?.skillDefinitionId !== undefined) {
+        value =
+          context.owner.skillCounters?.[context.skillDefinitionId]?.[condition.counter]?.value ?? 0;
+      } else {
         throw new DomainValidationError(
           "condition",
-          'kind "RUNTIME_COUNTER" requires a RuntimeCounterLookupContext (owner + skillDefinitionId)',
+          'kind "RUNTIME_COUNTER" requires a RuntimeCounterLookupContext (owner + skillDefinitionId, or owner + effectCounters)',
         );
       }
-      const value =
-        context.owner.skillCounters?.[context.skillDefinitionId]?.[condition.counter]?.value ?? 0;
       if (condition.modulo !== undefined && value % condition.modulo !== 0) {
         return false;
       }

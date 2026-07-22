@@ -15,18 +15,29 @@ import {
 /**
  * `05_ドメインモデル.md`「RuntimeCounter」が列挙するスコープ全体（型としての語彙）。
  */
-export const RUNTIME_COUNTER_SCOPES = ["BATTLE", "BATTLE_UNIT", "SKILL_RUNTIME"] as const;
+export const RUNTIME_COUNTER_SCOPES = [
+  "BATTLE",
+  "BATTLE_UNIT",
+  "SKILL_RUNTIME",
+  "APPLIED_EFFECT",
+  "EFFECT_SEQUENCE",
+] as const;
 export type RuntimeCounterScope = (typeof RUNTIME_COUNTER_SCOPES)[number];
 
 /**
- * M6が実際に実装するスコープ（Issue #143）。`BATTLE`/`BATTLE_UNIT`は
- * `RuntimeCounterScope`の語彙としては存在するが、`runtime-counter-matcher.ts`の
- * 評価器が未実装のため、Catalogロード時点でこの2つを拒否する（レビュー指摘[P2]:
- * Catalogが受理した定義が実行時に無条件で例外化する契約は避ける）。対象12行は
- * いずれも`SKILL_RUNTIME`スコープで表現できるため、この制限は対象外の
- * 不完全変換を生まない。
+ * M6/M7が実際に実装するスコープ（Issue #143、EFF-005/Issue #162）。`BATTLE`/
+ * `BATTLE_UNIT`は`RuntimeCounterScope`の語彙としては存在するが、
+ * `runtime-counter-matcher.ts`の評価器が未実装のため、Catalogロード時点で
+ * この2つを拒否する（レビュー指摘[P2]: Catalogが受理した定義が実行時に無条件で
+ * 例外化する契約は避ける）。対象12行はいずれも`SKILL_RUNTIME`スコープで表現
+ * できるため、この制限は対象外の不完全変換を生まない。`EFFECT_SEQUENCE`も同じ
+ * 理由で拒否する — `EffectSequence`は状態を持たず（`05_ドメインモデル.md`）、
+ * その実行時識別子・保持先（`ActionResolutionContext`相当）を持つResolverが
+ * まだ存在しないため（`EffectSequenceResolver`はRES系Issueが導入する）。
+ * `APPLIED_EFFECT`はEFF-005（Issue #162）で`DurationDefinition.counterUpdates`
+ * 経由の更新と`expiration.conditions`からの参照を実装したため受理する。
  */
-const IMPLEMENTED_RUNTIME_COUNTER_SCOPES = ["SKILL_RUNTIME"] as const;
+const IMPLEMENTED_RUNTIME_COUNTER_SCOPES = ["SKILL_RUNTIME", "APPLIED_EFFECT"] as const;
 
 const RUNTIME_COUNTER_UPDATE_KINDS = ["INCREMENT", "CUMULATIVE_DAMAGE_THRESHOLD"] as const;
 export type RuntimeCounterUpdateKind = (typeof RUNTIME_COUNTER_UPDATE_KINDS)[number];

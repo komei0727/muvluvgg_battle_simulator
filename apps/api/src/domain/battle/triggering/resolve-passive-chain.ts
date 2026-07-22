@@ -10,7 +10,11 @@ import type {
   PassiveChainLimits,
   PassiveChainLimitViolationReason,
 } from "./passive-chain-limits.js";
-import { checkEffectsResolvedCount, checkPassiveDepth } from "./passive-chain-limits.js";
+import {
+  checkEffectRuntimeCounterDepth,
+  checkEffectsResolvedCount,
+  checkPassiveDepth,
+} from "./passive-chain-limits.js";
 import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidate.js";
 import {
   createEmptyPassiveResolutionStack,
@@ -134,6 +138,30 @@ export interface PassiveChainDependencies {
   readonly applyExpirationConditions?: (
     event: TriggerCandidateEvent,
   ) => readonly TriggerCandidateEvent[];
+  /**
+   * PR #211レビュー[P1]: `R-EFF-11`（`AppliedEffect`スコープ、EFF-005/Issue #162）の
+   * `counterUpdates`更新も、`applyExpirationConditions`と同じ理由で
+   * トップレベルの`event`だけでなくPS連鎖内部の各イベント（PS自身がyieldする
+   * `PassiveActivated`・`EffectActionStarting`、PS効果由来の`DamageApplied`等、
+   * `onFactEvent`を経由しないイベント）に対しても届ける必要がある。`event`に
+   * 一致する`AppliedEffect`スコープの`counterUpdates`を検出し、マッチした
+   * 各エントリを1件ずつ更新・記録するたびに`resolveChild`（＝`resolveEvent`
+   * 自身への再帰）を呼び出し、その`RuntimeCounterChanged`の候補連鎖を完全に
+   * 解決してから次のエントリを適用する（レビュー再指摘[P1]: 複数の
+   * `AppliedEffect`が同じイベントへ一致する場合、最初の`RuntimeCounterChanged`が
+   * 誘発したPSが後続effectを解除・変更しうるため、全件を先にバッチ更新して
+   * から返すと後続の`before`/`after`が候補解決前の古い状態になってしまう —
+   * `SkillRuntime`側の`detectAndRecordRuntimeCounterChanges`と同じ「1件ずつ
+   * record→候補解決→次へ」の順序をこの経路でも守る）。`resolveChild`が返す
+   * violationはそのまま返し、以降のエントリは処理しない。`event`自身の
+   * `expiration.conditions`評価・候補抽出より前に呼ぶ（R-EFF-11「原因イベントの
+   * 状態変更確定後、PS/Memory候補抽出前にcounter更新を決定する」）。未指定、
+   * またはマッチなしの場合は`undefined`を返す契約とする。
+   */
+  readonly applyEffectRuntimeCounterUpdates?: (
+    event: TriggerCandidateEvent,
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ) => PassiveChainLimitViolationReason | undefined;
 }
 
 export type PassiveChainResult =
@@ -163,11 +191,30 @@ interface ChainState {
    * 制御フロー自体はJSの呼び出しスタックによる再帰で駆動するが、各階層で
    * push/popし、観測可能な状態として保つ。 */
   stack: PassiveResolutionStack;
+  /**
+   * PR #211レビュー[P1]: `deps.applyEffectRuntimeCounterUpdates`から
+   * `resolveChild`（`resolveEvent`自身への再帰）が呼ばれている間、増加させたまま
+   * 保つ深さカウンタ。呼び出しが返った直後（`resolveChild`による再帰的候補解決を
+   * 待たずに）減算すると、`RuntimeCounterChanged`を自身の`counterUpdates.trigger`
+   * に持つ誤ったCatalog定義がPS連鎖内部（`onFactEvent`を経由しない`resolveEvent`
+   * 自身の再帰）で無限に自己再生成した場合にこの上限が機能しない（各呼び出しの
+   * 深さが常に1へ戻ってしまうため）。`state`（`resolvePassiveChain`の再帰全体で
+   * 共有する可変状態）に持たせることで、`resolveEvent`の実際のJS呼び出し
+   * スタックの深さと一致させる。
+   */
+  effectRuntimeCounterDepth: number;
 }
 
 /**
  * `event`の候補グループを検出し、スタック先頭へ積んで完全に解決してからpopする。
  * PS深度Guardはpush直後、候補処理を始める前に確認する。
+ *
+ * PR #211レビュー[P1]: `deps.applyEffectRuntimeCounterUpdates`（R-EFF-11、
+ * `AppliedEffect`スコープ）を`deps.applyExpirationConditions`（R-EFF-08）より
+ * 先に呼ぶ — counter更新は特殊失効条件評価・候補抽出より前に確定させる
+ * （R-EFF-11「原因イベントの状態変更確定後、PS/Memory候補抽出前にcounter
+ * 更新を決定する」）。新たに発行された`RuntimeCounterChanged`も、`event`自身の
+ * 候補解決より前にこの`resolveEvent`自身へ再帰させて完全に解決する。
  *
  * レビュー再指摘[P2]（PR #209）: 候補検出の直前に`deps.applyExpirationConditions`
  * （R-EFF-08）を呼び、`event`に対して成立した特殊失効条件を先に処理する。
@@ -182,6 +229,32 @@ function resolveEvent(
   state: ChainState,
   deps: PassiveChainDependencies,
 ): PassiveChainLimitViolationReason | undefined {
+  if (deps.applyEffectRuntimeCounterUpdates !== undefined) {
+    // PR #211レビュー[P1]: 深さは`resolveChild`が実際に呼ばれた分だけ増減する
+    // （`deps.applyEffectRuntimeCounterUpdates`がマッチなしで`undefined`を返す
+    // 呼び出しではカウントしない）。ここを`resolveEvent`呼び出しそのものに
+    // 巻き付けると、AppliedEffect counterと無関係な通常のPS連鎖の深さも誤って
+    // カウントしてしまう。
+    const violation = deps.applyEffectRuntimeCounterUpdates(event, (child) => {
+      state.effectRuntimeCounterDepth += 1;
+      try {
+        const depthCheck = checkEffectRuntimeCounterDepth(
+          state.effectRuntimeCounterDepth,
+          deps.limits,
+        );
+        if (!depthCheck.ok) {
+          return depthCheck.reason;
+        }
+        return resolveEvent(child, state, deps);
+      } finally {
+        state.effectRuntimeCounterDepth -= 1;
+      }
+    });
+    if (violation !== undefined) {
+      return violation;
+    }
+  }
+
   if (deps.applyExpirationConditions !== undefined) {
     for (const causedEvent of deps.applyExpirationConditions(event)) {
       const violation = resolveEvent(causedEvent, state, deps);
@@ -336,6 +409,7 @@ export function resolvePassiveChain(
     effectsResolved: 0,
     interruptedCandidates: [],
     stack: createEmptyPassiveResolutionStack(),
+    effectRuntimeCounterDepth: 0,
   };
 
   const violation = resolveEvent(initialEvent, state, deps);

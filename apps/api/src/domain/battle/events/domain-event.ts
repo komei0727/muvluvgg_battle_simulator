@@ -377,18 +377,22 @@ export interface BattleDomainEventPayloadMap {
   };
   /**
    * `R-EFF-11`/`08_ドメインイベント.md`「RuntimeCounterイベント」（M6最小実装、
-   * Issue #143）。原因イベントの直後・候補抽出より前に採番する例外的な子イベント
-   * （「複合処理と状態差分の所有」参照）。`carry`は`CUMULATIVE_DAMAGE_THRESHOLD`の
-   * 繰り越し端数（`INCREMENT`では常に0）。`carry`のみが変化した更新でもこの
-   * イベント自体は発行するため（追跡性のため、レビュー再々レビュー[P1]）、
-   * `valueChanged`（`before !== after`、閾値を実際に跨いだかどうか）を
-   * Catalog側の閾値到達PS向けの絞り込み条件として持つ。
+   * Issue #143。`APPLIED_EFFECT`スコープはEFF-005/Issue #162で追加）。原因イベントの
+   * 直後・候補抽出より前に採番する例外的な子イベント（「複合処理と状態差分の
+   * 所有」参照）。`carry`は`CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数
+   * （`INCREMENT`では常に0）。`carry`のみが変化した更新でもこのイベント自体は
+   * 発行するため（追跡性のため、レビュー再々レビュー[P1]）、`valueChanged`
+   * （`before !== after`、閾値を実際に跨いだかどうか）をCatalog側の閾値到達PS
+   * 向けの絞り込み条件として持つ。`skillDefinitionId`/`effectInstanceId`は
+   * `scope`に応じて排他的に存在する — `SKILL_RUNTIME`は`skillDefinitionId`のみ、
+   * `APPLIED_EFFECT`は`effectInstanceId`のみを持つ。
    */
   readonly RuntimeCounterChanged: {
     readonly ownerUnitId: BattleUnitId;
     readonly scope: RuntimeCounterScope;
     readonly counter: RuntimeCounterId;
-    readonly skillDefinitionId: SkillDefinitionId;
+    readonly skillDefinitionId?: SkillDefinitionId;
+    readonly effectInstanceId?: EffectInstanceId;
     readonly before: number;
     readonly after: number;
     readonly carry: number;

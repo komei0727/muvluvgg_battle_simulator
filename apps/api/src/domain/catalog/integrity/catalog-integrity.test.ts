@@ -523,6 +523,65 @@ function markerAction(
   );
 }
 
+const hitCounterUpdate = {
+  kind: "INCREMENT" as const,
+  counter: "RUNTIME_COUNTER_HIT_COUNT",
+  scope: "APPLIED_EFFECT" as const,
+  trigger: {
+    eventType: "HitPointReduced",
+    category: "FACT" as const,
+    sourceSelector: "ENEMY" as const,
+    targetSelector: "SELF" as const,
+  },
+  amount: 1,
+};
+
+function markerActionWithCounterUpdates(id: string): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_MARKER",
+      payload: {
+        markerId: "MARKER_TEST",
+        stack: { policy: "ADD", max: null },
+        duration: {
+          dispellable: true,
+          linkedEffectGroupId: null,
+          counterUpdates: [hitCounterUpdate],
+        },
+      },
+      requiredCapabilities: ["CAP_MARKER"],
+    },
+    "effectAction",
+  );
+}
+
+function statModActionWithCounterUpdates(
+  id: string,
+  requiredCapabilities: readonly string[] = ["CAP_STAT_MOD"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 20 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "TURN", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+          counterUpdates: [hitCounterUpdate],
+        },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function unit(
   id: string,
   overrides: {
@@ -1571,5 +1630,63 @@ describe("buildCatalogIndex", () => {
         capabilities: [capability("CAP_SKILL_RUNTIME_COUNTER"), capability("CAP_TRIGGER_CONTEXT")],
       }),
     ).toThrowError(/is documented as category/);
+  });
+
+  it("UT-CAT-IDX-038 (EFF-005 Issue #162): rejects APPLY_MARKER duration.counterUpdates (Marker RuntimeCounter is not implemented)", () => {
+    const defs = baseDefinitions();
+    const withCounterUpdates: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_COUNTER")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, markerActionWithCounterUpdates("ACT_MARKER_COUNTER")],
+      capabilities: [capability("CAP_MARKER"), capability("CAP_EFFECT_RUNTIME_COUNTER")],
+    };
+
+    try {
+      buildCatalogIndex(withCounterUpdates);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations
+          .filter((v) => v.rule === "UNSUPPORTED_MARKER_DURATION")
+          .map((v) => v.targetId),
+      ).toEqual(["ACT_MARKER_COUNTER"]);
+    }
+  });
+
+  it("UT-CAT-IDX-039 (EFF-005 Issue #162): rejects APPLY_STAT_MOD duration.counterUpdates without CAP_EFFECT_RUNTIME_COUNTER", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD_COUNTER")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [
+          ...defs.effectActions,
+          statModActionWithCounterUpdates("ACT_STAT_MOD_COUNTER", ["CAP_STAT_MOD"]),
+        ],
+        capabilities: [capability("CAP_STAT_MOD")],
+      }),
+    ).toThrowError(/must declare "CAP_EFFECT_RUNTIME_COUNTER"/);
+  });
+
+  it("UT-CAT-IDX-040 (EFF-005 Issue #162): accepts APPLY_STAT_MOD duration.counterUpdates that declares CAP_EFFECT_RUNTIME_COUNTER", () => {
+    const defs = baseDefinitions();
+    const index = buildCatalogIndex({
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD_COUNTER")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        statModActionWithCounterUpdates("ACT_STAT_MOD_COUNTER", [
+          "CAP_STAT_MOD",
+          "CAP_EFFECT_RUNTIME_COUNTER",
+        ]),
+      ],
+      capabilities: [capability("CAP_STAT_MOD"), capability("CAP_EFFECT_RUNTIME_COUNTER")],
+    });
+
+    expect(index.effectActions.get("ACT_STAT_MOD_COUNTER" as never)).toBeDefined();
   });
 });

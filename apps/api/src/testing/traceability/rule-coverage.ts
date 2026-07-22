@@ -903,6 +903,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
+  // PR #211レビュー[P1]: `13_実装計画.md`のM7完了条件は「R-EFF-11がAppliedEffect／
+  // EffectSequenceスコープを含めて台帳上で完了する」ことを要求する。AppliedEffect
+  // スコープはEFF-005（Issue #162）で実装・検証済み（`12_テスト戦略.md`「RuntimeCounter
+  // 条件（EFF-005・AppliedEffectスコープ）」に該当テストIDを列挙）だが、EffectSequence
+  // スコープは実行時識別子を持つResolverが存在せず未実装（EFF-006／Issue #212へ分割）。
+  // このルールは台帳上まだ完了扱いにできないため、testCaseIdsは空のまま維持する
+  // （`17_残作業対応表.json`のruleAssignmentsでEFF-006へ割り当て済み）。
   { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定
