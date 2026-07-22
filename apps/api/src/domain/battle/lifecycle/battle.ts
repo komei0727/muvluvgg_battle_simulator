@@ -6,11 +6,17 @@ import type { BattleStatus } from "../model/battle-status.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
 import { decrementTurnCooldowns } from "../model/cooldown-state.js";
 import { decrementTurnEffectDurations } from "../model/applied-effect-duration.js";
+import { decrementTurnMarkerDurations } from "../model/marker-duration.js";
 import {
   emitEffectDurationReducedEvents,
   expireEffects,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
+import {
+  emitMarkerDurationChangedEvents,
+  removeMarkers,
+  type MarkerRemovalSeed,
+} from "../effects/marker-removal-service.js";
 import type { DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ResourceRecoveryEntry } from "../events/domain-event.js";
@@ -480,6 +486,63 @@ export function advanceBattle(
     ),
   };
 
+  // R-EFF-10: `MarkerState`も同じ`DurationDefinition`を再利用するため、
+  // ターン単位effect減算の直後、同じ`turnEndScope`でターン単位Markerも
+  // 全ユニットで1減らす。
+  const turnMarkerDurationDecrement = decrementTurnMarkerDurations(
+    [...progressedWithEffectDuration.allyUnits, ...progressedWithEffectDuration.enemyUnits],
+    nextTurnNumber,
+  );
+  let unitsAfterMarkerDuration = turnMarkerDurationDecrement.units;
+  if (turnMarkerDurationDecrement.changes.length > 0) {
+    lastTurnEndEventId = emitMarkerDurationChangedEvents(
+      {
+        recorder,
+        turnNumber: nextTurnNumber,
+        cycleNumber: 0,
+        resolutionScopeId: turnEndScope,
+        rootEventId: turnCompleting.eventId,
+      },
+      unitsAfterMarkerDuration,
+      turnMarkerDurationDecrement.changes,
+      lastTurnEndEventId,
+    );
+
+    const markerSeeds: MarkerRemovalSeed[] = turnMarkerDurationDecrement.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        markerInstanceId: change.markerInstanceId,
+        reason: "TIME_LIMIT",
+      }));
+    if (markerSeeds.length > 0) {
+      const markerRemoval = removeMarkers(
+        {
+          recorder,
+          turnNumber: nextTurnNumber,
+          cycleNumber: 0,
+          resolutionScopeId: turnEndScope,
+          rootEventId: turnCompleting.eventId,
+        },
+        unitsAfterMarkerDuration,
+        markerSeeds,
+        lastTurnEndEventId,
+      );
+      unitsAfterMarkerDuration = markerRemoval.units;
+      lastTurnEndEventId = markerRemoval.lastEventId;
+    }
+  }
+  const markerDurationById = new Map(unitsAfterMarkerDuration.map((u) => [u.battleUnitId, u]));
+  const progressedWithMarkerDuration: Battle = {
+    ...progressedWithEffectDuration,
+    allyUnits: progressedWithEffectDuration.allyUnits.map(
+      (u) => markerDurationById.get(u.battleUnitId) ?? u,
+    ),
+    enemyUnits: progressedWithEffectDuration.enemyUnits.map(
+      (u) => markerDurationById.get(u.battleUnitId) ?? u,
+    ),
+  };
+
   recorder.record({
     eventType: "TurnCompleted",
     category: "FACT",
@@ -492,15 +555,15 @@ export function advanceBattle(
   });
 
   const afterTurnEnd = resolveVictory({
-    allAlliesDefeated: allDefeated(progressedWithEffectDuration.allyUnits),
-    allEnemiesDefeated: allDefeated(progressedWithEffectDuration.enemyUnits),
+    allAlliesDefeated: allDefeated(progressedWithMarkerDuration.allyUnits),
+    allEnemiesDefeated: allDefeated(progressedWithMarkerDuration.enemyUnits),
     turnLimitReached: isFinalTurn(turnState),
   });
   if (afterTurnEnd !== undefined) {
-    return complete(progressedWithEffectDuration, afterTurnEnd, recorder);
+    return complete(progressedWithMarkerDuration, afterTurnEnd, recorder);
   }
 
-  return progressedWithEffectDuration;
+  return progressedWithMarkerDuration;
 }
 
 /** BattleCompletedを発行する。勝敗確定契機が複数あるため、単一の親イベントには紐付けずルート化する。 */

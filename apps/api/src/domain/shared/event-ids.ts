@@ -44,3 +44,10 @@ export function createEffectInstanceId(value: string, path = "effectInstanceId")
   requireNonEmpty("EffectInstanceId", path, value);
   return value as EffectInstanceId;
 }
+
+/** `05_ドメインモデル.md`「MarkerState」: 付与された個別のMarkerインスタンスを識別する。`EventRecorder`が採番する（`EffectInstanceId`と同じ形）。 */
+export type MarkerInstanceId = Brand<string, "MarkerInstanceId">;
+export function createMarkerInstanceId(value: string, path = "markerInstanceId"): MarkerInstanceId {
+  requireNonEmpty("MarkerInstanceId", path, value);
+  return value as MarkerInstanceId;
+}

@@ -484,6 +484,7 @@ function cooldownManipulationAction(
 function statModAction(
   id: string,
   requiredCapabilities: readonly string[] = ["CAP_STAT_MOD"],
+  linkedEffectGroupId: string | null = null,
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
@@ -494,7 +495,27 @@ function statModAction(
         valueType: "FIXED",
         formula: { kind: "CONSTANT", value: 20 },
         stacking: { mode: "STACKABLE" },
-        duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
+        duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true, linkedEffectGroupId },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
+function markerAction(
+  id: string,
+  linkedEffectGroupId: string | null = null,
+  requiredCapabilities: readonly string[] = ["CAP_MARKER"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_MARKER",
+      payload: {
+        markerId: "MARKER_TEST",
+        stack: { policy: "ADD", max: null },
+        duration: { dispellable: true, linkedEffectGroupId },
       },
       requiredCapabilities,
     },
@@ -983,6 +1004,167 @@ describe("buildCatalogIndex", () => {
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_STAT_MOD",
         ),
       ).toBe(true);
+    }
+  });
+
+  it("UT-R-EFF-10-015 (R-EFF-10, PR #210レビュー[P2]): accepts an APPLY_MARKER with linkedEffectGroupId: null", () => {
+    const defs = baseDefinitions();
+    const withMarker: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, markerAction("ACT_MARKER", null)],
+      capabilities: [capability("CAP_MARKER")],
+    };
+
+    const index = buildCatalogIndex(withMarker);
+
+    expect(index.effectActions.get("ACT_MARKER" as never)).toBeDefined();
+  });
+
+  it("UT-R-EFF-10-016 (R-EFF-10, PR #210再レビュー[P2]): accepts two APPLY_MARKER definitions sharing a linkedEffectGroupId (Marker-to-Marker cascade is implemented, marker-linked-group.ts)", () => {
+    const defs = baseDefinitions();
+    const withLinkedMarkers: CatalogDefinitions = {
+      ...defs,
+      skills: [
+        ...defs.skills,
+        asSkill("SKL_AS2", "ACT_MARKER_1"),
+        asSkill("SKL_AS3", "ACT_MARKER_2"),
+      ],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2", "SKL_AS3"] })],
+      effectActions: [
+        ...defs.effectActions,
+        markerAction("ACT_MARKER_1", "GROUP_1"),
+        markerAction("ACT_MARKER_2", "GROUP_1"),
+      ],
+      capabilities: [capability("CAP_MARKER")],
+    };
+
+    const index = buildCatalogIndex(withLinkedMarkers);
+
+    expect(index.effectActions.get("ACT_MARKER_1" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_MARKER_2" as never)).toBeDefined();
+  });
+
+  it("UT-R-EFF-10-017 (R-EFF-10, PR #210再レビュー[P2]): rejects an APPLY_MARKER sharing a linkedEffectGroupId with a non-Marker EffectActionDefinition (AppliedEffect<->MarkerState cross-type cascade, R-EFF-09, is not yet implemented)", () => {
+    const defs = baseDefinitions();
+    const withCrossTypeGroup: CatalogDefinitions = {
+      ...defs,
+      skills: [
+        ...defs.skills,
+        asSkill("SKL_AS2", "ACT_MARKER"),
+        asSkill("SKL_AS3", "ACT_STAT_MOD"),
+      ],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2", "SKL_AS3"] })],
+      effectActions: [
+        ...defs.effectActions,
+        markerAction("ACT_MARKER", "GROUP_1"),
+        statModAction("ACT_STAT_MOD", ["CAP_STAT_MOD"], "GROUP_1"),
+      ],
+      capabilities: [capability("CAP_MARKER"), capability("CAP_STAT_MOD")],
+    };
+
+    try {
+      buildCatalogIndex(withCrossTypeGroup);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNSUPPORTED_MARKER_LINKED_GROUP" && v.targetId === "ACT_MARKER",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-EFF-10-018 (R-EFF-10, PR #210再レビュー[P2]): rejects an APPLY_MARKER with duration.consumption, duration.expiration, or a HIT/SKILL_USE timeLimit unit, since Marker consumption/special-expiration/per-hit-or-use decrement are not implemented (marker-duration.ts)", () => {
+    const withConsumptionPatched = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_CONSUMPTION",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_TEST",
+          stack: { policy: "ADD", max: null },
+          duration: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          },
+        },
+        requiredCapabilities: ["CAP_MARKER"],
+      },
+      "effectAction",
+    );
+    const withExpirationPatched = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_EXPIRATION",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_TEST",
+          stack: { policy: "ADD", max: null },
+          duration: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            expiration: { conditions: [{ kind: "TRUE" }] },
+          },
+        },
+        requiredCapabilities: ["CAP_MARKER"],
+      },
+      "effectAction",
+    );
+    const withHitUnitPatched = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_HIT_UNIT",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_TEST",
+          stack: { policy: "ADD", max: null },
+          duration: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            timeLimit: { unit: "HIT", count: 1 },
+          },
+        },
+        requiredCapabilities: ["CAP_MARKER"],
+      },
+      "effectAction",
+    );
+
+    const defs = baseDefinitions();
+    const withUnsupportedDurations: CatalogDefinitions = {
+      ...defs,
+      skills: [
+        ...defs.skills,
+        asSkill("SKL_AS2", "ACT_MARKER_CONSUMPTION"),
+        asSkill("SKL_AS3", "ACT_MARKER_EXPIRATION"),
+        asSkill("SKL_AS4", "ACT_MARKER_HIT_UNIT"),
+      ],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2", "SKL_AS3", "SKL_AS4"] })],
+      effectActions: [
+        ...defs.effectActions,
+        withConsumptionPatched,
+        withExpirationPatched,
+        withHitUnitPatched,
+      ],
+      capabilities: [capability("CAP_MARKER")],
+    };
+
+    try {
+      buildCatalogIndex(withUnsupportedDurations);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations
+          .filter((v) => v.rule === "UNSUPPORTED_MARKER_DURATION")
+          .map((v) => v.targetId),
+      ).toEqual(
+        expect.arrayContaining([
+          "ACT_MARKER_CONSUMPTION",
+          "ACT_MARKER_EXPIRATION",
+          "ACT_MARKER_HIT_UNIT",
+        ]),
+      );
     }
   });
 

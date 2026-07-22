@@ -2,6 +2,7 @@ import type {
   ActionId,
   DomainEventId,
   EffectInstanceId,
+  MarkerInstanceId,
   ResolutionScopeId,
   SkillUseId,
 } from "../../shared/event-ids.js";
@@ -16,12 +17,14 @@ import type {
   DamageType,
   DurationOwner,
   DurationTimeUnit,
+  MarkerStackPolicy,
   ResourceKind,
   SkillType,
   StatKind,
 } from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
+  MarkerId,
   RuntimeCounterId,
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
@@ -489,6 +492,69 @@ export interface BattleDomainEventPayloadMap {
     readonly cascaded: boolean;
   };
   /**
+   * `08_ドメインイベント.md`「Markerイベント」/R-EFF-10: 新しい`MarkerState`
+   * インスタンスを追加した直後に発行する（ADD/KEEP_EXISTING/REFRESH/REPLACEの
+   * いずれも、既存Markerが無い場合はこのイベントになる）。`EffectApplied`と同じ
+   * 「`timeLimit`/`consumption`/`expiration`を持つ場合だけ対応フィールドを持つ」
+   * 規約に従う。
+   */
+  readonly MarkerApplied: {
+    readonly markerInstanceId: MarkerInstanceId;
+    readonly markerId: MarkerId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly targetUnitId: BattleUnitId;
+    readonly stackCount: number;
+    readonly stackMax: number | null;
+    readonly durationUnit?: DurationTimeUnit;
+    readonly durationOwner?: DurationOwner;
+    readonly initialRemaining?: number;
+    readonly remainingCount?: number;
+    readonly consumptionKind?: ConsumptionKind;
+    readonly consumptionMaxCount?: number;
+    readonly consumptionRemaining?: number;
+    readonly expirationConditions?: readonly ConditionDefinition[];
+    readonly linkedEffectGroupId: string | null;
+  };
+  /**
+   * `08_ドメインイベント.md`「MarkerUpdated payload」/R-EFF-10: 既存`MarkerState`の
+   * スタック数・Durationを変更した直後に発行する。`policy`が呼び出し契機になった
+   * `stack.policy`（ADD/KEEP_EXISTING/REFRESH/REPLACE、KEEP_EXISTINGは無変化の
+   * ためこのイベント自体を発行しない）を運ぶ`APPLY_MARKER`経由の更新と、
+   * `policy`を持たない行動・ターン単位のDuration減算（R-EFF-04/06相当、
+   * `EffectDurationReduced`のMarker版を専用イベント種別として持たない代わりに
+   * ここへ統合する）の両方をこの1種別で表す — `08_ドメインイベント.md`の
+   * Markerイベント表がAppliedEffectより少ない3種別しか持たない設計に合わせた
+   * 意図的な統合。
+   */
+  readonly MarkerUpdated: {
+    readonly markerInstanceId: MarkerInstanceId;
+    readonly markerId: MarkerId;
+    readonly targetUnitId: BattleUnitId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly policy?: MarkerStackPolicy;
+    readonly stackBefore: number;
+    readonly stackAfter: number;
+    readonly durationUnit?: DurationTimeUnit;
+    readonly remainingBefore?: number;
+    readonly remainingAfter?: number;
+    readonly linkedEffectGroupId: string | null;
+  };
+  /**
+   * `08_ドメインイベント.md`「Markerイベント」/R-EFF-10「Markerが0スタックに
+   * なった場合は解除」: 明示的な`REMOVE_MARKER`、時間制限・消費・特殊失効に
+   * よる自然消滅、`linkedEffectGroupId`を共有する親の失効に連動したカスケードの
+   * いずれかで`MarkerState`を除去した直後に発行する（`EffectExpired`と同じ
+   * cascade表現、R-EFF-09）。
+   */
+  readonly MarkerRemoved: {
+    readonly markerInstanceId: MarkerInstanceId;
+    readonly markerId: MarkerId;
+    readonly targetUnitId: BattleUnitId;
+    readonly reason: MarkerRemovalReason;
+    readonly linkedEffectGroupId: string | null;
+    readonly cascaded: boolean;
+  };
+  /**
    * `08_ドメインイベント.md`「CombatStatChanged」: R-STA-04の再計算後、実際に
    * 値が変わったstatごとに発行する（変化が無いstatでは発行しない）。
    */
@@ -516,6 +582,19 @@ export type CombatStatChangeReason = "EFFECT_APPLIED" | "EFFECT_EXPIRED";
  * した子効果自身の理由（`EffectExpired.cascaded`も併せて`true`にする）。
  */
 export type EffectExpirationReason =
+  | "TIME_LIMIT"
+  | "CONSUMPTION"
+  | "EXPIRATION_CONDITION"
+  | "LINKED_GROUP_CASCADE";
+
+/**
+ * `07_戦闘ルール詳細.md` R-EFF-10: `MarkerState`が除去された理由。`REMOVED`は
+ * 明示的な`REMOVE_MARKER`によるスタック全解除（現行スキーマでは唯一の
+ * スタック即時ゼロ化経路）。残りは`EffectExpirationReason`と同じ意味
+ * （時間制限・消費・特殊失効・`linkedEffectGroupId`カスケード）を持つ。
+ */
+export type MarkerRemovalReason =
+  | "REMOVED"
   | "TIME_LIMIT"
   | "CONSUMPTION"
   | "EXPIRATION_CONDITION"

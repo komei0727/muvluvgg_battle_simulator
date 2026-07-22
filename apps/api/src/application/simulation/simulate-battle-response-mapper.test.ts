@@ -8,6 +8,8 @@ import {
   createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const ALLY_ID = createBattleUnitId("ally:1");
@@ -210,6 +212,157 @@ describe("toBattleSimulationResponseBody", () => {
       criticalRate: 10,
       affinityBonus: 25,
       criticalDamageBonus: 50,
+    });
+  });
+
+  it("API-RESP-012 (R-EFF-10, PR #210レビュー[P1] fix): maps real MarkerSnapshots from snapshot.markers into BattleUnitStateResponseBody.markers instead of always returning an empty array", () => {
+    const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
+    const markerId = createMarkerId("MARKER_TEST");
+    const base = baseResult();
+    const withMarker = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            markers: [
+              {
+                markerInstanceId,
+                markerId,
+                sourceUnitId: ENEMY_ID,
+                stackCount: 2,
+                stackMax: 3,
+                duration: { unit: "ACTION", remaining: 1 },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const body = toBattleSimulationResponseBody(withMarker);
+
+    expect(body.finalState.units[0]!.markers).toEqual([
+      {
+        markerInstanceId: "battle-1:marker:1",
+        markerId: "MARKER_TEST",
+        sourceUnitId: "enemy:1",
+        stackCount: 2,
+        stackMax: 3,
+        duration: { unit: "ACTION", remaining: 1 },
+      },
+    ]);
+    // A unit with no MarkerState instances still gets a truthfully-empty array.
+    expect(body.finalState.units[1]!.markers).toEqual([]);
+  });
+
+  it("API-RESP-013 (R-EFF-10, PR #210レビュー[P1] fix): maps a StateTransition's markers delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined)", () => {
+    const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
+    const markerId = createMarkerId("MARKER_TEST");
+    const applied = {
+      markerInstanceId,
+      markerId,
+      sourceUnitId: ENEMY_ID,
+      stackCount: 1,
+      stackMax: 3,
+    };
+    const updatedAfter = { ...applied, stackCount: 2 };
+
+    const body = toBattleSimulationResponseBody(
+      baseResult({
+        stateTransitions: [
+          {
+            causedBySequence: 1,
+            stateVersionBefore: 0,
+            stateVersionAfter: 1,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  markers: { [markerInstanceId]: { before: undefined, after: applied } },
+                },
+              },
+            },
+          },
+          {
+            causedBySequence: 2,
+            stateVersionBefore: 1,
+            stateVersionAfter: 2,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  markers: { [markerInstanceId]: { before: applied, after: updatedAfter } },
+                },
+              },
+            },
+          },
+          {
+            causedBySequence: 3,
+            stateVersionBefore: 2,
+            stateVersionAfter: 3,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  markers: { [markerInstanceId]: { before: updatedAfter, after: undefined } },
+                },
+              },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(body.stateTransitions[0]!.delta.units!["ally:1"]!.markers).toEqual({
+      added: [
+        {
+          markerInstanceId: "battle-1:marker:1",
+          markerId: "MARKER_TEST",
+          sourceUnitId: "enemy:1",
+          stackCount: 1,
+          stackMax: 3,
+        },
+      ],
+      updated: [],
+      removed: [],
+    });
+    expect(body.stateTransitions[1]!.delta.units!["ally:1"]!.markers).toEqual({
+      added: [],
+      updated: [
+        {
+          id: "battle-1:marker:1",
+          before: {
+            markerInstanceId: "battle-1:marker:1",
+            markerId: "MARKER_TEST",
+            sourceUnitId: "enemy:1",
+            stackCount: 1,
+            stackMax: 3,
+          },
+          after: {
+            markerInstanceId: "battle-1:marker:1",
+            markerId: "MARKER_TEST",
+            sourceUnitId: "enemy:1",
+            stackCount: 2,
+            stackMax: 3,
+          },
+        },
+      ],
+      removed: [],
+    });
+    expect(body.stateTransitions[2]!.delta.units!["ally:1"]!.markers).toEqual({
+      added: [],
+      updated: [],
+      removed: [
+        {
+          id: "battle-1:marker:1",
+          before: {
+            markerInstanceId: "battle-1:marker:1",
+            markerId: "MARKER_TEST",
+            sourceUnitId: "enemy:1",
+            stackCount: 2,
+            stackMax: 3,
+          },
+        },
+      ],
     });
   });
 

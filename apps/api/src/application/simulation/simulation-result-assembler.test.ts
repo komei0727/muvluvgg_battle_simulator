@@ -6,10 +6,12 @@ import {
   createActionId,
   createDomainEventId,
   createEffectInstanceId,
+  createMarkerInstanceId,
 } from "../../domain/shared/event-ids.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createSkillDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
@@ -627,6 +629,173 @@ describe("assembleSimulationResult", () => {
       status: "RUNNING" as const,
       currentTurn: 0,
       units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+    };
+
+    let error: unknown;
+    try {
+      assembleSimulationResult({
+        battleId: BATTLE_ID,
+        catalogRevision: "rev-1",
+        logLevel: "DETAILED",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+        initialState,
+        finalState,
+        events: recorder.getEvents(),
+        unitRoster: [],
+      });
+      expect.unreachable("expected assembleSimulationResult to throw");
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBeInstanceOf(ApplicationError);
+    expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+  });
+
+  it("UT-R-EFF-10-013 (R-EFF-10, PR #210レビュー[P2] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerStates disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore markers, mirroring UT-R-EFF-01-013's effects regression)", () => {
+    const UNIT_A = createBattleUnitId("unit-a");
+    const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
+    const markerId = createMarkerId("MARKER_TEST");
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1.
+    recorder.record({
+      eventType: "MarkerApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: UNIT_A,
+      targetUnitIds: [UNIT_A],
+      payload: {
+        markerInstanceId,
+        markerId,
+        sourceUnitId: UNIT_A,
+        targetUnitId: UNIT_A,
+        stackCount: 1,
+        stackMax: null,
+        linkedEffectGroupId: null,
+      },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            markers: {
+              [markerInstanceId]: {
+                before: undefined,
+                after: {
+                  markerInstanceId,
+                  markerId,
+                  sourceUnitId: UNIT_A,
+                  stackCount: 1,
+                  stackMax: null,
+                },
+              },
+            },
+          },
+        },
+      },
+    }); // version 1->2.
+
+    const initialState = {
+      status: "READY" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+    };
+    // The recorded delta grants a Marker with stackCount 1, but this
+    // finalState (wrongly) claims no markers at all — a state-changing
+    // event's stateDelta silently dropped the real value.
+    const finalState = {
+      status: "RUNNING" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+    };
+
+    let error: unknown;
+    try {
+      assembleSimulationResult({
+        battleId: BATTLE_ID,
+        catalogRevision: "rev-1",
+        logLevel: "DETAILED",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+        initialState,
+        finalState,
+        events: recorder.getEvents(),
+        unitRoster: [],
+      });
+      expect.unreachable("expected assembleSimulationResult to throw");
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBeInstanceOf(ApplicationError);
+    expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+  });
+
+  it("UT-R-EFF-10-014 (R-EFF-10, PR #210レビュー[P2] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerState stack count disagrees with the restored value (reordered/duplicated deltas must not slip through as a false match)", () => {
+    const UNIT_A = createBattleUnitId("unit-a");
+    const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
+    const markerId = createMarkerId("MARKER_TEST");
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1.
+    recorder.record({
+      eventType: "MarkerApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: UNIT_A,
+      targetUnitIds: [UNIT_A],
+      payload: {
+        markerInstanceId,
+        markerId,
+        sourceUnitId: UNIT_A,
+        targetUnitId: UNIT_A,
+        stackCount: 1,
+        stackMax: null,
+        linkedEffectGroupId: null,
+      },
+      stateDelta: {
+        units: {
+          [UNIT_A]: {
+            markers: {
+              [markerInstanceId]: {
+                before: undefined,
+                after: {
+                  markerInstanceId,
+                  markerId,
+                  sourceUnitId: UNIT_A,
+                  stackCount: 1,
+                  stackMax: null,
+                },
+              },
+            },
+          },
+        },
+      },
+    }); // version 1->2.
+
+    const initialState = {
+      status: "READY" as const,
+      currentTurn: 0,
+      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+    };
+    // The restored Marker has stackCount 1 (from the recorded delta above),
+    // but this finalState (wrongly) claims stackCount 2 — a duplicate or
+    // reordered ADD delta that never actually reached the recorded events.
+    const finalState = {
+      status: "RUNNING" as const,
+      currentTurn: 0,
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          combatStats: COMBAT_STATS,
+          markers: [
+            { markerInstanceId, markerId, sourceUnitId: UNIT_A, stackCount: 2, stackMax: null },
+          ],
+        },
+      },
     };
 
     let error: unknown;

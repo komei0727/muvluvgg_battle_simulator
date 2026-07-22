@@ -1,9 +1,11 @@
 import {
   toEffectSnapshot,
+  toMarkerSnapshot,
   type BattleResultSnapshot,
   type ChargeState,
   type CooldownState,
   type EffectSnapshot,
+  type MarkerSnapshot,
 } from "../events/state-delta.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import type { Battle } from "./battle.js";
@@ -49,6 +51,8 @@ export interface BattleUnitSnapshot {
   >;
   /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
   readonly effects?: readonly EffectSnapshot[];
+  /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
+  readonly markers?: readonly MarkerSnapshot[];
 }
 
 /**
@@ -123,6 +127,9 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
               toEffectSnapshot(effect, effective.has(effect.effectInstanceId)),
             ),
           }
+        : {}),
+      ...(unit.markerStates.length > 0
+        ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
         : {}),
     };
   }

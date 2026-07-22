@@ -856,7 +856,53 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
-  { ruleId: "R-EFF-10", testCaseIds: [], kinds: [] },
+  // R-EFF-10: EFF-004（Issue #160）。ADD/KEEP_EXISTING/REFRESH/REPLACEの4方針、
+  // stack.max clamp・0未満禁止（`marker-apply-service.ts`）、明示的
+  // `REMOVE_MARKER`とlinkedEffectGroupカスケード（`MarkerState`同士、
+  // `marker-removal-service.ts`/`marker-linked-group.ts`）、ACTION/TURN単位
+  // Duration失効（`marker-duration.ts`、`action-completion.ts`/`battle.ts`への
+  // 実ライフサイクル配線）を実装した。`MARKER_COUNT_SCALE`Formula評価
+  // （`CAP_MARKER_STACK_FORMULA`）はcontext付きFormulaEvaluatorを要するため
+  // RES-001（Issue #175）のスコープ、`TARGET_HAS_MARKER`Condition評価は
+  // RES-004（Issue #171）、`HAS_MARKER`TargetSelector評価はTGT-002
+  // （Issue #169）のスコープとして残す。`AppliedEffect`をまたぐlinkedEffectGroup
+  // カスケード（cross-type）は未実装であり、`catalog-integrity.ts`が同じ
+  // `linkedEffectGroupId`を`APPLY_MARKER`と非Marker種別の両方が使う組合せを
+  // Catalogロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_LINKED_GROUP`、
+  // PR #210再レビュー[P2]）。Marker同士のグループは実装済みのため拒否しない。
+  // 同様に、schema上は許容されるが未実装のMarker Duration機構（`consumption`、
+  // `expiration`、`HIT`/`SKILL_USE`単位の`timeLimit`）も同じCatalog integrity
+  // パスで`UNSUPPORTED_MARKER_DURATION`として拒否する（PR #210再レビュー[P2]）。
+  // API応答（`BattleUnitStateResponse.markers`/`UnitStateDeltaResponse.markers`、
+  // `markers`はv1後方互換のため任意プロパティとして追加）と、独立Reducer復元の
+  // 一致判定（`simulation-result-assembler.ts`の`unitSnapshotsEqual`）へも
+  // Markerを反映した（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。
+  {
+    ruleId: "R-EFF-10",
+    testCaseIds: [
+      "UT-R-EFF-10-001",
+      "UT-R-EFF-10-002",
+      "UT-R-EFF-10-003",
+      "UT-R-EFF-10-004",
+      "UT-R-EFF-10-005",
+      "UT-R-EFF-10-006",
+      "UT-R-EFF-10-007",
+      "UT-R-EFF-10-008",
+      "UT-R-EFF-10-009",
+      "UT-R-EFF-10-010",
+      "UT-R-EFF-10-011",
+      "UT-R-EFF-10-012",
+      "UT-R-EFF-10-013",
+      "UT-R-EFF-10-014",
+      "UT-R-EFF-10-015",
+      "UT-R-EFF-10-016",
+      "UT-R-EFF-10-017",
+      "UT-R-EFF-10-018",
+      "IT-MARKER-PROD-001",
+      "IT-MARKER-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定

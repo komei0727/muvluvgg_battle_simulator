@@ -299,6 +299,34 @@ const effectStateResponseSchema = {
 } as const;
 
 /**
+ * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1])。
+ * `EffectStateResponse`と異なり`category`/`stackMode`/`isEffective`/`value`を
+ * 持たず、代わりに`stackCount`/`stackMax`を持つ（Markerは重複解決の対象外、
+ * 対象ごとに常に1インスタンス）。
+ */
+const markerStateResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["markerInstanceId", "markerId", "sourceUnitId", "stackCount", "stackMax"],
+  properties: {
+    markerInstanceId: { type: "string" },
+    markerId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    stackCount: { type: "integer", minimum: 0 },
+    stackMax: { type: ["integer", "null"], minimum: 1 },
+    duration: {
+      type: "object",
+      additionalProperties: false,
+      required: ["unit", "remaining"],
+      properties: {
+        unit: { type: "string", enum: ["ACTION", "TURN"] },
+        remaining: { type: "integer", minimum: 0 },
+      },
+    },
+  },
+} as const;
+
+/**
  * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
  * `unit`に応じてどちらか一方だけを必須にするXOR制約を`oneOf`で強制する
  * （両方欠落・両方存在は不正。M5レビュー3巡目[P2]）。`remaining`は残数がある
@@ -374,6 +402,7 @@ const battleUnitStateResponseSchema = {
     shields: shieldStateResponseSchema,
     subUnits: { type: "array", items: subUnitStateResponseSchema },
     effects: { type: "array", items: effectStateResponseSchema },
+    markers: { type: "array", items: markerStateResponseSchema },
     cooldowns: { type: "array", items: cooldownStateResponseSchema },
     charge: chargeStateResponseSchema,
   },
@@ -469,6 +498,7 @@ const unitStateDeltaResponseSchema = {
     shields: { type: "object", additionalProperties: valueChangeNumberSchema },
     subUnits: entityCollectionDeltaResponseSchema,
     effects: entityCollectionDeltaResponseSchema,
+    markers: entityCollectionDeltaResponseSchema,
     cooldowns: entityCollectionDeltaResponseSchema,
     charge: {
       type: "object",

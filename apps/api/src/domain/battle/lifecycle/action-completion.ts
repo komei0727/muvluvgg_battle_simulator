@@ -5,11 +5,17 @@ import {
   type CooldownMap,
 } from "../model/cooldown-state.js";
 import { decrementActionEffectDurations } from "../model/applied-effect-duration.js";
+import { decrementActionMarkerDurations } from "../model/marker-duration.js";
 import {
   emitEffectDurationReducedEvents,
   expireEffects,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
+import {
+  emitMarkerDurationChangedEvents,
+  removeMarkers,
+  type MarkerRemovalSeed,
+} from "../effects/marker-removal-service.js";
 import type {
   ActionId,
   DomainEventId,
@@ -216,6 +222,64 @@ export function recordActionCompletion(
       working = expiry.units;
       lastEventId = expiry.lastEventId;
       for (const event of recorder.getEvents().slice(expiryEventsStart)) {
+        notify(event);
+      }
+    }
+  }
+
+  // R-EFF-10: `MarkerState`も`AppliedEffect`と同じ`DurationDefinition`を再利用する
+  // ため、行動単位Markerの残り回数も同じCOMPLETING #6-8タイミングで減らす
+  // （`decrementActionMarkerDurations`自身がowner解決を行う）。
+  const markerDurationDecrement = decrementActionMarkerDurations(
+    working,
+    context.actorId,
+    context.actionId,
+  );
+  if (markerDurationDecrement.changes.length > 0) {
+    working = markerDurationDecrement.units;
+    const markerUpdatedEventsStart = recorder.getEvents().length;
+    lastEventId = emitMarkerDurationChangedEvents(
+      {
+        recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        resolutionScopeId: context.resolutionScopeId,
+        rootEventId: context.rootEventId,
+      },
+      working,
+      markerDurationDecrement.changes,
+      lastEventId,
+    );
+    for (const event of recorder.getEvents().slice(markerUpdatedEventsStart)) {
+      notify(event);
+    }
+
+    const markerSeeds: MarkerRemovalSeed[] = markerDurationDecrement.changes
+      .filter((change) => change.after === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        markerInstanceId: change.markerInstanceId,
+        reason: "TIME_LIMIT",
+      }));
+    if (markerSeeds.length > 0) {
+      const markerRemovedEventsStart = recorder.getEvents().length;
+      const markerRemoval = removeMarkers(
+        {
+          recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+        },
+        working,
+        markerSeeds,
+        lastEventId,
+      );
+      working = markerRemoval.units;
+      lastEventId = markerRemoval.lastEventId;
+      for (const event of recorder.getEvents().slice(markerRemovedEventsStart)) {
         notify(event);
       }
     }

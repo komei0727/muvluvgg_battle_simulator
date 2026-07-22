@@ -5,6 +5,8 @@ import {
   type DamageEventContext,
 } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
+import { applyMarker } from "../effects/marker-apply-service.js";
+import { removeMarkers } from "../effects/marker-removal-service.js";
 import { recalculateCombatStats } from "../effects/combat-stat-recalculation-service.js";
 import {
   emitEffectConsumptionChangedEvents,
@@ -473,10 +475,89 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
     effectLastEventId = recalculation.lastEventId;
     resultKind = "APPLIED";
+  } else if (effectAction.kind === "APPLY_MARKER") {
+    // R-EFF-10: ADD/KEEP_EXISTING/REFRESH/REPLACEのスタック方針を対象1件・
+    // Marker1件単位で適用する（`marker-apply-service.ts`）。`APPLY_MARKER`は
+    // `APPLY_STAT_MOD`と異なりFormulaを持たない — スタック量は常に1（ADDは
+    // 既存スタックへの+1、REPLACE/新規付与は常にスタック1から始まる）。
+    const applyResult = applyMarker(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      {
+        markerId: effectAction.payload.markerId,
+        sourceId: context.actorId,
+        targetId: application.targetBattleUnitId,
+        stackPolicy: effectAction.payload.stack.policy,
+        stackMax: effectAction.payload.stack.max,
+        durationDefinition: effectAction.payload.duration,
+      },
+      starting.eventId,
+    );
+    box.units = applyResult.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    }
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = applyResult.lastEventId;
+    resultKind = "APPLIED";
+  } else if (effectAction.kind === "REMOVE_MARKER") {
+    // R-EFF-10「Marker の解除は既存の REMOVE_MARKER（markerId 指定）を使う」
+    // （`14_Catalog定義スキーマ.md`）: 対象が指定Markerを所持していない場合は
+    // no-op（`COOLDOWN_MANIPULATION`のREADY skillと同じ扱い、resultKind: SKIPPED）。
+    const target = requireUnit(box.units, application.targetBattleUnitId);
+    const existingMarker = target.markerStates.find(
+      (marker) => marker.markerId === effectAction.payload.markerId,
+    );
+    if (existingMarker === undefined) {
+      effectLastEventId = starting.eventId;
+      resultKind = "SKIPPED";
+    } else {
+      const removalResult = removeMarkers(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        [
+          {
+            battleUnitId: application.targetBattleUnitId,
+            markerInstanceId: existingMarker.markerInstanceId,
+            reason: "REMOVED",
+          },
+        ],
+        starting.eventId,
+      );
+      box.units = removalResult.units;
+      effectLastEventId = removalResult.lastEventId;
+      resultKind = "APPLIED";
+    }
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    }
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_MARKER"/"REMOVE_MARKER" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

@@ -5,6 +5,7 @@ import type { ActiveCharge } from "./charge-state.js";
 import type { CooldownMap } from "./cooldown-state.js";
 import type { RuntimeCounterMap } from "./runtime-counter-state.js";
 import type { AppliedEffect } from "./applied-effect.js";
+import type { MarkerState } from "./marker-state.js";
 import {
   createActionPoint,
   createExtraGauge,
@@ -64,6 +65,8 @@ export interface BattleUnit {
   readonly skillCounters?: Readonly<Record<SkillDefinitionId, RuntimeCounterMap>>;
   /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01): 個別管理される全効果インスタンス。付与順を保持する。 */
   readonly appliedEffects: readonly AppliedEffect[];
+  /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10): 同じmarkerIdにつき対象ごとに1インスタンス。付与順を保持する。 */
+  readonly markerStates: readonly MarkerState[];
 }
 
 export interface BattleUnitResourceLimits {
@@ -96,6 +99,7 @@ export function createBattleUnit(
     maximumExtraGauge: limits.maximumExtraGauge,
     cooldowns: {},
     appliedEffects: [],
+    markerStates: [],
   };
 }
 

@@ -83,6 +83,22 @@ export interface EffectStateResponseBody {
 }
 
 /**
+ * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004)。`EffectStateResponse`
+ * と対になる形だが、`AppliedEffect`と異なり`stackCount`/`stackMax`を持ち、
+ * `kindKey`/`category`/`isEffective`/`value`（重複あり・なし選択、効果種別ごとの
+ * 構造化値）を持たない — MarkerはR-EFF-05の重複解決対象ではなく、対象ごとに
+ * 常に1インスタンスだけが存在する。
+ */
+export interface MarkerStateResponseBody {
+  readonly markerInstanceId: string;
+  readonly markerId: string;
+  readonly sourceUnitId: string;
+  readonly stackCount: number;
+  readonly stackMax: number | null;
+  readonly duration?: { readonly unit: string; readonly remaining: number };
+}
+
+/**
  * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
  * `unit`(ACTION/TURN)に応じてどちらか一方だけ存在する（Domainの`CooldownEntry`と
  * 同じXOR。`state-delta.ts`の`CooldownState`コメント参照）。discriminated union
@@ -126,7 +142,8 @@ export interface ChargeStateResponseBody {
  * `stacking.mode`が現状`STACKABLE`しか持てないため、productionで観測される
  * `effects`は常に`isEffective: true`・`stackMode: "STACKABLE"`になる
  * （`effect-stacking-policy.ts`の`NON_STACKABLE`分岐は現状ドメイン層の単体
- * テストだけが到達する）。`cooldowns`/`charge`はM5で実装済みのDomain状態
+ * テストだけが到達する）。`markers`はEFF-004（R-EFF-10）で`snapshot.markers`を
+ * 実際にマップする。`cooldowns`/`charge`はM5で実装済みのDomain状態
  * （`BattleUnitSnapshot`）をそのまま反映する。
  */
 export interface BattleUnitStateResponseBody {
@@ -142,6 +159,15 @@ export interface BattleUnitStateResponseBody {
   readonly shields: ShieldStateResponseBody;
   readonly subUnits: readonly SubUnitStateResponseBody[];
   readonly effects: readonly EffectStateResponseBody[];
+  /**
+   * PR #210再レビュー[P2]: `10_API設計.md`「schemaVersion」の後方互換規則は
+   * 「任意プロパティの追加」だけを許す。`effects`等は元々v1契約の必須項目だが、
+   * `markers`はEFF-004でv1のまま新規追加したフィールドのため、既存の厳密な
+   * v1デコーダ（`additionalProperties: false`のschemaを保持するクライアント）を
+   * 壊さないよう任意にする — Response Mapperは常に値を設定する（`effects`と
+   * 同じ「まだ何も付与されていない」を表す空配列を含む）。
+   */
+  readonly markers?: readonly MarkerStateResponseBody[];
   readonly cooldowns: readonly CooldownStateResponseBody[];
   readonly charge?: ChargeStateResponseBody;
 }
@@ -190,7 +216,9 @@ export interface EntityCollectionDeltaResponseBody {
  * `subUnits`/`effects`/`cooldowns`/`charge`は対応するDomain機構が実装される
  * M5〜M8まで、Response Mapperが値を設定することはない
  * （現行v1のRequest/Response契約を`additionalProperties: false`のまま将来へ
- * 拡張できるよう、フィールド自体は先に外部契約へ持たせておく）。
+ * 拡張できるよう、フィールド自体は先に外部契約へ持たせておく）。`markers`は
+ * EFF-004（R-EFF-10）でResponse Mapperが`delta.markers`から実際に値を設定する
+ * （PR #210レビュー[P1]: `effects`同様の`EntityCollectionDelta`変換）。
  */
 export interface UnitStateDeltaResponseBody {
   readonly combatStatus?: ValueChangeBody<string>;
@@ -200,6 +228,7 @@ export interface UnitStateDeltaResponseBody {
   readonly shields?: Readonly<Record<string, ValueChangeBody<number>>>;
   readonly subUnits?: EntityCollectionDeltaResponseBody;
   readonly effects?: EntityCollectionDeltaResponseBody;
+  readonly markers?: EntityCollectionDeltaResponseBody;
   readonly cooldowns?: EntityCollectionDeltaResponseBody;
   readonly charge?: ValueChangeBody<unknown>;
 }

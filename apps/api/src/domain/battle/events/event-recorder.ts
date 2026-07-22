@@ -8,11 +8,13 @@ import {
   createActionId,
   createDomainEventId,
   createEffectInstanceId,
+  createMarkerInstanceId,
   createResolutionScopeId,
   createSkillUseId,
   type ActionId,
   type DomainEventId,
   type EffectInstanceId,
+  type MarkerInstanceId,
   type ResolutionScopeId,
   type SkillUseId,
 } from "../../shared/event-ids.js";
@@ -72,6 +74,7 @@ export class EventRecorder {
   private skillUseCounter = 0;
   private scopeCounter = 0;
   private effectInstanceCounter = 0;
+  private markerInstanceCounter = 0;
   private readonly recordedEvents: BattleDomainEvent[] = [];
   private readonly maxTotalEvents: number;
 
@@ -101,6 +104,12 @@ export class EventRecorder {
   nextEffectInstanceId(): EffectInstanceId {
     this.effectInstanceCounter += 1;
     return createEffectInstanceId(`${this.battleId}:effect:${this.effectInstanceCounter}`);
+  }
+
+  /** `05_ドメインモデル.md`「MarkerState」: 新しいMarkerインスタンスを付与するたびに採番する。 */
+  nextMarkerInstanceId(): MarkerInstanceId {
+    this.markerInstanceCounter += 1;
+    return createMarkerInstanceId(`${this.battleId}:marker:${this.markerInstanceCounter}`);
   }
 
   /**

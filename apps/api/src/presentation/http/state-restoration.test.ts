@@ -10,6 +10,7 @@ import type {
   BattleUnitStateResponseBody,
   ChargeStateResponseBody,
   CooldownStateResponseBody,
+  MarkerStateResponseBody,
   StateTransitionResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
@@ -18,12 +19,18 @@ import { toSimulateBattleCommand } from "../../application/simulation/simulate-b
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import {
+  createCapabilityId,
   createEffectActionDefinitionId,
+  createMarkerId,
   createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  createCapabilityDefinition,
+  type CapabilityDefinition,
+} from "../../domain/catalog/capability/capability-definition.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
@@ -144,12 +151,31 @@ function damageEffectAction(id: string): EffectActionDefinition {
   };
 }
 
+/** R-EFF-10 (EFF-004, PR #210レビュー supplementary note): `APPLY_MARKER`をACTION step経由で発行するEffectAction。 */
+function markerEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "APPLY_MARKER",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [createCapabilityId("CAP_MARKER")],
+    metadata: { tags: [] },
+    payload: {
+      markerId: createMarkerId("MARKER_STATE_RESTORE_TEST"),
+      stack: { policy: "ADD", max: 3 },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+  };
+}
+
 class FakeBattleCatalog implements BattleCatalog {
   private readonly units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>;
   private readonly skills: ReadonlyMap<ReturnType<typeof createSkillDefinitionId>, SkillDefinition>;
   private readonly effectActions: ReadonlyMap<
     ReturnType<typeof createEffectActionDefinitionId>,
     EffectActionDefinition
+  >;
+  private readonly capabilities: ReadonlyMap<
+    ReturnType<typeof createCapabilityId>,
+    CapabilityDefinition
   >;
 
   constructor(
@@ -159,10 +185,15 @@ class FakeBattleCatalog implements BattleCatalog {
       ReturnType<typeof createEffectActionDefinitionId>,
       EffectActionDefinition
     >,
+    capabilities: ReadonlyMap<
+      ReturnType<typeof createCapabilityId>,
+      CapabilityDefinition
+    > = new Map(),
   ) {
     this.units = units;
     this.skills = skills;
     this.effectActions = effectActions;
+    this.capabilities = capabilities;
   }
 
   loadSnapshot(): BattleCatalogSnapshot {
@@ -172,7 +203,7 @@ class FakeBattleCatalog implements BattleCatalog {
       skills: this.skills,
       effectActions: this.effectActions,
       memories: new Map(),
-      capabilities: new Map(),
+      capabilities: this.capabilities,
     };
   }
 }
@@ -216,6 +247,35 @@ function applyCooldownsDelta(
   }
   for (const entry of delta.removed) {
     next = next.filter((cooldown) => cooldown.skillDefinitionId !== entry.id);
+  }
+  return next;
+}
+
+/**
+ * `10_API設計.md`「UnitStateDeltaResponse.markers」(`EntityCollectionDelta`、
+ * R-EFF-10、PR #210レビュー[P1])を`BattleUnitStateResponseBody.markers`へ
+ * 適用する。`applyCooldownsDelta`と同じ`added`/`updated`/`removed`規約だが、
+ * IDが`skillDefinitionId`ではなく`markerInstanceId`（`EntityCollectionDeltaResponseBody`
+ * の`id`/`before`/`after`は`unknown`型のため、Markerの形へ実行時にキャストする）。
+ */
+function applyMarkersDelta(
+  current: readonly MarkerStateResponseBody[] | undefined,
+  delta: UnitStateDeltaResponseBody["markers"],
+): readonly MarkerStateResponseBody[] {
+  if (delta === undefined) {
+    return current ?? [];
+  }
+  let next = [...(current ?? [])];
+  for (const entry of delta.added) {
+    next = [...next, entry as MarkerStateResponseBody];
+  }
+  for (const entry of delta.updated) {
+    next = next.map((marker) =>
+      marker.markerInstanceId === entry.id ? (entry.after as MarkerStateResponseBody) : marker,
+    );
+  }
+  for (const entry of delta.removed) {
+    next = next.filter((marker) => marker.markerInstanceId !== entry.id);
   }
   return next;
 }
@@ -314,6 +374,7 @@ function applyDelta(
             : unit.resources.extraGauge,
       },
       cooldowns: applyCooldownsDelta(unit.cooldowns, unitDelta.cooldowns),
+      markers: applyMarkersDelta(unit.markers, unitDelta.markers),
       ...(charge !== undefined ? { charge } : {}),
     };
   });
@@ -460,6 +521,88 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
           memoryDefinitionIds: [],
         },
         turnLimit: 5,
+      },
+    });
+    if (response.statusCode !== 200) {
+      throw new Error(`expected 200, got ${response.statusCode}: ${response.body}`);
+    }
+    return response.json<BattleSimulationResponseBody>();
+  } finally {
+    await app.close();
+  }
+}
+
+/**
+ * R-EFF-10 (EFF-004, PR #210レビュー supplementary note): 「実際のEffectSequence
+ * → HTTP応答 → 独立Reducer復元を通すシナリオ」として、`APPLY_MARKER`を持つ
+ * ACTION stepを実HTTPパイプライン（`SimulateBattleUseCase` → Response Mapper →
+ * `stateTransitions`）経由で発行し、`finalState.units[].markers`と
+ * `stateTransitions[].delta.units[].markers`の両方を実際に埋めるシナリオ。
+ */
+async function runMarkerScenario(): Promise<BattleSimulationResponseBody> {
+  const skillId = "SKL_MARK";
+  const effectActionId = "ACT_MARK";
+  const attackerUnit: UnitDefinition = {
+    ...unitDefinition("UNIT_MARKER_ATK"),
+    baseStats: { ...unitDefinition("UNIT_MARKER_ATK").baseStats, maximumAp: 1 },
+    activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+  };
+  const defenderUnit: UnitDefinition = unitDefinition("UNIT_MARKER_DEF");
+  const units = new Map([
+    [createUnitDefinitionId("UNIT_MARKER_ATK"), attackerUnit],
+    [createUnitDefinitionId("UNIT_MARKER_DEF"), defenderUnit],
+  ]);
+  const skills = new Map([
+    [createSkillDefinitionId(skillId), attackSkill(skillId, effectActionId)],
+    [createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")],
+  ]);
+  const effectActions = new Map([
+    [createEffectActionDefinitionId(effectActionId), markerEffectAction(effectActionId)],
+  ]);
+  const capabilities = new Map([
+    [
+      createCapabilityId("CAP_MARKER"),
+      createCapabilityDefinition({
+        capabilityId: "CAP_MARKER",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "EFF-004",
+        description: "d",
+        verification: {
+          productionDefinitionIds: [effectActionId],
+          testCaseIds: ["API-STATE-RESTORE-008"],
+        },
+      }),
+    ],
+  ]);
+
+  const useCase: SimulateBattleUseCasePort = {
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
+      Promise.resolve(
+        new SimulateBattleUseCase({
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions, capabilities),
+          battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+          randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+          clock: new ManualClock(Date.now()),
+        }).execute(toSimulateBattleCommand(request), context),
+      ),
+  };
+  const app: FastifyInstance = await buildServer(useCase);
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_MARKER_ATK", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_MARKER_DEF", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 1,
       },
     });
     if (response.statusCode !== 200) {
@@ -771,6 +914,32 @@ describe("HTTP response state restoration (independent Reducer)", () => {
 
     // Also exercises COOLDOWN_STARTED/REDUCED and CHARGE_STARTED/RELEASED
     // against the OpenAPI-published per-event `details` schema.
+    const ajv = new Ajv({ strict: false });
+    const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
+    expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
+  });
+
+  it("API-STATE-RESTORE-008 (R-EFF-10, EFF-004, PR #210レビュー supplementary note fix): a real APPLY_MARKER EffectAction produces MarkerApplied through the full HTTP pipeline, finalState.units[].markers is populated (not the always-empty array from before the Response Mapper mapped snapshot.markers), and reconstructedFinalState built from stateTransitions alone (markers included) equals finalState", async () => {
+    const body = await runMarkerScenario();
+
+    // Sanity: this scenario actually grants a Marker — otherwise the
+    // restoration below would trivially pass with no markers deltas at all.
+    const defenderFinal = body.finalState.units.find(
+      (u) => u.unitDefinitionId === "UNIT_MARKER_DEF",
+    );
+    expect(defenderFinal?.markers).toHaveLength(1);
+    const marker = defenderFinal!.markers![0]!;
+    expect(marker.markerId).toBe("MARKER_STATE_RESTORE_TEST");
+    expect(marker.stackCount).toBe(1);
+    expect(marker.stackMax).toBe(3);
+    expect(typeof marker.markerInstanceId).toBe("string");
+
+    const markerApplied = body.events.find((e) => e.type === "MARKER_APPLIED");
+    expect(markerApplied).toBeDefined();
+
+    const reconstructed = reconstructFinalState(body);
+    expect(reconstructed).toEqual(body.finalState);
+
     const ajv = new Ajv({ strict: false });
     const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
