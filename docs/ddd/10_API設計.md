@@ -398,29 +398,29 @@ BattleUnitStateResponse {
   shields
   subUnits[]
   effects[]
-  markers[]
+  markers?[]
   cooldowns[]
   charge?
 }
 ```
 
-| プロパティ          | 型                        | 説明                                            |
-| ------------------- | ------------------------- | ----------------------------------------------- |
-| `battleUnitId`      | string                    | この戦闘内の参加枠ID。                          |
-| `unitDefinitionId`  | string                    | 元となるユニット定義ID。                        |
-| `side`              | string                    | `ALLY` または `ENEMY`。                         |
-| `formationPosition` | object                    | `{ column, row }`。リクエストと同じ陣営内表現。 |
-| `coordinate`        | object                    | `{ x, y }`。3×4共通座標。                       |
-| `combatStatus`      | string                    | `ACTIVE` または `DEFEATED`。                    |
-| `hp`                | `CurrentMaximumValue`     | 現在HPと最大HP。                                |
-| `resources`         | `ResourceStateResponse`   | AP、PP、EXゲージ。                              |
-| `combatStats`       | `CombatStatsResponse`     | 現時点で有効な戦闘ステータス。                  |
-| `shields`           | `ShieldStateResponse`     | タイプ別シールドプール。                        |
-| `subUnits`          | `SubUnitStateResponse[]`  | サブユニットごとの耐久状態。                    |
-| `effects`           | `EffectStateResponse[]`   | 個別管理される全効果インスタンス。              |
-| `markers`           | `MarkerStateResponse[]`   | 対象ごとに1インスタンスのMarker。               |
-| `cooldowns`         | `CooldownStateResponse[]` | 残数があるスキルクールタイム。                  |
-| `charge`            | `ChargeStateResponse`     | チャージ中だけ存在する。                        |
+| プロパティ          | 型                        | 説明                                                                                                                                                                                                   |
+| ------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `battleUnitId`      | string                    | この戦闘内の参加枠ID。                                                                                                                                                                                 |
+| `unitDefinitionId`  | string                    | 元となるユニット定義ID。                                                                                                                                                                               |
+| `side`              | string                    | `ALLY` または `ENEMY`。                                                                                                                                                                                |
+| `formationPosition` | object                    | `{ column, row }`。リクエストと同じ陣営内表現。                                                                                                                                                        |
+| `coordinate`        | object                    | `{ x, y }`。3×4共通座標。                                                                                                                                                                              |
+| `combatStatus`      | string                    | `ACTIVE` または `DEFEATED`。                                                                                                                                                                           |
+| `hp`                | `CurrentMaximumValue`     | 現在HPと最大HP。                                                                                                                                                                                       |
+| `resources`         | `ResourceStateResponse`   | AP、PP、EXゲージ。                                                                                                                                                                                     |
+| `combatStats`       | `CombatStatsResponse`     | 現時点で有効な戦闘ステータス。                                                                                                                                                                         |
+| `shields`           | `ShieldStateResponse`     | タイプ別シールドプール。                                                                                                                                                                               |
+| `subUnits`          | `SubUnitStateResponse[]`  | サブユニットごとの耐久状態。                                                                                                                                                                           |
+| `effects`           | `EffectStateResponse[]`   | 個別管理される全効果インスタンス。                                                                                                                                                                     |
+| `markers`           | `MarkerStateResponse[]`   | 対象ごとに1インスタンスのMarker。EFF-004でv1へ追加した任意プロパティ（「schemaVersion」の後方互換規則により必須にしない）。Response Mapperは常に値を設定する（`charge`のように省略されることはない）。 |
+| `cooldowns`         | `CooldownStateResponse[]` | 残数があるスキルクールタイム。                                                                                                                                                                         |
+| `charge`            | `ChargeStateResponse`     | チャージ中だけ存在する。                                                                                                                                                                               |
 
 ### HP・リソース
 
