@@ -823,6 +823,9 @@ describe("OpenAPI document", () => {
       EffectDurationReduced: true,
       EffectConsumptionChanged: true,
       EffectExpired: true,
+      MarkerApplied: true,
+      MarkerUpdated: true,
+      MarkerRemoved: true,
     };
     const expectedTypes = new Set(
       Object.keys(ALL_EVENT_TYPES).map((eventType) =>

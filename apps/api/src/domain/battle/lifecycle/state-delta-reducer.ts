@@ -3,6 +3,7 @@ import type {
   ChargeState,
   CooldownState,
   EffectSnapshot,
+  MarkerSnapshot,
   StateDelta,
   UnitStateDelta,
   ValueChange,
@@ -11,7 +12,7 @@ import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { EffectInstanceId } from "../../shared/event-ids.js";
+import type { EffectInstanceId, MarkerInstanceId } from "../../shared/event-ids.js";
 
 function assertBeforeMatches<T>(path: string, current: T, change: ValueChange<T>): void {
   if (current !== change.before) {
@@ -112,6 +113,62 @@ function applyEffectDeltas(
 }
 
 /**
+ * `sameEffectSnapshot`と同じ理由・同じ役割の`MarkerSnapshot`版（R-EFF-10）。
+ */
+export function sameMarkerSnapshot(
+  a: MarkerSnapshot | undefined,
+  b: MarkerSnapshot | undefined,
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.markerInstanceId === b.markerInstanceId &&
+    a.markerId === b.markerId &&
+    a.sourceUnitId === b.sourceUnitId &&
+    a.stackCount === b.stackCount &&
+    a.stackMax === b.stackMax &&
+    a.duration?.unit === b.duration?.unit &&
+    a.duration?.remaining === b.duration?.remaining &&
+    a.consumptionRemaining === b.consumptionRemaining
+  );
+}
+
+/**
+ * R-EFF-10: `applyEffectDeltas`と同じ規約の`MarkerInstanceId`版。`Map`の挿入順を
+ * 使い、既存キーの更新は位置を保ったまま、新規キー（`before: undefined`）は
+ * 末尾へ追加する。
+ */
+function applyMarkerDeltas(
+  path: string,
+  current: readonly MarkerSnapshot[] | undefined,
+  deltas: UnitStateDelta["markers"],
+): readonly MarkerSnapshot[] | undefined {
+  if (deltas === undefined) {
+    return current;
+  }
+  const byId = new Map((current ?? []).map((marker) => [marker.markerInstanceId, marker] as const));
+  for (const [markerInstanceId, change] of Object.entries(deltas) as [
+    MarkerInstanceId,
+    ValueChange<MarkerSnapshot | undefined>,
+  ][]) {
+    const existing = byId.get(markerInstanceId);
+    if (!sameMarkerSnapshot(existing, change.before)) {
+      throw new DomainValidationError(
+        `${path}[${markerInstanceId}]`,
+        `delta.before (${JSON.stringify(change.before)}) does not match the current value (${JSON.stringify(existing)}); the delta sequence is dropped, reordered, or duplicated`,
+      );
+    }
+    if (change.after === undefined) {
+      byId.delete(markerInstanceId);
+    } else {
+      byId.set(markerInstanceId, change.after);
+    }
+  }
+  return [...byId.values()];
+}
+
+/**
  * R-STA-04: `CombatStatChanged`が持つ`combatStats`差分を適用する。`hp`/`ap`と
  * 同じ`assertBeforeMatches`規約だが、フィールドごとに個別のキーを持つ複合値
  * のため`hp`のような単一フィールドの比較を`CombatStats`の各キーへ繰り返す。
@@ -173,6 +230,7 @@ function applyUnitDelta(
     { pruneEmptySkillEntries: true },
   );
   const effects = applyEffectDeltas(`${path}.effects`, unit.effects, delta.effects);
+  const markers = applyMarkerDeltas(`${path}.markers`, unit.markers, delta.markers);
   const combatStats = applyCombatStatsDelta(
     `${path}.combatStats`,
     unit.combatStats,
@@ -189,6 +247,7 @@ function applyUnitDelta(
     ...(skillCounters !== undefined ? { skillCounters } : {}),
     ...(skillCounterCarry !== undefined ? { skillCounterCarry } : {}),
     ...(effects !== undefined && effects.length > 0 ? { effects } : {}),
+    ...(markers !== undefined && markers.length > 0 ? { markers } : {}),
   };
 }
 

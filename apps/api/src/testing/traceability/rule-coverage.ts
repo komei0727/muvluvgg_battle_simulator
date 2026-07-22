@@ -856,7 +856,38 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
-  { ruleId: "R-EFF-10", testCaseIds: [], kinds: [] },
+  // R-EFF-10: EFF-004（Issue #160）。ADD/KEEP_EXISTING/REFRESH/REPLACEの4方針、
+  // stack.max clamp・0未満禁止（`marker-apply-service.ts`）、明示的
+  // `REMOVE_MARKER`とlinkedEffectGroupカスケード（`MarkerState`同士、
+  // `marker-removal-service.ts`/`marker-linked-group.ts`）、ACTION/TURN単位
+  // Duration失効（`marker-duration.ts`、`action-completion.ts`/`battle.ts`への
+  // 実ライフサイクル配線）を実装した。`MARKER_COUNT_SCALE`Formula評価
+  // （`CAP_MARKER_STACK_FORMULA`）はcontext付きFormulaEvaluatorを要するため
+  // RES-001（Issue #175）のスコープ、`TARGET_HAS_MARKER`Condition評価は
+  // RES-004（Issue #171）、`HAS_MARKER`TargetSelector評価はTGT-002
+  // （Issue #169）のスコープとして残す。`AppliedEffect`をまたぐ
+  // linkedEffectGroupカスケードは利用するproduction Marker定義が現れるまで
+  // 対象外（`marker-linked-group.ts`参照）。
+  {
+    ruleId: "R-EFF-10",
+    testCaseIds: [
+      "UT-R-EFF-10-001",
+      "UT-R-EFF-10-002",
+      "UT-R-EFF-10-003",
+      "UT-R-EFF-10-004",
+      "UT-R-EFF-10-005",
+      "UT-R-EFF-10-006",
+      "UT-R-EFF-10-007",
+      "UT-R-EFF-10-008",
+      "UT-R-EFF-10-009",
+      "UT-R-EFF-10-010",
+      "UT-R-EFF-10-011",
+      "UT-R-EFF-10-012",
+      "IT-MARKER-PROD-001",
+      "IT-MARKER-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   { ruleId: "R-EFF-11", testCaseIds: [], kinds: [] },
 
   // END: 勝敗判定

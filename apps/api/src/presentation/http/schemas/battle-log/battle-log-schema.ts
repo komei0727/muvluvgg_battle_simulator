@@ -1123,6 +1123,98 @@ const effectExpiredDetailsSchema = {
   },
 } as const;
 
+const MARKER_STACK_POLICY_ENUM = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
+
+/** `MarkerApplied`（R-EFF-10）。新しい`MarkerState`インスタンス追加後に発行する。`EffectApplied`と同じ「持つ場合だけ対応フィールドを持つ」規約。 */
+const markerAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "markerInstanceId",
+    "markerId",
+    "sourceUnitId",
+    "targetUnitId",
+    "stackCount",
+    "stackMax",
+    "linkedEffectGroupId",
+  ],
+  properties: {
+    markerInstanceId: { type: "string" },
+    markerId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    targetUnitId: { type: "string" },
+    stackCount: { type: "integer", minimum: 0 },
+    stackMax: { type: ["integer", "null"], minimum: 1 },
+    durationUnit: { type: "string", enum: DURATION_TIME_UNIT_ENUM },
+    durationOwner: { type: "string", enum: DURATION_OWNER_ENUM },
+    initialRemaining: { type: "integer", minimum: 1 },
+    remainingCount: { type: "integer", minimum: 0 },
+    consumptionKind: { type: "string", enum: CONSUMPTION_KIND_ENUM },
+    consumptionMaxCount: { type: "integer", minimum: 1 },
+    consumptionRemaining: { type: "integer", minimum: 0 },
+    expirationConditions: { type: "array", items: { $ref: CONDITION_DEFINITION_SCHEMA_ID } },
+    linkedEffectGroupId: { type: ["string", "null"] },
+  },
+} as const;
+
+/** `MarkerUpdated`（R-EFF-10）。既存`MarkerState`のスタック数・Duration変更後に発行する。`policy`はAPPLY_MARKER経由の更新だけ持つ（`domain-event.ts`の`MarkerUpdated`コメント参照）。 */
+const markerUpdatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "markerInstanceId",
+    "markerId",
+    "targetUnitId",
+    "sourceUnitId",
+    "stackBefore",
+    "stackAfter",
+    "linkedEffectGroupId",
+  ],
+  properties: {
+    markerInstanceId: { type: "string" },
+    markerId: { type: "string" },
+    targetUnitId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    policy: { type: "string", enum: MARKER_STACK_POLICY_ENUM },
+    stackBefore: { type: "integer", minimum: 0 },
+    stackAfter: { type: "integer", minimum: 0 },
+    durationUnit: { type: "string", enum: ["ACTION", "TURN"] },
+    remainingBefore: { type: "integer", minimum: 0 },
+    remainingAfter: { type: "integer", minimum: 0 },
+    linkedEffectGroupId: { type: ["string", "null"] },
+  },
+} as const;
+
+const MARKER_REMOVAL_REASON_ENUM = [
+  "REMOVED",
+  "TIME_LIMIT",
+  "CONSUMPTION",
+  "EXPIRATION_CONDITION",
+  "LINKED_GROUP_CASCADE",
+] as const;
+
+/** `MarkerRemoved`（R-EFF-10/R-EFF-09）。`MarkerState`を除去した直後に発行する。`EffectExpired`と同じcascade表現。 */
+const markerRemovedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "markerInstanceId",
+    "markerId",
+    "targetUnitId",
+    "reason",
+    "linkedEffectGroupId",
+    "cascaded",
+  ],
+  properties: {
+    markerInstanceId: { type: "string" },
+    markerId: { type: "string" },
+    targetUnitId: { type: "string" },
+    reason: { type: "string", enum: MARKER_REMOVAL_REASON_ENUM },
+    linkedEffectGroupId: { type: ["string", "null"] },
+    cascaded: { type: "boolean" },
+  },
+} as const;
+
 /**
  * `type`（大文字スネークケースのイベント種別、`toUpperSnakeCase`の変換結果）
  * から、対応する`details`schemaへのlookup。`ActionCompleting`/
@@ -1181,6 +1273,9 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,
   EFFECT_CONSUMPTION_CHANGED: effectConsumptionChangedDetailsSchema,
   EFFECT_EXPIRED: effectExpiredDetailsSchema,
+  MARKER_APPLIED: markerAppliedDetailsSchema,
+  MARKER_UPDATED: markerUpdatedDetailsSchema,
+  MARKER_REMOVED: markerRemovedDetailsSchema,
 } as const;
 
 /**

@@ -22,8 +22,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // IMPLEMENTED once ACTION/TURN duration decrement, consumption, special
     // expiration, and linkedEffectGroup cascade (R-EFF-04/06/07/08/09) wired
     // the real lifecycle (`capabilities.json`, production integration tests
-    // `IT-CAP-COMPLEX-EXPIRATION-PROD-001〜003`).
-    expect(catalog.catalogRevision).toBe("2026-07-21.8");
+    // `IT-CAP-COMPLEX-EXPIRATION-PROD-001〜003`). Issue #160 (EFF-004):
+    // `CAP_MARKER` flipped to IMPLEMENTED once MarkerState stack policies and
+    // ACTION/TURN duration expiration (R-EFF-10) wired the real lifecycle
+    // (`IT-MARKER-PROD-001〜002`).
+    expect(catalog.catalogRevision).toBe("2026-07-22.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

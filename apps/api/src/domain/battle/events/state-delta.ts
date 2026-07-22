@@ -1,11 +1,16 @@
 import type { BattleStatus } from "../model/battle-status.js";
 import type { AppliedEffect } from "../model/applied-effect.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
-import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type {
+  MarkerId,
+  RuntimeCounterId,
+  SkillDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { ActionId, EffectInstanceId } from "../../shared/event-ids.js";
+import type { ActionId, EffectInstanceId, MarkerInstanceId } from "../../shared/event-ids.js";
 
 export interface ValueChange<T> {
   readonly before: T;
@@ -95,6 +100,47 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
   };
 }
 
+/**
+ * `05_ドメインモデル.md`「MarkerState」/R-EFF-10の外部公開形。`EffectSnapshot`と
+ * 同じ設計（`duration`はACTION/TURN単位の場合だけ、`consumptionRemaining`は
+ * 消費条件を持つ場合だけ存在する）。`sourceUnitId`は直近の付与者（インスタンス
+ * 識別には使わない、`marker-state.ts`参照）。
+ */
+export interface MarkerSnapshot {
+  readonly markerInstanceId: MarkerInstanceId;
+  readonly markerId: MarkerId;
+  readonly sourceUnitId: BattleUnitId;
+  readonly stackCount: number;
+  readonly stackMax: number | null;
+  readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
+  readonly consumptionRemaining?: number;
+}
+
+/**
+ * `MarkerState`（Domain）から`MarkerSnapshot`（`stateDelta`共通の外部公開形）を
+ * 導出する。`toEffectSnapshot`と同じ役割 — `MarkerApplied`/`MarkerUpdated`/
+ * `MarkerRemoved`を記録するサービスと`captureBattleState`が同じ変換を共有する。
+ */
+export function toMarkerSnapshot(marker: MarkerState): MarkerSnapshot {
+  const timeLimit = marker.duration.definition.timeLimit;
+  const duration =
+    (timeLimit?.unit === "ACTION" || timeLimit?.unit === "TURN") &&
+    marker.duration.timeLimitRemaining !== undefined
+      ? { unit: timeLimit.unit, remaining: marker.duration.timeLimitRemaining }
+      : undefined;
+  return {
+    markerInstanceId: marker.markerInstanceId,
+    markerId: marker.markerId,
+    sourceUnitId: marker.sourceId,
+    stackCount: marker.stackCount,
+    stackMax: marker.stackMax,
+    ...(duration !== undefined ? { duration } : {}),
+    ...(marker.duration.consumptionRemaining !== undefined
+      ? { consumptionRemaining: marker.duration.consumptionRemaining }
+      : {}),
+  };
+}
+
 /** `08_ドメインイベント.md`「StateDelta」: 変更した項目だけを持つ。 */
 export interface UnitStateDelta {
   readonly hp?: ValueChange<number>;
@@ -156,6 +202,13 @@ export interface UnitStateDelta {
    * が発行するイベントの`stateDelta`が使う — このIssueでは新規付与だけを扱う。
    */
   readonly effects?: Readonly<Record<EffectInstanceId, ValueChange<EffectSnapshot | undefined>>>;
+  /**
+   * `MarkerInstanceId`をキーとする、変更された`MarkerState`だけを持つ
+   * （R-EFF-10）。`effects`と同じ規約: `before: undefined`は新規付与
+   * （`MarkerApplied`）、`after: undefined`は除去（`MarkerRemoved`）、両方
+   * 存在する場合はスタック/Duration変更（`MarkerUpdated`）を表す。
+   */
+  readonly markers?: Readonly<Record<MarkerInstanceId, ValueChange<MarkerSnapshot | undefined>>>;
   /**
    * R-STA-04: `CombatStatChanged`が単独で所有する差分。実際に値が変わった
    * `CombatStats`のフィールドだけをキーとして持つ（`hp`/`ap`と同じ「変更した
