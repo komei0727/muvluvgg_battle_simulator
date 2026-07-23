@@ -308,6 +308,21 @@ const effectStepCompletedDetailsSchema = {
   },
 } as const;
 
+const RANDOM_BRANCH_MODE_ENUM = ["WEIGHTED_ONE", "INDEPENDENT"] as const;
+
+/** `RandomBranchSelected`（R-SKL-07、RES-003）。`label`はbranch定義がlabelを省略した場合だけ存在しない。 */
+const randomBranchSelectedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stepIndex", "mode", "branchIndex"],
+  properties: {
+    stepIndex: { type: "integer", minimum: 0 },
+    mode: { type: "string", enum: RANDOM_BRANCH_MODE_ENUM },
+    branchIndex: { type: "integer", minimum: 0 },
+    label: { type: "string" },
+  },
+} as const;
+
 const effectActionStartingDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1271,6 +1286,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_STEP_STARTING: effectStepStartingDetailsSchema,
   EFFECT_STEP_SKIPPED: effectStepSkippedDetailsSchema,
   EFFECT_STEP_COMPLETED: effectStepCompletedDetailsSchema,
+  RANDOM_BRANCH_SELECTED: randomBranchSelectedDetailsSchema,
   EFFECT_ACTION_STARTING: effectActionStartingDetailsSchema,
   EFFECT_ACTION_COMPLETED: effectActionCompletedDetailsSchema,
   UNIT_BEING_ATTACKED: unitBeingAttackedDetailsSchema,

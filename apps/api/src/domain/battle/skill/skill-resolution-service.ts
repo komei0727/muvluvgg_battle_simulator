@@ -6,7 +6,10 @@ import type {
   EffectStepDefinition,
 } from "../../catalog/definitions/effect-sequence.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
-import type { ConditionKind } from "../../catalog/definitions/condition-definition.js";
+import type {
+  ConditionDefinition,
+  ConditionKind,
+} from "../../catalog/definitions/condition-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type {
@@ -41,7 +44,7 @@ export interface EffectActionApplication {
 }
 
 /** R-SKL-06 #1〜#2: ACTION stepの条件評価結果と、満たされた場合の適用一覧。 */
-export interface EffectStepPlan {
+export interface ActionStepPlan {
   readonly stepIndex: number;
   readonly stepKind: "ACTION";
   readonly conditionKind: ConditionKind;
@@ -50,23 +53,66 @@ export interface EffectStepPlan {
   readonly applications: readonly EffectActionApplication[];
 }
 
+/**
+ * R-SKL-07/R-SKL-08（RES-003、Issue #173）: `BRANCH`/`RANDOM_BRANCH`/`REPEAT`と、
+ * `LAST_RESULT`/`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`を参照する`ACTION`
+ * stepは、同じ解決スコープ内で直前に確定した`EffectAction`結果を必要とする。
+ * この結果は実際にstepを適用するまで存在しないため（RNGを消費する
+ * `applyDamageAction`のヒット判定と同じ理由で、planの事前構築時点では確定
+ * できない）、`resolveEffectSequence`（このファイル、pure）ではこれ以上resolve
+ * せず、生のstep定義のまま`effect-action-group-resolver.ts`のgeneratorへ渡す。
+ * 生成側は`resolveActionStepApplications`/`evaluateEffectStepCondition`を
+ * その場（JIT）で呼び出し、都度更新される直前結果を渡す。
+ */
+export interface DeferredStepPlan {
+  readonly stepIndex: number;
+  readonly stepKind: "DEFERRED";
+  /** `EffectStepStarting`の`stepKind`payload用に、生definitionの実際のkindを保持する。 */
+  readonly definitionKind: EffectStepDefinition["kind"];
+  readonly definition: EffectStepDefinition;
+}
+
+export type EffectStepPlan = ActionStepPlan | DeferredStepPlan;
+
+/** R-SKL-01の`resolveTargets`結果に、選択元selectorの`includeDefeated`（R-ACTN-01 #2）を添えたもの。 */
+export interface ResolvedBinding {
+  readonly units: readonly BattleUnit[];
+  readonly includeDefeated: boolean;
+}
+
 /** R-SKL-01: `EffectSequence`全体の解決計画。stepの定義順を保つ。 */
 export interface EffectSequencePlan {
   readonly steps: readonly EffectStepPlan[];
   /** 全stepの対象を初出順に重複排除したもの（`TargetsSelected`/`ChargeReleased`のtargetUnitIds用）。 */
   readonly targetUnitIds: readonly BattleUnitId[];
+  /**
+   * R-TGT-10で定義順に評価済みの`targetBindings`。`DeferredStepPlan`を
+   * JIT解決する`effect-action-group-resolver.ts`が`resolveActionStepApplications`/
+   * `resolveReference`を呼び出すために必要（`ActionStepPlan`のみのplanを
+   * 手組みする既存テストは指定不要 — 未指定のままDEFERRED stepへ到達すると
+   * 呼び出し側が明確なエラーで気付ける）。
+   */
+  readonly resolvedBindings?: ReadonlyMap<TargetBindingId, ResolvedBinding>;
 }
 
-/** R-SKL-01の`resolveTargets`結果に、選択元selectorの`includeDefeated`（R-ACTN-01 #2）を添えたもの。 */
-interface ResolvedBinding {
-  readonly units: readonly BattleUnit[];
-  readonly includeDefeated: boolean;
+/**
+ * R-SKL-08: `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`が参照する、直前の
+ * ACTION step適用結果の対象一覧（`effect-action-group-resolver.ts`が都度更新して
+ * 渡す）。`allUnits`はこれらのBattleUnitIdを実際の`BattleUnit`へ解決するために
+ * 必要な現在の全ユニット一覧（対象が解決の途中で戦闘不能になっていることも
+ * ある、生存確認自体は呼び出し側の`R-ACTN-01`共通チェックに委ねる）。
+ */
+export interface LastResultTargetContext {
+  readonly allUnits: readonly BattleUnit[];
+  readonly lastActionTargetUnitIds: readonly BattleUnitId[];
+  readonly lastDamagedTargetUnitIds: readonly BattleUnitId[];
 }
 
-function resolveReference(
+export function resolveReference(
   reference: TargetReference,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
+  lastResultTargets?: LastResultTargetContext,
 ): ResolvedBinding {
   if (reference.kind === "SELF") {
     return { units: [actor], includeDefeated: false };
@@ -81,9 +127,63 @@ function resolveReference(
     }
     return resolved;
   }
+  if (reference.kind === "LAST_ACTION_TARGETS" || reference.kind === "LAST_DAMAGED_TARGETS") {
+    if (lastResultTargets === undefined) {
+      throw new DomainValidationError(
+        "target.kind",
+        `kind "${reference.kind}" requires a LastResultTargetContext (no preceding EffectAction result is available in this resolution scope)`,
+      );
+    }
+    const ids =
+      reference.kind === "LAST_ACTION_TARGETS"
+        ? lastResultTargets.lastActionTargetUnitIds
+        : lastResultTargets.lastDamagedTargetUnitIds;
+    const units = ids.map((id) => {
+      const unit = lastResultTargets.allUnits.find((candidate) => candidate.battleUnitId === id);
+      if (unit === undefined) {
+        throw new DomainValidationError(
+          "target.kind",
+          `${reference.kind} referenced BattleUnitId "${id}" which is absent from allUnits`,
+        );
+      }
+      return unit;
+    });
+    return { units, includeDefeated: false };
+  }
   throw new DomainValidationError(
     "target.kind",
-    `kind "${reference.kind}" is not supported by this basic SkillResolutionService (M6/M7 scope)`,
+    `kind "${reference.kind}" is not supported by this basic SkillResolutionService (TRIGGER_SOURCE/TRIGGER_TARGET are RES-005 scope)`,
+  );
+}
+
+/**
+ * R-SKL-07/R-SKL-08: この`step`（および、`BRANCH`/`RANDOM_BRANCH`/`REPEAT`が
+ * 内包する子step）が、実際に適用するまで確定しない情報（直前結果）を必要と
+ * するかどうかを判定する。`ACTION`以外のkindは常に子step構造の解決自体を
+ * generator側へ委ねるため無条件でtrueとする。
+ */
+function conditionUsesLastResult(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "LAST_RESULT":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionUsesLastResult(c));
+    case "NOT":
+      return conditionUsesLastResult(condition.condition);
+    default:
+      return false;
+  }
+}
+
+function stepNeedsDeferredResolution(step: EffectStepDefinition): boolean {
+  if (step.kind !== "ACTION") {
+    return true;
+  }
+  return (
+    conditionUsesLastResult(step.condition) ||
+    step.target.kind === "LAST_ACTION_TARGETS" ||
+    step.target.kind === "LAST_DAMAGED_TARGETS"
   );
 }
 
@@ -102,16 +202,18 @@ function hitCountOf(
 }
 
 /** R-SKL-06 #3〜#4: 対象集合を取得し、対象順・actions定義順に`EffectActionApplication`を組み立てる。 */
-function resolveActionStepApplications(
+export function resolveActionStepApplications(
   step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  lastResultTargets?: LastResultTargetContext,
 ): readonly EffectActionApplication[] {
   const { units: targets, includeDefeated } = resolveReference(
     step.target,
     resolvedBindings,
     actor,
+    lastResultTargets,
   );
   const applications: EffectActionApplication[] = [];
 
@@ -174,26 +276,38 @@ function resolveEffectSequence(
 
   // R-SKL-01 #2: stepsを定義順に解決する。
   sequence.steps.forEach((step, stepIndex) => {
-    if (step.kind !== "ACTION") {
-      throw new DomainValidationError(
-        "step.kind",
-        `kind "${step.kind}" is not supported by this basic SkillResolutionService (BRANCH/RANDOM_BRANCH/REPEAT are M6/M7 scope)`,
-      );
+    // R-SKL-07/R-SKL-08: BRANCH/RANDOM_BRANCH/REPEAT、または直前結果
+    // （LAST_RESULT/LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS）を参照するACTION
+    // stepは、実際に先行stepを適用するまで確定しない情報を必要とするため、
+    // このpure関数ではこれ以上resolveせず、生definitionのまま
+    // `effect-action-group-resolver.ts`のgeneratorへ委ねる（同ファイル冒頭の
+    // `DeferredStepPlan`コメント参照）。deferしたstepの対象は
+    // `targetUnitIds`へ寄与しない — 利用するproduction定義が現状存在せず、
+    // 実際に適用するまで対象識別子が確定しないため、無理に静的推定しない。
+    if (stepNeedsDeferredResolution(step)) {
+      steps.push({
+        stepIndex,
+        stepKind: "DEFERRED",
+        definitionKind: step.kind,
+        definition: step,
+      });
+      return;
     }
+    const actionStep = step as Extract<EffectStepDefinition, { kind: "ACTION" }>;
     // R-SKL-06 #1〜#2: conditionを評価し、falseならstep全体をスキップする。
-    const satisfied = evaluateEffectStepCondition(step.condition);
+    const satisfied = evaluateEffectStepCondition(actionStep.condition);
     if (!satisfied) {
       steps.push({
         stepIndex,
         stepKind: "ACTION",
-        conditionKind: step.condition.kind,
+        conditionKind: actionStep.condition.kind,
         satisfied: false,
         applications: [],
       });
       return;
     }
     const applications = resolveActionStepApplications(
-      step,
+      actionStep,
       resolvedBindings,
       actor,
       effectActions,
@@ -207,13 +321,13 @@ function resolveEffectSequence(
     steps.push({
       stepIndex,
       stepKind: "ACTION",
-      conditionKind: step.condition.kind,
+      conditionKind: actionStep.condition.kind,
       satisfied: true,
       applications,
     });
   });
 
-  return { steps, targetUnitIds };
+  return { steps, targetUnitIds, resolvedBindings };
 }
 
 /** テスト・呼び出し側がstep構造を無視して、旧来のヒット単位の平坦な順序だけを見たい場合に使う。 */
@@ -222,6 +336,9 @@ export function flattenEffectSequencePlan(
 ): readonly ResolvedEffectApplication[] {
   const result: ResolvedEffectApplication[] = [];
   for (const step of plan.steps) {
+    if (step.stepKind !== "ACTION") {
+      continue;
+    }
     for (const application of step.applications) {
       result.push(...application.hits);
     }

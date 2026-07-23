@@ -8,7 +8,7 @@ import { applyMarker } from "../effects/marker-apply-service.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
-import type { EffectSequencePlan } from "../skill/skill-resolution-service.js";
+import type { EffectSequencePlan, ResolvedBinding } from "../skill/skill-resolution-service.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
@@ -17,8 +17,11 @@ import {
   createEffectActionDefinitionId,
   createMarkerId,
   createSkillDefinitionId,
+  createTargetBindingId,
   createUnitDefinitionId,
+  type TargetBindingId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { EffectStepDefinition } from "../../catalog/definitions/effect-sequence.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
@@ -137,6 +140,20 @@ const NO_RANDOM: RandomSource = {
   },
 };
 
+function fixedRandom(...values: readonly number[]): RandomSource {
+  let index = 0;
+  return {
+    next(): number {
+      const value = values[index];
+      index += 1;
+      if (value === undefined) {
+        throw new Error("fixedRandom exhausted");
+      }
+      return value;
+    },
+  };
+}
+
 const EMPTY_DEFINITIONS: Omit<BattleDefinitions, "effectActions"> = {
   activeSkillsByUnit: new Map(),
   exSkillByUnit: new Map(),
@@ -165,6 +182,16 @@ function contextFor(
     skillDefinitionId: createSkillDefinitionId("SKL_TEST"),
     ...(onFactEventForPassiveChain !== undefined ? { onFactEventForPassiveChain } : {}),
   };
+}
+
+function contextWithRandom(
+  actor: BattleUnit,
+  effectActions: BattleDefinitions["effectActions"],
+  recorder: EventRecorder,
+  rootEventId: string,
+  random: RandomSource,
+): EffectActionGroupContext {
+  return { ...contextFor(actor, effectActions, recorder, rootEventId), random };
 }
 
 function seedRecorder(): { recorder: EventRecorder; rootEventId: string } {
@@ -490,6 +517,496 @@ describe("applyEffectActionGroups", () => {
     const completed = events.find((e) => e.eventType === "EffectActionCompleted")!;
     expect(completed.parentEventId).toBe(cooldownCompleted.eventId);
     expect(completed.parentEventId).not.toBe(starting.eventId);
+  });
+
+  function deferredStep(
+    stepIndex: number,
+    definition: EffectStepDefinition,
+  ): EffectSequencePlan["steps"][number] {
+    return { stepIndex, stepKind: "DEFERRED", definitionKind: definition.kind, definition };
+  }
+
+  function bindingsFor(
+    targetBindingId: ReturnType<typeof createTargetBindingId>,
+    units: readonly BattleUnit[],
+  ): Map<TargetBindingId, ResolvedBinding> {
+    return new Map([[targetBindingId, { units, includeDefeated: false }]]);
+  }
+
+  describe("R-SKL-07: BRANCH / RANDOM_BRANCH / REPEAT (RES-003, Issue #173)", () => {
+    it("UT-R-SKL-07-001: a BRANCH step with a true condition resolves thenSteps (in order) and never touches elseSteps", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const thenAttack = damageAction("ACT_THEN");
+      const elseAttack = damageAction("ACT_ELSE");
+      const effectActions = new Map([
+        [thenAttack.effectActionDefinitionId, thenAttack],
+        [elseAttack.effectActionDefinitionId, elseAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const branchDefinition: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: thenAttack.effectActionDefinitionId }],
+          },
+        ],
+        elseSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: elseAttack.effectActionDefinitionId }],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, branchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const before = recorder.getEvents().length;
+      applyEffectActionGroups(plan, [actor, enemy], context);
+      const emitted = recorder.getEvents().slice(before);
+
+      expect(emitted.map((e) => e.eventType)).toEqual([
+        "EffectStepStarting",
+        "EffectStepStarting",
+        "EffectActionStarting",
+        "UnitBeingAttacked",
+        "HitConfirmed",
+        "CriticalCheckResolved",
+        "DamageCalculated",
+        "DamageApplied",
+        "EffectActionCompleted",
+        "EffectStepCompleted",
+        "EffectStepCompleted",
+      ]);
+      const stepStartings = emitted.filter((e) => e.eventType === "EffectStepStarting");
+      expect(stepStartings.map((e) => e.payload.stepKind)).toEqual(["BRANCH", "ACTION"]);
+      const actionCompleted = emitted.find(
+        (e) => e.eventType === "EffectActionCompleted",
+      ) as Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }>;
+      expect(actionCompleted.payload.effectActionDefinitionId).toBe(
+        thenAttack.effectActionDefinitionId,
+      );
+    });
+
+    it("UT-R-SKL-07-002: a BRANCH step with a false condition resolves elseSteps instead of thenSteps", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const thenAttack = damageAction("ACT_THEN");
+      const elseAttack = damageAction("ACT_ELSE");
+      const effectActions = new Map([
+        [thenAttack.effectActionDefinitionId, thenAttack],
+        [elseAttack.effectActionDefinitionId, elseAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const branchDefinition: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: { kind: "NOT", condition: { kind: "TRUE" } },
+        thenSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: thenAttack.effectActionDefinitionId }],
+          },
+        ],
+        elseSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: elseAttack.effectActionDefinitionId }],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, branchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const actionCompleted = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(actionCompleted.payload.effectActionDefinitionId).toBe(
+        elseAttack.effectActionDefinitionId,
+      );
+    });
+
+    it("UT-R-SKL-07-003: RANDOM_BRANCH WEIGHTED_ONE consumes RNG exactly once, resolves only the selected branch's steps, and records RandomBranchSelected", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const branchAAttack = damageAction("ACT_BRANCH_A");
+      const branchBAttack = damageAction("ACT_BRANCH_B");
+      const effectActions = new Map([
+        [branchAAttack.effectActionDefinitionId, branchAAttack],
+        [branchBAttack.effectActionDefinitionId, branchBAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      // next()=0 -> roll=0 out of totalWeight=4 -> falls in branch A's [0,1) range.
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "A",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchAAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+          {
+            label: "B",
+            weight: 3,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchBAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      const selected = events.find((e) => e.eventType === "RandomBranchSelected") as Extract<
+        BattleDomainEvent,
+        { eventType: "RandomBranchSelected" }
+      >;
+      expect(selected.payload).toEqual({
+        stepIndex: 0,
+        mode: "WEIGHTED_ONE",
+        branchIndex: 0,
+        label: "A",
+      });
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(1);
+      const actionStarting = events.find((e) => e.eventType === "EffectActionStarting") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionStarting" }
+      >;
+      expect(actionStarting.payload.effectActionDefinitionId).toBe(
+        branchAAttack.effectActionDefinitionId,
+      );
+    });
+
+    it("UT-R-SKL-07-004: RANDOM_BRANCH INDEPENDENT rolls each branch's probability independently in Catalog definition order, resolving every branch that succeeds", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const branchAAttack = damageAction("ACT_BRANCH_A");
+      const branchBAttack = damageAction("ACT_BRANCH_B");
+      const effectActions = new Map([
+        [branchAAttack.effectActionDefinitionId, branchAAttack],
+        [branchBAttack.effectActionDefinitionId, branchBAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      // Branch A: probability 0.3, roll 0.5 -> 0.5 < 0.3 is false -> fails.
+      // Branch B: probability 0.9, roll 0.1 -> 0.1 < 0.9 is true -> succeeds.
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0.5, 0.1),
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "INDEPENDENT",
+        branches: [
+          {
+            label: "A",
+            probability: 0.3,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchAAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+          {
+            label: "B",
+            probability: 0.9,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchBAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      const selectedEvents = events.filter((e) => e.eventType === "RandomBranchSelected");
+      expect(selectedEvents).toHaveLength(1);
+      expect(selectedEvents[0]?.payload).toEqual({
+        stepIndex: 0,
+        mode: "INDEPENDENT",
+        branchIndex: 1,
+        label: "B",
+      });
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(1);
+      const actionStarting = events.find((e) => e.eventType === "EffectActionStarting") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionStarting" }
+      >;
+      expect(actionStarting.payload.effectActionDefinitionId).toBe(
+        branchBAttack.effectActionDefinitionId,
+      );
+    });
+
+    it("UT-R-SKL-07-005: REPEAT resolves steps the given number of times, in order, aggregating resolvedActionCount", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const attack = damageAction("ACT_ATTACK");
+      const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const repeatDefinition: EffectStepDefinition = {
+        kind: "REPEAT",
+        count: 3,
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, repeatDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(3);
+      // 4 EffectStepCompleted total: one per iteration's nested ACTION step
+      // (resolvedActionCount: 1 each), plus the REPEAT step's own wrapper
+      // (resolvedActionCount: 3, aggregated) emitted last.
+      const stepCompletedEvents = events.filter((e) => e.eventType === "EffectStepCompleted");
+      expect(stepCompletedEvents).toHaveLength(4);
+      expect(stepCompletedEvents.at(-1)?.payload).toEqual({
+        stepIndex: 0,
+        resolvedActionCount: 3,
+      });
+    });
+
+    it("UT-R-SKL-07-006 (boundary): REPEAT aborts remaining iterations when the actor becomes defeated mid-loop, without emitting EffectStepCompleted for the REPEAT step", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const selfHit = damageAction("ACT_SELF_HIT");
+      const effectActions = new Map([[selfHit.effectActionDefinitionId, selfHit]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const tgtSelf = createTargetBindingId("TGT_SELF");
+      const repeatDefinition: EffectStepDefinition = {
+        kind: "REPEAT",
+        count: 3,
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtSelf },
+            actions: [{ effectActionDefinitionId: selfHit.effectActionDefinitionId }],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, repeatDefinition)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: bindingsFor(tgtSelf, [actor]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(1);
+      // The lethal self-hit's own nested ACTION step completes normally (its
+      // EffectStepCompleted fires) — the interrupt only prevents further
+      // REPEAT iterations from starting, so the REPEAT step's own
+      // EffectStepCompleted (which would be the second one) never fires.
+      expect(events.filter((e) => e.eventType === "EffectStepCompleted")).toHaveLength(1);
+      expect(result.resolvedCount).toBe(1);
+    });
+  });
+
+  describe("R-SKL-08: 直前結果 (RES-003, Issue #173)", () => {
+    it("UT-R-SKL-08-005: a LAST_RESULT condition sees the result produced inside a preceding BRANCH's thenSteps, not just a sibling ACTION step", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy1 = unit("ENEMY_1", "ENEMY");
+      const enemy2 = unit("ENEMY_2", "ENEMY");
+      const insideBranchAttack = damageAction("ACT_INSIDE_BRANCH");
+      const afterBranchAttack = damageAction("ACT_AFTER_BRANCH");
+      const effectActions = new Map([
+        [insideBranchAttack.effectActionDefinitionId, insideBranchAttack],
+        [afterBranchAttack.effectActionDefinitionId, afterBranchAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const tgtEnemy1 = createTargetBindingId("TGT_ENEMY_1");
+      const tgtEnemy2 = createTargetBindingId("TGT_ENEMY_2");
+      const branchDefinition: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy1 },
+            actions: [{ effectActionDefinitionId: insideBranchAttack.effectActionDefinitionId }],
+          },
+        ],
+        elseSteps: [],
+      };
+      const afterBranchStep: EffectStepDefinition = {
+        kind: "ACTION",
+        condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+        target: { kind: "BINDING", targetBindingId: tgtEnemy2 },
+        actions: [{ effectActionDefinitionId: afterBranchAttack.effectActionDefinitionId }],
+      };
+      const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>([
+        [tgtEnemy1, { units: [enemy1], includeDefeated: false }],
+        [tgtEnemy2, { units: [enemy2], includeDefeated: false }],
+      ]);
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, branchDefinition), deferredStep(1, afterBranchStep)],
+        targetUnitIds: [enemy1.battleUnitId, enemy2.battleUnitId],
+        resolvedBindings,
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy1, enemy2], context);
+
+      const events = recorder.getEvents();
+      const actionStartings = events.filter((e) => e.eventType === "EffectActionStarting");
+      expect(actionStartings.map((e) => e.payload.effectActionDefinitionId)).toEqual([
+        insideBranchAttack.effectActionDefinitionId,
+        afterBranchAttack.effectActionDefinitionId,
+      ]);
+      expect(events.map((e) => e.eventType)).not.toContain("EffectStepSkipped");
+    });
+
+    it("UT-R-SKL-08-006: LAST_ACTION_TARGETS resolves to the immediately preceding ACTION step's target, tracking any EffectAction kind (not only DAMAGE)", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const marker = markerAction("ACT_MARK", createMarkerId("MARKER_CURSE"));
+      const followUp = damageAction("ACT_FOLLOW_UP");
+      const effectActions = new Map([
+        [marker.effectActionDefinitionId, marker],
+        [followUp.effectActionDefinitionId, followUp],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, enemy.battleUnitId, marker.effectActionDefinitionId),
+          deferredStep(1, {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "LAST_ACTION_TARGETS" },
+            actions: [{ effectActionDefinitionId: followUp.effectActionDefinitionId }],
+          }),
+        ],
+        targetUnitIds: [enemy.battleUnitId],
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      const actionStartings = events.filter((e) => e.eventType === "EffectActionStarting");
+      expect(actionStartings.map((e) => e.payload.effectActionDefinitionId)).toEqual([
+        marker.effectActionDefinitionId,
+        followUp.effectActionDefinitionId,
+      ]);
+      expect(actionStartings[1]?.payload.targetUnitIds).toEqual([enemy.battleUnitId]);
+    });
+
+    it("UT-R-SKL-08-007: LAST_DAMAGED_TARGETS resolves to the target that actually received the preceding DAMAGE", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const attack = damageAction("ACT_ATTACK");
+      const followUpMarker = markerAction("ACT_FOLLOW_UP_MARK", createMarkerId("MARKER_CURSE"));
+      const effectActions = new Map([
+        [attack.effectActionDefinitionId, attack],
+        [followUpMarker.effectActionDefinitionId, followUpMarker],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId),
+          deferredStep(1, {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "LAST_DAMAGED_TARGETS" },
+            actions: [{ effectActionDefinitionId: followUpMarker.effectActionDefinitionId }],
+          }),
+        ],
+        targetUnitIds: [enemy.battleUnitId],
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      const markerApplied = events.find((e) => e.eventType === "MarkerApplied") as Extract<
+        BattleDomainEvent,
+        { eventType: "MarkerApplied" }
+      >;
+      expect(markerApplied.targetUnitIds).toEqual([enemy.battleUnitId]);
+    });
   });
 
   it("UT-R-EFF-01-021 (R-EFF-01, real lifecycle wiring): an APPLY_STAT_MOD ACTION step grants an AppliedEffect through the real Catalog -> EffectSequence -> AppliedEffect -> event pipeline, emitting EffectApplied before EffectActionCompleted(APPLIED)", () => {

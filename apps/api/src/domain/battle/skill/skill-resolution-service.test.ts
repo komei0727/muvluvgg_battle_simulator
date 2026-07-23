@@ -278,17 +278,25 @@ describe("resolveSkillOrder", () => {
     expect(fromShuffled).toEqual(fromOriginal);
   });
 
-  it("UT-SKILL-RESOLUTION-SERVICE-001: throws for a BRANCH step (only ACTION steps are supported by this basic SkillResolutionService)", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-001 (R-SKL-07, RES-003): a BRANCH step is not pre-resolved here — it is returned as a DeferredStepPlan carrying the raw definition, since BRANCH/RANDOM_BRANCH/REPEAT and LAST_RESULT-dependent conditions can only be resolved once the preceding steps have actually applied (see effect-action-group-resolver.ts)", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const branchStep = {
+      kind: "BRANCH",
+      condition: { kind: "TRUE" },
+      thenSteps: [],
+      elseSteps: [],
+    } as const;
     const skill = skillOf({
       kind: "IMMEDIATE",
       targetBindings: [],
-      steps: [{ kind: "BRANCH", condition: { kind: "TRUE" }, thenSteps: [], elseSteps: [] }],
+      steps: [branchStep],
     });
 
-    expect(() => resolveSkillOrder(skill, actor, [actor], new Map())).toThrow(
-      DomainValidationError,
-    );
+    const plan = resolveSkillOrder(skill, actor, [actor], new Map());
+
+    expect(plan.steps).toEqual([
+      { stepIndex: 0, stepKind: "DEFERRED", definitionKind: "BRANCH", definition: branchStep },
+    ]);
   });
 
   it("UT-SKILL-RESOLUTION-SERVICE-002: throws for a CHARGE skill (charge behavior is out of scope for this basic SkillResolutionService)", () => {
@@ -521,8 +529,12 @@ describe("resolveSkillOrder", () => {
     const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
 
     const plan = resolveSkillOrder(skill, actor, [actor, defeatedEnemy], effectActions);
+    const firstStep = plan.steps[0];
+    if (firstStep?.stepKind !== "ACTION") {
+      throw new Error("expected an ActionStepPlan");
+    }
 
-    expect(plan.steps[0]?.applications).toEqual([
+    expect(firstStep.applications).toEqual([
       {
         targetBattleUnitId: defeatedEnemy.battleUnitId,
         effectActionDefinitionId: attack.effectActionDefinitionId,

@@ -293,7 +293,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "RES-003",
-    "description": "確率分岐",
+    "description": "確率分岐（RANDOM_BRANCHのWEIGHTED_ONE/INDEPENDENT）。R-SKL-07（RES-003、Issue #173）が実装済み — effect-action-group-resolver.tsのresolveRandomBranchStepがWEIGHTED_ONE（1回のRNGで1分岐選択）/INDEPENDENT（branch定義順の独立確率判定）を解決し、RandomBranchSelectedを記録する。利用するproduction定義が現状存在しないため、productionDefinitionIdsが揃うまでruntimeStatusはPLANNEDのまま（createCapabilityDefinitionはIMPLEMENTEDにproductionDefinitionIds非空を要求する）。",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []
@@ -315,7 +315,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "RES-003",
-    "description": "BRANCH / REPEATと直前結果",
+    "description": "BRANCH / REPEATと直前結果。R-SKL-07/R-SKL-08（RES-003、Issue #173）が実装済み — skill-resolution-service.tsのresolveEffectSequenceがBRANCH/REPEAT（およびLAST_RESULTを参照するACTION step）をDeferredStepPlanとして返し、effect-action-group-resolver.tsが実際に先行stepを適用した直後にその場（JIT）で解決する。LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETSはskill-resolution-service.tsのresolveReferenceが解決する。利用するproduction定義が現状存在しないため、productionDefinitionIdsが揃うまでruntimeStatusはPLANNEDのまま（createCapabilityDefinitionはIMPLEMENTEDにproductionDefinitionIds非空を要求する）。",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []

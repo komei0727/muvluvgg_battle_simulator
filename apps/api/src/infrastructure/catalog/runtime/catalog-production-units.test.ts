@@ -28,7 +28,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (`IT-MARKER-PROD-001〜002`). RES-001 (Issue #175, PR #214 re-review):
     // `CAP_FORMULA` flipped to IMPLEMENTED once the general FormulaEvaluator
     // wired the real lifecycle (`IT-CAP-FORMULA-PROD-001〜004`).
-    expect(catalog.catalogRevision).toBe("2026-07-23.2");
+    expect(catalog.catalogRevision).toBe("2026-07-23.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

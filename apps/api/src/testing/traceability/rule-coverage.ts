@@ -445,8 +445,48 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
-  { ruleId: "R-SKL-07", testCaseIds: [], kinds: [] },
-  { ruleId: "R-SKL-08", testCaseIds: [], kinds: [] },
+  // R-SKL-07: BRANCH/RANDOM_BRANCH/REPEATをRES-003（Issue #173）が実装した。
+  // `skill-resolution-service.ts`の`resolveEffectSequence`はこれらのstep
+  // （と、LAST_RESULTを参照するACTION step）を`DeferredStepPlan`（生definition
+  // のまま）として返し、`effect-action-group-resolver.ts`の
+  // `resolveDeferredStep`/`resolveBranchStep`/`resolveRandomBranchStep`/
+  // `resolveRepeatStep`が実際に先行stepを適用した直後にその場（JIT）で
+  // 解決する — LAST_RESULT依存の判断は先行stepの適用結果が確定するまで
+  // 存在しないため、二段階（計画→適用）では表現できない。
+  {
+    ruleId: "R-SKL-07",
+    testCaseIds: [
+      "UT-R-SKL-07-001",
+      "UT-R-SKL-07-002",
+      "UT-R-SKL-07-003",
+      "UT-R-SKL-07-004",
+      "UT-R-SKL-07-005",
+      "UT-R-SKL-07-006",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  // R-SKL-08: 直前結果をRES-003（Issue #173）が実装した。`DAMAGE_DEALT_RATIO`/
+  // `DAMAGE_RECEIVED_RATIO`Formula（LAST_DAMAGE_DEALT/LAST_DAMAGE_RECEIVED）は
+  // RES-001（Issue #175）が先に実装済み。本Issueは`LAST_RESULT`Condition
+  // （`effect-step-condition-evaluator.ts`）と`LAST_ACTION_TARGETS`/
+  // `LAST_DAMAGED_TARGETS`TargetReference（`skill-resolution-service.ts`の
+  // `resolveReference`）を追加し、`effect-action-group-resolver.ts`が
+  // 適用ごとに更新する`LastResultBox`（MISS/付与拒否/対象不在も結果種別を
+  // 持つ直前結果として記録し、BRANCH/REPEATの内側の結果も次のstepから
+  // 参照できる）で結線した。
+  {
+    ruleId: "R-SKL-08",
+    testCaseIds: [
+      "UT-R-SKL-08-001",
+      "UT-R-SKL-08-002",
+      "UT-R-SKL-08-003",
+      "UT-R-SKL-08-004",
+      "UT-R-SKL-08-005",
+      "UT-R-SKL-08-006",
+      "UT-R-SKL-08-007",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
   {
     ruleId: "R-SKL-09",
     testCaseIds: [

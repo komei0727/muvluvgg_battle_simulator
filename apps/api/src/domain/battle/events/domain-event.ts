@@ -35,7 +35,10 @@ import type {
   ConditionKind,
 } from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
-import type { EffectStepDefinition } from "../../catalog/definitions/effect-sequence.js";
+import type {
+  EffectStepDefinition,
+  RandomBranchMode,
+} from "../../catalog/definitions/effect-sequence.js";
 
 /**
  * `08_ドメインイベント.md`「イベントの分類」。M3〜M5はFACT/TIMINGだけを使い、
@@ -170,7 +173,14 @@ export interface BattleDomainEventPayloadMap {
     readonly resolvedStepCount: number;
     readonly targetUnitIds: readonly BattleUnitId[];
   };
-  /** R-SKL-06 #1〜#2: ACTION stepのcondition評価前（`08_ドメインイベント.md`「EffectStepStarting」）。BRANCH/RANDOM_BRANCH/REPEATはM7スコープのため`stepKind`は常に"ACTION"。 */
+  /**
+   * R-SKL-06 #1〜#2/R-SKL-07: stepのcondition評価前（`08_ドメインイベント.md`
+   * 「EffectStepStarting」）。`stepKind`は`ACTION`/`BRANCH`/`RANDOM_BRANCH`/
+   * `REPEAT`のいずれか（RES-003、Issue #173）。`BRANCH`/`RANDOM_BRANCH`は
+   * 自身に固有の`condition`を持たないため`RANDOM_BRANCH`の`conditionKind`は
+   * 常に`"TRUE"`（分岐選択はweight/probabilityで行い、`ConditionDefinition`を
+   * 経由しない）。
+   */
   readonly EffectStepStarting: {
     readonly stepIndex: number;
     readonly stepKind: EffectStepDefinition["kind"];
@@ -186,6 +196,18 @@ export interface BattleDomainEventPayloadMap {
   readonly EffectStepCompleted: {
     readonly stepIndex: number;
     readonly resolvedActionCount: number;
+  };
+  /**
+   * R-SKL-07（RES-003、Issue #173）: `RANDOM_BRANCH`の分岐決定後
+   * （`08_ドメインイベント.md`「RandomBranchSelected」）。`WEIGHTED_ONE`は
+   * 1分岐だけを選ぶため1回、`INDEPENDENT`は成功したbranchごとに1回発行する
+   * （0〜branches.length回）。
+   */
+  readonly RandomBranchSelected: {
+    readonly stepIndex: number;
+    readonly mode: RandomBranchMode;
+    readonly branchIndex: number;
+    readonly label?: string;
   };
   /** R-SKL-06 #4: 対象へEffectAction適用前（`08_ドメインイベント.md`「EffectActionStarting」）。PS/Memory連鎖による対象生存の再検証はこの直前に行う。 */
   readonly EffectActionStarting: {
