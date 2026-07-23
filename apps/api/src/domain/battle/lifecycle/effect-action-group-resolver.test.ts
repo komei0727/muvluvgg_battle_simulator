@@ -1334,6 +1334,199 @@ describe("applyEffectActionGroups", () => {
       expect(result.resolvedCount).toBe(0);
       expect(result.interruptedCount).toBe(1 + 1 + 3);
     });
+
+    it("UT-R-SKL-07-016 (PR #216再々々々々レビュー[P1]): a nested step whose own last hit defeats the actor leaves the very next sibling step unresolved, and that sibling's candidate hits are still counted (not silently dropped just because sequenceInterrupted wasn't set before entering it)", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      const selfHit = damageAction("ACT_SELF_HIT");
+      const followUpAttack = damageAction("ACT_FOLLOW_UP", 4);
+      const effectActions = new Map([
+        [selfHit.effectActionDefinitionId, selfHit],
+        [followUpAttack.effectActionDefinitionId, followUpAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      // No PS/Memory hook needed here — the self-hit's own damage naturally
+      // defeats the actor, with nothing setting sequenceInterrupted before
+      // resolveStepDefinitionList moves on to the second (follow-up) step.
+      const branchDefinition: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfHit.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: followUpAttack.effectActionDefinitionId }],
+          },
+        ],
+        elseSteps: [],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, branchDefinition)],
+        targetUnitIds: [actor.battleUnitId, enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      // Only the self-hit's own EffectActionStarting ever fires.
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(1);
+      expect(result.resolvedCount).toBe(1); // the self-hit itself.
+      expect(result.interruptedCount).toBe(4); // the follow-up's would-be hits.
+    });
+
+    it("UT-R-SKL-07-017 (PR #216再々々々々レビュー[P1]): a BRANCH step interrupted by its own EffectStepStarting immediate chain counts the candidate hits of the side its condition would have resolved to", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const branchAttack = damageAction("ACT_BRANCH", 3);
+      const effectActions = new Map([[branchAttack.effectActionDefinitionId, branchAttack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType === "EffectStepStarting" && event.payload.stepKind === "BRANCH") {
+          return units.map((unit) =>
+            unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+          );
+        }
+        return units;
+      });
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const branchDefinition: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: branchAttack.effectActionDefinitionId }],
+          },
+        ],
+        elseSteps: [],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, branchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(0);
+      expect(result.resolvedCount).toBe(0);
+      expect(result.interruptedCount).toBe(3);
+    });
+
+    it("UT-R-SKL-07-018 (PR #216再々々々々レビュー[P1]): a RANDOM_BRANCH step interrupted by its own EffectStepStarting immediate chain (before any branch is even selected) counts the candidate hits of its single branch", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const branchAttack = damageAction("ACT_BRANCH", 5);
+      const effectActions = new Map([[branchAttack.effectActionDefinitionId, branchAttack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        // NO_RANDOM throws if consumed — the whole point is that the chain
+        // interrupts before branch selection even rolls.
+        NO_RANDOM,
+        (event, units) => {
+          if (
+            event.eventType === "EffectStepStarting" &&
+            event.payload.stepKind === "RANDOM_BRANCH"
+          ) {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      expect(events.some((e) => e.eventType === "RandomBranchSelected")).toBe(false);
+      expect(result.resolvedCount).toBe(0);
+      expect(result.interruptedCount).toBe(5);
+    });
+
+    it("UT-R-SKL-07-019 (PR #216再々々々々レビュー[P1]): a REPEAT step interrupted by its own EffectStepStarting immediate chain (before the first iteration even starts) counts all count iterations as unresolved", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const repeatAttack = damageAction("ACT_REPEAT", 2);
+      const effectActions = new Map([[repeatAttack.effectActionDefinitionId, repeatAttack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType === "EffectStepStarting" && event.payload.stepKind === "REPEAT") {
+          return units.map((unit) =>
+            unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+          );
+        }
+        return units;
+      });
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const repeatDefinition: EffectStepDefinition = {
+        kind: "REPEAT",
+        count: 3,
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: repeatAttack.effectActionDefinitionId }],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, repeatDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(0);
+      expect(result.resolvedCount).toBe(0);
+      // 3 iterations x (1 target x 2 hits) = 6, all unresolved since none
+      // even started.
+      expect(result.interruptedCount).toBe(6);
+    });
   });
 
   describe("R-SKL-08: 直前結果 (RES-003, Issue #173)", () => {

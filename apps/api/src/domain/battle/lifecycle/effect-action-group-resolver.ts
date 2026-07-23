@@ -838,7 +838,13 @@ function* resolveActionStepBody(
   state.lastEventId = stepStarting.eventId;
 
   if (isDefeated(requireUnit(box.units, context.actorId))) {
+    // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
+    // actorが戦闘不能になった場合、`satisfied`が真なら`applications`が
+    // このstep自身の未解決ヒットそのもの（既に解決済みの正確な値、推定ではない）。
     state.sequenceInterrupted = true;
+    if (satisfied) {
+      state.interruptedCount += countHits(applications);
+    }
     return 0;
   }
 
@@ -980,7 +986,16 @@ function* resolveBranchStep(
   state.lastEventId = stepStarting.eventId;
 
   if (isDefeated(requireUnit(box.units, context.actorId))) {
+    // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
+    // actorが戦闘不能になった場合、このBRANCH自身が本来解決するはずだった
+    // 未解決ヒット数を計上する。
     state.sequenceInterrupted = true;
+    state.interruptedCount += countCandidateHitsForStep(
+      definition,
+      resolvedBindings,
+      effectActions,
+      lastResultBox,
+    );
     return 0;
   }
 
@@ -1049,7 +1064,17 @@ function* resolveRandomBranchStep(
   state.lastEventId = stepStarting.eventId;
 
   if (isDefeated(requireUnit(box.units, context.actorId))) {
+    // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
+    // actorが戦闘不能になった場合、このRANDOM_BRANCH自身が本来解決するはず
+    // だった未解決ヒット数を計上する（分岐選択すら行われていないため、
+    // `countCandidateHitsForStep`の見積もりに従う）。
     state.sequenceInterrupted = true;
+    state.interruptedCount += countCandidateHitsForStep(
+      definition,
+      resolvedBindings,
+      effectActions,
+      lastResultBox,
+    );
     return 0;
   }
 
@@ -1201,7 +1226,16 @@ function* resolveRepeatStep(
   state.lastEventId = stepStarting.eventId;
 
   if (isDefeated(requireUnit(box.units, context.actorId))) {
+    // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
+    // actorが戦闘不能になった場合、1回目のiterationすら開始できないため、
+    // `count`回すべてが未解決ヒットとなる。
     state.sequenceInterrupted = true;
+    state.interruptedCount += countCandidateHitsForStep(
+      definition,
+      resolvedBindings,
+      effectActions,
+      lastResultBox,
+    );
     return 0;
   }
 
@@ -1268,7 +1302,22 @@ function* resolveDeferredStep(
   state: ResolutionState,
 ): Generator<EffectResolutionStep, number, void> {
   if (state.sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
+    // PR #216再々々々々レビュー[P1]: 呼び出し元（`resolveStepDefinitionList`/
+    // トップレベルループ）は、この呼び出しの直前まで中断を検出していなかった
+    // 場合だけこの関数を呼ぶ（既に中断済みなら、呼び出し元が自分で
+    // `steps.slice(index)`等を計上してこの関数を呼ばない）。そのため、この
+    // 分岐へ到達するのは大抵、直前の兄弟stepの最後の効果がちょうど今
+    // actorを戦闘不能にした場合であり、`state.sequenceInterrupted`はまだ
+    // falseで`isDefeated`だけが真になっている。この`definition`自身が本来
+    // 解決するはずだった未解決ヒット数をここで計上しないと、
+    // 呼び出し元側の「次のindexから」計上でも漏れてしまう。
     state.sequenceInterrupted = true;
+    state.interruptedCount += countCandidateHitsForStep(
+      definition,
+      resolvedBindings,
+      effectActions,
+      lastResultBox,
+    );
     return 0;
   }
 

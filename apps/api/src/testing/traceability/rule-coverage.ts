@@ -472,6 +472,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `REPEAT`の残りiteration（UT-R-SKL-07-006の強化、UT-R-SKL-07-015、
   // `action-skill-use-resolver.test.ts`で実ライフサイクルの
   // `SkillUseInterrupted`まで検証）も`interruptedCount`へ計上する。
+  // PR #216再々々々々レビュー[P1] x2の修正: `resolveDeferredStep`が自身の
+  // 呼び出し直前（直前兄弟stepの最後の効果で今まさにactorが戦闘不能に
+  // なった場合）にも自身のstepの未解決ヒットを計上する（UT-R-SKL-07-016）。
+  // ACTION/BRANCH/RANDOM_BRANCH/REPEATそれぞれの`EffectStepStarting`即時連鎖で
+  // actorが戦闘不能になった場合も、そのstep自身が本来解決するはずだった
+  // 効果を計上する（UT-R-SKL-07-017〜019）。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -490,6 +496,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-013",
       "UT-R-SKL-07-014",
       "UT-R-SKL-07-015",
+      "UT-R-SKL-07-016",
+      "UT-R-SKL-07-017",
+      "UT-R-SKL-07-018",
+      "UT-R-SKL-07-019",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
