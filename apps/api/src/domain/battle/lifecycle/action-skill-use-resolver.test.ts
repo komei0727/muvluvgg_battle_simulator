@@ -224,6 +224,54 @@ function asSkillWithBranch(effectActionId: string): SkillDefinition {
   };
 }
 
+/**
+ * R-SKL-07（RES-003、Issue #173、PR #216再々々々レビュー[P1]）: `steps`の唯一の
+ * stepが`REPEAT`（`count`回、自傷DAMAGEを繰り返す）のAS skill。1回目の自傷で
+ * actorが戦闘不能になった場合、残り`count - 1`回のiterationが未解決のまま
+ * 残ることを実ライフサイクル（`SkillUseInterrupted`/`unresolvedEffectCount`）で
+ * 検証するために使う。
+ */
+function asSkillWithRepeatSelfHit(effectActionId: string, count: number): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_AS_REPEAT_SELF"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "REPEAT",
+          count,
+          steps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [
+                { effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "AS Repeat Self", tags: [] },
+  };
+}
+
 function definitionsOf(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
@@ -359,5 +407,53 @@ describe("resolveSkillUse", () => {
         `"${eventType}".payload.targetUnitIds`,
       ).toEqual([enemy.battleUnitId]);
     }
+  });
+
+  it("UT-R-SKL-07-015 (R-SKL-01, PR #216再々々々レビュー[P1]): a REPEAT that kills the actor on its first iteration correctly emits SkillUseInterrupted (not SkillUseCompleted) with unresolvedEffectCount counting the remaining un-started iterations, through the real resolveSkillOrder -> resolveSkillUse lifecycle", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
+    const hit = damageEffectAction("ACT_REPEAT_SELF_HIT");
+    // 3 iterations; a self-hit's damage is clamped to the minimum of 1 (10
+    // attack - 10 own defense), so currentHp: 1 makes the first hit lethal,
+    // leaving 2 iterations unresolved.
+    const skill = asSkillWithRepeatSelfHit("ACT_REPEAT_SELF_HIT", 3);
+
+    const actor = unit("ACTOR", "ALLY", {
+      unitDefinitionId: actorUnitDefinitionId,
+      currentAp: 3,
+      currentHp: 1,
+    });
+
+    const definitions = definitionsOf(
+      new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)]]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    resolveSkillUse(
+      actor,
+      skill,
+      "AS",
+      "AS",
+      [actor],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    expect(events.filter((e) => e.eventType === "DamageApplied")).toHaveLength(1);
+    expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(false);
+    const interrupted = events.find((e) => e.eventType === "SkillUseInterrupted");
+    expect(interrupted, 'expected a "SkillUseInterrupted" event').toBeDefined();
+    expect(interrupted!.payload).toMatchObject({
+      reason: "ACTOR_DEFEATED",
+      resolvedEffectCount: 1,
+      unresolvedEffectCount: 2,
+    });
   });
 });

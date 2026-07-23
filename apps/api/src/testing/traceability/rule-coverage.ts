@@ -467,6 +467,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // PR #216再々々レビュー[P1]の修正: `countCandidateHits`のACTION経路も
   // `step.condition`を評価し、falseなら0を返す（R-SKL-06によりconditionが
   // falseのstepは丸ごとスキップされ実効果を持たないため、UT-R-SKL-07-013）。
+  // PR #216再々々々レビュー[P1] x2の修正: トップレベルの未着手DEFERRED step
+  // （UT-R-SKL-07-014）と、`resolveStepDefinitionList`内の残り兄弟step・
+  // `REPEAT`の残りiteration（UT-R-SKL-07-006の強化、UT-R-SKL-07-015、
+  // `action-skill-use-resolver.test.ts`で実ライフサイクルの
+  // `SkillUseInterrupted`まで検証）も`interruptedCount`へ計上する。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -483,6 +488,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-011",
       "UT-R-SKL-07-012",
       "UT-R-SKL-07-013",
+      "UT-R-SKL-07-014",
+      "UT-R-SKL-07-015",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

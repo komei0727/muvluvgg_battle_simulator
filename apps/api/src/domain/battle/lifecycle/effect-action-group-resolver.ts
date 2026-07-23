@@ -1208,8 +1208,16 @@ function* resolveRepeatStep(
   let resolvedActionCount = 0;
   for (let iteration = 0; iteration < definition.count; iteration++) {
     if (state.sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
-      // R-SKL-07: 繰り返し途中で使用者が戦闘不能になった場合、残りの繰り返しを中断する。
+      // R-SKL-07（PR #216再々々々レビュー[P1]）: 繰り返し途中で使用者が戦闘不能に
+      // なった場合、残りの繰り返しを中断する。今回開始できなかった
+      // `definition.count - iteration`回分すべての未解決ヒット数を
+      // interruptedCountへ計上する（さもないと`SkillUseInterrupted`の
+      // `unresolvedEffectCount`契約に反する）。
       state.sequenceInterrupted = true;
+      const remainingIterations = definition.count - iteration;
+      state.interruptedCount +=
+        countCandidateHits(definition.steps, resolvedBindings, effectActions, lastResultBox) *
+        remainingIterations;
       break;
     }
     resolvedActionCount += yield* resolveStepDefinitionList(
@@ -1348,6 +1356,14 @@ function* resolveStepDefinitionList(
   let resolvedActionCount = 0;
   for (const [index, definition] of steps.entries()) {
     if (state.sequenceInterrupted) {
+      // PR #216再々々々レビュー[P1]: このリスト内の残り（未着手の）兄弟stepも
+      // 未解決効果であり、無言で打ち切ると`interruptedCount`から漏れる。
+      state.interruptedCount += countCandidateHits(
+        steps.slice(index),
+        resolvedBindings,
+        effectActions,
+        lastResultBox,
+      );
       break;
     }
     resolvedActionCount += yield* resolveDeferredStep(
@@ -1404,6 +1420,16 @@ export function* resolveEffectSequencePlan(
       state.sequenceInterrupted = true;
       if (step.stepKind === "ACTION") {
         state.interruptedCount += countHits(step.applications);
+      } else {
+        // PR #216再々々々レビュー[P1]: トップレベルの未着手DEFERRED step
+        // （BRANCH/RANDOM_BRANCH/REPEAT、または直前結果依存ACTION）も
+        // 未解決効果であり、無言でcontinueすると`interruptedCount`から漏れる。
+        state.interruptedCount += countCandidateHitsForStep(
+          step.definition,
+          plan.resolvedBindings,
+          context.definitions.effectActions,
+          lastResultBox,
+        );
       }
       continue;
     }

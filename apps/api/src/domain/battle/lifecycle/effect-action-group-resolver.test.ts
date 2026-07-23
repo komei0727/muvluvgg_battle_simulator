@@ -890,6 +890,11 @@ describe("applyEffectActionGroups", () => {
       // EffectStepCompleted (which would be the second one) never fires.
       expect(events.filter((e) => e.eventType === "EffectStepCompleted")).toHaveLength(1);
       expect(result.resolvedCount).toBe(1);
+      // PR #216再々々々レビュー[P1]: the actor died on iteration 0's hit, so
+      // iterations 1 and 2 (2 remaining) never even started — each would
+      // have contributed 1 hit (1 target x hitCount 1), so 2 hits are
+      // unresolved rather than silently reported as interruptedCount: 0.
+      expect(result.interruptedCount).toBe(2);
     });
 
     it("UT-R-SKL-07-007 (R-SKL-01, PR #216レビュー[P1]): RandomBranchSelected participates in the PS/Memory immediate chain (onFactEventForPassiveChain observes it), not just recorder.getEvents()", () => {
@@ -1243,6 +1248,91 @@ describe("applyEffectActionGroups", () => {
 
       expect(result.interruptedCount).toBe(0);
       expect(result.resolvedCount).toBe(0);
+    });
+
+    it("UT-R-SKL-07-014 (PR #216再々々々レビュー[P1]): once a RandomBranchSelected chain interrupts the sequence, later top-level steps (both a plain ACTION and a DEFERRED step) still contribute their unresolved hits to interruptedCount instead of being silently dropped", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      const branchAttack = damageAction("ACT_BRANCH", 1);
+      // hitCount 1: the singleActionStep() fixture helper always constructs
+      // exactly one hit regardless of the underlying EffectActionDefinition's
+      // hitCount, so this must match that to keep the expected total exact.
+      const laterAttack = damageAction("ACT_LATER");
+      const deferredAttack = damageAction("ACT_DEFERRED", 3);
+      const effectActions = new Map([
+        [branchAttack.effectActionDefinitionId, branchAttack],
+        [laterAttack.effectActionDefinitionId, laterAttack],
+        [deferredAttack.effectActionDefinitionId, deferredAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          if (event.eventType === "RandomBranchSelected") {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      // A later DEFERRED step (BRANCH stays a DeferredStepPlan regardless of
+      // its condition; using BRANCH here — rather than a LAST_RESULT-gated
+      // ACTION — avoids depending on a preceding result that, in this
+      // scenario, never actually gets produced).
+      const laterDeferredStep: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: deferredAttack.effectActionDefinitionId }],
+          },
+        ],
+        elseSteps: [],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [
+          deferredStep(0, randomBranchDefinition),
+          singleActionStep(1, true, enemy.battleUnitId, laterAttack.effectActionDefinitionId),
+          deferredStep(2, laterDeferredStep),
+        ],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      // Nothing at all resolves: the RANDOM_BRANCH's own branch is
+      // abandoned (1 hit), the later plain ACTION step never starts (1
+      // hit), and the later DEFERRED step never starts either (3 hits).
+      expect(result.resolvedCount).toBe(0);
+      expect(result.interruptedCount).toBe(1 + 1 + 3);
     });
   });
 
