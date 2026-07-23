@@ -350,15 +350,28 @@ export function applyDamageAction(
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
-      // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`/`lastResults`は
-      // RES-005/RES-002/RES-003（Issue #172/#174/#173）が実ライフサイクルへ
-      // 配線するまでこの呼び出し元では用意できない。production Catalogの
-      // DAMAGE Formulaは現時点でSKILL_SOURCE/TARGET参照のみを使うため、
-      // それらを要求するFormulaは`FormulaEvaluator`が明確な例外で拒否する。
+      // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`は
+      // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
+      // では用意できない。production CatalogのDAMAGE Formulaは現時点で
+      // SKILL_SOURCE/TARGET参照のみを使うため、それらを要求するFormulaは
+      // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（`LAST_DAMAGE_DEALT`/
+      // `LAST_DAMAGE_RECEIVED`）はレビュー指摘[P1]（PR #214）により、この
+      // 攻撃者自身が直前に発生させた/受けたDAMAGE結果（`BattleUnit.lastDamageDealt`/
+      // `lastDamageReceived`）を渡す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
+      // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
+      // Issue #174/#173） — 現時点で参照するproduction定義がないため。
       formulaContext: {
         skillSource: attackerAfterTiming,
         target: targetAfterTiming,
         allUnits: Array.from(working.values()),
+        lastResults: {
+          ...(attackerAfterTiming.lastDamageDealt !== undefined
+            ? { LAST_DAMAGE_DEALT: attackerAfterTiming.lastDamageDealt }
+            : {}),
+          ...(attackerAfterTiming.lastDamageReceived !== undefined
+            ? { LAST_DAMAGE_RECEIVED: attackerAfterTiming.lastDamageReceived }
+            : {}),
+        },
       },
     });
 
@@ -397,11 +410,39 @@ export function applyDamageAction(
     // 介在がないため、HPも`targetAfterTiming`からそのまま起点にできる。
     const hpBefore = targetAfterTiming.currentHp;
     const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
+    // R-NUM-04（レビュー指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
+    // が参照する「直前の確定済みダメージ結果」を、攻撃者・対象それぞれの
+    // `lastDamageDealt`/`lastDamageReceived`へ上書きする。自傷（攻撃者=対象）
+    // では同じユニットへ両方を重ねて書き込む必要があるため、target更新後に
+    // `working`から取り直してからattacker側を更新する。
+    const lastDamageDealtBefore = attackerAfterTiming.lastDamageDealt;
+    const lastDamageReceivedBefore = targetAfterTiming.lastDamageReceived;
     const updatedTarget: BattleUnit = {
       ...targetAfterTiming,
       currentHp: createHitPoint(hpAfter, targetAfterTiming.combatStats.maximumHp),
+      lastDamageReceived: damageResult.finalDamage,
     };
     working.set(targetAfterTiming.battleUnitId, updatedTarget);
+    const attackerBeforeDealtUpdate = working.get(attackerAfterTiming.battleUnitId)!;
+    working.set(attackerAfterTiming.battleUnitId, {
+      ...attackerBeforeDealtUpdate,
+      lastDamageDealt: damageResult.finalDamage,
+    });
+
+    const targetStateDelta = {
+      hp: { before: hpBefore, after: hpAfter },
+      lastDamageReceived: { before: lastDamageReceivedBefore, after: damageResult.finalDamage },
+    };
+    const attackerStateDelta = {
+      lastDamageDealt: { before: lastDamageDealtBefore, after: damageResult.finalDamage },
+    };
+    const damageStateDeltaUnits =
+      attackerAfterTiming.battleUnitId === targetAfterTiming.battleUnitId
+        ? { [targetAfterTiming.battleUnitId]: { ...targetStateDelta, ...attackerStateDelta } }
+        : {
+            [targetAfterTiming.battleUnitId]: targetStateDelta,
+            [attackerAfterTiming.battleUnitId]: attackerStateDelta,
+          };
 
     const damageApplied = context.recorder.record({
       eventType: "DamageApplied",
@@ -426,7 +467,7 @@ export function applyDamageAction(
         defeated: isDefeated(updatedTarget),
       },
       stateDelta: {
-        units: { [targetAfterTiming.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+        units: damageStateDeltaUnits,
       },
     });
 

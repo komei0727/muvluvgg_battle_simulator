@@ -400,15 +400,27 @@ function* resolveOneEffectActionApplication(
     // `damage-application-service.ts`が呼ぶ`duration-expiry-service.ts`）が
     // 完成したため、`CAP_STAT_MOD`は`capabilities.json`で`IMPLEMENTED`に
     // 変わっている — 期間付きStat Modifierも正しく失効・除去される。
-    // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`/`lastResults`は
-    // RES-005/RES-002/RES-003（Issue #172/#174/#173）が実ライフサイクルへ
-    // 配線するまでこの呼び出し元では用意できない。production CatalogのAPPLY_STAT_MOD
-    // FormulaはSKILL_SOURCE参照のみを使うため、それらを要求するFormulaは
-    // `FormulaEvaluator`が明確な例外で拒否する。
+    // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`は
+    // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
+    // では用意できない。production CatalogのAPPLY_STAT_MOD FormulaはSKILL_SOURCE
+    // 参照のみを使うため、それらを要求するFormulaは`FormulaEvaluator`が明確な
+    // 例外で拒否する。`lastResults`はレビュー指摘[P1]（PR #214）により、
+    // damage-application-service.tsと同じ規約で使用者自身の`lastDamageDealt`/
+    // `lastDamageReceived`を渡す（`SUM_*`は現時点で参照するproduction定義が
+    // ないため未配線のまま、RES-002/RES-003、Issue #174/#173）。
+    const actor = requireUnit(box.units, context.actorId);
     const magnitude = evaluateFormula(effectAction.payload.formula, {
-      skillSource: requireUnit(box.units, context.actorId),
+      skillSource: actor,
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
+      lastResults: {
+        ...(actor.lastDamageDealt !== undefined
+          ? { LAST_DAMAGE_DEALT: actor.lastDamageDealt }
+          : {}),
+        ...(actor.lastDamageReceived !== undefined
+          ? { LAST_DAMAGE_RECEIVED: actor.lastDamageReceived }
+          : {}),
+      },
     });
     const beforeGrantUnits = box.units;
     const grantResult = grantEffect(

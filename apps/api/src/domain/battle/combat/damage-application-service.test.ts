@@ -757,4 +757,121 @@ describe("applyDamageAction", () => {
       .find((e) => e.eventType === "DamageApplied")!;
     expect(damageApplied.payload).toMatchObject({ hpBefore: 105, hpAfter: 85 });
   });
+
+  it("UT-DAMAGE-APPLICATION-010 (R-NUM-04, レビュー指摘[P1] PR #214): an applied hit records lastDamageDealt on the attacker and lastDamageReceived on the target", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    const updatedAttacker = result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!;
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedAttacker.lastDamageDealt).toBe(20);
+    expect(updatedTarget.lastDamageReceived).toBe(20);
+    expect(updatedAttacker.lastDamageReceived).toBeUndefined();
+    expect(updatedTarget.lastDamageDealt).toBeUndefined();
+  });
+
+  it("UT-DAMAGE-APPLICATION-011 (R-NUM-04, レビュー指摘[P1] PR #214, mirrors production ACT_AOI_GUARDIAN_PS2_COUNTER): a DAMAGE_RECEIVED_RATIO formula reads the actor's own lastDamageReceived from an earlier hit", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const defender = unit("DEFENDER", "ENEMY", { defense: 10, maximumHp: 200 });
+    const random = new SequenceRandomSource([]);
+
+    // First hit: ATTACKER deals 20 to DEFENDER (attack 30 - defense 10).
+    const firstHit = applyDamageAction(
+      attacker,
+      [hit("DEFENDER", 1)],
+      damageAction("PREVENTED"),
+      [attacker, defender],
+      random,
+      damageEventContext(),
+    );
+    const defenderAfterFirstHit = firstHit.units.find(
+      (u) => u.battleUnitId === defender.battleUnitId,
+    )!;
+    expect(defenderAfterFirstHit.lastDamageReceived).toBe(20);
+
+    // Second hit: DEFENDER counters using DAMAGE_RECEIVED_RATIO(LAST_DAMAGE_RECEIVED, ratio: 1),
+    // which should equal the 20 it just received, independent of its own attack stat.
+    const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+    const attackerAfterFirstHit = firstHit.units.find(
+      (u) => u.battleUnitId === attacker.battleUnitId,
+    )!;
+    const counterHit = applyDamageAction(
+      defenderAfterFirstHit,
+      [
+        {
+          targetBattleUnitId: attacker.battleUnitId,
+          effectActionDefinitionId: counterAction.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ],
+      counterAction,
+      firstHit.units,
+      random,
+      damageEventContext(),
+    );
+
+    expect(counterHit.hits[0]!.damage).toBe(20);
+    const attackerAfterCounter = counterHit.units.find(
+      (u) => u.battleUnitId === attacker.battleUnitId,
+    )!;
+    expect(attackerAfterCounter.currentHp).toBe(attackerAfterFirstHit.currentHp - 20);
+  });
+
+  it("UT-DAMAGE-APPLICATION-012 (R-NUM-04): a DAMAGE_RECEIVED_RATIO formula throws when the attacker has no recorded lastDamageReceived yet", () => {
+    const attacker = unit("ATTACKER", "ALLY");
+    const target = unit("TARGET", "ENEMY");
+    const random = new SequenceRandomSource([]);
+    const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+
+    expect(() =>
+      applyDamageAction(
+        attacker,
+        [hit("TARGET", 1)],
+        counterAction,
+        [attacker, target],
+        random,
+        damageEventContext(),
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

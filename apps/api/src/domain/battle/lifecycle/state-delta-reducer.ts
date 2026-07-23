@@ -274,6 +274,22 @@ function applyUnitDelta(
     unit.combatStats,
     delta.combatStats,
   );
+  if (delta.lastDamageDealt !== undefined) {
+    assertBeforeMatches(`${path}.lastDamageDealt`, unit.lastDamageDealt, delta.lastDamageDealt);
+  }
+  if (delta.lastDamageReceived !== undefined) {
+    assertBeforeMatches(
+      `${path}.lastDamageReceived`,
+      unit.lastDamageReceived,
+      delta.lastDamageReceived,
+    );
+  }
+  const nextLastDamageDealt =
+    delta.lastDamageDealt !== undefined ? delta.lastDamageDealt.after : unit.lastDamageDealt;
+  const nextLastDamageReceived =
+    delta.lastDamageReceived !== undefined
+      ? delta.lastDamageReceived.after
+      : unit.lastDamageReceived;
   return {
     hp: delta.hp?.after ?? unit.hp,
     ap: delta.ap?.after ?? unit.ap,
@@ -288,6 +304,8 @@ function applyUnitDelta(
     ...(effectSequenceCounterCarry !== undefined ? { effectSequenceCounterCarry } : {}),
     ...(effects !== undefined && effects.length > 0 ? { effects } : {}),
     ...(markers !== undefined && markers.length > 0 ? { markers } : {}),
+    ...(nextLastDamageDealt !== undefined ? { lastDamageDealt: nextLastDamageDealt } : {}),
+    ...(nextLastDamageReceived !== undefined ? { lastDamageReceived: nextLastDamageReceived } : {}),
   };
 }
 

@@ -76,6 +76,16 @@ export interface BattleUnit {
   readonly appliedEffects: readonly AppliedEffect[];
   /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10): 同じmarkerIdにつき対象ごとに1インスタンス。付与順を保持する。 */
   readonly markerStates: readonly MarkerState[];
+  /**
+   * R-NUM-04: `FormulaDefinition.DAMAGE_DEALT_RATIO`(`sourceResult: LAST_DAMAGE_DEALT`)が
+   * 参照する、このユニットが直前に発生させたDAMAGE結果1件のみ（レビュー指摘[P1]、
+   * PR #214）。まだ一度もダメージを与えていなければ`undefined`。`applyDamageAction`が
+   * ヒットが適用されるたびに攻撃者側を上書きする（履歴やEffectSequenceスコープの
+   * 合計ではなく、常に直近1件だけを持つ）。
+   */
+  readonly lastDamageDealt?: number;
+  /** `lastDamageDealt`と対になる、このユニットが直前に受けたDAMAGE結果1件のみ（`DAMAGE_RECEIVED_RATIO`用）。 */
+  readonly lastDamageReceived?: number;
 }
 
 export interface BattleUnitResourceLimits {

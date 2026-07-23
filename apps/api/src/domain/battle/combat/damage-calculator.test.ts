@@ -111,21 +111,41 @@ describe("calculateDamage", () => {
     expect(calculateDamage(input({ attackerAttack: 20, defenderDefense: 20 })).finalDamage).toBe(1);
   });
 
-  it("UT-DAMAGE-CALCULATOR-003 (R-NUM-04): skillPowerFormula can use any FormulaKind now that the general FormulaEvaluator is wired in, not just SKILL_POWER", () => {
+  it("UT-DAMAGE-CALCULATOR-003 (R-NUM-04, レビュー指摘[P1] PR #214): a skillPowerFormula kind other than SKILL_POWER bypasses attack/defense entirely — its evaluated result IS the base damage, not a multiplier on (attack - defense)", () => {
+    // Mirrors production `ACT_FLUTE_VAMPIRE_AS1_HP_COST`: CURRENT_HP_RATIO(TARGET, 0.25).
     const result = calculateDamage(
       input({
         skillPowerFormula: {
-          kind: "STAT_RATIO",
+          kind: "CURRENT_HP_RATIO",
           source: { kind: "TARGET" },
-          stat: "DEFENSE",
-          ratio: 0.05,
+          ratio: 0.25,
         },
       }),
     );
-    // formulaContext.target.combatStats.defense = 20; skillPower = 20 * 0.05 = 1
-    // base damage = 50 - 20 = 30; 30 * 1 = 30
+    // target.currentHp = 100 (full at creation); baseDamage = 100 * 0.25 = 25.
+    // attackerAttack(50) must NOT multiply in here — only SKILL_POWER does that.
     expect(result.skillPower).toBe(1);
-    expect(result.finalDamage).toBe(30);
+    expect(result.finalDamage).toBe(25);
+  });
+
+  it("UT-DAMAGE-CALCULATOR-010 (R-NUM-04): a non-SKILL_POWER base damage still passes through attribute/critical/actionDamageMultiplier normally", () => {
+    const result = calculateDamage(
+      input({
+        skillPowerFormula: {
+          kind: "CURRENT_HP_RATIO",
+          source: { kind: "TARGET" },
+          ratio: 0.25,
+        },
+        attackerAttribute: "AGGRESSIVE",
+        defenderAttribute: "SHY",
+        attackerAffinityBonus: 0.1,
+        criticalMultiplier: 2,
+        damageModifiers: [{ kind: "CONSTANT", value: 0.1 }],
+      }),
+    );
+    // baseDamage = 25; attributeMultiplier = 1.35; criticalMultiplier = 2;
+    // actionDamageMultiplier = 1.1 -> 25 * 1.35 * 2 * 1.1 = 74.25 -> floor 74.
+    expect(result.finalDamage).toBe(74);
   });
 
   it("UT-R-DMG-01-007: damageModifiers sum as signed ratios into an Action内追加ダメージ倍率 of 1 + Σvalues", () => {

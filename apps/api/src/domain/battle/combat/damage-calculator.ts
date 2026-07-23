@@ -34,8 +34,33 @@ export interface DamageCalculationResult {
   readonly finalDamage: number;
 }
 
-function resolveSkillPower(formula: FormulaDefinition, context: FormulaEvaluationContext): number {
-  return evaluateFormula(formula, context, "skillPowerFormula");
+/**
+ * R-DMG-01: 基礎ダメージ(攻撃力-防御力)へ乗算できるのは`SKILL_POWER`だけ
+ * （レビュー指摘[P1]、PR #214）。それ以外のFormula種別（`CURRENT_HP_RATIO`
+ * 等）はスキル威力の倍率ではなく、評価結果そのものが基礎ダメージとなる —
+ * 攻撃力・防御力を経由しない。実Catalogの`ACT_FLUTE_VAMPIRE_AS1_HP_COST`
+ * （対象の現在HP×0.25を直接ダメージ量とする定義）を攻撃側の攻撃力でさらに
+ * 乗算してしまうと、意図した量から桁違いに拡大される。属性倍率・会心倍率・
+ * Action内追加ダメージ倍率はFormula種別によらず通常どおり適用する
+ * （`ACT_AOI_GUARDIAN_PS2_COUNTER`等はcritical/accuracy/piercingを上書きせず、
+ * 通常の会心・命中判定を経る前提であるため）。
+ */
+function resolveBaseDamageAndSkillPower(
+  formula: FormulaDefinition,
+  attackerAttack: number,
+  effectiveDefense: number,
+  context: FormulaEvaluationContext,
+): { readonly baseDamage: number; readonly skillPower: number } {
+  if (formula.kind === "SKILL_POWER") {
+    return {
+      baseDamage: Math.max(0, attackerAttack - effectiveDefense),
+      skillPower: formula.power,
+    };
+  }
+  return {
+    baseDamage: evaluateFormula(formula, context, "skillPowerFormula"),
+    skillPower: 1,
+  };
 }
 
 /**
@@ -63,9 +88,12 @@ function resolveActionDamageMultiplier(
  */
 export function calculateDamage(input: DamageCalculationInput): DamageCalculationResult {
   const effectiveDefense = input.defenderDefense * (1 - input.defenseIgnoreRate);
-  const baseDamage = Math.max(0, input.attackerAttack - effectiveDefense);
-
-  const skillPower = resolveSkillPower(input.skillPowerFormula, input.formulaContext);
+  const { baseDamage, skillPower } = resolveBaseDamageAndSkillPower(
+    input.skillPowerFormula,
+    input.attackerAttack,
+    effectiveDefense,
+    input.formulaContext,
+  );
   const attributeMultiplier = resolveAttributeMultiplier(
     input.attackerAttribute,
     input.defenderAttribute,

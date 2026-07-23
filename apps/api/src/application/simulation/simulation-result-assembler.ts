@@ -132,7 +132,9 @@ function unitSnapshotsEqual(
     cooldownStatesEqual(a.cooldowns, b.cooldowns) &&
     sameChargeState(a.charge, b.charge) &&
     effectsEqual(a.effects, b.effects) &&
-    markersEqual(a.markers, b.markers)
+    markersEqual(a.markers, b.markers) &&
+    a.lastDamageDealt === b.lastDamageDealt &&
+    a.lastDamageReceived === b.lastDamageReceived
   );
 }
 
