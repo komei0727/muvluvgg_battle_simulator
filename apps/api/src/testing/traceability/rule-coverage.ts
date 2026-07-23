@@ -624,7 +624,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-MEM-04", testCaseIds: [], kinds: [] },
 
   // ACTN: EffectAction解決
-  { ruleId: "R-ACTN-01", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-ACTN-01",
+    testCaseIds: [
+      "UT-R-ACTN-01-001",
+      "UT-R-ACTN-01-002",
+      "UT-R-ACTN-01-003",
+      "UT-R-ACTN-01-004",
+      "UT-R-ACTN-01-005",
+    ],
+    kinds: ["NEGATIVE", "BOUNDARY", "POSITIVE"],
+  },
   { ruleId: "R-ACTN-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-ACTN-03", testCaseIds: [], kinds: [] },
 

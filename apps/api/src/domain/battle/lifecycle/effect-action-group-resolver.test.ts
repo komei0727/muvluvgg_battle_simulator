@@ -4,6 +4,7 @@ import {
   type EffectActionGroupContext,
 } from "./effect-action-group-resolver.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { applyMarker } from "../effects/marker-apply-service.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -14,6 +15,7 @@ import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
@@ -83,6 +85,36 @@ function statModAction(id: string): EffectActionDefinition {
         linkedEffectGroupId: null,
       },
     },
+  };
+}
+
+function markerAction(
+  id: string,
+  markerId: ReturnType<typeof createMarkerId>,
+): EffectActionDefinition {
+  return {
+    kind: "APPLY_MARKER",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      markerId,
+      stack: { policy: "ADD", max: null },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+  };
+}
+
+function removeMarkerAction(
+  id: string,
+  markerId: ReturnType<typeof createMarkerId>,
+): EffectActionDefinition {
+  return {
+    kind: "REMOVE_MARKER",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { markerId },
   };
 }
 
@@ -671,5 +703,190 @@ describe("applyEffectActionGroups", () => {
     expect(eventTypes).toContain("CombatStatChanged");
     expect(eventTypes.indexOf("DamageApplied")).toBeLessThan(eventTypes.indexOf("EffectExpired"));
     expect(result.interruptedCount).toBe(0);
+  });
+
+  describe("R-ACTN-01 #2: an already-defeated target is skipped for every EffectAction kind (RES-002, Issue #174)", () => {
+    it("UT-R-ACTN-01-001: APPLY_STAT_MOD against an already-defeated target grants no AppliedEffect and completes as SKIPPED", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const defeatedEnemy = unit("ENEMY", "ENEMY", { currentHp: 0 });
+      const statMod = statModAction("ACT_ATK_UP");
+      const effectActions = new Map([[statMod.effectActionDefinitionId, statMod]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, defeatedEnemy.battleUnitId, statMod.effectActionDefinitionId),
+        ],
+        targetUnitIds: [defeatedEnemy.battleUnitId],
+      };
+
+      const before = recorder.getEvents().length;
+      const result = applyEffectActionGroups(plan, [actor, defeatedEnemy], context);
+      const emitted = recorder
+        .getEvents()
+        .slice(before)
+        .map((e) => e.eventType);
+
+      expect(emitted).toEqual([
+        "EffectStepStarting",
+        "EffectActionStarting",
+        "EffectActionCompleted",
+        "EffectStepCompleted",
+      ]);
+      expect(result.resolvedCount).toBe(1);
+      expect(result.interruptedCount).toBe(0);
+
+      const target = result.units.find((u) => u.battleUnitId === defeatedEnemy.battleUnitId)!;
+      expect(target.appliedEffects).toHaveLength(0);
+
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("SKIPPED");
+    });
+
+    it("UT-R-ACTN-01-002: APPLY_MARKER against an already-defeated target grants no MarkerState and completes as SKIPPED", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const defeatedEnemy = unit("ENEMY", "ENEMY", { currentHp: 0 });
+      const markerId = createMarkerId("MARKER_TEST");
+      const apply = markerAction("ACT_APPLY_MARKER", markerId);
+      const effectActions = new Map([[apply.effectActionDefinitionId, apply]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, defeatedEnemy.battleUnitId, apply.effectActionDefinitionId),
+        ],
+        targetUnitIds: [defeatedEnemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, defeatedEnemy], context);
+
+      const target = result.units.find((u) => u.battleUnitId === defeatedEnemy.battleUnitId)!;
+      expect(target.markerStates).toHaveLength(0);
+      expect(recorder.getEvents().some((e) => e.eventType === "MarkerApplied")).toBe(false);
+
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("SKIPPED");
+    });
+
+    it("UT-R-ACTN-01-003: REMOVE_MARKER against an already-defeated target leaves its existing marker untouched and completes as SKIPPED (not APPLIED)", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const markerId = createMarkerId("MARKER_TEST");
+      const setup = seedRecorder();
+      const granted = applyMarker(
+        {
+          recorder: setup.recorder,
+          turnNumber: 1,
+          cycleNumber: 0,
+          resolutionScopeId: setup.recorder.nextResolutionScopeId(),
+          rootEventId: setup.rootEventId as never,
+        },
+        [actor, enemy],
+        {
+          markerId,
+          sourceId: actor.battleUnitId,
+          targetId: enemy.battleUnitId,
+          stackPolicy: "ADD",
+          stackMax: null,
+          durationDefinition: { dispellable: true, linkedEffectGroupId: null },
+        },
+        setup.rootEventId as never,
+      );
+      const grantedEnemy = granted.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      const defeatedEnemy: BattleUnit = { ...grantedEnemy, currentHp: 0 };
+      const remove = removeMarkerAction("ACT_REMOVE_MARKER", markerId);
+      const effectActions = new Map([[remove.effectActionDefinitionId, remove]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, defeatedEnemy.battleUnitId, remove.effectActionDefinitionId),
+        ],
+        targetUnitIds: [defeatedEnemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, defeatedEnemy], context);
+
+      const target = result.units.find((u) => u.battleUnitId === defeatedEnemy.battleUnitId)!;
+      expect(target.markerStates).toHaveLength(1);
+      expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(false);
+
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("SKIPPED");
+    });
+
+    it("UT-R-ACTN-01-004: COOLDOWN_MANIPULATION targeting an already-defeated unit performs no cooldown change and completes as SKIPPED", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const targetSkillId = createSkillDefinitionId("SKL_TARGET");
+      const defeatedEnemy = unit("ENEMY", "ENEMY", {
+        currentHp: 0,
+        cooldowns: { [targetSkillId]: { unit: "ACTION", remaining: 2 } },
+      });
+      const reset = cooldownManipulationAction("ACT_RESET", targetSkillId);
+      const effectActions = new Map([[reset.effectActionDefinitionId, reset]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, defeatedEnemy.battleUnitId, reset.effectActionDefinitionId),
+        ],
+        targetUnitIds: [defeatedEnemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, defeatedEnemy], context);
+
+      const target = result.units.find((u) => u.battleUnitId === defeatedEnemy.battleUnitId)!;
+      expect(target.cooldowns[targetSkillId]).toEqual({ unit: "ACTION", remaining: 2 });
+      expect(recorder.getEvents().some((e) => e.eventType === "CooldownReduced")).toBe(false);
+
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("SKIPPED");
+    });
+
+    it("UT-R-ACTN-01-005: APPLY_MARKER against a target that is alive at application time still applies normally (this check does not fire on live targets)", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const markerId = createMarkerId("MARKER_TEST");
+      const apply = markerAction("ACT_APPLY_MARKER", markerId);
+      const effectActions = new Map([[apply.effectActionDefinitionId, apply]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [singleActionStep(0, true, enemy.battleUnitId, apply.effectActionDefinitionId)],
+        targetUnitIds: [enemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      expect(target.markerStates).toHaveLength(1);
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("APPLIED");
+    });
   });
 });
