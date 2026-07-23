@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyDamageAction, type DamageEventContext } from "./damage-application-service.js";
+import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
 import {
   createBattleUnit,
   isDefeated,
@@ -756,5 +757,263 @@ describe("applyDamageAction", () => {
       .getEvents()
       .find((e) => e.eventType === "DamageApplied")!;
     expect(damageApplied.payload).toMatchObject({ hpBefore: 105, hpAfter: 85 });
+  });
+
+  it("UT-DAMAGE-APPLICATION-010 (R-SKL-08, レビュー再指摘[P1] PR #214): an applied hit records lastDamageDealt/lastDamageReceived into the caller-supplied resolution-scope registry, not onto BattleUnit", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const lastDamageResults: LastDamageResultRegistry = new Map();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+
+    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
+    expect(lastDamageResults.get(target.battleUnitId)?.lastDamageReceived).toBe(20);
+    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageReceived).toBeUndefined();
+    expect(lastDamageResults.get(target.battleUnitId)?.lastDamageDealt).toBeUndefined();
+  });
+
+  it("UT-DAMAGE-APPLICATION-011 (R-SKL-08, レビュー再指摘[P1] PR #214, mirrors production ACT_AOI_GUARDIAN_PS2_COUNTER): a DAMAGE_RECEIVED_RATIO formula reads the actor's own lastDamageReceived from an earlier hit in the SAME resolution scope (shared registry)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const defender = unit("DEFENDER", "ENEMY", { defense: 10, maximumHp: 200 });
+    const random = new SequenceRandomSource([]);
+    // One registry instance shared across both calls, standing in for the
+    // single resolution scope (one action) that both the triggering hit and
+    // the counter it provokes belong to (`PassiveActivationRuntime` threads
+    // the same instance through nested PS chains in production).
+    const lastDamageResults: LastDamageResultRegistry = new Map();
+
+    // First hit: ATTACKER deals 20 to DEFENDER (attack 30 - defense 10).
+    const firstHit = applyDamageAction(
+      attacker,
+      [hit("DEFENDER", 1)],
+      damageAction("PREVENTED"),
+      [attacker, defender],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+    const defenderAfterFirstHit = firstHit.units.find(
+      (u) => u.battleUnitId === defender.battleUnitId,
+    )!;
+    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
+
+    // Second hit: DEFENDER counters using DAMAGE_RECEIVED_RATIO(LAST_DAMAGE_RECEIVED, ratio: 1),
+    // which should equal the 20 it just received, independent of its own attack stat.
+    const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+    const attackerAfterFirstHit = firstHit.units.find(
+      (u) => u.battleUnitId === attacker.battleUnitId,
+    )!;
+    const counterHit = applyDamageAction(
+      defenderAfterFirstHit,
+      [
+        {
+          targetBattleUnitId: attacker.battleUnitId,
+          effectActionDefinitionId: counterAction.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ],
+      counterAction,
+      firstHit.units,
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+
+    expect(counterHit.hits[0]!.damage).toBe(20);
+    const attackerAfterCounter = counterHit.units.find(
+      (u) => u.battleUnitId === attacker.battleUnitId,
+    )!;
+    expect(attackerAfterCounter.currentHp).toBe(attackerAfterFirstHit.currentHp - 20);
+  });
+
+  it("UT-DAMAGE-APPLICATION-012 (R-NUM-04): a DAMAGE_RECEIVED_RATIO formula throws when the registry has no recorded lastDamageReceived yet", () => {
+    const attacker = unit("ATTACKER", "ALLY");
+    const target = unit("TARGET", "ENEMY");
+    const random = new SequenceRandomSource([]);
+    const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+
+    expect(() =>
+      applyDamageAction(
+        attacker,
+        [hit("TARGET", 1)],
+        counterAction,
+        [attacker, target],
+        random,
+        damageEventContext(),
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-DAMAGE-APPLICATION-013 (R-SKL-08, レビュー再指摘[P1] PR #214): a DAMAGE_RECEIVED_RATIO formula in a NEW resolution scope (a fresh registry) does not see a value recorded in an earlier, unrelated resolution scope", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const defender = unit("DEFENDER", "ENEMY", { defense: 10, maximumHp: 200 });
+    const random = new SequenceRandomSource([]);
+
+    // Scope 1 (e.g. an earlier, unrelated action): records DEFENDER's
+    // lastDamageReceived into its own registry.
+    const scope1Registry: LastDamageResultRegistry = new Map();
+    const firstHit = applyDamageAction(
+      attacker,
+      [hit("DEFENDER", 1)],
+      damageAction("PREVENTED"),
+      [attacker, defender],
+      random,
+      { ...damageEventContext(), lastDamageResults: scope1Registry },
+    );
+    const defenderAfterFirstHit = firstHit.units.find(
+      (u) => u.battleUnitId === defender.battleUnitId,
+    )!;
+    expect(scope1Registry.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
+
+    // Scope 2 (a brand-new resolution scope, e.g. a later, independent
+    // action): a fresh, empty registry — must NOT see scope 1's value even
+    // though it's evaluating a formula for the very same BattleUnit.
+    const scope2Registry: LastDamageResultRegistry = new Map();
+    const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+
+    expect(() =>
+      applyDamageAction(
+        defenderAfterFirstHit,
+        [
+          {
+            targetBattleUnitId: attacker.battleUnitId,
+            effectActionDefinitionId: counterAction.effectActionDefinitionId,
+            hitIndex: 1,
+          },
+        ],
+        counterAction,
+        firstHit.units,
+        random,
+        { ...damageEventContext(), lastDamageResults: scope2Registry },
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-DAMAGE-APPLICATION-014 (R-SKL-08, レビュー再々々指摘[P1] PR #214): a successful DAMAGE followed by a not-applied one (target already defeated) in the SAME resolution scope records lastDamageDealt/lastDamageReceived as 0, instead of leaving the earlier success value visible or making later Formula references throw", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const defender = unit("DEFENDER", "ENEMY", { defense: 10, maximumHp: 200 });
+    const random = new SequenceRandomSource([]);
+    const lastDamageResults: LastDamageResultRegistry = new Map();
+
+    // Hit 1 (success): ATTACKER deals 20 to DEFENDER, recorded in the shared
+    // registry for this resolution scope.
+    const firstHit = applyDamageAction(
+      attacker,
+      [hit("DEFENDER", 1)],
+      damageAction("PREVENTED"),
+      [attacker, defender],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
+    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
+    const attackerAfterFirstHit = firstHit.units.find(
+      (u) => u.battleUnitId === attacker.battleUnitId,
+    )!;
+    const defeatedDefender = defeated(
+      firstHit.units.find((u) => u.battleUnitId === defender.battleUnitId)!,
+    );
+
+    // Hit 2 (not applied — target already defeated), same attacker/target
+    // pair, same shared registry: R-SKL-08 treats this not-applied result as
+    // a regular "last result" for this scope (not a Catalog-definition
+    // error), so it must overwrite hit 1's success value with 0 rather than
+    // leaving it visible or erasing it entirely.
+    applyDamageAction(
+      attackerAfterFirstHit,
+      [hit("DEFENDER", 1)],
+      damageAction("PREVENTED"),
+      [attackerAfterFirstHit, defeatedDefender],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(0);
+    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(0);
+
+    // A later Formula referencing LAST_DAMAGE_DEALT in this same scope must
+    // now evaluate to 0 — not the stale 20, and not a thrown error (MISS/
+    // no-target is a normal runtime outcome under a valid Catalog
+    // definition, not the "reference doesn't exist" case R-NUM-04 reserves
+    // for Catalog/preflight rejection).
+    const referencingAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_REFERENCING"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_DEALT_RATIO", sourceResult: "LAST_DAMAGE_DEALT", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+    const otherTarget = unit("OTHER_TARGET", "ENEMY");
+
+    const referencingResult = applyDamageAction(
+      attackerAfterFirstHit,
+      [hit("OTHER_TARGET", 1)],
+      referencingAction,
+      [attackerAfterFirstHit, otherTarget],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+    // baseDamage = LAST_DAMAGE_DEALT(0) * ratio(1) = 0; R-DMG-02's minimum-1
+    // still applies since this is a DAMAGE-kind effect.
+    expect(referencingResult.hits[0]!.damage).toBe(1);
   });
 });

@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 109,
-      "completed": 56,
-      "remaining": 53
+      "completed": 57,
+      "remaining": 52
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 35,
-      "implemented": 5
+      "implemented": 6
     }
   },
   "tasks": [
@@ -93,7 +93,6 @@
     { "taskId": "REL-007", "issue": 201, "phase": 4, "milestone": "M9" }
   ],
   "ruleAssignments": [
-    { "taskId": "RES-001", "ruleIds": ["R-NUM-04"] },
     {
       "taskId": "M7-003",
       "ruleIds": ["R-ORD-01", "R-ACT-01", "R-ACT-02", "R-SKL-05", "R-STS-01", "R-STS-02"]

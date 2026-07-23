@@ -1,6 +1,11 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical } from "./critical-policy.js";
+import {
+  lastDamageResultsFor,
+  recordLastDamageResult,
+  type LastDamageResultRegistry,
+} from "../skill/formula-evaluator.js";
 import type {
   DomainEventId,
   ActionId,
@@ -107,6 +112,14 @@ export interface DamageEventContext {
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
   ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
+  /**
+   * R-SKL-08（レビュー再指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
+   * が参照する「同じ解決スコープ内の直前DAMAGE結果」を保持する、呼び出し側が
+   * 1解決スコープ（1行動、または行動外トップレベルイベント）ごとに新規生成する
+   * 共有registry。未指定なら`LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`を要求する
+   * Formulaは`FormulaEvaluator`が明確な例外で拒否する。
+   */
+  readonly lastDamageResults?: LastDamageResultRegistry;
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -216,6 +229,17 @@ export function applyDamageAction(
 
     if (isDefeated(target)) {
       outcomes.push(skip(hit));
+      // R-SKL-08（レビュー再々々指摘[P1]、PR #214）: 対象不在で適用されなかった
+      // このヒットも「同じ解決スコープ内の直前結果」になる。以前の成功した
+      // DAMAGE結果を透けて見せ続けないよう0として記録する（例外にはしない —
+      // MISS等は有効な定義のもとで通常発生し得る実行時の結果であり、R-NUM-04が
+      // 拒否対象とするCatalog定義エラーではないため）。
+      recordLastDamageResult(
+        context.lastDamageResults,
+        currentAttacker.battleUnitId,
+        target.battleUnitId,
+        0,
+      );
       continue;
     }
 
@@ -284,11 +308,29 @@ export function applyDamageAction(
     );
     if (isDefeated(targetAfterTiming)) {
       outcomes.push(skip(hit));
+      // R-SKL-08: TIMING処理後に対象が戦闘不能になった場合も、この不成立結果を
+      // 0として直前結果に記録する（上の対象不在チェックと同じ理由）。
+      recordLastDamageResult(
+        context.lastDamageResults,
+        attackerAfterTiming.battleUnitId,
+        targetAfterTiming.battleUnitId,
+        0,
+      );
       continue;
     }
 
     if (!resolveHit()) {
       outcomes.push(skip(hit));
+      // R-SKL-08: MISSも結果種別を持つ直前結果として記録する（R-SKL-08本文）。
+      // 有効な定義のもとで通常発生し得る実行時の結果であり、後続Formulaの
+      // 参照を例外終了させてはならないため0として記録する（`recordLastDamageResult`
+      // のコメント参照）。
+      recordLastDamageResult(
+        context.lastDamageResults,
+        attackerAfterTiming.battleUnitId,
+        targetAfterTiming.battleUnitId,
+        0,
+      );
       continue;
     }
 
@@ -350,6 +392,25 @@ export function applyDamageAction(
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
+      // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`は
+      // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
+      // では用意できない。production CatalogのDAMAGE Formulaは現時点で
+      // SKILL_SOURCE/TARGET参照のみを使うため、それらを要求するFormulaは
+      // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（R-SKL-08、
+      // レビュー再指摘[P1] PR #214）は`context.lastDamageResults`（呼び出し側が
+      // 1解決スコープごとに新規生成する共有registry）から、この攻撃者自身の
+      // 直前DAMAGE結果だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
+      // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
+      // Issue #174/#173） — 現時点で参照するproduction定義がないため。
+      formulaContext: {
+        skillSource: attackerAfterTiming,
+        target: targetAfterTiming,
+        allUnits: Array.from(working.values()),
+        lastResults: lastDamageResultsFor(
+          context.lastDamageResults,
+          attackerAfterTiming.battleUnitId,
+        ),
+      },
     });
 
     const damageCalculated = context.recorder.record({
@@ -392,6 +453,17 @@ export function applyDamageAction(
       currentHp: createHitPoint(hpAfter, targetAfterTiming.combatStats.maximumHp),
     };
     working.set(targetAfterTiming.battleUnitId, updatedTarget);
+    // R-SKL-08（レビュー再指摘[P1]、PR #214）: `context.lastDamageResults`
+    // （呼び出し側が1解決スコープごとに新規生成する共有registry）へ直接
+    // 記録する。`BattleUnit`の永続フィールドではないため、StateDelta・
+    // 独立Reducer復元の対象にはならない（スコープ終了と同時に破棄される
+    // 実行コンテキストであり、監査対象の永続状態ではないため）。
+    recordLastDamageResult(
+      context.lastDamageResults,
+      attackerAfterTiming.battleUnitId,
+      targetAfterTiming.battleUnitId,
+      damageResult.finalDamage,
+    );
 
     const damageApplied = context.recorder.record({
       eventType: "DamageApplied",

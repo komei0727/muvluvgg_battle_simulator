@@ -12,6 +12,7 @@ import {
   type EffectActionGroupContext,
   type UnitsBox,
 } from "./effect-action-group-resolver.js";
+import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
 import { expireEffects, type ExpirationSeed } from "../effects/duration-expiry-service.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
@@ -218,11 +219,29 @@ export class PassiveActivationRuntime {
    * 同じeventIdでも独立に二重処理を防ぐ必要がある）。
    */
   private readonly processedEffectSequenceRuntimeCounterEventIds = new Set<DomainEventId>();
+  /**
+   * R-SKL-08（レビュー再指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
+   * が参照する「同じ解決スコープ内の直前DAMAGE結果」。このクラス自体が
+   * 「1解決スコープ（=1行動、または行動外トップレベルイベント）につき1つだけ
+   * 生成される」契約（コンストラクタのコメント、R-PS-07と同じ境界）を持つため、
+   * インスタンスフィールドとして持てばスコープ境界と寿命が自然に一致する —
+   * 明示的な破棄処理は不要（このインスタンス自体がGCされれば消える）。
+   * `getUnitLastDamageResults`経由でPS連鎖内の`groupContext`（このクラス自身が
+   * 構築）と、呼び出し元（`action-skill-use-resolver.ts`/`action-charge-resolver.ts`が
+   * 構築する、この行動自身のEffectSequence用`EffectActionGroupContext`）の
+   * 両方が同じインスタンスを共有する。
+   */
+  private readonly lastDamageResults: LastDamageResultRegistry = new Map();
 
   constructor(context: PassiveActivationRuntimeContext, initialUnits: readonly BattleUnit[]) {
     this.context = context;
     this.units = initialUnits;
     this.guard = createEmptyPassiveActivationGuard();
+  }
+
+  /** `action-skill-use-resolver.ts`/`action-charge-resolver.ts`が自身のEffectSequenceへも同じregistryを渡すための公開アクセサ。 */
+  get lastDamageResultsRegistry(): LastDamageResultRegistry {
+    return this.lastDamageResults;
   }
 
   get currentUnits(): readonly BattleUnit[] {
@@ -1292,6 +1311,7 @@ export class PassiveActivationRuntime {
       rootEventId: this.context.rootEventId,
       parentEventId: lastEventId,
       skillDefinitionId: skill.skillDefinitionId,
+      lastDamageResults: this.lastDamageResults,
     };
     // EFF-006/Issue #212: このPS自身のEffectSequence解決を開始する前に登録する
     // （`SkillUseStarting`相当のTIMINGはPSには無いため、`resolveEffectSequencePlan`

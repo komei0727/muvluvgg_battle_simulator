@@ -173,12 +173,23 @@
   {
     "capabilityId": "CAP_FORMULA",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-001",
     "description": "動的値計算",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": [
+        "ACT_FLUTE_VAMPIRE_AS1_HP_COST",
+        "ACT_AOI_GUARDIAN_PS2_COUNTER",
+        "ACT_STELLA_STATUE_PS2_COUNTER",
+        "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE",
+        "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF"
+      ],
+      "testCaseIds": [
+        "IT-CAP-FORMULA-PROD-001",
+        "IT-CAP-FORMULA-PROD-002",
+        "IT-CAP-FORMULA-PROD-003",
+        "IT-CAP-FORMULA-PROD-004"
+      ]
     }
   },
   {
