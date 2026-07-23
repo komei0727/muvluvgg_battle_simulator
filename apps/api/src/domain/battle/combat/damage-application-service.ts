@@ -350,6 +350,16 @@ export function applyDamageAction(
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
+      // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`/`lastResults`は
+      // RES-005/RES-002/RES-003（Issue #172/#174/#173）が実ライフサイクルへ
+      // 配線するまでこの呼び出し元では用意できない。production Catalogの
+      // DAMAGE Formulaは現時点でSKILL_SOURCE/TARGET参照のみを使うため、
+      // それらを要求するFormulaは`FormulaEvaluator`が明確な例外で拒否する。
+      formulaContext: {
+        skillSource: attackerAfterTiming,
+        target: targetAfterTiming,
+        allUnits: Array.from(working.values()),
+      },
     });
 
     const damageCalculated = context.recorder.record({

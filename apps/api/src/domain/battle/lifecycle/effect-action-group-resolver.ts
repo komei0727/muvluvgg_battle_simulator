@@ -29,7 +29,7 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../events/domain-event.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
-import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
+import { evaluateFormula } from "../skill/formula-evaluator.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
@@ -105,21 +105,6 @@ export interface UnitsBox {
 export type EffectResolutionStep =
   | { readonly kind: "TIMING_EVENT"; readonly event: BattleDomainEvent }
   | { readonly kind: "EFFECT_RESOLVED"; readonly events: readonly BattleDomainEvent[] };
-
-/**
- * R-DMG-01の`resolveSkillPower`/`resolveActionDamageMultiplier`と同じ「基本
- * FormulaEvaluator」方針: `CONSTANT`だけを評価する（binding・イベントpayload・
- * 直前結果・Marker参照などを含む一般Formula評価器はIssue #74のスコープ）。
- */
-function resolveBasicFormula(formula: FormulaDefinition, path: string): number {
-  if (formula.kind !== "CONSTANT") {
-    throw new DomainValidationError(
-      path,
-      `kind "${formula.kind}" is not supported by this basic EffectActionGroupResolver (general FormulaEvaluator is Issue #74 scope)`,
-    );
-  }
-  return formula.value;
-}
 
 function countHits(applications: readonly EffectActionApplication[]): number {
   return applications.reduce((sum, application) => sum + application.hits.length, 0);
@@ -415,10 +400,16 @@ function* resolveOneEffectActionApplication(
     // `damage-application-service.ts`が呼ぶ`duration-expiry-service.ts`）が
     // 完成したため、`CAP_STAT_MOD`は`capabilities.json`で`IMPLEMENTED`に
     // 変わっている — 期間付きStat Modifierも正しく失効・除去される。
-    const magnitude = resolveBasicFormula(
-      effectAction.payload.formula,
-      "effectAction.payload.formula",
-    );
+    // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`/`lastResults`は
+    // RES-005/RES-002/RES-003（Issue #172/#174/#173）が実ライフサイクルへ
+    // 配線するまでこの呼び出し元では用意できない。production CatalogのAPPLY_STAT_MOD
+    // FormulaはSKILL_SOURCE参照のみを使うため、それらを要求するFormulaは
+    // `FormulaEvaluator`が明確な例外で拒否する。
+    const magnitude = evaluateFormula(effectAction.payload.formula, {
+      skillSource: requireUnit(box.units, context.actorId),
+      target: requireUnit(box.units, application.targetBattleUnitId),
+      allUnits: box.units,
+    });
     const beforeGrantUnits = box.units;
     const grantResult = grantEffect(
       {

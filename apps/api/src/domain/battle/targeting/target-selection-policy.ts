@@ -7,8 +7,17 @@ import { DomainValidationError } from "../../shared/errors.js";
 
 const ROW_ORDER: Record<BattleUnit["position"]["row"], number> = { FRONT: 0, BACK: 1 };
 
-/** `05_ドメインモデル.md`「TargetBinding / TargetSelector」: Catalogの`side`は使用者から見た相対陣営を表す。 */
-function matchesRelativeSide(unit: BattleUnit, actor: BattleUnit, side: SelectorSide): boolean {
+/**
+ * `05_ドメインモデル.md`「TargetBinding / TargetSelector」: Catalogの`side`は使用者から見た相対陣営を表す。
+ * `battle/skill`の`FormulaEvaluator`（`ALIVE_UNIT_COUNT_SCALE`、RES-001/Issue #175）も
+ * 同じ相対陣営解決を再利用する（`no-restricted-imports`は`battle/skill`→`battle/targeting`
+ * を許可している）。
+ */
+export function matchesRelativeSide(
+  unit: BattleUnit,
+  actor: BattleUnit,
+  side: SelectorSide,
+): boolean {
   if (side === "ALL") {
     return true;
   }
