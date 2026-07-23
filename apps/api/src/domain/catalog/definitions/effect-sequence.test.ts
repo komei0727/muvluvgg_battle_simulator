@@ -605,6 +605,34 @@ describe("EffectSequence", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-SEQ-031 (PR #213 review [P2]): rejects counterUpdates that declares resetScope: RESOLUTION_SCOPE, since EffectSequence counters always discard at resolution end regardless of resetScope", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
+            },
+          ],
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_SEQ_HITS",
+              scope: "EFFECT_SEQUENCE",
+              trigger: baseTrigger,
+              amount: 1,
+              resetScope: "RESOLUTION_SCOPE",
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-SEQ-030 (EFF-006 Issue #212): rejects a non-array counterUpdates", () => {
     expect(() =>
       createEffectSequence(

@@ -368,6 +368,19 @@ export function createEffectSequence(input: EffectSequenceInput, path: string): 
         `must be "EFFECT_SEQUENCE" when declared on an EffectSequence, got "${update.scope}"`,
       );
     }
+    // PR #213レビュー[P2]: `resetScope`はこの位置では意味を持たない（選択の
+    // 余地がない） — `EffectSequence`は状態を持たないため、このcounterは常に
+    // このEffectSequence自身の解決終了時に破棄される（宣言された
+    // resolutionScope終了時ではない）。Catalogが`resetScope: RESOLUTION_SCOPE`を
+    // 受理すると、宣言と実際のライフサイクルが一致しない契約違反になるため
+    // 明示的に拒否する（`14_Catalog定義スキーマ.md`「counterUpdates
+    // （EffectSequenceスコープ、EFF-006）」）。
+    if (update.resetScope !== undefined) {
+      throw new DomainValidationError(
+        `${path}.counterUpdates[${i}].resetScope`,
+        "must not be declared on an EffectSequence (its counters always discard when this EffectSequence's own resolution ends, regardless of resetScope)",
+      );
+    }
     return update;
   });
 
