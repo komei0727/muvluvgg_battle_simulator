@@ -39,7 +39,15 @@ import {
   applyMatchedEffectRuntimeCounterUpdate,
   matchEffectRuntimeCounterUpdates,
 } from "../triggering/runtime-counter-effect-matcher.js";
+import {
+  applyMatchedEffectSequenceRuntimeCounterUpdate,
+  matchEffectSequenceRuntimeCounterUpdates,
+  type ActiveEffectSequenceResolution,
+} from "../triggering/effect-sequence-runtime-counter-matcher.js";
 import { resetRuntimeCounter } from "../model/runtime-counter-state.js";
+import type { RuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
+import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import {
   createEmptyPassiveActivationGuard,
   type PassiveActivationGuard,
@@ -189,6 +197,27 @@ export class PassiveActivationRuntime {
    * 満たすため。
    */
   private readonly skillUseIdOf = new Map<DomainEventId, SkillUseId>();
+  /**
+   * EFF-006/Issue #212: `R-EFF-11`の`EffectSequence`スコープ。`EffectSequence`
+   * 自身は状態を持たないため、`applyEffectSequenceRuntimeCounterUpdates`が
+   * `units`だけからcounterUpdates定義を再発見できない（`AppliedEffect`の
+   * `units[].appliedEffects[]`、`SkillRuntime`の`SkillDefinition.counterUpdates`
+   * と異なる）。呼び出し側（`action-skill-use-resolver.ts`／
+   * `action-charge-resolver.ts`／`activatePassiveCandidate`自身）が
+   * `beginEffectSequenceResolution`で1回の解決の開始を登録し、
+   * `finalizeEffectSequenceResolution`（またはPS連鎖内部用のgenerator版）で
+   * その終了時にこのMapからエントリ自体を削除する。
+   */
+  private readonly activeEffectSequenceResolutions = new Map<
+    SkillUseId,
+    ActiveEffectSequenceResolution
+  >();
+  /**
+   * `processedEffectRuntimeCounterEventIds`と同じ理由の別スコープ用ガード
+   * （`AppliedEffect`と`EffectSequence`は別々のマッチング対象を持つため、
+   * 同じeventIdでも独立に二重処理を防ぐ必要がある）。
+   */
+  private readonly processedEffectSequenceRuntimeCounterEventIds = new Set<DomainEventId>();
 
   constructor(context: PassiveActivationRuntimeContext, initialUnits: readonly BattleUnit[]) {
     this.context = context;
@@ -198,6 +227,29 @@ export class PassiveActivationRuntime {
 
   get currentUnits(): readonly BattleUnit[] {
     return this.units;
+  }
+
+  /**
+   * EFF-006/Issue #212: 呼び出し側（`action-skill-use-resolver.ts`のAS/EX、
+   * `action-charge-resolver.ts`のチャージ解放、この行動専用`activatePassiveCandidate`
+   * のPS自身のEffectSequence）が、これから解決する1つのEffectSequenceが宣言する
+   * `counterUpdates`（あれば）を登録する。`skillUseId`はその解決を一意に識別する
+   * 既存の実行時識別子であり、`EFFECT_SEQUENCE`スコープのcounterの保持先キーにも
+   * そのまま使う。`counterUpdates`が空配列でも登録して構わない（マッチ対象が
+   * 無いだけで、`finalizeEffectSequenceResolution`の呼び出しは省略できない —
+   * 呼び出し側は毎回対で呼ぶ契約にした方が単純なため）。
+   */
+  beginEffectSequenceResolution(
+    skillUseId: SkillUseId,
+    actorId: BattleUnitId,
+    skillDefinitionId: SkillDefinitionId,
+    counterUpdates: readonly RuntimeCounterUpdateDefinition[],
+  ): void {
+    this.activeEffectSequenceResolutions.set(skillUseId, {
+      actorId,
+      skillDefinitionId,
+      counterUpdates,
+    });
   }
 
   private toTriggerEvent(event: BattleDomainEvent): TriggerCandidateEvent {
@@ -265,6 +317,10 @@ export class PassiveActivationRuntime {
       applyExpirationConditions: (event) => this.applyExpirationConditionsForChain(event),
       applyEffectRuntimeCounterUpdates: (event, resolveChild) =>
         this.applyEffectRuntimeCounterUpdates(event, (recorded) =>
+          resolveChild(this.toTriggerEvent(recorded)),
+        ),
+      applyEffectSequenceRuntimeCounterUpdates: (event, resolveChild) =>
+        this.applyEffectSequenceRuntimeCounterUpdates(event, (recorded) =>
           resolveChild(this.toTriggerEvent(recorded)),
         ),
     };
@@ -518,6 +574,214 @@ export class PassiveActivationRuntime {
   }
 
   /**
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-006/Issue #212）:
+   * `applyEffectRuntimeCounterUpdates`（`AppliedEffect`スコープ）の
+   * `EffectSequence`スコープ版。`event`に一致する現在進行中の各EffectSequence
+   * 解決（`this.activeEffectSequenceResolutions`）自身のcounterUpdatesを検出し、
+   * `RuntimeCounterChanged`（`scope: EFFECT_SEQUENCE`、`skillDefinitionId`。
+   * `SkillUseId`はイベントエンベロープの`skillUseId`が既に持つため`payload`には
+   * 重複させない）を発行する。`applyExpirationConditionsForChain`（R-EFF-08）
+   * より必ず先に呼ぶ（同じR-EFF-11の順序規則）。
+   *
+   * `onFactEvent`のトップレベル呼び出しと、`resolvePassiveChain`へ注入する
+   * `deps.applyEffectSequenceRuntimeCounterUpdates`（PS自身がyieldする
+   * `PassiveActivated`・`EffectActionStarting`等、`onFactEvent`を経由しない
+   * PS連鎖内部のイベントに同じ処理を届ける）の両方から呼ばれる。
+   * `processedEffectSequenceRuntimeCounterEventIds`で同じ`DomainEventId`の
+   * 二重処理を防ぐ（`applyEffectRuntimeCounterUpdates`と同じ理由、別スコープの
+   * ため独立したSetを使う）。
+   *
+   * マッチした複数エントリは1件ずつ`resolveChild`（候補連鎖の完全解決）を挟んで
+   * 適用する（`applyEffectRuntimeCounterUpdates`と同じ理由）。
+   */
+  private applyEffectSequenceRuntimeCounterUpdates(
+    event: TriggerCandidateEvent,
+    resolveChild: (recorded: BattleDomainEvent) => PassiveChainLimitViolationReason | undefined,
+  ): PassiveChainLimitViolationReason | undefined {
+    const eventId = this.eventIdOf(event);
+    if (this.processedEffectSequenceRuntimeCounterEventIds.has(eventId)) {
+      return undefined;
+    }
+    this.processedEffectSequenceRuntimeCounterEventIds.add(eventId);
+
+    const matched = matchEffectSequenceRuntimeCounterUpdates(
+      this.activeEffectSequenceResolutions,
+      this.units,
+      event,
+    );
+    for (const entry of matched) {
+      const result = applyMatchedEffectSequenceRuntimeCounterUpdate(entry, this.units, event);
+      this.units = result.units;
+      const change = result.change;
+      if (change === undefined) {
+        continue;
+      }
+
+      const carryChanged = change.carry !== change.carryBefore;
+      const recorded = this.context.recorder.record({
+        eventType: "RuntimeCounterChanged",
+        category: "FACT",
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId: change.skillUseId,
+        resolutionScopeId: this.context.resolutionScopeId,
+        parentEventId: eventId,
+        rootEventId: this.context.rootEventId,
+        sourceUnitId: change.actorId,
+        payload: {
+          ownerUnitId: change.actorId,
+          scope: "EFFECT_SEQUENCE",
+          counter: change.counter,
+          skillDefinitionId: change.skillDefinitionId,
+          before: change.before,
+          after: change.after,
+          carry: change.carry,
+          valueChanged: change.valueChanged,
+        },
+        stateDelta: {
+          units: {
+            [change.actorId]: {
+              ...(change.valueChanged
+                ? {
+                    effectSequenceCounters: {
+                      [change.skillUseId]: {
+                        [change.counter]: { before: change.before, after: change.after },
+                      },
+                    },
+                  }
+                : {}),
+              ...(carryChanged
+                ? {
+                    effectSequenceCounterCarry: {
+                      [change.skillUseId]: {
+                        [change.counter]: {
+                          before: change.carryBefore,
+                          after: change.carry === 0 ? undefined : change.carry,
+                        },
+                      },
+                    },
+                  }
+                : {}),
+            },
+          },
+        },
+      });
+
+      const violation = resolveChild(recorded);
+      if (violation !== undefined) {
+        return violation;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * EFF-006/Issue #212: `EffectSequence`は状態を持たないため、1回の解決が
+   * 完了した時点で必ずそのcounterを破棄する（`SkillRuntime`の
+   * `resetScope: "RESOLUTION_SCOPE"`と異なり、宣言による選択の余地がない）。
+   * `this.activeEffectSequenceResolutions`からエントリ自体を先に削除してから
+   * 破棄・`RuntimeCounterReset`発行を行う — この順序により、`RuntimeCounterReset`
+   * 自身を再誘発契機にする誤ったCatalog定義（`R-EFF-11`が警告する自己再生成
+   * パターン）があっても、削除済みの解決に対しては`applyEffectSequenceRuntimeCounterUpdates`
+   * が何もマッチさせられないため、無限ループが原理的に起こらない
+   * （`finalizeResolutionScope`の反復回数上限とは異なる安全策）。
+   * `resolveChild`が呼ばれる前に`this.units`へ書き込む点、複数counterを1件ずつ
+   * 発行・解決する点は既存パターンと同じ。
+   */
+  private *finalizeEffectSequenceResolutionSteps(
+    skillUseId: SkillUseId,
+  ): Generator<BattleDomainEvent, void, void> {
+    const resolution = this.activeEffectSequenceResolutions.get(skillUseId);
+    this.activeEffectSequenceResolutions.delete(skillUseId);
+    if (resolution === undefined) {
+      return;
+    }
+    const actor = requireUnit(this.units, resolution.actorId);
+    const counters = actor.effectSequenceCounters?.[skillUseId] ?? {};
+    for (const counterId of Object.keys(counters) as (keyof typeof counters)[]) {
+      const currentActor = requireUnit(this.units, resolution.actorId);
+      const currentCounters = currentActor.effectSequenceCounters?.[skillUseId] ?? {};
+      const result = resetRuntimeCounter(currentCounters, counterId);
+      if (result === undefined) {
+        continue;
+      }
+      const carryBefore = currentCounters[counterId]?.carry ?? 0;
+      // レビュー指摘: `effectSequenceCounters`は`skillCounters`と異なり、この
+      // 解決が完了したら`skillUseId`エントリ自体も完全に消す（空の`{}`を
+      // 残す既存の非対称な規約を流用しない — `captureBattleState`/
+      // `applyTwoLevelCounterDeltas`（`pruneEmptyFirstLevelEntries`）が実状態と
+      // 一致させるためにも、最後のcounterを消した時点でキー自体を削除する）。
+      const nextEffectSequenceCounters = { ...currentActor.effectSequenceCounters };
+      if (Object.keys(result.counters).length === 0) {
+        delete nextEffectSequenceCounters[skillUseId];
+      } else {
+        nextEffectSequenceCounters[skillUseId] = result.counters;
+      }
+      const hasRemainingEntries = Object.keys(nextEffectSequenceCounters).length > 0;
+      const { effectSequenceCounters: _omit, ...actorWithoutCounters } = currentActor;
+      const updatedActor: BattleUnit = hasRemainingEntries
+        ? { ...actorWithoutCounters, effectSequenceCounters: nextEffectSequenceCounters }
+        : actorWithoutCounters;
+      this.units = this.units.map((u) =>
+        u.battleUnitId === updatedActor.battleUnitId ? updatedActor : u,
+      );
+      const recorded = this.context.recorder.record({
+        eventType: "RuntimeCounterReset",
+        category: "FACT",
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId,
+        resolutionScopeId: this.context.resolutionScopeId,
+        parentEventId: this.context.rootEventId,
+        rootEventId: this.context.rootEventId,
+        sourceUnitId: resolution.actorId,
+        payload: {
+          ownerUnitId: resolution.actorId,
+          scope: "EFFECT_SEQUENCE",
+          counter: counterId,
+          skillDefinitionId: resolution.skillDefinitionId,
+          before: result.change.before,
+        },
+        stateDelta: {
+          units: {
+            [resolution.actorId]: {
+              effectSequenceCounters: {
+                [skillUseId]: { [counterId]: { before: result.change.before, after: undefined } },
+              },
+              ...(carryBefore !== 0
+                ? {
+                    effectSequenceCounterCarry: {
+                      [skillUseId]: { [counterId]: { before: carryBefore, after: undefined } },
+                    },
+                  }
+                : {}),
+            },
+          },
+        },
+      });
+      yield recorded;
+    }
+  }
+
+  /**
+   * EFF-006/Issue #212: `finalizeEffectSequenceResolutionSteps`のトップレベル
+   * 版。呼び出し側（AS/EX使用・チャージ解放）が、1つのEffectSequenceの解決
+   * （`applyEffectActionGroups`の戻り）を受け取った直後に必ず1回呼ぶ。各
+   * `RuntimeCounterReset`を`this.onFactEvent`へ再帰させ、その候補解決を
+   * 完全に終えてから次のcounterへ進む（`finalizeResolutionScope`と同じ
+   * トップレベル専用の駆動方法 — PS連鎖内部からはこのメソッドを呼んではならない、
+   * 代わりに`finalizeEffectSequenceResolutionSteps`を`yield*`委譲すること）。
+   */
+  finalizeEffectSequenceResolution(skillUseId: SkillUseId): readonly BattleUnit[] {
+    for (const recorded of this.finalizeEffectSequenceResolutionSteps(skillUseId)) {
+      this.units = this.onFactEvent(recorded, this.units);
+    }
+    return this.units;
+  }
+
+  /**
    * `applyDamageAction`等が確定させたFACT/TIMINGイベントの都度呼び出す
    * トップレベルのエントリーポイント。PS発動で変化した`units`をそのまま返す。
    *
@@ -561,6 +825,18 @@ export class PassiveActivationRuntime {
       if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
         throw new ExecutionGuardExceededError(
           `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a DurationDefinition.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+        );
+      }
+      this.units = this.onFactEvent(recorded, this.units, nextDepth);
+      return undefined;
+    });
+
+    // EFF-006/Issue #212: `EffectSequence`スコープも同じ理由・同じ順序
+    // （`applyExpirationConditions`より先）で確定させる。
+    this.applyEffectSequenceRuntimeCounterUpdates(triggerEvent, (recorded) => {
+      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+        throw new ExecutionGuardExceededError(
+          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; an EffectSequence.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
       this.units = this.onFactEvent(recorded, this.units, nextDepth);
@@ -1017,6 +1293,15 @@ export class PassiveActivationRuntime {
       parentEventId: lastEventId,
       skillDefinitionId: skill.skillDefinitionId,
     };
+    // EFF-006/Issue #212: このPS自身のEffectSequence解決を開始する前に登録する
+    // （`SkillUseStarting`相当のTIMINGはPSには無いため、`resolveEffectSequencePlan`
+    // 自身が発行する最初のイベントから対象にできるようにする）。
+    this.beginEffectSequenceResolution(
+      skillUseId,
+      ownerId,
+      skill.skillDefinitionId,
+      skill.resolution.counterUpdates ?? [],
+    );
     const box: UnitsBox = { units: this.units };
     const generator = resolveEffectSequencePlan(plan, box, groupContext);
     let step = generator.next();
@@ -1048,6 +1333,18 @@ export class PassiveActivationRuntime {
     this.units = box.units;
     const effectResult = step.value;
     const interruptedCount = effectResult.interruptedCount;
+
+    // EFF-006/Issue #212: このPS自身のEffectSequence解決が完了した時点で、
+    // そのcounterを直ちに破棄する（`resolveEffectSequencePlan`が中断で終わった
+    // 場合も含め、必ず1回だけ呼ぶ）。PS連鎖内部（このgenerator自身が
+    // `driveActivation`に駆動されている）から呼んでいるため、
+    // `finalizeEffectSequenceResolution`（トップレベル専用、内部で
+    // `this.onFactEvent`を再帰させる）ではなく、`finalizeEffectSequenceResolutionSteps`
+    // を`yield*`委譲し、`driveActivation`が共有するstateへ正しく候補解決させる。
+    for (const recorded of this.finalizeEffectSequenceResolutionSteps(skillUseId)) {
+      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(recorded) };
+      lastEventId = recorded.eventId;
+    }
 
     // R-PS-05 #6 / R-SKL-01: 使用者(PS所有者)が戦闘不能になり、未解決のまま
     // 打ち切られた適用が実際に残った場合だけ中断とする（PR #141再レビュー[P2]:

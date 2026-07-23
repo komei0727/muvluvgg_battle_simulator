@@ -115,7 +115,15 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "EFF-005",
-    "description": "AppliedEffectスコープのRuntimeCounter（DurationDefinition.counterUpdates、expiration.conditionsからの参照、実ライフサイクル配線・独立Reducer復元まで実装し、明示的Scenarioで検証済み、EFF-005/Issue #162）。利用するproduction定義が現状存在しないため、productionDefinitionIdsが揃うまでruntimeStatusはPLANNEDのまま（createCapabilityDefinitionはIMPLEMENTEDにproductionDefinitionIds非空を要求する）。MarkerState（consumption/expiration機構が別途未実装）とEffectSequence（対応するResolverが未実装）はいずれもCatalogロード時点でcounterUpdates／RuntimeCounterスコープを明示的に拒否する。",
+    "description": "AppliedEffectスコープのRuntimeCounter（DurationDefinition.counterUpdates、expiration.conditionsからの参照、実ライフサイクル配線・独立Reducer復元まで実装し、明示的Scenarioで検証済み、EFF-005/Issue #162）。利用するproduction定義が現状存在しないため、productionDefinitionIdsが揃うまでruntimeStatusはPLANNEDのまま（createCapabilityDefinitionはIMPLEMENTEDにproductionDefinitionIds非空を要求する）。MarkerState（consumption/expiration機構が別途未実装）はCatalogロード時点でcounterUpdates／RuntimeCounterスコープを明示的に拒否する。",
+    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+  },
+  {
+    "capabilityId": "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "EFF-006",
+    "description": "EffectSequenceスコープのRuntimeCounter（EffectSequence.counterUpdates、実行時識別子はSkillUseIdを再利用、実ライフサイクル配線・PS/Memory候補解決・独立Reducer復元まで実装し、明示的Scenarioで検証済み、EFF-006/Issue #212）。利用するproduction定義が現状存在しないため、productionDefinitionIdsが揃うまでruntimeStatusはPLANNEDのまま。",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {

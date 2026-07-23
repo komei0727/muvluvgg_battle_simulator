@@ -196,6 +196,7 @@ type RuntimeStructuralCapabilityId =
   | "CAP_ACTION_ACTIVATION_CONDITION"
   | "CAP_PASSIVE_ACTIVATION_CONDITION"
   | "CAP_EFFECT_RUNTIME_COUNTER"
+  | "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"
   | "CAP_EFFECT_STEP_CONDITION"
   | "CAP_MEMORY_TRIGGERED_EFFECT"
   | "CAP_RANDOM_BRANCH"
@@ -611,6 +612,9 @@ function validateSkill(
   const runtimeTriggers = [
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),
+    ...sequences.flatMap((sequence) =>
+      (sequence.counterUpdates ?? []).map((counterUpdate) => counterUpdate.trigger),
+    ),
   ];
   if (skill.counterUpdates.length > 0) {
     requireRuntimeCapability(
@@ -618,6 +622,15 @@ function validateSkill(
       skill.requiredCapabilities,
       "CAP_SKILL_RUNTIME_COUNTER",
       "Skill counterUpdates",
+      violations,
+    );
+  }
+  if (sequences.some((sequence) => (sequence.counterUpdates ?? []).length > 0)) {
+    requireRuntimeCapability(
+      skill.skillDefinitionId,
+      skill.requiredCapabilities,
+      "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER",
+      "EffectSequence counterUpdates",
       violations,
     );
   }

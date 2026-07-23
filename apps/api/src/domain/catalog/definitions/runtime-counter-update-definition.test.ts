@@ -238,8 +238,8 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it.each(["BATTLE", "BATTLE_UNIT", "EFFECT_SEQUENCE"])(
-    "UT-CAT-RCU-011 (review fix [P2], EFF-005 Issue #162): rejects scope %s at Catalog load time (only SKILL_RUNTIME/APPLIED_EFFECT are implemented; Catalog must not accept a scope the runtime rejects)",
+  it.each(["BATTLE", "BATTLE_UNIT"])(
+    "UT-CAT-RCU-011 (review fix [P2], EFF-006 Issue #212): rejects scope %s at Catalog load time (only SKILL_RUNTIME/APPLIED_EFFECT/EFFECT_SEQUENCE are implemented; Catalog must not accept a scope the runtime rejects)",
     (scope) => {
       expect(() =>
         createRuntimeCounterUpdateDefinition(
@@ -268,5 +268,19 @@ describe("RuntimeCounterUpdateDefinition", () => {
       "counterUpdate",
     );
     expect(result.scope).toBe("APPLIED_EFFECT");
+  });
+
+  it("UT-CAT-RCU-016 (EFF-006 Issue #212): accepts scope EFFECT_SEQUENCE", () => {
+    const result = createRuntimeCounterUpdateDefinition(
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_AS_USE",
+        scope: "EFFECT_SEQUENCE",
+        trigger: baseTrigger,
+        amount: 1,
+      },
+      "counterUpdate",
+    );
+    expect(result.scope).toBe("EFFECT_SEQUENCE");
   });
 });

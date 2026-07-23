@@ -128,6 +128,14 @@ export interface SkillResolutionDefinitionInput {
   readonly kind: string;
   readonly targetBindings?: EffectSequenceInput["targetBindings"];
   readonly steps: EffectSequenceInput["steps"];
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」`EffectSequence`スコープ（EFF-006、
+   * Issue #212）。`SkillDefinition.counterUpdates`（`SKILL_RUNTIME`スコープ）とは
+   * 独立に、この解決（IMMEDIATE、またはCHARGEの開始側）自身のEffectSequenceが
+   * 宣言するcounterUpdatesを渡す。`chargeRelease`側は`EffectSequenceInput`を
+   * そのまま渡すため、既に`counterUpdates`を宣言できる。
+   */
+  readonly counterUpdates?: EffectSequenceInput["counterUpdates"];
   readonly chargeRelease?: EffectSequenceInput;
 }
 
@@ -228,9 +236,11 @@ function createCooldown(input: CooldownInput, path: string): Cooldown {
 }
 
 function createSequenceInput(input: SkillResolutionDefinitionInput): EffectSequenceInput {
-  return input.targetBindings === undefined
-    ? { steps: input.steps }
-    : { targetBindings: input.targetBindings, steps: input.steps };
+  return {
+    ...(input.targetBindings === undefined ? {} : { targetBindings: input.targetBindings }),
+    steps: input.steps,
+    ...(input.counterUpdates === undefined ? {} : { counterUpdates: input.counterUpdates }),
+  };
 }
 
 function createResolution(

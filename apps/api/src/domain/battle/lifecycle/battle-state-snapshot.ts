@@ -20,6 +20,7 @@ import type {
   UnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { SkillUseId } from "../../shared/event-ids.js";
 
 export type { BattleResultSnapshot } from "../events/state-delta.js";
 
@@ -48,6 +49,19 @@ export interface BattleUnitSnapshot {
    */
   readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`EffectSequence`スコープ（EFF-006、
+   * Issue #212）。`skillCounters`と同じ射影だが、1段目のキーが`SkillUseId`
+   * （1回の解決を識別する既存の実行時識別子）である点だけが異なる。その解決が
+   * 完了した時点で必ずキー自体が削除されるため、進行中の解決だけが持つ。
+   */
+  readonly effectSequenceCounters?: Readonly<
+    Record<SkillUseId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /** `effectSequenceCounters`の`carry`専用射影。`skillCounterCarry`と同じ規約。 */
+  readonly effectSequenceCounterCarry?: Readonly<
+    Record<SkillUseId, Readonly<Record<RuntimeCounterId, number>>>
   >;
   /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
   readonly effects?: readonly EffectSnapshot[];
@@ -103,6 +117,32 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         skillCounterCarry[skillDefinitionId] = carryValues;
       }
     }
+    const effectSequenceSkillUseIds = Object.keys(
+      unit.effectSequenceCounters ?? {},
+    ) as SkillUseId[];
+    const effectSequenceCounters: Record<
+      SkillUseId,
+      Readonly<Record<RuntimeCounterId, number>>
+    > = {};
+    const effectSequenceCounterCarry: Record<
+      SkillUseId,
+      Readonly<Record<RuntimeCounterId, number>>
+    > = {};
+    for (const skillUseId of effectSequenceSkillUseIds) {
+      const counters = unit.effectSequenceCounters![skillUseId]!;
+      const values: Record<RuntimeCounterId, number> = {};
+      const carryValues: Record<RuntimeCounterId, number> = {};
+      for (const counterId of Object.keys(counters) as RuntimeCounterId[]) {
+        values[counterId] = counters[counterId]!.value;
+        if (counters[counterId]!.carry !== 0) {
+          carryValues[counterId] = counters[counterId]!.carry;
+        }
+      }
+      effectSequenceCounters[skillUseId] = values;
+      if (Object.keys(carryValues).length > 0) {
+        effectSequenceCounterCarry[skillUseId] = carryValues;
+      }
+    }
     const effective = selectEffectiveInstances(unit.appliedEffects);
     units[unit.battleUnitId] = {
       hp: unit.currentHp,
@@ -121,6 +161,8 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         : {}),
       ...(skillCounterSkillIds.length > 0 ? { skillCounters } : {}),
       ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
+      ...(effectSequenceSkillUseIds.length > 0 ? { effectSequenceCounters } : {}),
+      ...(Object.keys(effectSequenceCounterCarry).length > 0 ? { effectSequenceCounterCarry } : {}),
       ...(unit.appliedEffects.length > 0
         ? {
             effects: unit.appliedEffects.map((effect) =>

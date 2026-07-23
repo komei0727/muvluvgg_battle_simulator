@@ -29,6 +29,10 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import {
+  createRuntimeCounterUpdateDefinition,
+  type RuntimeCounterUpdateDefinition,
+} from "../../catalog/definitions/runtime-counter-update-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { applyStateDelta } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
@@ -3180,6 +3184,423 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         { before: 0, after: 10 },
         { before: 10, after: 11 },
       ]);
+    });
+  });
+
+  describe("RuntimeCounter EFFECT_SEQUENCE scope (R-EFF-11, EFF-006/Issue #212)", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_SEQ_ACTOR");
+    const hitCounterId = createRuntimeCounterId("RUNTIME_COUNTER_SEQ_HITS");
+    const skillDefinitionId = createSkillDefinitionId("SKL_SEQ_AS");
+
+    function sequenceCounterUpdates(
+      eventType = "EffectActionCompleted",
+    ): readonly RuntimeCounterUpdateDefinition[] {
+      return [
+        createRuntimeCounterUpdateDefinition(
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_SEQ_HITS",
+            scope: "EFFECT_SEQUENCE",
+            trigger: {
+              eventType,
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "ANY",
+            },
+            amount: 1,
+          },
+          "counterUpdates[0]",
+        ),
+      ];
+    }
+
+    function actionCompletedEvent(
+      recorder: EventRecorder,
+      turnStarted: BattleDomainEvent,
+      actor: BattleUnit,
+      skillUseId: ReturnType<EventRecorder["nextSkillUseId"]>,
+    ): BattleDomainEvent {
+      return recorder.record({
+        eventType: "EffectActionCompleted",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId: createActionId("B_1:action:1"),
+        skillUseId,
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: actor.battleUnitId,
+        targetUnitIds: [actor.battleUnitId],
+        payload: {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_SEQ_HIT"),
+          effectActionKind: "DAMAGE",
+          targetUnitIds: [actor.battleUnitId],
+          resultKind: "APPLIED",
+        },
+      });
+    }
+
+    it("UT-R-EFF-11-020 (EFF-006 Issue #212): increments the active resolution's own counter, emits RuntimeCounterChanged with skillDefinitionId (SkillUseId lives on the envelope), and does not throw", () => {
+      const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId });
+      const definitions = definitionsOf(
+        new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId, [])]]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [actor],
+      );
+
+      const skillUseId = recorder.nextSkillUseId();
+      runtime.beginEffectSequenceResolution(
+        skillUseId,
+        actor.battleUnitId,
+        skillDefinitionId,
+        sequenceCounterUpdates(),
+      );
+
+      const completed = actionCompletedEvent(recorder, turnStarted, actor, skillUseId);
+      const units = runtime.onFactEvent(completed, [actor]);
+
+      const updatedActor = units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updatedActor.effectSequenceCounters).toEqual({
+        [skillUseId]: { [hitCounterId]: { value: 1, carry: 0 } },
+      });
+
+      const changed = recorder.getEvents().filter((e) => e.eventType === "RuntimeCounterChanged");
+      expect(changed).toHaveLength(1);
+      expect(changed[0]!.parentEventId).toBe(completed.eventId);
+      expect(changed[0]!.skillUseId).toBe(skillUseId);
+      expect(changed[0]!.payload).toEqual({
+        ownerUnitId: actor.battleUnitId,
+        scope: "EFFECT_SEQUENCE",
+        counter: hitCounterId,
+        skillDefinitionId,
+        before: 0,
+        after: 1,
+        carry: 0,
+        valueChanged: true,
+      });
+    });
+
+    it("UT-R-EFF-11-021 (EFF-006 Issue #212): finalizeEffectSequenceResolution discards the counter, emits RuntimeCounterReset, and its stateDelta round-trips through the independent Reducer", () => {
+      const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId });
+      const definitions = definitionsOf(
+        new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId, [])]]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [actor],
+      );
+
+      const skillUseId = recorder.nextSkillUseId();
+      runtime.beginEffectSequenceResolution(
+        skillUseId,
+        actor.battleUnitId,
+        skillDefinitionId,
+        sequenceCounterUpdates(),
+      );
+      const completed = actionCompletedEvent(recorder, turnStarted, actor, skillUseId);
+      runtime.onFactEvent(completed, [actor]);
+
+      const finalUnits = runtime.finalizeEffectSequenceResolution(skillUseId);
+
+      const finalizedActor = finalUnits.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(finalizedActor.effectSequenceCounters).toBeUndefined();
+
+      const resetEvents = recorder.getEvents().filter((e) => e.eventType === "RuntimeCounterReset");
+      expect(resetEvents).toHaveLength(1);
+      const reset = resetEvents[0]!;
+      expect(reset.payload).toEqual({
+        ownerUnitId: actor.battleUnitId,
+        scope: "EFFECT_SEQUENCE",
+        counter: hitCounterId,
+        skillDefinitionId,
+        before: 1,
+      });
+
+      const before: BattleStateSnapshot = {
+        status: "RUNNING",
+        currentTurn: 1,
+        units: {
+          [actor.battleUnitId]: {
+            hp: actor.currentHp,
+            ap: actor.currentAp,
+            pp: actor.currentPp,
+            extraGauge: actor.currentExtraGauge,
+            combatStats: actor.combatStats,
+            effectSequenceCounters: { [skillUseId]: { [hitCounterId]: 1 } },
+          },
+        },
+      };
+      const after = applyStateDelta(before, reset.stateDelta!);
+      expect(after.units[actor.battleUnitId]!.effectSequenceCounters).toBeUndefined();
+    });
+
+    it("UT-R-EFF-11-022 (EFF-006 Issue #212): a counterUpdates entry that re-triggers off RuntimeCounterReset cannot regenerate the counter, because finalize deletes the active resolution before emitting Reset (single Reset event, no loop, no ExecutionGuardExceededError)", () => {
+      const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId });
+      const definitions = definitionsOf(
+        new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId, [])]]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [actor],
+      );
+
+      const skillUseId = recorder.nextSkillUseId();
+      const selfRetriggeringUpdates: readonly RuntimeCounterUpdateDefinition[] = [
+        ...sequenceCounterUpdates("EffectActionCompleted"),
+        createRuntimeCounterUpdateDefinition(
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_SEQ_HITS",
+            scope: "EFFECT_SEQUENCE",
+            // Deliberately tries to re-trigger itself off the very
+            // RuntimeCounterReset that discards it (Catalog author error).
+            trigger: {
+              eventType: "RuntimeCounterReset",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "ANY",
+            },
+            amount: 1,
+          },
+          "counterUpdates[1]",
+        ),
+      ];
+      runtime.beginEffectSequenceResolution(
+        skillUseId,
+        actor.battleUnitId,
+        skillDefinitionId,
+        selfRetriggeringUpdates,
+      );
+      const completed = actionCompletedEvent(recorder, turnStarted, actor, skillUseId);
+      runtime.onFactEvent(completed, [actor]);
+
+      const finalUnits = runtime.finalizeEffectSequenceResolution(skillUseId);
+
+      // The active resolution (and its counterUpdates) is deleted from the
+      // registry before RuntimeCounterReset is emitted/resolved, so the
+      // self-retriggering entry finds nothing to match against — exactly one
+      // Reset fires and the counter stays discarded.
+      const finalizedActor = finalUnits.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(finalizedActor.effectSequenceCounters).toBeUndefined();
+      const resetEvents = recorder.getEvents().filter((e) => e.eventType === "RuntimeCounterReset");
+      expect(resetEvents).toHaveLength(1);
+    });
+
+    it("UT-R-EFF-11-023 (EFF-006 Issue #212): a PS's own EffectSequence counterUpdates increments once per EffectActionCompleted, and a second PS whose trigger is RuntimeCounterChanged (scope EFFECT_SEQUENCE) activates as a full PS candidate once the threshold is reached, entirely inside the PS-chain-internal path", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_SEQ_OWNER");
+      const parentSkillId = createSkillDefinitionId("SKL_PS_SEQ_PARENT");
+      const childSkillId = createSkillDefinitionId("SKL_PS_SEQ_CHILD");
+      const stepAction = damageEffectAction("ACT_SEQ_STEP");
+      const childAction = damageEffectAction("ACT_SEQ_CHILD");
+
+      const parentSkill: SkillDefinition = {
+        skillDefinitionId: parentSkillId,
+        skillType: "PS",
+        cost: { resource: "PP", amount: 1 },
+        activationCondition: { kind: "TRUE" },
+        triggers: [
+          {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+        ],
+        counterUpdates: [],
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: stepAction.effectActionDefinitionId }],
+            },
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: stepAction.effectActionDefinitionId }],
+            },
+          ],
+          counterUpdates: [
+            createRuntimeCounterUpdateDefinition(
+              {
+                kind: "INCREMENT",
+                counter: "RUNTIME_COUNTER_SEQ_STEPS",
+                scope: "EFFECT_SEQUENCE",
+                trigger: {
+                  eventType: "EffectActionCompleted",
+                  category: "FACT",
+                  sourceSelector: "SELF",
+                  targetSelector: "ANY",
+                  // Scoped to this EffectSequence's own step action, not any
+                  // EffectActionCompleted sourced from the owner (the child
+                  // PS's own action would otherwise also match, since it
+                  // fires while this resolution is still active).
+                  condition: {
+                    kind: "EVENT_PAYLOAD",
+                    field: "effectActionDefinitionId",
+                    op: "EQ",
+                    value: stepAction.effectActionDefinitionId,
+                  },
+                },
+                amount: 1,
+              },
+              "counterUpdates[0]",
+            ),
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 0 },
+        traits: {
+          priorityAttack: false,
+          simultaneousActivationLimited: false,
+          exclusiveActivationGroupId: null,
+          accuracy: { guaranteedHit: false },
+          piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        },
+        requiredCapabilities: [],
+        metadata: { displayName: "SKL_PS_SEQ_PARENT", tags: [] },
+      };
+
+      const childSkill: SkillDefinition = {
+        skillDefinitionId: childSkillId,
+        skillType: "PS",
+        cost: { resource: "PP", amount: 1 },
+        activationCondition: { kind: "TRUE" },
+        triggers: [
+          {
+            eventType: "RuntimeCounterChanged",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "EVENT_PAYLOAD",
+                  field: "counter",
+                  op: "EQ",
+                  value: "RUNTIME_COUNTER_SEQ_STEPS",
+                },
+                { kind: "EVENT_PAYLOAD", field: "after", op: "EQ", value: 2 },
+              ],
+            },
+          },
+        ],
+        counterUpdates: [],
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: childAction.effectActionDefinitionId }],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 0 },
+        traits: {
+          priorityAttack: false,
+          simultaneousActivationLimited: false,
+          exclusiveActivationGroupId: null,
+          accuracy: { guaranteedHit: false },
+          piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        },
+        requiredCapabilities: [],
+        metadata: { displayName: "SKL_PS_SEQ_CHILD", tags: [] },
+      };
+
+      const owner = unit("OWNER", "ALLY", {
+        unitDefinitionId,
+        currentHp: 100,
+        maximumHp: 100,
+        currentPp: 3,
+        maximumPp: 3,
+      });
+      const definitions = definitionsOf(
+        new Map([
+          [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [parentSkillId, childSkillId])],
+        ]),
+        new Map([
+          [parentSkillId, parentSkill],
+          [childSkillId, childSkill],
+        ]),
+        new Map([
+          [stepAction.effectActionDefinitionId, stepAction],
+          [childAction.effectActionDefinitionId, childAction],
+        ]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [owner],
+      );
+
+      const finalUnits = runtime.onFactEvent(turnStarted, [owner]);
+
+      const counterChanges = recorder
+        .getEvents()
+        .filter(
+          (e) =>
+            e.eventType === "RuntimeCounterChanged" &&
+            (e.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+        );
+      expect(counterChanges.map((e) => e.payload)).toMatchObject([
+        { before: 0, after: 1, skillDefinitionId: parentSkillId },
+        { before: 1, after: 2, skillDefinitionId: parentSkillId },
+      ]);
+
+      // The child PS's own trigger (RuntimeCounterChanged, EFFECT_SEQUENCE
+      // scope, after === 2) must have detected + activated as a full PS
+      // candidate — proving candidate-resolution parity with the
+      // AppliedEffect scope, not just a bare counter update.
+      const childActivated = recorder
+        .getEvents()
+        .find(
+          (e) =>
+            e.eventType === "PassiveActivated" &&
+            (e.payload as { skillDefinitionId?: string }).skillDefinitionId === childSkillId,
+        );
+      expect(childActivated).toBeDefined();
+
+      // The child activates while the parent's own EffectSequence is still
+      // resolving (before finalize discards the counter) — R-PS-06 "parent
+      // effect A -> child PS -> parent effect B" ordering parity.
+      const secondChange = counterChanges[1]!;
+      expect(childActivated!.sequence).toBeGreaterThan(secondChange.sequence);
+
+      // Once the parent's EffectSequence resolution completes, its own
+      // EFFECT_SEQUENCE counter is discarded exactly once (skillDefinitionId
+      // identifies the parent, not the child).
+      const resetEvents = recorder
+        .getEvents()
+        .filter(
+          (e) =>
+            e.eventType === "RuntimeCounterReset" &&
+            (e.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+        );
+      expect(resetEvents).toHaveLength(1);
+      expect(resetEvents[0]!.payload).toMatchObject({ skillDefinitionId: parentSkillId });
+
+      const ownerFinal = finalUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(ownerFinal.effectSequenceCounters).toBeUndefined();
     });
   });
 });

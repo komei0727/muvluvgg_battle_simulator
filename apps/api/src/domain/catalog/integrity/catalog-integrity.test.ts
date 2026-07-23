@@ -388,6 +388,45 @@ function runtimeCounterSkill(requiredCapabilities: readonly string[]): SkillDefi
   });
 }
 
+function effectSequenceRuntimeCounterSkill(
+  id: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: "RUNTIME_COUNTER_SEQ_HITS",
+          scope: "EFFECT_SEQUENCE",
+          trigger: {
+            eventType: "EffectActionCompleted",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+          },
+          amount: 1,
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "EffectSequence runtime counter AS" },
+  });
+}
+
 function runtimeCounterSkillWithTrigger(
   eventType: string,
   category: string,
@@ -1688,5 +1727,30 @@ describe("buildCatalogIndex", () => {
     });
 
     expect(index.effectActions.get("ACT_STAT_MOD_COUNTER" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-041 (EFF-006 Issue #212): rejects EffectSequence counterUpdates without CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER", () => {
+    const defs = baseDefinitions();
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, effectSequenceRuntimeCounterSkill("SKL_AS2", [])],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        capabilities: [capability("CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER")],
+      }),
+    ).toThrowError(/must declare "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          ...defs.skills,
+          effectSequenceRuntimeCounterSkill("SKL_AS2", ["CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"]),
+        ],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        capabilities: [capability("CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER")],
+      }),
+    ).not.toThrow();
   });
 });

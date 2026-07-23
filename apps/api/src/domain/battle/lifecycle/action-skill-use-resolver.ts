@@ -162,6 +162,16 @@ export function resolveSkillUse(
   const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();
+  // EFF-006/Issue #212: この解決（`skillUseId`）が宣言するEffectSequence
+  // 自身のcounterUpdates（あれば）を、実際のEffectSequence解決前に登録する
+  // （`SkillUseStarting`/`SkillUseStarted`のPS即時連鎖からも対象にできる
+  // ようにする）。
+  passiveRuntime.beginEffectSequenceResolution(
+    skillUseId,
+    actorId,
+    skill.skillDefinitionId,
+    skill.resolution.counterUpdates ?? [],
+  );
   const targetsSelected = recorder.record({
     eventType: "TargetsSelected",
     category: "FACT",
@@ -259,7 +269,14 @@ export function resolveSkillUse(
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units),
   });
-  working = effectResult.units;
+  // EFF-006/Issue #212: `effectResult.units`は`onFactEventForPassiveChain`経由で
+  // 既に`passiveRuntime`（`this.units`）へ同期済みのため、そのまま
+  // `finalizeEffectSequenceResolution`（`this.units`を参照する）を呼べる。
+  // このEffectSequence自身の解決が完了した時点（中断でも正常終了でも）で、
+  // そのcounterを直ちに破棄する（`SkillUseCompleted`/`SkillUseInterrupted`
+  // 発行より前 — この解決自身のcounterであり、行動全体の`resolutionScopeId`
+  // 単位で破棄する`finalizeResolutionScope`とは異なるscope）。
+  working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
 
   // PR #141 review [P1] / re-review [P2]: 使用者がEffectSequence解決中(自傷や
   // PSの反射等で)戦闘不能になり、未解決のまま打ち切られたヒット・適用が実際に

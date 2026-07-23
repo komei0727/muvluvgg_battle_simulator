@@ -14,6 +14,7 @@ import {
 } from "./resource-gauge.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { SkillUseId } from "../../shared/event-ids.js";
 import type { BattleParty, BattlePartyMember } from "./battle-party.js";
 import type { FormationPosition } from "./formation-input.js";
 import type { GlobalCoordinate } from "./global-coordinate.js";
@@ -63,6 +64,14 @@ export interface BattleUnit {
    * ため`charge`と同様に省略可能とする）。
    */
   readonly skillCounters?: Readonly<Record<SkillDefinitionId, RuntimeCounterMap>>;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`EffectSequence`スコープ（EFF-006、
+   * Issue #212）。`EffectSequence`自身は状態を持たないため、実行時識別子として
+   * 既存の`SkillUseId`（1回の解決＝1skillUseId）を再利用する。`skillCounters`と
+   * 異なり、その解決が完了した時点で必ずキー自体を破棄する
+   * （`PassiveActivationRuntime.finalizeEffectSequenceResolution`）。
+   */
+  readonly effectSequenceCounters?: Readonly<Record<SkillUseId, RuntimeCounterMap>>;
   /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01): 個別管理される全効果インスタンス。付与順を保持する。 */
   readonly appliedEffects: readonly AppliedEffect[];
   /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10): 同じmarkerIdにつき対象ごとに1インスタンス。付与順を保持する。 */

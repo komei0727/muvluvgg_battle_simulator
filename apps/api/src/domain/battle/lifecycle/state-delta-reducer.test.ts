@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { applyStateDelta, reduceStateDeltas } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 import type { EffectSnapshot, StateDelta } from "../events/state-delta.js";
-import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
+import {
+  createActionId,
+  createEffectInstanceId,
+  createSkillUseId,
+} from "../../shared/event-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
@@ -494,6 +498,90 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_A]!.skillCounterCarry).toEqual({
       [skillDefinitionId]: { [COUNTER_OTHER]: 12 },
     });
+  });
+
+  it("UT-STATE-REDUCER-029 (EFF-006 Issue #212): applies an effectSequenceCounters delta, keyed by SkillUseId then RuntimeCounterId", () => {
+    const skillUseId = createSkillUseId("skilluse-1");
+
+    const next = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          effectSequenceCounters: {
+            [skillUseId]: { [COUNTER_CRIT]: { before: 0, after: 1 } },
+          },
+        },
+      },
+    });
+
+    expect(next.units[UNIT_A]!.effectSequenceCounters).toEqual({
+      [skillUseId]: { [COUNTER_CRIT]: 1 },
+    });
+  });
+
+  it("UT-STATE-REDUCER-030 (EFF-006 Issue #212): a RuntimeCounterReset delta (after: undefined) deletes the counter key and prunes the now-empty SkillUseId entry, removing effectSequenceCounters entirely once empty", () => {
+    const skillUseId = createSkillUseId("skilluse-1");
+    const withOne = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          effectSequenceCounters: {
+            [skillUseId]: { [COUNTER_CRIT]: { before: 0, after: 3 } },
+          },
+        },
+      },
+    });
+    expect(withOne.units[UNIT_A]!.effectSequenceCounters).toEqual({
+      [skillUseId]: { [COUNTER_CRIT]: 3 },
+    });
+
+    const next = applyStateDelta(withOne, {
+      units: {
+        [UNIT_A]: {
+          effectSequenceCounters: {
+            [skillUseId]: { [COUNTER_CRIT]: { before: 3, after: undefined } },
+          },
+        },
+      },
+    });
+
+    // EFF-006: EffectSequence自身は状態を持たないため、解決完了時の
+    // RuntimeCounterResetは必ずキー自体を削除する（`skillCounters`の
+    // resetScope: RESOLUTION_SCOPEと違い、値0を残す選択肢がない）。剪定の結果、
+    // フィールド自体も完全に無くなる。
+    expect(
+      Object.prototype.hasOwnProperty.call(next.units[UNIT_A]!, "effectSequenceCounters"),
+    ).toBe(false);
+    expect(next.units[UNIT_A]!.effectSequenceCounters).toBeUndefined();
+  });
+
+  it("UT-STATE-REDUCER-031 (EFF-006 Issue #212): effectSequenceCounterCarry deletes the counter key and prunes the now-empty SkillUseId entry when after is undefined", () => {
+    const skillUseId = createSkillUseId("skilluse-1");
+    const withCarry = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          effectSequenceCounterCarry: {
+            [skillUseId]: { [COUNTER_CRIT]: { before: 0, after: 30 } },
+          },
+        },
+      },
+    });
+    expect(withCarry.units[UNIT_A]!.effectSequenceCounterCarry).toEqual({
+      [skillUseId]: { [COUNTER_CRIT]: 30 },
+    });
+
+    const next = applyStateDelta(withCarry, {
+      units: {
+        [UNIT_A]: {
+          effectSequenceCounterCarry: {
+            [skillUseId]: { [COUNTER_CRIT]: { before: 30, after: undefined } },
+          },
+        },
+      },
+    });
+
+    expect(
+      Object.prototype.hasOwnProperty.call(next.units[UNIT_A]!, "effectSequenceCounterCarry"),
+    ).toBe(false);
+    expect(next.units[UNIT_A]!.effectSequenceCounterCarry).toBeUndefined();
   });
 
   it("UT-R-EFF-01-009: applies an EffectApplied-style delta (before: undefined) as a new entry in the effects registry", () => {

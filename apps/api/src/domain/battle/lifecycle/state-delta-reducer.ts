@@ -248,7 +248,24 @@ function applyUnitDelta(
     `${path}.skillCounterCarry`,
     unit.skillCounterCarry,
     delta.skillCounterCarry,
-    { pruneEmptySkillEntries: true },
+    { pruneEmptyFirstLevelEntries: true },
+  );
+  // EFF-006/Issue #212: `EffectSequence`スコープ。`skillCounters`と同じ2段キー
+  // だが1段目が`SkillUseId`（1回の解決を識別する既存の実行時識別子）である点だけ
+  // が異なる。解決完了時に`RuntimeCounterReset`がキー自体を必ず削除するため、
+  // `skillCounterCarry`と同じく空になったら`pruneEmptyFirstLevelEntries`で
+  // フィールド自体を省略する。
+  const effectSequenceCounters = applyTwoLevelCounterDeltas(
+    `${path}.effectSequenceCounters`,
+    unit.effectSequenceCounters,
+    delta.effectSequenceCounters,
+    { pruneEmptyFirstLevelEntries: true },
+  );
+  const effectSequenceCounterCarry = applyTwoLevelCounterDeltas(
+    `${path}.effectSequenceCounterCarry`,
+    unit.effectSequenceCounterCarry,
+    delta.effectSequenceCounterCarry,
+    { pruneEmptyFirstLevelEntries: true },
   );
   const effects = applyEffectDeltas(`${path}.effects`, unit.effects, delta.effects);
   const markers = applyMarkerDeltas(`${path}.markers`, unit.markers, delta.markers);
@@ -267,6 +284,8 @@ function applyUnitDelta(
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
     ...(skillCounters !== undefined ? { skillCounters } : {}),
     ...(skillCounterCarry !== undefined ? { skillCounterCarry } : {}),
+    ...(effectSequenceCounters !== undefined ? { effectSequenceCounters } : {}),
+    ...(effectSequenceCounterCarry !== undefined ? { effectSequenceCounterCarry } : {}),
     ...(effects !== undefined && effects.length > 0 ? { effects } : {}),
     ...(markers !== undefined && markers.length > 0 ? { markers } : {}),
   };
@@ -276,45 +295,42 @@ function applyUnitDelta(
  * `R-EFF-11`（`SkillRuntime`スコープ、Issue #143）: `SkillDefinitionId`→
  * `RuntimeCounterId`の2段キーで運ばれる`skillCounters`（`value`）／
  * `skillCounterCarry`（`carry`、レビュー再々レビュー[P2]）の両方に使う共通
- * 差分適用。
+ * 差分適用。`EffectSequence`スコープ（EFF-006、Issue #212）の
+ * `effectSequenceCounters`／`effectSequenceCounterCarry`も、1段目のキーが
+ * `SkillDefinitionId`ではなく`SkillUseId`であるだけで同じ形のため、1段目キーの
+ * 型を`K`として汎用化して再利用する。
  *
  * レビュー指摘[P1]: `change.after === undefined`は`RuntimeCounterReset`による
  * キー自体の削除を表すため、`0`を書き込むのではなく`updated`からキーを
  * `delete`する（実状態の`resetRuntimeCounter`と同じ規約）。
  */
-function applyTwoLevelCounterDeltas(
+function applyTwoLevelCounterDeltas<K extends string>(
   path: string,
-  current:
-    | Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>>
-    | undefined,
+  current: Readonly<Record<K, Readonly<Record<RuntimeCounterId, number>>>> | undefined,
   deltas:
-    | Readonly<
-        Record<
-          SkillDefinitionId,
-          Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>
-        >
-      >
+    | Readonly<Record<K, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>>
     | undefined,
-  options: { readonly pruneEmptySkillEntries?: boolean } = {},
-): Readonly<Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>> | undefined {
+  options: { readonly pruneEmptyFirstLevelEntries?: boolean } = {},
+): Readonly<Record<K, Readonly<Record<RuntimeCounterId, number>>>> | undefined {
   if (deltas === undefined) {
     return current;
   }
-  const next: Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>> = {
-    ...current,
-  };
-  for (const [skillDefinitionId, counterChanges] of Object.entries(deltas) as [
-    SkillDefinitionId,
+  const next: Record<K, Readonly<Record<RuntimeCounterId, number>>> = { ...current } as Record<
+    K,
+    Readonly<Record<RuntimeCounterId, number>>
+  >;
+  for (const [firstLevelKey, counterChanges] of Object.entries(deltas) as [
+    K,
     Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>,
   ][]) {
-    const existing = next[skillDefinitionId];
+    const existing = next[firstLevelKey];
     const updated: Record<RuntimeCounterId, number> = { ...existing };
     for (const [counterId, change] of Object.entries(counterChanges) as [
       RuntimeCounterId,
       ValueChange<number | undefined>,
     ][]) {
       assertBeforeMatches(
-        `${path}[${skillDefinitionId}][${counterId}]`,
+        `${path}[${firstLevelKey}][${counterId}]`,
         existing?.[counterId] ?? 0,
         change,
       );
@@ -324,20 +340,20 @@ function applyTwoLevelCounterDeltas(
         updated[counterId] = change.after;
       }
     }
-    if (options.pruneEmptySkillEntries === true && Object.keys(updated).length === 0) {
-      delete next[skillDefinitionId];
+    if (options.pruneEmptyFirstLevelEntries === true && Object.keys(updated).length === 0) {
+      delete next[firstLevelKey];
     } else {
-      next[skillDefinitionId] = updated;
+      next[firstLevelKey] = updated;
     }
   }
-  // レビュー再々々々レビュー[P1]: `skillCounterCarry`（`pruneEmptySkillEntries`）は、
-  // 剪定の結果すべてのskillDefinitionIdエントリが消えた場合、`{}`ではなく
+  // レビュー再々々々レビュー[P1]: `skillCounterCarry`（`pruneEmptyFirstLevelEntries`）は、
+  // 剪定の結果すべての1段目キーエントリが消えた場合、`{}`ではなく
   // `undefined`を返す。`captureBattleState`は非0のcarryが1件も無ければ
   // `skillCounterCarry`フィールド自体を省略するため、呼び出し元
   // （`applyUnitDelta`）がこのフィールド自体を省略できるようにする
   // （`skillCounters`は逆に空でもキーを保持する既存の非対称な規約のため、
-  // このフィールド全体省略は`pruneEmptySkillEntries`のときだけ行う）。
-  if (options.pruneEmptySkillEntries === true && Object.keys(next).length === 0) {
+  // このフィールド全体省略は`pruneEmptyFirstLevelEntries`のときだけ行う）。
+  if (options.pruneEmptyFirstLevelEntries === true && Object.keys(next).length === 0) {
     return undefined;
   }
   return next;

@@ -10,7 +10,12 @@ import type {
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { ActionId, EffectInstanceId, MarkerInstanceId } from "../../shared/event-ids.js";
+import type {
+  ActionId,
+  EffectInstanceId,
+  MarkerInstanceId,
+  SkillUseId,
+} from "../../shared/event-ids.js";
 
 export interface ValueChange<T> {
   readonly before: T;
@@ -210,6 +215,20 @@ export interface UnitStateDelta {
    */
   readonly skillCounterCarry?: Readonly<
     Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
+  >;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`EffectSequence`スコープ（EFF-006、
+   * Issue #212）。`skillCounters`と同じ2段キー・規約だが、キーが`SkillDefinitionId`
+   * ではなく`SkillUseId`（1回の解決を識別する既存の実行時識別子）である点だけが
+   * 異なる。`before: undefined`は初回加算、`after: undefined`は解決完了時の
+   * `RuntimeCounterReset`によるキー削除を表す。
+   */
+  readonly effectSequenceCounters?: Readonly<
+    Record<SkillUseId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
+  >;
+  /** `effectSequenceCounters`の`carry`専用差分。`skillCounterCarry`と同じ規約。 */
+  readonly effectSequenceCounterCarry?: Readonly<
+    Record<SkillUseId, Readonly<Record<RuntimeCounterId, ValueChange<number | undefined>>>>
   >;
   /**
    * `EffectInstanceId`をキーとする、変更された`AppliedEffect`だけを持つ
