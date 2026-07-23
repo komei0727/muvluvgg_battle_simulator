@@ -464,6 +464,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `LAST_DAMAGED_TARGETS`を`lastResultBox`から実際に解決する（UT-R-SKL-07-010/
   // 011）ようにし、ネストした`BRANCH`は`condition`を実際に評価して解決される
   // 側だけを数える（thenSteps/elseSteps合算をやめる、UT-R-SKL-07-012）。
+  // PR #216再々々レビュー[P1]の修正: `countCandidateHits`のACTION経路も
+  // `step.condition`を評価し、falseなら0を返す（R-SKL-06によりconditionが
+  // falseのstepは丸ごとスキップされ実効果を持たないため、UT-R-SKL-07-013）。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -479,6 +482,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-010",
       "UT-R-SKL-07-011",
       "UT-R-SKL-07-012",
+      "UT-R-SKL-07-013",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

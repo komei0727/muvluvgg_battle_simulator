@@ -1192,6 +1192,58 @@ describe("applyEffectActionGroups", () => {
       expect(result.interruptedCount).toBe(2);
       expect(result.resolvedCount).toBe(0);
     });
+
+    it("UT-R-SKL-07-013 (PR #216再々々レビュー[P1]): an abandoned branch whose only ACTION has a false condition contributes zero interrupted hits, since R-SKL-06 would have skipped it entirely rather than applying it", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      const skippedAttack = damageAction("ACT_SKIPPED", 3);
+      const effectActions = new Map([[skippedAttack.effectActionDefinitionId, skippedAttack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          if (event.eventType === "RandomBranchSelected") {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "NOT", condition: { kind: "TRUE" } },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: skippedAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      expect(result.interruptedCount).toBe(0);
+      expect(result.resolvedCount).toBe(0);
+    });
   });
 
   describe("R-SKL-08: 直前結果 (RES-003, Issue #173)", () => {

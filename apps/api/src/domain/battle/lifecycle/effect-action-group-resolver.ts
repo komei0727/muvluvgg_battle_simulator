@@ -193,6 +193,15 @@ function countCandidateHitsForStep(
 ): number {
   switch (step.kind) {
     case "ACTION": {
+      // PR #216再々々レビュー[P1]: R-SKL-06によりconditionがfalseのstepは
+      // 丸ごとスキップされ実効果を持たない（`resolveActionStepBody`と同じ
+      // 判定）。conditionもRNGを消費しない純粋な評価であり、`lastResultBox`
+      // から今この時点で確定できるため、ここで評価せず対象数×hit数を
+      // そのまま返すと、falseになるはずのACTIONまで未解決効果として
+      // 過大計上してしまう。
+      if (!evaluateEffectStepCondition(step.condition, lastResultBox.current)) {
+        return 0;
+      }
       let targetCount = 0;
       if (step.target.kind === "SELF") {
         targetCount = 1;
