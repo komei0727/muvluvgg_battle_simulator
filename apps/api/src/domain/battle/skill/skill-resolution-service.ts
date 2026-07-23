@@ -2,6 +2,7 @@ import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
 import { evaluateEffectStepCondition } from "./effect-step-condition-evaluator.js";
 import type {
+  EffectActionReference,
   EffectSequence,
   EffectStepDefinition,
 } from "../../catalog/definitions/effect-sequence.js";
@@ -51,6 +52,13 @@ export interface ActionStepPlan {
   readonly satisfied: boolean;
   /** `satisfied`が`false`の場合は空配列（stepをスキップし、実効果を持たない）。 */
   readonly applications: readonly EffectActionApplication[];
+  /**
+   * R-SKL-08（PR #216レビュー[P1]）: 対象0件で`applications`が空になった場合でも、
+   * `effect-action-group-resolver.ts`が直前結果を「結果種別を持つ確定結果」として
+   * 記録できるよう、元の`EffectStepDefinition`（ACTION）が持つ`actions`をそのまま
+   * 保持する。
+   */
+  readonly actions: readonly EffectActionReference[];
 }
 
 /**
@@ -187,6 +195,57 @@ function stepNeedsDeferredResolution(step: EffectStepDefinition): boolean {
   );
 }
 
+/**
+ * R-SKL-07/R-SKL-08（PR #216レビュー[P1]）: `DeferredStepPlan`（BRANCH/
+ * RANDOM_BRANCH/REPEAT、または直前結果を参照するACTION）は実際に適用するまで
+ * どの対象へ効果を適用するか確定しないが、`SkillUseStarting`/`TargetsSelected`/
+ * `SkillUseCompleted`等が公開する`targetUnitIds`は「対象選択後、最初の効果適用前」
+ * （`08_ドメインイベント.md`）に確定していなければならない。そこで、実際に
+ * 適用される対象を先取りするのではなく、この`step`（と、BRANCH/RANDOM_BRANCH/
+ * REPEATが内包する子step全体）が参照しうる`SELF`/`BINDING`対象参照を再帰的に
+ * 集めた「候補」の和集合を返す。`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`/
+ * `TRIGGER_SOURCE`/`TRIGGER_TARGET`は、常に同じsequence内の別のBINDING/SELF
+ * 参照が指す対象の部分集合（またはEffectSequence外部の対象）であり、この
+ * 候補集合に新しい識別子を追加しないため、ここでは寄与させない。
+ */
+function collectDeferredCandidateTargetUnitIds(
+  step: EffectStepDefinition,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
+  actor: BattleUnit,
+): readonly BattleUnitId[] {
+  switch (step.kind) {
+    case "ACTION": {
+      if (step.target.kind === "SELF") {
+        return [actor.battleUnitId];
+      }
+      if (step.target.kind === "BINDING") {
+        const resolved = resolvedBindings.get(step.target.targetBindingId as TargetBindingId);
+        return resolved === undefined ? [] : resolved.units.map((unit) => unit.battleUnitId);
+      }
+      return [];
+    }
+    case "BRANCH":
+      return [
+        ...step.thenSteps.flatMap((child) =>
+          collectDeferredCandidateTargetUnitIds(child, resolvedBindings, actor),
+        ),
+        ...step.elseSteps.flatMap((child) =>
+          collectDeferredCandidateTargetUnitIds(child, resolvedBindings, actor),
+        ),
+      ];
+    case "RANDOM_BRANCH":
+      return step.branches.flatMap((branch) =>
+        branch.steps.flatMap((child) =>
+          collectDeferredCandidateTargetUnitIds(child, resolvedBindings, actor),
+        ),
+      );
+    case "REPEAT":
+      return step.steps.flatMap((child) =>
+        collectDeferredCandidateTargetUnitIds(child, resolvedBindings, actor),
+      );
+  }
+}
+
 /** R-SKL-03: DAMAGEのhitCountだけが複数ヒットを持つ。それ以外の種別は常に1ヒット。 */
 function hitCountOf(
   effectActionDefinitionId: EffectActionDefinitionId,
@@ -281,10 +340,20 @@ function resolveEffectSequence(
     // stepは、実際に先行stepを適用するまで確定しない情報を必要とするため、
     // このpure関数ではこれ以上resolveせず、生definitionのまま
     // `effect-action-group-resolver.ts`のgeneratorへ委ねる（同ファイル冒頭の
-    // `DeferredStepPlan`コメント参照）。deferしたstepの対象は
-    // `targetUnitIds`へ寄与しない — 利用するproduction定義が現状存在せず、
-    // 実際に適用するまで対象識別子が確定しないため、無理に静的推定しない。
+    // `DeferredStepPlan`コメント参照）。ただし`targetUnitIds`（PR #216レビュー
+    // [P1]）には、この子stepが参照しうるSELF/BINDING候補の和集合を寄与させる
+    // （`collectDeferredCandidateTargetUnitIds`）。
     if (stepNeedsDeferredResolution(step)) {
+      for (const candidateId of collectDeferredCandidateTargetUnitIds(
+        step,
+        resolvedBindings,
+        actor,
+      )) {
+        if (!seenTargetUnitIds.has(candidateId)) {
+          seenTargetUnitIds.add(candidateId);
+          targetUnitIds.push(candidateId);
+        }
+      }
       steps.push({
         stepIndex,
         stepKind: "DEFERRED",
@@ -303,6 +372,7 @@ function resolveEffectSequence(
         conditionKind: actionStep.condition.kind,
         satisfied: false,
         applications: [],
+        actions: actionStep.actions,
       });
       return;
     }
@@ -324,6 +394,7 @@ function resolveEffectSequence(
       conditionKind: actionStep.condition.kind,
       satisfied: true,
       applications,
+      actions: actionStep.actions,
     });
   });
 

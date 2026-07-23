@@ -475,6 +475,7 @@ describe("resolveSkillOrder", () => {
         conditionKind: "NOT",
         satisfied: false,
         applications: [],
+        actions: [{ effectActionDefinitionId: skipped.effectActionDefinitionId }],
       },
       {
         stepIndex: 1,
@@ -495,6 +496,7 @@ describe("resolveSkillOrder", () => {
             ],
           },
         ],
+        actions: [{ effectActionDefinitionId: resolved.effectActionDefinitionId }],
       },
     ]);
   });

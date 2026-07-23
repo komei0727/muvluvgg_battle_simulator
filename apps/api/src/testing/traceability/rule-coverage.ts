@@ -452,7 +452,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `resolveDeferredStep`/`resolveBranchStep`/`resolveRandomBranchStep`/
   // `resolveRepeatStep`が実際に先行stepを適用した直後にその場（JIT）で
   // 解決する — LAST_RESULT依存の判断は先行stepの適用結果が確定するまで
-  // 存在しないため、二段階（計画→適用）では表現できない。
+  // 存在しないため、二段階（計画→適用）では表現できない。PR #216レビュー
+  // [P1] x2の修正: `RandomBranchSelected`をPS/Memory即時連鎖へ`yield`する
+  // （UT-R-SKL-07-007）、`DeferredStepPlan`の対象候補を`targetUnitIds`
+  // （`SkillUseStarting`/`TargetsSelected`/`SkillUseCompleted`）へ実ライフ
+  // サイクルから寄与させる（UT-R-SKL-07-008、`action-skill-use-resolver.test.ts`）。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -462,6 +466,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-004",
       "UT-R-SKL-07-005",
       "UT-R-SKL-07-006",
+      "UT-R-SKL-07-007",
+      "UT-R-SKL-07-008",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -473,7 +479,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `resolveReference`）を追加し、`effect-action-group-resolver.ts`が
   // 適用ごとに更新する`LastResultBox`（MISS/付与拒否/対象不在も結果種別を
   // 持つ直前結果として記録し、BRANCH/REPEATの内側の結果も次のstepから
-  // 参照できる）で結線した。
+  // 参照できる）で結線した。PR #216レビュー[P1]の修正: 対象0件で
+  // `applications`が空になったACTION stepも、確定した「対象不在」結果として
+  // `lastResultBox`を更新する（UT-R-SKL-08-008）。
   {
     ruleId: "R-SKL-08",
     testCaseIds: [
@@ -484,6 +492,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-08-005",
       "UT-R-SKL-08-006",
       "UT-R-SKL-08-007",
+      "UT-R-SKL-08-008",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

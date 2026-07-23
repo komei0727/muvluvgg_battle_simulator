@@ -27,6 +27,7 @@ import type { LastEffectActionResult } from "../skill/last-effect-action-result.
 import { selectWeightedBranch } from "../skill/random-branch-selection.js";
 import { resolveProbability } from "../../shared/percentage.js";
 import type {
+  EffectActionReference,
   EffectStepDefinition,
   RandomBranch,
 } from "../../catalog/definitions/effect-sequence.js";
@@ -717,6 +718,7 @@ function* resolveActionStepBody(
   conditionKind: ConditionKind,
   satisfied: boolean,
   applications: readonly EffectActionApplication[],
+  actions: readonly EffectActionReference[],
   box: UnitsBox,
   context: EffectActionGroupContext,
   lastResultBox: LastResultBox,
@@ -763,6 +765,36 @@ function* resolveActionStepBody(
 
   let stepCutShort = false;
   let resolvedActionCount = 0;
+
+  if (applications.length === 0) {
+    // R-SKL-08（PR #216レビュー[P1]）: 対象0件（TargetSelector/TargetReferenceが
+    // 候補を1件も解決しなかった）でも、この段階に到達した時点でこのstepは
+    // 「効果適用を試みたが対象が無かった」ことが確定している。R-SKL-08
+    // 「対象不在などで効果が適用されなかった場合も、結果種別を持つ直前結果
+    // として記録する」を満たすため、定義された最後のactionを代表として
+    // 直前結果を更新する（対象が無いため`targetUnitIds: []`、実際の
+    // EffectAction適用は起きていないため`EffectActionStarting`/`Completed`は
+    // 発行しない）。
+    const lastActionRef = actions[actions.length - 1];
+    if (lastActionRef !== undefined) {
+      const effectAction = context.definitions.effectActions.get(
+        lastActionRef.effectActionDefinitionId,
+      );
+      if (effectAction === undefined) {
+        throw new DomainValidationError(
+          "action.effectActionDefinitionId",
+          `effectActionDefinitionId "${lastActionRef.effectActionDefinitionId}" was not found in the given effectActions (Catalog preflight should already guarantee this reference exists)`,
+        );
+      }
+      lastResultBox.current = {
+        resultKind: "SKIPPED",
+        effectActionKind: effectAction.kind,
+        effectActionDefinitionId: lastActionRef.effectActionDefinitionId,
+        targetUnitIds: [],
+      };
+      lastResultBox.lastActionTargetUnitIds = [];
+    }
+  }
 
   for (const application of applications) {
     if (isDefeated(requireUnit(box.units, context.actorId))) {
@@ -924,7 +956,16 @@ function* resolveRandomBranchStep(
     return 0;
   }
 
-  function recordSelected(branchIndex: number, branch: RandomBranch): void {
+  // R-SKL-01（PR #216レビュー[P1]）: `RandomBranchSelected`はFACTイベントであり、
+  // これを契機とするPS即時連鎖・Memory triggeredEffectsを直ちに解決してから
+  // 選択branchのstepsへ進む必要がある。`recorder.record`するだけでは
+  // `applyEffectActionGroups`/PS自身の解決経路のどちらも反応できない
+  // （yieldされたイベントだけを連鎖処理するため）ため、他のFACTイベントと同じく
+  // `EFFECT_RESOLVED`として`yield`する。
+  function* recordSelected(
+    branchIndex: number,
+    branch: RandomBranch,
+  ): Generator<EffectResolutionStep, void, void> {
     const selected = context.recorder.record({
       eventType: "RandomBranchSelected",
       category: "FACT",
@@ -943,6 +984,7 @@ function* resolveRandomBranchStep(
         ...(branch.label !== undefined ? { label: branch.label } : {}),
       },
     });
+    yield { kind: "EFFECT_RESOLVED", events: [selected] };
     state.lastEventId = selected.eventId;
   }
 
@@ -950,16 +992,22 @@ function* resolveRandomBranchStep(
   if (definition.mode === "WEIGHTED_ONE") {
     const chosen = selectWeightedBranch(definition.branches, context.random);
     const branchIndex = definition.branches.indexOf(chosen);
-    recordSelected(branchIndex, chosen);
-    resolvedActionCount = yield* resolveStepDefinitionList(
-      chosen.steps,
-      resolvedBindings,
-      effectActions,
-      box,
-      context,
-      lastResultBox,
-      state,
-    );
+    yield* recordSelected(branchIndex, chosen);
+    // 選択直後のPS/Memory即時連鎖でactorが戦闘不能になった場合、選択branchの
+    // stepsへは進まない（R-SKL-01）。
+    if (isDefeated(requireUnit(box.units, context.actorId))) {
+      state.sequenceInterrupted = true;
+    } else {
+      resolvedActionCount = yield* resolveStepDefinitionList(
+        chosen.steps,
+        resolvedBindings,
+        effectActions,
+        box,
+        context,
+        lastResultBox,
+        state,
+      );
+    }
   } else {
     for (const [branchIndex, branch] of definition.branches.entries()) {
       if (state.sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
@@ -973,7 +1021,11 @@ function* resolveRandomBranchStep(
       if (!succeeded) {
         continue;
       }
-      recordSelected(branchIndex, branch);
+      yield* recordSelected(branchIndex, branch);
+      if (isDefeated(requireUnit(box.units, context.actorId))) {
+        state.sequenceInterrupted = true;
+        break;
+      }
       resolvedActionCount += yield* resolveStepDefinitionList(
         branch.steps,
         resolvedBindings,
@@ -1123,6 +1175,7 @@ function* resolveDeferredStep(
         definition.condition.kind,
         satisfied,
         applications,
+        definition.actions,
         box,
         context,
         lastResultBox,
@@ -1249,6 +1302,7 @@ export function* resolveEffectSequencePlan(
         step.conditionKind,
         step.satisfied,
         step.applications,
+        step.actions,
         box,
         context,
         lastResultBox,

@@ -190,8 +190,12 @@ function contextWithRandom(
   recorder: EventRecorder,
   rootEventId: string,
   random: RandomSource,
+  onFactEventForPassiveChain?: EffectActionGroupContext["onFactEventForPassiveChain"],
 ): EffectActionGroupContext {
-  return { ...contextFor(actor, effectActions, recorder, rootEventId), random };
+  return {
+    ...contextFor(actor, effectActions, recorder, rootEventId, onFactEventForPassiveChain),
+    random,
+  };
 }
 
 function seedRecorder(): { recorder: EventRecorder; rootEventId: string } {
@@ -229,6 +233,7 @@ function singleActionStep(
           },
         ]
       : [],
+    actions: [{ effectActionDefinitionId }],
   };
 }
 
@@ -370,6 +375,10 @@ describe("applyEffectActionGroups", () => {
                 },
               ],
             },
+          ],
+          actions: [
+            { effectActionDefinitionId: selfHit.effectActionDefinitionId },
+            { effectActionDefinitionId: otherHit.effectActionDefinitionId },
           ],
         },
         singleActionStep(1, true, enemy.battleUnitId, otherHit.effectActionDefinitionId),
@@ -882,6 +891,56 @@ describe("applyEffectActionGroups", () => {
       expect(events.filter((e) => e.eventType === "EffectStepCompleted")).toHaveLength(1);
       expect(result.resolvedCount).toBe(1);
     });
+
+    it("UT-R-SKL-07-007 (R-SKL-01, PR #216レビュー[P1]): RandomBranchSelected participates in the PS/Memory immediate chain (onFactEventForPassiveChain observes it), not just recorder.getEvents()", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const branchAttack = damageAction("ACT_BRANCH");
+      const effectActions = new Map([[branchAttack.effectActionDefinitionId, branchAttack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const observedEventTypes: string[] = [];
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          observedEventTypes.push(event.eventType);
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      // Before the fix, RandomBranchSelected was only recorder.record()ed,
+      // never yielded, so onFactEventForPassiveChain never observed it.
+      expect(observedEventTypes).toContain("RandomBranchSelected");
+    });
   });
 
   describe("R-SKL-08: 直前結果 (RES-003, Issue #173)", () => {
@@ -1006,6 +1065,56 @@ describe("applyEffectActionGroups", () => {
         { eventType: "MarkerApplied" }
       >;
       expect(markerApplied.targetUnitIds).toEqual([enemy.battleUnitId]);
+    });
+
+    it("UT-R-SKL-08-008 (boundary, PR #216レビュー[P1]): an ACTION step whose target resolves to zero units still records a confirmed 'no target' last result, so a following LAST_RESULT-gated step observes it instead of seeing a stale result or throwing", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const noTargetAttack = damageAction("ACT_NO_TARGET");
+      const followUpAttack = damageAction("ACT_FOLLOW_UP");
+      const effectActions = new Map([
+        [noTargetAttack.effectActionDefinitionId, noTargetAttack],
+        [followUpAttack.effectActionDefinitionId, followUpAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const tgtEmpty = createTargetBindingId("TGT_EMPTY");
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const noTargetStep: EffectStepDefinition = {
+        kind: "ACTION",
+        condition: { kind: "TRUE" },
+        target: { kind: "BINDING", targetBindingId: tgtEmpty },
+        actions: [{ effectActionDefinitionId: noTargetAttack.effectActionDefinitionId }],
+      };
+      const followUpStep: EffectStepDefinition = {
+        kind: "ACTION",
+        condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "SKIPPED" },
+        target: { kind: "BINDING", targetBindingId: tgtEnemy },
+        actions: [{ effectActionDefinitionId: followUpAttack.effectActionDefinitionId }],
+      };
+      const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>([
+        [tgtEmpty, { units: [], includeDefeated: false }],
+        [tgtEnemy, { units: [enemy], includeDefeated: false }],
+      ]);
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, noTargetStep), deferredStep(1, followUpStep)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings,
+      };
+
+      applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      // Neither step's own condition was false, so EffectStepSkipped never fires;
+      // the "no target" step-0 just has zero applications.
+      expect(events.map((e) => e.eventType)).not.toContain("EffectStepSkipped");
+      const actionStartings = events.filter((e) => e.eventType === "EffectActionStarting");
+      // Only followUpStep actually applies (noTargetStep resolved zero
+      // applications, so it never reaches resolveOneEffectActionApplication).
+      expect(actionStartings).toHaveLength(1);
+      expect(actionStartings[0]?.payload.effectActionDefinitionId).toBe(
+        followUpAttack.effectActionDefinitionId,
+      );
     });
   });
 

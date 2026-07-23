@@ -174,6 +174,56 @@ function asSkillWithCounterUpdates(effectActionId: string): SkillDefinition {
   };
 }
 
+/**
+ * R-SKL-07（RES-003、Issue #173、PR #216レビュー[P1]）: `steps`の唯一のstepが
+ * `BRANCH`（`condition: TRUE`のthenSteps側）で実際の`DAMAGE` ACTIONを内包する
+ * AS skill。`resolveSkillOrder`はこのstepを`DeferredStepPlan`として返すため、
+ * `targetUnitIds`（`SkillUseStarting`/`TargetsSelected`/`SkillUseCompleted`が
+ * 公開する）が、BRANCHの内側からも実際の対象を正しく収集できているかを
+ * 実ライフサイクルで検証する。
+ */
+function asSkillWithBranch(effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_AS_BRANCH"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+      steps: [
+        {
+          kind: "BRANCH",
+          condition: { kind: "TRUE" },
+          thenSteps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+              actions: [
+                { effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) },
+              ],
+            },
+          ],
+          elseSteps: [],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "AS Branch", tags: [] },
+  };
+}
+
 function definitionsOf(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
@@ -252,5 +302,62 @@ describe("resolveSkillUse", () => {
 
     const actorAfter = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
     expect(actorAfter.effectSequenceCounters).toBeUndefined();
+  });
+
+  it("UT-R-SKL-07-008 (R-SKL-07, PR #216レビュー[P1]): a BRANCH-only AS skill's SkillUseStarting/TargetsSelected/SkillUseCompleted still publish the enemy actually hit inside the BRANCH's thenSteps, through the real resolveSkillOrder -> resolveSkillUse lifecycle", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const hit = damageEffectAction("ACT_BRANCH_HIT");
+    const skill = asSkillWithBranch("ACT_BRANCH_HIT");
+
+    const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId, currentAp: 3 });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    resolveSkillUse(
+      actor,
+      skill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    // The real EffectAction application inside the BRANCH's thenSteps did
+    // happen (proves this isn't a false positive from an empty branch).
+    expect(events.some((e) => e.eventType === "DamageApplied")).toBe(true);
+
+    // `TargetsSelected` carries the plan's targetUnitIds on the event
+    // envelope itself (its payload only carries per-binding `selectedTargetUnitIds`,
+    // which was never affected by this bug since targetBindings are resolved
+    // independently of BRANCH/RANDOM_BRANCH/REPEAT structure).
+    const targetsSelected = events.find((e) => e.eventType === "TargetsSelected");
+    expect(targetsSelected, 'expected a "TargetsSelected" event').toBeDefined();
+    expect(targetsSelected!.targetUnitIds).toEqual([enemy.battleUnitId]);
+
+    for (const eventType of ["SkillUseStarting", "SkillUseCompleted"] as const) {
+      const event = events.find((e) => e.eventType === eventType);
+      expect(event, `expected a "${eventType}" event`).toBeDefined();
+      expect(
+        (event!.payload as { targetUnitIds?: readonly string[] }).targetUnitIds,
+        `"${eventType}".payload.targetUnitIds`,
+      ).toEqual([enemy.battleUnitId]);
+    }
   });
 });
