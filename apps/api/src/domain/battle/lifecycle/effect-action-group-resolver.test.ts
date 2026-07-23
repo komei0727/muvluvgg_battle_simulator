@@ -1004,6 +1004,194 @@ describe("applyEffectActionGroups", () => {
       expect(result.interruptedCount).toBe(2);
       expect(result.resolvedCount).toBe(0);
     });
+
+    it("UT-R-SKL-07-010 (PR #216再々レビュー[P1]): an abandoned branch whose ACTION targets LAST_ACTION_TARGETS still counts its would-be hits as interrupted, resolved from lastResultBox rather than as 0", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      const initialAttack = damageAction("ACT_INITIAL");
+      // hitCount: 3, so LAST_ACTION_TARGETS (1 unit, from the preceding
+      // singleActionStep) contributes 1 target x 3 hits = 3.
+      const branchAttack = damageAction("ACT_BRANCH_LAST_ACTION", 3);
+      const effectActions = new Map([
+        [initialAttack.effectActionDefinitionId, initialAttack],
+        [branchAttack.effectActionDefinitionId, branchAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          if (event.eventType === "RandomBranchSelected") {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "LAST_ACTION_TARGETS" },
+                actions: [{ effectActionDefinitionId: branchAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, enemy.battleUnitId, initialAttack.effectActionDefinitionId),
+          deferredStep(1, randomBranchDefinition),
+        ],
+        targetUnitIds: [enemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      expect(result.resolvedCount).toBe(1); // the preceding singleActionStep hit.
+      expect(result.interruptedCount).toBe(3);
+    });
+
+    it("UT-R-SKL-07-011 (PR #216再々レビュー[P1]): an abandoned branch whose ACTION targets LAST_DAMAGED_TARGETS still counts its would-be hits as interrupted, resolved from lastResultBox rather than as 0", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      const initialAttack = damageAction("ACT_INITIAL");
+      const branchAttack = damageAction("ACT_BRANCH_LAST_DAMAGED", 4);
+      const effectActions = new Map([
+        [initialAttack.effectActionDefinitionId, initialAttack],
+        [branchAttack.effectActionDefinitionId, branchAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          if (event.eventType === "RandomBranchSelected") {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "LAST_DAMAGED_TARGETS" },
+                actions: [{ effectActionDefinitionId: branchAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, enemy.battleUnitId, initialAttack.effectActionDefinitionId),
+          deferredStep(1, randomBranchDefinition),
+        ],
+        targetUnitIds: [enemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      expect(result.resolvedCount).toBe(1);
+      expect(result.interruptedCount).toBe(4);
+    });
+
+    it("UT-R-SKL-07-012 (PR #216再々レビュー[P1]): an abandoned branch containing a nested BRANCH counts only the side its condition actually resolves to, not both thenSteps and elseSteps summed", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      // thenSteps hitCount 2, elseSteps hitCount 5 — condition TRUE always
+      // resolves thenSteps, so the correct candidate count is 2, not 2 + 5.
+      const thenAttack = damageAction("ACT_THEN", 2);
+      const elseAttack = damageAction("ACT_ELSE", 5);
+      const effectActions = new Map([
+        [thenAttack.effectActionDefinitionId, thenAttack],
+        [elseAttack.effectActionDefinitionId, elseAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          if (event.eventType === "RandomBranchSelected") {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "BRANCH",
+                condition: { kind: "TRUE" },
+                thenSteps: [
+                  {
+                    kind: "ACTION",
+                    condition: { kind: "TRUE" },
+                    target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                    actions: [{ effectActionDefinitionId: thenAttack.effectActionDefinitionId }],
+                  },
+                ],
+                elseSteps: [
+                  {
+                    kind: "ACTION",
+                    condition: { kind: "TRUE" },
+                    target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                    actions: [{ effectActionDefinitionId: elseAttack.effectActionDefinitionId }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      expect(result.interruptedCount).toBe(2);
+      expect(result.resolvedCount).toBe(0);
+    });
   });
 
   describe("R-SKL-08: 直前結果 (RES-003, Issue #173)", () => {

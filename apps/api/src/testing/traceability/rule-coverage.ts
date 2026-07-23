@@ -460,6 +460,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // PR #216再レビュー[P1]の修正: `RandomBranchSelected`自身の即時連鎖で
   // actorが戦闘不能になり選択済みbranchへ一度も入れなかった場合、そのbranchの
   // 未解決ヒット数を`interruptedCount`へ計上する（UT-R-SKL-07-009）。
+  // PR #216再々レビュー[P1]の修正: `countCandidateHits`が`LAST_ACTION_TARGETS`/
+  // `LAST_DAMAGED_TARGETS`を`lastResultBox`から実際に解決する（UT-R-SKL-07-010/
+  // 011）ようにし、ネストした`BRANCH`は`condition`を実際に評価して解決される
+  // 側だけを数える（thenSteps/elseSteps合算をやめる、UT-R-SKL-07-012）。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -472,6 +476,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-007",
       "UT-R-SKL-07-008",
       "UT-R-SKL-07-009",
+      "UT-R-SKL-07-010",
+      "UT-R-SKL-07-011",
+      "UT-R-SKL-07-012",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

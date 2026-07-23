@@ -143,32 +143,44 @@ function countHits(applications: readonly EffectActionApplication[]): number {
 }
 
 /**
- * R-SKL-01（PR #216再レビュー[P1]）: `RANDOM_BRANCH`の選択イベント
+ * R-SKL-01（PR #216再レビュー[P1] x2）: `RANDOM_BRANCH`の選択イベント
  * （`RandomBranchSelected`）自身のPS/Memory即時連鎖でactorが戦闘不能になり、
  * 既に選択済みのbranchへ一度も入れなかった場合、そのbranchに残る未解決の
  * ヒット・適用数を`interruptedCount`へ計上する必要がある（さもないと
  * `EffectActionGroupsResult.interruptedCount`が0のままとなり、
  * `action-skill-use-resolver.ts`の`effectResult.interruptedCount > 0`判定が
  * falseになって、実際には何も適用していないのに`SkillUseCompleted`が
- * 発行されてしまう）。この時点でbranchはまだ一度も解決されていないため、
- * `resolvedBindings`（EffectSequence開始時に確定済み）と`effectActions`
- * だけから静的に見積もる。BRANCH自身は`condition`が（直前結果に依存しうるため）
- * 未評価のままここへ来ることはない実装上の制約はないが、実行されなかった側も
- * 「未解決効果」であることに変わりないため、両方を合算する（過大計上の方が
- * `interruptedCount`を過小評価してSkillUseCompletedを誤発行するより安全）。
- * `RANDOM_BRANCH`のネストはWEIGHTED_ONEなら1分岐分、INDEPENDENTなら
- * 全branch分を合算する（同じ理由）。`LAST_ACTION_TARGETS`/
- * `LAST_DAMAGED_TARGETS`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`は対象を静的に
- * 解決できないため寄与0とする（`collectDeferredCandidateTargetUnitIds`と
- * 同じ制約）。
+ * 発行されてしまう）。`SkillUseInterrupted.unresolvedEffectCount`は未解決効果数を
+ * 表すため、選択されない経路まで含めた過大計上ではなく、実際に解決対象となる
+ * 経路と一致させる必要がある — そのため、決定可能な情報（`lastResultBox`が
+ * 保持する直前結果、`resolvedBindings`）はすべて使い、真に不確定な分岐だけを
+ * 保守的に扱う。
+ *
+ * - `ACTION`: `SELF`/`BINDING`に加え、`LAST_ACTION_TARGETS`/
+ *   `LAST_DAMAGED_TARGETS`もこの時点で`lastResultBox`が保持する実際の値から
+ *   解決する（この呼び出し地点は必ず先行するEffectAction適用の後にあるため、
+ *   `lastResultBox`は最新化済み）。`TRIGGER_SOURCE`/`TRIGGER_TARGET`（RES-005
+ *   スコープ、まだ未対応）だけは静的に解決できないため寄与0のまま。
+ * - `BRANCH`: `condition`はRNGを消費しない純粋な評価であり、`lastResultBox`
+ *   から今この時点で確定できるため、`evaluateEffectStepCondition`で実際に
+ *   解決される側だけを数える（thenSteps/elseStepsを合算しない）。
+ * - `RANDOM_BRANCH`: 分岐選択はRNG消費を伴うため、ここで実際に乱数を
+ *   消費して先取りすることはできない（後続の本来のRNG消費列を狂わせて
+ *   しまう）。`WEIGHTED_ONE`は常に1分岐だけを選ぶため、最大値の分岐1つ分と
+ *   見積もる（`Math.max`）。`INDEPENDENT`は0〜全branchが独立に成立しうるため、
+ *   全branch合算のままとする（安全側の上限）。
+ * - `REPEAT`: 一度入れば`count`回を確定的に繰り返す（自身の中断判定は別途
+ *   handled）ため、`count`倍のまま。
  */
 function countCandidateHits(
   steps: readonly EffectStepDefinition[],
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  lastResultBox: LastResultBox,
 ): number {
   return steps.reduce(
-    (sum, step) => sum + countCandidateHitsForStep(step, resolvedBindings, effectActions),
+    (sum, step) =>
+      sum + countCandidateHitsForStep(step, resolvedBindings, effectActions, lastResultBox),
     0,
   );
 }
@@ -177,6 +189,7 @@ function countCandidateHitsForStep(
   step: EffectStepDefinition,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  lastResultBox: LastResultBox,
 ): number {
   switch (step.kind) {
     case "ACTION": {
@@ -186,6 +199,10 @@ function countCandidateHitsForStep(
       } else if (step.target.kind === "BINDING") {
         targetCount =
           resolvedBindings?.get(step.target.targetBindingId as TargetBindingId)?.units.length ?? 0;
+      } else if (step.target.kind === "LAST_ACTION_TARGETS") {
+        targetCount = lastResultBox.lastActionTargetUnitIds.length;
+      } else if (step.target.kind === "LAST_DAMAGED_TARGETS") {
+        targetCount = lastResultBox.lastDamagedTargetUnitIds.length;
       }
       const hitsPerTarget = step.actions.reduce((sum, actionRef) => {
         const effectAction = effectActions.get(actionRef.effectActionDefinitionId);
@@ -193,18 +210,23 @@ function countCandidateHitsForStep(
       }, 0);
       return targetCount * hitsPerTarget;
     }
-    case "BRANCH":
-      return (
-        countCandidateHits(step.thenSteps, resolvedBindings, effectActions) +
-        countCandidateHits(step.elseSteps, resolvedBindings, effectActions)
+    case "BRANCH": {
+      const satisfied = evaluateEffectStepCondition(step.condition, lastResultBox.current);
+      const chosenSteps = satisfied ? step.thenSteps : step.elseSteps;
+      return countCandidateHits(chosenSteps, resolvedBindings, effectActions, lastResultBox);
+    }
+    case "RANDOM_BRANCH": {
+      const branchCounts = step.branches.map((branch) =>
+        countCandidateHits(branch.steps, resolvedBindings, effectActions, lastResultBox),
       );
-    case "RANDOM_BRANCH":
-      return step.branches.reduce(
-        (sum, branch) => sum + countCandidateHits(branch.steps, resolvedBindings, effectActions),
-        0,
-      );
+      return step.mode === "WEIGHTED_ONE"
+        ? Math.max(0, ...branchCounts)
+        : branchCounts.reduce((sum, count) => sum + count, 0);
+    }
     case "REPEAT":
-      return countCandidateHits(step.steps, resolvedBindings, effectActions) * step.count;
+      return (
+        countCandidateHits(step.steps, resolvedBindings, effectActions, lastResultBox) * step.count
+      );
   }
 }
 
@@ -1064,7 +1086,12 @@ function* resolveRandomBranchStep(
     // interruptedCountへ計上する（PR #216再レビュー[P1]）。
     if (isDefeated(requireUnit(box.units, context.actorId))) {
       state.sequenceInterrupted = true;
-      state.interruptedCount += countCandidateHits(chosen.steps, resolvedBindings, effectActions);
+      state.interruptedCount += countCandidateHits(
+        chosen.steps,
+        resolvedBindings,
+        effectActions,
+        lastResultBox,
+      );
     } else {
       resolvedActionCount = yield* resolveStepDefinitionList(
         chosen.steps,
@@ -1094,7 +1121,12 @@ function* resolveRandomBranchStep(
         state.sequenceInterrupted = true;
         // 選択済み（確率判定に成功した）branchに残る未解決ヒット数を
         // interruptedCountへ計上する（PR #216再レビュー[P1]）。
-        state.interruptedCount += countCandidateHits(branch.steps, resolvedBindings, effectActions);
+        state.interruptedCount += countCandidateHits(
+          branch.steps,
+          resolvedBindings,
+          effectActions,
+          lastResultBox,
+        );
         break;
       }
       resolvedActionCount += yield* resolveStepDefinitionList(
