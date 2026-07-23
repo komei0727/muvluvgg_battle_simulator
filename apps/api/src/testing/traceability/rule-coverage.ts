@@ -384,7 +384,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UT-R-SKL-01-004`）を追加して6項目を満たし切った。
   {
     ruleId: "R-SKL-01",
-    testCaseIds: ["UT-R-SKL-01-001", "UT-R-SKL-01-002", "UT-R-SKL-01-003", "UT-R-SKL-01-004"],
+    testCaseIds: [
+      "UT-R-SKL-01-001",
+      "UT-R-SKL-01-002",
+      "UT-R-SKL-01-003",
+      "UT-R-SKL-01-004",
+      // UT-R-SKL-01-005（PR #216再々々々々々レビュー[P1]）: PS所有者が自傷で
+      // 戦闘不能になり、残る唯一のstepが「false conditionのACTIONだけを
+      // 内包するBRANCH」（実際には何も破棄されない）の場合、`sequenceInterrupted`
+      // が「戦闘不能を観測しただけ」で誤ってtrueにならず、`PassiveResolved`が
+      // 発行されることを実ライフサイクルで検証する。
+      "UT-R-SKL-01-005",
+    ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
   // R-SKL-02: 対象ごとの効果適用直後にPS候補を直ちに解決する要件をIssue #34
@@ -511,6 +522,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-019",
       "UT-R-SKL-07-020",
       "UT-R-SKL-07-021",
+      // UT-R-SKL-07-022（PR #216再々々々々々レビュー[P1]）: 自傷で戦闘不能に
+      // なった直後、残る唯一のstepが「false conditionのACTIONだけを内包する
+      // BRANCH」の場合、`sequenceInterrupted`が誤ってtrueにならず
+      // `SkillUseCompleted`が発行されることを実ライフサイクルで検証する。
+      "UT-R-SKL-07-022",
+      // UT-R-SKL-07-023/024（PR #216再々々々々々レビュー[P2]）: `weight`/
+      // `probability`が明示的に0で定義上絶対に選ばれ得ないbranchを
+      // `countCandidateHits`の見積もりから除外する（WEIGHTED_ONEの
+      // `Math.max`・INDEPENDENTの合算のどちらも）。
+      "UT-R-SKL-07-023",
+      "UT-R-SKL-07-024",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

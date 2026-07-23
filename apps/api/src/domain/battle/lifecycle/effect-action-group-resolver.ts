@@ -112,12 +112,23 @@ export interface EffectActionGroupsResult {
   readonly resolvedCount: number;
   /**
    * PR #216再々々々々々レビュー: 「中断が実際に発生したか」の判定に
-   * 使う正式なフラグ。resolverが中断を検出したまさにその箇所
-   * （`state.sequenceInterrupted = true`を設定する各分岐）で確定させる値
-   * そのものであり、推定を経由しない。`SkillUseInterrupted`/
-   * `SkillUseCompleted`のどちらを発行するかは、この`sequenceInterrupted`
-   * だけで判定し、`interruptedCount`（推定値、下記）の大小には依存しない
-   * — 推定の見落としが1件あっても、発行するイベント種別自体は誤らない。
+   * 使う正式なフラグ。`SkillUseInterrupted`/`SkillUseCompleted`のどちらを
+   * 発行するかは、この`sequenceInterrupted`だけで判定する。
+   *
+   * PR #216再々々々々々々レビュー[P1]再修正: 単に「戦闘不能を観測した」
+   * だけでは真にしない — resolverが中断を検出した各分岐で、その時点の
+   * 未解決pending work見積もり（`countHits`/`countCandidateHits`系）が
+   * 1件以上ある場合だけ真にする。false conditionのみのbranch等、実際には
+   * 何も失われていない場合に`sequenceInterrupted`が誤って真になる
+   * （＝`unresolvedEffectCount: 0`のまま`SkillUseInterrupted`を発行して
+   * しまう）ことを防ぐ。この結果、`sequenceInterrupted`は依然
+   * `interruptedCount`の見積もり計算そのものに依存するため、見積もりの
+   * 精度（下記`interruptedCount`のコメント）がこのフラグの精度の上限になる
+   * — ただし見積もりが誤る方向は「未着手subtreeを実際より多く候補に含める」
+   * （過大側）のみであり、過大側の誤りは`sequenceInterrupted`を誤ってfalseに
+   * することはない（falseになるのは見積もりが0の時だけであり、0という見積もり
+   * 自体は`evaluateEffectStepCondition`によるcondition評価のように厳密な
+   * 判定で導出されるケースが大半）。
    */
   readonly sequenceInterrupted: boolean;
   /**
@@ -129,10 +140,12 @@ export interface EffectActionGroupsResult {
    * `effectActions`と、中断時点までの実`lastResultBox`から複製した
    * simulated last-resultだけを頼りに`countCandidateHits`が静的に
    * 見積もる（`RANDOM_BRANCH`の分岐選択はRNGを消費するため後追いで
-   * 確定できず、`WEIGHTED_ONE`は最大1分岐分、`INDEPENDENT`は未判定分も
-   * 含めた全branch合算という保守的な上限を使う）。そのため、この値は
-   * 「中断が起きたかどうか」の判定には使わず（`sequenceInterrupted`を
-   * 使う）、実際に何件が未解決だったかの目安としてのみ扱うこと。
+   * 確定できず、`weight`/`probability`が明示的に0の到達不能branchは除外した
+   * 上で、`WEIGHTED_ONE`は最大1分岐分、`INDEPENDENT`は未判定分も含めた
+   * 全branch合算という保守的な上限を使う）。厳密な実行時カウントではなく
+   * 「実行していたら発生していたであろうヒット数の保守的な上限」である点は
+   * `08_ドメインイベント.md`/`SkillUseInterrupted`/`PassiveInterrupted`の
+   * ペイロード仕様として明記している（PR #216再々々々々々レビュー[P2]）。
    */
   readonly interruptedCount: number;
 }
@@ -196,9 +209,11 @@ function countHits(applications: readonly EffectActionApplication[]): number {
  *   各branchは互いに独立な仮想シナリオのため、`simulated`を複製してから
  *   個別に歩く（1つのbranchの見積もりが他branchへ波及しないように — この
  *   RANDOM_BRANCH自体を抜けた後の`simulated`は「選択結果不明」のまま更新
- *   しない）。`WEIGHTED_ONE`は常に1分岐だけを選ぶため、最大値の分岐1つ分と
- *   見積もる（`Math.max`）。`INDEPENDENT`は0〜全branchが独立に成立しうる
- *   ため、全branch合算のままとする（安全側の上限）。
+ *   しない）。`weight`/`probability`が明示的に0のbranchは定義上絶対に
+ *   選ばれ得ないため見積もりから除外する（PR #216再々々々々々レビュー[P2]）。
+ *   残った到達可能branchについて、`WEIGHTED_ONE`は常に1分岐だけを選ぶため
+ *   最大値の分岐1つ分と見積もる（`Math.max`）。`INDEPENDENT`は0〜全branchが
+ *   独立に成立しうるため、全branch合算のままとする（安全側の上限）。
  * - `REPEAT`: 一度入れば`count`回を確定的に繰り返す（自身の中断判定は別途
  *   handled）。各iterationは実resolverと同じく同じ`simulated`を引き継ぐ
  *   （iteration間でlastResultBoxを共有する）。
@@ -314,8 +329,17 @@ function walkCandidateHitsStep(
     case "RANDOM_BRANCH": {
       // 各branchは独立な仮想シナリオ — `simulated`を複製してから歩き、
       // このRANDOM_BRANCH自体を抜けた後の`simulated`は変更しない
-      // （どのbranchが選ばれるか不明なため）。
-      const branchCounts = step.branches.map((branch) =>
+      // （どのbranchが選ばれるか不明なため）。`weight`が明示的に0の
+      // branch（`WEIGHTED_ONE`）・`probability`が明示的に0のbranch
+      // （`INDEPENDENT`）は定義上絶対に選ばれ得ないため、見積もりから
+      // 除外する（PR #216再々々々々々レビュー[P2]: 到達不能branchを
+      // 含めると過大な見積もりになり、`sequenceInterrupted`の誤検出
+      // リスクを不必要に広げる）。
+      const reachableBranches =
+        step.mode === "WEIGHTED_ONE"
+          ? step.branches.filter((branch) => (branch.weight ?? 0) > 0)
+          : step.branches.filter((branch) => (branch.probability ?? 0) > 0);
+      const branchCounts = reachableBranches.map((branch) =>
         walkCandidateHitsList(branch.steps, resolvedBindings, effectActions, actorId, {
           ...simulated,
         }),
@@ -942,10 +966,14 @@ function* resolveActionStepBody(
     // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
     // actorが戦闘不能になった場合、`satisfied`が真なら`applications`が
     // このstep自身の未解決ヒットそのもの（既に解決済みの正確な値、推定ではない）。
-    state.sequenceInterrupted = true;
-    if (satisfied) {
-      state.interruptedCount += countHits(applications);
+    // PR #216再々々々々々レビュー[P1]: `sequenceInterrupted`は「戦闘不能を
+    // 観測した」だけでは真にせず、実際に1件以上のpending workを破棄した場合
+    // だけ真にする（falseなconditionのみのstepでは何も失われていない）。
+    const candidateHits = satisfied ? countHits(applications) : 0;
+    if (candidateHits > 0) {
+      state.sequenceInterrupted = true;
     }
+    state.interruptedCount += candidateHits;
     return 0;
   }
 
@@ -1003,7 +1031,9 @@ function* resolveActionStepBody(
   for (const application of applications) {
     if (isDefeated(requireUnit(box.units, context.actorId))) {
       stepCutShort = true;
-      state.sequenceInterrupted = true;
+      if (application.hits.length > 0) {
+        state.sequenceInterrupted = true;
+      }
       state.interruptedCount += application.hits.length;
       continue;
     }
@@ -1089,15 +1119,20 @@ function* resolveBranchStep(
   if (isDefeated(requireUnit(box.units, context.actorId))) {
     // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
     // actorが戦闘不能になった場合、このBRANCH自身が本来解決するはずだった
-    // 未解決ヒット数を計上する。
-    state.sequenceInterrupted = true;
-    state.interruptedCount += countCandidateHitsForStep(
+    // 未解決ヒット数を計上する。PR #216再々々々々々レビュー[P1]:
+    // `sequenceInterrupted`は見積もりが0件（例えば選ばれる側がfalse
+    // conditionのみ）なら真にしない。
+    const candidateHits = countCandidateHitsForStep(
       definition,
       resolvedBindings,
       effectActions,
       context.actorId,
       lastResultBox,
     );
+    if (candidateHits > 0) {
+      state.sequenceInterrupted = true;
+    }
+    state.interruptedCount += candidateHits;
     return 0;
   }
 
@@ -1169,15 +1204,20 @@ function* resolveRandomBranchStep(
     // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
     // actorが戦闘不能になった場合、このRANDOM_BRANCH自身が本来解決するはず
     // だった未解決ヒット数を計上する（分岐選択すら行われていないため、
-    // `countCandidateHitsForStep`の見積もりに従う）。
-    state.sequenceInterrupted = true;
-    state.interruptedCount += countCandidateHitsForStep(
+    // `countCandidateHitsForStep`の見積もりに従う）。PR #216
+    // 再々々々々々レビュー[P1]: 見積もりが0件なら`sequenceInterrupted`は
+    // 真にしない。
+    const candidateHits = countCandidateHitsForStep(
       definition,
       resolvedBindings,
       effectActions,
       context.actorId,
       lastResultBox,
     );
+    if (candidateHits > 0) {
+      state.sequenceInterrupted = true;
+    }
+    state.interruptedCount += candidateHits;
     return 0;
   }
 
@@ -1222,14 +1262,17 @@ function* resolveRandomBranchStep(
     // stepsへは進まない（R-SKL-01）。既に選ばれたbranchに残る未解決ヒット数は
     // interruptedCountへ計上する（PR #216再レビュー[P1]）。
     if (isDefeated(requireUnit(box.units, context.actorId))) {
-      state.sequenceInterrupted = true;
-      state.interruptedCount += countCandidateHits(
+      const candidateHits = countCandidateHits(
         chosen.steps,
         resolvedBindings,
         effectActions,
         context.actorId,
         lastResultBox,
       );
+      if (candidateHits > 0) {
+        state.sequenceInterrupted = true;
+      }
+      state.interruptedCount += candidateHits;
     } else {
       resolvedActionCount = yield* resolveStepDefinitionList(
         chosen.steps,
@@ -1248,10 +1291,12 @@ function* resolveRandomBranchStep(
         // 0〜全件成立しうるため、まだ確率判定していない残りbranch
         // （`branchIndex`以降）全件を「成立していたかもしれない」未解決分として
         // 計上する（保守的な上限 — 例えば残り全branchのprobabilityが1.0でも
-        // 正しく計上できる）。
-        state.sequenceInterrupted = true;
-        state.interruptedCount += definition.branches
+        // 正しく計上できる）。ただし`probability`が明示的に0のbranchは定義上
+        // 絶対に成立し得ないため、この見積もりから除外する（PR #216
+        // 再々々々々々々レビュー[P2]）。
+        const candidateHits = definition.branches
           .slice(branchIndex)
+          .filter((remaining) => (remaining.probability ?? 0) > 0)
           .reduce(
             (sum, remaining) =>
               sum +
@@ -1264,6 +1309,12 @@ function* resolveRandomBranchStep(
               ),
             0,
           );
+        // PR #216再々々々々々レビュー[P1]: 見積もりが0件なら
+        // `sequenceInterrupted`は真にしない。
+        if (candidateHits > 0) {
+          state.sequenceInterrupted = true;
+        }
+        state.interruptedCount += candidateHits;
         break;
       }
       const succeeded = resolveProbability(
@@ -1275,16 +1326,21 @@ function* resolveRandomBranchStep(
       }
       yield* recordSelected(branchIndex, branch);
       if (isDefeated(requireUnit(box.units, context.actorId))) {
-        state.sequenceInterrupted = true;
         // 選択済み（確率判定に成功した）branchに残る未解決ヒット数を
-        // interruptedCountへ計上する（PR #216再レビュー[P1]）。
-        state.interruptedCount += countCandidateHits(
+        // interruptedCountへ計上する（PR #216再レビュー[P1]）。見積もりが
+        // 0件なら`sequenceInterrupted`は真にしない（PR #216
+        // 再々々々々々レビュー[P1]）。
+        const candidateHits = countCandidateHits(
           branch.steps,
           resolvedBindings,
           effectActions,
           context.actorId,
           lastResultBox,
         );
+        if (candidateHits > 0) {
+          state.sequenceInterrupted = true;
+        }
+        state.interruptedCount += candidateHits;
         break;
       }
       resolvedActionCount += yield* resolveStepDefinitionList(
@@ -1352,15 +1408,19 @@ function* resolveRepeatStep(
   if (isDefeated(requireUnit(box.units, context.actorId))) {
     // PR #216再々々々々レビュー[P1]: `EffectStepStarting`のPS/Memory即時連鎖で
     // actorが戦闘不能になった場合、1回目のiterationすら開始できないため、
-    // `count`回すべてが未解決ヒットとなる。
-    state.sequenceInterrupted = true;
-    state.interruptedCount += countCandidateHitsForStep(
+    // `count`回すべてが未解決ヒットとなる。PR #216再々々々々々レビュー[P1]:
+    // 見積もりが0件なら`sequenceInterrupted`は真にしない。
+    const candidateHits = countCandidateHitsForStep(
       definition,
       resolvedBindings,
       effectActions,
       context.actorId,
       lastResultBox,
     );
+    if (candidateHits > 0) {
+      state.sequenceInterrupted = true;
+    }
+    state.interruptedCount += candidateHits;
     return 0;
   }
 
@@ -1371,10 +1431,11 @@ function* resolveRepeatStep(
       // なった場合、残りの繰り返しを中断する。今回開始できなかった
       // `definition.count - iteration`回分すべての未解決ヒット数を
       // interruptedCountへ計上する（さもないと`SkillUseInterrupted`の
-      // `unresolvedEffectCount`契約に反する）。
-      state.sequenceInterrupted = true;
+      // `unresolvedEffectCount`契約に反する）。PR #216再々々々々々レビュー[P1]:
+      // 見積もりが0件（例えば各iterationがfalse conditionのみ）なら
+      // `sequenceInterrupted`は真にしない。
       const remainingIterations = definition.count - iteration;
-      state.interruptedCount +=
+      const candidateHits =
         countCandidateHits(
           definition.steps,
           resolvedBindings,
@@ -1382,6 +1443,10 @@ function* resolveRepeatStep(
           context.actorId,
           lastResultBox,
         ) * remainingIterations;
+      if (candidateHits > 0) {
+        state.sequenceInterrupted = true;
+      }
+      state.interruptedCount += candidateHits;
       break;
     }
     resolvedActionCount += yield* resolveStepDefinitionList(
@@ -1441,14 +1506,20 @@ function* resolveDeferredStep(
     // falseで`isDefeated`だけが真になっている。この`definition`自身が本来
     // 解決するはずだった未解決ヒット数をここで計上しないと、
     // 呼び出し元側の「次のindexから」計上でも漏れてしまう。
-    state.sequenceInterrupted = true;
-    state.interruptedCount += countCandidateHitsForStep(
+    // PR #216再々々々々々レビュー[P1]: 見積もりが0件なら
+    // `sequenceInterrupted`は真にしない（既にtrueなら`||`の左辺で
+    // このブロックへ到達しており、以下の代入は冪等）。
+    const candidateHits = countCandidateHitsForStep(
       definition,
       resolvedBindings,
       effectActions,
       context.actorId,
       lastResultBox,
     );
+    if (candidateHits > 0) {
+      state.sequenceInterrupted = true;
+    }
+    state.interruptedCount += candidateHits;
     return 0;
   }
 
@@ -1598,21 +1669,25 @@ export function* resolveEffectSequencePlan(
 
   for (const step of plan.steps) {
     if (state.sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
-      state.sequenceInterrupted = true;
-      if (step.stepKind === "ACTION") {
-        state.interruptedCount += countHits(step.applications);
-      } else {
-        // PR #216再々々々レビュー[P1]: トップレベルの未着手DEFERRED step
-        // （BRANCH/RANDOM_BRANCH/REPEAT、または直前結果依存ACTION）も
-        // 未解決効果であり、無言でcontinueすると`interruptedCount`から漏れる。
-        state.interruptedCount += countCandidateHitsForStep(
-          step.definition,
-          plan.resolvedBindings,
-          context.definitions.effectActions,
-          context.actorId,
-          lastResultBox,
-        );
+      // PR #216再々々々レビュー[P1]: トップレベルの未着手DEFERRED step
+      // （BRANCH/RANDOM_BRANCH/REPEAT、または直前結果依存ACTION）も
+      // 未解決効果であり、無言でcontinueすると`interruptedCount`から漏れる。
+      // PR #216再々々々々々レビュー[P1]: 見積もりが0件なら
+      // `sequenceInterrupted`は真にしない。
+      const candidateHits =
+        step.stepKind === "ACTION"
+          ? countHits(step.applications)
+          : countCandidateHitsForStep(
+              step.definition,
+              plan.resolvedBindings,
+              context.definitions.effectActions,
+              context.actorId,
+              lastResultBox,
+            );
+      if (candidateHits > 0) {
+        state.sequenceInterrupted = true;
       }
+      state.interruptedCount += candidateHits;
       continue;
     }
 

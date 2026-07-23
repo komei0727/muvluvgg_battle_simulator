@@ -563,6 +563,71 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     ).toBe(false);
   });
 
+  it("UT-R-SKL-01-005 (PR #216再々々々々々レビュー[P1]): when the PS owner is defeated by its own self-hit, and the only remaining step is an abandoned BRANCH whose sole content is a false-condition ACTION, PassiveResolved is emitted (not PassiveInterrupted) since nothing was actually discarded", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
+    const skill = passiveSkillOf("SKL_BACKLASH_THEN_FALSE_BRANCH", {
+      ppCost: 1,
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+          },
+          {
+            kind: "BRANCH",
+            condition: { kind: "TRUE" },
+            thenSteps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "NOT", condition: { kind: "TRUE" } },
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+              },
+            ],
+            elseSteps: [],
+          },
+        ],
+      },
+    });
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId,
+      currentHp: 10,
+      maximumHp: 10,
+      attack: 100,
+      defense: 0,
+      currentPp: 3,
+    });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+      new Map([[selfDamage.effectActionDefinitionId, selfDamage]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+
+    expect(updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentHp).toBe(0);
+
+    const events = recorder.getEvents();
+    expect(events.some((e) => e.eventType === "PassiveInterrupted")).toBe(false);
+    const resolved = events.find((e) => e.eventType === "PassiveResolved");
+    expect(resolved, 'expected a "PassiveResolved" event').toBeDefined();
+    expect(resolved!.payload).toMatchObject({
+      actorUnitId: owner.battleUnitId,
+      skillDefinitionId: skill.skillDefinitionId,
+    });
+  });
+
   it("PR #141 review [P1]: a PS triggered from a turn-boundary event (no actionId, e.g. TurnStarted) can still resolve real EffectSequence steps instead of throwing", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");

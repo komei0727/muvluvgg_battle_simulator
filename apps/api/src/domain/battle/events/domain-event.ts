@@ -382,14 +382,28 @@ export interface BattleDomainEventPayloadMap {
     readonly skillDefinitionId: SkillDefinitionId;
     readonly resolvedStepCount: number;
   };
-  /** R-SKL-01: PS所有者が解決中に戦闘不能になり中断した時。 */
+  /**
+   * R-SKL-01: PS所有者が解決中に戦闘不能になり中断した時。
+   * `unresolvedEffectCount`はRES-003（PR #216レビュー）以降、`BRANCH`/
+   * `RANDOM_BRANCH`/`REPEAT`を含む未着手subtreeについては実際に適用せず
+   * 静的に見積もった**保守的な上限**（常に実際以上）であり、厳密な実行時
+   * カウントではない。発行するイベント種別（`PassiveInterrupted` vs
+   * `PassiveResolved`）自体はこの見積もり値に依存しない別判定を使うため、
+   * `unresolvedEffectCount: 0`のまま`PassiveInterrupted`が発行されることは
+   * ない（詳細: `08_ドメインイベント.md`「`unresolvedEffectCount`の性質」）。
+   */
   readonly PassiveInterrupted: {
     readonly actorUnitId: BattleUnitId;
     readonly skillDefinitionId: SkillDefinitionId;
     readonly reason: "OWNER_DEFEATED";
     readonly unresolvedEffectCount: number;
   };
-  /** R-SKL-01: AS/EX使用者が解決中に戦闘不能になり中断した時。 */
+  /**
+   * R-SKL-01: AS/EX使用者が解決中に戦闘不能になり中断した時。
+   * `unresolvedEffectCount`の性質は`PassiveInterrupted`と同じ
+   * （`08_ドメインイベント.md`参照）— 保守的な上限見積もりであり厳密な
+   * 実行時カウントではない。
+   */
   readonly SkillUseInterrupted: {
     readonly actorUnitId: BattleUnitId;
     readonly skillDefinitionId: SkillDefinitionId;

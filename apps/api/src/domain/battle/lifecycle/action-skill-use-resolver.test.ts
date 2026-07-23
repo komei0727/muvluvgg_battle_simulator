@@ -272,6 +272,62 @@ function asSkillWithRepeatSelfHit(effectActionId: string, count: number): SkillD
   };
 }
 
+/**
+ * R-SKL-01（RES-003、PR #216再々々々々々レビュー[P1]）: 最初のstepの自傷DAMAGEで
+ * actorが戦闘不能になり、2番目のstep（BRANCH、thenSteps内はfalse condition
+ * のACTIONのみ）がまったく未着手のまま残るAS skill。BRANCHのthenSteps自体は
+ * 実行されればfalse conditionでR-SKL-06によりスキップされる＝寄与0のため、
+ * 「戦闘不能を観測しただけ」で`SkillUseInterrupted`を誤発行しないことを
+ * 検証するために使う。
+ */
+function asSkillWithSelfHitThenAbandonedFalseBranch(effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_AS_SELF_THEN_FALSE_BRANCH"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+        {
+          kind: "BRANCH",
+          condition: { kind: "TRUE" },
+          thenSteps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "NOT", condition: { kind: "TRUE" } },
+              target: { kind: "SELF" },
+              actions: [
+                { effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) },
+              ],
+            },
+          ],
+          elseSteps: [],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "AS Self Then Abandoned False Branch", tags: [] },
+  };
+}
+
 function definitionsOf(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
@@ -455,5 +511,47 @@ describe("resolveSkillUse", () => {
       resolvedEffectCount: 1,
       unresolvedEffectCount: 2,
     });
+  });
+
+  it("UT-R-SKL-07-022 (R-SKL-01, PR #216再々々々々々レビュー[P1]): a self-hit that kills the actor, followed by an abandoned BRANCH whose only content is a false-condition ACTION, still emits SkillUseCompleted (not SkillUseInterrupted) since nothing was actually discarded, through the real resolveSkillOrder -> resolveSkillUse lifecycle", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
+    const hit = damageEffectAction("ACT_SELF_THEN_FALSE_BRANCH");
+    const skill = asSkillWithSelfHitThenAbandonedFalseBranch("ACT_SELF_THEN_FALSE_BRANCH");
+
+    // A self-hit's damage is clamped to the minimum of 1 (10 attack - 10 own
+    // defense), so currentHp: 1 makes the single hit lethal.
+    const actor = unit("ACTOR", "ALLY", {
+      unitDefinitionId: actorUnitDefinitionId,
+      currentAp: 3,
+      currentHp: 1,
+    });
+
+    const definitions = definitionsOf(
+      new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)]]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    resolveSkillUse(
+      actor,
+      skill,
+      "AS",
+      "AS",
+      [actor],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    expect(events.filter((e) => e.eventType === "DamageApplied")).toHaveLength(1);
+    expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(false);
+    const completed = events.find((e) => e.eventType === "SkillUseCompleted");
+    expect(completed, 'expected a "SkillUseCompleted" event').toBeDefined();
   });
 });

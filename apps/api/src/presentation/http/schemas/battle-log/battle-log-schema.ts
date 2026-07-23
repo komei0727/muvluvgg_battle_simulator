@@ -670,7 +670,12 @@ const passiveInterruptedDetailsSchema = {
     actorUnitId: { type: "string" },
     skillDefinitionId: { type: "string" },
     reason: { type: "string", enum: ["OWNER_DEFEATED"] },
-    unresolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: {
+      type: "integer",
+      minimum: 0,
+      description:
+        "Conservative upper-bound estimate of effect applications abandoned when the owner was defeated mid-resolution; not an exact runtime count for BRANCH/RANDOM_BRANCH/REPEAT subtrees that were never entered.",
+    },
   },
 } as const;
 
@@ -689,7 +694,12 @@ const skillUseInterruptedDetailsSchema = {
     skillDefinitionId: { type: "string" },
     reason: { type: "string", enum: ["ACTOR_DEFEATED"] },
     resolvedEffectCount: { type: "integer", minimum: 0 },
-    unresolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: {
+      type: "integer",
+      minimum: 0,
+      description:
+        "Conservative upper-bound estimate of effect applications abandoned when the actor was defeated mid-resolution; not an exact runtime count for BRANCH/RANDOM_BRANCH/REPEAT subtrees that were never entered.",
+    },
   },
 } as const;
 

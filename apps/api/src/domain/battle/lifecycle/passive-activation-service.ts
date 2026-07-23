@@ -1370,10 +1370,11 @@ export class PassiveActivationRuntime {
     // R-PS-05 #6 / R-SKL-01: 使用者(PS所有者)が戦闘不能になり、未解決のまま
     // 打ち切られた適用が実際に残った場合だけ中断とする（PR #141再レビュー[P2]:
     // 戦闘不能かどうかだけでは判定しない — 最後の効果で倒れても残り0件なら
-    // 正常解決のまま）。PR #216再々々々々々レビュー[P1]:
-    // `effectResult.sequenceInterrupted`（resolverが中断を検出したまさに
-    // その箇所で確定する正式なフラグ）で判定し、見積もりである
-    // `interruptedCount`の大小には依存しない。
+    // 正常解決のまま）。`effectResult.sequenceInterrupted`（resolverが
+    // 中断を検出した各箇所で、実際に1件以上のpending workを破棄したと
+    // 確認できた場合だけ真になる正式なフラグ、PR #216
+    // 再々々々々々々レビュー[P1]で「戦闘不能を観測しただけ」では真にしない
+    // よう修正済み）で判定する。
     const interrupted = sequenceInterrupted;
     const resolvedStepCount =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0;

@@ -1248,6 +1248,10 @@ describe("applyEffectActionGroups", () => {
 
       expect(result.interruptedCount).toBe(0);
       expect(result.resolvedCount).toBe(0);
+      // PR #216再々々々々々レビュー[P1]: interruptedCountが0であるだけでなく、
+      // `sequenceInterrupted`自体も「戦闘不能を観測しただけ」でtrueにならない
+      // ことを確認する（実際に破棄されたpending workが0件のため）。
+      expect(result.sequenceInterrupted).toBe(false);
     });
 
     it("UT-R-SKL-07-014 (PR #216再々々々レビュー[P1]): once a RandomBranchSelected chain interrupts the sequence, later top-level steps (both a plain ACTION and a DEFERRED step) still contribute their unresolved hits to interruptedCount instead of being silently dropped", () => {
@@ -1662,6 +1666,151 @@ describe("applyEffectActionGroups", () => {
       expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(1);
       expect(result.resolvedCount).toBe(1); // branch A's self-hit.
       expect(result.interruptedCount).toBe(4); // branch B's never-rolled candidate hits.
+    });
+
+    it("UT-R-SKL-07-023 (PR #216再々々々々々レビュー[P2]): WEIGHTED_ONE excludes a weight:0 branch from the candidate-hit estimate, even when that unreachable branch has more hits than the only reachable one", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const reachableAttack = damageAction("ACT_REACHABLE", 2);
+      const unreachableAttack = damageAction("ACT_UNREACHABLE", 99);
+      const effectActions = new Map([
+        [reachableAttack.effectActionDefinitionId, reachableAttack],
+        [unreachableAttack.effectActionDefinitionId, unreachableAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        // NO_RANDOM throws if consumed — interrupted before branch selection.
+        NO_RANDOM,
+        (event, units) => {
+          if (
+            event.eventType === "EffectStepStarting" &&
+            event.payload.stepKind === "RANDOM_BRANCH"
+          ) {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "UNREACHABLE",
+            weight: 0,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: unreachableAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+          {
+            label: "REACHABLE",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: reachableAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      // Without the weight:0 exclusion, Math.max would have picked the
+      // unreachable branch's 99 hits instead of the only reachable branch's 2.
+      expect(result.interruptedCount).toBe(2);
+    });
+
+    it("UT-R-SKL-07-024 (PR #216再々々々々々レビュー[P2]): INDEPENDENT excludes a probability:0 branch from the candidate-hit estimate sum", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const reachableAttack = damageAction("ACT_REACHABLE", 2);
+      const unreachableAttack = damageAction("ACT_UNREACHABLE", 99);
+      const effectActions = new Map([
+        [reachableAttack.effectActionDefinitionId, reachableAttack],
+        [unreachableAttack.effectActionDefinitionId, unreachableAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        NO_RANDOM,
+        (event, units) => {
+          if (
+            event.eventType === "EffectStepStarting" &&
+            event.payload.stepKind === "RANDOM_BRANCH"
+          ) {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "INDEPENDENT",
+        branches: [
+          {
+            label: "UNREACHABLE",
+            probability: 0,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: unreachableAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+          {
+            label: "REACHABLE",
+            probability: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: reachableAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      // Without the probability:0 exclusion, the sum would have included the
+      // unreachable branch's 99 hits alongside the reachable branch's 2.
+      expect(result.interruptedCount).toBe(2);
     });
   });
 
