@@ -333,17 +333,17 @@ function* resolveOneEffectActionApplication(
   // 含めない。
   const innerEventsStart = context.recorder.getEvents().length;
 
-  // R-ACTN-01 #2（RES-002、Issue #174、全Action種別の共通契約）: 対象が既に
-  // 戦闘不能であり、戦闘不能者を対象にできる明示指定（`TargetSelectorDefinition.
-  // includeDefeated`）がない場合は種別を問わず適用しない。現時点のproduction
-  // Catalogにはその明示指定を伴うEffectActionが存在しないため、常にスキップ
-  // する（明示指定を配線する場合は`EffectActionApplication`へ選択元selectorの
-  // 情報を運ぶ拡張が別途必要）。DAMAGEは`applyDamageAction`（ヒット単位、対象が
+  // R-ACTN-01 #2（RES-002、Issue #174、全Action種別の共通契約、レビュー指摘
+  // [P2] PR #215）: 対象が既に戦闘不能であり、戦闘不能者を対象にできる明示指定
+  // （`application.includeDefeated`、選択元`TargetSelectorDefinition.
+  // includeDefeated`から`skill-resolution-service.ts`が運ぶ）がない場合は
+  // 種別を問わず適用しない。DAMAGEは`applyDamageAction`（ヒット単位、対象が
   // 解決の途中で戦闘不能になる場合を含む）で既にこの契約を満たしており、
   // `lastDamageResults`への0記録もそちら側の責務のため、ここでは対象としない
   // （二重処理防止）。
   if (
     effectAction.kind !== "DAMAGE" &&
+    !application.includeDefeated &&
     isDefeated(requireUnit(box.units, application.targetBattleUnitId))
   ) {
     resolvedCount = application.hits.length;

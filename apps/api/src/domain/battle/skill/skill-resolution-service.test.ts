@@ -477,6 +477,7 @@ describe("resolveSkillOrder", () => {
           {
             targetBattleUnitId: enemy.battleUnitId,
             effectActionDefinitionId: resolved.effectActionDefinitionId,
+            includeDefeated: false,
             hits: [
               {
                 targetBattleUnitId: enemy.battleUnitId,
@@ -484,6 +485,53 @@ describe("resolveSkillOrder", () => {
                 hitIndex: 1,
               },
             ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("UT-R-SKL-06-013/UT-R-ACTN-01-008 (R-ACTN-01 #2, PR #215 review finding [P2]): EffectActionApplication.includeDefeated carries the resolved TargetBinding's selector.includeDefeated, and a true selector keeps an already-defeated unit in the target pool", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const defeatedEnemy = unit(
+      "ENEMY_DEFEATED",
+      "ENEMY",
+      { column: "LEFT", row: "FRONT" },
+      { currentHp: 0 },
+    );
+    const attack = damageAction("ACT_ATTACK");
+    const includeDefeatedSelector: TargetSelectorDefinition = {
+      ...ENEMY_ALL_SELECTOR,
+      includeDefeated: true,
+    };
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: includeDefeatedSelector },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+
+    const plan = resolveSkillOrder(skill, actor, [actor, defeatedEnemy], effectActions);
+
+    expect(plan.steps[0]?.applications).toEqual([
+      {
+        targetBattleUnitId: defeatedEnemy.battleUnitId,
+        effectActionDefinitionId: attack.effectActionDefinitionId,
+        includeDefeated: true,
+        hits: [
+          {
+            targetBattleUnitId: defeatedEnemy.battleUnitId,
+            effectActionDefinitionId: attack.effectActionDefinitionId,
+            hitIndex: 1,
           },
         ],
       },

@@ -627,13 +627,31 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   {
     ruleId: "R-ACTN-01",
     testCaseIds: [
+      // #1 Capability preflight: EffectAction単位のrequiredCapabilitiesがpreflightで拒否対象になることを検証する。
+      "UT-PREFLIGHT-008",
+      // #2 対象戦闘不能skip(明示指定なし): 全kindが対象戦闘不能を理由に適用をスキップする。
       "UT-R-ACTN-01-001",
       "UT-R-ACTN-01-002",
       "UT-R-ACTN-01-003",
       "UT-R-ACTN-01-004",
+      // #2 対象戦闘不能でも生存対象には通常どおり適用される(誤検出がないことの境界)。
       "UT-R-ACTN-01-005",
+      // #2 明示指定(TargetSelectorDefinition.includeDefeated: true)がある場合は戦闘不能対象にも適用される。
+      "UT-R-ACTN-01-006",
+      "UT-R-ACTN-01-008",
+      // #3 Formula評価: payloadのFormulaDefinitionが実際に評価される。
+      "UT-R-NUM-04-027",
+      // #4/#5 種別に応じた状態変更とイベント発行を、実パイプライン(applyEffectActionGroups)経由でkindごとに検証する。
+      "UT-R-SKL-06-008", // DAMAGE -> HP
+      "UT-R-ACTN-01-009", // COOLDOWN_MANIPULATION -> cooldowns
+      "UT-R-EFF-01-021", // APPLY_STAT_MOD -> AppliedEffect
+      "UT-R-ACTN-01-007", // REMOVE_MARKER -> MarkerState
+      // (APPLY_MARKER -> MarkerStateはUT-R-ACTN-01-005が兼ねる)
+      // #6 PS/Memory triggeredEffectsを次のEffectActionへ進む前に解決する。
+      "UT-R-SKL-06-011",
+      "UT-R-EFF-01-022",
     ],
-    kinds: ["NEGATIVE", "BOUNDARY", "POSITIVE"],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
   { ruleId: "R-ACTN-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-ACTN-03", testCaseIds: [], kinds: [] },

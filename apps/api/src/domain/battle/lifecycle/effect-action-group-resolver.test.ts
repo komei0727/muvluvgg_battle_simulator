@@ -185,6 +185,7 @@ function singleActionStep(
   satisfied: boolean,
   targetBattleUnitId: BattleUnit["battleUnitId"],
   effectActionDefinitionId: EffectActionDefinition["effectActionDefinitionId"],
+  includeDefeated = false,
 ): EffectSequencePlan["steps"][number] {
   return {
     stepIndex,
@@ -196,6 +197,7 @@ function singleActionStep(
           {
             targetBattleUnitId,
             effectActionDefinitionId,
+            includeDefeated,
             hits: [{ targetBattleUnitId, effectActionDefinitionId, hitIndex: 1 }],
           },
         ]
@@ -320,6 +322,7 @@ describe("applyEffectActionGroups", () => {
             {
               targetBattleUnitId: actor.battleUnitId,
               effectActionDefinitionId: selfHit.effectActionDefinitionId,
+              includeDefeated: false,
               hits: [
                 {
                   targetBattleUnitId: actor.battleUnitId,
@@ -331,6 +334,7 @@ describe("applyEffectActionGroups", () => {
             {
               targetBattleUnitId: enemy.battleUnitId,
               effectActionDefinitionId: otherHit.effectActionDefinitionId,
+              includeDefeated: false,
               hits: [
                 {
                   targetBattleUnitId: enemy.battleUnitId,
@@ -880,6 +884,121 @@ describe("applyEffectActionGroups", () => {
 
       const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
       expect(target.markerStates).toHaveLength(1);
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("APPLIED");
+    });
+
+    it("UT-R-ACTN-01-006: APPLY_STAT_MOD still applies to an already-defeated target when its TargetSelectorDefinition.includeDefeated is true (explicit override, PR #215 review finding [P2])", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const defeatedEnemy = unit("ENEMY", "ENEMY", { currentHp: 0 });
+      const statMod = statModAction("ACT_ATK_UP");
+      const effectActions = new Map([[statMod.effectActionDefinitionId, statMod]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(
+            0,
+            true,
+            defeatedEnemy.battleUnitId,
+            statMod.effectActionDefinitionId,
+            true,
+          ),
+        ],
+        targetUnitIds: [defeatedEnemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, defeatedEnemy], context);
+
+      const target = result.units.find((u) => u.battleUnitId === defeatedEnemy.battleUnitId)!;
+      expect(target.appliedEffects).toHaveLength(1);
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("APPLIED");
+    });
+
+    it("UT-R-ACTN-01-007: REMOVE_MARKER against a live target with an existing marker actually removes it through the real pipeline and completes as APPLIED", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const markerId = createMarkerId("MARKER_TEST");
+      const setup = seedRecorder();
+      const granted = applyMarker(
+        {
+          recorder: setup.recorder,
+          turnNumber: 1,
+          cycleNumber: 0,
+          resolutionScopeId: setup.recorder.nextResolutionScopeId(),
+          rootEventId: setup.rootEventId as never,
+        },
+        [actor, enemy],
+        {
+          markerId,
+          sourceId: actor.battleUnitId,
+          targetId: enemy.battleUnitId,
+          stackPolicy: "ADD",
+          stackMax: null,
+          durationDefinition: { dispellable: true, linkedEffectGroupId: null },
+        },
+        setup.rootEventId as never,
+      );
+      const grantedEnemy = granted.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      const remove = removeMarkerAction("ACT_REMOVE_MARKER", markerId);
+      const effectActions = new Map([[remove.effectActionDefinitionId, remove]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(0, true, grantedEnemy.battleUnitId, remove.effectActionDefinitionId),
+        ],
+        targetUnitIds: [grantedEnemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, grantedEnemy], context);
+
+      const target = result.units.find((u) => u.battleUnitId === grantedEnemy.battleUnitId)!;
+      expect(target.markerStates).toHaveLength(0);
+      expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(true);
+
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("APPLIED");
+    });
+
+    it("UT-R-ACTN-01-009: COOLDOWN_MANIPULATION against a live target with a non-zero remaining cooldown actually resets it through the real pipeline and completes as APPLIED", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const targetSkillId = createSkillDefinitionId("SKL_TARGET");
+      const enemy = unit("ENEMY", "ENEMY", {
+        cooldowns: { [targetSkillId]: { unit: "ACTION", remaining: 2 } },
+      });
+      const reset = cooldownManipulationAction("ACT_RESET", targetSkillId);
+      const effectActions = new Map([[reset.effectActionDefinitionId, reset]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [singleActionStep(0, true, enemy.battleUnitId, reset.effectActionDefinitionId)],
+        targetUnitIds: [enemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      expect(target.cooldowns[targetSkillId]?.remaining).toBe(0);
+      expect(recorder.getEvents().some((e) => e.eventType === "CooldownReduced")).toBe(true);
+      expect(recorder.getEvents().some((e) => e.eventType === "CooldownCompleted")).toBe(true);
+
       const completed = recorder
         .getEvents()
         .find((e) => e.eventType === "EffectActionCompleted") as Extract<
