@@ -2,7 +2,6 @@ import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical } from "./critical-policy.js";
 import {
-  invalidateLastDamageResult,
   lastDamageResultsFor,
   recordLastDamageResult,
   type LastDamageResultRegistry,
@@ -230,14 +229,16 @@ export function applyDamageAction(
 
     if (isDefeated(target)) {
       outcomes.push(skip(hit));
-      // R-SKL-08（レビュー再々指摘[P1]、PR #214）: 対象不在で適用されなかった
-      // このヒットが「同じ解決スコープ内の直前結果」になる。以前の成功した
-      // DAMAGE結果を`LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`として透けて
-      // 見せ続けないよう、該当方向の値を無効化する。
-      invalidateLastDamageResult(
+      // R-SKL-08（レビュー再々々指摘[P1]、PR #214）: 対象不在で適用されなかった
+      // このヒットも「同じ解決スコープ内の直前結果」になる。以前の成功した
+      // DAMAGE結果を透けて見せ続けないよう0として記録する（例外にはしない —
+      // MISS等は有効な定義のもとで通常発生し得る実行時の結果であり、R-NUM-04が
+      // 拒否対象とするCatalog定義エラーではないため）。
+      recordLastDamageResult(
         context.lastDamageResults,
         currentAttacker.battleUnitId,
         target.battleUnitId,
+        0,
       );
       continue;
     }
@@ -308,11 +309,12 @@ export function applyDamageAction(
     if (isDefeated(targetAfterTiming)) {
       outcomes.push(skip(hit));
       // R-SKL-08: TIMING処理後に対象が戦闘不能になった場合も、この不成立結果を
-      // 直前結果として扱う（上の対象不在チェックと同じ理由）。
-      invalidateLastDamageResult(
+      // 0として直前結果に記録する（上の対象不在チェックと同じ理由）。
+      recordLastDamageResult(
         context.lastDamageResults,
         attackerAfterTiming.battleUnitId,
         targetAfterTiming.battleUnitId,
+        0,
       );
       continue;
     }
@@ -320,12 +322,14 @@ export function applyDamageAction(
     if (!resolveHit()) {
       outcomes.push(skip(hit));
       // R-SKL-08: MISSも結果種別を持つ直前結果として記録する（R-SKL-08本文）。
-      // このFormulaEvaluatorはMISS自体の種別を表現しないため、代わりに
-      // 以前の成功したDAMAGE結果が透けて見えないよう該当方向の値を無効化する。
-      invalidateLastDamageResult(
+      // 有効な定義のもとで通常発生し得る実行時の結果であり、後続Formulaの
+      // 参照を例外終了させてはならないため0として記録する（`recordLastDamageResult`
+      // のコメント参照）。
+      recordLastDamageResult(
         context.lastDamageResults,
         attackerAfterTiming.battleUnitId,
         targetAfterTiming.battleUnitId,
+        0,
       );
       continue;
     }

@@ -162,6 +162,16 @@ export function lastDamageResultsFor(
  * `applyDamageAction`が確定させたダメージ結果を`registry`へ記録する
  * （ミュータブルな共有Mapを直接更新する — 新しいオブジェクトの返却も
  * イミュータブルコピーも不要、`registry`自体が1解決スコープの寿命を表す）。
+ *
+ * R-SKL-08（レビュー再々々指摘[P1]、PR #214）: MISS・対象不在などで効果が
+ * 適用されなかった場合も「同じ解決スコープ内で直前に確定した結果」であり、
+ * 正規の直前結果として記録する契約 — R-NUM-04の「参照が存在しない場合は
+ * Catalog検証またはpreflightで拒否する」はCatalog定義自体の誤り（存在し得ない
+ * 参照）を指し、有効な定義のもとで通常発生し得る実行時のMISSを指すものでは
+ * ない。呼び出し側（`applyDamageAction`）は不成立ヒットでも`finalDamage: 0`で
+ * この関数を呼ぶことで、以前の成功結果を透けて見せずに済ませつつ、後続の
+ * `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`評価を（`DomainValidationError`
+ * ではなく）0として決定的に解決させる。
  */
 export function recordLastDamageResult(
   registry: LastDamageResultRegistry | undefined,
@@ -178,45 +188,6 @@ export function recordLastDamageResult(
   // `lastDamageReceived`も重ねる必要があるため、`registry.get`をここで取り直す。
   const receiverBefore = registry.get(receiverId);
   registry.set(receiverId, { ...receiverBefore, lastDamageReceived: finalDamage });
-}
-
-/**
- * R-SKL-08（レビュー再々指摘[P1]、PR #214）: MISS・対象不在などで効果が
- * 適用されなかった場合も「同じ解決スコープ内で直前に確定した結果」であり、
- * それ以前の成功したDAMAGE結果を`LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`
- * として参照し続けさせてはならない。このFormulaEvaluatorはMISS自体の
- * 結果種別を表現しない（`LAST_RESULT` Conditionの完全な結果種別追跡は
- * RES-002/RES-003、Issue #174/#173のスコープ）ため、該当方向の値を単に
- * 未記録の状態へ戻す — 後続Formulaが参照すれば`lastResultValue`と同じ
- * 「記録が無い」`DomainValidationError`になる（古い値が透けて見えることは
- * ない）。
- */
-export function invalidateLastDamageResult(
-  registry: LastDamageResultRegistry | undefined,
-  dealerId: BattleUnitId,
-  receiverId: BattleUnitId,
-): void {
-  if (registry === undefined) {
-    return;
-  }
-  const dealerBefore = registry.get(dealerId);
-  if (dealerBefore?.lastDamageDealt !== undefined) {
-    const { lastDamageDealt: _lastDamageDealt, ...rest } = dealerBefore;
-    if (Object.keys(rest).length > 0) {
-      registry.set(dealerId, rest);
-    } else {
-      registry.delete(dealerId);
-    }
-  }
-  const receiverBefore = registry.get(receiverId);
-  if (receiverBefore?.lastDamageReceived !== undefined) {
-    const { lastDamageReceived: _lastDamageReceived, ...rest } = receiverBefore;
-    if (Object.keys(rest).length > 0) {
-      registry.set(receiverId, rest);
-    } else {
-      registry.delete(receiverId);
-    }
-  }
 }
 
 /**

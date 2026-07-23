@@ -940,7 +940,7 @@ describe("applyDamageAction", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-DAMAGE-APPLICATION-014 (R-SKL-08, レビュー再々指摘[P1] PR #214): a successful DAMAGE followed by a not-applied one (target already defeated) in the SAME resolution scope invalidates the earlier lastDamageDealt/lastDamageReceived, instead of leaving the stale success value visible", () => {
+  it("UT-DAMAGE-APPLICATION-014 (R-SKL-08, レビュー再々々指摘[P1] PR #214): a successful DAMAGE followed by a not-applied one (target already defeated) in the SAME resolution scope records lastDamageDealt/lastDamageReceived as 0, instead of leaving the earlier success value visible or making later Formula references throw", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const defender = unit("DEFENDER", "ENEMY", { defense: 10, maximumHp: 200 });
     const random = new SequenceRandomSource([]);
@@ -967,8 +967,9 @@ describe("applyDamageAction", () => {
 
     // Hit 2 (not applied — target already defeated), same attacker/target
     // pair, same shared registry: R-SKL-08 treats this not-applied result as
-    // the new "last result" for this scope, so it must invalidate hit 1's
-    // success value rather than leaving it visible.
+    // a regular "last result" for this scope (not a Catalog-definition
+    // error), so it must overwrite hit 1's success value with 0 rather than
+    // leaving it visible or erasing it entirely.
     applyDamageAction(
       attackerAfterFirstHit,
       [hit("DEFENDER", 1)],
@@ -977,11 +978,14 @@ describe("applyDamageAction", () => {
       random,
       { ...damageEventContext(), lastDamageResults },
     );
-    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBeUndefined();
-    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBeUndefined();
+    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(0);
+    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(0);
 
     // A later Formula referencing LAST_DAMAGE_DEALT in this same scope must
-    // now throw (no recorded value) instead of silently returning the stale 20.
+    // now evaluate to 0 — not the stale 20, and not a thrown error (MISS/
+    // no-target is a normal runtime outcome under a valid Catalog
+    // definition, not the "reference doesn't exist" case R-NUM-04 reserves
+    // for Catalog/preflight rejection).
     const referencingAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_REFERENCING"),
@@ -1000,15 +1004,16 @@ describe("applyDamageAction", () => {
     };
     const otherTarget = unit("OTHER_TARGET", "ENEMY");
 
-    expect(() =>
-      applyDamageAction(
-        attackerAfterFirstHit,
-        [hit("OTHER_TARGET", 1)],
-        referencingAction,
-        [attackerAfterFirstHit, otherTarget],
-        random,
-        { ...damageEventContext(), lastDamageResults },
-      ),
-    ).toThrow(DomainValidationError);
+    const referencingResult = applyDamageAction(
+      attackerAfterFirstHit,
+      [hit("OTHER_TARGET", 1)],
+      referencingAction,
+      [attackerAfterFirstHit, otherTarget],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+    // baseDamage = LAST_DAMAGE_DEALT(0) * ratio(1) = 0; R-DMG-02's minimum-1
+    // still applies since this is a DAMAGE-kind effect.
+    expect(referencingResult.hits[0]!.damage).toBe(1);
   });
 });
