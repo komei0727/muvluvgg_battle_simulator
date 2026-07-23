@@ -926,6 +926,46 @@ describe("applyEffectActionGroups", () => {
       expect(completed.payload.resultKind).toBe("APPLIED");
     });
 
+    it("UT-R-ACTN-01-010: DAMAGE against an already-defeated target still applies through the real pipeline (applyDamageAction) when TargetSelectorDefinition.includeDefeated is true (PR #215 re-review finding [P2])", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const defeatedEnemy = unit("ENEMY", "ENEMY", { currentHp: 0 });
+      const attack = damageAction("ACT_ATTACK");
+      const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          singleActionStep(
+            0,
+            true,
+            defeatedEnemy.battleUnitId,
+            attack.effectActionDefinitionId,
+            true,
+          ),
+        ],
+        targetUnitIds: [defeatedEnemy.battleUnitId],
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, defeatedEnemy], context);
+
+      // Not skipped: the hit reached HitConfirmed/DamageCalculated/DamageApplied
+      // instead of being silently dropped by the target-already-defeated check.
+      const emitted = recorder.getEvents().map((e) => e.eventType);
+      expect(emitted).toContain("HitConfirmed");
+      expect(emitted).toContain("DamageCalculated");
+      expect(emitted).toContain("DamageApplied");
+      expect(result.resolvedCount).toBe(1);
+      expect(result.interruptedCount).toBe(0);
+
+      const completed = recorder
+        .getEvents()
+        .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+        BattleDomainEvent,
+        { eventType: "EffectActionCompleted" }
+      >;
+      expect(completed.payload.resultKind).toBe("APPLIED");
+    });
+
     it("UT-R-ACTN-01-007: REMOVE_MARKER against a live target with an existing marker actually removes it through the real pipeline and completes as APPLIED", () => {
       const actor = unit("ACTOR", "ALLY");
       const enemy = unit("ENEMY", "ENEMY");

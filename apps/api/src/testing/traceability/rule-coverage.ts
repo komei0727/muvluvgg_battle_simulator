@@ -637,8 +637,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // #2 対象戦闘不能でも生存対象には通常どおり適用される(誤検出がないことの境界)。
       "UT-R-ACTN-01-005",
       // #2 明示指定(TargetSelectorDefinition.includeDefeated: true)がある場合は戦闘不能対象にも適用される。
+      // DAMAGEもapplyDamageAction内部のヒット単位チェックで同じ明示指定を尊重する(PR #215再レビュー[P2])。
       "UT-R-ACTN-01-006",
       "UT-R-ACTN-01-008",
+      "UT-R-ACTN-01-010",
+      "UT-DAMAGE-APPLICATION-015",
       // #3 Formula評価: payloadのFormulaDefinitionが実際に評価される。
       "UT-R-NUM-04-027",
       // #4/#5 種別に応じた状態変更とイベント発行を、実パイプライン(applyEffectActionGroups)経由でkindごとに検証する。

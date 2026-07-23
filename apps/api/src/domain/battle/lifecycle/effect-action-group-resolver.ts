@@ -337,10 +337,11 @@ function* resolveOneEffectActionApplication(
   // [P2] PR #215）: 対象が既に戦闘不能であり、戦闘不能者を対象にできる明示指定
   // （`application.includeDefeated`、選択元`TargetSelectorDefinition.
   // includeDefeated`から`skill-resolution-service.ts`が運ぶ）がない場合は
-  // 種別を問わず適用しない。DAMAGEは`applyDamageAction`（ヒット単位、対象が
-  // 解決の途中で戦闘不能になる場合を含む）で既にこの契約を満たしており、
-  // `lastDamageResults`への0記録もそちら側の責務のため、ここでは対象としない
-  // （二重処理防止）。
+  // 種別を問わず適用しない。DAMAGEはこの分岐を経由せず`applyDamageAction`へ
+  // そのまま進む — 同関数がヒット単位（対象が解決の途中で戦闘不能になる場合を
+  // 含む）で`includeDefeated`（下で`context.includeDefeated`として引き渡す）を
+  // 同じ契約に沿って判定し、`lastDamageResults`への0記録もそちら側の責務のため
+  // ここでは対象としない（二重処理防止）。
   if (
     effectAction.kind !== "DAMAGE" &&
     !application.includeDefeated &&
@@ -352,9 +353,12 @@ function* resolveOneEffectActionApplication(
     resultKind = "SKIPPED";
   } else if (effectAction.kind === "DAMAGE") {
     const currentActor = requireUnit(box.units, context.actorId);
-    const targetAlreadyDefeated = isDefeated(
-      requireUnit(box.units, application.targetBattleUnitId),
-    );
+    // R-ACTN-01 #2（レビュー再指摘[P2]、PR #215）: `includeDefeated`が明示された
+    // 対象は、開始時点で戦闘不能であっても`applyDamageAction`がヒットを適用する
+    // ため、resultKind算出上も「既に戦闘不能」として扱わない。
+    const targetAlreadyDefeated =
+      !application.includeDefeated &&
+      isDefeated(requireUnit(box.units, application.targetBattleUnitId));
     const { consumeEffectDuration, finalizeConsumedEffectDurations } =
       buildConsumeEffectDurationHooks(context);
     const damageResult = applyDamageAction(
@@ -375,6 +379,7 @@ function* resolveOneEffectActionApplication(
         skillDefinitionId: context.skillDefinitionId,
         consumeEffectDuration,
         finalizeConsumedEffectDurations,
+        includeDefeated: application.includeDefeated,
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),

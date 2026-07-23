@@ -305,6 +305,30 @@ describe("applyDamageAction", () => {
     expect(updatedTarget.currentHp).toBe(0);
   });
 
+  it("UT-DAMAGE-APPLICATION-015 (R-ACTN-01 #2, PR #215 re-review finding [P2]): context.includeDefeated: true still applies hits against an already-defeated target, instead of skipping them", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 999 });
+    const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 50 });
+    const random = new SequenceRandomSource([]);
+    const context: DamageEventContext = { ...damageEventContext(), includeDefeated: true };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET", 2), hit("TARGET", 3)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(result.hits.map((h) => h.applied)).toEqual([true, true, true]);
+    const eventTypes = context.recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes.filter((t) => t === "DamageApplied")).toHaveLength(3);
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(updatedTarget.currentHp).toBe(0);
+  });
+
   it("UT-DAMAGE-APPLICATION-004: hits against independent targets do not affect each other's HP", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const targetA = unit("TARGET_A", "ENEMY", { defense: 10, maximumHp: 100 });

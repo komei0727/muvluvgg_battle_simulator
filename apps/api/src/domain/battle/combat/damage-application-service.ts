@@ -120,6 +120,15 @@ export interface DamageEventContext {
    * Formulaは`FormulaEvaluator`が明確な例外で拒否する。
    */
   readonly lastDamageResults?: LastDamageResultRegistry;
+  /**
+   * R-ACTN-01 #2（レビュー再指摘[P2]、PR #215）: このヒット列を解決した対象が
+   * `TargetSelectorDefinition.includeDefeated: true`で選択された場合`true`。
+   * 未指定（`false`扱い）なら、これまでどおり参照時点で既に戦闘不能な対象への
+   * ヒットを適用しない。`true`の場合は、対象が戦闘不能であることを理由に
+   * ヒットをスキップしない — DAMAGEも他のEffectAction種別と同じ明示指定を
+   * 尊重する（`effect-action-group-resolver.ts`の非DAMAGE分岐と対になる契約）。
+   */
+  readonly includeDefeated?: boolean;
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -193,7 +202,10 @@ function notifyNewEvents(
  * `DamageApplicationService` の基本形 (`05_ドメインモデル.md`)。`SkillResolutionService`が
  * 解決した1つのDAMAGE EffectActionのヒット列を、R-DMG-05の順序（命中→会心→
  * ダメージ計算→HP適用→戦闘不能判定）でヒットごとに処理する。R-ACTN-01/R-SKL-03:
- * 参照時点で既に戦闘不能な対象へのヒットは適用をスキップする。R-SKL-01/R-SKL-03:
+ * 参照時点で既に戦闘不能な対象へのヒットは、`context.includeDefeated`（選択元
+ * `TargetSelectorDefinition.includeDefeated`）が`true`でない限り適用をスキップ
+ * する（レビュー再指摘[P2]、PR #215: 非DAMAGE種別と同じ明示指定を尊重する）。
+ * R-SKL-01/R-SKL-03:
  * 使用者(attacker)自身が途中で戦闘不能になった場合、以降の未解決ヒットをすべて
  * 中断する（対象が異なるヒットも含む）。シールド・サブユニット・リンクダメージへの
  * 適用調整(R-SHD-*、R-SUB-*、R-LNK-*)はM8未実装のため、HPへ直接適用する。
@@ -227,7 +239,7 @@ export function applyDamageAction(
 
     const target = findUnit(working, hit.targetBattleUnitId, "hits[].targetBattleUnitId");
 
-    if (isDefeated(target)) {
+    if (!(context.includeDefeated ?? false) && isDefeated(target)) {
       outcomes.push(skip(hit));
       // R-SKL-08（レビュー再々々指摘[P1]、PR #214）: 対象不在で適用されなかった
       // このヒットも「同じ解決スコープ内の直前結果」になる。以前の成功した
@@ -306,7 +318,7 @@ export function applyDamageAction(
       hit.targetBattleUnitId,
       "hits[].targetBattleUnitId",
     );
-    if (isDefeated(targetAfterTiming)) {
+    if (!(context.includeDefeated ?? false) && isDefeated(targetAfterTiming)) {
       outcomes.push(skip(hit));
       // R-SKL-08: TIMING処理後に対象が戦闘不能になった場合も、この不成立結果を
       // 0として直前結果に記録する（上の対象不在チェックと同じ理由）。
