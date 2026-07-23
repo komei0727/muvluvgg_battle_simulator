@@ -1353,6 +1353,7 @@ export class PassiveActivationRuntime {
     this.units = box.units;
     const effectResult = step.value;
     const interruptedCount = effectResult.interruptedCount;
+    const sequenceInterrupted = effectResult.sequenceInterrupted;
 
     // EFF-006/Issue #212: このPS自身のEffectSequence解決が完了した時点で、
     // そのcounterを直ちに破棄する（`resolveEffectSequencePlan`が中断で終わった
@@ -1369,8 +1370,11 @@ export class PassiveActivationRuntime {
     // R-PS-05 #6 / R-SKL-01: 使用者(PS所有者)が戦闘不能になり、未解決のまま
     // 打ち切られた適用が実際に残った場合だけ中断とする（PR #141再レビュー[P2]:
     // 戦闘不能かどうかだけでは判定しない — 最後の効果で倒れても残り0件なら
-    // 正常解決のまま）。
-    const interrupted = interruptedCount > 0;
+    // 正常解決のまま）。PR #216再々々々々々レビュー[P1]:
+    // `effectResult.sequenceInterrupted`（resolverが中断を検出したまさに
+    // その箇所で確定する正式なフラグ）で判定し、見積もりである
+    // `interruptedCount`の大小には依存しない。
+    const interrupted = sequenceInterrupted;
     const resolvedStepCount =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0;
     let terminalEvent: BattleDomainEvent;

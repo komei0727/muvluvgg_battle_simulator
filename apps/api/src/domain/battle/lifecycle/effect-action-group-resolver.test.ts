@@ -1527,6 +1527,142 @@ describe("applyEffectActionGroups", () => {
       // even started.
       expect(result.interruptedCount).toBe(6);
     });
+
+    it("UT-R-SKL-07-020 (PR #216再々々々々々レビュー[P1]): within an abandoned subtree, a LAST_ACTION_TARGETS ACTION correctly sees the preceding (also-abandoned) BINDING ACTION's target instead of a stale/empty real lastResultBox", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      // hitCount 1 and 3: if the estimator incorrectly used the real (empty)
+      // lastResultBox instead of simulating the first step's own result, the
+      // follow-up's target count would be 0 instead of 1.
+      const firstAttack = damageAction("ACT_FIRST", 1);
+      const followUpAttack = damageAction("ACT_FOLLOW_UP", 3);
+      const effectActions = new Map([
+        [firstAttack.effectActionDefinitionId, firstAttack],
+        [followUpAttack.effectActionDefinitionId, followUpAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          if (event.eventType === "RandomBranchSelected") {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: firstAttack.effectActionDefinitionId }],
+              },
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "LAST_ACTION_TARGETS" },
+                actions: [{ effectActionDefinitionId: followUpAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(0);
+      expect(result.resolvedCount).toBe(0);
+      expect(result.interruptedCount).toBe(1 + 3);
+    });
+
+    it("UT-R-SKL-07-021 (PR #216再々々々々々レビュー[P1]): INDEPENDENT RANDOM_BRANCH counts a not-yet-rolled remaining branch's candidate hits when a preceding branch's own lethal hit interrupts the sequence before the next branch's probability roll", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      const selfHit = damageAction("ACT_SELF_HIT");
+      const secondBranchAttack = damageAction("ACT_SECOND", 4);
+      const effectActions = new Map([
+        [selfHit.effectActionDefinitionId, selfHit],
+        [secondBranchAttack.effectActionDefinitionId, secondBranchAttack],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      // Only branch A's probability roll should ever happen (organically
+      // interrupted by its own lethal self-hit before branch B is even
+      // considered) — fixedRandom(0) throws if consumed a second time,
+      // proving branch B's roll never happens yet its hits are still
+      // counted as unresolved.
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "INDEPENDENT",
+        branches: [
+          {
+            label: "A",
+            probability: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: selfHit.effectActionDefinitionId }],
+              },
+            ],
+          },
+          {
+            label: "B",
+            probability: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [
+                  { effectActionDefinitionId: secondBranchAttack.effectActionDefinitionId },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [actor.battleUnitId, enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(1);
+      expect(result.resolvedCount).toBe(1); // branch A's self-hit.
+      expect(result.interruptedCount).toBe(4); // branch B's never-rolled candidate hits.
+    });
   });
 
   describe("R-SKL-08: 直前結果 (RES-003, Issue #173)", () => {

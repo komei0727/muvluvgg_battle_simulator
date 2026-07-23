@@ -23,7 +23,10 @@ import {
   type ResolvedBinding,
 } from "../skill/skill-resolution-service.js";
 import { evaluateEffectStepCondition } from "../skill/effect-step-condition-evaluator.js";
-import type { LastEffectActionResult } from "../skill/last-effect-action-result.js";
+import type {
+  LastEffectActionResult,
+  LastEffectActionResultKind,
+} from "../skill/last-effect-action-result.js";
 import { selectWeightedBranch } from "../skill/random-branch-selection.js";
 import { resolveProbability } from "../../shared/percentage.js";
 import type {
@@ -108,10 +111,28 @@ export interface EffectActionGroupsResult {
   /** 使用者が戦闘不能になる前に到達し、実際に処理したヒット・適用の総数。 */
   readonly resolvedCount: number;
   /**
-   * PR #141再レビュー[P2]: 使用者が戦闘不能になったことで未処理のまま残った
-   * ヒット・適用の総数。0より大きい場合だけが「中断」(R-SKL-01)であり、
-   * 呼び出し側は`resolvedCount`/`interruptedCount`のどちらもここから得て、
-   * 戦闘不能かどうかだけで中断を判定しない。
+   * PR #216再々々々々々レビュー: 「中断が実際に発生したか」の判定に
+   * 使う正式なフラグ。resolverが中断を検出したまさにその箇所
+   * （`state.sequenceInterrupted = true`を設定する各分岐）で確定させる値
+   * そのものであり、推定を経由しない。`SkillUseInterrupted`/
+   * `SkillUseCompleted`のどちらを発行するかは、この`sequenceInterrupted`
+   * だけで判定し、`interruptedCount`（推定値、下記）の大小には依存しない
+   * — 推定の見落としが1件あっても、発行するイベント種別自体は誤らない。
+   */
+  readonly sequenceInterrupted: boolean;
+  /**
+   * PR #141再レビュー[P2]、PR #216再々〜再々々々々レビューで累次修正:
+   * 使用者が戦闘不能になったことで未処理のまま残ったヒット・適用の
+   * "見積もり"総数（`SkillUseInterrupted.unresolvedEffectCount`が
+   * 公開する）。`BRANCH`/`RANDOM_BRANCH`/`REPEAT`（RES-003）を含む未着手
+   * subtreeについては、実際に適用しないまま`resolvedBindings`/
+   * `effectActions`と、中断時点までの実`lastResultBox`から複製した
+   * simulated last-resultだけを頼りに`countCandidateHits`が静的に
+   * 見積もる（`RANDOM_BRANCH`の分岐選択はRNGを消費するため後追いで
+   * 確定できず、`WEIGHTED_ONE`は最大1分岐分、`INDEPENDENT`は未判定分も
+   * 含めた全branch合算という保守的な上限を使う）。そのため、この値は
+   * 「中断が起きたかどうか」の判定には使わず（`sequenceInterrupted`を
+   * 使う）、実際に何件が未解決だったかの目安としてのみ扱うこと。
    */
   readonly interruptedCount: number;
 }
@@ -143,99 +164,179 @@ function countHits(applications: readonly EffectActionApplication[]): number {
 }
 
 /**
- * R-SKL-01（PR #216再レビュー[P1] x2）: `RANDOM_BRANCH`の選択イベント
- * （`RandomBranchSelected`）自身のPS/Memory即時連鎖でactorが戦闘不能になり、
- * 既に選択済みのbranchへ一度も入れなかった場合、そのbranchに残る未解決の
- * ヒット・適用数を`interruptedCount`へ計上する必要がある（さもないと
- * `EffectActionGroupsResult.interruptedCount`が0のままとなり、
- * `action-skill-use-resolver.ts`の`effectResult.interruptedCount > 0`判定が
- * falseになって、実際には何も適用していないのに`SkillUseCompleted`が
- * 発行されてしまう）。`SkillUseInterrupted.unresolvedEffectCount`は未解決効果数を
- * 表すため、選択されない経路まで含めた過大計上ではなく、実際に解決対象となる
- * 経路と一致させる必要がある — そのため、決定可能な情報（`lastResultBox`が
- * 保持する直前結果、`resolvedBindings`）はすべて使い、真に不確定な分岐だけを
- * 保守的に扱う。
+ * R-SKL-01（PR #216累次レビュー）: `EffectSequence`のresolverは、`BRANCH`の
+ * 直前結果依存・`RANDOM_BRANCH`の乱数結果・`REPEAT`のiteration状態・同じ
+ * subtree内で先行ACTIONが生成する`LAST_RESULT`/`LAST_*_TARGETS`を、
+ * 実際に定義順で適用しながら（副作用を伴って）解決する。未着手のまま中断
+ * された部分の`interruptedCount`（`SkillUseInterrupted.unresolvedEffectCount`
+ * が公開する"見積もり"値）は、実際に適用せず`countCandidateHits`が静的に
+ * 見積もるしかない。ただし本体resolverと同じ意味論を保つため、本体が
+ * ACTION適用ごとに`lastResultBox`を更新するのと同じように、この見積もりも
+ * 「もし適用したら」の`current`/`lastActionTargetUnitIds`/
+ * `lastDamagedTargetUnitIds`を１つの`simulated`（呼び出し元の実`lastResultBox`
+ * を複製した独立コピー、実resolverの状態は一切書き換えない）へ反映しながら
+ * 定義順に歩く。これにより、同じ未着手subtree内で「BINDINGへのACTION →
+ * `LAST_ACTION_TARGETS`へのACTION」のような順序依存も正しく見積もれる
+ * （PR #216再々々々々々レビュー[P1]）。
  *
- * - `ACTION`: `SELF`/`BINDING`に加え、`LAST_ACTION_TARGETS`/
- *   `LAST_DAMAGED_TARGETS`もこの時点で`lastResultBox`が保持する実際の値から
- *   解決する（この呼び出し地点は必ず先行するEffectAction適用の後にあるため、
- *   `lastResultBox`は最新化済み）。`TRIGGER_SOURCE`/`TRIGGER_TARGET`（RES-005
- *   スコープ、まだ未対応）だけは静的に解決できないため寄与0のまま。
- * - `BRANCH`: `condition`はRNGを消費しない純粋な評価であり、`lastResultBox`
- *   から今この時点で確定できるため、`evaluateEffectStepCondition`で実際に
- *   解決される側だけを数える（thenSteps/elseStepsを合算しない）。
- * - `RANDOM_BRANCH`: 分岐選択はRNG消費を伴うため、ここで実際に乱数を
- *   消費して先取りすることはできない（後続の本来のRNG消費列を狂わせて
- *   しまう）。`WEIGHTED_ONE`は常に1分岐だけを選ぶため、最大値の分岐1つ分と
- *   見積もる（`Math.max`）。`INDEPENDENT`は0〜全branchが独立に成立しうるため、
- *   全branch合算のままとする（安全側の上限）。
+ * - `ACTION`: `condition`（RNGを消費しない純粋な評価）が`simulated.current`
+ *   に対して偽ならR-SKL-06により丸ごとスキップ、寄与0。`SELF`/`BINDING`に
+ *   加え`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`も`simulated`が保持する
+ *   （実履歴からシード後、この見積もり自身が更新した）値から解決する。
+ *   `TRIGGER_SOURCE`/`TRIGGER_TARGET`（RES-005スコープ、まだ未対応）だけは
+ *   静的に解決できないため寄与0のまま。現行のダメージ判定（`HitPolicy`）は
+ *   常に命中するため、対象が1件以上あれば`resultKind: "APPLIED"`、対象0件
+ *   なら`"SKIPPED"`（R-SKL-08、実resolverの対象不在ケースと同じ）として
+ *   `simulated`を更新する。
+ * - `BRANCH`: `condition`を`simulated.current`に対して評価し、実際に解決
+ *   される側だけを数える（thenSteps/elseStepsを合算しない）。選んだ側は
+ *   同じ`simulated`をそのまま引き継いで歩く。
+ * - `RANDOM_BRANCH`: 分岐選択はRNG消費を伴うため、ここで実際に乱数を消費して
+ *   先取りすることはできない（後続の本来のRNG消費列を狂わせてしまう）。
+ *   各branchは互いに独立な仮想シナリオのため、`simulated`を複製してから
+ *   個別に歩く（1つのbranchの見積もりが他branchへ波及しないように — この
+ *   RANDOM_BRANCH自体を抜けた後の`simulated`は「選択結果不明」のまま更新
+ *   しない）。`WEIGHTED_ONE`は常に1分岐だけを選ぶため、最大値の分岐1つ分と
+ *   見積もる（`Math.max`）。`INDEPENDENT`は0〜全branchが独立に成立しうる
+ *   ため、全branch合算のままとする（安全側の上限）。
  * - `REPEAT`: 一度入れば`count`回を確定的に繰り返す（自身の中断判定は別途
- *   handled）ため、`count`倍のまま。
+ *   handled）。各iterationは実resolverと同じく同じ`simulated`を引き継ぐ
+ *   （iteration間でlastResultBoxを共有する）。
  */
 function countCandidateHits(
   steps: readonly EffectStepDefinition[],
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  actorId: BattleUnitId,
   lastResultBox: LastResultBox,
 ): number {
-  return steps.reduce(
-    (sum, step) =>
-      sum + countCandidateHitsForStep(step, resolvedBindings, effectActions, lastResultBox),
-    0,
-  );
+  // 呼び出し元の実`lastResultBox`は書き換えない — この関数は見積もり専用。
+  const simulated: LastResultBox = { ...lastResultBox };
+  return walkCandidateHitsList(steps, resolvedBindings, effectActions, actorId, simulated);
 }
 
 function countCandidateHitsForStep(
   step: EffectStepDefinition,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  actorId: BattleUnitId,
   lastResultBox: LastResultBox,
+): number {
+  const simulated: LastResultBox = { ...lastResultBox };
+  return walkCandidateHitsStep(step, resolvedBindings, effectActions, actorId, simulated);
+}
+
+function walkCandidateHitsList(
+  steps: readonly EffectStepDefinition[],
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  actorId: BattleUnitId,
+  simulated: LastResultBox,
+): number {
+  return steps.reduce(
+    (sum, step) =>
+      sum + walkCandidateHitsStep(step, resolvedBindings, effectActions, actorId, simulated),
+    0,
+  );
+}
+
+function walkCandidateHitsStep(
+  step: EffectStepDefinition,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  actorId: BattleUnitId,
+  simulated: LastResultBox,
 ): number {
   switch (step.kind) {
     case "ACTION": {
       // PR #216再々々レビュー[P1]: R-SKL-06によりconditionがfalseのstepは
       // 丸ごとスキップされ実効果を持たない（`resolveActionStepBody`と同じ
-      // 判定）。conditionもRNGを消費しない純粋な評価であり、`lastResultBox`
-      // から今この時点で確定できるため、ここで評価せず対象数×hit数を
-      // そのまま返すと、falseになるはずのACTIONまで未解決効果として
-      // 過大計上してしまう。
-      if (!evaluateEffectStepCondition(step.condition, lastResultBox.current)) {
+      // 判定）。
+      if (!evaluateEffectStepCondition(step.condition, simulated.current)) {
         return 0;
       }
-      let targetCount = 0;
+      let targetUnitIds: readonly BattleUnitId[] = [];
       if (step.target.kind === "SELF") {
-        targetCount = 1;
+        targetUnitIds = [actorId];
       } else if (step.target.kind === "BINDING") {
-        targetCount =
-          resolvedBindings?.get(step.target.targetBindingId as TargetBindingId)?.units.length ?? 0;
+        targetUnitIds =
+          resolvedBindings
+            ?.get(step.target.targetBindingId as TargetBindingId)
+            ?.units.map((unit) => unit.battleUnitId) ?? [];
       } else if (step.target.kind === "LAST_ACTION_TARGETS") {
-        targetCount = lastResultBox.lastActionTargetUnitIds.length;
+        targetUnitIds = simulated.lastActionTargetUnitIds;
       } else if (step.target.kind === "LAST_DAMAGED_TARGETS") {
-        targetCount = lastResultBox.lastDamagedTargetUnitIds.length;
+        targetUnitIds = simulated.lastDamagedTargetUnitIds;
       }
       const hitsPerTarget = step.actions.reduce((sum, actionRef) => {
         const effectAction = effectActions.get(actionRef.effectActionDefinitionId);
         return sum + (effectAction?.kind === "DAMAGE" ? effectAction.payload.hitCount : 1);
       }, 0);
-      return targetCount * hitsPerTarget;
+
+      // このstepが実際に適用された場合に生成するであろう直前結果で
+      // `simulated`を更新し、同じ未着手subtree内の後続stepが
+      // LAST_RESULT/LAST_*_TARGETSで参照できるようにする（PR #216
+      // 再々々々々々レビュー[P1]）。代表actionは定義順で最後のもの
+      // （実resolverの空対象ケースと同じ規約）。
+      const lastActionRef = step.actions[step.actions.length - 1];
+      const lastEffectAction =
+        lastActionRef === undefined
+          ? undefined
+          : effectActions.get(lastActionRef.effectActionDefinitionId);
+      if (lastActionRef !== undefined && lastEffectAction !== undefined) {
+        const resultKind: LastEffectActionResultKind =
+          targetUnitIds.length > 0 ? "APPLIED" : "SKIPPED";
+        simulated.current = {
+          resultKind,
+          effectActionKind: lastEffectAction.kind,
+          effectActionDefinitionId: lastActionRef.effectActionDefinitionId,
+          targetUnitIds,
+        };
+        simulated.lastActionTargetUnitIds = targetUnitIds;
+        if (lastEffectAction.kind === "DAMAGE" && resultKind === "APPLIED") {
+          simulated.lastDamagedTargetUnitIds = targetUnitIds;
+        }
+      }
+
+      return targetUnitIds.length * hitsPerTarget;
     }
     case "BRANCH": {
-      const satisfied = evaluateEffectStepCondition(step.condition, lastResultBox.current);
+      const satisfied = evaluateEffectStepCondition(step.condition, simulated.current);
       const chosenSteps = satisfied ? step.thenSteps : step.elseSteps;
-      return countCandidateHits(chosenSteps, resolvedBindings, effectActions, lastResultBox);
+      return walkCandidateHitsList(
+        chosenSteps,
+        resolvedBindings,
+        effectActions,
+        actorId,
+        simulated,
+      );
     }
     case "RANDOM_BRANCH": {
+      // 各branchは独立な仮想シナリオ — `simulated`を複製してから歩き、
+      // このRANDOM_BRANCH自体を抜けた後の`simulated`は変更しない
+      // （どのbranchが選ばれるか不明なため）。
       const branchCounts = step.branches.map((branch) =>
-        countCandidateHits(branch.steps, resolvedBindings, effectActions, lastResultBox),
+        walkCandidateHitsList(branch.steps, resolvedBindings, effectActions, actorId, {
+          ...simulated,
+        }),
       );
       return step.mode === "WEIGHTED_ONE"
         ? Math.max(0, ...branchCounts)
         : branchCounts.reduce((sum, count) => sum + count, 0);
     }
-    case "REPEAT":
-      return (
-        countCandidateHits(step.steps, resolvedBindings, effectActions, lastResultBox) * step.count
-      );
+    case "REPEAT": {
+      let total = 0;
+      for (let iteration = 0; iteration < step.count; iteration++) {
+        total += walkCandidateHitsList(
+          step.steps,
+          resolvedBindings,
+          effectActions,
+          actorId,
+          simulated,
+        );
+      }
+      return total;
+    }
   }
 }
 
@@ -994,6 +1095,7 @@ function* resolveBranchStep(
       definition,
       resolvedBindings,
       effectActions,
+      context.actorId,
       lastResultBox,
     );
     return 0;
@@ -1073,6 +1175,7 @@ function* resolveRandomBranchStep(
       definition,
       resolvedBindings,
       effectActions,
+      context.actorId,
       lastResultBox,
     );
     return 0;
@@ -1124,6 +1227,7 @@ function* resolveRandomBranchStep(
         chosen.steps,
         resolvedBindings,
         effectActions,
+        context.actorId,
         lastResultBox,
       );
     } else {
@@ -1140,7 +1244,26 @@ function* resolveRandomBranchStep(
   } else {
     for (const [branchIndex, branch] of definition.branches.entries()) {
       if (state.sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
+        // PR #216再々々々々々レビュー[P1]: INDEPENDENTは各branchが独立に
+        // 0〜全件成立しうるため、まだ確率判定していない残りbranch
+        // （`branchIndex`以降）全件を「成立していたかもしれない」未解決分として
+        // 計上する（保守的な上限 — 例えば残り全branchのprobabilityが1.0でも
+        // 正しく計上できる）。
         state.sequenceInterrupted = true;
+        state.interruptedCount += definition.branches
+          .slice(branchIndex)
+          .reduce(
+            (sum, remaining) =>
+              sum +
+              countCandidateHits(
+                remaining.steps,
+                resolvedBindings,
+                effectActions,
+                context.actorId,
+                lastResultBox,
+              ),
+            0,
+          );
         break;
       }
       const succeeded = resolveProbability(
@@ -1159,6 +1282,7 @@ function* resolveRandomBranchStep(
           branch.steps,
           resolvedBindings,
           effectActions,
+          context.actorId,
           lastResultBox,
         );
         break;
@@ -1234,6 +1358,7 @@ function* resolveRepeatStep(
       definition,
       resolvedBindings,
       effectActions,
+      context.actorId,
       lastResultBox,
     );
     return 0;
@@ -1250,8 +1375,13 @@ function* resolveRepeatStep(
       state.sequenceInterrupted = true;
       const remainingIterations = definition.count - iteration;
       state.interruptedCount +=
-        countCandidateHits(definition.steps, resolvedBindings, effectActions, lastResultBox) *
-        remainingIterations;
+        countCandidateHits(
+          definition.steps,
+          resolvedBindings,
+          effectActions,
+          context.actorId,
+          lastResultBox,
+        ) * remainingIterations;
       break;
     }
     resolvedActionCount += yield* resolveStepDefinitionList(
@@ -1316,6 +1446,7 @@ function* resolveDeferredStep(
       definition,
       resolvedBindings,
       effectActions,
+      context.actorId,
       lastResultBox,
     );
     return 0;
@@ -1411,6 +1542,7 @@ function* resolveStepDefinitionList(
         steps.slice(index),
         resolvedBindings,
         effectActions,
+        context.actorId,
         lastResultBox,
       );
       break;
@@ -1477,6 +1609,7 @@ export function* resolveEffectSequencePlan(
           step.definition,
           plan.resolvedBindings,
           context.definitions.effectActions,
+          context.actorId,
           lastResultBox,
         );
       }
@@ -1513,6 +1646,7 @@ export function* resolveEffectSequencePlan(
   return {
     units: box.units,
     resolvedCount: state.resolvedCount,
+    sequenceInterrupted: state.sequenceInterrupted,
     interruptedCount: state.interruptedCount,
   };
 }

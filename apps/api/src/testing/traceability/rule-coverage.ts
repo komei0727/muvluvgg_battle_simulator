@@ -478,6 +478,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ACTION/BRANCH/RANDOM_BRANCH/REPEATそれぞれの`EffectStepStarting`即時連鎖で
   // actorが戦闘不能になった場合も、そのstep自身が本来解決するはずだった
   // 効果を計上する（UT-R-SKL-07-017〜019）。
+  // PR #216再々々々々々レビュー: `SkillUseInterrupted`/`SkillUseCompleted`の
+  // 判定を、見積もり値`interruptedCount`ではなくresolverが中断検出箇所で
+  // 直接確定する`EffectActionGroupsResult.sequenceInterrupted`で行うよう分離
+  // した（`action-skill-use-resolver.ts`/`passive-activation-service.ts`）。
+  // `countCandidateHits`はACTION適用ごとに「もし適用したら」の直前結果を
+  // simulated boxへ反映しながら定義順に歩くようにし、未着手subtree内の
+  // 順序依存（`LAST_ACTION_TARGETS`が同じsubtree内の先行ACTIONを正しく
+  // 参照する、UT-R-SKL-07-020）と、`INDEPENDENT`の未判定残りbranch
+  // （UT-R-SKL-07-021）も正しく見積もるようにした。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -500,6 +509,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-017",
       "UT-R-SKL-07-018",
       "UT-R-SKL-07-019",
+      "UT-R-SKL-07-020",
+      "UT-R-SKL-07-021",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
