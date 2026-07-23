@@ -558,6 +558,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-08-006",
       "UT-R-SKL-08-007",
       "UT-R-SKL-08-008",
+      // UT-R-SKL-08-009（PR #216再々々々々々々レビュー[P1]）: トップレベルの
+      // 中断された先頭ACTION stepの仮想last-resultが、後続のトップレベル
+      // LAST_RESULT stepの見積もりへ正しく引き継がれ、throwも過小評価も
+      // 起きないことを検証する。
+      "UT-R-SKL-08-009",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

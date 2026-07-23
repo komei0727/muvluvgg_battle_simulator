@@ -1987,6 +1987,62 @@ describe("applyEffectActionGroups", () => {
         followUpAttack.effectActionDefinitionId,
       );
     });
+
+    it("UT-R-SKL-08-009 (PR #216再々々々々々々レビュー[P1]): a top-level ACTION step interrupted by its own EffectStepStarting immediate chain still seeds a virtual last result that a later top-level LAST_RESULT step's estimate can observe, instead of throwing (LAST_RESULT requires a preceding result) or under-counting", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const selfHit = damageAction("ACT_SELF_HIT");
+      const followUp = damageAction("ACT_FOLLOW_UP", 4);
+      const effectActions = new Map([
+        [selfHit.effectActionDefinitionId, selfHit],
+        [followUp.effectActionDefinitionId, followUp],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType === "EffectStepStarting" && event.payload.stepIndex === 0) {
+          return units.map((unit) =>
+            unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+          );
+        }
+        return units;
+      });
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const plan: EffectSequencePlan = {
+        steps: [
+          // A statically pre-resolved (non-deferred) top-level ACTION step,
+          // interrupted before EffectActionStarting ever fires.
+          singleActionStep(0, true, actor.battleUnitId, selfHit.effectActionDefinitionId),
+          // A later top-level DEFERRED step gated on the first step's would-be
+          // result — this is only reachable as an estimate (never actually
+          // resolved, since the sequence is already interrupted by then).
+          deferredStep(1, {
+            kind: "ACTION",
+            condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+            target: { kind: "BINDING", targetBindingId: tgtEnemy },
+            actions: [{ effectActionDefinitionId: followUp.effectActionDefinitionId }],
+          }),
+        ],
+        targetUnitIds: [actor.battleUnitId, enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      // Prior to the fix, this threw DomainValidationError("LAST_RESULT
+      // requires a preceding EffectAction result") because each top-level
+      // step's candidate-hit estimate started from a fresh, untouched
+      // lastResultBox instead of the virtual result step 0 would have
+      // produced.
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(0);
+      expect(result.resolvedCount).toBe(0);
+      // step 0's own 1 hit (singleActionStep always resolves exactly one
+      // hit) + step 1's estimated contribution (1 target x 4 hits, only
+      // reachable because the LAST_RESULT condition correctly observed
+      // step 0's virtual "APPLIED" result).
+      expect(result.interruptedCount).toBe(1 + 4);
+      expect(result.sequenceInterrupted).toBe(true);
+    });
   });
 
   it("UT-R-EFF-01-021 (R-EFF-01, real lifecycle wiring): an APPLY_STAT_MOD ACTION step grants an AppliedEffect through the real Catalog -> EffectSequence -> AppliedEffect -> event pipeline, emitting EffectApplied before EffectActionCompleted(APPLIED)", () => {

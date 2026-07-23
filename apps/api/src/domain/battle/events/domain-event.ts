@@ -388,9 +388,12 @@ export interface BattleDomainEventPayloadMap {
    * `RANDOM_BRANCH`/`REPEAT`を含む未着手subtreeについては実際に適用せず
    * 静的に見積もった**保守的な上限**（常に実際以上）であり、厳密な実行時
    * カウントではない。発行するイベント種別（`PassiveInterrupted` vs
-   * `PassiveResolved`）自体はこの見積もり値に依存しない別判定を使うため、
+   * `PassiveResolved`）は、`unresolvedEffectCount`という数値の大小比較では
+   * なく、中断を検出した各箇所での見積もりが1件以上あるかで判定するため
    * `unresolvedEffectCount: 0`のまま`PassiveInterrupted`が発行されることは
-   * ない（詳細: `08_ドメインイベント.md`「`unresolvedEffectCount`の性質」）。
+   * ないが、この判定自体は`unresolvedEffectCount`と同じ見積もり計算に
+   * 基づくため、見積もりの精度に依存する（詳細: `08_ドメインイベント.md`
+   * 「`unresolvedEffectCount`の性質」）。
    */
   readonly PassiveInterrupted: {
     readonly actorUnitId: BattleUnitId;

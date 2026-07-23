@@ -19,6 +19,7 @@ import {
   resolveActionStepApplications,
   type EffectActionApplication,
   type EffectSequencePlan,
+  type EffectStepPlan,
   type LastResultTargetContext,
   type ResolvedBinding,
 } from "../skill/skill-resolution-service.js";
@@ -121,14 +122,18 @@ export interface EffectActionGroupsResult {
    * 1件以上ある場合だけ真にする。false conditionのみのbranch等、実際には
    * 何も失われていない場合に`sequenceInterrupted`が誤って真になる
    * （＝`unresolvedEffectCount: 0`のまま`SkillUseInterrupted`を発行して
-   * しまう）ことを防ぐ。この結果、`sequenceInterrupted`は依然
-   * `interruptedCount`の見積もり計算そのものに依存するため、見積もりの
-   * 精度（下記`interruptedCount`のコメント）がこのフラグの精度の上限になる
-   * — ただし見積もりが誤る方向は「未着手subtreeを実際より多く候補に含める」
-   * （過大側）のみであり、過大側の誤りは`sequenceInterrupted`を誤ってfalseに
-   * することはない（falseになるのは見積もりが0の時だけであり、0という見積もり
-   * 自体は`evaluateEffectStepCondition`によるcondition評価のように厳密な
-   * 判定で導出されるケースが大半）。
+   * しまう）ことを防ぐ。
+   *
+   * PR #216再々々々々々々々レビュー[P1・P2]: `sequenceInterrupted`は依然
+   * `interruptedCount`と同じ見積もり計算（`countCandidateHits`系）の結果に
+   * 直接依存しており、独立した正式判定ではない — 見積もりが誤れば
+   * `sequenceInterrupted`も影響を受け得る（実際に、トップレベルの未着手step
+   * 間で仮想`LAST_RESULT`が引き継がれず過小評価・throwを起こす取りこぼしが
+   * 発見・修正された）。見積もり計算自体を安全側（実際以上）に保つことが、
+   * このフラグが「実際には中断していないのにSkillUseInterruptedを誤発行する」
+   * 方向にだけは倒れないための唯一の担保であり、真に独立した判定（実際の
+   * 解決状態を単一の仕組みで管理するpending execution stateなど）への
+   * 一本化は将来課題として残る。
    */
   readonly sequenceInterrupted: boolean;
   /**
@@ -137,15 +142,17 @@ export interface EffectActionGroupsResult {
    * "見積もり"総数（`SkillUseInterrupted.unresolvedEffectCount`が
    * 公開する）。`BRANCH`/`RANDOM_BRANCH`/`REPEAT`（RES-003）を含む未着手
    * subtreeについては、実際に適用しないまま`resolvedBindings`/
-   * `effectActions`と、中断時点までの実`lastResultBox`から複製した
-   * simulated last-resultだけを頼りに`countCandidateHits`が静的に
-   * 見積もる（`RANDOM_BRANCH`の分岐選択はRNGを消費するため後追いで
-   * 確定できず、`weight`/`probability`が明示的に0の到達不能branchは除外した
-   * 上で、`WEIGHTED_ONE`は最大1分岐分、`INDEPENDENT`は未判定分も含めた
-   * 全branch合算という保守的な上限を使う）。厳密な実行時カウントではなく
-   * 「実行していたら発生していたであろうヒット数の保守的な上限」である点は
-   * `08_ドメインイベント.md`/`SkillUseInterrupted`/`PassiveInterrupted`の
-   * ペイロード仕様として明記している（PR #216再々々々々々レビュー[P2]）。
+   * `effectActions`と`lastResultBox`（中断確定後は`countCandidateHits`系が
+   * 直接更新する、PR #216再々々々々々々々レビュー[P1] — 複数の呼び出しに
+   * またがる未着手step間でも仮想last-resultが正しく引き継がれる）を
+   * 頼りに`countCandidateHits`が静的に見積もる（`RANDOM_BRANCH`の分岐選択は
+   * RNGを消費するため後追いで確定できず、`weight`/`probability`が明示的に
+   * 0の到達不能branchは除外した上で、`WEIGHTED_ONE`は最大1分岐分、
+   * `INDEPENDENT`は未判定分も含めた全branch合算という保守的な上限を使う）。
+   * 厳密な実行時カウントではなく「実行していたら発生していたであろう
+   * ヒット数の保守的な上限」である点は`08_ドメインイベント.md`/
+   * `SkillUseInterrupted`/`PassiveInterrupted`のペイロード仕様として
+   * 明記している（PR #216再々々々々々レビュー[P2]）。
    */
   readonly interruptedCount: number;
 }
@@ -186,11 +193,18 @@ function countHits(applications: readonly EffectActionApplication[]): number {
  * 見積もるしかない。ただし本体resolverと同じ意味論を保つため、本体が
  * ACTION適用ごとに`lastResultBox`を更新するのと同じように、この見積もりも
  * 「もし適用したら」の`current`/`lastActionTargetUnitIds`/
- * `lastDamagedTargetUnitIds`を１つの`simulated`（呼び出し元の実`lastResultBox`
- * を複製した独立コピー、実resolverの状態は一切書き換えない）へ反映しながら
- * 定義順に歩く。これにより、同じ未着手subtree内で「BINDINGへのACTION →
- * `LAST_ACTION_TARGETS`へのACTION」のような順序依存も正しく見積もれる
- * （PR #216再々々々々々レビュー[P1]）。
+ * `lastDamagedTargetUnitIds`を反映しながら定義順に歩く。これにより、同じ
+ * 未着手subtree内で「BINDINGへのACTION → `LAST_ACTION_TARGETS`へのACTION」
+ * のような順序依存も正しく見積もれる（PR #216再々々々々々レビュー[P1]）。
+ * `countCandidateHits`/`countCandidateHitsForStep`/`countCandidateHitsForPlanSteps`
+ * は呼び出し元の実`lastResultBox`を直接更新する（PR #216
+ * 再々々々々々々レビュー[P1]で防御的コピーをやめた） — 呼ばれた時点で
+ * 該当subtreeは中断確定済みであり、以後この`lastResultBox`が実際のEffectAction
+ * 適用から読まれることはないため、複数の呼び出しにまたがる未着手step間
+ * （例: トップレベルの中断された先頭ACTION → 後続のLAST_RESULT依存step）でも
+ * 「もし適用したら」の直前結果が正しく引き継がれる。`RANDOM_BRANCH`の
+ * 各branchだけは独立な仮想シナリオのため個別に`{...simulated}`を複製する
+ * （下記）。
  *
  * - `ACTION`: `condition`（RNGを消費しない純粋な評価）が`simulated.current`
  *   に対して偽ならR-SKL-06により丸ごとスキップ、寄与0。`SELF`/`BINDING`に
@@ -218,6 +232,18 @@ function countHits(applications: readonly EffectActionApplication[]): number {
  *   handled）。各iterationは実resolverと同じく同じ`simulated`を引き継ぐ
  *   （iteration間でlastResultBoxを共有する）。
  */
+/**
+ * PR #216再々々々々々々レビュー[P1]: 呼び出し元の実`lastResultBox`を直接
+ * 更新する（以前は防御的コピーを使い、呼び出し元へ書き戻さなかった）。
+ * この関数が呼ばれる時点で該当subtreeは既に「中断により未着手」と確定して
+ * おり、以後この`lastResultBox`は他のestimator呼び出し（この呼び出しと
+ * 同じ中断状態を共有する後続stepの見積もり）以外から読まれることはない
+ * （一度`isDefeated`/`sequenceInterrupted`が確定した後、このgeneratorが
+ * 実際のEffectAction適用へ戻ることはない）。直接更新することで、複数の
+ * 呼び出しにまたがる未着手step間でも「もし適用したら」の直前結果が
+ * 正しく引き継がれる（PR #216再々々々々々レビュー: 先頭ACTIONの中断結果を
+ * 後続のLAST_RESULT stepが見られない不具合の修正）。
+ */
 function countCandidateHits(
   steps: readonly EffectStepDefinition[],
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
@@ -225,9 +251,7 @@ function countCandidateHits(
   actorId: BattleUnitId,
   lastResultBox: LastResultBox,
 ): number {
-  // 呼び出し元の実`lastResultBox`は書き換えない — この関数は見積もり専用。
-  const simulated: LastResultBox = { ...lastResultBox };
-  return walkCandidateHitsList(steps, resolvedBindings, effectActions, actorId, simulated);
+  return walkCandidateHitsList(steps, resolvedBindings, effectActions, actorId, lastResultBox);
 }
 
 function countCandidateHitsForStep(
@@ -237,8 +261,7 @@ function countCandidateHitsForStep(
   actorId: BattleUnitId,
   lastResultBox: LastResultBox,
 ): number {
-  const simulated: LastResultBox = { ...lastResultBox };
-  return walkCandidateHitsStep(step, resolvedBindings, effectActions, actorId, simulated);
+  return walkCandidateHitsStep(step, resolvedBindings, effectActions, actorId, lastResultBox);
 }
 
 function walkCandidateHitsList(
@@ -253,6 +276,40 @@ function walkCandidateHitsList(
       sum + walkCandidateHitsStep(step, resolvedBindings, effectActions, actorId, simulated),
     0,
   );
+}
+
+/**
+ * このstepが実際に適用された場合に生成するであろう直前結果で`simulated`を
+ * 更新する（PR #216再々々々々々レビュー[P1]）。代表actionは定義順で最後の
+ * もの（実resolverの空対象ケース・複数適用時の上書きと同じ規約 —
+ * `resolveActionStepBody`は適用ごとに`lastResultBox`を上書きするため、
+ * 最終的には最後に処理した対象/actionだけが残る）。
+ */
+function applySimulatedActionResult(
+  targetUnitIds: readonly BattleUnitId[],
+  actions: readonly EffectActionReference[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  simulated: LastResultBox,
+): void {
+  const lastActionRef = actions[actions.length - 1];
+  const lastEffectAction =
+    lastActionRef === undefined
+      ? undefined
+      : effectActions.get(lastActionRef.effectActionDefinitionId);
+  if (lastActionRef === undefined || lastEffectAction === undefined) {
+    return;
+  }
+  const resultKind: LastEffectActionResultKind = targetUnitIds.length > 0 ? "APPLIED" : "SKIPPED";
+  simulated.current = {
+    resultKind,
+    effectActionKind: lastEffectAction.kind,
+    effectActionDefinitionId: lastActionRef.effectActionDefinitionId,
+    targetUnitIds,
+  };
+  simulated.lastActionTargetUnitIds = targetUnitIds;
+  if (lastEffectAction.kind === "DAMAGE" && resultKind === "APPLIED") {
+    simulated.lastDamagedTargetUnitIds = targetUnitIds;
+  }
 }
 
 function walkCandidateHitsStep(
@@ -288,30 +345,7 @@ function walkCandidateHitsStep(
         return sum + (effectAction?.kind === "DAMAGE" ? effectAction.payload.hitCount : 1);
       }, 0);
 
-      // このstepが実際に適用された場合に生成するであろう直前結果で
-      // `simulated`を更新し、同じ未着手subtree内の後続stepが
-      // LAST_RESULT/LAST_*_TARGETSで参照できるようにする（PR #216
-      // 再々々々々々レビュー[P1]）。代表actionは定義順で最後のもの
-      // （実resolverの空対象ケースと同じ規約）。
-      const lastActionRef = step.actions[step.actions.length - 1];
-      const lastEffectAction =
-        lastActionRef === undefined
-          ? undefined
-          : effectActions.get(lastActionRef.effectActionDefinitionId);
-      if (lastActionRef !== undefined && lastEffectAction !== undefined) {
-        const resultKind: LastEffectActionResultKind =
-          targetUnitIds.length > 0 ? "APPLIED" : "SKIPPED";
-        simulated.current = {
-          resultKind,
-          effectActionKind: lastEffectAction.kind,
-          effectActionDefinitionId: lastActionRef.effectActionDefinitionId,
-          targetUnitIds,
-        };
-        simulated.lastActionTargetUnitIds = targetUnitIds;
-        if (lastEffectAction.kind === "DAMAGE" && resultKind === "APPLIED") {
-          simulated.lastDamagedTargetUnitIds = targetUnitIds;
-        }
-      }
+      applySimulatedActionResult(targetUnitIds, step.actions, effectActions, simulated);
 
       return targetUnitIds.length * hitsPerTarget;
     }
@@ -362,6 +396,75 @@ function walkCandidateHitsStep(
       return total;
     }
   }
+}
+
+/**
+ * PR #216再々々々々々々レビュー[P1]: トップレベルの中断後に残った`plan.steps`
+ * （`ActionStepPlan`/`DeferredStepPlan`が混在する）を、`walkCandidateHitsList`
+ * と同じく1つの`simulated`を引き継ぎながら定義順にまとめて見積もる。
+ * 中断前は`resolveEffectSequencePlan`が1step単位で個別に`countHits`/
+ * `countCandidateHitsForStep`を呼んでいたため、それぞれが呼び出し元の実
+ * `lastResultBox`から独立に新しい`simulated`を作ってしまい、未着手の
+ * トップレベルstep同士（例:「EffectStepStartingの連鎖で中断された先頭ACTION」
+ * →「その結果を参照するLAST_RESULT条件の後続ACTION」）の間で仮想直前結果が
+ * 引き継がれない不具合があった（後続stepが古い実`lastResultBox`かundefinedを
+ * 見てしまい、過小評価または`LAST_RESULT requires a preceding EffectAction
+ * result`の未処理throwを起こす）。この関数を経由することで、中断後に残る
+ * トップレベルstep全体を1回のバッチで、ネストしたsubtreeと同じ意味論
+ * （BRANCH/RANDOM_BRANCH/REPEATを含む）で走査する。
+ */
+function walkCandidateHitsPlanSteps(
+  steps: readonly EffectStepPlan[],
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  actorId: BattleUnitId,
+  simulated: LastResultBox,
+): number {
+  return steps.reduce((sum, step) => {
+    if (step.stepKind === "ACTION") {
+      // R-SKL-06: `satisfied`が偽のstepは丸ごとスキップされ実効果を持たない
+      // （`resolveActionStepBody`と同じ判定、`plan`が事前解決済みのためここで
+      // 改めて条件評価はしない）。
+      if (!step.satisfied) {
+        return sum;
+      }
+      if (step.applications.length === 0) {
+        // R-SKL-08: 対象0件でも「対象不在」の確定結果としてsimulatedを更新する
+        // （`resolveActionStepBody`の空対象ケースと同じ規約）。
+        applySimulatedActionResult([], step.actions, effectActions, simulated);
+        return sum;
+      }
+      // `resolveActionStepBody`は適用ごとに`lastResultBox`を上書きするため、
+      // 最終的には定義順で最後に処理した対象/actionだけが残る。
+      const lastApplication = step.applications[step.applications.length - 1];
+      applySimulatedActionResult(
+        lastApplication === undefined ? [] : [lastApplication.targetBattleUnitId],
+        step.actions,
+        effectActions,
+        simulated,
+      );
+      return sum + countHits(step.applications);
+    }
+    return (
+      sum +
+      walkCandidateHitsStep(step.definition, resolvedBindings, effectActions, actorId, simulated)
+    );
+  }, 0);
+}
+
+/**
+ * `walkCandidateHitsPlanSteps`のエントリポイント。`countCandidateHits`/
+ * `countCandidateHitsForStep`と同じく、呼び出し元の実`lastResultBox`を
+ * 直接更新する（PR #216再々々々々々々レビュー[P1]）。
+ */
+function countCandidateHitsForPlanSteps(
+  steps: readonly EffectStepPlan[],
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  actorId: BattleUnitId,
+  lastResultBox: LastResultBox,
+): number {
+  return walkCandidateHitsPlanSteps(steps, resolvedBindings, effectActions, actorId, lastResultBox);
 }
 
 /**
@@ -974,6 +1077,22 @@ function* resolveActionStepBody(
       state.sequenceInterrupted = true;
     }
     state.interruptedCount += candidateHits;
+    // PR #216再々々々々々々レビュー[P1]: このstep自身は未実行のまま中断
+    // されるが、`applications`は既にtarget解決済みのため「もし適用したら」
+    // の直前結果を合成し、実`lastResultBox`へ反映しておく。これを怠ると、
+    // このstepの結果を参照する後続のトップレベルLAST_RESULT/LAST_*_TARGETS
+    // stepが、この中断より前の古い（または未定義の）実`lastResultBox`しか
+    // 参照できず、過小評価や意図しないthrowを起こす（後続stepの見積もりは
+    // `countCandidateHits`系がこの同じ`lastResultBox`を引き継いで行う）。
+    if (satisfied) {
+      const lastApplication = applications[applications.length - 1];
+      applySimulatedActionResult(
+        lastApplication === undefined ? [] : [lastApplication.targetBattleUnitId],
+        actions,
+        context.definitions.effectActions,
+        lastResultBox,
+      );
+    }
     return 0;
   }
 
@@ -1433,16 +1552,24 @@ function* resolveRepeatStep(
       // interruptedCountへ計上する（さもないと`SkillUseInterrupted`の
       // `unresolvedEffectCount`契約に反する）。PR #216再々々々々々レビュー[P1]:
       // 見積もりが0件（例えば各iterationがfalse conditionのみ）なら
-      // `sequenceInterrupted`は真にしない。
+      // `sequenceInterrupted`は真にしない。PR #216再々々々々々々レビュー[P1]:
+      // `countCandidateHits`は`lastResultBox`を直接更新するため、1回だけ
+      // 呼んで`remainingIterations`倍する（旧実装）と、実際にはiteration間で
+      // 状態が引き継がれるにもかかわらず1回分の更新しか反映されない。各
+      // iterationを実resolverと同じくループして正しく積算し、最終的な
+      // `lastResultBox`もこのREPEAT後の後続stepから正しく参照できるように
+      // する。
       const remainingIterations = definition.count - iteration;
-      const candidateHits =
-        countCandidateHits(
+      let candidateHits = 0;
+      for (let remaining = 0; remaining < remainingIterations; remaining++) {
+        candidateHits += countCandidateHits(
           definition.steps,
           resolvedBindings,
           effectActions,
           context.actorId,
           lastResultBox,
-        ) * remainingIterations;
+        );
+      }
       if (candidateHits > 0) {
         state.sequenceInterrupted = true;
       }
@@ -1667,28 +1794,32 @@ export function* resolveEffectSequencePlan(
     lastDamagedTargetUnitIds: [],
   };
 
-  for (const step of plan.steps) {
+  for (const [index, step] of plan.steps.entries()) {
     if (state.sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
       // PR #216再々々々レビュー[P1]: トップレベルの未着手DEFERRED step
       // （BRANCH/RANDOM_BRANCH/REPEAT、または直前結果依存ACTION）も
       // 未解決効果であり、無言でcontinueすると`interruptedCount`から漏れる。
       // PR #216再々々々々々レビュー[P1]: 見積もりが0件なら
       // `sequenceInterrupted`は真にしない。
-      const candidateHits =
-        step.stepKind === "ACTION"
-          ? countHits(step.applications)
-          : countCandidateHitsForStep(
-              step.definition,
-              plan.resolvedBindings,
-              context.definitions.effectActions,
-              context.actorId,
-              lastResultBox,
-            );
+      // PR #216再々々々々々々レビュー[P1]: 残った全stepを`plan.steps.slice(index)`
+      // として一括で見積もることで、未着手のトップレベルstep間でも1つの
+      // `simulated`が引き継がれる（「EffectStepStartingの連鎖で中断された
+      // 先頭ACTION」→「その結果を参照するLAST_RESULT条件の後続ACTION」の
+      // ような順序依存を正しく見積もり、古い実`lastResultBox`を参照して
+      // 過小評価・意図しないthrowを起こすことを防ぐ）。以降のstepは
+      // このバッチにまとめて計上済みのため、ここで`break`する。
+      const candidateHits = countCandidateHitsForPlanSteps(
+        plan.steps.slice(index),
+        plan.resolvedBindings,
+        context.definitions.effectActions,
+        context.actorId,
+        lastResultBox,
+      );
       if (candidateHits > 0) {
         state.sequenceInterrupted = true;
       }
       state.interruptedCount += candidateHits;
-      continue;
+      break;
     }
 
     if (step.stepKind === "ACTION") {
