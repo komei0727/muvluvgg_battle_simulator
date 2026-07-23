@@ -27,6 +27,17 @@ export interface EffectActionApplication {
   readonly targetBattleUnitId: BattleUnitId;
   readonly effectActionDefinitionId: EffectActionDefinitionId;
   readonly hits: readonly ResolvedEffectApplication[];
+  /**
+   * R-ACTN-01 #2 (RES-002 review finding [P2], PR #215): the
+   * `TargetSelectorDefinition.includeDefeated` that resolved this target.
+   * `effect-action-group-resolver.ts` carries this per application so it can
+   * decide whether an already-defeated target should still be skipped, or
+   * whether an explicit selector override permits applying to it anyway.
+   * A `SELF` reference (no selector involved) is always `false` - if the
+   * actor itself were defeated, the actor-defeated interrupt check runs
+   * before this decision is ever reached.
+   */
+  readonly includeDefeated: boolean;
 }
 
 /** R-SKL-06 #1〜#2: ACTION stepの条件評価結果と、満たされた場合の適用一覧。 */
@@ -46,23 +57,29 @@ export interface EffectSequencePlan {
   readonly targetUnitIds: readonly BattleUnitId[];
 }
 
+/** R-SKL-01の`resolveTargets`結果に、選択元selectorの`includeDefeated`（R-ACTN-01 #2）を添えたもの。 */
+interface ResolvedBinding {
+  readonly units: readonly BattleUnit[];
+  readonly includeDefeated: boolean;
+}
+
 function resolveReference(
   reference: TargetReference,
-  resolvedBindings: ReadonlyMap<TargetBindingId, readonly BattleUnit[]>,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
-): readonly BattleUnit[] {
+): ResolvedBinding {
   if (reference.kind === "SELF") {
-    return [actor];
+    return { units: [actor], includeDefeated: false };
   }
   if (reference.kind === "BINDING") {
-    const targets = resolvedBindings.get(reference.targetBindingId as TargetBindingId);
-    if (targets === undefined) {
+    const resolved = resolvedBindings.get(reference.targetBindingId as TargetBindingId);
+    if (resolved === undefined) {
       throw new DomainValidationError(
         "target.targetBindingId",
         `targetBindingId "${reference.targetBindingId}" was not resolved from targetBindings`,
       );
     }
-    return targets;
+    return resolved;
   }
   throw new DomainValidationError(
     "target.kind",
@@ -87,11 +104,15 @@ function hitCountOf(
 /** R-SKL-06 #3〜#4: 対象集合を取得し、対象順・actions定義順に`EffectActionApplication`を組み立てる。 */
 function resolveActionStepApplications(
   step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
-  resolvedBindings: ReadonlyMap<TargetBindingId, readonly BattleUnit[]>,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
 ): readonly EffectActionApplication[] {
-  const targets = resolveReference(step.target, resolvedBindings, actor);
+  const { units: targets, includeDefeated } = resolveReference(
+    step.target,
+    resolvedBindings,
+    actor,
+  );
   const applications: EffectActionApplication[] = [];
 
   // R-SKL-02: 対象は束縛順に処理する。
@@ -112,6 +133,7 @@ function resolveActionStepApplications(
       applications.push({
         targetBattleUnitId: target.battleUnitId,
         effectActionDefinitionId: actionRef.effectActionDefinitionId,
+        includeDefeated,
         hits,
       });
     }
@@ -138,12 +160,12 @@ function resolveEffectSequence(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
-  const resolvedBindings = new Map<TargetBindingId, readonly BattleUnit[]>();
+  const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>();
   for (const binding of sequence.targetBindings) {
-    resolvedBindings.set(
-      binding.targetBindingId,
-      resolveTargets(binding.selector, actor, allUnits),
-    );
+    resolvedBindings.set(binding.targetBindingId, {
+      units: resolveTargets(binding.selector, actor, allUnits),
+      includeDefeated: binding.selector.includeDefeated,
+    });
   }
 
   const steps: EffectStepPlan[] = [];
