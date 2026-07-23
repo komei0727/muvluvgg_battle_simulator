@@ -4,7 +4,10 @@ import {
   applyDamageAction,
   type DamageEventContext,
 } from "../domain/battle/combat/damage-application-service.js";
-import { evaluateFormula } from "../domain/battle/skill/formula-evaluator.js";
+import {
+  evaluateFormula,
+  type LastDamageResultRegistry,
+} from "../domain/battle/skill/formula-evaluator.js";
 import { grantEffect } from "../domain/battle/effects/effect-grant-service.js";
 import { recalculateCombatStats } from "../domain/battle/effects/combat-stat-recalculation-service.js";
 import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
@@ -191,9 +194,14 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
 
       const counterUser = unitFor("COUNTER_USER", unitId, { defense: 50 });
       const originalAttacker = enemyFor("ORIGINAL_ATTACKER", { attack: 130 });
+      // One registry instance shared across both calls, standing in for the
+      // single resolution scope (one action) that both the triggering hit
+      // and the counter it provokes belong to (R-SKL-08; `PassiveActivationRuntime`
+      // threads the same instance through nested PS chains in production).
+      const lastDamageResults: LastDamageResultRegistry = new Map();
 
       // Step 1: a plain hit lands on the counter-user (130 - 50 = 80 damage),
-      // establishing its lastDamageReceived.
+      // establishing its lastDamageReceived in the shared registry.
       const triggeringDamageAction = {
         kind: "DAMAGE" as const,
         effectActionDefinitionId: "ACT_TEST_TRIGGER" as never,
@@ -216,13 +224,13 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
         triggeringDamageAction,
         [originalAttacker, counterUser],
         new SequenceRandomSource([]),
-        eventContext(),
+        { ...eventContext(), lastDamageResults },
       );
       expect(triggerResult.hits[0]!.damage).toBe(80);
       const counterUserAfterHit = triggerResult.units.find(
         (u) => u.battleUnitId === counterUser.battleUnitId,
       )!;
-      expect(counterUserAfterHit.lastDamageReceived).toBe(80);
+      expect(lastDamageResults.get(counterUser.battleUnitId)?.lastDamageReceived).toBe(80);
 
       // Step 2: the counter-user counters with the REAL production
       // DAMAGE_RECEIVED_RATIO EffectAction, targeting the original attacker.
@@ -235,7 +243,7 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
         effectAction,
         triggerResult.units,
         new SequenceRandomSource([0]),
-        eventContext(),
+        { ...eventContext(), lastDamageResults },
       );
       expect(counterResult.hits[0]!.damage).toBe(Math.floor(80 * ratio));
     },

@@ -311,6 +311,10 @@ export function resolveChargeRelease(
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, unitsForChain) =>
       passiveRuntime.onFactEvent(event, unitsForChain),
+    // R-SKL-08（レビュー再指摘[P1]、PR #214）: `action-skill-use-resolver.ts`と
+    // 同じ理由で、この行動専用の`passiveRuntime`が持つregistryをチャージ解放
+    // 自身のEffectSequenceにも使い回す。
+    lastDamageResults: passiveRuntime.lastDamageResultsRegistry,
   });
   // EFF-006/Issue #212: `applyEffectActionGroups`の戻り値は
   // `onFactEventForPassiveChain`経由で既に`passiveRuntime`（`this.units`）へ

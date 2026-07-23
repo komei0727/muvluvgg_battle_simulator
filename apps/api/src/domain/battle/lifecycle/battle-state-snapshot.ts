@@ -67,10 +67,6 @@ export interface BattleUnitSnapshot {
   readonly effects?: readonly EffectSnapshot[];
   /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
   readonly markers?: readonly MarkerSnapshot[];
-  /** R-NUM-04（レビュー指摘[P1]、PR #214）。`BattleUnit.lastDamageDealt`と同じ、まだ発生していなければキー自体を持たない。 */
-  readonly lastDamageDealt?: number;
-  /** `BattleUnit.lastDamageReceived`と同じ。 */
-  readonly lastDamageReceived?: number;
 }
 
 /**
@@ -176,10 +172,6 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
         : {}),
       ...(unit.markerStates.length > 0
         ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-        : {}),
-      ...(unit.lastDamageDealt !== undefined ? { lastDamageDealt: unit.lastDamageDealt } : {}),
-      ...(unit.lastDamageReceived !== undefined
-        ? { lastDamageReceived: unit.lastDamageReceived }
         : {}),
     };
   }

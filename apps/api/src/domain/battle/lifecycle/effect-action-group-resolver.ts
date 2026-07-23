@@ -29,7 +29,11 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../events/domain-event.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
-import { evaluateFormula } from "../skill/formula-evaluator.js";
+import {
+  evaluateFormula,
+  lastDamageResultsFor,
+  type LastDamageResultRegistry,
+} from "../skill/formula-evaluator.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
@@ -69,6 +73,15 @@ export interface EffectActionGroupContext {
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
+  /**
+   * R-SKL-08（レビュー再指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
+   * が参照する「同じ解決スコープ内の直前DAMAGE結果」を保持する共有registry。
+   * 呼び出し側（`action-skill-use-resolver.ts`/`action-charge-resolver.ts`）が
+   * 1解決スコープ（1行動）ごとに新規生成し、`PassiveActivationRuntime`経由の
+   * PS連鎖もこの同じインスタンスを使い回す。未指定ならこのFormulaを持つ
+   * EffectActionは`FormulaEvaluator`が明確な例外で拒否する。
+   */
+  readonly lastDamageResults?: LastDamageResultRegistry;
 }
 
 export interface EffectActionGroupsResult {
@@ -348,6 +361,9 @@ function* resolveOneEffectActionApplication(
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
+        ...(context.lastDamageResults !== undefined
+          ? { lastDamageResults: context.lastDamageResults }
+          : {}),
       },
     );
     box.units = damageResult.units;
@@ -404,23 +420,17 @@ function* resolveOneEffectActionApplication(
     // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
     // では用意できない。production CatalogのAPPLY_STAT_MOD FormulaはSKILL_SOURCE
     // 参照のみを使うため、それらを要求するFormulaは`FormulaEvaluator`が明確な
-    // 例外で拒否する。`lastResults`はレビュー指摘[P1]（PR #214）により、
-    // damage-application-service.tsと同じ規約で使用者自身の`lastDamageDealt`/
-    // `lastDamageReceived`を渡す（`SUM_*`は現時点で参照するproduction定義が
+    // 例外で拒否する。`lastResults`（R-SKL-08、レビュー再指摘[P1] PR #214）は
+    // `context.lastDamageResults`（呼び出し側が1解決スコープごとに新規生成する
+    // 共有registry、`damage-application-service.ts`と同じもの）から使用者自身の
+    // 直前DAMAGE結果だけを取り出す（`SUM_*`は現時点で参照するproduction定義が
     // ないため未配線のまま、RES-002/RES-003、Issue #174/#173）。
     const actor = requireUnit(box.units, context.actorId);
     const magnitude = evaluateFormula(effectAction.payload.formula, {
       skillSource: actor,
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: {
-        ...(actor.lastDamageDealt !== undefined
-          ? { LAST_DAMAGE_DEALT: actor.lastDamageDealt }
-          : {}),
-        ...(actor.lastDamageReceived !== undefined
-          ? { LAST_DAMAGE_RECEIVED: actor.lastDamageReceived }
-          : {}),
-      },
+      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
     });
     const beforeGrantUnits = box.units;
     const grantResult = grantEffect(

@@ -251,15 +251,6 @@ export interface UnitStateDelta {
    * 項目だけを記録する」規約）。
    */
   readonly combatStats?: Readonly<Partial<Record<keyof CombatStats, ValueChange<number>>>>;
-  /**
-   * R-NUM-04（レビュー指摘[P1]、PR #214）: `BattleUnit.lastDamageDealt`/
-   * `lastDamageReceived`の変更。`before: undefined`は初回のダメージ発生・受領を
-   * 表す（`charge`と同じ、値のある/なしをまたぐ`ValueChange<number | undefined>`）。
-   * `DamageApplied`が単独で所有し、攻撃者側は`lastDamageDealt`、対象側は
-   * `lastDamageReceived`だけを持つ。
-   */
-  readonly lastDamageDealt?: ValueChange<number | undefined>;
-  readonly lastDamageReceived?: ValueChange<number | undefined>;
 }
 
 /**

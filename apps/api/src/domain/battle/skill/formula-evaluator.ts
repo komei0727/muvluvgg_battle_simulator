@@ -9,6 +9,7 @@ import type {
   LastResultReference,
 } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { matchesRelativeSide } from "../targeting/target-selection-policy.js";
 
@@ -122,10 +123,61 @@ function lastResultValue(
   if (value === undefined) {
     throw new DomainValidationError(
       path,
-      `sourceResult "${key}" has no recorded value in the evaluation context (RES-002/RES-003, Issue #174/#173, record this at runtime)`,
+      `sourceResult "${key}" has no recorded value in the evaluation context (this resolution scope has no matching prior DAMAGE result yet, or SUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED accumulation is RES-002/RES-003, Issue #174/#173, scope)`,
     );
   }
   return value;
+}
+
+/**
+ * R-SKL-08（レビュー再指摘[P1]、PR #214）: `LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`は
+ * 「同じ解決スコープ内で直前に確定したDAMAGE結果」だけを参照する。`BattleUnit`の
+ * 永続状態にすると別行動・別PS解決の古い値まで見えてしまうため、代わりに
+ * 呼び出し側（`action-skill-use-resolver.ts`/`action-charge-resolver.ts`が
+ * 1解決スコープ＝1行動ごとに新規生成し、`PassiveActivationRuntime`がそのスコープ内の
+ * PS連鎖へ使い回す）が保持する実行時registryとして扱う。`BattleUnit`のフィールドでは
+ * ないため、StateDelta・独立Reducer復元の対象にもならない（スコープ終了と同時に
+ * 破棄する短命な実行コンテキストであり、監査対象の永続状態ではないため）。
+ */
+export type LastDamageResultRegistry = Map<
+  BattleUnitId,
+  { readonly lastDamageDealt?: number; readonly lastDamageReceived?: number }
+>;
+
+/** `LastDamageResultRegistry`の該当ユニット分を`FormulaEvaluationContext.lastResults`の断片へ変換する。 */
+export function lastDamageResultsFor(
+  registry: LastDamageResultRegistry | undefined,
+  unitId: BattleUnitId,
+): NonNullable<FormulaEvaluationContext["lastResults"]> {
+  const entry = registry?.get(unitId);
+  return {
+    ...(entry?.lastDamageDealt !== undefined ? { LAST_DAMAGE_DEALT: entry.lastDamageDealt } : {}),
+    ...(entry?.lastDamageReceived !== undefined
+      ? { LAST_DAMAGE_RECEIVED: entry.lastDamageReceived }
+      : {}),
+  };
+}
+
+/**
+ * `applyDamageAction`が確定させたダメージ結果を`registry`へ記録する
+ * （ミュータブルな共有Mapを直接更新する — 新しいオブジェクトの返却も
+ * イミュータブルコピーも不要、`registry`自体が1解決スコープの寿命を表す）。
+ */
+export function recordLastDamageResult(
+  registry: LastDamageResultRegistry | undefined,
+  dealerId: BattleUnitId,
+  receiverId: BattleUnitId,
+  finalDamage: number,
+): void {
+  if (registry === undefined) {
+    return;
+  }
+  const dealerBefore = registry.get(dealerId);
+  registry.set(dealerId, { ...dealerBefore, lastDamageDealt: finalDamage });
+  // 自傷（dealerId === receiverId）では上の`set`で書いたエントリを起点に
+  // `lastDamageReceived`も重ねる必要があるため、`registry.get`をここで取り直す。
+  const receiverBefore = registry.get(receiverId);
+  registry.set(receiverId, { ...receiverBefore, lastDamageReceived: finalDamage });
 }
 
 /**

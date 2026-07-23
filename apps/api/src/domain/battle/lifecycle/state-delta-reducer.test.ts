@@ -584,57 +584,6 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_A]!.effectSequenceCounterCarry).toBeUndefined();
   });
 
-  it("UT-STATE-REDUCER-032 (R-NUM-04, レビュー指摘[P1] PR #214): applies lastDamageDealt/lastDamageReceived from undefined (first hit), keyed per unit", () => {
-    const next = applyStateDelta(initialState(), {
-      units: {
-        [UNIT_A]: { lastDamageDealt: { before: undefined, after: 42 } },
-        [UNIT_B]: { lastDamageReceived: { before: undefined, after: 42 } },
-      },
-    });
-
-    expect(next.units[UNIT_A]!.lastDamageDealt).toBe(42);
-    expect(next.units[UNIT_A]!.lastDamageReceived).toBeUndefined();
-    expect(next.units[UNIT_B]!.lastDamageReceived).toBe(42);
-    expect(next.units[UNIT_B]!.lastDamageDealt).toBeUndefined();
-  });
-
-  it("UT-STATE-REDUCER-033 (R-NUM-04): a later delta overwrites (not accumulates) lastDamageDealt/lastDamageReceived, matching the 'most recent only' contract", () => {
-    const first = applyStateDelta(initialState(), {
-      units: { [UNIT_A]: { lastDamageDealt: { before: undefined, after: 10 } } },
-    });
-    const second = applyStateDelta(first, {
-      units: { [UNIT_A]: { lastDamageDealt: { before: 10, after: 25 } } },
-    });
-
-    expect(second.units[UNIT_A]!.lastDamageDealt).toBe(25);
-  });
-
-  it("UT-STATE-REDUCER-034 (R-NUM-04): a self-hit merges lastDamageDealt and lastDamageReceived onto the same unit alongside hp", () => {
-    const next = applyStateDelta(initialState(), {
-      units: {
-        [UNIT_A]: {
-          hp: { before: 100, after: 75 },
-          lastDamageDealt: { before: undefined, after: 25 },
-          lastDamageReceived: { before: undefined, after: 25 },
-        },
-      },
-    });
-
-    expect(next.units[UNIT_A]).toMatchObject({
-      hp: 75,
-      lastDamageDealt: 25,
-      lastDamageReceived: 25,
-    });
-  });
-
-  it("UT-STATE-REDUCER-035 (R-NUM-04): throws when a lastDamageReceived delta's before does not match the current value", () => {
-    const delta: StateDelta = {
-      units: { [UNIT_A]: { lastDamageReceived: { before: 10, after: 20 } } },
-    };
-
-    expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
-  });
-
   it("UT-R-EFF-01-009: applies an EffectApplied-style delta (before: undefined) as a new entry in the effects registry", () => {
     const effect: EffectSnapshot = {
       effectInstanceId: createEffectInstanceId("battle-1:effect:1"),

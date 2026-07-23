@@ -1,6 +1,11 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical } from "./critical-policy.js";
+import {
+  lastDamageResultsFor,
+  recordLastDamageResult,
+  type LastDamageResultRegistry,
+} from "../skill/formula-evaluator.js";
 import type {
   DomainEventId,
   ActionId,
@@ -107,6 +112,14 @@ export interface DamageEventContext {
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
   ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
+  /**
+   * R-SKL-08（レビュー再指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
+   * が参照する「同じ解決スコープ内の直前DAMAGE結果」を保持する、呼び出し側が
+   * 1解決スコープ（1行動、または行動外トップレベルイベント）ごとに新規生成する
+   * 共有registry。未指定なら`LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`を要求する
+   * Formulaは`FormulaEvaluator`が明確な例外で拒否する。
+   */
+  readonly lastDamageResults?: LastDamageResultRegistry;
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -354,24 +367,20 @@ export function applyDamageAction(
       // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
       // では用意できない。production CatalogのDAMAGE Formulaは現時点で
       // SKILL_SOURCE/TARGET参照のみを使うため、それらを要求するFormulaは
-      // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（`LAST_DAMAGE_DEALT`/
-      // `LAST_DAMAGE_RECEIVED`）はレビュー指摘[P1]（PR #214）により、この
-      // 攻撃者自身が直前に発生させた/受けたDAMAGE結果（`BattleUnit.lastDamageDealt`/
-      // `lastDamageReceived`）を渡す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
+      // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（R-SKL-08、
+      // レビュー再指摘[P1] PR #214）は`context.lastDamageResults`（呼び出し側が
+      // 1解決スコープごとに新規生成する共有registry）から、この攻撃者自身の
+      // 直前DAMAGE結果だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
       // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
       // Issue #174/#173） — 現時点で参照するproduction定義がないため。
       formulaContext: {
         skillSource: attackerAfterTiming,
         target: targetAfterTiming,
         allUnits: Array.from(working.values()),
-        lastResults: {
-          ...(attackerAfterTiming.lastDamageDealt !== undefined
-            ? { LAST_DAMAGE_DEALT: attackerAfterTiming.lastDamageDealt }
-            : {}),
-          ...(attackerAfterTiming.lastDamageReceived !== undefined
-            ? { LAST_DAMAGE_RECEIVED: attackerAfterTiming.lastDamageReceived }
-            : {}),
-        },
+        lastResults: lastDamageResultsFor(
+          context.lastDamageResults,
+          attackerAfterTiming.battleUnitId,
+        ),
       },
     });
 
@@ -410,39 +419,22 @@ export function applyDamageAction(
     // 介在がないため、HPも`targetAfterTiming`からそのまま起点にできる。
     const hpBefore = targetAfterTiming.currentHp;
     const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
-    // R-NUM-04（レビュー指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
-    // が参照する「直前の確定済みダメージ結果」を、攻撃者・対象それぞれの
-    // `lastDamageDealt`/`lastDamageReceived`へ上書きする。自傷（攻撃者=対象）
-    // では同じユニットへ両方を重ねて書き込む必要があるため、target更新後に
-    // `working`から取り直してからattacker側を更新する。
-    const lastDamageDealtBefore = attackerAfterTiming.lastDamageDealt;
-    const lastDamageReceivedBefore = targetAfterTiming.lastDamageReceived;
     const updatedTarget: BattleUnit = {
       ...targetAfterTiming,
       currentHp: createHitPoint(hpAfter, targetAfterTiming.combatStats.maximumHp),
-      lastDamageReceived: damageResult.finalDamage,
     };
     working.set(targetAfterTiming.battleUnitId, updatedTarget);
-    const attackerBeforeDealtUpdate = working.get(attackerAfterTiming.battleUnitId)!;
-    working.set(attackerAfterTiming.battleUnitId, {
-      ...attackerBeforeDealtUpdate,
-      lastDamageDealt: damageResult.finalDamage,
-    });
-
-    const targetStateDelta = {
-      hp: { before: hpBefore, after: hpAfter },
-      lastDamageReceived: { before: lastDamageReceivedBefore, after: damageResult.finalDamage },
-    };
-    const attackerStateDelta = {
-      lastDamageDealt: { before: lastDamageDealtBefore, after: damageResult.finalDamage },
-    };
-    const damageStateDeltaUnits =
-      attackerAfterTiming.battleUnitId === targetAfterTiming.battleUnitId
-        ? { [targetAfterTiming.battleUnitId]: { ...targetStateDelta, ...attackerStateDelta } }
-        : {
-            [targetAfterTiming.battleUnitId]: targetStateDelta,
-            [attackerAfterTiming.battleUnitId]: attackerStateDelta,
-          };
+    // R-SKL-08（レビュー再指摘[P1]、PR #214）: `context.lastDamageResults`
+    // （呼び出し側が1解決スコープごとに新規生成する共有registry）へ直接
+    // 記録する。`BattleUnit`の永続フィールドではないため、StateDelta・
+    // 独立Reducer復元の対象にはならない（スコープ終了と同時に破棄される
+    // 実行コンテキストであり、監査対象の永続状態ではないため）。
+    recordLastDamageResult(
+      context.lastDamageResults,
+      attackerAfterTiming.battleUnitId,
+      targetAfterTiming.battleUnitId,
+      damageResult.finalDamage,
+    );
 
     const damageApplied = context.recorder.record({
       eventType: "DamageApplied",
@@ -467,7 +459,7 @@ export function applyDamageAction(
         defeated: isDefeated(updatedTarget),
       },
       stateDelta: {
-        units: damageStateDeltaUnits,
+        units: { [targetAfterTiming.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
       },
     });
 
