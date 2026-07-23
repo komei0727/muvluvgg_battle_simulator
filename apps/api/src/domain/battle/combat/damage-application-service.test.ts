@@ -939,4 +939,76 @@ describe("applyDamageAction", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-DAMAGE-APPLICATION-014 (R-SKL-08, レビュー再々指摘[P1] PR #214): a successful DAMAGE followed by a not-applied one (target already defeated) in the SAME resolution scope invalidates the earlier lastDamageDealt/lastDamageReceived, instead of leaving the stale success value visible", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const defender = unit("DEFENDER", "ENEMY", { defense: 10, maximumHp: 200 });
+    const random = new SequenceRandomSource([]);
+    const lastDamageResults: LastDamageResultRegistry = new Map();
+
+    // Hit 1 (success): ATTACKER deals 20 to DEFENDER, recorded in the shared
+    // registry for this resolution scope.
+    const firstHit = applyDamageAction(
+      attacker,
+      [hit("DEFENDER", 1)],
+      damageAction("PREVENTED"),
+      [attacker, defender],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
+    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
+    const attackerAfterFirstHit = firstHit.units.find(
+      (u) => u.battleUnitId === attacker.battleUnitId,
+    )!;
+    const defeatedDefender = defeated(
+      firstHit.units.find((u) => u.battleUnitId === defender.battleUnitId)!,
+    );
+
+    // Hit 2 (not applied — target already defeated), same attacker/target
+    // pair, same shared registry: R-SKL-08 treats this not-applied result as
+    // the new "last result" for this scope, so it must invalidate hit 1's
+    // success value rather than leaving it visible.
+    applyDamageAction(
+      attackerAfterFirstHit,
+      [hit("DEFENDER", 1)],
+      damageAction("PREVENTED"),
+      [attackerAfterFirstHit, defeatedDefender],
+      random,
+      { ...damageEventContext(), lastDamageResults },
+    );
+    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBeUndefined();
+    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBeUndefined();
+
+    // A later Formula referencing LAST_DAMAGE_DEALT in this same scope must
+    // now throw (no recorded value) instead of silently returning the stale 20.
+    const referencingAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_REFERENCING"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_DEALT_RATIO", sourceResult: "LAST_DAMAGE_DEALT", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+    const otherTarget = unit("OTHER_TARGET", "ENEMY");
+
+    expect(() =>
+      applyDamageAction(
+        attackerAfterFirstHit,
+        [hit("OTHER_TARGET", 1)],
+        referencingAction,
+        [attackerAfterFirstHit, otherTarget],
+        random,
+        { ...damageEventContext(), lastDamageResults },
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

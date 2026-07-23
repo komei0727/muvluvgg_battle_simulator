@@ -181,6 +181,45 @@ export function recordLastDamageResult(
 }
 
 /**
+ * R-SKL-08（レビュー再々指摘[P1]、PR #214）: MISS・対象不在などで効果が
+ * 適用されなかった場合も「同じ解決スコープ内で直前に確定した結果」であり、
+ * それ以前の成功したDAMAGE結果を`LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`
+ * として参照し続けさせてはならない。このFormulaEvaluatorはMISS自体の
+ * 結果種別を表現しない（`LAST_RESULT` Conditionの完全な結果種別追跡は
+ * RES-002/RES-003、Issue #174/#173のスコープ）ため、該当方向の値を単に
+ * 未記録の状態へ戻す — 後続Formulaが参照すれば`lastResultValue`と同じ
+ * 「記録が無い」`DomainValidationError`になる（古い値が透けて見えることは
+ * ない）。
+ */
+export function invalidateLastDamageResult(
+  registry: LastDamageResultRegistry | undefined,
+  dealerId: BattleUnitId,
+  receiverId: BattleUnitId,
+): void {
+  if (registry === undefined) {
+    return;
+  }
+  const dealerBefore = registry.get(dealerId);
+  if (dealerBefore?.lastDamageDealt !== undefined) {
+    const { lastDamageDealt: _lastDamageDealt, ...rest } = dealerBefore;
+    if (Object.keys(rest).length > 0) {
+      registry.set(dealerId, rest);
+    } else {
+      registry.delete(dealerId);
+    }
+  }
+  const receiverBefore = registry.get(receiverId);
+  if (receiverBefore?.lastDamageReceived !== undefined) {
+    const { lastDamageReceived: _lastDamageReceived, ...rest } = receiverBefore;
+    if (Object.keys(rest).length > 0) {
+      registry.set(receiverId, rest);
+    } else {
+      registry.delete(receiverId);
+    }
+  }
+}
+
+/**
  * R-NUM-04のFormulaEvaluator: `FormulaDefinition`を状態変更なしに数値へ評価する。
  * `SUM`/`MIN`/`MAX`/`CLAMP`は子Formulaの評価結果を丸めずに合成する
  * （このファイル自身がどこにも`Math.round`/`Math.floor`を持たないことで保証する

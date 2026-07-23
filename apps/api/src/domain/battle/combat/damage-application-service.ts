@@ -2,6 +2,7 @@ import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical } from "./critical-policy.js";
 import {
+  invalidateLastDamageResult,
   lastDamageResultsFor,
   recordLastDamageResult,
   type LastDamageResultRegistry,
@@ -229,6 +230,15 @@ export function applyDamageAction(
 
     if (isDefeated(target)) {
       outcomes.push(skip(hit));
+      // R-SKL-08（レビュー再々指摘[P1]、PR #214）: 対象不在で適用されなかった
+      // このヒットが「同じ解決スコープ内の直前結果」になる。以前の成功した
+      // DAMAGE結果を`LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`として透けて
+      // 見せ続けないよう、該当方向の値を無効化する。
+      invalidateLastDamageResult(
+        context.lastDamageResults,
+        currentAttacker.battleUnitId,
+        target.battleUnitId,
+      );
       continue;
     }
 
@@ -297,11 +307,26 @@ export function applyDamageAction(
     );
     if (isDefeated(targetAfterTiming)) {
       outcomes.push(skip(hit));
+      // R-SKL-08: TIMING処理後に対象が戦闘不能になった場合も、この不成立結果を
+      // 直前結果として扱う（上の対象不在チェックと同じ理由）。
+      invalidateLastDamageResult(
+        context.lastDamageResults,
+        attackerAfterTiming.battleUnitId,
+        targetAfterTiming.battleUnitId,
+      );
       continue;
     }
 
     if (!resolveHit()) {
       outcomes.push(skip(hit));
+      // R-SKL-08: MISSも結果種別を持つ直前結果として記録する（R-SKL-08本文）。
+      // このFormulaEvaluatorはMISS自体の種別を表現しないため、代わりに
+      // 以前の成功したDAMAGE結果が透けて見えないよう該当方向の値を無効化する。
+      invalidateLastDamageResult(
+        context.lastDamageResults,
+        attackerAfterTiming.battleUnitId,
+        targetAfterTiming.battleUnitId,
+      );
       continue;
     }
 
