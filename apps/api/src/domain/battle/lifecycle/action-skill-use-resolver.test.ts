@@ -1,0 +1,256 @@
+import { describe, expect, it } from "vitest";
+import { resolveSkillUse } from "./action-skill-use-resolver.js";
+import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import type { BattlePartyMember } from "../model/battle-party.js";
+import type { BattleDefinitions } from "../model/battle-definitions.js";
+import { EventRecorder } from "../events/event-recorder.js";
+import { createActionId } from "../../shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import {
+  createEffectActionDefinitionId,
+  createRuntimeCounterId,
+  createSkillDefinitionId,
+  createTargetBindingId,
+  createUnitDefinitionId,
+  type SkillDefinitionId,
+  type UnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import type { FormationPosition } from "../model/formation-input.js";
+import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import type { Side } from "../../shared/side.js";
+import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { createRuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
+
+const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
+
+function unit(
+  id: string,
+  side: Side,
+  overrides: {
+    unitDefinitionId?: UnitDefinitionId;
+    currentHp?: number;
+    maximumHp?: number;
+    currentAp?: number;
+  } = {},
+): BattleUnit {
+  const position: FormationPosition = { column: "LEFT", row: "FRONT" };
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(id),
+    unitDefinitionId: overrides.unitDefinitionId ?? createUnitDefinitionId("UNIT_A"),
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate(side, position),
+    combatStats: {
+      maximumHp: overrides.maximumHp ?? 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+    },
+  };
+  const built = createBattleUnit(member, side, LIMITS);
+  return {
+    ...built,
+    currentHp: overrides.currentHp ?? built.currentHp,
+    currentAp: overrides.currentAp ?? built.currentAp,
+  };
+}
+
+function unitDefinitionOf(id: UnitDefinitionId): UnitDefinition {
+  return {
+    unitDefinitionId: id,
+    attribute: "AGGRESSIVE",
+    unitType: "PHYSICAL",
+    role: "PHYSICAL_ATTACKER",
+    positionAptitudes: ["FRONT", "BACK"],
+    baseStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+      actionSpeed: 10,
+      maximumAp: 3,
+      maximumPp: 3,
+    },
+    extraGaugeMaximum: 10,
+    activeSkillDefinitionIds: [],
+    passiveSkillDefinitionIds: [],
+    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
+    requiredCapabilities: [],
+    metadata: {
+      displayName: "Test Unit",
+      characterName: "Test Character",
+      characterId: "CHAR_TEST",
+      affiliations: [],
+      tags: [],
+    },
+  };
+}
+
+function damageEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "DAMAGE",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      formula: { kind: "SKILL_POWER", power: 1 },
+      hitCount: 1,
+      critical: { mode: "PREVENTED" },
+      accuracy: { mode: "NORMAL" },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
+}
+
+const ENEMY_ALL: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ENEMY",
+  count: "ALL",
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
+/** An AS skill whose own EffectSequence declares an EFFECT_SEQUENCE-scoped counterUpdates (EFF-006/Issue #212). */
+function asSkillWithCounterUpdates(effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_AS_SEQ"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+      counterUpdates: [
+        createRuntimeCounterUpdateDefinition(
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_AS_HITS",
+            scope: "EFFECT_SEQUENCE",
+            trigger: {
+              eventType: "EffectActionCompleted",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "ANY",
+            },
+            amount: 1,
+          },
+          "counterUpdates[0]",
+        ),
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "AS", tags: [] },
+  };
+}
+
+function definitionsOf(
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
+  effectActions: ReadonlyMap<
+    ReturnType<typeof createEffectActionDefinitionId>,
+    EffectActionDefinition
+  >,
+): BattleDefinitions {
+  return {
+    activeSkillsByUnit: new Map(),
+    exSkillByUnit: new Map(),
+    effectActions,
+    unitDefinitions,
+    skillDefinitions,
+  };
+}
+
+describe("resolveSkillUse", () => {
+  it("UT-R-EFF-11-025 (EFF-006 Issue #212): an AS skill's own EffectSequence counterUpdates increments during resolution and is discarded (RuntimeCounterReset) once resolveSkillUse completes", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const hit = damageEffectAction("ACT_AS_HIT");
+    const skill = asSkillWithCounterUpdates("ACT_AS_HIT");
+    const hitCounterId = createRuntimeCounterId("RUNTIME_COUNTER_AS_HITS");
+
+    const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId, currentAp: 3 });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    const result = resolveSkillUse(
+      actor,
+      skill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const changed = events.filter(
+      (e) =>
+        e.eventType === "RuntimeCounterChanged" &&
+        (e.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+    );
+    expect(changed).toHaveLength(1);
+    expect(changed[0]!.payload).toMatchObject({
+      ownerUnitId: actor.battleUnitId,
+      counter: hitCounterId,
+      skillDefinitionId: skill.skillDefinitionId,
+      before: 0,
+      after: 1,
+    });
+
+    const reset = events.filter(
+      (e) =>
+        e.eventType === "RuntimeCounterReset" &&
+        (e.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+    );
+    expect(reset).toHaveLength(1);
+    expect(reset[0]!.payload).toMatchObject({ skillDefinitionId: skill.skillDefinitionId });
+
+    const actorAfter = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(actorAfter.effectSequenceCounters).toBeUndefined();
+  });
+});

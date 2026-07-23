@@ -128,6 +128,14 @@ export interface SkillResolutionDefinitionInput {
   readonly kind: string;
   readonly targetBindings?: EffectSequenceInput["targetBindings"];
   readonly steps: EffectSequenceInput["steps"];
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」`EffectSequence`スコープ（EFF-006、
+   * Issue #212）。`SkillDefinition.counterUpdates`（`SKILL_RUNTIME`スコープ）とは
+   * 独立に、この解決（IMMEDIATE、またはCHARGEの開始側）自身のEffectSequenceが
+   * 宣言するcounterUpdatesを渡す。`chargeRelease`側は`EffectSequenceInput`を
+   * そのまま渡すため、既に`counterUpdates`を宣言できる。
+   */
+  readonly counterUpdates?: EffectSequenceInput["counterUpdates"];
   readonly chargeRelease?: EffectSequenceInput;
 }
 
@@ -228,9 +236,11 @@ function createCooldown(input: CooldownInput, path: string): Cooldown {
 }
 
 function createSequenceInput(input: SkillResolutionDefinitionInput): EffectSequenceInput {
-  return input.targetBindings === undefined
-    ? { steps: input.steps }
-    : { targetBindings: input.targetBindings, steps: input.steps };
+  return {
+    ...(input.targetBindings === undefined ? {} : { targetBindings: input.targetBindings }),
+    steps: input.steps,
+    ...(input.counterUpdates === undefined ? {} : { counterUpdates: input.counterUpdates }),
+  };
 }
 
 function createResolution(
@@ -243,6 +253,20 @@ function createResolution(
   }
   if (input.kind === "CHARGE") {
     const sequence = createEffectSequence(createSequenceInput(input), path);
+    // PR #213レビュー[P1]: CHARGE開始側のトップレベルEffectSequence（`steps`/
+    // `targetBindings`）は`action-charge-resolver.ts`の`resolveChargeStart`が
+    // 一度も解決しない（`applyEffectActionGroups`を呼ばず、`charge`状態設定と
+    // `ChargeStarted`発行だけを行う）。ここに`counterUpdates`を宣言しても更新も
+    // `RuntimeCounterReset`も一切発生しないため、Catalogが受理した定義が実行時に
+    // 黙って無視される契約違反を避け、ロード時点で明示的に拒否する
+    // （`chargeRelease.counterUpdates`は`resolveChargeRelease`が実際に解決するため
+    // 対象外）。
+    if (sequence.counterUpdates !== undefined) {
+      throw new DomainValidationError(
+        `${path}.counterUpdates`,
+        "is not supported on a CHARGE skill's own top-level EffectSequence (it never resolves at runtime; declare counterUpdates on chargeRelease instead)",
+      );
+    }
     if (input.chargeRelease === undefined) {
       throw new DomainValidationError(`${path}.chargeRelease`, "is required when kind is CHARGE");
     }

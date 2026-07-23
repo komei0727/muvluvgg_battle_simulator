@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createEffectSequence } from "./effect-sequence.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
+const baseTrigger = {
+  eventType: "EffectActionCompleted",
+  category: "FACT",
+  sourceSelector: "SELF",
+  targetSelector: "ANY",
+} as const;
+
 describe("EffectSequence", () => {
   it("UT-CAT-SEQ-001: maps a minimal single-target ACTION sequence", () => {
     const result = createEffectSequence(
@@ -512,6 +519,133 @@ describe("EffectSequence", () => {
               branches: [{ weight: 1, probability: 0.5, steps: [] }],
             },
           ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-027 (EFF-006 Issue #212): maps counterUpdates with scope EFFECT_SEQUENCE", () => {
+    const result = createEffectSequence(
+      {
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
+          },
+        ],
+        counterUpdates: [
+          {
+            kind: "INCREMENT",
+            counter: "RUNTIME_COUNTER_SEQ_HITS",
+            scope: "EFFECT_SEQUENCE",
+            trigger: baseTrigger,
+            amount: 1,
+          },
+        ],
+      },
+      "resolution",
+    );
+
+    expect(result.counterUpdates).toEqual([
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_SEQ_HITS",
+        scope: "EFFECT_SEQUENCE",
+        trigger: { ...baseTrigger, condition: { kind: "TRUE" } },
+        amount: 1,
+      },
+    ]);
+  });
+
+  it("UT-CAT-SEQ-028 (EFF-006 Issue #212): omits counterUpdates when not declared", () => {
+    const result = createEffectSequence(
+      {
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
+          },
+        ],
+      },
+      "resolution",
+    );
+
+    expect(result).not.toHaveProperty("counterUpdates");
+  });
+
+  it("UT-CAT-SEQ-029 (EFF-006 Issue #212): rejects counterUpdates with a scope other than EFFECT_SEQUENCE", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
+            },
+          ],
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_SEQ_HITS",
+              scope: "SKILL_RUNTIME",
+              trigger: baseTrigger,
+              amount: 1,
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-031 (PR #213 review [P2]): rejects counterUpdates that declares resetScope: RESOLUTION_SCOPE, since EffectSequence counters always discard at resolution end regardless of resetScope", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
+            },
+          ],
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_SEQ_HITS",
+              scope: "EFFECT_SEQUENCE",
+              trigger: baseTrigger,
+              amount: 1,
+              resetScope: "RESOLUTION_SCOPE",
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-030 (EFF-006 Issue #212): rejects a non-array counterUpdates", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
+            },
+          ],
+          counterUpdates: "not-an-array" as unknown as never[],
         },
         "resolution",
       ),

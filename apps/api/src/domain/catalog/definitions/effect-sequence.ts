@@ -20,6 +20,11 @@ import {
   type TargetSelectorDefinition,
   type TargetSelectorDefinitionInput,
 } from "./target-selector-definition.js";
+import {
+  createRuntimeCounterUpdateDefinition,
+  type RuntimeCounterUpdateDefinition,
+  type RuntimeCounterUpdateDefinitionInput,
+} from "./runtime-counter-update-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import {
   assertArray,
@@ -294,14 +299,24 @@ function createRandomBranch(
 export interface EffectSequence {
   readonly targetBindings: readonly TargetBindingDefinition[];
   readonly steps: readonly EffectStepDefinition[];
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」`EffectSequence`スコープ（EFF-006、
+   * Issue #212）。`EffectSequence`自身は状態を持たないため、この宣言が有効な
+   * のは1回の解決（`SkillUseId`）の間だけ — 解決開始時に空から始まり、解決完了時に
+   * 破棄・`RuntimeCounterReset`を発行する。`scope`は常に`EFFECT_SEQUENCE`
+   * （他スコープはこの位置では意味を持たないため拒否する、`duration-definition.ts`
+   * の`APPLIED_EFFECT`強制と同じ方針）。
+   */
+  readonly counterUpdates?: readonly RuntimeCounterUpdateDefinition[];
 }
 
 export interface EffectSequenceInput {
   readonly targetBindings?: readonly TargetBindingDefinitionInput[];
   readonly steps: readonly EffectStepDefinitionInput[];
+  readonly counterUpdates?: readonly RuntimeCounterUpdateDefinitionInput[];
 }
 
-const EFFECT_SEQUENCE_ALLOWED_KEYS = ["targetBindings", "steps"] as const;
+const EFFECT_SEQUENCE_ALLOWED_KEYS = ["targetBindings", "steps", "counterUpdates"] as const;
 
 export function createEffectSequence(input: EffectSequenceInput, path: string): EffectSequence {
   assertKnownKeys(input, EFFECT_SEQUENCE_ALLOWED_KEYS, path);
@@ -342,5 +357,36 @@ export function createEffectSequence(input: EffectSequenceInput, path: string): 
     createEffectStepDefinition(s, `${path}.steps[${i}]`, scope),
   );
 
-  return { targetBindings, steps };
+  if (input.counterUpdates !== undefined) {
+    assertArray(input.counterUpdates, `${path}.counterUpdates`);
+  }
+  const counterUpdates = (input.counterUpdates ?? []).map((c, i) => {
+    const update = createRuntimeCounterUpdateDefinition(c, `${path}.counterUpdates[${i}]`);
+    if (update.scope !== "EFFECT_SEQUENCE") {
+      throw new DomainValidationError(
+        `${path}.counterUpdates[${i}].scope`,
+        `must be "EFFECT_SEQUENCE" when declared on an EffectSequence, got "${update.scope}"`,
+      );
+    }
+    // PR #213レビュー[P2]: `resetScope`はこの位置では意味を持たない（選択の
+    // 余地がない） — `EffectSequence`は状態を持たないため、このcounterは常に
+    // このEffectSequence自身の解決終了時に破棄される（宣言された
+    // resolutionScope終了時ではない）。Catalogが`resetScope: RESOLUTION_SCOPE`を
+    // 受理すると、宣言と実際のライフサイクルが一致しない契約違反になるため
+    // 明示的に拒否する（`14_Catalog定義スキーマ.md`「counterUpdates
+    // （EffectSequenceスコープ、EFF-006）」）。
+    if (update.resetScope !== undefined) {
+      throw new DomainValidationError(
+        `${path}.counterUpdates[${i}].resetScope`,
+        "must not be declared on an EffectSequence (its counters always discard when this EffectSequence's own resolution ends, regardless of resetScope)",
+      );
+    }
+    return update;
+  });
+
+  return {
+    targetBindings,
+    steps,
+    ...(counterUpdates.length > 0 ? { counterUpdates } : {}),
+  };
 }

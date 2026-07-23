@@ -1552,6 +1552,42 @@ duration:
 
 `counterUpdates`を持つduration保持`EffectActionDefinition`（`APPLY_MARKER`を除く）は`requiredCapabilities`へ`CAP_EFFECT_RUNTIME_COUNTER`を宣言しなければならない。`APPLY_MARKER.duration.counterUpdates`はCatalogロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_DURATION`）— `MarkerState`も同じ`DurationDefinition`/`EffectDurationState`を再利用するためschema上は設定できてしまうが、Marker自身のconsumption/expiration機構が別途未実装のため、宣言してもMarkerが失効しないまま静かに無視される事態を防ぐ。`resetScope`（`RESOLUTION_SCOPE`）はこの位置では意味を持たない（`AppliedEffect`スコープのcounterは効果インスタンス自身の失効がリセットを兼ねるため、`RuntimeCounterReset`を発行しない）。利用するproduction定義は現状存在しないため、`CAP_EFFECT_RUNTIME_COUNTER`は明示的Scenarioで検証済みだが`runtimeStatus: PLANNED`のまま — `runtimeStatus: IMPLEMENTED`は`productionDefinitionIds`が非空であることを要求する（`capability-definition.ts`）。
 
+### counterUpdates（EffectSequenceスコープ、EFF-006）
+
+`EffectSequence`は`counterUpdates`（`RuntimeCounterUpdateDefinition[]`、省略可・省略時は宣言なし扱い）を持てる（EFF-006、Issue #212）。`SkillDefinition.counterUpdates`と同じ構文だが、`scope`は常に`EFFECT_SEQUENCE`でなければならない。実行時識別子には既存の`SkillUseId`（1回の解決を一意に識別する）を再利用し、`BattleUnit.effectSequenceCounters`（`SkillUseId`→`RuntimeCounter`）が保持先となる。宣言位置は`SkillDefinition.resolution`（`kind: IMMEDIATE`）または`chargeRelease`（`kind: CHARGE`）のいずれかで、`EffectSequence`自身が解決されるたびに空のcounterから始まり、その解決が完了した時点（正常終了・中断のいずれでも）で必ず破棄・`RuntimeCounterReset`を発行する — `resetScope`はこの位置では宣言できない（`EffectSequence`は解決単位を超えて状態を持てないため、選択の余地がない）。
+
+```yaml
+resolution:
+  kind: CHARGE
+  targetBindings: []
+  steps:
+    - kind: ACTION
+      target: { kind: SELF }
+      actions:
+        - effectActionDefinitionId: ACT_MARKER_CHARGING
+  chargeRelease:
+    targetBindings:
+      - targetBindingId: TGT_ALL_ENEMIES
+        selector: { kind: SELECT, side: ENEMY, count: ALL, order: [DEFAULT] }
+    steps:
+      - kind: ACTION
+        target: { kind: BINDING, targetBindingId: TGT_ALL_ENEMIES }
+        actions:
+          - effectActionDefinitionId: ACT_DAMAGE_EN_4740
+    counterUpdates:
+      - kind: INCREMENT
+        counter: ACT_EXAMPLE_HIT_COUNT
+        scope: EFFECT_SEQUENCE
+        trigger:
+          eventType: EffectActionCompleted
+          category: FACT
+          sourceSelector: SELF
+          targetSelector: ANY
+        amount: 1
+```
+
+`counterUpdates`を宣言する`EffectSequence`を持つ`SkillDefinition`は`requiredCapabilities`へ`CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER`を宣言しなければならない。**CHARGEスキルの開始側（トップレベルの`steps`/`targetBindings`）に宣言することはできない**（`resolveChargeStart`が一度もこのEffectSequenceを解決しないため、宣言しても更新もResetも一切発生しない — Catalogロード時点で明示的に拒否する、PR #213レビュー[P1]）。`chargeRelease`側（`resolveChargeRelease`が実際に解決する）にだけ宣言できる。利用するproduction定義は現状存在しないため、`CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER`は明示的Scenarioで検証済みだが`runtimeStatus: PLANNED`のまま。
+
 ### TARGET_STATE field
 
 | field               | 型      |

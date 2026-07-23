@@ -234,6 +234,16 @@ export function resolveChargeRelease(
   );
 
   const skillUseId = recorder.nextSkillUseId();
+  // EFF-006/Issue #212: `resolveSkillUse`と同様、この解決が宣言する
+  // `chargeRelease`のEffectSequence自身のcounterUpdates（あれば）を登録する。
+  if (skill.resolution.kind === "CHARGE") {
+    passiveRuntime.beginEffectSequenceResolution(
+      skillUseId,
+      actorId,
+      skill.skillDefinitionId,
+      skill.resolution.chargeRelease.counterUpdates ?? [],
+    );
+  }
   const targetsSelected = recorder.record({
     eventType: "TargetsSelected",
     category: "FACT",
@@ -278,8 +288,15 @@ export function resolveChargeRelease(
     // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後の
     // `ActionCompleting`が所有する（下記`closingStateDelta`）。
   });
+  // PR #213レビュー[P2]: `ChargeReleased`はEffectSequence解決開始のトリガーで
+  // あり、`chargeRelease.counterUpdates`のtriggerにもなり得る
+  // （`08_ドメインイベント.md`「ChargeReleased」）。`applyEffectActionGroups`
+  // （実効果解決）より前に`passiveRuntime.onFactEvent`へ渡し、`beginEffectSequenceResolution`
+  // で登録済みのEFFECT_SEQUENCEスコープcounterUpdatesとPS/Memory候補の両方へ
+  // 届けるとともに、`working`を最新化する。
+  working = passiveRuntime.onFactEvent(chargeReleased, working);
 
-  working = applyEffectActionGroups(plan, working, {
+  applyEffectActionGroups(plan, working, {
     definitions,
     actorId,
     random,
@@ -294,7 +311,13 @@ export function resolveChargeRelease(
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, unitsForChain) =>
       passiveRuntime.onFactEvent(event, unitsForChain),
-  }).units;
+  });
+  // EFF-006/Issue #212: `applyEffectActionGroups`の戻り値は
+  // `onFactEventForPassiveChain`経由で既に`passiveRuntime`（`this.units`）へ
+  // 同期済みのため、そのまま`finalizeEffectSequenceResolution`（`this.units`を
+  // 参照する）を呼べる。`resolveSkillUse`と同様、このEffectSequence自身の
+  // 解決が完了した時点で直ちにそのcounterを破棄する。
+  working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
 
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
   // （とPS解決、M6）の後（M5レビュー2巡目[P2]: 内部の`working`だけでなく、公開

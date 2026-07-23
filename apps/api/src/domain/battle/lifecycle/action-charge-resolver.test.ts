@@ -8,6 +8,7 @@ import { createActionId } from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
@@ -22,6 +23,7 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { createRuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -162,6 +164,118 @@ function chargeReleaseSkill(effectActionId: string): SkillDefinition {
   };
 }
 
+/** Same as `chargeReleaseSkill` but the `chargeRelease` EffectSequence also declares an EFFECT_SEQUENCE-scoped counterUpdates (EFF-006/Issue #212). */
+function chargeReleaseSkillWithCounterUpdates(effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_CHARGE"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+          },
+        ],
+        counterUpdates: [
+          createRuntimeCounterUpdateDefinition(
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_CHARGE_HITS",
+              scope: "EFFECT_SEQUENCE",
+              trigger: {
+                eventType: "EffectActionCompleted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ANY",
+              },
+              amount: 1,
+            },
+            "counterUpdates[0]",
+          ),
+        ],
+      },
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Charge", tags: [] },
+  };
+}
+
+/** Same as `chargeReleaseSkillWithCounterUpdates` but the counterUpdates trigger is `ChargeReleased` itself (PR #213 review [P2]), not an event emitted during effect resolution. */
+function chargeReleaseSkillWithChargeReleasedCounterUpdates(
+  effectActionId: string,
+): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_CHARGE"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+          },
+        ],
+        counterUpdates: [
+          createRuntimeCounterUpdateDefinition(
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_CHARGE_RELEASED",
+              scope: "EFFECT_SEQUENCE",
+              trigger: {
+                eventType: "ChargeReleased",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ANY",
+              },
+              amount: 1,
+            },
+            "counterUpdates[0]",
+          ),
+        ],
+      },
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Charge", tags: [] },
+  };
+}
+
 /** trigger on any `DamageApplied`, with a trivial (empty-steps) resolution — only whether it activates at all matters for this test. */
 function passiveSkillOnDamageApplied(id: string): SkillDefinition {
   return {
@@ -274,5 +388,119 @@ describe("resolveChargeRelease", () => {
 
     const psOwnerAfter = result.units.find((u) => u.battleUnitId === psOwner.battleUnitId)!;
     expect(psOwnerAfter.currentPp).toBe(2);
+  });
+
+  it("UT-R-EFF-11-024 (EFF-006 Issue #212): a chargeRelease EffectSequence's own EFFECT_SEQUENCE counterUpdates increments during resolution and is discarded (RuntimeCounterReset) once resolveChargeRelease completes", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const hit = damageEffectAction("ACT_CHARGE_HIT");
+    const chargeSkill = chargeReleaseSkillWithCounterUpdates("ACT_CHARGE_HIT");
+    const hitCounterId = createRuntimeCounterId("RUNTIME_COUNTER_CHARGE_HITS");
+
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    const result = resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const changed = events.filter(
+      (e) =>
+        e.eventType === "RuntimeCounterChanged" &&
+        (e.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+    );
+    expect(changed).toHaveLength(1);
+    expect(changed[0]!.payload).toMatchObject({
+      ownerUnitId: charger.battleUnitId,
+      counter: hitCounterId,
+      skillDefinitionId: chargeSkill.skillDefinitionId,
+      before: 0,
+      after: 1,
+    });
+
+    const reset = events.filter(
+      (e) =>
+        e.eventType === "RuntimeCounterReset" &&
+        (e.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+    );
+    expect(reset).toHaveLength(1);
+    expect(reset[0]!.payload).toMatchObject({ skillDefinitionId: chargeSkill.skillDefinitionId });
+
+    const chargerAfter = result.units.find((u) => u.battleUnitId === charger.battleUnitId)!;
+    expect(chargerAfter.effectSequenceCounters).toBeUndefined();
+  });
+
+  it("UT-R-EFF-11-026 (PR #213 review [P2]): a chargeRelease counterUpdates trigger on ChargeReleased itself increments, because ChargeReleased is routed through the active EffectSequence resolution before effect resolution begins", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const hit = damageEffectAction("ACT_CHARGE_HIT");
+    const chargeSkill = chargeReleaseSkillWithChargeReleasedCounterUpdates("ACT_CHARGE_HIT");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CHARGE_RELEASED");
+
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const changed = events.filter(
+      (e) =>
+        e.eventType === "RuntimeCounterChanged" &&
+        (e.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+    );
+    expect(changed).toHaveLength(1);
+    expect(changed[0]!.payload).toMatchObject({
+      counter: counterId,
+      skillDefinitionId: chargeSkill.skillDefinitionId,
+      before: 0,
+      after: 1,
+    });
   });
 });

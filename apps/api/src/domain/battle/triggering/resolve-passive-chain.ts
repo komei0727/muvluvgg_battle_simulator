@@ -162,6 +162,18 @@ export interface PassiveChainDependencies {
     event: TriggerCandidateEvent,
     resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
   ) => PassiveChainLimitViolationReason | undefined;
+  /**
+   * EFF-006/Issue #212: `R-EFF-11`の`EffectSequence`スコープ版。`applyEffectRuntimeCounterUpdates`
+   * （`AppliedEffect`スコープ）と同じ理由・同じ契約（`event`に一致する現在進行中の
+   * EffectSequence解決のcounterUpdatesを検出・記録し、1件ずつ`resolveChild`で
+   * 候補連鎖を完全に解決してから次へ進む）。`state.effectRuntimeCounterDepth`を
+   * `applyEffectRuntimeCounterUpdates`と共有する（自己再誘発の上限はスコープを
+   * 問わず1つの決定的な上限を設ければ十分なため、`ChainState`を分割しない）。
+   */
+  readonly applyEffectSequenceRuntimeCounterUpdates?: (
+    event: TriggerCandidateEvent,
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ) => PassiveChainLimitViolationReason | undefined;
 }
 
 export type PassiveChainResult =
@@ -215,6 +227,9 @@ interface ChainState {
  * （R-EFF-11「原因イベントの状態変更確定後、PS/Memory候補抽出前にcounter
  * 更新を決定する」）。新たに発行された`RuntimeCounterChanged`も、`event`自身の
  * 候補解決より前にこの`resolveEvent`自身へ再帰させて完全に解決する。
+ * `deps.applyEffectSequenceRuntimeCounterUpdates`（EFF-006/Issue #212、
+ * `EffectSequence`スコープ）も同じ理由・同じ順序（`applyExpirationConditions`
+ * より先）で呼ぶ。
  *
  * レビュー再指摘[P2]（PR #209）: 候補検出の直前に`deps.applyExpirationConditions`
  * （R-EFF-08）を呼び、`event`に対して成立した特殊失効条件を先に処理する。
@@ -236,6 +251,29 @@ function resolveEvent(
     // 巻き付けると、AppliedEffect counterと無関係な通常のPS連鎖の深さも誤って
     // カウントしてしまう。
     const violation = deps.applyEffectRuntimeCounterUpdates(event, (child) => {
+      state.effectRuntimeCounterDepth += 1;
+      try {
+        const depthCheck = checkEffectRuntimeCounterDepth(
+          state.effectRuntimeCounterDepth,
+          deps.limits,
+        );
+        if (!depthCheck.ok) {
+          return depthCheck.reason;
+        }
+        return resolveEvent(child, state, deps);
+      } finally {
+        state.effectRuntimeCounterDepth -= 1;
+      }
+    });
+    if (violation !== undefined) {
+      return violation;
+    }
+  }
+
+  if (deps.applyEffectSequenceRuntimeCounterUpdates !== undefined) {
+    // EFF-006/Issue #212: 上の`applyEffectRuntimeCounterUpdates`（`AppliedEffect`
+    // スコープ）と同じ深さGuard・同じ理由で`resolveChild`ベースにする。
+    const violation = deps.applyEffectSequenceRuntimeCounterUpdates(event, (child) => {
       state.effectRuntimeCounterDepth += 1;
       try {
         const depthCheck = checkEffectRuntimeCounterDepth(

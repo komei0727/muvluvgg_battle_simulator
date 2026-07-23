@@ -215,6 +215,50 @@ describe("SkillDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-SKL-028 (PR #213 review [P1]): rejects counterUpdates declared on a CHARGE skill's own top-level (start) EffectSequence, since it never resolves at runtime (only chargeRelease.counterUpdates is honored)", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        resolution: {
+          kind: "CHARGE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_MARKER_CHARGING" }],
+            },
+          ],
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "RUNTIME_COUNTER_CHARGE_START",
+              scope: "EFFECT_SEQUENCE",
+              trigger: {
+                eventType: "ChargeStarted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ANY",
+              },
+              amount: 1,
+            },
+          ],
+          chargeRelease: {
+            targetBindings: [],
+            steps: [
+              {
+                kind: "ACTION",
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_EN_21200" }],
+              },
+            ],
+          },
+        },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-SKL-010: rejects cooldown.count below 0", () => {
     const input = minimalAsInput();
     expect(() =>
