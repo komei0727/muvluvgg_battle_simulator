@@ -288,6 +288,13 @@ export function resolveChargeRelease(
     // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後の
     // `ActionCompleting`が所有する（下記`closingStateDelta`）。
   });
+  // PR #213レビュー[P2]: `ChargeReleased`はEffectSequence解決開始のトリガーで
+  // あり、`chargeRelease.counterUpdates`のtriggerにもなり得る
+  // （`08_ドメインイベント.md`「ChargeReleased」）。`applyEffectActionGroups`
+  // （実効果解決）より前に`passiveRuntime.onFactEvent`へ渡し、`beginEffectSequenceResolution`
+  // で登録済みのEFFECT_SEQUENCEスコープcounterUpdatesとPS/Memory候補の両方へ
+  // 届けるとともに、`working`を最新化する。
+  working = passiveRuntime.onFactEvent(chargeReleased, working);
 
   applyEffectActionGroups(plan, working, {
     definitions,

@@ -253,6 +253,20 @@ function createResolution(
   }
   if (input.kind === "CHARGE") {
     const sequence = createEffectSequence(createSequenceInput(input), path);
+    // PR #213レビュー[P1]: CHARGE開始側のトップレベルEffectSequence（`steps`/
+    // `targetBindings`）は`action-charge-resolver.ts`の`resolveChargeStart`が
+    // 一度も解決しない（`applyEffectActionGroups`を呼ばず、`charge`状態設定と
+    // `ChargeStarted`発行だけを行う）。ここに`counterUpdates`を宣言しても更新も
+    // `RuntimeCounterReset`も一切発生しないため、Catalogが受理した定義が実行時に
+    // 黙って無視される契約違反を避け、ロード時点で明示的に拒否する
+    // （`chargeRelease.counterUpdates`は`resolveChargeRelease`が実際に解決するため
+    // 対象外）。
+    if (sequence.counterUpdates !== undefined) {
+      throw new DomainValidationError(
+        `${path}.counterUpdates`,
+        "is not supported on a CHARGE skill's own top-level EffectSequence (it never resolves at runtime; declare counterUpdates on chargeRelease instead)",
+      );
+    }
     if (input.chargeRelease === undefined) {
       throw new DomainValidationError(`${path}.chargeRelease`, "is required when kind is CHARGE");
     }
