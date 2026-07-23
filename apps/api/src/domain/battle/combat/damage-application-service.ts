@@ -509,11 +509,17 @@ export function applyDamageAction(
     // 解決する（`onFactEventForPassiveChain`未指定ならPS解決を省略する）。
     // 致死ヒットでも`DamageApplied`起点のPS（例:「味方がダメージを受けた時」）を
     // `UnitDefeated`だけに上書きして見逃さないよう、両方を個別にフックへ渡す
-    // （PR #141レビュー[P1]）。`targetAfterTiming`はこの直前の生存再検証で既に
-    // 生存確定済みのため、新規致死判定は`updatedTarget`のみで足りる。
+    // （PR #141レビュー[P1]）。`includeDefeated`が無い通常経路では
+    // `targetAfterTiming`はこの直前の生存再検証で既に生存確定済みのため、
+    // 新規致死判定は`updatedTarget`のみで足りていた。しかし`includeDefeated:
+    // true`（レビュー再々指摘[P2]、PR #215）では既に戦闘不能な対象へもヒットが
+    // 続くため、`updatedTarget`だけを見ると「HPが0になった直後」
+    // （`08_ドメインイベント.md`）ではないヒットでも`UnitDefeated`を毎回
+    // 再発行してしまう。実際にこのヒットでHPが0へ遷移した場合
+    // （`targetAfterTiming`が生存していた場合）だけ発行する。
     lastEventId = damageApplied.eventId;
     const factEvents: BattleDomainEvent[] = [damageApplied];
-    if (isDefeated(updatedTarget)) {
+    if (!isDefeated(targetAfterTiming) && isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",

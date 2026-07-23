@@ -323,6 +323,36 @@ describe("applyDamageAction", () => {
     expect(result.hits.map((h) => h.applied)).toEqual([true, true, true]);
     const eventTypes = context.recorder.getEvents().map((e) => e.eventType);
     expect(eventTypes.filter((t) => t === "DamageApplied")).toHaveLength(3);
+    // The target was alive before hit 1 (it dies from hit 1's overkill damage),
+    // so only that hit's HP transition (>0 -> 0) may emit UnitDefeated. Hits 2
+    // and 3 keep applying damage to an already-defeated target and must not
+    // re-emit it (08_ドメインイベント.md「HPが0になった直後」、レビュー再々指摘[P2] PR #215).
+    expect(eventTypes.filter((t) => t === "UnitDefeated")).toHaveLength(1);
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(updatedTarget.currentHp).toBe(0);
+  });
+
+  it("UT-DAMAGE-APPLICATION-016 (R-ACTN-01 #2, PR #215 re-review finding [P2]): hits against a target that was already defeated BEFORE this EffectAction started never emit UnitDefeated, even with context.includeDefeated: true", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 999 });
+    const target = defeated(unit("TARGET", "ENEMY", { defense: 0, maximumHp: 50 }));
+    const random = new SequenceRandomSource([]);
+    const context: DamageEventContext = { ...damageEventContext(), includeDefeated: true };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET", 2)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(result.hits.map((h) => h.applied)).toEqual([true, true]);
+    const eventTypes = context.recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes.filter((t) => t === "DamageApplied")).toHaveLength(2);
+    expect(eventTypes.filter((t) => t === "UnitDefeated")).toHaveLength(0);
     const updatedTarget = result.units.find(
       (u) => u.battleUnitId === createBattleUnitId("TARGET"),
     )!;

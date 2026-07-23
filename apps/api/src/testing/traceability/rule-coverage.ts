@@ -642,6 +642,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACTN-01-008",
       "UT-R-ACTN-01-010",
       "UT-DAMAGE-APPLICATION-015",
+      // #2/#5 明示指定下でも、既に戦闘不能だった対象への継続ヒットはUnitDefeatedを再発行しない
+      // (08_ドメインイベント.md「HPが0になった直後」、PR #215再々レビュー[P2])。
+      "UT-DAMAGE-APPLICATION-016",
       // #3 Formula評価: payloadのFormulaDefinitionが実際に評価される。
       "UT-R-NUM-04-027",
       // #4/#5 種別に応じた状態変更とイベント発行を、実パイプライン(applyEffectActionGroups)経由でkindごとに検証する。
