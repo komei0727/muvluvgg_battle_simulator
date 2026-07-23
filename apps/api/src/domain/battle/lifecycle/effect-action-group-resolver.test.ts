@@ -941,6 +941,69 @@ describe("applyEffectActionGroups", () => {
       // never yielded, so onFactEventForPassiveChain never observed it.
       expect(observedEventTypes).toContain("RandomBranchSelected");
     });
+
+    it("UT-R-SKL-07-009 (R-SKL-01, PR #216再レビュー[P1]): when the RandomBranchSelected immediate chain defeats the actor before the chosen (non-empty) branch resolves, the branch's unresolved hits count as interrupted instead of silently reporting interruptedCount: 0", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      const enemy = unit("ENEMY", "ENEMY");
+      // hitCount: 2, so the chosen branch's single target contributes 2
+      // candidate hits (1 target x 2 hits) once selected.
+      const branchAttack = damageAction("ACT_BRANCH", 2);
+      const effectActions = new Map([[branchAttack.effectActionDefinitionId, branchAttack]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextWithRandom(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+        fixedRandom(0),
+        (event, units) => {
+          // Simulate a PS reacting to the branch selection itself with
+          // lethal self-damage, before the chosen branch's own DAMAGE step
+          // ever gets a chance to start.
+          if (event.eventType === "RandomBranchSelected") {
+            return units.map((unit) =>
+              unit.battleUnitId === actor.battleUnitId ? { ...unit, currentHp: 0 } : unit,
+            );
+          }
+          return units;
+        },
+      );
+      const tgtEnemy = createTargetBindingId("TGT_ENEMY");
+      const randomBranchDefinition: EffectStepDefinition = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          {
+            label: "ONLY",
+            weight: 1,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: tgtEnemy },
+                actions: [{ effectActionDefinitionId: branchAttack.effectActionDefinitionId }],
+              },
+            ],
+          },
+        ],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [deferredStep(0, randomBranchDefinition)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: bindingsFor(tgtEnemy, [enemy]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      // The branch's own DAMAGE step never started at all.
+      const events = recorder.getEvents();
+      expect(events.filter((e) => e.eventType === "EffectActionStarting")).toHaveLength(0);
+      // ...yet its unresolved hits are still counted as interrupted, so
+      // action-skill-use-resolver.ts's `interruptedCount > 0` check correctly
+      // emits SkillUseInterrupted instead of SkillUseCompleted.
+      expect(result.interruptedCount).toBe(2);
+      expect(result.resolvedCount).toBe(0);
+    });
   });
 
   describe("R-SKL-08: 直前結果 (RES-003, Issue #173)", () => {

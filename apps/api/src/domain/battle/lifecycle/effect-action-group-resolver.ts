@@ -143,6 +143,72 @@ function countHits(applications: readonly EffectActionApplication[]): number {
 }
 
 /**
+ * R-SKL-01（PR #216再レビュー[P1]）: `RANDOM_BRANCH`の選択イベント
+ * （`RandomBranchSelected`）自身のPS/Memory即時連鎖でactorが戦闘不能になり、
+ * 既に選択済みのbranchへ一度も入れなかった場合、そのbranchに残る未解決の
+ * ヒット・適用数を`interruptedCount`へ計上する必要がある（さもないと
+ * `EffectActionGroupsResult.interruptedCount`が0のままとなり、
+ * `action-skill-use-resolver.ts`の`effectResult.interruptedCount > 0`判定が
+ * falseになって、実際には何も適用していないのに`SkillUseCompleted`が
+ * 発行されてしまう）。この時点でbranchはまだ一度も解決されていないため、
+ * `resolvedBindings`（EffectSequence開始時に確定済み）と`effectActions`
+ * だけから静的に見積もる。BRANCH自身は`condition`が（直前結果に依存しうるため）
+ * 未評価のままここへ来ることはない実装上の制約はないが、実行されなかった側も
+ * 「未解決効果」であることに変わりないため、両方を合算する（過大計上の方が
+ * `interruptedCount`を過小評価してSkillUseCompletedを誤発行するより安全）。
+ * `RANDOM_BRANCH`のネストはWEIGHTED_ONEなら1分岐分、INDEPENDENTなら
+ * 全branch分を合算する（同じ理由）。`LAST_ACTION_TARGETS`/
+ * `LAST_DAMAGED_TARGETS`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`は対象を静的に
+ * 解決できないため寄与0とする（`collectDeferredCandidateTargetUnitIds`と
+ * 同じ制約）。
+ */
+function countCandidateHits(
+  steps: readonly EffectStepDefinition[],
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): number {
+  return steps.reduce(
+    (sum, step) => sum + countCandidateHitsForStep(step, resolvedBindings, effectActions),
+    0,
+  );
+}
+
+function countCandidateHitsForStep(
+  step: EffectStepDefinition,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding> | undefined,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): number {
+  switch (step.kind) {
+    case "ACTION": {
+      let targetCount = 0;
+      if (step.target.kind === "SELF") {
+        targetCount = 1;
+      } else if (step.target.kind === "BINDING") {
+        targetCount =
+          resolvedBindings?.get(step.target.targetBindingId as TargetBindingId)?.units.length ?? 0;
+      }
+      const hitsPerTarget = step.actions.reduce((sum, actionRef) => {
+        const effectAction = effectActions.get(actionRef.effectActionDefinitionId);
+        return sum + (effectAction?.kind === "DAMAGE" ? effectAction.payload.hitCount : 1);
+      }, 0);
+      return targetCount * hitsPerTarget;
+    }
+    case "BRANCH":
+      return (
+        countCandidateHits(step.thenSteps, resolvedBindings, effectActions) +
+        countCandidateHits(step.elseSteps, resolvedBindings, effectActions)
+      );
+    case "RANDOM_BRANCH":
+      return step.branches.reduce(
+        (sum, branch) => sum + countCandidateHits(branch.steps, resolvedBindings, effectActions),
+        0,
+      );
+    case "REPEAT":
+      return countCandidateHits(step.steps, resolvedBindings, effectActions) * step.count;
+  }
+}
+
+/**
  * レビュー再々指摘[P1]（PR #209）: `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`
  * は「効果ownerが次に攻撃/攻撃対象になった時点」で消費するが（R-EFF-07）、
  * `14_Catalog定義スキーマ.md`「上限に到達した効果は、該当するEffectActionの
@@ -994,9 +1060,11 @@ function* resolveRandomBranchStep(
     const branchIndex = definition.branches.indexOf(chosen);
     yield* recordSelected(branchIndex, chosen);
     // 選択直後のPS/Memory即時連鎖でactorが戦闘不能になった場合、選択branchの
-    // stepsへは進まない（R-SKL-01）。
+    // stepsへは進まない（R-SKL-01）。既に選ばれたbranchに残る未解決ヒット数は
+    // interruptedCountへ計上する（PR #216再レビュー[P1]）。
     if (isDefeated(requireUnit(box.units, context.actorId))) {
       state.sequenceInterrupted = true;
+      state.interruptedCount += countCandidateHits(chosen.steps, resolvedBindings, effectActions);
     } else {
       resolvedActionCount = yield* resolveStepDefinitionList(
         chosen.steps,
@@ -1024,6 +1092,9 @@ function* resolveRandomBranchStep(
       yield* recordSelected(branchIndex, branch);
       if (isDefeated(requireUnit(box.units, context.actorId))) {
         state.sequenceInterrupted = true;
+        // 選択済み（確率判定に成功した）branchに残る未解決ヒット数を
+        // interruptedCountへ計上する（PR #216再レビュー[P1]）。
+        state.interruptedCount += countCandidateHits(branch.steps, resolvedBindings, effectActions);
         break;
       }
       resolvedActionCount += yield* resolveStepDefinitionList(

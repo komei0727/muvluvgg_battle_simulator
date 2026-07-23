@@ -457,6 +457,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （UT-R-SKL-07-007）、`DeferredStepPlan`の対象候補を`targetUnitIds`
   // （`SkillUseStarting`/`TargetsSelected`/`SkillUseCompleted`）へ実ライフ
   // サイクルから寄与させる（UT-R-SKL-07-008、`action-skill-use-resolver.test.ts`）。
+  // PR #216再レビュー[P1]の修正: `RandomBranchSelected`自身の即時連鎖で
+  // actorが戦闘不能になり選択済みbranchへ一度も入れなかった場合、そのbranchの
+  // 未解決ヒット数を`interruptedCount`へ計上する（UT-R-SKL-07-009）。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -468,6 +471,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-006",
       "UT-R-SKL-07-007",
       "UT-R-SKL-07-008",
+      "UT-R-SKL-07-009",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
