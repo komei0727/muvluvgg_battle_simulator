@@ -115,11 +115,15 @@ export type EffectSequenceOutcome =
       /** 使用者が戦闘不能になる前に到達し、実際に処理したヒット・適用の総数。 */
       readonly resolvedEffectCount: number;
       /**
-       * Issue #217設計方針C（案1、厳密値のみを公開）: 中断が起きた時点で
-       * 実際に開いていたACTION適用一覧（同じstepの残りtarget・EffectAction）
-       * のうち、未処理のまま残った件数の厳密値。まだ開始していないstep・
-       * branch・iterationは、その内容を静的に見積もらず常に0として扱う
-       * （実行状態を二重に解釈する見積もり器を持たないための唯一の情報源）。
+       * Issue #217設計方針C（案1、厳密値のみを公開）／レビュー指摘[P2]
+       * （PR #218 2度目の再レビュー）: 中断が起きた時点で実際に開いていた
+       * ACTION適用一覧のうち、未処理のまま残った「効果単位」数の厳密値。
+       * `countHits`（`application.hits.length`の合計）と同じ計数単位 —
+       * DAMAGEは残りヒットごとに1、非DAMAGEは残りapplication（対象1件×
+       * EffectAction1件、常にhits.length === 1）ごとに1として数える。
+       * まだ開始していないstep・branch・iterationは、その内容を静的に
+       * 見積もらず常に0として扱う（実行状態を二重に解釈する見積もり器を
+       * 持たないための唯一の情報源）。
        */
       readonly unresolvedEffectCount: number;
     };

@@ -1942,5 +1942,47 @@ describe("applyEffectActionGroups", () => {
       expect(selectedEvents.map((e) => e.payload.branchIndex)).toEqual([0]);
       expectInterrupted(result, 1, 0);
     });
+
+    it("UT-R-SKL-INT-007 (PR #218 review [P2], 2nd re-review): unresolvedEffectCount counts remaining hits for a multi-hit DAMAGE application, not remaining applications", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
+      // 3-hit self-DAMAGE: the first hit alone is lethal (attack 20 vs hp 5),
+      // so hits 2 and 3 of this single application are interrupted before
+      // they run. unresolvedEffectCount must be 2 (remaining hits), not 1
+      // (as it would be if counted per-application).
+      const tripleSelfHit = damageAction("ACT_TRIPLE_SELF_HIT", 3);
+      const effectActions = new Map([[tripleSelfHit.effectActionDefinitionId, tripleSelfHit]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        steps: [
+          {
+            planKind: "ACTION_PLAN",
+            stepIndex: 0,
+            stepKind: "ACTION",
+            conditionKind: "TRUE",
+            satisfied: true,
+            actions: [{ effectActionDefinitionId: tripleSelfHit.effectActionDefinitionId }],
+            applications: [
+              {
+                targetBattleUnitId: actor.battleUnitId,
+                effectActionDefinitionId: tripleSelfHit.effectActionDefinitionId,
+                includeDefeated: false,
+                hits: [1, 2, 3].map((hitIndex) => ({
+                  targetBattleUnitId: actor.battleUnitId,
+                  effectActionDefinitionId: tripleSelfHit.effectActionDefinitionId,
+                  hitIndex,
+                })),
+              },
+            ],
+          },
+        ],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      expectInterrupted(result, 1, 2);
+    });
   });
 });

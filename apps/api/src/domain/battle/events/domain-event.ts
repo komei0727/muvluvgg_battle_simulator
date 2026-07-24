@@ -380,10 +380,13 @@ export interface BattleDomainEventPayloadMap {
    * B/C: `PassiveResolved`/`PassiveInterrupted`の選択は、実際に解決が最後まで
    * 進んだか使用者戦闘不能で打ち切ったかという事実だけから決まり、
    * `unresolvedEffectCount`の値からは導出しない。`unresolvedEffectCount`は
-   * 中断時点で実際に開いていたACTION適用一覧（同じstepの残りtarget・
-   * EffectAction）のうち未処理のまま残った件数の厳密値であり、まだ開始して
-   * いないstep・branch・iterationは常に0として扱う（静的な見積もりを行わない
-   * ため、`INTERRUPTED`かつこの値が0の組合せも正当）。
+   * 中断時点で実際に開いていたACTION適用一覧のうち未処理のまま残った
+   * 「効果単位」数の厳密値（レビュー指摘[P2]、PR #218 2度目の再レビュー:
+   * 計数単位は実装`countHits`と一致させ、DAMAGEは残りヒットごとに1、
+   * 非DAMAGEは残りapplication（対象1件×EffectAction1件、常にhits.length
+   * === 1）ごとに1として数える）であり、まだ開始していないstep・branch・
+   * iterationは常に0として扱う（静的な見積もりを行わないため、
+   * `INTERRUPTED`かつこの値が0の組合せも正当）。
    */
   readonly PassiveInterrupted: {
     readonly actorUnitId: BattleUnitId;
