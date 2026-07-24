@@ -244,6 +244,12 @@ const CONDITION_KIND_ENUM = [
   "RUNTIME_COUNTER",
   "TURN_NUMBER",
   "ALIVE_UNIT_COUNT",
+  // Issue #230 PRレビュー[P2]: `stepCondition`（ACTIONの
+  // CAP_EFFECT_STEP_SET_CONDITION、Issue #227）としてEffectStepStarting/
+  // EffectStepSkippedの`conditionKind`に実際に現れうる。従来は
+  // `runtimeStatus: PLANNED`（production定義なし）だったため、この
+  // enumが実際にexerciseされたことがなく、抜けが検出されていなかった。
+  "TARGET_SET_COUNT",
 ] as const;
 const EFFECT_ACTION_KIND_ENUM = [
   "DAMAGE",

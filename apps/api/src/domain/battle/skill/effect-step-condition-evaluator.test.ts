@@ -418,6 +418,129 @@ describe("evaluateEffectStepCondition", () => {
     });
   });
 
+  describe("BRANCH step-wide TARGET_STATE/TARGET_HAS_MARKER via resolveTargetSet, no EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION_SCOPE, Issue #230 PRレビュー[P1])", () => {
+    const physicalDefinitionId = createUnitDefinitionId("UNIT_PHYSICAL");
+    const unitDefinitions = new Map<typeof physicalDefinitionId, UnitDefinition>([
+      [
+        physicalDefinitionId,
+        { unitDefinitionId: physicalDefinitionId, unitType: "PHYSICAL" } as UnitDefinition,
+      ],
+    ]);
+
+    it("UT-R-SKL-06-044: TARGET_STATE evaluates the single unit resolveTargetSet resolves, when no EffectStepTargetContext is given (BRANCH scope)", () => {
+      const enemy = unit("enemy", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "UNIT_TYPE",
+        op: "EQ",
+        value: "PHYSICAL",
+      };
+      expect(
+        evaluateEffectStepCondition(
+          condition,
+          undefined,
+          undefined,
+          () => [enemy],
+          unitDefinitions,
+        ),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(
+          { ...condition, value: "ENERGY" },
+          undefined,
+          undefined,
+          () => [enemy],
+          unitDefinitions,
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-045: TARGET_STATE is false when resolveTargetSet resolves zero units (BRANCH scope)", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [])).toBe(false);
+    });
+
+    it("UT-R-SKL-06-046: TARGET_STATE throws when resolveTargetSet resolves more than one unit (BRANCH has no per-target context to quantify over multiple units; Catalog preflight should already guarantee at most one)", () => {
+      const enemyA = unit("enemy-a", "UNIT_PHYSICAL");
+      const enemyB = unit("enemy-b", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(() =>
+        evaluateEffectStepCondition(condition, undefined, undefined, () => [enemyA, enemyB]),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-047: TARGET_HAS_MARKER evaluates the single unit resolveTargetSet resolves, including countCondition, when no EffectStepTargetContext is given (BRANCH scope)", () => {
+      const markerId = createMarkerId("MARKER_CURSE");
+      const marked = unit("enemy", "UNIT_PHYSICAL", {
+        markerStates: [
+          {
+            ...buildInitialMarkerState(
+              createMarkerInstanceId("mi-1"),
+              markerId,
+              createBattleUnitId("actor"),
+              createBattleUnitId("enemy"),
+              null,
+              {
+                dispellable: true,
+                linkedEffectGroupId: null,
+                timeLimit: { unit: "BATTLE", count: 1 },
+              },
+              { turnNumber: 1 },
+            ),
+            stackCount: 4,
+          },
+        ],
+      });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId,
+        countCondition: { op: "GTE", value: 4 },
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [marked])).toBe(
+        true,
+      );
+      expect(
+        evaluateEffectStepCondition(
+          { ...condition, countCondition: { op: "GTE", value: 5 } },
+          undefined,
+          undefined,
+          () => [marked],
+        ),
+      ).toBe(false);
+      const unmarked = unit("enemy-2", "UNIT_PHYSICAL");
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [unmarked])).toBe(
+        false,
+      );
+    });
+
+    it("UT-R-SKL-06-048: TARGET_HAS_MARKER throws when resolveTargetSet resolves more than one unit (BRANCH scope)", () => {
+      const enemyA = unit("enemy-a", "UNIT_PHYSICAL");
+      const enemyB = unit("enemy-b", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId: createMarkerId("MARKER_CURSE"),
+      };
+      expect(() =>
+        evaluateEffectStepCondition(condition, undefined, undefined, () => [enemyA, enemyB]),
+      ).toThrow(DomainValidationError);
+    });
+  });
+
   describe("TARGET_SET_COUNT（CAP_EFFECT_STEP_SET_CONDITION、Issue #227 RES-004集合条件）", () => {
     it("UT-R-SKL-06-025: without a resolveTargetSet resolver throws", () => {
       const condition: ConditionDefinition = {

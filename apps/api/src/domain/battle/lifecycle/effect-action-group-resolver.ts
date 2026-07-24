@@ -1100,6 +1100,10 @@ function* resolveBranchStep(
       // conditionは対象ごとの評価対象を持たないため`EffectStepTargetContext`は
       // 渡さないが、`TARGET_SET_COUNT`はAND/OR経由で組み合わさりうるため、
       // 常に最新の`box.units`から解決する`TargetSetResolver`を渡す。
+      // PRレビュー[P1]（Issue #230）: `TARGET_STATE`/`TARGET_HAS_MARKER`も
+      // 同じ`resolveTargetSet`経由で（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`
+      // preflightが高々1体にしか解決されないことを保証する参照に限り）評価
+      // できるため、`UNIT_TYPE`フィールド解決に要る`unitDefinitions`も渡す。
       const actor = requireUnit(box.units, context.actorId);
       const triggerContext = {
         ...(context.triggerSourceUnitId !== undefined
@@ -1121,6 +1125,7 @@ function* resolveBranchStep(
         lastResultState.current,
         undefined,
         resolveTargetSet,
+        context.definitions.unitDefinitions,
       );
       const chosenSteps = satisfied ? definition.thenSteps : definition.elseSteps;
       return yield* resolveStepDefinitionList(

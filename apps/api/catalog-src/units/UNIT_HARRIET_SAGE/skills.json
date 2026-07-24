@@ -89,24 +89,18 @@
           "elseSteps": []
         },
         {
-          "kind": "BRANCH",
-          "condition": {
+          "kind": "ACTION",
+          "targetCondition": {
             "kind": "TARGET_HAS_MARKER",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
             "markerId": "MARKER_CURSE",
             "countCondition": { "op": "GTE", "value": 4 }
           },
-          "thenSteps": [
-            {
-              "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
-              "actions": [
-                { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO" },
-                { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE" }
-              ]
-            }
-          ],
-          "elseSteps": []
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO" },
+            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE" }
+          ]
         }
       ]
     },

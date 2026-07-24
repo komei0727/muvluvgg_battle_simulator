@@ -180,7 +180,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-004",
-    "description": "EffectStepの対象別条件。ACTION stepは専用の`targetCondition`フィールド（自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERのみ許可）を対象ごとに個別評価し、BRANCHは従来どおり単一の`condition`を評価する。対象集合のしきい値判定（EXISTS/NONE/COUNT）はCAP_EFFECT_STEP_SET_CONDITION（Issue #227）が別Capabilityとして担い、この完了境界には含めない（PRレビュー[P2]、Issue #171）。Issue #230（RES-004-CONDITION-SCOPE）でACTIONの`condition`は`stepCondition`（step全体のgate）と`targetCondition`（この対象別filter）へ分離され、同じACTION stepでCAP_EFFECT_STEP_SET_CONDITIONと同時に要求されうる。",
+    "description": "EffectStepの対象別条件。ACTION stepは専用の`targetCondition`フィールド（自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERのみ許可）を対象ごとに個別評価し、BRANCHは従来どおり単一の`condition`を評価する。対象集合のしきい値判定（EXISTS/NONE/COUNT）はCAP_EFFECT_STEP_SET_CONDITION（Issue #227）が別Capabilityとして担い、この完了境界には含めない（PRレビュー[P2]、Issue #171）。Issue #230（RES-004-CONDITION-SCOPE）でACTIONの`condition`は`stepCondition`（step全体のgate）と`targetCondition`（この対象別filter）へ分離され、同じACTION stepでCAP_EFFECT_STEP_SET_CONDITIONと同時に要求されうる。PRレビュー[P1]（同Issue）: BRANCHの`condition`は対象ごとの評価コンテキストを持たないため、含まれるTARGET_STATE/TARGET_HAS_MARKERが参照する`TargetReference`は高々1体（SELF/TRIGGER_SOURCE、またはcount:1のBINDING）にしか解決できない — 量化規則（EXISTS/ALL等）は未実装であり、それ以外の参照（TRIGGER_TARGET、BINDING_DERIVED、count!=1のBINDING、LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS）はCatalogロード時点で`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`として拒否する。",
     "verification": {
       "productionDefinitionIds": [
         "SKL_AOI_ELEGANT_EX",

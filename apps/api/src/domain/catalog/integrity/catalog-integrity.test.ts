@@ -1710,6 +1710,218 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
   });
 
+  describe("BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE（Issue #230 PRレビュー[P1]）: BRANCHのcondition内のTARGET_STATE/TARGET_HAS_MARKERは高々1体に解決される参照だけを許可する", () => {
+    const caps = [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+    ];
+    const capabilities = [
+      capability("CAP_EFFECT_STEP_CONDITION"),
+      capability("CAP_TRIGGER_CONTEXT"),
+      capability("CAP_RESOLUTION_BRANCH_REPEAT"),
+    ];
+
+    function branchConditionSkill(
+      condition: ConditionDefinitionInput,
+      multiBindingSelector?: TargetSelectorDefinitionInput,
+    ): SkillDefinition {
+      return createSkillDefinition({
+        skillDefinitionId: "SKL_AS1",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 1 },
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings:
+            multiBindingSelector !== undefined
+              ? [{ targetBindingId: "TGT_OTHER", selector: multiBindingSelector }]
+              : [],
+          steps: [
+            {
+              kind: "BRANCH",
+              condition,
+              thenSteps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                },
+              ],
+              elseSteps: [],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        requiredCapabilities: caps,
+        metadata: { displayName: "Branch target-state scope AS" },
+      });
+    }
+
+    it("UT-CAT-IDX-064: rejects a BRANCH condition whose TARGET_STATE references TRIGGER_TARGET (not guaranteed to resolve to at most one unit)", () => {
+      const defs = baseDefinitions();
+      const skill = branchConditionSkill({
+        kind: "TARGET_STATE",
+        target: { kind: "TRIGGER_TARGET" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      });
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)], capabilities }),
+      ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-065: rejects a BRANCH condition whose TARGET_HAS_MARKER references a BINDING whose selector.count is not 1 (ALL or a number > 1)", () => {
+      const defs = baseDefinitions();
+      const allSkill = branchConditionSkill(
+        {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          markerId: "MARKER_X",
+        },
+        { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
+      );
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [allSkill, exSkill("SKL_EX1", 7)], capabilities }),
+      ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+
+      const twoSkill = branchConditionSkill(
+        {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          markerId: "MARKER_X",
+        },
+        { kind: "SELECT", side: "ENEMY", count: 2, order: ["DEFAULT"] },
+      );
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [twoSkill, exSkill("SKL_EX1", 7)], capabilities }),
+      ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-066: rejects a BRANCH condition whose TARGET_STATE references a BINDING_DERIVED selector (area-filtered, unbounded 0..N)", () => {
+      const defs = baseDefinitions();
+      const skill = branchConditionSkill(
+        {
+          kind: "TARGET_STATE",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          field: "IS_ALIVE",
+          op: "EQ",
+          value: true,
+        },
+        {
+          kind: "BINDING_DERIVED",
+          base: { kind: "SELF" },
+          area: { kind: "ADJACENT_ORTHOGONAL" },
+        },
+      );
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)], capabilities }),
+      ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-067: accepts a BRANCH condition whose TARGET_STATE/TARGET_HAS_MARKER references SELF, TRIGGER_SOURCE, or a count:1 BINDING", () => {
+      const defs = baseDefinitions();
+      const selfSkill = branchConditionSkill({
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      });
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [selfSkill, exSkill("SKL_EX1", 7)], capabilities }),
+      ).not.toThrow();
+
+      const triggerSourceSkill = branchConditionSkill({
+        kind: "TARGET_STATE",
+        target: { kind: "TRIGGER_SOURCE" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      });
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [triggerSourceSkill, exSkill("SKL_EX1", 7)],
+          capabilities,
+        }),
+      ).not.toThrow();
+
+      const bindingSkill = branchConditionSkill(
+        {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          markerId: "MARKER_X",
+        },
+        { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+      );
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [bindingSkill, exSkill("SKL_EX1", 7)], capabilities }),
+      ).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-068: detects the same unbounded reference nested inside REPEAT > RANDOM_BRANCH > BRANCH", () => {
+      const defs = baseDefinitions();
+      const unboundedCondition: ConditionDefinitionInput = {
+        kind: "TARGET_STATE",
+        target: { kind: "TRIGGER_TARGET" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      const withNestedBranch = createSkillDefinition({
+        skillDefinitionId: "SKL_AS1",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 1 },
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "REPEAT",
+              count: 1,
+              steps: [
+                {
+                  kind: "RANDOM_BRANCH",
+                  mode: "INDEPENDENT",
+                  branches: [
+                    {
+                      probability: 1,
+                      steps: [
+                        {
+                          kind: "BRANCH",
+                          condition: unboundedCondition,
+                          thenSteps: [],
+                          elseSteps: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        requiredCapabilities: [
+          "CAP_TRIGGER_CONTEXT",
+          "CAP_RESOLUTION_BRANCH_REPEAT",
+          "CAP_RANDOM_BRANCH",
+        ],
+        metadata: { displayName: "Nested branch target-state scope AS" },
+      });
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [withNestedBranch, exSkill("SKL_EX1", 7)],
+          capabilities: [...capabilities, capability("CAP_RANDOM_BRANCH")],
+        }),
+      ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+    });
+  });
+
   /**
    * UT-CAT-IDX-030 (Issue #217 follow-up): `targetingSkill`'s single-ACTION-step
    * shape can't be reused here once `MISSING_PRECEDING_RESULT` (design point E)

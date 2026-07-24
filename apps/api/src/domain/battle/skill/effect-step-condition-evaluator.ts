@@ -162,22 +162,37 @@ export type TargetSetResolver = (reference: TargetReference) => readonly BattleU
  * `targetContext`とは独立に渡す — BRANCHの`condition`や、ACTIONの
  * `stepCondition`のどちらからも使えるようにする。
  */
+const EMPTY_UNIT_DEFINITIONS: ReadonlyMap<UnitDefinitionId, UnitDefinition> = new Map();
+
 export function evaluateEffectStepCondition(
   condition: ConditionDefinition,
   lastResult?: LastEffectActionResult,
   targetContext?: EffectStepTargetContext,
   resolveTargetSet?: TargetSetResolver,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): boolean {
   switch (condition.kind) {
     case "TRUE":
       return true;
     case "AND":
       return condition.conditions.every((c) =>
-        evaluateEffectStepCondition(c, lastResult, targetContext, resolveTargetSet),
+        evaluateEffectStepCondition(
+          c,
+          lastResult,
+          targetContext,
+          resolveTargetSet,
+          unitDefinitions,
+        ),
       );
     case "OR":
       return condition.conditions.some((c) =>
-        evaluateEffectStepCondition(c, lastResult, targetContext, resolveTargetSet),
+        evaluateEffectStepCondition(
+          c,
+          lastResult,
+          targetContext,
+          resolveTargetSet,
+          unitDefinitions,
+        ),
       );
     case "NOT":
       return !evaluateEffectStepCondition(
@@ -185,6 +200,7 @@ export function evaluateEffectStepCondition(
         lastResult,
         targetContext,
         resolveTargetSet,
+        unitDefinitions,
       );
     case "LAST_RESULT": {
       if (lastResult === undefined) {
@@ -197,30 +213,79 @@ export function evaluateEffectStepCondition(
       return compareWithOperator(actual, condition.op, condition.value);
     }
     case "TARGET_STATE": {
-      if (targetContext === undefined) {
-        throw new DomainValidationError(
-          "step.condition",
-          'kind "TARGET_STATE" requires an EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION, only available when evaluating an ACTION step\'s own condition)',
+      if (targetContext !== undefined) {
+        const candidates = resolveConditionTargets(condition.target, targetContext);
+        return candidates.some((unit) =>
+          compareWithOperator(
+            resolveTargetStateField(unit, condition.field, targetContext.unitDefinitions),
+            condition.op,
+            condition.value,
+          ),
         );
       }
-      const candidates = resolveConditionTargets(condition.target, targetContext);
-      return candidates.some((unit) =>
-        compareWithOperator(
-          resolveTargetStateField(unit, condition.field, targetContext.unitDefinitions),
+      // BRANCH（Issue #230 レビュー[P1]）: BRANCHの`condition`は対象ごとの
+      // 評価コンテキストを持たないが、参照する`TargetReference`が高々1体にしか
+      // 解決されないことをCatalog preflight（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`）
+      // が保証する場合に限り、`resolveTargetSet`で解決した0〜1体へ直接評価する
+      // （量化規則を発明する必要がない — 候補が0件ならfalse、1件ならその1体を
+      // 評価するだけ）。2件以上解決された場合はpreflightの取りこぼしとして
+      // 最終防衛線の例外を投げる。
+      if (resolveTargetSet !== undefined) {
+        const candidates = resolveTargetSet(condition.target);
+        if (candidates.length > 1) {
+          throw new DomainValidationError(
+            "step.condition",
+            `kind "TARGET_STATE" resolved ${candidates.length} units for a step-wide (BRANCH) condition, but step-wide quantification over more than one unit is not supported (Catalog preflight should already guarantee at most one unit for this TargetReference)`,
+          );
+        }
+        const unit = candidates[0];
+        if (unit === undefined) {
+          return false;
+        }
+        return compareWithOperator(
+          resolveTargetStateField(unit, condition.field, unitDefinitions ?? EMPTY_UNIT_DEFINITIONS),
           condition.op,
           condition.value,
-        ),
+        );
+      }
+      throw new DomainValidationError(
+        "step.condition",
+        'kind "TARGET_STATE" requires an EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION) or a TargetSetResolver (BRANCH step-wide scope)',
       );
     }
     case "TARGET_HAS_MARKER": {
-      if (targetContext === undefined) {
-        throw new DomainValidationError(
-          "step.condition",
-          'kind "TARGET_HAS_MARKER" requires an EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION, only available when evaluating an ACTION step\'s own condition)',
-        );
+      if (targetContext !== undefined) {
+        const candidates = resolveConditionTargets(condition.target, targetContext);
+        return candidates.some((unit) => {
+          const marker = unit.markerStates.find((state) => state.markerId === condition.markerId);
+          if (marker === undefined) {
+            return false;
+          }
+          if (condition.countCondition === undefined) {
+            return true;
+          }
+          return compareWithOperator(
+            marker.stackCount,
+            condition.countCondition.op,
+            condition.countCondition.value,
+          );
+        });
       }
-      const candidates = resolveConditionTargets(condition.target, targetContext);
-      return candidates.some((unit) => {
+      // TARGET_STATEの分岐と同じ理由・同じ形（BRANCH step-wide scope、Issue #230
+      // レビュー[P1]）: 高々1体にしか解決されないことをpreflightが保証する場合に
+      // 限り、直接その1体を評価する。
+      if (resolveTargetSet !== undefined) {
+        const candidates = resolveTargetSet(condition.target);
+        if (candidates.length > 1) {
+          throw new DomainValidationError(
+            "step.condition",
+            `kind "TARGET_HAS_MARKER" resolved ${candidates.length} units for a step-wide (BRANCH) condition, but step-wide quantification over more than one unit is not supported (Catalog preflight should already guarantee at most one unit for this TargetReference)`,
+          );
+        }
+        const unit = candidates[0];
+        if (unit === undefined) {
+          return false;
+        }
         const marker = unit.markerStates.find((state) => state.markerId === condition.markerId);
         if (marker === undefined) {
           return false;
@@ -233,7 +298,11 @@ export function evaluateEffectStepCondition(
           condition.countCondition.op,
           condition.countCondition.value,
         );
-      });
+      }
+      throw new DomainValidationError(
+        "step.condition",
+        'kind "TARGET_HAS_MARKER" requires an EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION) or a TargetSetResolver (BRANCH step-wide scope)',
+      );
     }
     case "TARGET_SET_COUNT": {
       if (resolveTargetSet === undefined) {

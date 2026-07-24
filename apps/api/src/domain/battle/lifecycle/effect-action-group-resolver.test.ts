@@ -2859,6 +2859,134 @@ describe("applyEffectActionGroups", () => {
       return { skill, effectActions, conditionalHit };
     }
 
+    /**
+     * PRレビュー[P2]（Issue #230）: `UT-R-SKL-06-040`〜`043`はいずれもトップ
+     * レベルのACTIONだけを検証していた。`resolveRawStep`のACTIONケースは
+     * `resolveStepDefinitionList`経由でBRANCH/REPEAT/RANDOM_BRANCHの内側からも
+     * 同じ関数で呼ばれるため（`effect-action-group-resolver.ts`の設計上、
+     * ネストの有無で処理を分けていない）、combined stepCondition/targetCondition
+     * を持つACTIONがBRANCH.thenSteps/REPEAT.steps/RANDOM_BRANCHのbranch.steps
+     * それぞれの内側でも同じ経路をたどることを明示的に検証する。
+     */
+    function nestedCombinedConditionSkill(container: "BRANCH" | "REPEAT" | "RANDOM_BRANCH") {
+      const markerId = createMarkerId("MARKER_TEST");
+      const grantMarker = markerAction("ACT_GRANT_MARKER", markerId);
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([
+        [grantMarker.effectActionDefinitionId, grantMarker],
+        [conditionalHit.effectActionDefinitionId, conditionalHit],
+      ]);
+
+      const firstBindingId = createTargetBindingId("TGT_FIRST");
+      const allBindingId = createTargetBindingId("TGT_ALL");
+      const enemySelector = (count: number | "ALL"): TargetSelectorDefinition => ({
+        kind: "SELECT",
+        side: "ENEMY",
+        count,
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      });
+      const allTarget: TargetReference = { kind: "BINDING", targetBindingId: allBindingId };
+      const grantStep: EffectStepDefinition = {
+        kind: "ACTION",
+        stepCondition: { kind: "TRUE" },
+        targetCondition: { kind: "TRUE" },
+        target: { kind: "BINDING", targetBindingId: firstBindingId },
+        actions: [{ effectActionDefinitionId: grantMarker.effectActionDefinitionId }],
+      };
+      // combined stepCondition（TARGET_SET_COUNT）/targetCondition
+      // （TARGET_HAS_MARKER）を持つ、ネストされる側のACTION本体。
+      const combinedAction: EffectStepDefinition = {
+        kind: "ACTION",
+        stepCondition: { kind: "TARGET_SET_COUNT", target: allTarget, op: "GTE", value: 2 },
+        targetCondition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+        target: allTarget,
+        actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+      };
+      const nestedStep: EffectStepDefinition =
+        container === "BRANCH"
+          ? {
+              kind: "BRANCH",
+              condition: { kind: "TRUE" },
+              thenSteps: [combinedAction],
+              elseSteps: [],
+            }
+          : container === "REPEAT"
+            ? { kind: "REPEAT", count: 2, steps: [combinedAction] }
+            : {
+                kind: "RANDOM_BRANCH",
+                mode: "INDEPENDENT",
+                branches: [{ probability: 1, steps: [combinedAction] }],
+              };
+
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: firstBindingId, selector: enemySelector(1) },
+          { targetBindingId: allBindingId, selector: enemySelector("ALL") },
+        ],
+        steps: [grantStep, nestedStep],
+      });
+      return { skill, effectActions, conditionalHit };
+    }
+
+    it("UT-R-SKL-06-049: a combined stepCondition/targetCondition ACTION nested inside BRANCH.thenSteps resolves through the same unified path as a top-level ACTION", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const { skill, effectActions, conditionalHit } = nestedCombinedConditionSkill("BRANCH");
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      expect([...completedTargetsFor(recorder, conditionalHit.effectActionDefinitionId)]).toEqual([
+        enemyA.battleUnitId,
+      ]);
+    });
+
+    it("UT-R-SKL-06-050: a combined stepCondition/targetCondition ACTION nested inside REPEAT.steps resolves identically on every iteration", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const { skill, effectActions, conditionalHit } = nestedCombinedConditionSkill("REPEAT");
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      // count: 2のREPEATが2回とも同じ判定(gate true、filterはenemyAだけ)を
+      // 再現するため、conditionalHitはenemyAに対して2回完了する。
+      expect([...completedTargetsFor(recorder, conditionalHit.effectActionDefinitionId)]).toEqual([
+        enemyA.battleUnitId,
+        enemyA.battleUnitId,
+      ]);
+    });
+
+    it("UT-R-SKL-06-051: a combined stepCondition/targetCondition ACTION nested inside a RANDOM_BRANCH branch's steps resolves through the same unified path", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const { skill, effectActions, conditionalHit } =
+        nestedCombinedConditionSkill("RANDOM_BRANCH");
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      // INDEPENDENTのprobability: 1でもcontext.random.next()は必ず1回消費される
+      // （`resolveRandomBranchStep`）ため、`contextFor`のデフォルト`NO_RANDOM`
+      // ではなく、branchを確実に成立させる`SequenceRandomSource`へ差し替える。
+      const random = new SequenceRandomSource([0]);
+      const context = { ...contextFor(actor, effectActions, recorder, rootEventId), random };
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      expect([...completedTargetsFor(recorder, conditionalHit.effectActionDefinitionId)]).toEqual([
+        enemyA.battleUnitId,
+      ]);
+    });
+
     it("UT-R-SKL-06-040: stepCondition true (enough survivors) and targetCondition true for every resolved target — both scopes pass, every target's action resolves normally", () => {
       const actor = unit("ACTOR", "ALLY");
       const enemyA = unit("ENEMY_A", "ENEMY");
@@ -2994,6 +3122,101 @@ describe("applyEffectActionGroups", () => {
       expect([...completedTargetsFor(recorder, conditionalHit.effectActionDefinitionId)]).toEqual([
         enemyA.battleUnitId,
       ]);
+    });
+  });
+
+  describe("BRANCH step-wide TARGET_STATE/TARGET_HAS_MARKER via resolveTargetSet (Issue #230 PRレビュー[P1]): a BRANCH condition referencing a guaranteed single-unit TargetReference (SELF/TRIGGER_SOURCE/count:1 BINDING) now resolves instead of throwing (previously `resolveBranchStep` always passed `targetContext: undefined`, so any such condition threw `DomainValidationError`)", () => {
+    it("UT-R-SKL-07-111: a BRANCH's TARGET_STATE(SELF, HP_RATIO) condition is evaluated against the actor's own latest HP after EffectStepStarting's own chain, picking thenSteps when low and elseSteps when not", () => {
+      const lowHpBonus = damageAction("ACT_LOW_HP_BONUS");
+      const normalHit = damageAction("ACT_NORMAL");
+      const effectActions = new Map([
+        [lowHpBonus.effectActionDefinitionId, lowHpBonus],
+        [normalHit.effectActionDefinitionId, normalHit],
+      ]);
+      const branch: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: {
+          kind: "TARGET_STATE",
+          target: { kind: "SELF" },
+          field: "HP_RATIO",
+          op: "LT",
+          value: 0.5,
+        },
+        thenSteps: [
+          actionOn(
+            { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            lowHpBonus.effectActionDefinitionId,
+          ),
+        ],
+        elseSteps: [
+          actionOn(
+            { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            normalHit.effectActionDefinitionId,
+          ),
+        ],
+      };
+
+      const lowHpActor = unit("ACTOR_LOW", "ALLY", { currentHp: 40 });
+      const enemy1 = unit("ENEMY_1", "ENEMY");
+      const plan1: EffectSequencePlan = {
+        steps: [deferredStep(0, branch)],
+        targetUnitIds: [enemy1.battleUnitId],
+        resolvedBindings: new Map([
+          [createTargetBindingId("TGT_1"), { units: [enemy1], includeDefeated: false }],
+        ]),
+      };
+      const { recorder: recorder1, rootEventId: rootEventId1 } = seedRecorder();
+      const context1 = contextFor(lowHpActor, effectActions, recorder1, rootEventId1);
+      applyEffectActionGroups(plan1, [lowHpActor, enemy1], context1);
+      expect(
+        recorder1
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === lowHpBonus.effectActionDefinitionId,
+          ),
+      ).toBe(true);
+      expect(
+        recorder1
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === normalHit.effectActionDefinitionId,
+          ),
+      ).toBe(false);
+
+      const fullHpActor = unit("ACTOR_FULL", "ALLY");
+      const enemy2 = unit("ENEMY_2", "ENEMY");
+      const plan2: EffectSequencePlan = {
+        steps: [deferredStep(0, branch)],
+        targetUnitIds: [enemy2.battleUnitId],
+        resolvedBindings: new Map([
+          [createTargetBindingId("TGT_1"), { units: [enemy2], includeDefeated: false }],
+        ]),
+      };
+      const { recorder: recorder2, rootEventId: rootEventId2 } = seedRecorder();
+      const context2 = contextFor(fullHpActor, effectActions, recorder2, rootEventId2);
+      applyEffectActionGroups(plan2, [fullHpActor, enemy2], context2);
+      expect(
+        recorder2
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === normalHit.effectActionDefinitionId,
+          ),
+      ).toBe(true);
+      expect(
+        recorder2
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === lowHpBonus.effectActionDefinitionId,
+          ),
+      ).toBe(false);
     });
   });
 });

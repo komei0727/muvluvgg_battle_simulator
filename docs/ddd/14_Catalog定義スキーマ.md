@@ -624,6 +624,8 @@ elseSteps: []
 
 BRANCH には `target` が無く対象別スコープがもとから存在しないため、単一の `condition` フィールドのまま変更していない（Issue #230でACTIONにだけ`stepCondition`/`targetCondition`への分離を導入した。BRANCHの`condition`は常にR-SKL-06の`stepCondition`と同じstep-wideスコープ）。
 
+`condition`に`TARGET_STATE`/`TARGET_HAS_MARKER`を含める場合（PRレビュー[P1]、Issue #230）、参照する`TargetReference`は高々1体にしか解決できないもの（`SELF`/`TRIGGER_SOURCE`、または`selector.kind: SELECT`かつ`count: 1`の`BINDING`）に限る — BRANCHは対象ごとの評価コンテキストを持たないため、複数体に解決されうる参照（`TRIGGER_TARGET`、`count`が`1`以外または`"ALL"`の`BINDING`、`BINDING_DERIVED`、`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`）はCatalogロード時点で拒否する（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`）。対象ごとに絞り込みたい場合はACTIONの`targetCondition`を使う。
+
 ### RANDOM_BRANCH
 
 ```yaml

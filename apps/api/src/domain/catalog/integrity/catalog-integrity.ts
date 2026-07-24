@@ -54,6 +54,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_MARKER_DURATION",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
+  "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -453,6 +454,136 @@ function collectMixedStepTargetSetConditionPaths(
     }
   });
   return paths;
+}
+
+/**
+ * PRレビュー[P1]（Issue #230）: `resolveBranchStep`（`effect-action-group-resolver.ts`）は
+ * `EffectStepTargetContext`を持たないため、BRANCHの`condition`に含まれる
+ * `TARGET_STATE`/`TARGET_HAS_MARKER`は、参照する`TargetReference`が高々1体に
+ * しか解決されない場合に限り、その1体（0体ならfalse）を直接評価する
+ * （`effect-step-condition-evaluator.ts`の`evaluateEffectStepCondition`、
+ * `resolveTargetSet`経由の分岐）。量化規則（EXISTS/ALL等）を発明せずに済む
+ * 範囲へ意図的に限定しているため、それ以外の参照はCatalogロード時点で拒否する。
+ * `SELF`/`TRIGGER_SOURCE`は常に1体、`BINDING`は宣言元の`selector`が
+ * `kind: SELECT`かつ`count: 1`の場合だけ高々1体を保証する
+ * （`target-selector-definition.ts`: `count`は`SELECT`にしか付けられず、
+ * `BINDING_DERIVED`は`area`で絞り込んだ0〜N体になりうる）。`TRIGGER_TARGET`
+ * （`triggerTargetUnitIds`は複数ありうる）と`LAST_ACTION_TARGETS`/
+ * `LAST_DAMAGED_TARGETS`（AOEの直前結果を含みうる）は保証できないため拒否する。
+ */
+function targetReferenceIsSingleUnit(
+  reference: TargetReference,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+): boolean {
+  switch (reference.kind) {
+    case "SELF":
+    case "TRIGGER_SOURCE":
+      return true;
+    case "TRIGGER_TARGET":
+    case "LAST_ACTION_TARGETS":
+    case "LAST_DAMAGED_TARGETS":
+      return false;
+    case "BINDING": {
+      if (reference.targetBindingId === undefined) {
+        return false;
+      }
+      const selector = bindingSelectors.get(reference.targetBindingId);
+      return selector !== undefined && selector.kind === "SELECT" && selector.count === 1;
+    }
+  }
+}
+
+function collectTargetStateOrMarkerReferences(
+  condition: ConditionDefinition,
+  path: string,
+): readonly { readonly reference: TargetReference; readonly path: string }[] {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+      return [{ reference: condition.target, path }];
+    case "AND":
+    case "OR":
+      return condition.conditions.flatMap((c, i) =>
+        collectTargetStateOrMarkerReferences(c, `${path}.conditions[${i}]`),
+      );
+    case "NOT":
+      return collectTargetStateOrMarkerReferences(condition.condition, `${path}.condition`);
+    default:
+      return [];
+  }
+}
+
+function collectBranchTargetStateUnboundedReferencePaths(
+  steps: readonly EffectStepDefinition[],
+  path: string,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+): readonly string[] {
+  const paths: string[] = [];
+  steps.forEach((step, index) => {
+    const stepPath = `${path}[${index}]`;
+    if (step.kind === "BRANCH") {
+      for (const { reference, path: refPath } of collectTargetStateOrMarkerReferences(
+        step.condition,
+        `${stepPath}.condition`,
+      )) {
+        if (!targetReferenceIsSingleUnit(reference, bindingSelectors)) {
+          paths.push(refPath);
+        }
+      }
+      paths.push(
+        ...collectBranchTargetStateUnboundedReferencePaths(
+          step.thenSteps,
+          `${stepPath}.thenSteps`,
+          bindingSelectors,
+        ),
+        ...collectBranchTargetStateUnboundedReferencePaths(
+          step.elseSteps,
+          `${stepPath}.elseSteps`,
+          bindingSelectors,
+        ),
+      );
+    } else if (step.kind === "RANDOM_BRANCH") {
+      step.branches.forEach((branch, branchIndex) => {
+        paths.push(
+          ...collectBranchTargetStateUnboundedReferencePaths(
+            branch.steps,
+            `${stepPath}.branches[${branchIndex}].steps`,
+            bindingSelectors,
+          ),
+        );
+      });
+    } else if (step.kind === "REPEAT") {
+      paths.push(
+        ...collectBranchTargetStateUnboundedReferencePaths(
+          step.steps,
+          `${stepPath}.steps`,
+          bindingSelectors,
+        ),
+      );
+    }
+  });
+  return paths;
+}
+
+function validateBranchTargetStateUnboundedReference(
+  sequence: EffectSequence,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const bindingSelectors = new Map<string, TargetSelectorDefinition>(
+    sequence.targetBindings.map((binding) => [binding.targetBindingId, binding.selector]),
+  );
+  for (const path of collectBranchTargetStateUnboundedReferencePaths(
+    sequence.steps,
+    "steps",
+    bindingSelectors,
+  )) {
+    violations.push({
+      targetId: ownerId,
+      rule: "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
+      message: `${path}: BRANCH's condition evaluates TARGET_STATE/TARGET_HAS_MARKER against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, TRIGGER_SOURCE, or a BINDING whose selector has kind SELECT and count 1 are supported — BRANCH has no per-target evaluation context to quantify over multiple units, Issue #230 PRレビュー[P1])`,
+    });
+  }
 }
 
 function validateMixedStepTargetSetCondition(
@@ -1002,6 +1133,7 @@ function validateSkill(
   for (const sequence of sequences) {
     validateLastResultDataFlow(sequence.steps, skill.skillDefinitionId, violations);
     validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
+    validateBranchTargetStateUnboundedReference(sequence, skill.skillDefinitionId, violations);
   }
   const runtimeTriggers = [
     ...skill.triggers,
@@ -1378,6 +1510,11 @@ function validateMemory(
     );
     validateMixedStepTargetSetCondition(
       triggeredEffect.effectSequence.steps,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateBranchTargetStateUnboundedReference(
+      triggeredEffect.effectSequence,
       memory.memoryDefinitionId,
       violations,
     );
