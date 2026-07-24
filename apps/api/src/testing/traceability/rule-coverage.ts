@@ -381,42 +381,35 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-TGT-05-001", "UT-R-TGT-05-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
-  // Issue #170 (TGT-001): 前後列優先(FRONT_ROW/BACK_ROW)。左右列優先(R-TGT-06の列版)は
-  // production Catalogに現時点で使用例がなく、TARGET_ORDER_KEYSにも列優先専用キーが
-  // 存在しないため本Issueでは未実装（将来、実際に必要になった時点でキーを追加する）。
-  {
-    ruleId: "R-TGT-06",
-    testCaseIds: ["UT-R-TGT-06-001", "UT-R-TGT-06-002", "UT-R-TGT-06-003"],
-    kinds: ["POSITIVE", "BOUNDARY"],
-  },
+  // Issue #170 (TGT-001)でFRONT_ROW/BACK_ROW（前後列優先）を実装した
+  // （target-selection-policy.test.tsのUT-R-TGT-06-001〜003で回帰検証）。
+  // R-TGT-06は左右列指定時の「指定列からの列距離順」まで含む単一ルールであり
+  // （`07_戦闘ルール詳細.md`）、`13_実装計画.md`の完了定義（Rule全体の受け入れ条件と
+  // production経路が揃った時点）に照らすと前後列優先だけでは完了計上できない。
+  // 左右列優先はTARGET_ORDER_KEYSに対応キーがなくproduction Catalogにも使用例が
+  // ないため、TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）へ引き継ぐ。
+  { ruleId: "R-TGT-06", testCaseIds: [], kinds: [] },
   {
     ruleId: "R-TGT-07",
     testCaseIds: ["UT-R-TGT-07-001", "UT-R-TGT-07-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
   { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
-  // Issue #170 (TGT-001): kind評価(SELF/SELECT/BINDING_DERIVED)、戦闘不能除外、
-  // area($BASE解決含む: SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE/BEHIND_BASE)、
-  // orderの評価順を実装する。TRIGGER_SOURCE/TRIGGER_TARGETと、baseのTRIGGER_SOURCE/
-  // TRIGGER_TARGET/LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS参照はCAP_TRIGGER_CONTEXT
-  // (RES-005)スコープのため引き続き例外を投げる。filters(非空)とfallbackはそれぞれ
-  // TGT-002/TGT-003(CAP_TARGET_FILTER_ORDER/CAP_TARGET_BINDING_FALLBACK)スコープ。
-  {
-    ruleId: "R-TGT-09",
-    testCaseIds: [
-      "UT-R-TGT-09-001",
-      "UT-R-TGT-09-002",
-      "UT-R-TGT-09-003",
-      "UT-R-TGT-09-004",
-      "UT-R-TGT-09-005",
-      "UT-R-TGT-09-006",
-      "UT-R-TGT-09-007",
-      "UT-R-TGT-09-008",
-      "UT-R-TGT-09-009",
-      "IT-CAP-TARGET-DERIVED-AREA-PROD-001",
-    ],
-    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
-  },
+  // Issue #170 (TGT-001)で`kind`評価(SELF/SELECT/BINDING_DERIVED)・戦闘不能除外・
+  // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
+  // SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE)・orderの評価順を実装した（回帰検証は
+  // target-selection-policy.test.tsのUT-R-TGT-09-001〜009、production統合は
+  // IT-CAP-TARGET-DERIVED-AREA-PROD-001）。R-TGT-09は
+  // `kind→includeDefeated→filters→area→order→count→fallback`の全7段階を規定する
+  // 単一ルールであり、非空`filters`・`fallback`は引き続き`DomainValidationError`、
+  // `TRIGGER_SOURCE`/`TRIGGER_TARGET`（kind・base参照とも）も未対応のため、
+  // `13_実装計画.md`の完了定義（全段階のproduction経路が揃った時点）に照らすと
+  // 完了計上できない。残る段階はTGT-002（filters、CAP_TARGET_FILTER_ORDER、
+  // Issue #169）・TGT-003（fallback、CAP_TARGET_BINDING_FALLBACK、Issue #168）・
+  // RES-005（TRIGGER_SOURCE/TRIGGER_TARGET、CAP_TRIGGER_CONTEXT、Issue #172）に
+  // またがるため、直近のTGT-002へ引き継ぎつつ、TGT-002完了時点でも filters 以外の
+  // 段階が残るようであれば次のタスクへ再度引き継ぐこと。
+  { ruleId: "R-TGT-09", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
 
   // SKL: スキル
