@@ -485,4 +485,72 @@ describe("TargetSelectorDefinition", () => {
     );
     expect(result.order).toEqual(["HIGHEST_MAX_HP", "FASTEST"]);
   });
+
+  it("UT-CAT-TSEL-037: rejects EXCLUDE_RESOLVED_UNIT referencing an unsupported kind (PR #233 review [P2])", () => {
+    for (const kind of [
+      "TRIGGER_SOURCE",
+      "TRIGGER_TARGET",
+      "LAST_ACTION_TARGETS",
+      "LAST_DAMAGED_TARGETS",
+    ]) {
+      expect(() =>
+        createTargetFilterDefinition(
+          { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind } },
+          "filter",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-TSEL-038: rejects a MARKER_IN_AREA area kind that applyArea does not implement (PR #233 review [P2])", () => {
+    for (const area of [
+      { kind: "SINGLE" },
+      { kind: "ALL" },
+      { kind: "ROW", row: "FRONT" },
+      { kind: "COLUMN", column: "LEFT" },
+    ]) {
+      expect(() =>
+        createTargetFilterDefinition(
+          { kind: "MARKER_IN_AREA", area, markerId: "MARKER_X" },
+          "filter",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-TSEL-039: accepts every MARKER_IN_AREA area kind that applyArea implements", () => {
+    for (const area of [
+      { kind: "ADJACENT_ORTHOGONAL" },
+      { kind: "DIRECTLY_AHEAD_OF_BASE" },
+      { kind: "BEHIND_BASE" },
+      { kind: "SAME_ROW_AS_BASE", includeBase: true },
+      { kind: "SAME_COLUMN_AS_BASE", includeBase: true },
+    ]) {
+      expect(
+        createTargetFilterDefinition(
+          { kind: "MARKER_IN_AREA", area, markerId: "MARKER_X" },
+          "filter",
+        ),
+      ).toEqual({ kind: "MARKER_IN_AREA", area, markerId: "MARKER_X" });
+    }
+  });
+
+  it("UT-CAT-TSEL-040: rejects IN/CONTAINS for HP_RATIO and HAS_MARKER.countCondition (PR #233 review [P2])", () => {
+    expect(() =>
+      createTargetFilterDefinition({ kind: "HP_RATIO", op: "IN", value: 0.5 }, "filter"),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createTargetFilterDefinition({ kind: "HP_RATIO", op: "CONTAINS", value: 0.5 }, "filter"),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createTargetFilterDefinition(
+        {
+          kind: "HAS_MARKER",
+          markerId: "MARKER_X",
+          countCondition: { op: "IN", value: 2 },
+        },
+        "filter",
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

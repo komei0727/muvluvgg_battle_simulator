@@ -197,7 +197,12 @@ function matchesFilter(
       return !excluded.some((unit) => unit.battleUnitId === candidate.battleUnitId);
     }
     case "MARKER_IN_AREA": {
-      const areaPool = applyArea(filter.area, candidate, ctx.allUnits);
+      // PR #233レビュー[P1]: 戦闘不能者にもmarkerStatesは残るため、明示的な
+      // includeDefeated指定がない限り、所在判定の対象からも除外する
+      // （候補自身の戦闘不能除外はR-TGT-01 #2/R-TGT-09 #2で既に済んでいる）。
+      const areaPool = applyArea(filter.area, candidate, ctx.allUnits).filter(
+        (unit) => !isDefeated(unit),
+      );
       return areaPool.some((unit) =>
         unit.markerStates.some((state) => state.markerId === filter.markerId),
       );

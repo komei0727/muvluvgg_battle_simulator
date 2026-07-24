@@ -1292,6 +1292,40 @@ describe("resolveTargets", () => {
       );
     });
 
+    it("UT-TGT-002-009B: MARKER_IN_AREA ignores a defeated marker holder (PR #233 review [P1])", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_CLARA_SANTA_TAG");
+      // The only marked unit in the LEFT column is defeated, so the column
+      // should no longer count as "having a marker holder" for MARKER_IN_AREA
+      // — even though a living candidate (LEFT_FRONT) still shares the column.
+      const defeatedTagged = unit(
+        "DEFEATED_TAGGED",
+        "ENEMY",
+        { column: "LEFT", row: "BACK" },
+        { currentHp: 0, markerStates: [marker(markerId)] },
+      );
+      const leftFront = unit("LEFT_FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const rightFront = unit("RIGHT_FRONT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [
+            {
+              kind: "MARKER_IN_AREA",
+              area: { kind: "SAME_COLUMN_AS_BASE", includeBase: true },
+              markerId,
+            },
+          ],
+        }),
+        actor,
+        [actor, defeatedTagged, leftFront, rightFront],
+      );
+
+      expect(targets).toEqual([]);
+    });
+
     it("UT-TGT-002-010: UNIT_TYPE/ROLE/AFFILIATION/CHARACTER filters resolve via the unitDefinitions map", () => {
       const enDefId = createUnitDefinitionId("UNIT_EN");
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });

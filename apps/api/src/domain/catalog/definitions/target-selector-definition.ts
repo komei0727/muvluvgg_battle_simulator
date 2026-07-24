@@ -27,7 +27,10 @@ import {
 
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 
-const COMPARISON_OPERATORS = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
+// PR #233レビュー[P2]: HAS_MARKER.countConditionとHP_RATIOは常に数値比較のため、
+// `compareNumeric`（target-selection-policy.ts）が実装しないIN/CONTAINSは
+// Catalogロード時点で拒否する（ComparisonOperator全体ではなく数値比較のみ許可）。
+const COMPARISON_OPERATORS = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
 const ATTRIBUTES = ["AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", "CLEVER"] as const;
 const UNIT_TYPES = ["PHYSICAL", "ENERGY", "AGILE"] as const;
@@ -89,6 +92,20 @@ export interface TargetOrderEntryInput {
 }
 
 // ---- TargetFilterDefinition ----
+
+// PR #233レビュー[P2]: `resolveExcludeReferenceUnits`（target-selection-policy.ts）は
+// SELF/BINDINGのみ対応するため、Catalogロード時点でも同じ範囲に制限する。
+const EXCLUDE_RESOLVED_UNIT_REFERENCE_KINDS = ["SELF", "BINDING"] as const;
+
+// PR #233レビュー[P2]: `applyArea`（target-selection-policy.ts）が実装するarea kindのみ
+// MARKER_IN_AREAへ許可する（SINGLE/ALL/ROW/COLUMNは未実装のため実行時例外になる）。
+const MARKER_IN_AREA_SUPPORTED_AREA_KINDS = [
+  "ADJACENT_ORTHOGONAL",
+  "DIRECTLY_AHEAD_OF_BASE",
+  "BEHIND_BASE",
+  "SAME_ROW_AS_BASE",
+  "SAME_COLUMN_AS_BASE",
+] as const;
 
 const TARGET_FILTER_KINDS = [
   "POSITION_ROW",
@@ -271,18 +288,30 @@ export function createTargetFilterDefinition(
       if (input.reference === undefined) {
         throw new DomainValidationError(`${path}.reference`, "is required");
       }
-      return {
-        kind: "EXCLUDE_RESOLVED_UNIT",
-        reference: createTargetReference(input.reference, `${path}.reference`, scope),
-      };
+      const reference = createTargetReference(input.reference, `${path}.reference`, scope);
+      // PR #233レビュー[P2]: 実行時（resolveExcludeReferenceUnits）はSELF/BINDING
+      // のみ対応するため、それ以外はCatalogロード時点で拒否する（起動時検証を
+      // 通過させて実行時例外に持ち越さない）。
+      assertEnumValue(
+        reference.kind,
+        EXCLUDE_RESOLVED_UNIT_REFERENCE_KINDS,
+        `${path}.reference.kind`,
+      );
+      return { kind: "EXCLUDE_RESOLVED_UNIT", reference };
     }
     case "MARKER_IN_AREA": {
       if (input.area === undefined) {
         throw new DomainValidationError(`${path}.area`, "is required");
       }
+      const area = createAreaDefinition(input.area, `${path}.area`);
+      // PR #233レビュー[P2]: 実行時（applyArea）はADJACENT_ORTHOGONAL/
+      // DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE
+      // のみ対応するため、それ以外（SINGLE/ALL/ROW/COLUMN）はCatalogロード時点で
+      // 拒否する。
+      assertEnumValue(area.kind, MARKER_IN_AREA_SUPPORTED_AREA_KINDS, `${path}.area.kind`);
       return {
         kind: "MARKER_IN_AREA",
-        area: createAreaDefinition(input.area, `${path}.area`),
+        area,
         markerId: createMarkerId(
           requireStringField(input.markerId, `${path}.markerId`),
           `${path}.markerId`,
