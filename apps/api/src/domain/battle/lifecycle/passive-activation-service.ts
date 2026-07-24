@@ -1303,6 +1303,7 @@ export class PassiveActivationRuntime {
       this.units,
       this.context.definitions.effectActions,
       triggerContext,
+      this.context.definitions.unitDefinitions,
     );
     // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
     // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を

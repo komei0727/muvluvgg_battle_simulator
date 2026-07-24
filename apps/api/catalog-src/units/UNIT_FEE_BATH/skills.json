@@ -8,7 +8,14 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              { "kind": "MARKER_COUNT", "markerId": "MARKER_FEE_BATH_FLUSH", "direction": "DESC" }
+            ]
+          }
         }
       ],
       "steps": [
@@ -62,7 +69,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "あわあわふー", "tags": [] }
   },

@@ -1,7 +1,12 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
-import type { SkillDefinitionId, TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
+import type {
+  SkillDefinitionId,
+  TargetBindingId,
+  UnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 export type ActionSelectionResult =
@@ -12,15 +17,25 @@ export type ActionSelectionResult =
  * R-TGT-01 #4: 各targetBindingが1体以上の候補を持つかどうかで判定する。
  * R-TGT-09/10: `base: BINDING`が先行bindingを参照できるよう、定義順に解決した
  * bindingを積み上げながら判定する（後続bindingが不成立でも先行分は評価済み）。
+ * `unitDefinitions`はTGT-002（CAP_TARGET_FILTER_ORDER）のUNIT_TYPE系filter/order
+ * （UNIT_TYPE_PRIORITYなど）を含むselectorにだけ要る。
  */
 export function hasResolvableTargets(
   skill: SkillDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): boolean {
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
   for (const binding of skill.resolution.targetBindings) {
-    const units = resolveTargets(binding.selector, actor, allUnits, resolvedBindingUnits);
+    const units = resolveTargets(
+      binding.selector,
+      actor,
+      allUnits,
+      resolvedBindingUnits,
+      undefined,
+      unitDefinitions,
+    );
     resolvedBindingUnits.set(binding.targetBindingId, units);
     if (units.length === 0) {
       return false;
@@ -47,6 +62,7 @@ function isUsable(
   skill: SkillDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): boolean {
   if (isCoolingDown(actor, skill.skillDefinitionId)) {
     return false;
@@ -60,7 +76,7 @@ function isUsable(
       `kind "${skill.activationCondition.kind}" is not supported by this basic ActionSelectionPolicy (ConditionEvaluator is M7 scope)`,
     );
   }
-  return hasResolvableTargets(skill, actor, allUnits);
+  return hasResolvableTargets(skill, actor, allUnits, unitDefinitions);
 }
 
 /**
@@ -71,9 +87,10 @@ export function selectAsCandidate(
   activeSkills: readonly SkillDefinition[],
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): ActionSelectionResult {
   for (const skill of activeSkills) {
-    if (isUsable(skill, actor, allUnits)) {
+    if (isUsable(skill, actor, allUnits, unitDefinitions)) {
       return { kind: "SKILL", skill };
     }
   }
@@ -90,6 +107,7 @@ export function isExUsable(
   exSkill: SkillDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): boolean {
   if (exSkill.activationCondition.kind !== "TRUE") {
     throw new DomainValidationError(
@@ -97,5 +115,5 @@ export function isExUsable(
       `kind "${exSkill.activationCondition.kind}" is not supported by this basic ActionSelectionPolicy (ConditionEvaluator is M7 scope)`,
     );
   }
-  return hasResolvableTargets(exSkill, actor, allUnits);
+  return hasResolvableTargets(exSkill, actor, allUnits, unitDefinitions);
 }

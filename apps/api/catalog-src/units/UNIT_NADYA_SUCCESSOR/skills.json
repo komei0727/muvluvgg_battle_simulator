@@ -78,7 +78,7 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": 1,
-            "order": ["DEFAULT"]
+            "order": ["FASTEST"]
           }
         }
       ],
@@ -109,12 +109,36 @@
                 },
                 {
                   "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN"
-                },
+                }
+              ]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                  ]
+                }
+              ],
+              "elseSteps": []
+            },
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
                 {
                   "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
                 }
               ]
             },
@@ -146,12 +170,36 @@
                 },
                 {
                   "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN"
-                },
+                }
+              ]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                  ]
+                }
+              ],
+              "elseSteps": []
+            },
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
                 {
                   "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
                 }
               ]
             },
@@ -179,7 +227,8 @@
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": {
       "displayName": "システマ・ヴラシェーニヤΩ",

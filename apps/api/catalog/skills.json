@@ -227,7 +227,18 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_AOI_ELEGANT_UKIASHI",
+                "direction": "DESC"
+              }
+            ]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
@@ -267,7 +278,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_COOLDOWN_MANIPULATION"
+      "CAP_COOLDOWN_MANIPULATION",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "衣擦れの調べ", "tags": [] }
   },
@@ -449,7 +461,13 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": 1,
-            "filters": [{ "kind": "HAS_MARKER", "markerId": "MARKER_AOI_ELEGANT_KOUYOU" }],
+            "filters": [
+              {
+                "kind": "HAS_MARKER",
+                "markerId": "MARKER_AOI_ELEGANT_KOUYOU",
+                "countCondition": { "op": "GTE", "value": 2 }
+              }
+            ],
             "order": ["DEFAULT"]
           }
         }
@@ -470,33 +488,15 @@
           "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD" }]
         },
         {
-          "kind": "BRANCH",
-          "condition": {
-            "kind": "TARGET_HAS_MARKER",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_KOUYOU" },
-            "markerId": "MARKER_AOI_ELEGANT_KOUYOU",
-            "countCondition": { "op": "GTE", "value": 2 }
-          },
-          "thenSteps": [
-            {
-              "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_KOUYOU" },
-              "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU" }]
-            }
-          ],
-          "elseSteps": []
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_KOUYOU" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU" }]
         }
       ]
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_DAMAGE_MOD",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "高貴な一礼", "tags": [] },
     "triggers": [
       {
@@ -1564,7 +1564,13 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": 1,
-            "filters": [{ "kind": "HAS_MARKER", "markerId": "MARKER_CLARA_SANTA_TAG" }],
+            "filters": [
+              {
+                "kind": "MARKER_IN_AREA",
+                "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+                "markerId": "MARKER_CLARA_SANTA_TAG"
+              }
+            ],
             "order": ["DEFAULT"],
             "fallback": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
           }
@@ -1857,11 +1863,21 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL", "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         },
         {
           "targetBindingId": "TGT_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -1879,7 +1895,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "クイックブースト", "tags": [] },
     "triggers": [
       {
@@ -2157,7 +2173,18 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_DOROTHEA_PIONEER_GRACE",
+                "direction": "ASC"
+              }
+            ]
+          }
         }
       ],
       "steps": [
@@ -2174,7 +2201,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "リビューク・ジ・イグノーブル", "tags": [] }
   },
   {
@@ -3180,7 +3207,14 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              { "kind": "MARKER_COUNT", "markerId": "MARKER_FEE_BATH_FLUSH", "direction": "DESC" }
+            ]
+          }
         }
       ],
       "steps": [
@@ -3234,7 +3268,8 @@
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "あわあわふー", "tags": [] }
   },
@@ -4679,7 +4714,12 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_OTHER_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -4703,7 +4743,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "まじ本気だすぞー！！", "tags": [] },
     "triggers": [
       {
@@ -8311,7 +8351,12 @@
         },
         {
           "targetBindingId": "TGT_SHIELD_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -8332,7 +8377,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_SHIELD",
-      "CAP_ACTION_ACTIVATION_CONDITION"
+      "CAP_ACTION_ACTIVATION_CONDITION",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "風紀を守る一撃", "tags": [] }
   },
@@ -8345,7 +8391,18 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_MAO_COMMITTEE_DISCIPLINE",
+                "direction": "ASC"
+              }
+            ]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
@@ -8370,7 +8427,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_CONTINUOUS_DAMAGE", "CAP_MARKER"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_MARKER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "容疑者を捕捉！", "tags": [] }
   },
   {
@@ -8382,7 +8444,12 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALLY_ALL",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -8400,7 +8467,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT", "CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {
@@ -9233,6 +9305,12 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": 1,
+            "filters": [
+              {
+                "kind": "EXCLUDE_RESOLVED_UNIT",
+                "reference": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" }
+              }
+            ],
             "order": ["LOWEST_HP_RATIO"]
           }
         }
@@ -9891,7 +9969,7 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FASTEST"] }
         }
       ],
       "steps": [
@@ -9909,10 +9987,31 @@
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
               "actions": [
                 { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED" },
-                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN" },
-                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK" },
-                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN" }
               ]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                  ]
+                }
+              ],
+              "elseSteps": []
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK" }]
             },
             {
               "kind": "ACTION",
@@ -9929,10 +10028,31 @@
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
               "actions": [
                 { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE" },
-                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN" },
-                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK" },
-                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN" }
               ]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                  ]
+                }
+              ],
+              "elseSteps": []
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK" }]
             },
             {
               "kind": "ACTION",
@@ -9949,7 +10069,8 @@
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD"
+      "CAP_DAMAGE_MOD",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "システマ・ヴラシェーニヤΩ", "tags": [] }
   },
@@ -11664,7 +11785,17 @@
         },
         {
           "targetBindingId": "TGT_OTHERS",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "EXCLUDE_RESOLVED_UNIT",
+                "reference": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" }
+              }
+            ]
+          }
         }
       ],
       "steps": [
@@ -12577,7 +12708,12 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL", "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         },
         {
           "targetBindingId": "TGT_FARTHEST_ENEMY",
@@ -12654,7 +12790,15 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": [
+              { "kind": "UNIT_TYPE_PRIORITY", "unitType": "ENERGY" },
+              "SELF_LOWEST_PRIORITY"
+            ]
+          }
         }
       ],
       "steps": [
@@ -12672,7 +12816,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "幸運のデコイ", "tags": [] }
   },
   {
@@ -12684,7 +12828,12 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 2, "order": ["LOWEST_HP_RATIO"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 2,
+            "order": ["SELF_LOWEST_PRIORITY", "LOWEST_HP_RATIO"]
+          }
         }
       ],
       "steps": [
@@ -13685,11 +13834,11 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_SINGLE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["HIGHEST_MAX_HP"] }
         },
         {
           "targetBindingId": "TGT_TRIPLE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["HIGHEST_MAX_HP"] }
         }
       ],
       "steps": [
@@ -13733,7 +13882,8 @@
       "CAP_MARKER",
       "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_SHIELD"
+      "CAP_SHIELD",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "ショーダウン", "tags": [] }
   },
@@ -13908,7 +14058,12 @@
         },
         {
           "targetBindingId": "TGT_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -13926,7 +14081,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ブラック・スタイル", "tags": [] }
   },
   {

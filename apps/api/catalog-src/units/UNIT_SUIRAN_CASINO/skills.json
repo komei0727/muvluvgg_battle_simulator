@@ -38,11 +38,11 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_SINGLE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["HIGHEST_MAX_HP"] }
         },
         {
           "targetBindingId": "TGT_TRIPLE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["HIGHEST_MAX_HP"] }
         }
       ],
       "steps": [
@@ -86,7 +86,8 @@
       "CAP_MARKER",
       "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_SHIELD"
+      "CAP_SHIELD",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "ショーダウン", "tags": [] }
   },

@@ -92,7 +92,13 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": 1,
-            "filters": [{ "kind": "HAS_MARKER", "markerId": "MARKER_CLARA_SANTA_TAG" }],
+            "filters": [
+              {
+                "kind": "MARKER_IN_AREA",
+                "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+                "markerId": "MARKER_CLARA_SANTA_TAG"
+              }
+            ],
             "order": ["DEFAULT"],
             "fallback": {
               "kind": "SELECT",

@@ -8,7 +8,18 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_AOI_ELEGANT_UKIASHI",
+                "direction": "DESC"
+              }
+            ]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
@@ -48,7 +59,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_COOLDOWN_MANIPULATION"
+      "CAP_COOLDOWN_MANIPULATION",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "衣擦れの調べ", "tags": [] }
   },
@@ -230,7 +242,13 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": 1,
-            "filters": [{ "kind": "HAS_MARKER", "markerId": "MARKER_AOI_ELEGANT_KOUYOU" }],
+            "filters": [
+              {
+                "kind": "HAS_MARKER",
+                "markerId": "MARKER_AOI_ELEGANT_KOUYOU",
+                "countCondition": { "op": "GTE", "value": 2 }
+              }
+            ],
             "order": ["DEFAULT"]
           }
         }
@@ -251,33 +269,15 @@
           "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD" }]
         },
         {
-          "kind": "BRANCH",
-          "condition": {
-            "kind": "TARGET_HAS_MARKER",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_KOUYOU" },
-            "markerId": "MARKER_AOI_ELEGANT_KOUYOU",
-            "countCondition": { "op": "GTE", "value": 2 }
-          },
-          "thenSteps": [
-            {
-              "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_KOUYOU" },
-              "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU" }]
-            }
-          ],
-          "elseSteps": []
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_KOUYOU" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU" }]
         }
       ]
     },
     "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_DAMAGE_MOD",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "高貴な一礼", "tags": [] },
     "triggers": [
       {
