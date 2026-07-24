@@ -65,7 +65,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // production Skill uses it yet (`SKL_LYDIA_GENIUS_AS1`/`SKL_ELENA_MOODMAKER_AS1`
     // need it in their AS `activationCondition`, `CAP_ACTION_ACTIVATION_CONDITION`
     // scope, handed off to #180/M7-003), so it stays `runtimeStatus: PLANNED`.
-    expect(catalog.catalogRevision).toBe("2026-07-24.10");
+    // PR #228 review: mixing TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER
+    // that references an ACTION step's own target is now rejected outright
+    // (`MIXED_STEP_TARGET_SET_CONDITION`) rather than runtime-quantified, since no
+    // single-boolean reduction satisfied both the per-target and set-wide contracts.
+    expect(catalog.catalogRevision).toBe("2026-07-24.11");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
