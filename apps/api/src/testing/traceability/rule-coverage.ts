@@ -363,9 +363,31 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-TGT-02-001", "UT-R-TGT-02-002", "UT-R-TGT-02-003", "UT-R-TGT-02-004"],
     kinds: ["POSITIVE", "PROPERTY"],
   },
-  { ruleId: "R-TGT-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-TGT-04", testCaseIds: [], kinds: [] },
-  { ruleId: "R-TGT-05", testCaseIds: [], kinds: [] },
+  // Issue #170 (TGT-001): FARTHEST(R-TGT-02の全体反転)を実装する。
+  {
+    ruleId: "R-TGT-03",
+    testCaseIds: ["UT-R-TGT-03-001", "UT-R-TGT-03-002", "UT-R-TGT-03-003"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // Issue #170 (TGT-001): ADJACENT_ORTHOGONAL area(同陣営・上下左右1マス、陣営境界は越えない)。
+  {
+    ruleId: "R-TGT-04",
+    testCaseIds: ["UT-R-TGT-04-001", "UT-R-TGT-04-002"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // Issue #170 (TGT-001): DIRECTLY_AHEAD_OF_BASE area(基準対象が前列なら候補0件)。
+  {
+    ruleId: "R-TGT-05",
+    testCaseIds: ["UT-R-TGT-05-001", "UT-R-TGT-05-002"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // Issue #170 (TGT-001)でFRONT_ROW/BACK_ROW（前後列優先）を実装した
+  // （target-selection-policy.test.tsのUT-R-TGT-06-001〜003で回帰検証）。
+  // R-TGT-06は左右列指定時の「指定列からの列距離順」まで含む単一ルールであり
+  // （`07_戦闘ルール詳細.md`）、`13_実装計画.md`の完了定義（Rule全体の受け入れ条件と
+  // production経路が揃った時点）に照らすと前後列優先だけでは完了計上できない。
+  // 左右列優先はTARGET_ORDER_KEYSに対応キーがなくproduction Catalogにも使用例が
+  // ないため、TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）へ引き継ぐ。
   { ruleId: "R-TGT-06", testCaseIds: [], kinds: [] },
   {
     ruleId: "R-TGT-07",
@@ -373,6 +395,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "BOUNDARY"],
   },
   { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
+  // Issue #170 (TGT-001)で`kind`評価(SELF/SELECT/BINDING_DERIVED)・戦闘不能除外・
+  // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
+  // SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE)・orderの評価順を実装した（回帰検証は
+  // target-selection-policy.test.tsのUT-R-TGT-09-001〜009、production統合は
+  // IT-CAP-TARGET-DERIVED-AREA-PROD-001）。R-TGT-09は
+  // `kind→includeDefeated→filters→area→order→count→fallback`の全7段階を規定する
+  // 単一ルールであり、非空`filters`・`fallback`は引き続き`DomainValidationError`、
+  // `TRIGGER_SOURCE`/`TRIGGER_TARGET`（kind・base参照とも）も未対応のため、
+  // `13_実装計画.md`の完了定義（全段階のproduction経路が揃った時点）に照らすと
+  // 完了計上できない。残る段階はTGT-002（filters、CAP_TARGET_FILTER_ORDER、
+  // Issue #169）・TGT-003（fallback、CAP_TARGET_BINDING_FALLBACK、Issue #168）・
+  // RES-005（TRIGGER_SOURCE/TRIGGER_TARGET、CAP_TRIGGER_CONTEXT、Issue #172）に
+  // またがるため、直近のTGT-002へ引き継ぎつつ、TGT-002完了時点でも filters 以外の
+  // 段階が残るようであれば次のタスクへ再度引き継ぐこと。
   { ruleId: "R-TGT-09", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
 

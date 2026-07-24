@@ -7,7 +7,10 @@ import {
 } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createUnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import {
+  createTargetBindingId,
+  createUnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
@@ -302,7 +305,7 @@ describe("resolveTargets", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-TARGET-SELECTION-POLICY-005: throws for an unsupported selector kind (TRIGGER_SOURCE/TRIGGER_TARGET/BINDING_DERIVED are M6/M7 scope)", () => {
+  it("UT-TARGET-SELECTION-POLICY-005: throws for an unsupported selector kind (TRIGGER_SOURCE/TRIGGER_TARGET are M7 scope, see CAP_TRIGGER_CONTEXT/RES-005)", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
 
     expect(() =>
@@ -312,5 +315,406 @@ describe("resolveTargets", () => {
         [actor],
       ),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-TARGET-SELECTION-POLICY-006: throws when the order array mixes a supported key with an unsupported one (stat-based orders are TGT-002/CAP_TARGET_FILTER_ORDER scope)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+
+    expect(() =>
+      resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["FRONT_ROW", "NEAREST"] }),
+        actor,
+        [actor],
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  describe("R-TGT-03: FARTHEST order (reverses the full R-TGT-02 ordering)", () => {
+    it("UT-R-TGT-03-001: reverses ascending distance to descending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const near = unit("NEAR", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const far = unit("FAR", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["FARTHEST"] }),
+        actor,
+        [actor, near, far],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("FAR"),
+        createBattleUnitId("NEAR"),
+      ]);
+    });
+
+    it("UT-R-TGT-03-002: same-distance ties break BACK before FRONT (row order reversed)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const front = unit("FRONT_1", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const back = unit("BACK_1", "ENEMY", { column: "CENTER", row: "BACK" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["FARTHEST"] }),
+        actor,
+        [actor, front, back],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("BACK_1"),
+        createBattleUnitId("FRONT_1"),
+      ]);
+    });
+
+    it("UT-R-TGT-03-003: remaining ties break right-to-left column (column order reversed)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const left = unit("LEFT_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const right = unit("RIGHT_1", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["FARTHEST"] }),
+        actor,
+        [actor, right, left],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("RIGHT_1"),
+        createBattleUnitId("LEFT_1"),
+      ]);
+    });
+  });
+
+  describe("R-TGT-06: row priority order (FRONT_ROW/BACK_ROW)", () => {
+    it("UT-R-TGT-06-001: FRONT_ROW places front-row candidates before back-row even when farther", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const back = unit("BACK_1", "ENEMY", { column: "LEFT", row: "BACK" });
+      const front = unit("FRONT_1", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["FRONT_ROW", "DEFAULT"] }),
+        actor,
+        [actor, back, front],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("FRONT_1"),
+        createBattleUnitId("BACK_1"),
+      ]);
+    });
+
+    it("UT-R-TGT-06-002: BACK_ROW places back-row candidates before front-row even when farther", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const back = unit("BACK_1", "ENEMY", { column: "RIGHT", row: "BACK" });
+      const front = unit("FRONT_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["BACK_ROW", "DEFAULT"] }),
+        actor,
+        [actor, back, front],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("BACK_1"),
+        createBattleUnitId("FRONT_1"),
+      ]);
+    });
+
+    it("UT-R-TGT-06-003: candidates tied on the specified key fall through to a deterministic tiebreak (R-TGT-02)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const frontLeft = unit("FRONT_LEFT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const frontRight = unit("FRONT_RIGHT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["FRONT_ROW"] }),
+        actor,
+        [actor, frontRight, frontLeft],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("FRONT_LEFT"),
+        createBattleUnitId("FRONT_RIGHT"),
+      ]);
+    });
+  });
+
+  describe("R-TGT-04: ADJACENT_ORTHOGONAL area", () => {
+    it("UT-R-TGT-04-001: resolves the orthogonal neighbors of the base, excluding diagonals", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const up = unit("UP", "ALLY", { column: "CENTER", row: "BACK" });
+      const left = unit("LEFT", "ALLY", { column: "LEFT", row: "FRONT" });
+      const right = unit("RIGHT", "ALLY", { column: "RIGHT", row: "FRONT" });
+      const diagonal = unit("DIAG", "ALLY", { column: "LEFT", row: "BACK" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, up, left, right, diagonal]);
+
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("UP"), createBattleUnitId("LEFT"), createBattleUnitId("RIGHT")].sort(),
+      );
+    });
+
+    it("UT-R-TGT-04-002: does not cross the side boundary even when an enemy occupies the geometrically adjacent square", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enemyAcrossBoundary = unit("ENEMY_ADJ", "ENEMY", { column: "CENTER", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALL",
+        base: { kind: "SELF" },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, enemyAcrossBoundary]);
+
+      expect(targets).toEqual([]);
+    });
+  });
+
+  describe("R-TGT-05: DIRECTLY_AHEAD_OF_BASE area", () => {
+    it("UT-R-TGT-05-001: resolves the single square directly in front of a BACK-row base", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "BACK" });
+      const ahead = unit("AHEAD", "ALLY", { column: "CENTER", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "DIRECTLY_AHEAD_OF_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, ahead]);
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("AHEAD")]);
+    });
+
+    it("UT-R-TGT-05-002: resolves zero candidates when the base is already FRONT row (skill becomes unusable)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enemyFront = unit("ENEMY_FRONT", "ENEMY", { column: "CENTER", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALL",
+        base: { kind: "SELF" },
+        area: { kind: "DIRECTLY_AHEAD_OF_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, enemyFront]);
+
+      expect(targets).toEqual([]);
+    });
+  });
+
+  describe("R-TGT-09: TargetSelector evaluation order (kind/base/area wiring)", () => {
+    it("UT-R-TGT-09-001: BINDING_DERIVED resolves base from a previously-resolved targetBinding", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const mainTarget = unit("MAIN", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const adjacent = unit("ADJ", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const resolvedBindings = new Map([[createTargetBindingId("TGT_MAIN"), [mainTarget]]]);
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_MAIN") },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(
+        selectorDef,
+        actor,
+        [actor, mainTarget, adjacent],
+        resolvedBindings,
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ADJ")]);
+    });
+
+    it("UT-R-TGT-09-002: resolves zero candidates (not a throw) when the referenced binding resolved to zero units", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const adjacent = unit("ADJ", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const resolvedBindings = new Map<ReturnType<typeof createTargetBindingId>, BattleUnit[]>([
+        [createTargetBindingId("TGT_MAIN"), []],
+      ]);
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_MAIN") },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, adjacent], resolvedBindings);
+
+      expect(targets).toEqual([]);
+    });
+
+    it("UT-R-TGT-09-003: throws when the referenced targetBindingId was never resolved", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_MISSING") },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      expect(() => resolveTargets(selectorDef, actor, [actor])).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-TGT-09-004: SAME_COLUMN_AS_BASE with includeBase:true includes both the base and its column-mate", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const baseUnit = unit("BASE", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const columnMate = unit("MATE", "ENEMY", { column: "LEFT", row: "BACK" });
+      const other = unit("OTHER", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const resolvedBindings = new Map([[createTargetBindingId("TGT_BASE"), [baseUnit]]]);
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_BASE") },
+        area: { kind: "SAME_COLUMN_AS_BASE", includeBase: true },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(
+        selectorDef,
+        actor,
+        [actor, baseUnit, columnMate, other],
+        resolvedBindings,
+      );
+
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("BASE"), createBattleUnitId("MATE")].sort(),
+      );
+    });
+
+    it("UT-R-TGT-09-005: SAME_ROW_AS_BASE with includeBase:false excludes the base itself", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const baseUnit = unit("BASE", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const rowMate = unit("MATE", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const resolvedBindings = new Map([[createTargetBindingId("TGT_BASE"), [baseUnit]]]);
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_BASE") },
+        area: { kind: "SAME_ROW_AS_BASE", includeBase: false },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(
+        selectorDef,
+        actor,
+        [actor, baseUnit, rowMate],
+        resolvedBindings,
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("MATE")]);
+    });
+
+    it("UT-R-TGT-09-006: BEHIND_BASE resolves the single square behind the base", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const behindAlly = unit("BEHIND", "ALLY", { column: "CENTER", row: "BACK" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "BEHIND_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, behindAlly]);
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("BEHIND")]);
+    });
+
+    it("UT-R-TGT-09-007: BEHIND_BASE resolves zero candidates at the board edge", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "BACK" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "BEHIND_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor]);
+
+      expect(targets).toEqual([]);
+    });
+
+    it("UT-R-TGT-09-008: excludes defeated units from area-derived candidates unless includeDefeated is set", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const defeatedAdjacent = unit(
+        "DEFEATED",
+        "ALLY",
+        { column: "LEFT", row: "FRONT" },
+        { currentHp: 0 },
+      );
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, defeatedAdjacent]);
+
+      expect(targets).toEqual([]);
+    });
+
+    it("UT-R-TGT-09-009: throws for a base TargetReference kind that is not yet supported (TRIGGER_TARGET needs CAP_TRIGGER_CONTEXT/RES-005)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "TRIGGER_TARGET" },
+        area: { kind: "SAME_ROW_AS_BASE", includeBase: true },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      expect(() => resolveTargets(selectorDef, actor, [actor])).toThrow(DomainValidationError);
+    });
   });
 });

@@ -454,12 +454,24 @@
   {
     "capabilityId": "CAP_TARGET_DERIVED_AREA",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "TGT-001",
-    "description": "area・距離・隣接・列による派生対象",
+    "description": "TargetSelectorDefinitionの`kind: BINDING_DERIVED`（`base`: SELF/BINDING解決）と、`area`（ADJACENT_ORTHOGONAL・DIRECTLY_AHEAD_OF_BASE・BEHIND_BASE・SAME_ROW_AS_BASE・SAME_COLUMN_AS_BASE）、`order`のFARTHEST（R-TGT-03）・FRONT_ROW/BACK_ROW（R-TGT-06前後列優先）を実装する（R-TGT-04/05/09、Issue #170）。`base`のTRIGGER_SOURCE/TRIGGER_TARGET/LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS参照はCAP_TRIGGER_CONTEXT（RES-005）、左右列優先の`order`とstat基準order・非空filtersはCAP_TARGET_FILTER_ORDER（TGT-002）、fallbackはCAP_TARGET_BINDING_FALLBACK（TGT-003）のスコープであり別途管理する。",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": [
+        "SKL_LUCIE_MAID_EX",
+        "SKL_LUCIE_MAID_AS1",
+        "SKL_LUCIE_MAID_AS2",
+        "SKL_SENKA_CHRISTMAS_PS1"
+      ],
+      "testCaseIds": [
+        "UT-R-TGT-03-001",
+        "UT-R-TGT-04-001",
+        "UT-R-TGT-05-001",
+        "UT-R-TGT-06-001",
+        "UT-R-TGT-09-001",
+        "IT-CAP-TARGET-DERIVED-AREA-PROD-001"
+      ]
     }
   },
   {
