@@ -86,7 +86,7 @@ function resolveOneAction(
     }
     // R-ACT-01 #5 / Q-BTL-06: 対象候補がなければEXは使用不能とし、EXゲージ全量を
     // 消費して待機する。
-    if (!isExUsable(exSkill, actor, units)) {
+    if (!isExUsable(exSkill, actor, units, definitions.unitDefinitions)) {
       return resolveWait(
         actor,
         reservedActionType,
@@ -135,7 +135,7 @@ function resolveOneAction(
   }
 
   const activeSkills = definitions.activeSkillsByUnit.get(actor.unitDefinitionId) ?? [];
-  const selection = selectAsCandidate(activeSkills, actor, units);
+  const selection = selectAsCandidate(activeSkills, actor, units, definitions.unitDefinitions);
 
   if (selection.kind === "WAIT") {
     return resolveWait(

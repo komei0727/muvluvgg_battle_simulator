@@ -213,7 +213,13 @@ export function resolveChargeRelease(
   });
 
   let working = units;
-  const plan = resolveChargeReleaseOrder(skill, actor, working, definitions.effectActions);
+  const plan = resolveChargeReleaseOrder(
+    skill,
+    actor,
+    working,
+    definitions.effectActions,
+    definitions.unitDefinitions,
+  );
   const targetUnitIds = plan.targetUnitIds;
 
   // PR #142レビュー[P1]: AS/EX（`resolveSkillUse`）と同様、この行動専用の
@@ -261,7 +267,12 @@ export function resolveChargeRelease(
       // `plan`(直前の`resolveChargeReleaseOrder`呼び出し)が既にkind==="CHARGE"を検証済み。
       bindings:
         skill.resolution.kind === "CHARGE"
-          ? resolveBindingSelections(skill.resolution.chargeRelease.targetBindings, actor, working)
+          ? resolveBindingSelections(
+              skill.resolution.chargeRelease.targetBindings,
+              actor,
+              working,
+              definitions.unitDefinitions,
+            )
           : [],
     },
   });

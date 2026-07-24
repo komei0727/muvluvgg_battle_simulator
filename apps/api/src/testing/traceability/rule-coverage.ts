@@ -386,8 +386,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // R-TGT-06は左右列指定時の「指定列からの列距離順」まで含む単一ルールであり
   // （`07_戦闘ルール詳細.md`）、`13_実装計画.md`の完了定義（Rule全体の受け入れ条件と
   // production経路が揃った時点）に照らすと前後列優先だけでは完了計上できない。
-  // 左右列優先はTARGET_ORDER_KEYSに対応キーがなくproduction Catalogにも使用例が
-  // ないため、TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）へ引き継ぐ。
+  // TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）でfilters・残りのorderキー
+  // （NEAREST/LEFT_TO_RIGHT/統計値の極値/MARKER_COUNT/UNIT_TYPE_PRIORITY/
+  // SELF_LOWEST_PRIORITY）を実装したが、左右列指定時の「指定列からの列距離順」
+  // （右列優先: 右→中央→左、左列優先: 左→中央→右）専用のTargetOrderKeyは
+  // production Catalogに使用例が無く対象外のまま残した（必要になった時点で
+  // キーを追加する、TGT-001以来の既定方針）。TGT-002はこのIssueで完了するため、
+  // 残る左右列優先は次にproduction使用例が現れた時点の担当Issueへ引き継ぐ。
   { ruleId: "R-TGT-06", testCaseIds: [], kinds: [] },
   {
     ruleId: "R-TGT-07",
@@ -403,12 +408,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 参照とも`TRIGGER_SOURCE`/`TRIGGER_TARGET`を実装した（回帰検証は
   // UT-CAP-TRIGGER-CONTEXT-004〜008、production統合はIT-CAP-TRIGGER-CONTEXT-PROD-001）。
   // R-TGT-09は`kind→includeDefeated→filters→area→order→count→fallback`の全7段階を
-  // 規定する単一ルールであり、TGT-003（Issue #168）で#7（fallback）を実装した後も
-  // 非空`filters`（#3）は引き続き`DomainValidationError`のため、`13_実装計画.md`の
-  // 完了定義（全段階のproduction経路が揃った時点）に照らすと完了計上できない。
-  // 残る段階はTGT-002（filters、CAP_TARGET_FILTER_ORDER、Issue #169）のみのため、
-  // TGT-002へ引き継ぐ。
-  { ruleId: "R-TGT-09", testCaseIds: [], kinds: [] },
+  // 規定する単一ルールであり、TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）で
+  // 残っていた#3（非空filters）を実装し、production統合（IT-CAP-TARGET-FILTER-ORDER-PROD-001
+  // 〜006、`SKL_LYDIA_GENIUS_EX`のOR/POSITION_COLUMN filter・`SKL_CLARA_SANTA_AS2`の
+  // MARKER_IN_AREA filterなど）まで揃ったため、全7段階が揃い完了とする。
+  {
+    ruleId: "R-TGT-09",
+    testCaseIds: [
+      "UT-R-TGT-09-001",
+      "IT-CAP-TARGET-DERIVED-AREA-PROD-001",
+      "UT-TGT-002-001",
+      "IT-CAP-TARGET-FILTER-ORDER-PROD-001",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
   // Issue #168 (TGT-003, CAP_TARGET_BINDING_FALLBACK)で`R-TGT-10`の3点を実装した:
   // (1) sequence開始時のtargetBindings定義順固定 — `skill-resolution-service.ts`の
   // `resolveEffectSequence`が全bindingとeagerなACTION step対象を一度だけ解決し、
@@ -418,18 +431,25 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ことを、実際の`resolveSkillOrder`→`applyEffectActionGroups`の経路で検証する）。
   // (2) 参照時点の戦闘不能skip（明示`includeDefeated`がない限り）— RES-002（Issue #174）
   // が全EffectAction種別に共通実装済み（回帰検証はeffect-action-group-resolver.test.tsの
-  // UT-R-ACTN-01-001〜006/010）。(3) 候補0件時のfallback経路評価 — 本Issueで
+  // UT-R-ACTN-01-001〜006/010）。(3) 候補0件時のfallback経路評価 — TGT-003で
   // `target-selection-policy.ts`の`resolveTargets`に実装した（回帰検証は
   // target-selection-policy.test.tsのUT-R-TGT-10-001〜008）。3点ともUnitテストレベルの
-  // 実ライフサイクル配線は揃ったが、production Catalogの`fallback`使用例
+  // 実ライフサイクル配線は揃っていたが、production Catalogの`fallback`使用例
   // （`SKL_CLARA_SANTA_AS2`/`SKL_LYDIA_GENIUS_EX`）はいずれも非空`filters`を伴うため、
-  // 無改変のproduction Catalogでfallback経路を通すproduction統合テストは、TGT-002
-  // （filters、CAP_TARGET_FILTER_ORDER、Issue #169）完了後にしか追加できない。
-  // `13_実装計画.md`の完了定義（production経路が揃った時点）と`CAP_TARGET_BINDING_FALLBACK`の
-  // `runtimeStatus: PLANNED`（`apps/api/catalog/capabilities.json`）に照らし、production
-  // 統合テストが揃うまでこのルールは未完了のまま残し、完了責任をTGT-002へ引き継ぐ
-  // （`17_残作業対応表.json`の`ruleAssignments`参照）。
-  { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
+  // 無改変のproduction Catalogでfallback経路を通すproduction統合テストが必要だった。
+  // TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）でfiltersを実装し、
+  // IT-CAP-TARGET-FILTER-ORDER-PROD-002/003（両スキルのfallback+filters経路）を
+  // 追加したことで、production経路が揃い完了とする。
+  {
+    ruleId: "R-TGT-10",
+    testCaseIds: [
+      "UT-R-TGT-10-009",
+      "UT-R-TGT-10-001",
+      "IT-CAP-TARGET-FILTER-ORDER-PROD-002",
+      "IT-CAP-TARGET-FILTER-ORDER-PROD-003",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
 
   // SKL: スキル
   // R-SKL-01: 使用者戦闘不能時の中断（`applyDamageAction`のヒット単位中断＋

@@ -495,6 +495,7 @@ function resolveEffectSequence(
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
@@ -508,6 +509,7 @@ function resolveEffectSequence(
       allUnits,
       resolvedBindingUnits,
       triggerContext,
+      unitDefinitions,
     );
     resolvedBindingUnits.set(binding.targetBindingId, units);
     resolvedBindings.set(binding.targetBindingId, {
@@ -602,6 +604,7 @@ export function resolveSkillOrder(
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): EffectSequencePlan {
   if (skill.resolution.kind !== "IMMEDIATE") {
     throw new DomainValidationError(
@@ -609,7 +612,14 @@ export function resolveSkillOrder(
       `kind "${skill.resolution.kind}" is not supported by this basic SkillResolutionService (charge start/release is handled separately, see resolveChargeReleaseOrder)`,
     );
   }
-  return resolveEffectSequence(skill.resolution, actor, allUnits, effectActions, triggerContext);
+  return resolveEffectSequence(
+    skill.resolution,
+    actor,
+    allUnits,
+    effectActions,
+    triggerContext,
+    unitDefinitions,
+  );
 }
 
 /**
@@ -623,6 +633,7 @@ export function resolveChargeReleaseOrder(
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): EffectSequencePlan {
   if (skill.resolution.kind !== "CHARGE") {
     throw new DomainValidationError(
@@ -630,5 +641,12 @@ export function resolveChargeReleaseOrder(
       `kind "${skill.resolution.kind}" has no chargeRelease sequence (only CHARGE skills do)`,
     );
   }
-  return resolveEffectSequence(skill.resolution.chargeRelease, actor, allUnits, effectActions);
+  return resolveEffectSequence(
+    skill.resolution.chargeRelease,
+    actor,
+    allUnits,
+    effectActions,
+    undefined,
+    unitDefinitions,
+  );
 }

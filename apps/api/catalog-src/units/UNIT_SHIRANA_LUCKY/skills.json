@@ -170,7 +170,12 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL", "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         },
         {
           "targetBindingId": "TGT_FARTHEST_ENEMY",

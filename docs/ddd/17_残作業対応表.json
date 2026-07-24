@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 109,
-      "completed": 63,
-      "remaining": 46
+      "completed": 65,
+      "remaining": 44
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 93
+      "incompleteConversionRows": 75
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 36,
-      "implemented": 10
+      "implemented": 12
     }
   },
   "tasks": [
@@ -102,7 +102,7 @@
       "ruleIds": ["R-ORD-01", "R-ACT-01", "R-ACT-02", "R-SKL-05", "R-STS-01", "R-STS-02"]
     },
     { "taskId": "EFF-002", "ruleIds": ["R-EFF-05"] },
-    { "taskId": "TGT-002", "ruleIds": ["R-TGT-06", "R-TGT-09", "R-TGT-10"] },
+    { "taskId": "TGT-002", "ruleIds": ["R-TGT-06"] },
     { "taskId": "TGT-004", "ruleIds": ["R-TGT-08"] },
     {
       "taskId": "M7-006",
@@ -125,12 +125,6 @@
   "conversionThemeAssignments": [
     {
       "milestone": "M7",
-      "theme": "TARGET_EXCLUDE_RESOLVED_UNIT",
-      "rowCount": 8,
-      "taskId": "TGT-002"
-    },
-    {
-      "milestone": "M7",
       "theme": "AOE_PER_TARGET_CONDITION",
       "rowCount": 1,
       "taskId": "RES-004-STATUS-CONDITION"
@@ -143,7 +137,6 @@
       "taskId": "M7-001"
     },
     { "milestone": "M7", "theme": "HP_DIRECT_COST", "rowCount": 4, "taskId": "M7-002" },
-    { "milestone": "M7", "theme": "TARGET_ORDER_MARKER_COUNT", "rowCount": 4, "taskId": "TGT-002" },
     { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
     { "milestone": "M7", "theme": "REMOVE_EFFECTS_COUNT_LIMIT", "rowCount": 3, "taskId": "M7-001" },
     { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "M7-010" },
@@ -160,18 +153,6 @@
       "taskId": "M7-001"
     },
     { "milestone": "M7", "theme": "RESOURCE_GAIN_MOD", "rowCount": 2, "taskId": "M7-002" },
-    {
-      "milestone": "M7",
-      "theme": "TARGET_ORDER_STAT_LOWEST_OR_SPEED",
-      "rowCount": 2,
-      "taskId": "TGT-002"
-    },
-    {
-      "milestone": "M7",
-      "theme": "TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE",
-      "rowCount": 2,
-      "taskId": "TGT-002"
-    },
     { "milestone": "M7", "theme": "TRIGGER_PAYLOAD_FILTER", "rowCount": 2, "taskId": "M7-010" },
     {
       "milestone": "M7",
@@ -193,18 +174,6 @@
       "taskId": "M7-003"
     },
     { "milestone": "M7", "theme": "STACK_LIMIT_ON_STAT_MOD", "rowCount": 1, "taskId": "EFF-002" },
-    {
-      "milestone": "M7",
-      "theme": "TARGET_FILTER_MARKER_BY_AREA",
-      "rowCount": 1,
-      "taskId": "TGT-002"
-    },
-    {
-      "milestone": "M7",
-      "theme": "TARGET_FILTER_MARKER_COUNT_THRESHOLD",
-      "rowCount": 1,
-      "taskId": "TGT-002"
-    },
     {
       "milestone": "M7",
       "theme": "APPLY_STATUS_KIND_UNIMPLEMENTED",

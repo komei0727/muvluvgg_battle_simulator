@@ -73,7 +73,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // TARGET_HAS_MARKER names (the TARGET_SET_COUNT-only runtime path has no
     // per-target context either way) and to cover BRANCH's own condition too.
     // Bumped again by Issue #225's unrelated catalog-src change (SKL_TATIANA_SAGE_EX).
-    expect(catalog.catalogRevision).toBe("2026-07-24.13");
+    // Bumped again by TGT-002 (Issue #169): filter/order runtime evaluation lands,
+    // resolving the 18 approximated catalog-src rows across 14 units that needed it.
+    expect(catalog.catalogRevision).toBe("2026-07-25.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

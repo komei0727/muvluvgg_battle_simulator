@@ -5,16 +5,23 @@ import {
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "../model/battle-unit.js";
+import { buildInitialMarkerState, type MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
+import { createMarkerInstanceId } from "../../shared/event-ids.js";
 import {
+  createMarkerId,
+  createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
+  type MarkerId,
+  type UnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
@@ -54,6 +61,59 @@ function selector(overrides: Partial<TargetSelectorDefinition> = {}): TargetSele
     includeDefeated: false,
     ...overrides,
   };
+}
+
+function marker(markerId: MarkerId, stackCount = 1): MarkerState {
+  return {
+    ...buildInitialMarkerState(
+      createMarkerInstanceId(`mi-${markerId}`),
+      markerId,
+      createBattleUnitId("SOURCE"),
+      createBattleUnitId("TARGET"),
+      null,
+      { dispellable: true, linkedEffectGroupId: null, timeLimit: { unit: "BATTLE", count: 1 } },
+      { turnNumber: 1 },
+    ),
+    stackCount,
+  };
+}
+
+function unitDefinition(id: string, overrides: Partial<UnitDefinition> = {}): UnitDefinition {
+  return {
+    unitDefinitionId: createUnitDefinitionId(id),
+    attribute: "AGGRESSIVE",
+    unitType: "PHYSICAL",
+    role: "PHYSICAL_ATTACKER",
+    positionAptitudes: ["FRONT", "BACK"],
+    baseStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0.1,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+      actionSpeed: 10,
+      maximumAp: 3,
+      maximumPp: 3,
+    },
+    extraGaugeMaximum: 100,
+    activeSkillDefinitionIds: [],
+    passiveSkillDefinitionIds: [],
+    extraSkillDefinitionId: createSkillDefinitionId("SKL_DUMMY_EX"),
+    requiredCapabilities: [],
+    metadata: {
+      displayName: id,
+      characterName: id,
+      characterId: `CHAR_${id}`,
+      affiliations: [],
+      tags: [],
+    },
+    ...overrides,
+  };
+}
+
+function unitDefinitions(...defs: UnitDefinition[]): ReadonlyMap<UnitDefinitionId, UnitDefinition> {
+  return new Map(defs.map((d) => [d.unitDefinitionId, d]));
 }
 
 describe("resolveTargets", () => {
@@ -259,28 +319,34 @@ describe("resolveTargets", () => {
     expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("NEAR")]);
   });
 
-  it("UT-TARGET-SELECTION-POLICY-001: throws for an unsupported order key (order beyond DEFAULT is M7 scope)", () => {
-    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
-
-    expect(() =>
-      resolveTargets(selector({ side: "ENEMY", count: "ALL", order: ["NEAREST"] }), actor, [actor]),
-    ).toThrow(DomainValidationError);
-  });
-
-  it("UT-TARGET-SELECTION-POLICY-002: throws for a non-empty filters list (filters are M7 scope)", () => {
+  it("UT-TARGET-SELECTION-POLICY-001: throws for an unsupported (unknown) order key", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
 
     expect(() =>
       resolveTargets(
-        selector({
-          side: "ENEMY",
-          count: "ALL",
-          filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
-        }),
+        selector({ side: "ENEMY", count: "ALL", order: ["BOGUS_ORDER_KEY" as never] }),
         actor,
         [actor],
       ),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-TARGET-SELECTION-POLICY-002: applies a non-empty filters list (POSITION_ROW, TGT-002/CAP_TARGET_FILTER_ORDER)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const front = unit("FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const back = unit("BACK", "ENEMY", { column: "LEFT", row: "BACK" });
+
+    const targets = resolveTargets(
+      selector({
+        side: "ENEMY",
+        count: "ALL",
+        filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
+      }),
+      actor,
+      [actor, front, back],
+    );
+
+    expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("FRONT")]);
   });
 
   it("UT-TARGET-SELECTION-POLICY-003: throws when an area is set (area is M7 scope)", () => {
@@ -305,16 +371,23 @@ describe("resolveTargets", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-TARGET-SELECTION-POLICY-006: throws when the order array mixes a supported key with an unsupported one (stat-based orders are TGT-002/CAP_TARGET_FILTER_ORDER scope)", () => {
-    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+  it("UT-TARGET-SELECTION-POLICY-006: composes FRONT_ROW with NEAREST (both are supported order keys, TGT-002)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const nearFront = unit("NEAR_FRONT", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const farFront = unit("FAR_FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const nearBack = unit("NEAR_BACK", "ENEMY", { column: "CENTER", row: "BACK" });
 
-    expect(() =>
-      resolveTargets(
-        selector({ side: "ENEMY", count: "ALL", order: ["FRONT_ROW", "NEAREST"] }),
-        actor,
-        [actor],
-      ),
-    ).toThrow(DomainValidationError);
+    const targets = resolveTargets(
+      selector({ side: "ENEMY", count: "ALL", order: ["FRONT_ROW", "NEAREST"] }),
+      actor,
+      [actor, nearBack, farFront, nearFront],
+    );
+
+    expect(targets.map((t) => t.battleUnitId)).toEqual([
+      createBattleUnitId("NEAR_FRONT"),
+      createBattleUnitId("FAR_FRONT"),
+      createBattleUnitId("NEAR_BACK"),
+    ]);
   });
 
   describe("R-TGT-03: FARTHEST order (reverses the full R-TGT-02 ordering)", () => {
@@ -850,23 +923,25 @@ describe("resolveTargets", () => {
       expect(targets).toEqual([]);
     });
 
-    it("UT-R-TGT-10-008: a non-empty filters list on the fallback selector still throws (filters remain TGT-002/CAP_TARGET_FILTER_ORDER scope)", () => {
+    it("UT-R-TGT-10-008: a non-empty filters list on the fallback selector is applied like any other selector (TGT-002/CAP_TARGET_FILTER_ORDER)", () => {
       const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const backAlly = unit("BACK_ALLY", "ALLY", { column: "RIGHT", row: "BACK" });
 
-      expect(() =>
-        resolveTargets(
-          selector({
-            side: "ENEMY",
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          fallback: selector({
+            side: "ALLY",
             count: "ALL",
-            fallback: selector({
-              side: "ALLY",
-              filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
-            }),
+            filters: [{ kind: "POSITION_ROW", row: "BACK" }],
           }),
-          actor,
-          [actor],
-        ),
-      ).toThrow(DomainValidationError);
+        }),
+        actor,
+        [actor, backAlly],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("BACK_ALLY")]);
     });
   });
 
@@ -983,6 +1058,615 @@ describe("resolveTargets", () => {
 
         expect(() => resolveTargets(selectorDef, actor, [actor])).toThrow(DomainValidationError);
       }
+    });
+  });
+
+  describe("TGT-002: TargetFilterDefinition evaluation (CAP_TARGET_FILTER_ORDER, Issue #169)", () => {
+    it("UT-TGT-002-001: HAS_MARKER filter matches only candidates holding the marker", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_TAG");
+      const marked = unit(
+        "MARKED",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        {
+          markerStates: [marker(markerId)],
+        },
+      );
+      const unmarked = unit("UNMARKED", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", filters: [{ kind: "HAS_MARKER", markerId }] }),
+        actor,
+        [actor, marked, unmarked],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("MARKED")]);
+    });
+
+    it("UT-TGT-002-002: HAS_MARKER filter with countCondition compares stackCount (TARGET_FILTER_MARKER_COUNT_THRESHOLD)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_TAG");
+      const twoStacks = unit(
+        "TWO",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        {
+          markerStates: [marker(markerId, 2)],
+        },
+      );
+      const oneStack = unit(
+        "ONE",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        {
+          markerStates: [marker(markerId, 1)],
+        },
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [{ kind: "HAS_MARKER", markerId, countCondition: { op: "GTE", value: 2 } }],
+        }),
+        actor,
+        [actor, twoStacks, oneStack],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("TWO")]);
+    });
+
+    it("UT-TGT-002-003: HP_RATIO filter compares currentHp/maximumHp", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const low = unit(
+        "LOW",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { currentHp: 20, combatStats: { ...actor.combatStats, maximumHp: 100 } },
+      );
+      const high = unit(
+        "HIGH",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { currentHp: 90, combatStats: { ...actor.combatStats, maximumHp: 100 } },
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [{ kind: "HP_RATIO", op: "LTE", value: 0.3 }],
+        }),
+        actor,
+        [actor, low, high],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("LOW")]);
+    });
+
+    it("UT-TGT-002-004: AND/OR/NOT combinators evaluate recursively", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const leftFront = unit("LEFT_FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const rightFront = unit("RIGHT_FRONT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const leftBack = unit("LEFT_BACK", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [
+            {
+              kind: "AND",
+              conditions: [
+                { kind: "POSITION_ROW", row: "FRONT" },
+                { kind: "NOT", condition: { kind: "POSITION_COLUMN", column: "RIGHT" } },
+              ],
+            },
+          ],
+        }),
+        actor,
+        [actor, leftFront, rightFront, leftBack],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("LEFT_FRONT")]);
+    });
+
+    it("UT-TGT-002-005: EXCLUDE_RESOLVED_UNIT referencing SELF excludes the actor (自身を除く味方全体)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const otherAlly = unit("OTHER_ALLY", "ALLY", { column: "LEFT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ALLY",
+          count: "ALL",
+          filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+        }),
+        actor,
+        [actor, otherAlly],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("OTHER_ALLY")]);
+    });
+
+    it("UT-TGT-002-006: EXCLUDE_RESOLVED_UNIT referencing a BINDING excludes an earlier binding's target (もう1体)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const first = unit("FIRST", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const second = unit("SECOND", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const resolvedBindings = new Map([[createTargetBindingId("TGT_FIRST"), [first]]]);
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [
+            {
+              kind: "EXCLUDE_RESOLVED_UNIT",
+              reference: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_FIRST") },
+            },
+          ],
+        }),
+        actor,
+        [actor, first, second],
+        resolvedBindings,
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("SECOND")]);
+    });
+
+    it("UT-TGT-002-007: EXCLUDE_RESOLVED_UNIT throws when the referenced BINDING was not resolved", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enemy = unit("ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+      expect(() =>
+        resolveTargets(
+          selector({
+            side: "ENEMY",
+            count: "ALL",
+            filters: [
+              {
+                kind: "EXCLUDE_RESOLVED_UNIT",
+                reference: {
+                  kind: "BINDING",
+                  targetBindingId: createTargetBindingId("TGT_MISSING"),
+                },
+              },
+            ],
+          }),
+          actor,
+          [actor, enemy],
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-TGT-002-008: EXCLUDE_RESOLVED_UNIT throws for an unsupported reference kind (only SELF/BINDING)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enemy = unit("ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+      expect(() =>
+        resolveTargets(
+          selector({
+            side: "ENEMY",
+            count: "ALL",
+            filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "TRIGGER_SOURCE" } }],
+          }),
+          actor,
+          [actor, enemy],
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-TGT-002-009: MARKER_IN_AREA matches a candidate whose own column contains a marked unit (TARGET_FILTER_MARKER_BY_AREA)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_CLARA_SANTA_TAG");
+      // LEFT column: front holds the tag, back does not hold it itself but shares the column.
+      const leftFront = unit(
+        "LEFT_FRONT",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        {
+          markerStates: [marker(markerId)],
+        },
+      );
+      const leftBack = unit("LEFT_BACK", "ENEMY", { column: "LEFT", row: "BACK" });
+      const rightFront = unit("RIGHT_FRONT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [
+            {
+              kind: "MARKER_IN_AREA",
+              area: { kind: "SAME_COLUMN_AS_BASE", includeBase: true },
+              markerId,
+            },
+          ],
+        }),
+        actor,
+        [actor, leftFront, leftBack, rightFront],
+      );
+
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("LEFT_FRONT"), createBattleUnitId("LEFT_BACK")].sort(),
+      );
+    });
+
+    it("UT-TGT-002-009B: MARKER_IN_AREA ignores a defeated marker holder (PR #233 review [P1])", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_CLARA_SANTA_TAG");
+      // The only marked unit in the LEFT column is defeated, so the column
+      // should no longer count as "having a marker holder" for MARKER_IN_AREA
+      // — even though a living candidate (LEFT_FRONT) still shares the column.
+      const defeatedTagged = unit(
+        "DEFEATED_TAGGED",
+        "ENEMY",
+        { column: "LEFT", row: "BACK" },
+        { currentHp: 0, markerStates: [marker(markerId)] },
+      );
+      const leftFront = unit("LEFT_FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const rightFront = unit("RIGHT_FRONT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [
+            {
+              kind: "MARKER_IN_AREA",
+              area: { kind: "SAME_COLUMN_AS_BASE", includeBase: true },
+              markerId,
+            },
+          ],
+        }),
+        actor,
+        [actor, defeatedTagged, leftFront, rightFront],
+      );
+
+      expect(targets).toEqual([]);
+    });
+
+    it("UT-TGT-002-010: UNIT_TYPE/ROLE/AFFILIATION/CHARACTER filters resolve via the unitDefinitions map", () => {
+      const enDefId = createUnitDefinitionId("UNIT_EN");
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enUnit = unit(
+        "EN_UNIT",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { unitDefinitionId: enDefId },
+      );
+      const physicalUnit = unit("PHYSICAL_UNIT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const defs = unitDefinitions(
+        unitDefinition("UNIT_EN", { unitType: "ENERGY", role: "EN_ATTACKER" }),
+        unitDefinition("UNIT_001", { unitType: "PHYSICAL", role: "TANK" }),
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [{ kind: "UNIT_TYPE", unitType: "ENERGY" }],
+        }),
+        actor,
+        [actor, enUnit, physicalUnit],
+        undefined,
+        undefined,
+        defs,
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("EN_UNIT")]);
+    });
+
+    it("UT-TGT-002-011: UNIT_TYPE filter throws when the actual unitDefinitionId is absent from unitDefinitions", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enemy = unit("ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+      expect(() =>
+        resolveTargets(
+          selector({
+            side: "ENEMY",
+            count: "ALL",
+            filters: [{ kind: "UNIT_TYPE", unitType: "ENERGY" }],
+          }),
+          actor,
+          [actor, enemy],
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("TGT-002: TargetOrderEntry evaluation (CAP_TARGET_FILTER_ORDER, Issue #169)", () => {
+    it("UT-TGT-002-012: LOWEST_HP_RATIO/HIGHEST_HP_RATIO order by currentHp/maximumHp", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const low = unit("LOW", "ENEMY", { column: "LEFT", row: "FRONT" }, { currentHp: 10 });
+      const high = unit("HIGH", "ENEMY", { column: "RIGHT", row: "FRONT" }, { currentHp: 90 });
+
+      expect(
+        resolveTargets(
+          selector({ side: "ENEMY", count: "ALL", order: ["LOWEST_HP_RATIO"] }),
+          actor,
+          [actor, low, high],
+        ).map((t) => t.battleUnitId),
+      ).toEqual([createBattleUnitId("LOW"), createBattleUnitId("HIGH")]);
+
+      expect(
+        resolveTargets(
+          selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_HP_RATIO"] }),
+          actor,
+          [actor, low, high],
+        ).map((t) => t.battleUnitId),
+      ).toEqual([createBattleUnitId("HIGH"), createBattleUnitId("LOW")]);
+    });
+
+    it("UT-TGT-002-013: HIGHEST_ATTACK orders by combatStats.attack descending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const weak = unit(
+        "WEAK",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, attack: 5 } },
+      );
+      const strong = unit(
+        "STRONG",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, attack: 50 } },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_ATTACK"] }),
+        actor,
+        [actor, weak, strong],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("STRONG"),
+        createBattleUnitId("WEAK"),
+      ]);
+    });
+
+    it("UT-TGT-002-014: LOWEST_MAX_HP/HIGHEST_MAX_HP order by combatStats.maximumHp", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const small = unit(
+        "SMALL",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, maximumHp: 50 } },
+      );
+      const large = unit(
+        "LARGE",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, maximumHp: 500 } },
+      );
+
+      expect(
+        resolveTargets(selector({ side: "ENEMY", count: "ALL", order: ["LOWEST_MAX_HP"] }), actor, [
+          actor,
+          small,
+          large,
+        ]).map((t) => t.battleUnitId),
+      ).toEqual([createBattleUnitId("SMALL"), createBattleUnitId("LARGE")]);
+
+      expect(
+        resolveTargets(
+          selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_MAX_HP"] }),
+          actor,
+          [actor, small, large],
+        ).map((t) => t.battleUnitId),
+      ).toEqual([createBattleUnitId("LARGE"), createBattleUnitId("SMALL")]);
+    });
+
+    it("UT-TGT-002-015: HIGHEST_EX_GAUGE_RATIO orders by currentExtraGauge/maximumExtraGauge descending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const low = unit("LOW", "ENEMY", { column: "LEFT", row: "FRONT" }, { currentExtraGauge: 10 });
+      const high = unit(
+        "HIGH",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { currentExtraGauge: 90 },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_EX_GAUGE_RATIO"] }),
+        actor,
+        [actor, low, high],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("HIGH"),
+        createBattleUnitId("LOW"),
+      ]);
+    });
+
+    it("UT-TGT-002-016: FASTEST orders by combatStats.actionSpeed descending (システマ・ヴラシェーニヤΩ)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const slow = unit(
+        "SLOW",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, actionSpeed: 5 } },
+      );
+      const fast = unit(
+        "FAST",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, actionSpeed: 50 } },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: 1, order: ["FASTEST"] }),
+        actor,
+        [actor, slow, fast],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("FAST")]);
+    });
+
+    it("UT-TGT-002-017: LEFT_TO_RIGHT orders by absolute column ascending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const right = unit("RIGHT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const left = unit("LEFT", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["LEFT_TO_RIGHT"] }),
+        actor,
+        [actor, right, left],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("LEFT"),
+        createBattleUnitId("RIGHT"),
+      ]);
+    });
+
+    it("UT-TGT-002-018: SELF_LOWEST_PRIORITY ranks the actor last without excluding it (自身以外を優先)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const otherAlly = unit("OTHER_ALLY", "ALLY", { column: "LEFT", row: "FRONT" });
+
+      const withOther = resolveTargets(
+        selector({ side: "ALLY", count: 1, order: ["SELF_LOWEST_PRIORITY"] }),
+        actor,
+        [actor, otherAlly],
+      );
+      expect(withOther.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("OTHER_ALLY")]);
+
+      const onlySelf = resolveTargets(
+        selector({ side: "ALLY", count: 1, order: ["SELF_LOWEST_PRIORITY"] }),
+        actor,
+        [actor],
+      );
+      expect(onlySelf.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ACTOR")]);
+    });
+
+    it("UT-TGT-002-019: MARKER_COUNT order entry sorts ASC/DESC by stackCount, per markerId (TARGET_ORDER_MARKER_COUNT)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_GRACE");
+      const few = unit(
+        "FEW",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        {
+          markerStates: [marker(markerId, 1)],
+        },
+      );
+      const many = unit(
+        "MANY",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        {
+          markerStates: [marker(markerId, 5)],
+        },
+      );
+
+      const ascending = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          order: [{ kind: "MARKER_COUNT", markerId, direction: "ASC" }],
+        }),
+        actor,
+        [actor, many, few],
+      );
+      expect(ascending.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("FEW"),
+        createBattleUnitId("MANY"),
+      ]);
+
+      const descending = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          order: [{ kind: "MARKER_COUNT", markerId, direction: "DESC" }],
+        }),
+        actor,
+        [actor, few, many],
+      );
+      expect(descending.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("MANY"),
+        createBattleUnitId("FEW"),
+      ]);
+    });
+
+    it("UT-TGT-002-020: candidates without the marker are treated as stackCount 0 for MARKER_COUNT order", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_GRACE");
+      const holder = unit(
+        "HOLDER",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        {
+          markerStates: [marker(markerId, 1)],
+        },
+      );
+      const bare = unit("BARE", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          order: [{ kind: "MARKER_COUNT", markerId, direction: "ASC" }],
+        }),
+        actor,
+        [actor, holder, bare],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("BARE"),
+        createBattleUnitId("HOLDER"),
+      ]);
+    });
+
+    it("UT-TGT-002-021: UNIT_TYPE_PRIORITY order entry ranks the given unitType first (ENタイプを優先)", () => {
+      const enDefId = createUnitDefinitionId("UNIT_EN");
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enAlly = unit(
+        "EN_ALLY",
+        "ALLY",
+        { column: "LEFT", row: "FRONT" },
+        { unitDefinitionId: enDefId },
+      );
+      const physicalAlly = unit("PHYSICAL_ALLY", "ALLY", { column: "RIGHT", row: "FRONT" });
+      const defs = unitDefinitions(
+        unitDefinition("UNIT_EN", { unitType: "ENERGY" }),
+        unitDefinition("UNIT_001", { unitType: "PHYSICAL" }),
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ALLY",
+          count: 1,
+          order: [{ kind: "UNIT_TYPE_PRIORITY", unitType: "ENERGY" }, "SELF_LOWEST_PRIORITY"],
+        }),
+        actor,
+        [actor, physicalAlly, enAlly],
+        undefined,
+        undefined,
+        defs,
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("EN_ALLY")]);
+    });
+
+    it("UT-TGT-002-022: order composition falls through to SELF_LOWEST_PRIORITY when no ally matches UNIT_TYPE_PRIORITY (幸運のデコイ)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const otherAlly = unit("OTHER_ALLY", "ALLY", { column: "LEFT", row: "FRONT" });
+      const defs = unitDefinitions(unitDefinition("UNIT_001", { unitType: "PHYSICAL" }));
+
+      const targets = resolveTargets(
+        selector({
+          side: "ALLY",
+          count: 1,
+          order: [{ kind: "UNIT_TYPE_PRIORITY", unitType: "ENERGY" }, "SELF_LOWEST_PRIORITY"],
+        }),
+        actor,
+        [actor, otherAlly],
+        undefined,
+        undefined,
+        defs,
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("OTHER_ALLY")]);
     });
   });
 });

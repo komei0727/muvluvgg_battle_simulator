@@ -17,8 +17,9 @@ import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { TargetBindingDefinition } from "../../catalog/definitions/effect-sequence.js";
-import type { TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
+import type { TargetBindingId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -32,10 +33,18 @@ export function resolveBindingSelections(
   targetBindings: readonly TargetBindingDefinition[],
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): readonly { targetBindingId: string; selectedTargetUnitIds: readonly BattleUnitId[] }[] {
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
   return targetBindings.map((binding) => {
-    const units = resolveTargets(binding.selector, actor, allUnits, resolvedBindingUnits);
+    const units = resolveTargets(
+      binding.selector,
+      actor,
+      allUnits,
+      resolvedBindingUnits,
+      undefined,
+      unitDefinitions,
+    );
     resolvedBindingUnits.set(binding.targetBindingId, units);
     return {
       targetBindingId: binding.targetBindingId,
@@ -166,7 +175,14 @@ export function resolveSkillUse(
     );
   }
 
-  const plan = resolveSkillOrder(skill, actorAfterExGain, working, definitions.effectActions);
+  const plan = resolveSkillOrder(
+    skill,
+    actorAfterExGain,
+    working,
+    definitions.effectActions,
+    undefined,
+    definitions.unitDefinitions,
+  );
   const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();
@@ -197,7 +213,12 @@ export function resolveSkillUse(
       // `plan`(直前の`resolveSkillOrder`呼び出し)が既にkind==="IMMEDIATE"を検証済み。
       bindings:
         skill.resolution.kind === "IMMEDIATE"
-          ? resolveBindingSelections(skill.resolution.targetBindings, actorAfterCost, working)
+          ? resolveBindingSelections(
+              skill.resolution.targetBindings,
+              actorAfterCost,
+              working,
+              definitions.unitDefinitions,
+            )
           : [],
     },
   });

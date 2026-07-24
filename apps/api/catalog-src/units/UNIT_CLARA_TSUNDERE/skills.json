@@ -151,11 +151,21 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL", "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         },
         {
           "targetBindingId": "TGT_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -173,7 +183,7 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "クイックブースト", "tags": [] },
     "triggers": [
       {

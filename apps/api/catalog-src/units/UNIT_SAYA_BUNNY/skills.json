@@ -12,7 +12,17 @@
         },
         {
           "targetBindingId": "TGT_OTHERS",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "EXCLUDE_RESOLVED_UNIT",
+                "reference": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" }
+              }
+            ]
+          }
         }
       ],
       "steps": [

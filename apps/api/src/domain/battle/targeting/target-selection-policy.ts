@@ -2,14 +2,21 @@ import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { frontDirectionStep, manhattanDistance } from "./position-policy.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { Side as SelectorSide } from "../../catalog/definitions/catalog-enums.js";
+import type { Side as SelectorSide, UnitType } from "../../catalog/definitions/catalog-enums.js";
 import type {
   AreaDefinition,
+  TargetFilterDefinition,
+  TargetOrderEntry,
   TargetOrderKey,
   TargetSelectorDefinition,
 } from "../../catalog/definitions/target-selector-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
-import type { TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
+import type {
+  MarkerId,
+  TargetBindingId,
+  UnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 const ROW_ORDER: Record<BattleUnit["position"]["row"], number> = { FRONT: 0, BACK: 1 };
@@ -54,12 +61,158 @@ export function matchesRelativeSide(
   return unit.side === absoluteSide;
 }
 
-function assertNoFilters(selector: TargetSelectorDefinition): void {
-  if (selector.filters.length > 0) {
+const EMPTY_UNIT_DEFINITIONS: ReadonlyMap<UnitDefinitionId, UnitDefinition> = new Map();
+
+/** TGT-002（CAP_TARGET_FILTER_ORDER）: UNIT_TYPE/ROLE/AFFILIATION/CHARACTERフィルタ・UNIT_TYPE_PRIORITY orderが要る静的Catalogデータ。 */
+function lookupUnitDefinition(
+  unit: BattleUnit,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+): UnitDefinition {
+  const definition = unitDefinitions.get(unit.unitDefinitionId);
+  if (definition === undefined) {
     throw new DomainValidationError(
-      "selector.filters",
-      "non-empty filters are not supported by this TargetSelectionPolicy (TGT-002/CAP_TARGET_FILTER_ORDER scope)",
+      "unitDefinitions",
+      `no UnitDefinition found for unitDefinitionId "${unit.unitDefinitionId}"`,
     );
+  }
+  return definition;
+}
+
+function markerStackCount(unit: BattleUnit, markerId: MarkerId): number {
+  return unit.markerStates.find((state) => state.markerId === markerId)?.stackCount ?? 0;
+}
+
+/** HP_RATIO filter/MARKER countConditionが使う数値比較（`domain/battle/targeting`は`domain/battle/skill`のcomparison-operator.tsへ依存できないため独立実装する）。 */
+function compareNumeric(
+  actual: number,
+  op: "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ",
+  expected: number,
+): boolean {
+  switch (op) {
+    case "GT":
+      return actual > expected;
+    case "GTE":
+      return actual >= expected;
+    case "LT":
+      return actual < expected;
+    case "LTE":
+      return actual <= expected;
+    case "EQ":
+      return actual === expected;
+    case "NEQ":
+      return actual !== expected;
+  }
+}
+
+interface FilterContext {
+  readonly actor: BattleUnit;
+  readonly allUnits: readonly BattleUnit[];
+  readonly resolvedBindings: ResolvedTargetBindings;
+  readonly unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
+}
+
+/** TARGET_EXCLUDE_RESOLVED_UNIT（TGT-002）: SELF/BINDINGのみ対応（TRIGGER_SOURCE/TRIGGER_TARGET/LAST_*はM7スコープ外）。 */
+function resolveExcludeReferenceUnits(
+  reference: TargetReference,
+  actor: BattleUnit,
+  resolvedBindings: ResolvedTargetBindings,
+): readonly BattleUnit[] {
+  if (reference.kind === "SELF") {
+    return [actor];
+  }
+  if (reference.kind === "BINDING") {
+    const targetBindingId = reference.targetBindingId as TargetBindingId;
+    const units = resolvedBindings.get(targetBindingId);
+    if (units === undefined) {
+      throw new DomainValidationError(
+        "filter.reference.targetBindingId",
+        `targetBindingId "${targetBindingId}" was not resolved from targetBindings`,
+      );
+    }
+    return units;
+  }
+  throw new DomainValidationError(
+    "filter.reference.kind",
+    `kind "${reference.kind}" is not supported by EXCLUDE_RESOLVED_UNIT (only SELF/BINDING, M7 scope)`,
+  );
+}
+
+/**
+ * R-TGT-09 #3（TGT-002、CAP_TARGET_FILTER_ORDER）: `filters`を定義順にAND評価する
+ * （複数filterは暗黙のAND、`AND`/`OR`/`NOT`は入れ子条件として評価する）。
+ */
+function matchesFilter(
+  filter: TargetFilterDefinition,
+  candidate: BattleUnit,
+  ctx: FilterContext,
+): boolean {
+  switch (filter.kind) {
+    case "POSITION_ROW":
+      return candidate.position.row === filter.row;
+    case "POSITION_COLUMN":
+      return candidate.position.column === filter.column;
+    case "POSITION_SLOT":
+      return candidate.position.row === filter.row && candidate.position.column === filter.column;
+    case "UNIT_TYPE":
+      return lookupUnitDefinition(candidate, ctx.unitDefinitions).unitType === filter.unitType;
+    case "ROLE":
+      return lookupUnitDefinition(candidate, ctx.unitDefinitions).role === filter.role;
+    case "ATTRIBUTE":
+      return candidate.attribute === filter.attribute;
+    case "AFFILIATION":
+      return lookupUnitDefinition(candidate, ctx.unitDefinitions).metadata.affiliations.includes(
+        filter.affiliationId,
+      );
+    case "CHARACTER":
+      return (
+        lookupUnitDefinition(candidate, ctx.unitDefinitions).metadata.characterId ===
+        filter.characterId
+      );
+    case "HAS_MARKER": {
+      const marker = candidate.markerStates.find((state) => state.markerId === filter.markerId);
+      if (marker === undefined) {
+        return false;
+      }
+      if (filter.countCondition === undefined) {
+        return true;
+      }
+      return compareNumeric(
+        marker.stackCount,
+        filter.countCondition.op as "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ",
+        filter.countCondition.value,
+      );
+    }
+    case "HP_RATIO":
+      return compareNumeric(
+        candidate.currentHp / candidate.combatStats.maximumHp,
+        filter.op as "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ",
+        filter.value,
+      );
+    case "EXCLUDE_RESOLVED_UNIT": {
+      const excluded = resolveExcludeReferenceUnits(
+        filter.reference,
+        ctx.actor,
+        ctx.resolvedBindings,
+      );
+      return !excluded.some((unit) => unit.battleUnitId === candidate.battleUnitId);
+    }
+    case "MARKER_IN_AREA": {
+      // PR #233レビュー[P1]: 戦闘不能者にもmarkerStatesは残るため、明示的な
+      // includeDefeated指定がない限り、所在判定の対象からも除外する
+      // （候補自身の戦闘不能除外はR-TGT-01 #2/R-TGT-09 #2で既に済んでいる）。
+      const areaPool = applyArea(filter.area, candidate, ctx.allUnits).filter(
+        (unit) => !isDefeated(unit),
+      );
+      return areaPool.some((unit) =>
+        unit.markerStates.some((state) => state.markerId === filter.markerId),
+      );
+    }
+    case "AND":
+      return filter.conditions.every((condition) => matchesFilter(condition, candidate, ctx));
+    case "OR":
+      return filter.conditions.some((condition) => matchesFilter(condition, candidate, ctx));
+    case "NOT":
+      return !matchesFilter(filter.condition, candidate, ctx);
   }
 }
 
@@ -98,14 +251,98 @@ function compareRowPriority(priorityRow: BattleUnit["position"]["row"]) {
   };
 }
 
-const SINGLE_KEY_ORDER_COMPARATORS: Partial<
-  Record<TargetOrderKey, (actor: BattleUnit) => (a: BattleUnit, b: BattleUnit) => number>
+function hpRatio(unit: BattleUnit): number {
+  return unit.currentHp / unit.combatStats.maximumHp;
+}
+
+function exGaugeRatio(unit: BattleUnit): number {
+  return unit.maximumExtraGauge === 0 ? 0 : unit.currentExtraGauge / unit.maximumExtraGauge;
+}
+
+/** TGT-002（CAP_TARGET_FILTER_ORDER）: R-TGT-02の距離部分のみを単独比較キーとして使う（`["FRONT_ROW", "NEAREST", "LEFT_TO_RIGHT"]`のような分解済み並びに対応）。 */
+function compareNearestOrder(actor: BattleUnit) {
+  return (a: BattleUnit, b: BattleUnit): number =>
+    manhattanDistance(actor.globalCoordinate, a.globalCoordinate) -
+    manhattanDistance(actor.globalCoordinate, b.globalCoordinate);
+}
+
+function compareLeftToRight(a: BattleUnit, b: BattleUnit): number {
+  return a.globalCoordinate.x - b.globalCoordinate.x;
+}
+
+function compareLowestHpRatio(a: BattleUnit, b: BattleUnit): number {
+  return hpRatio(a) - hpRatio(b);
+}
+
+function compareHighestHpRatio(a: BattleUnit, b: BattleUnit): number {
+  return hpRatio(b) - hpRatio(a);
+}
+
+function compareHighestAttack(a: BattleUnit, b: BattleUnit): number {
+  return b.combatStats.attack - a.combatStats.attack;
+}
+
+function compareLowestMaxHp(a: BattleUnit, b: BattleUnit): number {
+  return a.combatStats.maximumHp - b.combatStats.maximumHp;
+}
+
+function compareHighestMaxHp(a: BattleUnit, b: BattleUnit): number {
+  return b.combatStats.maximumHp - a.combatStats.maximumHp;
+}
+
+function compareHighestExGaugeRatio(a: BattleUnit, b: BattleUnit): number {
+  return exGaugeRatio(b) - exGaugeRatio(a);
+}
+
+function compareFastest(a: BattleUnit, b: BattleUnit): number {
+  return b.combatStats.actionSpeed - a.combatStats.actionSpeed;
+}
+
+/** TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDEテーマ:「自身以外を優先」— 自身をhard excludeせず末尾へ回す（自身しかいない場合は自身が残る）。 */
+function compareSelfLowestPriority(actor: BattleUnit) {
+  return (a: BattleUnit, b: BattleUnit): number => {
+    const rankA = a.battleUnitId === actor.battleUnitId ? 1 : 0;
+    const rankB = b.battleUnitId === actor.battleUnitId ? 1 : 0;
+    return rankA - rankB;
+  };
+}
+
+const SINGLE_KEY_ORDER_COMPARATORS: Record<
+  TargetOrderKey,
+  (actor: BattleUnit) => (a: BattleUnit, b: BattleUnit) => number
 > = {
   DEFAULT: compareDefaultOrder,
+  NEAREST: compareNearestOrder,
   FARTHEST: compareFarthestOrder,
   FRONT_ROW: () => compareRowPriority("FRONT"),
   BACK_ROW: () => compareRowPriority("BACK"),
+  LEFT_TO_RIGHT: () => compareLeftToRight,
+  LOWEST_HP_RATIO: () => compareLowestHpRatio,
+  HIGHEST_HP_RATIO: () => compareHighestHpRatio,
+  HIGHEST_ATTACK: () => compareHighestAttack,
+  LOWEST_MAX_HP: () => compareLowestMaxHp,
+  HIGHEST_MAX_HP: () => compareHighestMaxHp,
+  HIGHEST_EX_GAUGE_RATIO: () => compareHighestExGaugeRatio,
+  FASTEST: () => compareFastest,
+  SELF_LOWEST_PRIORITY: compareSelfLowestPriority,
 };
+
+/** TARGET_ORDER_MARKER_COUNTテーマ: Marker所持数（`markerId`指定）を比較キーにする。 */
+function compareMarkerCount(markerId: MarkerId, direction: "ASC" | "DESC") {
+  const sign = direction === "ASC" ? 1 : -1;
+  return (a: BattleUnit, b: BattleUnit): number =>
+    sign * (markerStackCount(a, markerId) - markerStackCount(b, markerId));
+}
+
+/** TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDEテーマ: 指定unitTypeを優先する。 */
+function compareUnitTypePriority(
+  unitType: UnitType,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+) {
+  const rank = (unit: BattleUnit): number =>
+    lookupUnitDefinition(unit, unitDefinitions).unitType === unitType ? 0 : 1;
+  return (a: BattleUnit, b: BattleUnit): number => rank(a) - rank(b);
+}
 
 /**
  * R-TGT-09 #5: `order`を上から順に比較キーとして適用し、候補順を一意にする。
@@ -113,15 +350,25 @@ const SINGLE_KEY_ORDER_COMPARATORS: Partial<
  * `["FRONT_ROW", "DEFAULT"]`のように配列内で組み合わせられることを前提とする
  * （`FARTHEST`は例外的にR-TGT-03の全体反転そのものであり単独で一意な順序になる）。
  * 指定された全キーが同点の場合も、盤面上の位置は一意なため`compareDefaultOrder`
- * で必ず順序を確定する。
+ * で必ず順序を確定する。`MARKER_COUNT`/`UNIT_TYPE_PRIORITY`はパラメータ付き
+ * オブジェクト形式の`TargetOrderEntry`（TGT-002）。
  */
-function compareByOrder(orderKeys: readonly TargetOrderKey[], actor: BattleUnit) {
-  const comparators = orderKeys.map((key) => {
-    const factory = SINGLE_KEY_ORDER_COMPARATORS[key];
+function compareByOrder(
+  orderEntries: readonly TargetOrderEntry[],
+  actor: BattleUnit,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+) {
+  const comparators = orderEntries.map((entry) => {
+    if (typeof entry !== "string") {
+      return entry.kind === "MARKER_COUNT"
+        ? compareMarkerCount(entry.markerId, entry.direction)
+        : compareUnitTypePriority(entry.unitType, unitDefinitions);
+    }
+    const factory = SINGLE_KEY_ORDER_COMPARATORS[entry];
     if (factory === undefined) {
       throw new DomainValidationError(
         "selector.order",
-        `order key "${key}" is not supported by this TargetSelectionPolicy (TGT-002/CAP_TARGET_FILTER_ORDER scope)`,
+        `order key "${entry}" is not supported by this TargetSelectionPolicy (TGT-002/CAP_TARGET_FILTER_ORDER scope)`,
       );
     }
     return factory(actor);
@@ -269,10 +516,11 @@ function applyArea(
  * R-TGT-09（`kind`→戦闘不能除外→`filters`→`area`→`order`→`count`→`fallback`の評価順、
  * `BINDING_DERIVED`の`base`解決）、R-TGT-10/CAP_TARGET_BINDING_FALLBACK（Issue #168/
  * TGT-003: `count`適用後の候補が0件かつ`fallback`があれば、`fallback`自身を同じ
- * `resolveTargets`で再帰的に評価する）を実装する。`filters`（非空）は引き続き
- * TGT-002（`CAP_TARGET_FILTER_ORDER`）のスコープのため明示的に例外を投げる
- * （`fallback`が持つ`filters`も同じ理由で再帰評価時に例外となる）。`selector.kind`/
- * `base`の`TRIGGER_SOURCE`/`TRIGGER_TARGET`は`triggerContext`（`CAP_TRIGGER_CONTEXT`、
+ * `resolveTargets`で再帰的に評価する）を実装する。`filters`（非空）と`order`の
+ * 残り全キー・パラメータ付きエントリ（TGT-002、`CAP_TARGET_FILTER_ORDER`、
+ * Issue #169）は`matchesFilter`/`compareByOrder`が評価する。`filter.reference`の
+ * `EXCLUDE_RESOLVED_UNIT`はSELF/BINDINGのみ対応し、`selector.kind`/`base`の
+ * `TRIGGER_SOURCE`/`TRIGGER_TARGET`は`triggerContext`（`CAP_TRIGGER_CONTEXT`、
  * RES-005、Issue #172）から解決する。`base`の`LAST_ACTION_TARGETS`/
  * `LAST_DAMAGED_TARGETS`参照は引き続き未対応のため例外を投げる。
  */
@@ -316,11 +564,10 @@ export function resolveTargets(
   allUnits: readonly BattleUnit[],
   resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
   triggerContext?: TriggerContext,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
 ): readonly BattleUnit[] {
-  assertNoFilters(selector);
-
   // R-TGT-09 #5相当の事前検証: orderは並べ替え前に検証する（候補0/1件でも不正なorderは拒否する）。
-  const compare = compareByOrder(selector.order, actor);
+  const compare = compareByOrder(selector.order, actor, unitDefinitions);
 
   // R-TGT-09 #1: kindに基づき初期候補を作る。
   let pool: readonly BattleUnit[];
@@ -348,6 +595,14 @@ export function resolveTargets(
     pool = pool.filter((u) => !isDefeated(u));
   }
 
+  // R-TGT-09 #3（TGT-002、CAP_TARGET_FILTER_ORDER）: filtersを定義順（AND）に適用する。
+  if (selector.filters.length > 0) {
+    const filterContext: FilterContext = { actor, allUnits, resolvedBindings, unitDefinitions };
+    pool = pool.filter((candidate) =>
+      selector.filters.every((filter) => matchesFilter(filter, candidate, filterContext)),
+    );
+  }
+
   // R-TGT-09 #4: areaが指定されている場合、baseを基準に候補を範囲で絞る。
   if (selector.area !== undefined) {
     const base = resolveBase(selector, actor, allUnits, resolvedBindings, triggerContext);
@@ -370,7 +625,14 @@ export function resolveTargets(
   // として同じ評価順（kind→戦闘不能除外→filters→area→order→count→fallback）で
   // 評価する。fallbackが自身のfallbackを持つ場合も同じ規約で連鎖する。
   if (selected.length === 0 && selector.fallback !== undefined) {
-    return resolveTargets(selector.fallback, actor, allUnits, resolvedBindings, triggerContext);
+    return resolveTargets(
+      selector.fallback,
+      actor,
+      allUnits,
+      resolvedBindings,
+      triggerContext,
+      unitDefinitions,
+    );
   }
   return selected;
 }

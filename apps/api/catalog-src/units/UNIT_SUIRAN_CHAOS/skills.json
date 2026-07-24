@@ -12,7 +12,12 @@
         },
         {
           "targetBindingId": "TGT_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -30,7 +35,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ブラック・スタイル", "tags": [] }
   },
   {

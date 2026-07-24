@@ -88,7 +88,12 @@
         },
         {
           "targetBindingId": "TGT_SHIELD_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -109,7 +114,8 @@
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_SHIELD",
-      "CAP_ACTION_ACTIVATION_CONDITION"
+      "CAP_ACTION_ACTIVATION_CONDITION",
+      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "風紀を守る一撃", "tags": [] }
   },
@@ -122,7 +128,18 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_MAO_COMMITTEE_DISCIPLINE",
+                "direction": "ASC"
+              }
+            ]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
@@ -147,7 +164,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_CONTINUOUS_DAMAGE", "CAP_MARKER"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_CONTINUOUS_DAMAGE",
+      "CAP_MARKER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "容疑者を捕捉！", "tags": [] }
   },
   {
@@ -159,7 +181,12 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALLY_ALL",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -177,7 +204,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT", "CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {
