@@ -587,7 +587,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `SKL_HARRIET_SAGE_AS1`（`TGT_ADJ`という`BINDING_DERIVED`参照、0〜N体）は
   // 対応するBRANCHをACTIONの`targetCondition`（対象ごとの正しいfilter）へ
   // 書き換えた — 単に例外を避けるだけでなく、意図どおり対象ごとに判定する
-  // 挙動へ修正している。
+  // 挙動へ修正している。PRレビュー[P2]再指摘: `targetReferenceIsSingleUnit`が
+  // `BINDING`の主selectorだけを見て`fallback`（`TargetSelectorDefinition`が
+  // 任意に持てる、候補0件時の代替selector）を無視していたため、主selectorが
+  // count:1でも`fallback`がcount:"ALL"等なら誤って通過してしまう欠陥を
+  // `selectorGuaranteesAtMostOneUnit`（fallback連鎖を再帰的に検査）で修正し、
+  // `UT-CAT-IDX-069`/`070`で検証した。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [

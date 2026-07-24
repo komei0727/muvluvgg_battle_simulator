@@ -465,11 +465,10 @@ function collectMixedStepTargetSetConditionPaths(
  * `resolveTargetSet`経由の分岐）。量化規則（EXISTS/ALL等）を発明せずに済む
  * 範囲へ意図的に限定しているため、それ以外の参照はCatalogロード時点で拒否する。
  * `SELF`/`TRIGGER_SOURCE`は常に1体、`BINDING`は宣言元の`selector`が
- * `kind: SELECT`かつ`count: 1`の場合だけ高々1体を保証する
- * （`target-selector-definition.ts`: `count`は`SELECT`にしか付けられず、
- * `BINDING_DERIVED`は`area`で絞り込んだ0〜N体になりうる）。`TRIGGER_TARGET`
- * （`triggerTargetUnitIds`は複数ありうる）と`LAST_ACTION_TARGETS`/
- * `LAST_DAMAGED_TARGETS`（AOEの直前結果を含みうる）は保証できないため拒否する。
+ * 高々1体しか解決しないことを`selectorGuaranteesAtMostOneUnit`で保証する場合
+ * だけ許可する。`TRIGGER_TARGET`（`triggerTargetUnitIds`は複数ありうる）と
+ * `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`（AOEの直前結果を含みうる）は
+ * 保証できないため拒否する。
  */
 function targetReferenceIsSingleUnit(
   reference: TargetReference,
@@ -488,9 +487,37 @@ function targetReferenceIsSingleUnit(
         return false;
       }
       const selector = bindingSelectors.get(reference.targetBindingId);
-      return selector !== undefined && selector.kind === "SELECT" && selector.count === 1;
+      return selector !== undefined && selectorGuaranteesAtMostOneUnit(selector);
     }
   }
+}
+
+/**
+ * PRレビュー[P2]再指摘（Issue #230）: `TargetSelectorDefinition`自身が高々1体
+ * しか解決しないことを保証できるかどうか（`resolveTargets`の実装 —
+ * `target-selection-policy.ts` — に基づく）。`kind: SELF`は常に`actor`
+ * 1体、`kind: TRIGGER_SOURCE`は常に`triggerContext.triggerSourceUnitId`の
+ * 高々1体（`resolveTriggerPool`）、`kind: SELECT`は`count: 1`の場合だけ
+ * 高々1体（`count`は`SELECT`にしか付けられない）。`filters`/`area`は候補を
+ * 絞り込むだけで増やさないため、この3ケース以外では保証しない —
+ * `kind: TRIGGER_TARGET`は`triggerTargetUnitIds`が複数ありうるため不可、
+ * `kind: BINDING_DERIVED`は`count`を持てず`area`（例:
+ * `ADJACENT_ORTHOGONAL`は最大4体）で絞り込んだ0〜N体になりうるため不可。
+ * `resolveTargets`は主selectorの候補が0件のときだけ`fallback`（独立した
+ * `TargetSelectorDefinition`）へ切り替えるため（R-TGT-09 #7）、実際に解決
+ * されうる集合は主selectorの結果と`fallback`の結果の和ではなく「どちらか
+ * 一方」だが、値を見ずに静的検証する以上はどちらの経路を通っても高々1体で
+ * あることを再帰的に保証する必要がある。
+ */
+function selectorGuaranteesAtMostOneUnit(selector: TargetSelectorDefinition): boolean {
+  const ownSelectionGuaranteesAtMostOne =
+    selector.kind === "SELF" ||
+    selector.kind === "TRIGGER_SOURCE" ||
+    (selector.kind === "SELECT" && selector.count === 1);
+  if (!ownSelectionGuaranteesAtMostOne) {
+    return false;
+  }
+  return selector.fallback === undefined || selectorGuaranteesAtMostOneUnit(selector.fallback);
 }
 
 function collectTargetStateOrMarkerReferences(

@@ -1725,6 +1725,7 @@ describe("buildCatalogIndex", () => {
     function branchConditionSkill(
       condition: ConditionDefinitionInput,
       multiBindingSelector?: TargetSelectorDefinitionInput,
+      extraCapabilities: readonly string[] = [],
     ): SkillDefinition {
       return createSkillDefinition({
         skillDefinitionId: "SKL_AS1",
@@ -1753,7 +1754,7 @@ describe("buildCatalogIndex", () => {
         },
         cooldown: { unit: "ACTION", count: 1 },
         traits: {},
-        requiredCapabilities: caps,
+        requiredCapabilities: [...caps, ...extraCapabilities],
         metadata: { displayName: "Branch target-state scope AS" },
       });
     }
@@ -1919,6 +1920,57 @@ describe("buildCatalogIndex", () => {
           capabilities: [...capabilities, capability("CAP_RANDOM_BRANCH")],
         }),
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-069（PRレビュー[P2]再指摘）: rejects a BRANCH condition referencing a BINDING whose primary selector is count:1 but whose fallback can resolve to more than one unit", () => {
+      const defs = baseDefinitions();
+      const skill = branchConditionSkill(
+        {
+          kind: "TARGET_STATE",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          field: "IS_ALIVE",
+          op: "EQ",
+          value: true,
+        },
+        {
+          kind: "SELECT",
+          side: "ENEMY",
+          count: 1,
+          order: ["DEFAULT"],
+          fallback: { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
+        },
+      );
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)], capabilities }),
+      ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-070（PRレビュー[P2]再指摘）: accepts a BRANCH condition referencing a BINDING whose fallback chain is entirely count:1 (every reachable path resolves to at most one unit)", () => {
+      const defs = baseDefinitions();
+      const skill = branchConditionSkill(
+        {
+          kind: "TARGET_STATE",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          field: "IS_ALIVE",
+          op: "EQ",
+          value: true,
+        },
+        {
+          kind: "SELECT",
+          side: "ENEMY",
+          count: 1,
+          order: ["DEFAULT"],
+          fallback: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+        },
+        ["CAP_TARGET_BINDING_FALLBACK"],
+      );
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [skill, exSkill("SKL_EX1", 7)],
+          capabilities: [...capabilities, capability("CAP_TARGET_BINDING_FALLBACK")],
+        }),
+      ).not.toThrow();
     });
   });
 
