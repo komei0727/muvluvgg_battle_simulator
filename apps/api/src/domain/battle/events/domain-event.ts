@@ -263,6 +263,22 @@ export interface BattleDomainEventPayloadMap {
     readonly finalDamage: number;
     readonly damageType: DamageType;
   };
+  /**
+   * `08_ドメインイベント.md`「HitPointReduced」: HPを減らした後に発行する
+   * `FACT`（RES-005、Issue #172）。R-DMG-05の並び上は`DamageCalculated`と
+   * `DamageApplied`の間 — シールド・サブユニット吸収（M8未実装のため現状は
+   * 常にHPへ直接適用）を経てHPが確定した直後を表す。HP変化のStateDeltaは
+   * このイベントが持つ（`DamageApplied`はもう持たない — 同じdeltaを両方の
+   * イベントへ付けると独立Reducer復元が二重適用でエラーになるため）。
+   */
+  readonly HitPointReduced: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+    readonly targetUnitId: BattleUnitId;
+    readonly hitPointDamage: number;
+    readonly hpBefore: number;
+    readonly hpAfter: number;
+  };
   readonly DamageApplied: {
     readonly effectActionDefinitionId: EffectActionDefinitionId;
     readonly hitIndex: number;

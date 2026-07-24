@@ -1,5 +1,5 @@
 import type { BattleUnit } from "../model/battle-unit.js";
-import { resolveTargets } from "../targeting/target-selection-policy.js";
+import { resolveTargets, type TriggerContext } from "../targeting/target-selection-policy.js";
 import { evaluateEffectStepCondition } from "./effect-step-condition-evaluator.js";
 import type {
   EffectActionReference,
@@ -37,7 +37,8 @@ export interface EffectActionApplication {
    * A `SELF` reference (no selector involved) is always `false` - if the
    * actor itself were defeated, the actor-defeated interrupt check runs
    * before this decision is ever reached. `LAST_ACTION_TARGETS`/
-   * `LAST_DAMAGED_TARGETS` (R-SKL-08) have no selector of their own either,
+   * `LAST_DAMAGED_TARGETS` (R-SKL-08) and `TRIGGER_SOURCE`/`TRIGGER_TARGET`
+   * (RES-005/CAP_TRIGGER_CONTEXT) have no selector of their own either,
    * and default to `false` for the same reason.
    */
   readonly includeDefeated: boolean;
@@ -111,14 +112,57 @@ export interface EffectSequencePlan {
   readonly resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>;
 }
 
+/**
+ * PRレビュー指摘[P2]: `triggerContext`はBattleUnitIdだけを持つ（stale
+ * snapshot回避のため）。`allUnits`（呼び出し時点の最新roster）から都度
+ * 引き直す。
+ */
+function findUnitById(allUnits: readonly BattleUnit[], id: BattleUnitId): BattleUnit | undefined {
+  return allUnits.find((candidate) => candidate.battleUnitId === id);
+}
+
 export function resolveReference(
   reference: TargetReference,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
   lastResultTargets?: LastResultTargetContext,
+  triggerContext?: TriggerContext,
 ): ResolvedBinding {
   if (reference.kind === "SELF") {
     return { units: [actor], includeDefeated: false };
+  }
+  if (reference.kind === "TRIGGER_SOURCE") {
+    const unit =
+      triggerContext?.triggerSourceUnitId !== undefined
+        ? findUnitById(allUnits, triggerContext.triggerSourceUnitId)
+        : undefined;
+    if (unit === undefined) {
+      throw new DomainValidationError(
+        "target.kind",
+        'kind "TRIGGER_SOURCE" requires a triggerContext.triggerSourceUnitId resolvable in allUnits (only available when a trigger event caused this resolution, RES-005/CAP_TRIGGER_CONTEXT)',
+      );
+    }
+    return { units: [unit], includeDefeated: false };
+  }
+  if (reference.kind === "TRIGGER_TARGET") {
+    if (triggerContext?.triggerTargetUnitIds === undefined) {
+      throw new DomainValidationError(
+        "target.kind",
+        'kind "TRIGGER_TARGET" requires a triggerContext.triggerTargetUnitIds (only available when a trigger event caused this resolution, RES-005/CAP_TRIGGER_CONTEXT)',
+      );
+    }
+    const units = triggerContext.triggerTargetUnitIds.map((id) => {
+      const unit = findUnitById(allUnits, id);
+      if (unit === undefined) {
+        throw new DomainValidationError(
+          "target.kind",
+          `kind "TRIGGER_TARGET" referenced battleUnitId "${id}" that is not present in allUnits`,
+        );
+      }
+      return unit;
+    });
+    return { units, includeDefeated: false };
   }
   if (reference.kind === "BINDING") {
     const resolved = resolvedBindings.get(reference.targetBindingId as TargetBindingId);
@@ -153,10 +197,13 @@ export function resolveReference(
     });
     return { units, includeDefeated: false };
   }
-  throw new DomainValidationError(
-    "target.kind",
-    `kind "${reference.kind}" is not supported by this basic SkillResolutionService (M6/M7 scope)`,
-  );
+  // R-TGT-09/CAP_TRIGGER_CONTEXT: every `TargetReferenceKind` is now handled
+  // above (SELF/TRIGGER_SOURCE/TRIGGER_TARGET/BINDING/LAST_ACTION_TARGETS/
+  // LAST_DAMAGED_TARGETS); the `never` assignment below makes the compiler
+  // itself reject a silently-unhandled kind if `TargetReferenceKind` ever
+  // grows a new member.
+  const exhaustive: never = reference.kind;
+  throw new DomainValidationError("target.kind", `unreachable kind "${String(exhaustive)}"`);
 }
 
 /** R-SKL-03: DAMAGEのhitCountだけが複数ヒットを持つ。それ以外の種別は常に1ヒット。 */
@@ -182,14 +229,18 @@ export function resolveActionStepApplications(
   step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   lastResultTargets?: LastResultTargetContext,
+  triggerContext?: TriggerContext,
 ): readonly EffectActionApplication[] {
   const { units: targets, includeDefeated } = resolveReference(
     step.target,
     resolvedBindings,
     actor,
+    allUnits,
     lastResultTargets,
+    triggerContext,
   );
   const applications: EffectActionApplication[] = [];
 
@@ -330,6 +381,7 @@ function resolveEffectSequence(
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  triggerContext?: TriggerContext,
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
@@ -337,7 +389,13 @@ function resolveEffectSequence(
   const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>();
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
   for (const binding of sequence.targetBindings) {
-    const units = resolveTargets(binding.selector, actor, allUnits, resolvedBindingUnits);
+    const units = resolveTargets(
+      binding.selector,
+      actor,
+      allUnits,
+      resolvedBindingUnits,
+      triggerContext,
+    );
     resolvedBindingUnits.set(binding.targetBindingId, units);
     resolvedBindings.set(binding.targetBindingId, {
       units,
@@ -383,7 +441,10 @@ function resolveEffectSequence(
       step,
       resolvedBindings,
       actor,
+      allUnits,
       effectActions,
+      undefined,
+      triggerContext,
     );
     for (const application of applications) {
       addTargetUnitId(application.targetBattleUnitId);
@@ -423,6 +484,7 @@ export function resolveSkillOrder(
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  triggerContext?: TriggerContext,
 ): EffectSequencePlan {
   if (skill.resolution.kind !== "IMMEDIATE") {
     throw new DomainValidationError(
@@ -430,13 +492,14 @@ export function resolveSkillOrder(
       `kind "${skill.resolution.kind}" is not supported by this basic SkillResolutionService (charge start/release is handled separately, see resolveChargeReleaseOrder)`,
     );
   }
-  return resolveEffectSequence(skill.resolution, actor, allUnits, effectActions);
+  return resolveEffectSequence(skill.resolution, actor, allUnits, effectActions, triggerContext);
 }
 
 /**
  * R-SKL-05: チャージ効果発動時、`SkillResolutionDefinition`の`chargeRelease`
  * EffectSequence（CHARGE開始時の`steps`とは独立）を、`resolveSkillOrder`と
- * 同じ定義順解決（R-SKL-01〜03、R-SKL-06〜08の基本形）で処理する。
+ * 同じ定義順解決（R-SKL-01〜03、R-SKL-06〜08の基本形）で処理する。チャージ解放は
+ * 行動中の発動のため`triggerContext`は常に不要（RES-005/CAP_TRIGGER_CONTEXT対象外）。
  */
 export function resolveChargeReleaseOrder(
   skill: SkillDefinition,

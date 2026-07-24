@@ -92,6 +92,22 @@ export interface EffectActionGroupContext {
    * EffectActionは`FormulaEvaluator`が明確な例外で拒否する。
    */
   readonly lastDamageResults?: LastDamageResultRegistry;
+  /**
+   * CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因イベントの
+   * 発生源・対象の`BattleUnitId`。`TargetReference.kind: TRIGGER_SOURCE`/
+   * `TRIGGER_TARGET`（DEFERRED stepのJIT解決、`resolveRawStep`）と、
+   * `FormulaSourceReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`
+   * （`APPLY_STAT_MOD`等のFormula評価）の両方がこれを参照する。AS/EX使用や
+   * 行動外トップレベルイベントから解決する場合は原因イベントが存在しないため
+   * `undefined`のまま素通しする。
+   *
+   * PRレビュー指摘[P2]: `BattleUnit`そのものではなくIDだけを保持する — 先行する
+   * EffectActionや`EffectActionStarting`起点の子PS連鎖が対象のHP・combatStats
+   * を変更した後も、Formula評価やDAMAGE解決の各時点で`box.units`/`working`から
+   * 都度引き直すことで、古いスナップショットを読まないようにするため。
+   */
+  readonly triggerSourceUnitId?: BattleUnitId;
+  readonly triggerTargetUnitIds?: readonly BattleUnitId[];
 }
 
 /**
@@ -485,6 +501,12 @@ function* resolveOneEffectActionApplication(
         ...(context.lastDamageResults !== undefined
           ? { lastDamageResults: context.lastDamageResults }
           : {}),
+        ...(context.triggerSourceUnitId !== undefined
+          ? { triggerSourceUnitId: context.triggerSourceUnitId }
+          : {}),
+        ...(context.triggerTargetUnitIds !== undefined
+          ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+          : {}),
       },
     );
     box.units = damageResult.units;
@@ -537,21 +559,35 @@ function* resolveOneEffectActionApplication(
     // `damage-application-service.ts`が呼ぶ`duration-expiry-service.ts`）が
     // 完成したため、`CAP_STAT_MOD`は`capabilities.json`で`IMPLEMENTED`に
     // 変わっている — 期間付きStat Modifierも正しく失効・除去される。
-    // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`は
-    // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
-    // では用意できない。production CatalogのAPPLY_STAT_MOD FormulaはSKILL_SOURCE
-    // 参照のみを使うため、それらを要求するFormulaは`FormulaEvaluator`が明確な
-    // 例外で拒否する。`lastResults`（R-SKL-08、レビュー再指摘[P1] PR #214）は
+    // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
+    // `context.triggerSourceUnitId`/`triggerTargetUnitIds`（`TRIGGER_TARGET`は
+    // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
+    // R-TGT-10と同じ規約）から配線する。`bindings`はこの呼び出し元では引き続き
+    // 用意できない。production CatalogのAPPLY_STAT_MOD Formulaは現時点で
+    // SKILL_SOURCE参照のみを使うため、`bindings`を要求するFormulaは
+    // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（R-SKL-08、
+    // レビュー再指摘[P1] PR #214）は
     // `context.lastDamageResults`（呼び出し側が1解決スコープごとに新規生成する
     // 共有registry、`damage-application-service.ts`と同じもの）から使用者自身の
     // 直前DAMAGE結果だけを取り出す（`SUM_*`は現時点で参照するproduction定義が
     // ないため未配線のまま、RES-002/RES-003、Issue #174/#173）。
+    // PRレビュー指摘[P2]: `triggerSourceUnitId`/`triggerTargetUnitIds`はIDの
+    // ままここまで運び、評価するこの瞬間の`box.units`から引き直す — PS開始時に
+    // 一度だけ解決した`BattleUnit`を保持すると、先行するEffectActionや子PS連鎖
+    // による対象のHP・combatStats変更をこのFormulaが見落としてしまうため。
     const actor = requireUnit(box.units, context.actorId);
+    const triggerTargetUnitId = context.triggerTargetUnitIds?.[0];
     const magnitude = evaluateFormula(effectAction.payload.formula, {
       skillSource: actor,
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
       lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+      ...(context.triggerSourceUnitId !== undefined
+        ? { triggerSource: requireUnit(box.units, context.triggerSourceUnitId) }
+        : {}),
+      ...(triggerTargetUnitId !== undefined
+        ? { triggerTarget: requireUnit(box.units, triggerTargetUnitId) }
+        : {}),
     });
     const beforeGrantUnits = box.units;
     const grantResult = grantEffect(
@@ -1267,8 +1303,17 @@ function* resolveRawStep(
             step,
             plan.resolvedBindings,
             requireUnit(box.units, context.actorId),
+            box.units,
             context.definitions.effectActions,
             lastResultTargetsContext(lastResultState, box.units),
+            {
+              ...(context.triggerSourceUnitId !== undefined
+                ? { triggerSourceUnitId: context.triggerSourceUnitId }
+                : {}),
+              ...(context.triggerTargetUnitIds !== undefined
+                ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+                : {}),
+            },
           )
         : [];
       return yield* resolveActionStepBody(

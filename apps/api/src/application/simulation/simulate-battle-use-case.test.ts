@@ -594,6 +594,7 @@ describe("SimulateBattleUseCase", () => {
         "HIT_CONFIRMED",
         "CRITICAL_CHECK_RESOLVED",
         "DAMAGE_CALCULATED",
+        "HIT_POINT_REDUCED",
         "DAMAGE_APPLIED",
         "EFFECT_ACTION_COMPLETED",
         "EFFECT_STEP_COMPLETED",

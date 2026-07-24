@@ -399,15 +399,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
   // SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE)・orderの評価順を実装した（回帰検証は
   // target-selection-policy.test.tsのUT-R-TGT-09-001〜009、production統合は
-  // IT-CAP-TARGET-DERIVED-AREA-PROD-001）。R-TGT-09は
-  // `kind→includeDefeated→filters→area→order→count→fallback`の全7段階を規定する
-  // 単一ルールであり、非空`filters`・`fallback`は引き続き`DomainValidationError`、
-  // `TRIGGER_SOURCE`/`TRIGGER_TARGET`（kind・base参照とも）も未対応のため、
-  // `13_実装計画.md`の完了定義（全段階のproduction経路が揃った時点）に照らすと
+  // IT-CAP-TARGET-DERIVED-AREA-PROD-001）。RES-005（Issue #172）で`kind`/`base`
+  // 参照とも`TRIGGER_SOURCE`/`TRIGGER_TARGET`を実装した（回帰検証は
+  // UT-CAP-TRIGGER-CONTEXT-004〜008、production統合はIT-CAP-TRIGGER-CONTEXT-PROD-001）。
+  // R-TGT-09は`kind→includeDefeated→filters→area→order→count→fallback`の全7段階を
+  // 規定する単一ルールであり、非空`filters`・`fallback`は引き続き`DomainValidationError`
+  // のため、`13_実装計画.md`の完了定義（全段階のproduction経路が揃った時点）に照らすと
   // 完了計上できない。残る段階はTGT-002（filters、CAP_TARGET_FILTER_ORDER、
-  // Issue #169）・TGT-003（fallback、CAP_TARGET_BINDING_FALLBACK、Issue #168）・
-  // RES-005（TRIGGER_SOURCE/TRIGGER_TARGET、CAP_TRIGGER_CONTEXT、Issue #172）に
-  // またがるため、直近のTGT-002へ引き継ぎつつ、TGT-002完了時点でも filters 以外の
+  // Issue #169）・TGT-003（fallback、CAP_TARGET_BINDING_FALLBACK、Issue #168）に
+  // またがるため、直近のTGT-002へ引き継ぎつつ、TGT-002完了時点でもfallback以外の
   // 段階が残るようであれば次のタスクへ再度引き継ぐこと。
   { ruleId: "R-TGT-09", testCaseIds: [], kinds: [] },
   { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },

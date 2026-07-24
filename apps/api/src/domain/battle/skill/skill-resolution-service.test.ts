@@ -700,6 +700,94 @@ describe("resolveSkillOrder", () => {
 
     expect(plan.targetUnitIds).toEqual([near.battleUnitId, far.battleUnitId]);
   });
+
+  describe("TRIGGER_SOURCE/TRIGGER_TARGET (CAP_TRIGGER_CONTEXT, RES-005, Issue #172)", () => {
+    it("UT-CAP-TRIGGER-CONTEXT-001: an ACTION step targeting TRIGGER_TARGET resolves to the triggerContext's target units", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const triggerTarget = unit("TRIGGER_TARGET_UNIT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const attack = damageAction("ACT_ATTACK");
+      const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "TRIGGER_TARGET" },
+            actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, triggerTarget], effectActions, {
+        triggerTargetUnitIds: [triggerTarget.battleUnitId],
+      });
+
+      expect(flattenEffectSequencePlan(plan)).toEqual([
+        {
+          targetBattleUnitId: triggerTarget.battleUnitId,
+          effectActionDefinitionId: attack.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ]);
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-002: an ACTION step targeting TRIGGER_SOURCE resolves to the triggerContext's source unit", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const triggerSource = unit("TRIGGER_SOURCE_UNIT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const attack = damageAction("ACT_ATTACK");
+      const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "TRIGGER_SOURCE" },
+            actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, triggerSource], effectActions, {
+        triggerSourceUnitId: triggerSource.battleUnitId,
+      });
+
+      expect(flattenEffectSequencePlan(plan)).toEqual([
+        {
+          targetBattleUnitId: triggerSource.battleUnitId,
+          effectActionDefinitionId: attack.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ]);
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-003: an ACTION step targeting TRIGGER_TARGET/TRIGGER_SOURCE throws without a matching triggerContext", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const attack = damageAction("ACT_ATTACK");
+      const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+      for (const targetKind of ["TRIGGER_TARGET", "TRIGGER_SOURCE"] as const) {
+        const skill = skillOf({
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              condition: { kind: "TRUE" },
+              target: { kind: targetKind },
+              actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+            },
+          ],
+        });
+
+        expect(() => resolveSkillOrder(skill, actor, [actor], effectActions)).toThrow(
+          DomainValidationError,
+        );
+      }
+    });
+  });
 });
 
 describe("resolveChargeReleaseOrder", () => {

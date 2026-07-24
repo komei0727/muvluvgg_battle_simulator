@@ -701,7 +701,7 @@ describe("resolveTargets", () => {
       expect(targets).toEqual([]);
     });
 
-    it("UT-R-TGT-09-009: throws for a base TargetReference kind that is not yet supported (TRIGGER_TARGET needs CAP_TRIGGER_CONTEXT/RES-005)", () => {
+    it("UT-R-TGT-09-009: throws for a base TargetReference kind requiring a triggerContext (TRIGGER_TARGET) when none is given (CAP_TRIGGER_CONTEXT/RES-005)", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
 
       const selectorDef: TargetSelectorDefinition = {
@@ -715,6 +715,122 @@ describe("resolveTargets", () => {
       };
 
       expect(() => resolveTargets(selectorDef, actor, [actor])).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("TRIGGER_SOURCE/TRIGGER_TARGET (CAP_TRIGGER_CONTEXT, RES-005, Issue #172)", () => {
+    it("UT-CAP-TRIGGER-CONTEXT-004: BINDING_DERIVED resolves base from triggerContext.triggerTargetUnits (SKL_SIENA_DIVA_PS1's TGT_ROW binding)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const triggerTarget = unit("TRIGGER_TARGET_UNIT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const rowMate = unit("ROW_MATE", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const other = unit("OTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "TRIGGER_TARGET" },
+        area: { kind: "SAME_ROW_AS_BASE", includeBase: true },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(
+        selectorDef,
+        actor,
+        [actor, triggerTarget, rowMate, other],
+        undefined,
+        { triggerTargetUnitIds: [triggerTarget.battleUnitId] },
+      );
+
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("TRIGGER_TARGET_UNIT"), createBattleUnitId("ROW_MATE")].sort(),
+      );
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-005: BINDING_DERIVED resolves base from triggerContext.triggerSourceUnit", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const triggerSource = unit("TRIGGER_SOURCE_UNIT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const adjacent = unit("ADJ", "ENEMY", { column: "CENTER", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "TRIGGER_SOURCE" },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(
+        selectorDef,
+        actor,
+        [actor, triggerSource, adjacent],
+        undefined,
+        { triggerSourceUnitId: triggerSource.battleUnitId },
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ADJ")]);
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-006: a selector.kind of TRIGGER_TARGET resolves directly to the triggerContext's target units, filtered by side", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enemyTarget = unit("ENEMY_TARGET", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const allyTarget = unit("ALLY_TARGET", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "TRIGGER_TARGET",
+        side: "ENEMY",
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(
+        selectorDef,
+        actor,
+        [actor, enemyTarget, allyTarget],
+        undefined,
+        { triggerTargetUnitIds: [enemyTarget.battleUnitId, allyTarget.battleUnitId] },
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ENEMY_TARGET")]);
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-007: a selector.kind of TRIGGER_SOURCE resolves directly to the triggerContext's source unit", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const triggerSource = unit("TRIGGER_SOURCE_UNIT", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "TRIGGER_SOURCE",
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, triggerSource], undefined, {
+        triggerSourceUnitId: triggerSource.battleUnitId,
+      });
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("TRIGGER_SOURCE_UNIT"),
+      ]);
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-008: throws for selector.kind TRIGGER_SOURCE/TRIGGER_TARGET without a matching triggerContext", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+
+      for (const kind of ["TRIGGER_SOURCE", "TRIGGER_TARGET"] as const) {
+        const selectorDef: TargetSelectorDefinition = {
+          kind,
+          filters: [],
+          order: ["DEFAULT"],
+          includeDefeated: false,
+        };
+
+        expect(() => resolveTargets(selectorDef, actor, [actor])).toThrow(DomainValidationError);
+      }
     });
   });
 });

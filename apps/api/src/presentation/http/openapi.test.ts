@@ -799,6 +799,7 @@ describe("OpenAPI document", () => {
       HitConfirmed: true,
       CriticalCheckResolved: true,
       DamageCalculated: true,
+      HitPointReduced: true,
       DamageApplied: true,
       UnitDefeated: true,
       ActionCompleting: true,
