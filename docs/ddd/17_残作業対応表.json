@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 93
+      "incompleteConversionRows": 92
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -125,7 +125,7 @@
       "rowCount": 8,
       "taskId": "TGT-002"
     },
-    { "milestone": "M7", "theme": "AOE_PER_TARGET_CONDITION", "rowCount": 3, "taskId": "RES-004" },
+    { "milestone": "M7", "theme": "AOE_PER_TARGET_CONDITION", "rowCount": 2, "taskId": "RES-004" },
     { "milestone": "M7", "theme": "REMOVE_BUFF_CATEGORY", "rowCount": 5, "taskId": "M7-001" },
     {
       "milestone": "M7",
