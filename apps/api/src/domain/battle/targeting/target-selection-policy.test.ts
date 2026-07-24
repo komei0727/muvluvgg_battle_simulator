@@ -293,18 +293,6 @@ describe("resolveTargets", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-TARGET-SELECTION-POLICY-004: throws when a fallback selector is set (fallback is M7 scope)", () => {
-    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
-
-    expect(() =>
-      resolveTargets(
-        selector({ side: "ENEMY", count: "ALL", fallback: selector({ side: "ALLY" }) }),
-        actor,
-        [actor],
-      ),
-    ).toThrow(DomainValidationError);
-  });
-
   it("UT-TARGET-SELECTION-POLICY-005: throws for an unsupported selector kind (TRIGGER_SOURCE/TRIGGER_TARGET are M7 scope, see CAP_TRIGGER_CONTEXT/RES-005)", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
 
@@ -715,6 +703,170 @@ describe("resolveTargets", () => {
       };
 
       expect(() => resolveTargets(selectorDef, actor, [actor])).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("R-TGT-09 #7/R-TGT-10: fallback evaluation (CAP_TARGET_BINDING_FALLBACK, TGT-003, Issue #168)", () => {
+    it("UT-R-TGT-10-001: a primary selector that resolves to zero candidates evaluates its fallback selector instead", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const ally = unit("ALLY_1", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          fallback: selector({ side: "ALLY", count: "ALL" }),
+        }),
+        actor,
+        [actor, ally],
+      );
+
+      // fallback's side:"ALLY" is relative to the actor, so it also matches the actor itself
+      // (UT-R-TGT-01-003 establishes the same relative-side semantics for SELECT).
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")].sort(),
+      );
+    });
+
+    it("UT-R-TGT-10-002: a primary selector with at least one candidate never evaluates its fallback", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const ally = unit("ALLY_1", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          fallback: selector({ side: "ALLY", count: "ALL" }),
+        }),
+        actor,
+        [actor, enemy, ally],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ENEMY_1")]);
+    });
+
+    it("UT-R-TGT-10-003: the fallback selector is evaluated through the full pipeline (its own order and count apply)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const near = unit("NEAR", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const far = unit("FAR", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      // The primary selector has no `side`/`kind` candidates of its own (BINDING_DERIVED base
+      // SELF + DIRECTLY_AHEAD_OF_BASE resolves to zero when the actor is already FRONT row,
+      // R-TGT-05), so this isolates the fallback's own order/count from any actor-inclusion
+      // concern in the primary pool.
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "DIRECTLY_AHEAD_OF_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+        fallback: selector({ side: "ENEMY", count: 1, order: ["DEFAULT"] }),
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, near, far]);
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("NEAR")]);
+    });
+
+    it("UT-R-TGT-10-004: a primary selector resolving to zero candidates because of includeDefeated:false still triggers fallback", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const defeatedEnemy = unit(
+        "ENEMY_1",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { currentHp: 0 },
+      );
+      const ally = unit("ALLY_1", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          fallback: selector({ side: "ALLY", count: "ALL" }),
+        }),
+        actor,
+        [actor, defeatedEnemy, ally],
+      );
+
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")].sort(),
+      );
+    });
+
+    it("UT-R-TGT-10-005: a BINDING_DERIVED selector whose area resolves to zero candidates evaluates its fallback", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "BACK" });
+      const ally = unit("ALLY_1", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "BEHIND_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+        fallback: selector({ side: "ALLY", count: "ALL" }),
+      };
+
+      const targets = resolveTargets(selectorDef, actor, [actor, ally]);
+
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")].sort(),
+      );
+    });
+
+    it("UT-R-TGT-10-006: chains through a fallback's own fallback when the first fallback also resolves to zero candidates", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const survivor = unit("SURVIVOR", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          fallback: selector({
+            side: "ENEMY",
+            count: "ALL",
+            includeDefeated: true,
+            fallback: selector({ side: "ALLY", count: "ALL" }),
+          }),
+        }),
+        actor,
+        [actor, survivor],
+      );
+
+      expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("ACTOR"), createBattleUnitId("SURVIVOR")].sort(),
+      );
+    });
+
+    it("UT-R-TGT-10-007: zero candidates with no fallback still resolves to an empty array (R-TGT-01/R-TGT-07, regression)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+
+      const targets = resolveTargets(selector({ side: "ENEMY", count: "ALL" }), actor, [actor]);
+
+      expect(targets).toEqual([]);
+    });
+
+    it("UT-R-TGT-10-008: a non-empty filters list on the fallback selector still throws (filters remain TGT-002/CAP_TARGET_FILTER_ORDER scope)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+
+      expect(() =>
+        resolveTargets(
+          selector({
+            side: "ENEMY",
+            count: "ALL",
+            fallback: selector({
+              side: "ALLY",
+              filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
+            }),
+          }),
+          actor,
+          [actor],
+        ),
+      ).toThrow(DomainValidationError);
     });
   });
 

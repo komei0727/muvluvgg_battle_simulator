@@ -98,9 +98,8 @@
       "ruleIds": ["R-ORD-01", "R-ACT-01", "R-ACT-02", "R-SKL-05", "R-STS-01", "R-STS-02"]
     },
     { "taskId": "EFF-002", "ruleIds": ["R-EFF-05"] },
-    { "taskId": "TGT-002", "ruleIds": ["R-TGT-06", "R-TGT-09"] },
+    { "taskId": "TGT-002", "ruleIds": ["R-TGT-06", "R-TGT-09", "R-TGT-10"] },
     { "taskId": "TGT-004", "ruleIds": ["R-TGT-08"] },
-    { "taskId": "TGT-003", "ruleIds": ["R-TGT-10"] },
     {
       "taskId": "M7-006",
       "ruleIds": ["R-MEM-01", "R-MEM-02", "R-MEM-03", "R-MEM-04"]
