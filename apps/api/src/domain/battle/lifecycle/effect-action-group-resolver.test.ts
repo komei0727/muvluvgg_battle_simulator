@@ -2695,5 +2695,67 @@ describe("applyEffectActionGroups", () => {
       expect(completedActionIds).toContain(elseAction.effectActionDefinitionId);
       expect(completedActionIds).not.toContain(thenAction.effectActionDefinitionId);
     });
+
+    it("UT-R-SKL-06-039（PRレビュー[P1]再指摘）: an ACTION step's own (non-self-referencing) TARGET_SET_COUNT condition is re-evaluated after its own EffectStepStarting's PS-style chain empties the referenced set, not before it is emitted", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      // Simulates a PS reacting to this very ACTION step's own `EffectStepStarting`
+      // (TIMING, stepIndex 0) by defeating enemyA — before this chain runs,
+      // TGT_ENEMY resolves 1 alive member (`GTE 1` would be true). Evaluating the
+      // condition before `EffectStepStarting` is emitted (instead of after, via
+      // `resolveAfterTiming`) would miss this and incorrectly start the action.
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType !== "EffectStepStarting" || event.payload.stepIndex !== 0) {
+          return units;
+        }
+        return units.map((u) =>
+          u.battleUnitId === enemyA.battleUnitId ? { ...u, currentHp: 0 } : u,
+        );
+      });
+
+      applyEffectActionGroups(plan, [actor, enemyA], context);
+
+      expect(
+        recorder
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+          ),
+      ).toBe(false);
+    });
   });
 });

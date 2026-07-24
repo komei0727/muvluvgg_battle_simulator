@@ -23,6 +23,7 @@ import { toReadonlyMap } from "../../shared/readonly-map.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TriggerDefinition } from "../definitions/trigger-definition.js";
 import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
+import type { TargetReference } from "../definitions/references.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
 
 /**
@@ -219,17 +220,57 @@ function selectorTreeSome(
   );
 }
 
+/**
+ * `ConditionDefinition`内に埋め込まれた`TargetReference`（`TARGET_STATE`/
+ * `TARGET_HAS_MARKER`/`POSITION_RELATION`/`TARGET_SET_COUNT`の`target`）を
+ * 再帰的に収集する（AND/OR/NOTを辿る）。PRレビュー[P2]（Issue #227）:
+ * `stepsContainTargetReferenceKinds`と`walkLastResultDataFlowStep`は従来
+ * ACTIONの`step.target`だけを見ており、condition内のTargetReferenceが
+ * `TRIGGER_SOURCE`/`TRIGGER_TARGET`（`CAP_TRIGGER_CONTEXT`）や
+ * `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`（`MISSING_PRECEDING_RESULT`）を
+ * 参照していても検証を迂回していた。
+ */
+function collectConditionTargetReferences(
+  condition: ConditionDefinition,
+): readonly TargetReference[] {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+    case "POSITION_RELATION":
+    case "TARGET_SET_COUNT":
+      return [condition.target];
+    case "AND":
+    case "OR":
+      return condition.conditions.flatMap((c) => collectConditionTargetReferences(c));
+    case "NOT":
+      return collectConditionTargetReferences(condition.condition);
+    default:
+      return [];
+  }
+}
+
+function conditionContainsTargetReferenceKind(
+  condition: ConditionDefinition,
+  kinds: ReadonlySet<string>,
+): boolean {
+  return collectConditionTargetReferences(condition).some((reference) => kinds.has(reference.kind));
+}
+
 function stepsContainTargetReferenceKinds(
   steps: readonly EffectStepDefinition[],
   kinds: ReadonlySet<string>,
 ): boolean {
   for (const step of steps) {
     if (step.kind === "ACTION") {
-      if (kinds.has(step.target.kind)) {
+      if (
+        kinds.has(step.target.kind) ||
+        conditionContainsTargetReferenceKind(step.condition, kinds)
+      ) {
         return true;
       }
     } else if (step.kind === "BRANCH") {
       if (
+        conditionContainsTargetReferenceKind(step.condition, kinds) ||
         stepsContainTargetReferenceKinds(step.thenSteps, kinds) ||
         stepsContainTargetReferenceKinds(step.elseSteps, kinds)
       ) {
@@ -380,16 +421,36 @@ function walkLastResultDataFlowStep(
             message: `${path}.target references kind "${step.target.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
           });
         }
+        for (const reference of collectConditionTargetReferences(step.condition)) {
+          if (LAST_RESULT_TARGET_KINDS.has(reference.kind)) {
+            violations.push({
+              targetId: ownerId,
+              rule: "MISSING_PRECEDING_RESULT",
+              message: `${path}.condition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+            });
+          }
+        }
       }
       return definitelyAssigned || step.condition.kind === "TRUE";
     }
     case "BRANCH": {
-      if (!definitelyAssigned && conditionReferencesLastResult(step.condition)) {
-        violations.push({
-          targetId: ownerId,
-          rule: "MISSING_PRECEDING_RESULT",
-          message: `${path}.condition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
-        });
+      if (!definitelyAssigned) {
+        if (conditionReferencesLastResult(step.condition)) {
+          violations.push({
+            targetId: ownerId,
+            rule: "MISSING_PRECEDING_RESULT",
+            message: `${path}.condition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+          });
+        }
+        for (const reference of collectConditionTargetReferences(step.condition)) {
+          if (LAST_RESULT_TARGET_KINDS.has(reference.kind)) {
+            violations.push({
+              targetId: ownerId,
+              rule: "MISSING_PRECEDING_RESULT",
+              message: `${path}.condition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+            });
+          }
+        }
       }
       const assignedThen = walkLastResultDataFlowList(
         step.thenSteps,

@@ -1505,6 +1505,123 @@ describe("buildCatalogIndex", () => {
   });
 
   /**
+   * PRレビュー[P2]（Issue #227）: `TargetReference`の走査は従来ACTIONの
+   * `step.target`だけを見ており、`condition`（`TARGET_SET_COUNT`等）に埋め込まれた
+   * `TargetReference`を見ていなかった。この2つのテストは、その走査が`condition`側
+   * まで及ぶことを確認する。
+   */
+  function conditionTargetRefSkill(
+    conditionTarget: TargetReferenceInput,
+    requiredCapabilities: readonly string[],
+    withPrecedingAction = false,
+  ): SkillDefinition {
+    const conditionStep = {
+      kind: "ACTION",
+      condition: { kind: "TARGET_SET_COUNT", target: conditionTarget, op: "GTE", value: 1 },
+      target: { kind: "SELF" },
+      actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+    } as const;
+    return createSkillDefinition({
+      skillDefinitionId: "SKL_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        steps: withPrecedingAction
+          ? [
+              {
+                kind: "ACTION",
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+              conditionStep,
+            ]
+          : [conditionStep],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities,
+      metadata: { displayName: "Set-condition TargetReference AS" },
+    });
+  }
+
+  it("UT-CAT-IDX-057（PRレビュー[P2]、Issue #227）: rejects a TARGET_SET_COUNT condition referencing TRIGGER_TARGET without CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          conditionTargetRefSkill({ kind: "TRIGGER_TARGET" }, [
+            "CAP_EFFECT_STEP_CONDITION",
+            "CAP_EFFECT_STEP_SET_CONDITION",
+          ]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [
+          capability("CAP_EFFECT_STEP_CONDITION"),
+          capability("CAP_EFFECT_STEP_SET_CONDITION"),
+          capability("CAP_TRIGGER_CONTEXT"),
+        ],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          conditionTargetRefSkill({ kind: "TRIGGER_TARGET" }, [
+            "CAP_EFFECT_STEP_CONDITION",
+            "CAP_EFFECT_STEP_SET_CONDITION",
+            "CAP_TRIGGER_CONTEXT",
+          ]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [
+          capability("CAP_EFFECT_STEP_CONDITION"),
+          capability("CAP_EFFECT_STEP_SET_CONDITION"),
+          capability("CAP_TRIGGER_CONTEXT"),
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-058（PRレビュー[P2]、Issue #227）: rejects a TARGET_SET_COUNT condition referencing LAST_ACTION_TARGETS with no preceding EffectAction result (MISSING_PRECEDING_RESULT)", () => {
+    const defs = baseDefinitions();
+    const caps = [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_EFFECT_STEP_SET_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+    ];
+    const capabilities = [
+      capability("CAP_EFFECT_STEP_CONDITION"),
+      capability("CAP_EFFECT_STEP_SET_CONDITION"),
+      capability("CAP_RESOLUTION_BRANCH_REPEAT"),
+    ];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          conditionTargetRefSkill({ kind: "LAST_ACTION_TARGETS" }, caps, false),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities,
+      }),
+    ).toThrowError(/MISSING_PRECEDING_RESULT/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          conditionTargetRefSkill({ kind: "LAST_ACTION_TARGETS" }, caps, true),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities,
+      }),
+    ).not.toThrow();
+  });
+
+  /**
    * UT-CAT-IDX-030 (Issue #217 follow-up): `targetingSkill`'s single-ACTION-step
    * shape can't be reused here once `MISSING_PRECEDING_RESULT` (design point E)
    * exists — a bare `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` step with no

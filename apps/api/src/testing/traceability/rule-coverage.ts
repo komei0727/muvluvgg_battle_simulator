@@ -517,7 +517,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UT-R-SKL-06-025`〜033）。対象別条件と同じ理由（先行stepやPS/Memory連鎖後の
   // 最新状態を反映する必要がある）で常に`DeferredStepPlan`へ回し、ACTION step
   // 自身の条件（対象別条件を伴わない場合を含む）とBRANCHの条件の両方から
-  // 使えることを`UT-R-SKL-06-034`〜038で検証した。
+  // 使えることを`UT-R-SKL-06-034`〜038で検証した。PRレビュー[P1]再指摘で、
+  // 自身のtargetを参照しないTARGET_SET_COUNT単独の条件が、対象別条件と同じ
+  // `resolveAfterTiming`経路（このstep自身の`EffectStepStarting`が誘発する
+  // PS/Memory連鎖後に再評価する）を経由していなかった欠陥を修正し、
+  // `UT-R-SKL-06-039`で検証した。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -559,6 +563,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-036",
       "UT-R-SKL-06-037",
       "UT-R-SKL-06-038",
+      "UT-R-SKL-06-039",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",
