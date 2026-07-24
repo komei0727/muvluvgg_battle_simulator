@@ -194,7 +194,7 @@
             "kind": "BINDING",
             "targetBindingId": "TGT_ALL_ALLIES"
           },
-          "condition": {
+          "targetCondition": {
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_STATE",
@@ -216,7 +216,7 @@
             "kind": "BINDING",
             "targetBindingId": "TGT_ALL_ALLIES"
           },
-          "condition": {
+          "targetCondition": {
             "kind": "TARGET_STATE",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
             "field": "UNIT_TYPE",

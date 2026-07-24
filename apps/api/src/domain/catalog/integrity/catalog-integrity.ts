@@ -54,6 +54,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_MARKER_DURATION",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
+  "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -265,7 +266,8 @@ function stepsContainTargetReferenceKinds(
     if (step.kind === "ACTION") {
       if (
         kinds.has(step.target.kind) ||
-        conditionContainsTargetReferenceKind(step.condition, kinds)
+        conditionContainsTargetReferenceKind(step.stepCondition, kinds) ||
+        conditionContainsTargetReferenceKind(step.targetCondition, kinds)
       ) {
         return true;
       }
@@ -288,9 +290,27 @@ function stepsContainTargetReferenceKinds(
   return false;
 }
 
+/**
+ * CAP_EFFECT_STEP_CONDITION_SCOPE（Issue #230）: ACTIONは`stepCondition`/
+ * `targetCondition`のどちらか一方でも非TRUEなら対象とする（Issue #227以前の
+ * 「`condition`が非TRUEなら要求」という広い判定をそのまま維持する — 実際に
+ * 対象別filterを使うかどうかに関わらず、ACTIONが何らかの条件ロジックを
+ * 宣言していること自体を要求するのがこのCapabilityの既存の運用だったため）。
+ * `stepCondition`が`TARGET_SET_COUNT`を含む場合は、これに加えて別Capability
+ * （CAP_EFFECT_STEP_SET_CONDITION、`stepsContainSetCondition`）も要求される
+ * ため、両方が同時に必要になりうる（Issue #230が可能にした組み合わせ）。
+ * BRANCHにはこの区別が無い（`target`を持たずconditionは常にstep-wide）ため、
+ * 従来どおり`condition`をそのまま見る。
+ */
 function stepsContainNonTrueCondition(steps: readonly EffectStepDefinition[]): boolean {
   for (const step of steps) {
-    if ((step.kind === "ACTION" || step.kind === "BRANCH") && step.condition.kind !== "TRUE") {
+    if (
+      step.kind === "ACTION" &&
+      (step.stepCondition.kind !== "TRUE" || step.targetCondition.kind !== "TRUE")
+    ) {
+      return true;
+    }
+    if (step.kind === "BRANCH" && step.condition.kind !== "TRUE") {
       return true;
     }
     if (step.kind === "BRANCH") {
@@ -334,10 +354,14 @@ function conditionContainsTargetSetCount(condition: ConditionDefinition): boolea
 
 function stepsContainSetCondition(steps: readonly EffectStepDefinition[]): boolean {
   for (const step of steps) {
-    if (
-      (step.kind === "ACTION" || step.kind === "BRANCH") &&
-      conditionContainsTargetSetCount(step.condition)
-    ) {
+    // Issue #230: ACTIONのTARGET_SET_COUNTは`stepCondition`にしか置けない
+    // （`targetCondition`はTRUE/AND/OR/NOT/TARGET_STATE/TARGET_HAS_MARKERの
+    // みへスキーマ上制限される、`condition-definition.ts`の
+    // `TARGET_CONDITION_KINDS`）。
+    if (step.kind === "ACTION" && conditionContainsTargetSetCount(step.stepCondition)) {
+      return true;
+    }
+    if (step.kind === "BRANCH" && conditionContainsTargetSetCount(step.condition)) {
       return true;
     }
     if (step.kind === "BRANCH") {
@@ -383,23 +407,19 @@ function conditionContainsTargetStateOrMarker(condition: ConditionDefinition): b
 }
 
 /**
- * PRレビュー[P2]再々々指摘・再々々々指摘（Issue #227）: 対象別条件
- * （`TARGET_STATE`/`TARGET_HAS_MARKER`、対象ごとに真偽が変わる「対象ごとの
- * 適用可否フィルタ」）と`TARGET_SET_COUNT`（step全体で1回だけ評価する「step
- * 自体のskip判定」）は、単一のbooleanへ還元する意味論が本質的に異なる。
- * 同じconditionツリーに`AND`/`OR`/`NOT`で混在させると、量化の位置（対象別
- * leafごとに`exists`を取ってから合成するか、複合式を対象ごとに評価してから
- * `exists`を取るか）によって結果が変わり得るだけでなく、後者の場合でも
- * 「対象別条件が全員falseなら対象0件成立扱い」（R-SKL-06）と「集合条件が
- * falseならEffectStepSkipped」という2つの契約のどちらを優先すべきか一意に
- * 定まらない。加えて、`TARGET_STATE`/`TARGET_HAS_MARKER`が`step.target`とは
- * 異なる参照（`SELF`等）であっても、`TARGET_SET_COUNT`と同じconditionツリーに
- * 存在する限り実行時は`TARGET_SET_COUNT`単独経路（`targetContext: undefined`）
- * で評価され例外になるため、参照先を問わず拒否する。`ACTION`/`BRANCH`いずれの
- * `condition`も対象（`BRANCH`のconditionも同じ`targetContext: undefined`経路で
- * 評価されるため同じ危険がある）。混在が将来必要になった場合は、`condition`を
- * stepワイド判定用と対象別フィルタ用のスコープへ分離する専用スキーマを
- * 別Issueで設計する。
+ * PRレビュー[P2]再々々指摘・再々々々指摘（Issue #227）。Issue #230で
+ * `ACTION`は対象外になった: `stepCondition`/`targetCondition`という独立した
+ * フィールドへ分離済みで、`stepCondition`は`TARGET_STATE`/
+ * `TARGET_HAS_MARKER`を、`targetCondition`は`TARGET_SET_COUNT`をスキーマ上
+ * 受理しない（`condition-definition.ts`の`STEP_CONDITION_KINDS`/
+ * `TARGET_CONDITION_KINDS`、`effect-sequence.ts`の`createEffectStepDefinition`）
+ * ため、この2種を同じconditionツリーへ混在させること自体が構造的に不可能
+ * になった。`BRANCH`は`target`を持たず単一の`condition`が常にstep-wideの
+ * ままであり、かつ`resolveBranchStep`（`effect-action-group-resolver.ts`）は
+ * 今も`targetContext: undefined`で評価するため、`TARGET_STATE`/
+ * `TARGET_HAS_MARKER`と`TARGET_SET_COUNT`の混在は変わらず拒否する
+ * （元の理由: 量化の位置に依存して結果が変わり得るだけでなく、後者の場合でも
+ * 評価器が対象コンテキストを持たず例外になる）。
  */
 function collectMixedStepTargetSetConditionPaths(
   steps: readonly EffectStepDefinition[],
@@ -409,7 +429,7 @@ function collectMixedStepTargetSetConditionPaths(
   steps.forEach((step, index) => {
     const stepPath = `${path}[${index}]`;
     if (
-      (step.kind === "ACTION" || step.kind === "BRANCH") &&
+      step.kind === "BRANCH" &&
       conditionContainsTargetStateOrMarker(step.condition) &&
       conditionContainsTargetSetCount(step.condition)
     ) {
@@ -434,6 +454,163 @@ function collectMixedStepTargetSetConditionPaths(
     }
   });
   return paths;
+}
+
+/**
+ * PRレビュー[P1]（Issue #230）: `resolveBranchStep`（`effect-action-group-resolver.ts`）は
+ * `EffectStepTargetContext`を持たないため、BRANCHの`condition`に含まれる
+ * `TARGET_STATE`/`TARGET_HAS_MARKER`は、参照する`TargetReference`が高々1体に
+ * しか解決されない場合に限り、その1体（0体ならfalse）を直接評価する
+ * （`effect-step-condition-evaluator.ts`の`evaluateEffectStepCondition`、
+ * `resolveTargetSet`経由の分岐）。量化規則（EXISTS/ALL等）を発明せずに済む
+ * 範囲へ意図的に限定しているため、それ以外の参照はCatalogロード時点で拒否する。
+ * `SELF`/`TRIGGER_SOURCE`は常に1体、`BINDING`は宣言元の`selector`が
+ * 高々1体しか解決しないことを`selectorGuaranteesAtMostOneUnit`で保証する場合
+ * だけ許可する。`TRIGGER_TARGET`（`triggerTargetUnitIds`は複数ありうる）と
+ * `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`（AOEの直前結果を含みうる）は
+ * 保証できないため拒否する。
+ */
+function targetReferenceIsSingleUnit(
+  reference: TargetReference,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+): boolean {
+  switch (reference.kind) {
+    case "SELF":
+    case "TRIGGER_SOURCE":
+      return true;
+    case "TRIGGER_TARGET":
+    case "LAST_ACTION_TARGETS":
+    case "LAST_DAMAGED_TARGETS":
+      return false;
+    case "BINDING": {
+      if (reference.targetBindingId === undefined) {
+        return false;
+      }
+      const selector = bindingSelectors.get(reference.targetBindingId);
+      return selector !== undefined && selectorGuaranteesAtMostOneUnit(selector);
+    }
+  }
+}
+
+/**
+ * PRレビュー[P2]再指摘（Issue #230）: `TargetSelectorDefinition`自身が高々1体
+ * しか解決しないことを保証できるかどうか（`resolveTargets`の実装 —
+ * `target-selection-policy.ts` — に基づく）。`kind: SELF`は常に`actor`
+ * 1体、`kind: TRIGGER_SOURCE`は常に`triggerContext.triggerSourceUnitId`の
+ * 高々1体（`resolveTriggerPool`）、`kind: SELECT`は`count: 1`の場合だけ
+ * 高々1体（`count`は`SELECT`にしか付けられない）。`filters`/`area`は候補を
+ * 絞り込むだけで増やさないため、この3ケース以外では保証しない —
+ * `kind: TRIGGER_TARGET`は`triggerTargetUnitIds`が複数ありうるため不可、
+ * `kind: BINDING_DERIVED`は`count`を持てず`area`（例:
+ * `ADJACENT_ORTHOGONAL`は最大4体）で絞り込んだ0〜N体になりうるため不可。
+ * `resolveTargets`は主selectorの候補が0件のときだけ`fallback`（独立した
+ * `TargetSelectorDefinition`）へ切り替えるため（R-TGT-09 #7）、実際に解決
+ * されうる集合は主selectorの結果と`fallback`の結果の和ではなく「どちらか
+ * 一方」だが、値を見ずに静的検証する以上はどちらの経路を通っても高々1体で
+ * あることを再帰的に保証する必要がある。
+ */
+function selectorGuaranteesAtMostOneUnit(selector: TargetSelectorDefinition): boolean {
+  const ownSelectionGuaranteesAtMostOne =
+    selector.kind === "SELF" ||
+    selector.kind === "TRIGGER_SOURCE" ||
+    (selector.kind === "SELECT" && selector.count === 1);
+  if (!ownSelectionGuaranteesAtMostOne) {
+    return false;
+  }
+  return selector.fallback === undefined || selectorGuaranteesAtMostOneUnit(selector.fallback);
+}
+
+function collectTargetStateOrMarkerReferences(
+  condition: ConditionDefinition,
+  path: string,
+): readonly { readonly reference: TargetReference; readonly path: string }[] {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+      return [{ reference: condition.target, path }];
+    case "AND":
+    case "OR":
+      return condition.conditions.flatMap((c, i) =>
+        collectTargetStateOrMarkerReferences(c, `${path}.conditions[${i}]`),
+      );
+    case "NOT":
+      return collectTargetStateOrMarkerReferences(condition.condition, `${path}.condition`);
+    default:
+      return [];
+  }
+}
+
+function collectBranchTargetStateUnboundedReferencePaths(
+  steps: readonly EffectStepDefinition[],
+  path: string,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+): readonly string[] {
+  const paths: string[] = [];
+  steps.forEach((step, index) => {
+    const stepPath = `${path}[${index}]`;
+    if (step.kind === "BRANCH") {
+      for (const { reference, path: refPath } of collectTargetStateOrMarkerReferences(
+        step.condition,
+        `${stepPath}.condition`,
+      )) {
+        if (!targetReferenceIsSingleUnit(reference, bindingSelectors)) {
+          paths.push(refPath);
+        }
+      }
+      paths.push(
+        ...collectBranchTargetStateUnboundedReferencePaths(
+          step.thenSteps,
+          `${stepPath}.thenSteps`,
+          bindingSelectors,
+        ),
+        ...collectBranchTargetStateUnboundedReferencePaths(
+          step.elseSteps,
+          `${stepPath}.elseSteps`,
+          bindingSelectors,
+        ),
+      );
+    } else if (step.kind === "RANDOM_BRANCH") {
+      step.branches.forEach((branch, branchIndex) => {
+        paths.push(
+          ...collectBranchTargetStateUnboundedReferencePaths(
+            branch.steps,
+            `${stepPath}.branches[${branchIndex}].steps`,
+            bindingSelectors,
+          ),
+        );
+      });
+    } else if (step.kind === "REPEAT") {
+      paths.push(
+        ...collectBranchTargetStateUnboundedReferencePaths(
+          step.steps,
+          `${stepPath}.steps`,
+          bindingSelectors,
+        ),
+      );
+    }
+  });
+  return paths;
+}
+
+function validateBranchTargetStateUnboundedReference(
+  sequence: EffectSequence,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const bindingSelectors = new Map<string, TargetSelectorDefinition>(
+    sequence.targetBindings.map((binding) => [binding.targetBindingId, binding.selector]),
+  );
+  for (const path of collectBranchTargetStateUnboundedReferencePaths(
+    sequence.steps,
+    "steps",
+    bindingSelectors,
+  )) {
+    violations.push({
+      targetId: ownerId,
+      rule: "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
+      message: `${path}: BRANCH's condition evaluates TARGET_STATE/TARGET_HAS_MARKER against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, TRIGGER_SOURCE, or a BINDING whose selector has kind SELECT and count 1 are supported — BRANCH has no per-target evaluation context to quantify over multiple units, Issue #230 PRレビュー[P1])`,
+    });
+  }
 }
 
 function validateMixedStepTargetSetCondition(
@@ -499,12 +676,17 @@ function walkLastResultDataFlowStep(
 ): boolean {
   switch (step.kind) {
     case "ACTION": {
+      // Issue #230: `LAST_RESULT`/`TARGET_SET_COUNT`は`stepCondition`にしか
+      // 置けない。`targetCondition`は常にこのstep自身の`target`だけを参照する
+      // （`assertTargetConditionReferencesOwnTarget`が保証する）ため、
+      // `step.target.kind`のチェックと重複する内容にしかならず、別途走査
+      // する必要がない。
       if (!definitelyAssigned) {
-        if (conditionReferencesLastResult(step.condition)) {
+        if (conditionReferencesLastResult(step.stepCondition)) {
           violations.push({
             targetId: ownerId,
             rule: "MISSING_PRECEDING_RESULT",
-            message: `${path}.condition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+            message: `${path}.stepCondition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
           });
         }
         if (
@@ -517,17 +699,17 @@ function walkLastResultDataFlowStep(
             message: `${path}.target references kind "${step.target.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
           });
         }
-        for (const reference of collectConditionTargetReferences(step.condition)) {
+        for (const reference of collectConditionTargetReferences(step.stepCondition)) {
           if (LAST_RESULT_TARGET_KINDS.has(reference.kind)) {
             violations.push({
               targetId: ownerId,
               rule: "MISSING_PRECEDING_RESULT",
-              message: `${path}.condition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+              message: `${path}.stepCondition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
             });
           }
         }
       }
-      return definitelyAssigned || step.condition.kind === "TRUE";
+      return definitelyAssigned || step.stepCondition.kind === "TRUE";
     }
     case "BRANCH": {
       if (!definitelyAssigned) {
@@ -978,6 +1160,7 @@ function validateSkill(
   for (const sequence of sequences) {
     validateLastResultDataFlow(sequence.steps, skill.skillDefinitionId, violations);
     validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
+    validateBranchTargetStateUnboundedReference(sequence, skill.skillDefinitionId, violations);
   }
   const runtimeTriggers = [
     ...skill.triggers,
@@ -1354,6 +1537,11 @@ function validateMemory(
     );
     validateMixedStepTargetSetCondition(
       triggeredEffect.effectSequence.steps,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateBranchTargetStateUnboundedReference(
+      triggeredEffect.effectSequence,
       memory.memoryDefinitionId,
       violations,
     );

@@ -40,7 +40,8 @@ describe("EffectSequence", () => {
     expect(result.steps).toEqual([
       {
         kind: "ACTION",
-        condition: { kind: "TRUE" },
+        stepCondition: { kind: "TRUE" },
+        targetCondition: { kind: "TRUE" },
         target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
         actions: [{ effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_7020" }],
       },
@@ -158,7 +159,8 @@ describe("EffectSequence", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
           actions: [{ effectActionDefinitionId: "ACT_DAMAGE_EN_2340" }],
         },
@@ -701,5 +703,214 @@ describe("EffectSequence", () => {
         ],
       },
     ]);
+  });
+
+  describe("ACTION step stepCondition/targetCondition scope separation (Issue #230 RES-004-CONDITION-SCOPE)", () => {
+    const targetBindings = [
+      {
+        targetBindingId: "TGT_PRIMARY",
+        selector: { kind: "SELECT" as const, side: "ENEMY" as const, count: 1 },
+      },
+      {
+        targetBindingId: "TGT_OTHER",
+        selector: { kind: "SELECT" as const, side: "ALLY" as const, count: "ALL" as const },
+      },
+    ];
+
+    it("UT-CAT-SEQ-034: accepts an ACTION step that declares both a non-TRUE stepCondition (TARGET_SET_COUNT, the step-wide gate) and a non-TRUE targetCondition (own-target TARGET_STATE, the per-target filter) together — the combination Issue #227 rejected outright", () => {
+      const result = createEffectSequence(
+        {
+          targetBindings,
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: {
+                kind: "TARGET_SET_COUNT",
+                target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                op: "GTE",
+                value: 1,
+              },
+              targetCondition: {
+                kind: "TARGET_STATE",
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                field: "IS_ALIVE",
+                op: "EQ",
+                value: true,
+              },
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        "resolution",
+      );
+
+      const step = result.steps[0];
+      if (step?.kind !== "ACTION") {
+        throw new Error("expected an ACTION step");
+      }
+      expect(step.stepCondition.kind).toBe("TARGET_SET_COUNT");
+      expect(step.targetCondition.kind).toBe("TARGET_STATE");
+    });
+
+    it("UT-CAT-SEQ-035: rejects an ACTION step's stepCondition containing TARGET_STATE — that kind belongs to targetCondition's scope only", () => {
+      expect(() =>
+        createEffectSequence(
+          {
+            targetBindings,
+            steps: [
+              {
+                kind: "ACTION",
+                stepCondition: {
+                  kind: "TARGET_STATE",
+                  target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+          },
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-CAT-SEQ-036: rejects an ACTION step's stepCondition containing TARGET_HAS_MARKER, even nested inside AND/NOT", () => {
+      expect(() =>
+        createEffectSequence(
+          {
+            targetBindings,
+            steps: [
+              {
+                kind: "ACTION",
+                stepCondition: {
+                  kind: "AND",
+                  conditions: [
+                    { kind: "TRUE" },
+                    {
+                      kind: "NOT",
+                      condition: {
+                        kind: "TARGET_HAS_MARKER",
+                        target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                        markerId: "MARKER_X",
+                      },
+                    },
+                  ],
+                },
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+          },
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-CAT-SEQ-037: rejects an ACTION step's targetCondition containing TARGET_SET_COUNT — that kind belongs to stepCondition's scope only", () => {
+      expect(() =>
+        createEffectSequence(
+          {
+            targetBindings,
+            steps: [
+              {
+                kind: "ACTION",
+                targetCondition: {
+                  kind: "TARGET_SET_COUNT",
+                  target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                  op: "GTE",
+                  value: 1,
+                },
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+          },
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-CAT-SEQ-038: rejects an ACTION step's targetCondition whose TARGET_STATE references a TargetReference other than the step's own target (e.g. SELF while target is TGT_PRIMARY) — targetCondition only ever filters the step's own target set", () => {
+      expect(() =>
+        createEffectSequence(
+          {
+            targetBindings,
+            steps: [
+              {
+                kind: "ACTION",
+                targetCondition: {
+                  kind: "TARGET_STATE",
+                  target: { kind: "SELF" },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+          },
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-CAT-SEQ-039: rejects an ACTION step still using the retired unified condition field — Issue #230 is a breaking schema migration with no dual-field compatibility shim", () => {
+      expect(() =>
+        createEffectSequence(
+          {
+            targetBindings,
+            steps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+          },
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-CAT-SEQ-040: BRANCH keeps its single, step-wide-only condition field unchanged — it has no target of its own, so no per-target scope ever applied to it", () => {
+      const result = createEffectSequence(
+        {
+          targetBindings,
+          steps: [
+            {
+              kind: "BRANCH",
+              condition: {
+                kind: "AND",
+                conditions: [
+                  {
+                    kind: "TARGET_STATE",
+                    target: { kind: "SELF" },
+                    field: "IS_ALIVE",
+                    op: "EQ",
+                    value: true,
+                  },
+                  {
+                    kind: "TARGET_SET_COUNT",
+                    target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                    op: "GTE",
+                    value: 1,
+                  },
+                ],
+              },
+              thenSteps: [],
+              elseSteps: [],
+            },
+          ],
+        },
+        "resolution",
+      );
+      expect(result.steps[0]?.kind).toBe("BRANCH");
+    });
   });
 });

@@ -1,5 +1,9 @@
 import {
+  assertConditionKindsWithin,
+  assertTargetConditionReferencesOwnTarget,
   createConditionDefinition,
+  STEP_CONDITION_KINDS,
+  TARGET_CONDITION_KINDS,
   type ConditionDefinition,
   type ConditionDefinitionInput,
 } from "./condition-definition.js";
@@ -70,7 +74,7 @@ const RANDOM_BRANCH_MODES = ["WEIGHTED_ONE", "INDEPENDENT"] as const;
 export type RandomBranchMode = (typeof RANDOM_BRANCH_MODES)[number];
 
 const EFFECT_STEP_ALLOWED_KEYS: Record<(typeof EFFECT_STEP_KINDS)[number], readonly string[]> = {
-  ACTION: ["kind", "condition", "target", "actions"],
+  ACTION: ["kind", "stepCondition", "targetCondition", "target", "actions"],
   BRANCH: ["kind", "condition", "thenSteps", "elseSteps"],
   RANDOM_BRANCH: ["kind", "mode", "branches"],
   REPEAT: ["kind", "count", "steps"],
@@ -94,7 +98,20 @@ export interface RandomBranchInput {
 export type EffectStepDefinition =
   | {
       readonly kind: "ACTION";
-      readonly condition: ConditionDefinition;
+      /**
+       * R-SKL-06（CAP_EFFECT_STEP_CONDITION_SCOPE、Issue #230）: stepを丸ごと
+       * skipするかどうかのgate。falseなら`EffectStepSkipped`となり、この
+       * stepのどの対象にもLastResultを残さない。`TARGET_STATE`/
+       * `TARGET_HAS_MARKER`は`targetCondition`専用のため許可しない。
+       */
+      readonly stepCondition: ConditionDefinition;
+      /**
+       * R-SKL-06/R-SKL-08（CAP_EFFECT_STEP_CONDITION_SCOPE、Issue #230）:
+       * `target`が解決した対象ごとに個別評価するfilter。falseの対象だけを
+       * `actions`適用から除外し、全対象falseなら対象0件の`SKIPPED`
+       * LastResultになる（`EffectStepSkipped`にはならない）。
+       */
+      readonly targetCondition: ConditionDefinition;
       readonly target: TargetReference;
       readonly actions: readonly EffectActionReference[];
     }
@@ -118,6 +135,8 @@ export type EffectStepDefinition =
 export interface EffectStepDefinitionInput {
   readonly kind: string;
   readonly condition?: ConditionDefinitionInput;
+  readonly stepCondition?: ConditionDefinitionInput;
+  readonly targetCondition?: ConditionDefinitionInput;
   readonly target?: TargetReferenceInput;
   readonly actions?: readonly EffectActionReferenceInput[];
   readonly thenSteps?: readonly EffectStepDefinitionInput[];
@@ -159,13 +178,27 @@ export function createEffectStepDefinition(
         throw new DomainValidationError(`${path}.actions`, "is required");
       }
       assertNonEmptyArray(actions, `${path}.actions`);
+      const target = createTargetReference(input.target, `${path}.target`, scope);
+      const stepCondition =
+        input.stepCondition === undefined
+          ? TRUE_CONDITION
+          : createConditionDefinition(input.stepCondition, `${path}.stepCondition`, scope);
+      assertConditionKindsWithin(stepCondition, STEP_CONDITION_KINDS, `${path}.stepCondition`);
+      const targetCondition =
+        input.targetCondition === undefined
+          ? TRUE_CONDITION
+          : createConditionDefinition(input.targetCondition, `${path}.targetCondition`, scope);
+      assertConditionKindsWithin(
+        targetCondition,
+        TARGET_CONDITION_KINDS,
+        `${path}.targetCondition`,
+      );
+      assertTargetConditionReferencesOwnTarget(targetCondition, target, `${path}.targetCondition`);
       return {
         kind: "ACTION",
-        condition:
-          input.condition === undefined
-            ? TRUE_CONDITION
-            : createConditionDefinition(input.condition, `${path}.condition`, scope),
-        target: createTargetReference(input.target, `${path}.target`, scope),
+        stepCondition,
+        targetCondition,
+        target,
         actions: actions.map((a, i) => createEffectActionReference(a, `${path}.actions[${i}]`)),
       };
     }

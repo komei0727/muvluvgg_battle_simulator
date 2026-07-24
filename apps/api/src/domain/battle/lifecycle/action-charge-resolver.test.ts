@@ -144,7 +144,8 @@ function chargeReleaseSkill(effectActionId: string): SkillDefinition {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
             actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
           },
@@ -182,7 +183,8 @@ function chargeReleaseSkillWithCounterUpdates(effectActionId: string): SkillDefi
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
             actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
           },
@@ -239,7 +241,8 @@ function chargeReleaseSkillWithChargeReleasedCounterUpdates(
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
             actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
           },

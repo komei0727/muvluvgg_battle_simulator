@@ -127,38 +127,37 @@
       "targetBindings": [],
       "steps": [
         {
-          "kind": "BRANCH",
-          "condition": {
+          "kind": "ACTION",
+          "targetCondition": {
             "kind": "TARGET_STATE",
             "target": { "kind": "TRIGGER_TARGET" },
             "field": "HP_RATIO",
             "op": "LTE",
             "value": 0.3
           },
-          "thenSteps": [
-            {
-              "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE_BOOSTED" }]
+        },
+        {
+          "kind": "ACTION",
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_STATE",
               "target": { "kind": "TRIGGER_TARGET" },
-              "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE_BOOSTED" }]
+              "field": "HP_RATIO",
+              "op": "LTE",
+              "value": 0.3
             }
-          ],
-          "elseSteps": [
-            {
-              "kind": "ACTION",
-              "target": { "kind": "TRIGGER_TARGET" },
-              "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE" }]
-            }
-          ]
+          },
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TRIGGER_CONTEXT",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
+    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "チェイスブレイダー", "tags": [] },
     "triggers": [
       {

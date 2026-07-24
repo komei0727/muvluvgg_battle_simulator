@@ -120,7 +120,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
         },
@@ -156,7 +157,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
         },
@@ -188,7 +190,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: tripleHit.effectActionDefinitionId }],
         },
@@ -221,7 +224,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [
             { effectActionDefinitionId: first.effectActionDefinitionId },
@@ -259,7 +263,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
         },
@@ -332,7 +337,8 @@ describe("resolveSkillOrder", () => {
     const attack = damageAction("ACT_ATTACK");
     const actionStep = {
       kind: "ACTION",
-      condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+      stepCondition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+      targetCondition: { kind: "TRUE" },
       target: { kind: "SELF" },
       actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
     } as const;
@@ -357,7 +363,8 @@ describe("resolveSkillOrder", () => {
     for (const targetKind of ["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const) {
       const actionStep = {
         kind: "ACTION",
-        condition: { kind: "TRUE" },
+        stepCondition: { kind: "TRUE" },
+        targetCondition: { kind: "TRUE" },
         target: { kind: targetKind },
         actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
       } as const;
@@ -384,7 +391,8 @@ describe("resolveSkillOrder", () => {
     const actionOn = (target: typeof bindingTarget | { kind: "SELF" }) =>
       ({
         kind: "ACTION",
-        condition: { kind: "TRUE" },
+        stepCondition: { kind: "TRUE" },
+        targetCondition: { kind: "TRUE" },
         target,
         actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
       }) as const;
@@ -437,7 +445,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "SELF" },
           actions: [{ effectActionDefinitionId: heal.effectActionDefinitionId }],
         },
@@ -467,7 +476,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "TRIGGER_SOURCE" },
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
         },
@@ -491,7 +501,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_MISSING") },
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
         },
@@ -515,7 +526,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "MARKER_PRESENT", markerId: "MARKER_X" } as never,
+          stepCondition: { kind: "MARKER_PRESENT", markerId: "MARKER_X" } as never,
+          targetCondition: { kind: "TRUE" },
           target: { kind: "SELF" },
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
         },
@@ -539,7 +551,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "SELF" },
           actions: [{ effectActionDefinitionId: missingActionId }],
         },
@@ -564,13 +577,15 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "NOT", condition: { kind: "TRUE" } },
+          stepCondition: { kind: "NOT", condition: { kind: "TRUE" } },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: skipped.effectActionDefinitionId }],
         },
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: resolved.effectActionDefinitionId }],
         },
@@ -639,7 +654,8 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
         },
@@ -679,13 +695,15 @@ describe("resolveSkillOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: first.effectActionDefinitionId }],
         },
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: second.effectActionDefinitionId }],
         },
@@ -713,7 +731,8 @@ describe("resolveSkillOrder", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "TRIGGER_TARGET" },
             actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
           },
@@ -744,7 +763,8 @@ describe("resolveSkillOrder", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "TRIGGER_SOURCE" },
             actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
           },
@@ -775,7 +795,8 @@ describe("resolveSkillOrder", () => {
           steps: [
             {
               kind: "ACTION",
-              condition: { kind: "TRUE" },
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
               target: { kind: targetKind },
               actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
             },
@@ -807,7 +828,8 @@ describe("resolveChargeReleaseOrder", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
             actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
           },
@@ -836,7 +858,8 @@ describe("resolveChargeReleaseOrder", () => {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "SELF" },
           actions: [{ effectActionDefinitionId: createEffectActionDefinitionId("ACT_NOOP") }],
         },

@@ -74,7 +74,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "condition": {
+          "targetCondition": {
             "kind": "OR",
             "conditions": [
               {
@@ -219,7 +219,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "condition": {
+          "targetCondition": {
             "kind": "OR",
             "conditions": [
               {

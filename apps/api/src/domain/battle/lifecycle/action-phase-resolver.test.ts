@@ -184,7 +184,8 @@ function attackSkill(
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
         },
@@ -221,7 +222,8 @@ function exSkill(
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
         },
@@ -262,7 +264,8 @@ function chargeSkill(
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
             actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
           },
@@ -320,7 +323,8 @@ function cooldownManipulationSkill(
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "SELF" },
           actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
         },
@@ -2141,13 +2145,15 @@ describe("resolveActionPhase", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: enemyBindingId },
             actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
           },
@@ -2237,13 +2243,15 @@ describe("resolveActionPhase", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: enemyBindingId },
             actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
           },
@@ -2327,13 +2335,15 @@ describe("resolveActionPhase", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: cdManipAction.effectActionDefinitionId }],
           },

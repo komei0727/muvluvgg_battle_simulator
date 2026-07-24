@@ -37,7 +37,7 @@
             "kind": "BINDING",
             "targetBindingId": "TGT_ALL_ENEMIES"
           },
-          "condition": {
+          "targetCondition": {
             "kind": "TARGET_HAS_MARKER",
             "target": {
               "kind": "BINDING",
@@ -61,7 +61,7 @@
             "kind": "BINDING",
             "targetBindingId": "TGT_ALL_ENEMIES"
           },
-          "condition": {
+          "targetCondition": {
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_HAS_MARKER",

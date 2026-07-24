@@ -171,7 +171,8 @@ function attackSkill(
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
         },
@@ -232,13 +233,15 @@ function mutuallyLethalDefinitions(): BattleDefinitions {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ENEMY") },
           actions: [{ effectActionDefinitionId: enemyEffectAction.effectActionDefinitionId }],
         },
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "SELF" },
           actions: [{ effectActionDefinitionId: selfEffectAction.effectActionDefinitionId }],
         },

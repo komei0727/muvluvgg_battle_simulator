@@ -29,7 +29,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "condition": {
+          "targetCondition": {
             "kind": "TARGET_HAS_MARKER",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
             "markerId": "MARKER_AOI_ELEGANT_UKIASHI"

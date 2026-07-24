@@ -3,9 +3,9 @@
   "catalogRevision": "2026-07-24.13",
   "files": {
     "units.json": "sha256:a15b6dbabc287b426a6f67984ff38250ca4227c1cfb39eebb10e9d267c75ee90",
-    "skills.json": "sha256:cb57530ef46974cbbebda46295a93ae1a360a61156e97c08bff88da8d29d5d29",
+    "skills.json": "sha256:4a34068007a8e6108a601f565b4c0e09e3a168768d47ef80d90eac0151f98c9c",
     "effects.json": "sha256:8b42b0a57eed1e0ac69b7103f23c616d9725fcf6cec5f3ee25d144f9257d366e",
     "memories.json": "sha256:53fc8d5b22169749be8af96d4058730e6cae51be567fd4185557d26ad44a97b3",
-    "capabilities.json": "sha256:087b0ab6f2a86fc63b11312c800de9cb1bdb3bc3f01256bea4ae037dc189e000"
+    "capabilities.json": "sha256:0f52758825436ffd4168ee18b73e59203856f503864b8dca4c2a12a570f19aa4"
   }
 }

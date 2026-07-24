@@ -575,13 +575,15 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: enemyBindingId },
             actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
           },
@@ -670,7 +672,8 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: enemyBindingId },
             actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
           },
@@ -797,13 +800,15 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: actionA.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: actionB.effectActionDefinitionId }],
           },
@@ -830,7 +835,8 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: childAction.effectActionDefinitionId }],
           },
@@ -923,13 +929,15 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: actionA.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: actionB.effectActionDefinitionId }],
           },
@@ -959,7 +967,8 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: childAction.effectActionDefinitionId }],
           },
@@ -1050,13 +1059,15 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: resetAction.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: actionB.effectActionDefinitionId }],
           },
@@ -1080,7 +1091,8 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: childAction.effectActionDefinitionId }],
           },
@@ -1906,13 +1918,15 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: enemyBindingId },
             actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
           },
@@ -2945,7 +2959,8 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           steps: [
             {
               kind: "ACTION",
-              condition: { kind: "TRUE" },
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
               target: { kind: "BINDING", targetBindingId: enemyBindingId },
               actions: [{ effectActionDefinitionId: attackDamage.effectActionDefinitionId }],
             },
@@ -3033,7 +3048,8 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           steps: [
             {
               kind: "ACTION",
-              condition: { kind: "TRUE" },
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
               target: { kind: "BINDING", targetBindingId: enemyBindingId },
               actions: [{ effectActionDefinitionId: attackDamage.effectActionDefinitionId }],
             },
@@ -3503,13 +3519,15 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           steps: [
             {
               kind: "ACTION",
-              condition: { kind: "TRUE" },
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
               target: { kind: "SELF" },
               actions: [{ effectActionDefinitionId: stepAction.effectActionDefinitionId }],
             },
             {
               kind: "ACTION",
-              condition: { kind: "TRUE" },
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
               target: { kind: "SELF" },
               actions: [{ effectActionDefinitionId: stepAction.effectActionDefinitionId }],
             },
@@ -3586,7 +3604,8 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           steps: [
             {
               kind: "ACTION",
-              condition: { kind: "TRUE" },
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
               target: { kind: "SELF" },
               actions: [{ effectActionDefinitionId: childAction.effectActionDefinitionId }],
             },

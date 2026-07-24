@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  conditionReferencesStepTarget,
   conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
   type EffectStepTargetContext,
@@ -188,69 +187,13 @@ describe("evaluateEffectStepCondition", () => {
     });
   });
 
-  describe("conditionReferencesStepTarget (CAP_EFFECT_STEP_CONDITION, Issue #171 RES-004後半)", () => {
-    it("UT-R-SKL-06-013: detects TARGET_STATE/TARGET_HAS_MARKER referencing the step's own target", () => {
-      const targetState: ConditionDefinition = {
-        kind: "TARGET_STATE",
-        target: STEP_TARGET,
-        field: "IS_ALIVE",
-        op: "EQ",
-        value: true,
-      };
-      const targetHasMarker: ConditionDefinition = {
-        kind: "TARGET_HAS_MARKER",
-        target: STEP_TARGET,
-        markerId: createMarkerId("MARKER_TEST"),
-      };
-      expect(conditionReferencesStepTarget(targetState, STEP_TARGET)).toBe(true);
-      expect(conditionReferencesStepTarget(targetHasMarker, STEP_TARGET)).toBe(true);
-    });
-
-    it("UT-R-SKL-06-014: is false when TARGET_STATE/TARGET_HAS_MARKER reference a different TargetReference", () => {
-      const condition: ConditionDefinition = {
-        kind: "TARGET_STATE",
-        target: OTHER_BINDING,
-        field: "IS_ALIVE",
-        op: "EQ",
-        value: true,
-      };
-      const selfCondition: ConditionDefinition = {
-        kind: "TARGET_STATE",
-        target: { kind: "SELF" },
-        field: "IS_ALIVE",
-        op: "EQ",
-        value: true,
-      };
-      expect(conditionReferencesStepTarget(condition, STEP_TARGET)).toBe(false);
-      expect(conditionReferencesStepTarget(selfCondition, STEP_TARGET)).toBe(false);
-    });
-
-    it("UT-R-SKL-06-015: recurses through AND/OR/NOT", () => {
-      const nested: ConditionDefinition = {
-        kind: "AND",
-        conditions: [
-          { kind: "TRUE" },
-          {
-            kind: "OR",
-            conditions: [
-              {
-                kind: "NOT",
-                condition: {
-                  kind: "TARGET_STATE",
-                  target: STEP_TARGET,
-                  field: "UNIT_TYPE",
-                  op: "EQ",
-                  value: "PHYSICAL",
-                },
-              },
-            ],
-          },
-        ],
-      };
-      expect(conditionReferencesStepTarget(nested, STEP_TARGET)).toBe(true);
-      expect(conditionReferencesStepTarget({ kind: "TRUE" }, STEP_TARGET)).toBe(false);
-    });
-  });
+  // UT-R-SKL-06-013/014/015（Issue #171）は`conditionReferencesStepTarget`
+  // （`targetCondition`が自身のtargetを参照するかどうかを実行時に動的判定する
+  // 分類器）を直接検証していたが、Issue #230でACTIONの`targetCondition`は
+  // 常に自身の`target`だけを参照するとCatalogロード時点で保証されるように
+  // なり、この動的判定自体が不要になったため関数ごと削除した。同等の不変
+  // 条件は`effect-sequence.test.ts`の`UT-CAT-SEQ-034`/`038`（Catalog構築時に
+  // 検証）が引き継ぐ。
 
   describe("conditionReferencesTargetSetCount (CAP_EFFECT_STEP_SET_CONDITION, Issue #227 RES-004集合条件)", () => {
     it("UT-R-SKL-06-032: detects a top-level TARGET_SET_COUNT and recurses through AND/OR/NOT", () => {
@@ -472,6 +415,129 @@ describe("evaluateEffectStepCondition", () => {
         markerId: createMarkerId("MARKER_UKIASHI"),
       };
       expect(() => evaluateEffectStepCondition(condition)).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("BRANCH step-wide TARGET_STATE/TARGET_HAS_MARKER via resolveTargetSet, no EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION_SCOPE, Issue #230 PRレビュー[P1])", () => {
+    const physicalDefinitionId = createUnitDefinitionId("UNIT_PHYSICAL");
+    const unitDefinitions = new Map<typeof physicalDefinitionId, UnitDefinition>([
+      [
+        physicalDefinitionId,
+        { unitDefinitionId: physicalDefinitionId, unitType: "PHYSICAL" } as UnitDefinition,
+      ],
+    ]);
+
+    it("UT-R-SKL-06-044: TARGET_STATE evaluates the single unit resolveTargetSet resolves, when no EffectStepTargetContext is given (BRANCH scope)", () => {
+      const enemy = unit("enemy", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "UNIT_TYPE",
+        op: "EQ",
+        value: "PHYSICAL",
+      };
+      expect(
+        evaluateEffectStepCondition(
+          condition,
+          undefined,
+          undefined,
+          () => [enemy],
+          unitDefinitions,
+        ),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(
+          { ...condition, value: "ENERGY" },
+          undefined,
+          undefined,
+          () => [enemy],
+          unitDefinitions,
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-045: TARGET_STATE is false when resolveTargetSet resolves zero units (BRANCH scope)", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [])).toBe(false);
+    });
+
+    it("UT-R-SKL-06-046: TARGET_STATE throws when resolveTargetSet resolves more than one unit (BRANCH has no per-target context to quantify over multiple units; Catalog preflight should already guarantee at most one)", () => {
+      const enemyA = unit("enemy-a", "UNIT_PHYSICAL");
+      const enemyB = unit("enemy-b", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(() =>
+        evaluateEffectStepCondition(condition, undefined, undefined, () => [enemyA, enemyB]),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-047: TARGET_HAS_MARKER evaluates the single unit resolveTargetSet resolves, including countCondition, when no EffectStepTargetContext is given (BRANCH scope)", () => {
+      const markerId = createMarkerId("MARKER_CURSE");
+      const marked = unit("enemy", "UNIT_PHYSICAL", {
+        markerStates: [
+          {
+            ...buildInitialMarkerState(
+              createMarkerInstanceId("mi-1"),
+              markerId,
+              createBattleUnitId("actor"),
+              createBattleUnitId("enemy"),
+              null,
+              {
+                dispellable: true,
+                linkedEffectGroupId: null,
+                timeLimit: { unit: "BATTLE", count: 1 },
+              },
+              { turnNumber: 1 },
+            ),
+            stackCount: 4,
+          },
+        ],
+      });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId,
+        countCondition: { op: "GTE", value: 4 },
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [marked])).toBe(
+        true,
+      );
+      expect(
+        evaluateEffectStepCondition(
+          { ...condition, countCondition: { op: "GTE", value: 5 } },
+          undefined,
+          undefined,
+          () => [marked],
+        ),
+      ).toBe(false);
+      const unmarked = unit("enemy-2", "UNIT_PHYSICAL");
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [unmarked])).toBe(
+        false,
+      );
+    });
+
+    it("UT-R-SKL-06-048: TARGET_HAS_MARKER throws when resolveTargetSet resolves more than one unit (BRANCH scope)", () => {
+      const enemyA = unit("enemy-a", "UNIT_PHYSICAL");
+      const enemyB = unit("enemy-b", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId: createMarkerId("MARKER_CURSE"),
+      };
+      expect(() =>
+        evaluateEffectStepCondition(condition, undefined, undefined, () => [enemyA, enemyB]),
+      ).toThrow(DomainValidationError);
     });
   });
 

@@ -90,7 +90,8 @@ function attackSkill(id: string, effectActionId: string): SkillDefinition {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
         },
@@ -615,6 +616,177 @@ async function runMarkerScenario(): Promise<BattleSimulationResponseBody> {
 }
 
 /**
+ * PRレビュー[P2]（Issue #230）: `UT-R-SKL-06-040`〜`051`はDomain層（`resolveSkillOrder`/
+ * `applyEffectActionGroups`）だけを検証しており、ACTIONのcombined
+ * `stepCondition`（step-wide gate）/`targetCondition`（per-target filter）が
+ * 実HTTPパイプライン（`SimulateBattleUseCase` → Response Mapper →
+ * `stateTransitions`）を経由してもHP/Markerの`StateDelta`を正しく生成し、
+ * `stateTransitions`だけからの独立Reducer復元（`reconstructFinalState`）が
+ * `finalState`と一致することを検証するシナリオ。2体の敵のうち先頭の1体にだけ
+ * Markerを付与した後、`stepCondition: TARGET_SET_COUNT`（両者生存、gate true）
+ * と`targetCondition: TARGET_HAS_MARKER`（Markerを持つ対象だけ、filter）を
+ * 併用するACTIONでダメージを与える — Markerを持つ敵だけがHPダメージを受け、
+ * 持たない敵は無傷のままであることまで確認する。
+ */
+async function runCombinedConditionScenario(): Promise<BattleSimulationResponseBody> {
+  const skillId = "SKL_COMBINED_COND";
+  const markerActionId = "ACT_COMBINED_MARK";
+  const damageActionId = "ACT_COMBINED_DAMAGE";
+  const attackerUnit: UnitDefinition = {
+    ...unitDefinition("UNIT_COMBINED_ATK"),
+    baseStats: { ...unitDefinition("UNIT_COMBINED_ATK").baseStats, maximumAp: 1 },
+    activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+  };
+  const enemy1: UnitDefinition = {
+    ...unitDefinition("UNIT_COMBINED_ENEMY_1"),
+    baseStats: { ...unitDefinition("UNIT_COMBINED_ENEMY_1").baseStats, maximumHp: 100, defense: 0 },
+  };
+  const enemy2: UnitDefinition = {
+    ...unitDefinition("UNIT_COMBINED_ENEMY_2"),
+    baseStats: { ...unitDefinition("UNIT_COMBINED_ENEMY_2").baseStats, maximumHp: 100, defense: 0 },
+  };
+  const units = new Map([
+    [createUnitDefinitionId("UNIT_COMBINED_ATK"), attackerUnit],
+    [createUnitDefinitionId("UNIT_COMBINED_ENEMY_1"), enemy1],
+    [createUnitDefinitionId("UNIT_COMBINED_ENEMY_2"), enemy2],
+  ]);
+  const oneBindingId = createTargetBindingId("TGT_ONE");
+  const allBindingId = createTargetBindingId("TGT_ALL");
+  const allTarget = { kind: "BINDING" as const, targetBindingId: allBindingId };
+  const combinedSkill: SkillDefinition = {
+    skillDefinitionId: createSkillDefinitionId(skillId),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: oneBindingId,
+          selector: {
+            kind: "SELECT",
+            side: "ENEMY",
+            count: 1,
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: false,
+          },
+        },
+        {
+          targetBindingId: allBindingId,
+          selector: {
+            kind: "SELECT",
+            side: "ENEMY",
+            count: "ALL",
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: false,
+          },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: oneBindingId },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(markerActionId) }],
+        },
+        {
+          kind: "ACTION",
+          // step-wide gate（CAP_EFFECT_STEP_SET_CONDITION）: 両者生存していなければstep全体をskipする。
+          stepCondition: { kind: "TARGET_SET_COUNT", target: allTarget, op: "GTE", value: 2 },
+          // per-target filter（CAP_EFFECT_STEP_CONDITION）: Markerを持つ対象だけへダメージを適用する。
+          targetCondition: {
+            kind: "TARGET_HAS_MARKER",
+            target: allTarget,
+            markerId: createMarkerId("MARKER_STATE_RESTORE_TEST"),
+          },
+          target: allTarget,
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(damageActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "CombinedCond", tags: [] },
+  };
+  const skills = new Map([
+    [createSkillDefinitionId(skillId), combinedSkill],
+    [createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")],
+  ]);
+  const effectActions = new Map([
+    [createEffectActionDefinitionId(markerActionId), markerEffectAction(markerActionId)],
+    [createEffectActionDefinitionId(damageActionId), damageEffectAction(damageActionId)],
+  ]);
+  const capabilities = new Map([
+    [
+      createCapabilityId("CAP_MARKER"),
+      createCapabilityDefinition({
+        capabilityId: "CAP_MARKER",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "EFF-004",
+        description: "d",
+        verification: {
+          productionDefinitionIds: [markerActionId],
+          testCaseIds: ["API-STATE-RESTORE-009"],
+        },
+      }),
+    ],
+  ]);
+
+  const useCase: SimulateBattleUseCasePort = {
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
+      Promise.resolve(
+        new SimulateBattleUseCase({
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions, capabilities),
+          battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+          randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+          clock: new ManualClock(Date.now()),
+        }).execute(toSimulateBattleCommand(request), context),
+      ),
+  };
+  const app: FastifyInstance = await buildServer(useCase);
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_COMBINED_ATK", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [
+            { unitDefinitionId: "UNIT_COMBINED_ENEMY_1", position: { column: 0, row: "FRONT" } },
+            { unitDefinitionId: "UNIT_COMBINED_ENEMY_2", position: { column: 1, row: "FRONT" } },
+          ],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 1,
+      },
+    });
+    if (response.statusCode !== 200) {
+      throw new Error(`expected 200, got ${response.statusCode}: ${response.body}`);
+    }
+    return response.json<BattleSimulationResponseBody>();
+  } finally {
+    await app.close();
+  }
+}
+
+/**
  * Issue #143 review re-fix [P1]: 防御側の`CUMULATIVE_DAMAGE_THRESHOLD`
  * counterUpdates PSが実際に閾値を跨ぐ一撃を受け、`RuntimeCounterChanged`を
  * 発行するシナリオ。実HTTPレスポンスの`details.valueChanged`が公開
@@ -755,7 +927,8 @@ function chargeSkill(id: string, effectActionId: string): SkillDefinition {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
             actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
           },
@@ -936,6 +1109,32 @@ describe("HTTP response state restoration (independent Reducer)", () => {
 
     const markerApplied = body.events.find((e) => e.type === "MARKER_APPLIED");
     expect(markerApplied).toBeDefined();
+
+    const reconstructed = reconstructFinalState(body);
+    expect(reconstructed).toEqual(body.finalState);
+
+    const ajv = new Ajv({ strict: false });
+    const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
+    expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
+  });
+
+  it("API-STATE-RESTORE-009 (Issue #230 RES-004-CONDITION-SCOPE, PRレビュー[P2]): an ACTION combining stepCondition (TARGET_SET_COUNT gate) with targetCondition (TARGET_HAS_MARKER filter) applies damage only to the marked enemy through the full HTTP pipeline, and reconstructedFinalState built from stateTransitions alone (HP + markers) equals finalState", async () => {
+    const body = await runCombinedConditionScenario();
+
+    const markedEnemy = body.finalState.units.find(
+      (u) => u.unitDefinitionId === "UNIT_COMBINED_ENEMY_1",
+    );
+    const unmarkedEnemy = body.finalState.units.find(
+      (u) => u.unitDefinitionId === "UNIT_COMBINED_ENEMY_2",
+    );
+    // Sanity: the gate was satisfied (both enemies alive) and the filter
+    // actually discriminated between them — otherwise the restoration below
+    // would trivially pass with no meaningful HP/markers deltas at all.
+    expect(markedEnemy?.markers).toHaveLength(1);
+    expect(markedEnemy!.markers![0]!.markerId).toBe("MARKER_STATE_RESTORE_TEST");
+    expect(markedEnemy?.hp.current).toBeLessThan(markedEnemy!.hp.maximum);
+    expect(unmarkedEnemy?.markers ?? []).toHaveLength(0);
+    expect(unmarkedEnemy?.hp.current).toBe(unmarkedEnemy!.hp.maximum);
 
     const reconstructed = reconstructFinalState(body);
     expect(reconstructed).toEqual(body.finalState);

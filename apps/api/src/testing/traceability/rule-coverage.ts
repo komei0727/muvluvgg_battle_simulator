@@ -500,8 +500,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ドメインイベント発行（`applyEffectActionGroups`、`UT-R-SKL-06-008`〜011）
   // をIssue #73で実装した。RES-004後半（Issue #171、`CAP_EFFECT_STEP_CONDITION`）
   // で、conditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを対象
-  // ごとに個別評価する経路（`conditionReferencesStepTarget`/
-  // `EffectStepTargetContext`、`UT-R-SKL-06-013`〜021）とproduction Catalog検証
+  // ごとに個別評価する経路（`EffectStepTargetContext`、`UT-R-SKL-06-016`〜021。
+  // このtargetCondition化に伴い動的判定用だった`conditionReferencesStepTarget`
+  // 自体はIssue #230で削除し、対応する`UT-R-SKL-06-013`〜015も除去した）と
+  // production Catalog検証
   // （`IT-CAP-EFFSTEP-001`〜004）を追加した（他の条件kind・「集合条件」は
   // 引き続き対象外）。PRレビュー[P1]（Issue #171）で、対象別条件を常に
   // `DeferredStepPlan`へ回し（`isEagerActionStep`）、`EffectStepStarting`由来の
@@ -548,6 +550,49 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // デバフ本体（`APPLY_DAMAGE_MOD`）の実行時解決は`CAP_DAMAGE_MOD`（`DMG-002`、
   // Issue #192）待ちのため、`EffectSequencePlan`レベルの振り分け検証に留め、
   // `15_Unit_Memory変換台帳.md`の`DAMAGE_MOD_KIND_UNIMPLEMENTED`へ残す。
+  // Issue #230（RES-004-CONDITION-SCOPE）で、ACTION stepの単一`condition`を
+  // `stepCondition`（step全体を一度だけ評価するgate。falseなら
+  // `EffectStepSkipped`）と`targetCondition`（対象ごとに個別評価するfilter。
+  // 全対象falseならR-SKL-08の対象0件`SKIPPED`扱い）という独立したスキーマ
+  // フィールドへ分離した（`effect-sequence.ts`の`EFFECT_STEP_ALLOWED_KEYS`、
+  // `condition-definition.ts`の`STEP_CONDITION_KINDS`/`TARGET_CONDITION_KINDS`）。
+  // これにより、Issue #227が`MIXED_STEP_TARGET_SET_CONDITION`として拒否して
+  // いた「対象別条件（TARGET_STATE/TARGET_HAS_MARKER）と`TARGET_SET_COUNT`を
+  // 同じACTIONで同時に使う」構成が、型・Catalogスキーマの両方で最初から
+  // 混在不可能な2つの独立フィールドとして自然に両立できるようになった
+  // （`resolveRawStep`のACTIONケースは、以前の「対象別条件」/
+  // 「TARGET_SET_COUNT単独」という二分岐を撤回し、`stepCondition`を1回評価
+  // →満たされれば`targetCondition`を対象ごとに評価、という単一の経路へ統一
+  // した）。`MIXED_STEP_TARGET_SET_CONDITION`はACTIONの対象から外れ、
+  // `target`を持たず単一`condition`のままのBRANCHにだけ引き続き適用される。
+  // 4つの組み合わせ（両条件true、gate false、filter全件false、filter一部
+  // true）を`UT-R-SKL-06-040`〜`043`で検証した。PRレビュー[P2]（Issue #230）:
+  // これらはすべてトップレベルACTIONだったため、同じcombined条件を持つACTIONが
+  // BRANCH.thenSteps/REPEAT.steps/RANDOM_BRANCHのbranch.stepsそれぞれに
+  // ネストされた場合も同じ経路（`resolveStepDefinitionList`経由の
+  // `resolveRawStep`）をたどることを`UT-R-SKL-06-049`〜`051`で追加検証した。
+  // 既存の対象別条件・
+  // `TARGET_SET_COUNT`単体のテスト（`UT-R-SKL-06-016`〜`039`、
+  // `IT-CAP-EFFSTEP-001`〜`005`）は`stepCondition`/`targetCondition`への
+  // 機械的な読み替えのみで、検証内容自体は変えていない。PRレビュー[P1]
+  // （Issue #230）: `resolveBranchStep`が常に`targetContext: undefined`で
+  // `evaluateEffectStepCondition`を呼ぶため、production Catalogに既に存在した
+  // BRANCHの`TARGET_STATE`/`TARGET_HAS_MARKER`（`SELF`/`TRIGGER_SOURCE`/
+  // count:1の`BINDING`など、高々1体にしか解決されない参照）が実行時に必ず
+  // 例外になっていた欠陥を修正した。`resolveTargetSet`経由で0〜1体を直接
+  // 評価する経路を追加し（`UT-R-SKL-06-044`〜`048`）、複数体に解決されうる
+  // 参照はCatalogロード時点で拒否する（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`、
+  // `UT-CAT-IDX-064`〜`068`）。この新しい境界に合わせ、production Catalogの
+  // `SKL_MERU_SIRIUS_PS1`（`TRIGGER_TARGET`参照、複数対象になりうる）と
+  // `SKL_HARRIET_SAGE_AS1`（`TGT_ADJ`という`BINDING_DERIVED`参照、0〜N体）は
+  // 対応するBRANCHをACTIONの`targetCondition`（対象ごとの正しいfilter）へ
+  // 書き換えた — 単に例外を避けるだけでなく、意図どおり対象ごとに判定する
+  // 挙動へ修正している。PRレビュー[P2]再指摘: `targetReferenceIsSingleUnit`が
+  // `BINDING`の主selectorだけを見て`fallback`（`TargetSelectorDefinition`が
+  // 任意に持てる、候補0件時の代替selector）を無視していたため、主selectorが
+  // count:1でも`fallback`がcount:"ALL"等なら誤って通過してしまう欠陥を
+  // `selectorGuaranteesAtMostOneUnit`（fallback連鎖を再帰的に検査）で修正し、
+  // `UT-CAT-IDX-069`/`070`で検証した。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -563,9 +608,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-010",
       "UT-R-SKL-06-011",
       "UT-R-SKL-06-012",
-      "UT-R-SKL-06-013",
-      "UT-R-SKL-06-014",
-      "UT-R-SKL-06-015",
       "UT-R-SKL-06-016",
       "UT-R-SKL-06-017",
       "UT-R-SKL-06-018",
@@ -590,6 +632,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-037",
       "UT-R-SKL-06-038",
       "UT-R-SKL-06-039",
+      "UT-R-SKL-06-040",
+      "UT-R-SKL-06-041",
+      "UT-R-SKL-06-042",
+      "UT-R-SKL-06-043",
+      "UT-R-SKL-06-044",
+      "UT-R-SKL-06-045",
+      "UT-R-SKL-06-046",
+      "UT-R-SKL-06-047",
+      "UT-R-SKL-06-048",
+      "UT-R-SKL-06-049",
+      "UT-R-SKL-06-050",
+      "UT-R-SKL-06-051",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",
@@ -601,7 +655,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // R-SKL-07: BRANCH/RANDOM_BRANCH/REPEATをIssue #217で実装した
   // （`resolveBranchStep`/`resolveRandomBranchStep`/`resolveRepeatStep`、
   // `effect-action-group-resolver.ts`）。`DeferredStepPlan`（`skill-resolution-service.ts`）
-  // がこれらのstepを生の定義のまま持ち越し、実行時にJITで解決する。
+  // がこれらのstepを生の定義のまま持ち越し、実行時にJITで解決する。PRレビュー
+  // [P1]（Issue #230）: BRANCHの`condition`が`SELF`等の高々1体にしか解決され
+  // ない`TARGET_STATE`/`TARGET_HAS_MARKER`を含んでいても、`resolveBranchStep`が
+  // 例外を投げず正しく分岐することを`UT-R-SKL-07-111`で検証した。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -617,6 +674,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-108",
       "UT-R-SKL-07-109",
       "UT-R-SKL-07-110",
+      "UT-R-SKL-07-111",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
