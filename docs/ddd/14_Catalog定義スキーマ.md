@@ -510,23 +510,23 @@ filters:
     unitType: PHYSICAL
 ```
 
-| kind                    | 追加フィールド                | 意味                                                                         |
-| ----------------------- | ----------------------------- | ---------------------------------------------------------------------------- |
-| `POSITION_ROW`          | `row`                         | `FRONT` / `BACK`                                                             |
-| `POSITION_COLUMN`       | `column`                      | `LEFT` / `CENTER` / `RIGHT`                                                  |
-| `POSITION_SLOT`         | `row`, `column`               | 具体位置                                                                     |
-| `UNIT_TYPE`             | `unitType`                    | UnitType一致                                                                 |
-| `ROLE`                  | `role`                        | Role一致                                                                     |
-| `ATTRIBUTE`             | `attribute`                   | Attribute一致                                                                |
-| `AFFILIATION`           | `affiliationId`               | 所属一致                                                                     |
-| `CHARACTER`             | `characterId`                 | キャラクター一致                                                             |
-| `HAS_MARKER`            | `markerId`, `countCondition?` | Marker所持（`countCondition`（`op`/`value`）で所持数のしきい値も指定できる） |
-| `HP_RATIO`              | `op`, `value`                 | HP割合比較                                                                   |
-| `EXCLUDE_RESOLVED_UNIT` | `reference`                   | `reference`（`SELF`/`BINDING`）が指す解決済みユニットを除外する              |
-| `MARKER_IN_AREA`        | `area`, `markerId`            | 候補自身を基準にした`area`内に指定Markerの所持者がいるか                     |
-| `AND`                   | `conditions[]`                | 全条件                                                                       |
-| `OR`                    | `conditions[]`                | いずれか                                                                     |
-| `NOT`                   | `condition`                   | 否定                                                                         |
+| kind                    | 追加フィールド                | 意味                                                                                                                                                                                                                                                                        |
+| ----------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSITION_ROW`          | `row`                         | `FRONT` / `BACK`                                                                                                                                                                                                                                                            |
+| `POSITION_COLUMN`       | `column`                      | `LEFT` / `CENTER` / `RIGHT`                                                                                                                                                                                                                                                 |
+| `POSITION_SLOT`         | `row`, `column`               | 具体位置                                                                                                                                                                                                                                                                    |
+| `UNIT_TYPE`             | `unitType`                    | UnitType一致                                                                                                                                                                                                                                                                |
+| `ROLE`                  | `role`                        | Role一致                                                                                                                                                                                                                                                                    |
+| `ATTRIBUTE`             | `attribute`                   | Attribute一致                                                                                                                                                                                                                                                               |
+| `AFFILIATION`           | `affiliationId`               | 所属一致                                                                                                                                                                                                                                                                    |
+| `CHARACTER`             | `characterId`                 | キャラクター一致                                                                                                                                                                                                                                                            |
+| `HAS_MARKER`            | `markerId`, `countCondition?` | Marker所持（`countCondition`（`op`/`value`）で所持数のしきい値も指定できる）                                                                                                                                                                                                |
+| `HP_RATIO`              | `op`, `value`                 | HP割合比較                                                                                                                                                                                                                                                                  |
+| `EXCLUDE_RESOLVED_UNIT` | `reference`                   | `reference`（`SELF`/`BINDING`）が指す解決済みユニットを除外する                                                                                                                                                                                                             |
+| `MARKER_IN_AREA`        | `area`, `markerId`            | 候補自身を基準にした`area`内に指定Markerの所持者がいるか（`area`は`ADJACENT_ORTHOGONAL`/`DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`/`SAME_ROW_AS_BASE`/`SAME_COLUMN_AS_BASE`の5 kindのみ許可。下記`AreaDefinition`の`SINGLE`/`ALL`/`ROW`/`COLUMN`はCatalogロード時点で拒否する） |
+| `AND`                   | `conditions[]`                | 全条件                                                                                                                                                                                                                                                                      |
+| `OR`                    | `conditions[]`                | いずれか                                                                                                                                                                                                                                                                    |
+| `NOT`                   | `condition`                   | 否定                                                                                                                                                                                                                                                                        |
 
 ### AreaDefinition
 
@@ -547,6 +547,8 @@ area:
 | `ADJACENT_ORTHOGONAL`    | 上下左右          |
 | `DIRECTLY_AHEAD_OF_BASE` | base の前方1マス  |
 | `BEHIND_BASE`            | base の背後1マス  |
+
+`target-selection-policy.ts`の`applyArea`は、この9 kindのうち`ADJACENT_ORTHOGONAL`/`DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`/`SAME_ROW_AS_BASE`/`SAME_COLUMN_AS_BASE`の5 kindだけを実装する（`SINGLE`/`ALL`/`ROW`/`COLUMN`は未実装で実行時に`DomainValidationError`を投げる）。`TargetFilterDefinition.MARKER_IN_AREA.area`（PR #233レビュー、Issue #169/TGT-002）はこの5 kindだけをCatalogロード時点で許可し、残り4 kindを検証時点で拒否する。`TargetSelectorDefinition.area`（`base`基準の対象範囲）は同じ実行時制約を持つが、Catalogロード時点の検証はまだ実装範囲と揃っていない（production Catalogは実装済みの5 kindしか使用しておらず、現状は未検出のまま残る既存のギャップ）。
 
 ### 位置指定の authoring 規約
 
