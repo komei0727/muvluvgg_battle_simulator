@@ -108,6 +108,46 @@ describe("removeMarkers", () => {
     });
   });
 
+  it("UT-R-TGT-08-007: a CONSUMPTION seed (R-TGT-08 Stealth consumption, TGT-004/Issue #167) removes the MarkerState and emits MarkerRemoved", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const markerId = createMarkerId("MARKER_STEALTH");
+
+    const granted = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+      },
+      rootEventId,
+    );
+
+    const seeds: readonly MarkerRemovalSeed[] = [
+      {
+        battleUnitId: target.battleUnitId,
+        markerInstanceId: granted.markerState.markerInstanceId,
+        reason: "CONSUMPTION",
+      },
+    ];
+    const result = removeMarkers(context, granted.units, seeds, granted.lastEventId);
+
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(nextTarget.markerStates).toHaveLength(0);
+    const events = recorder.getEvents();
+    expect(events[events.length - 1]!.eventType).toBe("MarkerRemoved");
+    expect(events[events.length - 1]!.payload).toMatchObject({
+      reason: "CONSUMPTION",
+      cascaded: false,
+    });
+  });
+
   it("UT-R-EFF-10-010: a linkedEffectGroupId PARENT MarkerState removal cascades to its CHILD MarkerState", () => {
     const source = unit("source-1");
     const target = unit("target-1");

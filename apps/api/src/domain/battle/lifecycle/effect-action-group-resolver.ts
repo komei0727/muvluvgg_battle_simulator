@@ -1601,6 +1601,38 @@ export function* resolveEffectSequencePlan(
   let lastEventId = context.parentEventId;
   let resolvedCount = 0;
 
+  // R-TGT-08「ステルス」（TGT-004、Issue #167）: targetBindings解決時に第一優先
+  // 対象として選ばれ候補順の末尾へ移動されたStealth Marker所持者を、実際の
+  // step解決を始める前に一括で消費する（`MarkerRemoved`/reason:"CONSUMPTION"）。
+  if (plan.stealthConsumptions.length > 0) {
+    const innerEventsStart = context.recorder.getEvents().length;
+    const removalResult = removeMarkers(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      plan.stealthConsumptions.map((consumption) => ({
+        battleUnitId: consumption.battleUnitId,
+        markerInstanceId: consumption.markerInstanceId,
+        reason: "CONSUMPTION",
+      })),
+      lastEventId,
+    );
+    box.units = removalResult.units;
+    lastEventId = removalResult.lastEventId;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    }
+  }
+
   for (const step of plan.steps) {
     if (isDefeated(requireUnit(box.units, context.actorId))) {
       return {

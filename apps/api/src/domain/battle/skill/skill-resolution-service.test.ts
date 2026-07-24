@@ -10,8 +10,10 @@ import {
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "../model/battle-unit.js";
+import { buildInitialMarkerState, STEALTH_MARKER_ID } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
+import { createMarkerInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -869,5 +871,68 @@ describe("resolveChargeReleaseOrder", () => {
     expect(() => resolveChargeReleaseOrder(skill, actor, [actor], new Map())).toThrow(
       DomainValidationError,
     );
+  });
+});
+
+describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Issue #167)", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-010: a targetBinding whose first-priority candidate holds Stealth surfaces a stealthConsumption on the plan, and resolves to the redirected candidate", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const nearestEnemy = unit(
+      "NEAREST",
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      {
+        markerStates: [
+          buildInitialMarkerState(
+            createMarkerInstanceId("mi-stealth-1"),
+            STEALTH_MARKER_ID,
+            createBattleUnitId("NEAREST"),
+            createBattleUnitId("NEAREST"),
+            null,
+            { dispellable: true, linkedEffectGroupId: null },
+            { turnNumber: 1 },
+          ),
+        ],
+      },
+    );
+    const fartherEnemy = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: createTargetBindingId("TGT_1"),
+          selector: { ...ENEMY_ALL_SELECTOR, count: 1 },
+        },
+      ],
+      steps: [],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor, nearestEnemy, fartherEnemy], new Map());
+
+    expect(plan.stealthConsumptions).toEqual([
+      {
+        battleUnitId: createBattleUnitId("NEAREST"),
+        markerInstanceId: createMarkerInstanceId("mi-stealth-1"),
+      },
+    ]);
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_1"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("FARTHER")]);
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-011: no Stealth holder means an empty stealthConsumptions array", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor, enemy], new Map());
+
+    expect(plan.stealthConsumptions).toEqual([]);
   });
 });

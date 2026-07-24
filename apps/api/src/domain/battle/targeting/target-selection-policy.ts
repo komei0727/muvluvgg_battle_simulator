@@ -1,7 +1,9 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { STEALTH_MARKER_ID } from "../model/marker-state.js";
 import { frontDirectionStep, manhattanDistance } from "./position-policy.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { MarkerInstanceId } from "../../shared/event-ids.js";
 import type { Side as SelectorSide, UnitType } from "../../catalog/definitions/catalog-enums.js";
 import type {
   AreaDefinition,
@@ -558,14 +560,62 @@ function resolveTriggerPool(
     : units.filter((u) => matchesRelativeSide(u, actor, selector.side as SelectorSide));
 }
 
-export function resolveTargets(
+/** R-TGT-08（TGT-004、Issue #167）: 消費された（第一優先対象として移動された）Stealth Markerインスタンス。 */
+export interface StealthConsumption {
+  readonly battleUnitId: BattleUnitId;
+  readonly markerInstanceId: MarkerInstanceId;
+}
+
+interface ResolveTargetsCoreResult {
+  readonly selected: readonly BattleUnit[];
+  readonly stealthConsumption?: StealthConsumption;
+}
+
+/**
+ * R-TGT-08「ステルス」#1〜#5: `order`適用後・`count`適用前の候補順に対し、
+ * 第一優先対象（先頭）がStealth Markerを持つ場合に限りそれを候補順の末尾へ
+ * 移動する（非先頭のStealth所持者は順序を変更しない、#5）。#6/#7
+ * （自身を対象とする自身のスキル／条件によって対象が1体に限定されている場合は
+ * 適用しない）は、候補が2件未満の場合に必ず一致する — `kind: SELF`は常に
+ * 候補1件（`pool = [actor]`）にしかならず、`TRIGGER_TARGET`のような
+ * イベント由来の狭い候補集合も同様に1件へ収束しうるため、追加のkind分岐は
+ * 要らない。移動はStealth Markerの消費（`resolveEffectSequence`の呼び出し元が
+ * `MarkerRemoved`/reason:"CONSUMPTION"として実際に除去する）を伴うが、この
+ * 関数自体は純粋関数のため、除去対象（`StealthConsumption`）を返すだけで
+ * `markerStates`を変更しない。
+ */
+function applyStealthRedirect(ordered: readonly BattleUnit[]): {
+  readonly ordered: readonly BattleUnit[];
+  readonly consumption?: StealthConsumption;
+} {
+  if (ordered.length < 2) {
+    return { ordered };
+  }
+  const [firstPriority, ...rest] = ordered as [BattleUnit, ...BattleUnit[]];
+  const stealthMarker = firstPriority.markerStates.find(
+    (state) => state.markerId === STEALTH_MARKER_ID && state.stackCount > 0,
+  );
+  if (stealthMarker === undefined) {
+    return { ordered };
+  }
+  return {
+    // R-TGT-08 #3: 第一優先対象を候補順の最後へ移動する。
+    ordered: [...rest, firstPriority],
+    consumption: {
+      battleUnitId: firstPriority.battleUnitId,
+      markerInstanceId: stealthMarker.markerInstanceId,
+    },
+  };
+}
+
+function resolveTargetsCore(
   selector: TargetSelectorDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
-  resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
-  triggerContext?: TriggerContext,
-  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
-): readonly BattleUnit[] {
+  resolvedBindings: ResolvedTargetBindings,
+  triggerContext: TriggerContext | undefined,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+): ResolveTargetsCoreResult {
   // R-TGT-09 #5相当の事前検証: orderは並べ替え前に検証する（候補0/1件でも不正なorderは拒否する）。
   const compare = compareByOrder(selector.order, actor, unitDefinitions);
 
@@ -612,20 +662,24 @@ export function resolveTargets(
   // R-TGT-09 #5: orderを比較キーとして適用し、候補順を一意にする。
   const ordered = [...pool].sort(compare);
 
+  // R-TGT-08: Stealth所持者が第一優先対象の場合、候補順の末尾へ移動する。
+  // 候補の集合・件数は変えないため、直後のcount適用・fallback判定（#6/#7）には影響しない。
+  const stealthResult = applyStealthRedirect(ordered);
+
   // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
   // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
   // 候補数を変えないため、fallback判定（#7）は0/1件の場合と同じ結果になるここで行う。
   const selected =
     selector.count === undefined || selector.count === "ALL"
-      ? ordered
-      : ordered.slice(0, selector.count);
+      ? stealthResult.ordered
+      : stealthResult.ordered.slice(0, selector.count);
 
   // R-TGT-09 #7/R-TGT-10（CAP_TARGET_BINDING_FALLBACK、Issue #168/TGT-003）:
   // 候補が0件かつfallbackがあれば、fallback自身を独立したTargetSelectorDefinition
-  // として同じ評価順（kind→戦闘不能除外→filters→area→order→count→fallback）で
+  // として同じ評価順（kind→戦闘不能除外→filters→area→order→Stealth→count→fallback）で
   // 評価する。fallbackが自身のfallbackを持つ場合も同じ規約で連鎖する。
   if (selected.length === 0 && selector.fallback !== undefined) {
-    return resolveTargets(
+    return resolveTargetsCore(
       selector.fallback,
       actor,
       allUnits,
@@ -634,5 +688,61 @@ export function resolveTargets(
       unitDefinitions,
     );
   }
-  return selected;
+  return {
+    selected,
+    ...(stealthResult.consumption !== undefined
+      ? { stealthConsumption: stealthResult.consumption }
+      : {}),
+  };
+}
+
+export function resolveTargets(
+  selector: TargetSelectorDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
+  triggerContext?: TriggerContext,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
+): readonly BattleUnit[] {
+  return resolveTargetsCore(
+    selector,
+    actor,
+    allUnits,
+    resolvedBindings,
+    triggerContext,
+    unitDefinitions,
+  ).selected;
+}
+
+/**
+ * `resolveTargets`と同じ解決を行うが、R-TGT-08で発生したStealth Markerの
+ * 消費（あれば）も返す。実際のMarker除去・`MarkerRemoved`イベント発行は
+ * 呼び出し側（`resolveEffectSequence`が集約し、`resolveEffectSequencePlan`が
+ * `removeMarkers`で適用する）の責務であり、この関数自身は`markerStates`を
+ * 変更しない。AS選択時のフィージビリティ判定（`hasResolvableTargets`）や
+ * `TargetsSelected`イベント payload 用の監査再解決（`resolveBindingSelections`）は
+ * 消費を確定させてはならないため、引き続き`resolveTargets`を使う。
+ */
+export function resolveTargetsWithStealthConsumption(
+  selector: TargetSelectorDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
+  triggerContext?: TriggerContext,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
+): { readonly units: readonly BattleUnit[]; readonly stealthConsumption?: StealthConsumption } {
+  const result = resolveTargetsCore(
+    selector,
+    actor,
+    allUnits,
+    resolvedBindings,
+    triggerContext,
+    unitDefinitions,
+  );
+  return {
+    units: result.selected,
+    ...(result.stealthConsumption !== undefined
+      ? { stealthConsumption: result.stealthConsumption }
+      : {}),
+  };
 }

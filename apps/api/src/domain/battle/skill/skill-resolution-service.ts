@@ -1,5 +1,9 @@
 import type { BattleUnit } from "../model/battle-unit.js";
-import { resolveTargets, type TriggerContext } from "../targeting/target-selection-policy.js";
+import {
+  resolveTargetsWithStealthConsumption,
+  type StealthConsumption,
+  type TriggerContext,
+} from "../targeting/target-selection-policy.js";
 import {
   conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
@@ -117,6 +121,15 @@ export interface EffectSequencePlan {
    * 戦闘状態が変化しても、同じ sequence 内の当該 binding は再評価しない」）。
    */
   readonly resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>;
+  /**
+   * R-TGT-08「ステルス」（TGT-004、Issue #167）: `targetBindings`の解決中に
+   * 第一優先対象として選ばれ、候補順の末尾へ移動されたStealth Marker所持者。
+   * 実際のMarker除去・`MarkerRemoved`（reason:"CONSUMPTION"）発行は
+   * `resolveEffectSequencePlan`（`effect-action-group-resolver.ts`）が
+   * stepsの解決を開始する前に一括で行う — `EventRecorder`を持たないこの
+   * 計画関数自身は`markerStates`を変更しない。
+   */
+  readonly stealthConsumptions: readonly StealthConsumption[];
 }
 
 /**
@@ -499,11 +512,12 @@ function resolveEffectSequence(
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
-  // ここまでに解決済みのbindingを`resolveTargets`へ渡しながら1件ずつ確定する。
+  // ここまでに解決済みのbindingを`resolveTargetsWithStealthConsumption`へ渡しながら1件ずつ確定する。
   const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>();
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
+  const stealthConsumptions: StealthConsumption[] = [];
   for (const binding of sequence.targetBindings) {
-    const units = resolveTargets(
+    const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
       binding.selector,
       actor,
       allUnits,
@@ -511,6 +525,9 @@ function resolveEffectSequence(
       triggerContext,
       unitDefinitions,
     );
+    if (stealthConsumption !== undefined) {
+      stealthConsumptions.push(stealthConsumption);
+    }
     resolvedBindingUnits.set(binding.targetBindingId, units);
     resolvedBindings.set(binding.targetBindingId, {
       units,
@@ -579,7 +596,7 @@ function resolveEffectSequence(
     });
   });
 
-  return { steps, targetUnitIds, resolvedBindings };
+  return { steps, targetUnitIds, resolvedBindings, stealthConsumptions };
 }
 
 /** テスト・呼び出し側がstep構造を無視して、旧来のヒット単位の平坦な順序だけを見たい場合に使う。 */

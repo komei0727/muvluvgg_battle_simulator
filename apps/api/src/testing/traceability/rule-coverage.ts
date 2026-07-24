@@ -399,7 +399,31 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-TGT-07-001", "UT-R-TGT-07-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
-  { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
+  // TGT-004 (Issue #167): 第一優先対象がStealth Marker（予約MarkerId
+  // `MARKER_STEALTH`）を持つ場合に候補順の末尾へ移動し、消費する（#1〜#5、
+  // target-selection-policy.tsの`applyStealthRedirect`）。移動後に代替対象が
+  // いない場合も消費したうえで元の対象へ発動する（#4、Q-TGT-05）。候補が
+  // 2件未満（`kind: SELF`常時／イベント由来の狭い候補集合）の場合は適用しない
+  // （#6/#7）。実消費（`MarkerRemoved`/reason:"CONSUMPTION"）は
+  // `EffectSequencePlan.stealthConsumptions`（`resolveEffectSequence`が集約）を
+  // `resolveEffectSequencePlan`がstep解決開始前に一括適用する。
+  {
+    ruleId: "R-TGT-08",
+    testCaseIds: [
+      "UT-R-TGT-08-001",
+      "UT-R-TGT-08-002",
+      "UT-R-TGT-08-003",
+      "UT-R-TGT-08-004",
+      "UT-R-TGT-08-005",
+      "UT-R-TGT-08-006",
+      "UT-R-TGT-08-007",
+      "UT-SKILL-RESOLUTION-SERVICE-010",
+      "UT-SKILL-RESOLUTION-SERVICE-011",
+      "UT-SKILL-RESOLUTION-SERVICE-012",
+      "UT-SKILL-RESOLUTION-SERVICE-013",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // Issue #170 (TGT-001)で`kind`評価(SELF/SELECT/BINDING_DERIVED)・戦闘不能除外・
   // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
   // SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE)・orderの評価順を実装した（回帰検証は

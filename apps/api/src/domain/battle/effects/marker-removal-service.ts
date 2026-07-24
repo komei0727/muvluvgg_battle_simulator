@@ -85,10 +85,19 @@ export function emitMarkerDurationChangedEvents(
   return lastEventId;
 }
 
-/** `duration-expiry-service.ts`の`ExpirationSeedReason`と同じ役割のMarker版。 */
+/**
+ * `duration-expiry-service.ts`の`ExpirationSeedReason`と同じ役割のMarker版。
+ * `LINKED_GROUP_CASCADE`はこの関数自身が`collectMarkerLinkedGroupCascade`から
+ * 導出するため呼び出し元は指定できない。`EXPIRATION_CONDITION`はMarkerの
+ * `duration.expiration`条件評価（未実装）専用に予約したまま除外する。
+ * `CONSUMPTION`はR-TGT-08「ステルス」（TGT-004、Issue #167）が最初の呼び出し元
+ * として使う — 第一優先対象として選ばれたことによるMarker消費であり、
+ * duration/expiration起因の失効とは異なる独立した呼び出し元（`resolveEffectSequencePlan`）
+ * から明示的にseedを渡す。
+ */
 export type MarkerRemovalSeedReason = Exclude<
   MarkerRemovalReason,
-  "LINKED_GROUP_CASCADE" | "CONSUMPTION" | "EXPIRATION_CONDITION"
+  "LINKED_GROUP_CASCADE" | "EXPIRATION_CONDITION"
 >;
 
 export interface MarkerRemovalSeed {
