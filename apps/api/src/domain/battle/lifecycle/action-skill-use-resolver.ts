@@ -17,23 +17,31 @@ import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { TargetBindingDefinition } from "../../catalog/definitions/effect-sequence.js";
+import type { TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
-/** `08_ドメインイベント.md`「TargetsSelected」payload: targetBindingごとの解決対象。 */
+/**
+ * `08_ドメインイベント.md`「TargetsSelected」payload: targetBindingごとの解決対象。
+ * R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
+ * ここまでに解決済みのbindingを`resolveTargets`へ渡しながら定義順に確定する。
+ */
 export function resolveBindingSelections(
   targetBindings: readonly TargetBindingDefinition[],
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
 ): readonly { targetBindingId: string; selectedTargetUnitIds: readonly BattleUnitId[] }[] {
-  return targetBindings.map((binding) => ({
-    targetBindingId: binding.targetBindingId,
-    selectedTargetUnitIds: resolveTargets(binding.selector, actor, allUnits).map(
-      (unit) => unit.battleUnitId,
-    ),
-  }));
+  const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
+  return targetBindings.map((binding) => {
+    const units = resolveTargets(binding.selector, actor, allUnits, resolvedBindingUnits);
+    resolvedBindingUnits.set(binding.targetBindingId, units);
+    return {
+      targetBindingId: binding.targetBindingId,
+      selectedTargetUnitIds: units.map((unit) => unit.battleUnitId),
+    };
+  });
 }
 
 /**

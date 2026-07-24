@@ -332,10 +332,15 @@ function resolveEffectSequence(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
+  // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
+  // ここまでに解決済みのbindingを`resolveTargets`へ渡しながら1件ずつ確定する。
   const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>();
+  const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
   for (const binding of sequence.targetBindings) {
+    const units = resolveTargets(binding.selector, actor, allUnits, resolvedBindingUnits);
+    resolvedBindingUnits.set(binding.targetBindingId, units);
     resolvedBindings.set(binding.targetBindingId, {
-      units: resolveTargets(binding.selector, actor, allUnits),
+      units,
       includeDefeated: binding.selector.includeDefeated,
     });
   }

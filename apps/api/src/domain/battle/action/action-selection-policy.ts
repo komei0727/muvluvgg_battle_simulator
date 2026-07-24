@@ -1,6 +1,6 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
-import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { SkillDefinitionId, TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
@@ -8,15 +8,25 @@ export type ActionSelectionResult =
   | { readonly kind: "SKILL"; readonly skill: SkillDefinition }
   | { readonly kind: "WAIT" };
 
-/** R-TGT-01 #4: 各targetBindingが1体以上の候補を持つかどうかで判定する。 */
+/**
+ * R-TGT-01 #4: 各targetBindingが1体以上の候補を持つかどうかで判定する。
+ * R-TGT-09/10: `base: BINDING`が先行bindingを参照できるよう、定義順に解決した
+ * bindingを積み上げながら判定する（後続bindingが不成立でも先行分は評価済み）。
+ */
 export function hasResolvableTargets(
   skill: SkillDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
 ): boolean {
-  return skill.resolution.targetBindings.every(
-    (binding) => resolveTargets(binding.selector, actor, allUnits).length > 0,
-  );
+  const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
+  for (const binding of skill.resolution.targetBindings) {
+    const units = resolveTargets(binding.selector, actor, allUnits, resolvedBindingUnits);
+    resolvedBindingUnits.set(binding.targetBindingId, units);
+    if (units.length === 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
