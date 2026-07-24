@@ -47,14 +47,19 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // wired the real lifecycle (`IT-CAP-TARGET-DERIVED-AREA-PROD-001`).
     // RES-004 (Issue #171後半): `CAP_EFFECT_STEP_CONDITION` flipped to IMPLEMENTED
     // once ACTION step conditions referencing their own `target` (TARGET_STATE/
-    // TARGET_HAS_MARKER) are evaluated per-target instead of once for the whole
-    // step (`effect-step-condition-evaluator.ts`'s `EffectStepTargetContext`,
+    // TARGET_HAS_MARKER) are evaluated per-target, always deferred to JIT
+    // resolution time (`isEagerActionStep`) so a self-referencing condition sees
+    // the state left by earlier steps and by this step's own `EffectStepStarting`
+    // chain, not a stale pre-sequence/pre-timing-event snapshot (PR #223 review
+    // finding [P1]; `effect-step-condition-evaluator.ts`'s `EffectStepTargetContext`,
     // `skill-resolution-service.ts`'s `buildEffectStepPerTargetFilter`), wiring
     // the real lifecycle for `SKL_AOI_ELEGANT_EX`/`SKL_LUCIE_MAID_AS1`/
-    // `SKL_LUCIE_MAID_PS2`/`SKL_ROSIE_ARTIST_PS2`
-    // (`IT-CAP-EFFSTEP-001〜004`). The capability's "集合条件" (set-threshold)
-    // half remains unimplemented (no ConditionKind exists for it yet).
-    expect(catalog.catalogRevision).toBe("2026-07-24.8");
+    // `SKL_LUCIE_MAID_PS2`/`SKL_ROSIE_ARTIST_PS2` (`IT-CAP-EFFSTEP-001〜004`).
+    // PR #223 review finding [P2]: this capability's completion boundary is
+    // narrowed to exclude "集合条件" (set-threshold) — no ConditionKind exists
+    // for it yet, so it isn't part of what `IMPLEMENTED` claims here. It becomes
+    // its own Capability entry once a concrete schema-supported design exists.
+    expect(catalog.catalogRevision).toBe("2026-07-24.9");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

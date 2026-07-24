@@ -917,6 +917,13 @@ function* resolveActionApplications(
  * でも`EffectStepCompleted`は発行しない（step自体が完了していないため）。
  * `applications`が既定計画済み（`ActionStepPlan`）・JIT解決済み
  * （`DeferredStepPlan`のACTION）のどちらから来たかは区別しない。
+ *
+ * `resolveAfterTiming`（CAP_EFFECT_STEP_CONDITION、Issue #171 RES-004後半、
+ * PRレビュー[P1]）: 対象別条件（自身のtargetを参照するTARGET_STATE/
+ * TARGET_HAS_MARKER）を持つACTIONだけが渡す。`EffectStepStarting`発行・その
+ * TIMINGイベントが誘発しうるPS/Memory連鎖の解決が終わった直後に呼び出し、
+ * その時点の最新`box.units`で対象別条件を評価し直す — 渡された`satisfied`/
+ * `applications`は、それまでの間だけ使う一時的なプレースホルダ（`true`/`[]`）。
  */
 function* resolveActionStepBody(
   stepIndex: number,
@@ -928,6 +935,10 @@ function* resolveActionStepBody(
   context: EffectActionGroupContext,
   lastResultState: LastResultState,
   lastEventId: DomainEventId,
+  resolveAfterTiming?: () => {
+    readonly satisfied: boolean;
+    readonly applications: readonly EffectActionApplication[];
+  },
 ): StepResolution {
   const stepStarting = emitEffectStepStarting(
     stepIndex,
@@ -938,15 +949,19 @@ function* resolveActionStepBody(
   );
   yield { kind: "TIMING_EVENT", event: stepStarting };
 
+  const resolved = resolveAfterTiming?.();
+  const effectiveSatisfied = resolved?.satisfied ?? satisfied;
+  const effectiveApplications = resolved?.applications ?? applications;
+
   // TIMINGイベント後の再検証（R-SKL-01）。
   if (isDefeated(requireUnit(box.units, context.actorId))) {
     return {
       lastEventId: stepStarting.eventId,
-      walkResult: walkInterrupted(0, 0, countHits(applications)),
+      walkResult: walkInterrupted(0, 0, countHits(effectiveApplications)),
     };
   }
 
-  if (!satisfied) {
+  if (!effectiveSatisfied) {
     const stepSkipped = context.recorder.record({
       eventType: "EffectStepSkipped",
       category: "DIAGNOSTIC",
@@ -963,7 +978,7 @@ function* resolveActionStepBody(
     return { lastEventId: stepSkipped.eventId, walkResult: walkCompleted(0, 0) };
   }
 
-  if (applications.length === 0) {
+  if (effectiveApplications.length === 0) {
     // R-SKL-08 / Catalog preflight（`MISSING_PRECEDING_RESULT`）: 対象0件まで
     // 解決へ到達したACTIONも、仕様どおりSKIPPED結果を直前結果として記録する。
     // レビュー指摘[P2]（PR #218）: R-SKL-06 #4は対象ごとにactionsを定義順で
@@ -992,7 +1007,7 @@ function* resolveActionStepBody(
   }
 
   const applied = yield* resolveActionApplications(
-    applications,
+    effectiveApplications,
     box,
     context,
     lastResultState,
@@ -1301,6 +1316,67 @@ function* resolveRawStep(
 ): StepResolution {
   switch (step.kind) {
     case "ACTION": {
+      // CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半、PRレビュー[P1]）:
+      // conditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを
+      // 含む場合、その評価はこのstep自身の`EffectStepStarting`（TIMING）が
+      // 誘発しうるPS/Memory連鎖がMarker・HP・リソース等を変更した後の最新の
+      // `box.units`で行う必要がある。事前に（`EffectStepStarting`発行前に）
+      // 評価すると、その連鎖による変更を一切反映できない。そのため対象別
+      // 条件を持つACTIONは`satisfied`/`applications`を即座に確定させず、
+      // `resolveActionStepBody`へ「TIMINGイベント後に呼び出す再評価関数」を
+      // 渡す（`isEagerActionStep`が同じ理由でこの種のstepを常にDeferredへ
+      // 回すため、ここへ来るのはJIT解決経路だけ）。
+      if (conditionReferencesStepTarget(step.condition, step.target)) {
+        const resolveAfterTiming = (): {
+          readonly satisfied: boolean;
+          readonly applications: readonly EffectActionApplication[];
+        } => {
+          const actor = requireUnit(box.units, context.actorId);
+          const triggerContext = {
+            ...(context.triggerSourceUnitId !== undefined
+              ? { triggerSourceUnitId: context.triggerSourceUnitId }
+              : {}),
+            ...(context.triggerTargetUnitIds !== undefined
+              ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+              : {}),
+          };
+          const lastResultTargets = lastResultTargetsContext(lastResultState, box.units);
+          const perTargetFilter = buildEffectStepPerTargetFilter(
+            step,
+            plan.resolvedBindings,
+            actor,
+            box.units,
+            context.definitions.unitDefinitions,
+            lastResultState.current,
+            lastResultTargets,
+            triggerContext,
+          );
+          const applications = resolveActionStepApplications(
+            step,
+            plan.resolvedBindings,
+            actor,
+            box.units,
+            context.definitions.effectActions,
+            lastResultTargets,
+            triggerContext,
+            perTargetFilter,
+          );
+          return { satisfied: true, applications };
+        };
+        return yield* resolveActionStepBody(
+          stepIndex,
+          step.condition.kind,
+          true,
+          step.actions,
+          [],
+          box,
+          context,
+          lastResultState,
+          lastEventId,
+          resolveAfterTiming,
+        );
+      }
+
       const actor = requireUnit(box.units, context.actorId);
       const triggerContext = {
         ...(context.triggerSourceUnitId !== undefined
@@ -1310,26 +1386,7 @@ function* resolveRawStep(
           ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
           : {}),
       };
-      const lastResultTargets = lastResultTargetsContext(lastResultState, box.units);
-      // CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: step自身のtargetを
-      // 参照するTARGET_STATE/TARGET_HAS_MARKERを含む場合は、一度だけの評価を
-      // 行わず（`satisfied`は常にtrue）、対象ごとの評価を`perTargetFilter`へ委ねる
-      // （`skill-resolution-service.ts`のeager pathと同じ方針）。
-      const selfReferencing = conditionReferencesStepTarget(step.condition, step.target);
-      const satisfied =
-        selfReferencing || evaluateEffectStepCondition(step.condition, lastResultState.current);
-      const perTargetFilter = selfReferencing
-        ? buildEffectStepPerTargetFilter(
-            step,
-            plan.resolvedBindings,
-            actor,
-            box.units,
-            context.definitions.unitDefinitions,
-            lastResultState.current,
-            lastResultTargets,
-            triggerContext,
-          )
-        : undefined;
+      const satisfied = evaluateEffectStepCondition(step.condition, lastResultState.current);
       const applications = satisfied
         ? resolveActionStepApplications(
             step,
@@ -1337,9 +1394,8 @@ function* resolveRawStep(
             actor,
             box.units,
             context.definitions.effectActions,
-            lastResultTargets,
+            lastResultTargetsContext(lastResultState, box.units),
             triggerContext,
-            perTargetFilter,
           )
         : [];
       return yield* resolveActionStepBody(
