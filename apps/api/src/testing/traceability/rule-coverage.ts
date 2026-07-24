@@ -403,14 +403,45 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 参照とも`TRIGGER_SOURCE`/`TRIGGER_TARGET`を実装した（回帰検証は
   // UT-CAP-TRIGGER-CONTEXT-004〜008、production統合はIT-CAP-TRIGGER-CONTEXT-PROD-001）。
   // R-TGT-09は`kind→includeDefeated→filters→area→order→count→fallback`の全7段階を
-  // 規定する単一ルールであり、非空`filters`・`fallback`は引き続き`DomainValidationError`
-  // のため、`13_実装計画.md`の完了定義（全段階のproduction経路が揃った時点）に照らすと
-  // 完了計上できない。残る段階はTGT-002（filters、CAP_TARGET_FILTER_ORDER、
-  // Issue #169）・TGT-003（fallback、CAP_TARGET_BINDING_FALLBACK、Issue #168）に
-  // またがるため、直近のTGT-002へ引き継ぎつつ、TGT-002完了時点でもfallback以外の
-  // 段階が残るようであれば次のタスクへ再度引き継ぐこと。
+  // 規定する単一ルールであり、TGT-003（Issue #168）で#7（fallback）を実装した後も
+  // 非空`filters`（#3）は引き続き`DomainValidationError`のため、`13_実装計画.md`の
+  // 完了定義（全段階のproduction経路が揃った時点）に照らすと完了計上できない。
+  // 残る段階はTGT-002（filters、CAP_TARGET_FILTER_ORDER、Issue #169）のみのため、
+  // TGT-002へ引き継ぐ。
   { ruleId: "R-TGT-09", testCaseIds: [], kinds: [] },
-  { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
+  // Issue #168 (TGT-003, CAP_TARGET_BINDING_FALLBACK)で`R-TGT-10`の3点を実装した:
+  // (1) sequence開始時のtargetBindings定義順固定 — `skill-resolution-service.ts`の
+  // `resolveEffectSequence`が全bindingとeagerなACTION step対象を一度だけ解決し、
+  // `applyEffectActionGroups`はその計画済みmapを参照するだけで再解決しない（構造上
+  // 保証されており、複数stepが同じbindingを参照する既存回帰テスト群がこれを裏付ける）。
+  // (2) 参照時点の戦闘不能skip（明示`includeDefeated`がない限り）— RES-002（Issue #174）
+  // が全EffectAction種別に共通実装済み（回帰検証はeffect-action-group-resolver.test.tsの
+  // UT-R-ACTN-01-001〜006/010）。(3) 候補0件時のfallback経路評価 — 本Issueで
+  // `target-selection-policy.ts`の`resolveTargets`に実装した（回帰検証は
+  // target-selection-policy.test.tsのUT-R-TGT-10-001〜008）。production Catalogの
+  // `fallback`使用例（`SKL_CLARA_SANTA_AS2`/`SKL_LYDIA_GENIUS_EX`）はいずれも非空
+  // `filters`を伴うため、production統合テストはTGT-002（filters）完了後に追加する
+  // （`CAP_TARGET_BINDING_FALLBACK`のruntimeStatusもそれまで`PLANNED`のまま）。
+  {
+    ruleId: "R-TGT-10",
+    testCaseIds: [
+      "UT-R-TGT-10-001",
+      "UT-R-TGT-10-002",
+      "UT-R-TGT-10-003",
+      "UT-R-TGT-10-004",
+      "UT-R-TGT-10-005",
+      "UT-R-TGT-10-006",
+      "UT-R-TGT-10-007",
+      "UT-R-TGT-10-008",
+      "UT-R-ACTN-01-001",
+      "UT-R-ACTN-01-002",
+      "UT-R-ACTN-01-003",
+      "UT-R-ACTN-01-004",
+      "UT-R-ACTN-01-006",
+      "UT-R-ACTN-01-010",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
 
   // SKL: スキル
   // R-SKL-01: 使用者戦闘不能時の中断（`applyDamageAction`のヒット単位中断＋

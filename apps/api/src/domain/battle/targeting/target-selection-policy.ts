@@ -63,15 +63,6 @@ function assertNoFilters(selector: TargetSelectorDefinition): void {
   }
 }
 
-function assertNoFallback(selector: TargetSelectorDefinition): void {
-  if (selector.fallback !== undefined) {
-    throw new DomainValidationError(
-      "selector.fallback",
-      "fallback is not supported by this TargetSelectionPolicy (TGT-003/CAP_TARGET_BINDING_FALLBACK scope)",
-    );
-  }
-}
-
 /** R-TGT-02: 使用者からのマンハッタン距離昇順→対象側の行（前列、後列）→対象の列（絶対左、中央、右）。 */
 function compareDefaultOrder(actor: BattleUnit) {
   return (a: BattleUnit, b: BattleUnit): number => {
@@ -276,12 +267,14 @@ function applyArea(
  * 対象の特例、候補0体）、R-TGT-02（デフォルト順）、R-TGT-03（最も遠い）、R-TGT-04
  * （隣接）、R-TGT-05（目の前）、R-TGT-06（前後列優先順）、R-TGT-07（対象数不足）、
  * R-TGT-09（`kind`→戦闘不能除外→`filters`→`area`→`order`→`count`→`fallback`の評価順、
- * `BINDING_DERIVED`の`base`解決）を実装する。`filters`（非空）と`fallback`は
- * TGT-002/TGT-003（`CAP_TARGET_FILTER_ORDER`/`CAP_TARGET_BINDING_FALLBACK`）の
- * スコープのため明示的に例外を投げる。`selector.kind`/`base`の`TRIGGER_SOURCE`/
- * `TRIGGER_TARGET`は`triggerContext`（`CAP_TRIGGER_CONTEXT`、RES-005、Issue #172）
- * から解決する。`base`の`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`参照は
- * 引き続き未対応のため例外を投げる。
+ * `BINDING_DERIVED`の`base`解決）、R-TGT-10/CAP_TARGET_BINDING_FALLBACK（Issue #168/
+ * TGT-003: `count`適用後の候補が0件かつ`fallback`があれば、`fallback`自身を同じ
+ * `resolveTargets`で再帰的に評価する）を実装する。`filters`（非空）は引き続き
+ * TGT-002（`CAP_TARGET_FILTER_ORDER`）のスコープのため明示的に例外を投げる
+ * （`fallback`が持つ`filters`も同じ理由で再帰評価時に例外となる）。`selector.kind`/
+ * `base`の`TRIGGER_SOURCE`/`TRIGGER_TARGET`は`triggerContext`（`CAP_TRIGGER_CONTEXT`、
+ * RES-005、Issue #172）から解決する。`base`の`LAST_ACTION_TARGETS`/
+ * `LAST_DAMAGED_TARGETS`参照は引き続き未対応のため例外を投げる。
  */
 function resolveTriggerPool(
   kind: "TRIGGER_SOURCE" | "TRIGGER_TARGET",
@@ -325,7 +318,6 @@ export function resolveTargets(
   triggerContext?: TriggerContext,
 ): readonly BattleUnit[] {
   assertNoFilters(selector);
-  assertNoFallback(selector);
 
   // R-TGT-09 #5相当の事前検証: orderは並べ替え前に検証する（候補0/1件でも不正なorderは拒否する）。
   const compare = compareByOrder(selector.order, actor);
@@ -366,9 +358,19 @@ export function resolveTargets(
   const ordered = [...pool].sort(compare);
 
   // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
-  // 先頭からcount件（不足時はそのまま存在する候補だけになる）。
-  if (selector.count === undefined || selector.count === "ALL") {
-    return ordered;
+  // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
+  // 候補数を変えないため、fallback判定（#7）は0/1件の場合と同じ結果になるここで行う。
+  const selected =
+    selector.count === undefined || selector.count === "ALL"
+      ? ordered
+      : ordered.slice(0, selector.count);
+
+  // R-TGT-09 #7/R-TGT-10（CAP_TARGET_BINDING_FALLBACK、Issue #168/TGT-003）:
+  // 候補が0件かつfallbackがあれば、fallback自身を独立したTargetSelectorDefinition
+  // として同じ評価順（kind→戦闘不能除外→filters→area→order→count→fallback）で
+  // 評価する。fallbackが自身のfallbackを持つ場合も同じ規約で連鎖する。
+  if (selected.length === 0 && selector.fallback !== undefined) {
+    return resolveTargets(selector.fallback, actor, allUnits, resolvedBindings, triggerContext);
   }
-  return ordered.slice(0, selector.count);
+  return selected;
 }
