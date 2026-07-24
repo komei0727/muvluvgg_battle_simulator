@@ -521,7 +521,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 自身のtargetを参照しないTARGET_SET_COUNT単独の条件が、対象別条件と同じ
   // `resolveAfterTiming`経路（このstep自身の`EffectStepStarting`が誘発する
   // PS/Memory連鎖後に再評価する）を経由していなかった欠陥を修正し、
-  // `UT-R-SKL-06-039`で検証した。
+  // `UT-R-SKL-06-039`で検証した。続く再レビュー[P2]再指摘で、対象別条件
+  // （TARGET_STATE/TARGET_HAS_MARKERが自身のtargetを参照する）とTARGET_SET_COUNT
+  // をAND/OR/NOTで組み合わせた複合条件が、集合条件によってfalseになった場合
+  // でも常に`satisfied: true`（対象0件の適用）として扱われ、`EffectStepSkipped`
+  // にならない欠陥を修正した。`EffectStepTargetContext.wholeSet`（対象別部分を
+  // 「解決候補のいずれか1つでも満たすか」という`.some()`意味論で扱う、
+  // `TARGET_SET_COUNT`を伴わない対象別条件のみの場合は従来どおり`satisfied: true`
+  // 固定を維持）を追加し、`UT-R-SKL-06-040`〜043で検証した。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -564,6 +571,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-037",
       "UT-R-SKL-06-038",
       "UT-R-SKL-06-039",
+      "UT-R-SKL-06-040",
+      "UT-R-SKL-06-041",
+      "UT-R-SKL-06-042",
+      "UT-R-SKL-06-043",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",

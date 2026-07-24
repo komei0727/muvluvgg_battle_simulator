@@ -2757,5 +2757,122 @@ describe("applyEffectActionGroups", () => {
           ),
       ).toBe(false);
     });
+
+    it("UT-R-SKL-06-040（PRレビュー[P2]再指摘）: an ACTION step's condition mixing a self-referencing per-target condition with TARGET_SET_COUNT is skipped (EffectStepSkipped) when the set-count part is false, not treated as a zero-target completion", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY", { currentHp: 0 });
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const otherBindingId = createTargetBindingId("TGT_OTHER");
+      const otherTarget: TargetReference = { kind: "BINDING", targetBindingId: otherBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: otherBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            // AND(TARGET_STATE(step.target, IS_ALIVE), TARGET_SET_COUNT(otherBinding, GTE 1)):
+            // step.target (SELF) is always alive, but otherBinding resolves to 0
+            // (enemyA is defeated), so the set-count part is false and the whole
+            // AND must be false — this step must be skipped entirely, not treated
+            // as "zero targets applied" (R-SKL-06's per-target-only contract).
+            condition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "TARGET_STATE",
+                  target: { kind: "SELF" },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                { kind: "TARGET_SET_COUNT", target: otherTarget, op: "GTE", value: 1 },
+              ],
+            },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyA], context);
+
+      const emitted = recorder.getEvents().map((e) => e.eventType);
+      expect(emitted).toContain("EffectStepSkipped");
+      expect(emitted).not.toContain("EffectActionStarting");
+    });
+
+    it("UT-R-SKL-06-041（PRレビュー[P2]再指摘）: the same mixed condition proceeds normally when the set-count part is true", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const otherBindingId = createTargetBindingId("TGT_OTHER");
+      const otherTarget: TargetReference = { kind: "BINDING", targetBindingId: otherBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: otherBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "TARGET_STATE",
+                  target: { kind: "SELF" },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                { kind: "TARGET_SET_COUNT", target: otherTarget, op: "GTE", value: 1 },
+              ],
+            },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyA], context);
+
+      const emitted = recorder.getEvents().map((e) => e.eventType);
+      expect(emitted).not.toContain("EffectStepSkipped");
+      expect(emitted).toContain("EffectActionStarting");
+    });
   });
 });

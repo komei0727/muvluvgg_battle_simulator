@@ -29,12 +29,23 @@ function lastResultRecord(lastResult: LastEffectActionResult): Readonly<Record<s
  * 個別に解決し、それ以外（`SELF`/`TRIGGER_SOURCE`など、stepの対象集合とは
  * 無関係な参照）は`resolveOtherReference`で解決する（対象によらず一定の結果
  * になる）。
+ *
+ * `wholeSet: true`（CAP_EFFECT_STEP_SET_CONDITION、PRレビュー[P2]再指摘、
+ * Issue #227）を指定すると、`stepTarget`と一致する参照も`current`へ個別に
+ * 絞り込まず、常に`resolveOtherReference`（解決済み候補全体）を使う —
+ * `TARGET_STATE`/`TARGET_HAS_MARKER`の評価器実装は元々`candidates.some(...)`
+ * なので、これは「stepTargetの解決候補のいずれか1つでも満たすか」という
+ * step全体としての判定になる。`TARGET_SET_COUNT`と組み合わさる複合条件を
+ * 「stepを丸ごとskipすべきか」を判定する（`effect-action-group-resolver.ts`の
+ * `resolveAfterTiming`）ために使い、対象ごとのフィルタ（`current`を個別に
+ * 絞り込む通常モード、`buildEffectStepPerTargetFilter`）とは独立している。
  */
 export interface EffectStepTargetContext {
   readonly stepTarget: TargetReference;
   readonly current: BattleUnit;
   readonly resolveOtherReference: (reference: TargetReference) => readonly BattleUnit[];
   readonly unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
+  readonly wholeSet?: boolean;
 }
 
 function targetReferenceEquals(a: TargetReference, b: TargetReference): boolean {
@@ -146,6 +157,9 @@ function resolveConditionTargets(
   reference: TargetReference,
   ctx: EffectStepTargetContext,
 ): readonly BattleUnit[] {
+  if (ctx.wholeSet) {
+    return ctx.resolveOtherReference(reference);
+  }
   return targetReferenceEquals(reference, ctx.stepTarget)
     ? [ctx.current]
     : ctx.resolveOtherReference(reference);

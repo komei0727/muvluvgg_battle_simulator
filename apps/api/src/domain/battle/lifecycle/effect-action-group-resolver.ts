@@ -1383,6 +1383,13 @@ function* resolveRawStep(
               : {}),
           };
           const lastResultTargets = lastResultTargetsContext(lastResultState, box.units);
+          const resolveTargetSet = buildTargetSetResolver(
+            plan.resolvedBindings,
+            actor,
+            box.units,
+            lastResultTargets,
+            triggerContext,
+          );
 
           if (conditionReferencesStepTarget(step.condition, step.target)) {
             const perTargetFilter = buildEffectStepPerTargetFilter(
@@ -1395,28 +1402,52 @@ function* resolveRawStep(
               lastResultTargets,
               triggerContext,
             );
-            const applications = resolveActionStepApplications(
-              step,
-              plan.resolvedBindings,
-              actor,
-              box.units,
-              context.definitions.effectActions,
-              lastResultTargets,
-              triggerContext,
-              perTargetFilter,
-            );
-            return { satisfied: true, applications };
+            // PRレビュー[P2]再指摘（Issue #227）: 対象別条件（TARGET_STATE/
+            // TARGET_HAS_MARKERが自身のtargetを参照する）とTARGET_SET_COUNT
+            // （step全体で評価する集合条件）がAND/OR/NOTで混在する場合、
+            // per-target filterだけでは「集合条件がfalseになったことで複合
+            // 条件全体がfalseになった」ケースを表現できない — filterで全対象が
+            // 除外されても、それは常に`satisfied: true`の「対象0件の適用」に
+            // なってしまい、`EffectStepSkipped`（stepのcondition自体が偽）と
+            // 区別が付かない。TARGET_SET_COUNTを伴わない対象別条件のみの場合は
+            // 従来どおり「対象集合全体が条件を満たさなかった場合は、対象0件の
+            // ACTION stepと同じ扱い」（R-SKL-06）を維持し、`satisfied: true`固定
+            // のままとする。TARGET_SET_COUNTを伴う場合だけ、対象別条件部分を
+            // 「stepTargetの解決候補のいずれか1つでも満たすか」（`wholeSet:
+            // true`、`TARGET_STATE`/`TARGET_HAS_MARKER`評価器の`.some()`実装と
+            // 同じ意味論）として扱い、TARGET_SET_COUNTと合わせてstep全体を
+            // 一度だけ評価する。
+            const satisfied = conditionReferencesTargetSetCount(step.condition)
+              ? evaluateEffectStepCondition(
+                  step.condition,
+                  lastResultState.current,
+                  {
+                    stepTarget: step.target,
+                    current: actor,
+                    resolveOtherReference: resolveTargetSet,
+                    unitDefinitions: context.definitions.unitDefinitions,
+                    wholeSet: true,
+                  },
+                  resolveTargetSet,
+                )
+              : true;
+            const applications = satisfied
+              ? resolveActionStepApplications(
+                  step,
+                  plan.resolvedBindings,
+                  actor,
+                  box.units,
+                  context.definitions.effectActions,
+                  lastResultTargets,
+                  triggerContext,
+                  perTargetFilter,
+                )
+              : [];
+            return { satisfied, applications };
           }
 
           // TARGET_SET_COUNTのみ（自身のtargetを参照する対象別条件は持たない）:
           // 対象ごとにではなくstep全体を一度だけ、最新状態で評価する。
-          const resolveTargetSet = buildTargetSetResolver(
-            plan.resolvedBindings,
-            actor,
-            box.units,
-            lastResultTargets,
-            triggerContext,
-          );
           const satisfied = evaluateEffectStepCondition(
             step.condition,
             lastResultState.current,
