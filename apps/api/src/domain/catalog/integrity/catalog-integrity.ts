@@ -265,7 +265,8 @@ function stepsContainTargetReferenceKinds(
     if (step.kind === "ACTION") {
       if (
         kinds.has(step.target.kind) ||
-        conditionContainsTargetReferenceKind(step.condition, kinds)
+        conditionContainsTargetReferenceKind(step.stepCondition, kinds) ||
+        conditionContainsTargetReferenceKind(step.targetCondition, kinds)
       ) {
         return true;
       }
@@ -288,9 +289,27 @@ function stepsContainTargetReferenceKinds(
   return false;
 }
 
+/**
+ * CAP_EFFECT_STEP_CONDITION_SCOPE（Issue #230）: ACTIONは`stepCondition`/
+ * `targetCondition`のどちらか一方でも非TRUEなら対象とする（Issue #227以前の
+ * 「`condition`が非TRUEなら要求」という広い判定をそのまま維持する — 実際に
+ * 対象別filterを使うかどうかに関わらず、ACTIONが何らかの条件ロジックを
+ * 宣言していること自体を要求するのがこのCapabilityの既存の運用だったため）。
+ * `stepCondition`が`TARGET_SET_COUNT`を含む場合は、これに加えて別Capability
+ * （CAP_EFFECT_STEP_SET_CONDITION、`stepsContainSetCondition`）も要求される
+ * ため、両方が同時に必要になりうる（Issue #230が可能にした組み合わせ）。
+ * BRANCHにはこの区別が無い（`target`を持たずconditionは常にstep-wide）ため、
+ * 従来どおり`condition`をそのまま見る。
+ */
 function stepsContainNonTrueCondition(steps: readonly EffectStepDefinition[]): boolean {
   for (const step of steps) {
-    if ((step.kind === "ACTION" || step.kind === "BRANCH") && step.condition.kind !== "TRUE") {
+    if (
+      step.kind === "ACTION" &&
+      (step.stepCondition.kind !== "TRUE" || step.targetCondition.kind !== "TRUE")
+    ) {
+      return true;
+    }
+    if (step.kind === "BRANCH" && step.condition.kind !== "TRUE") {
       return true;
     }
     if (step.kind === "BRANCH") {
@@ -334,10 +353,14 @@ function conditionContainsTargetSetCount(condition: ConditionDefinition): boolea
 
 function stepsContainSetCondition(steps: readonly EffectStepDefinition[]): boolean {
   for (const step of steps) {
-    if (
-      (step.kind === "ACTION" || step.kind === "BRANCH") &&
-      conditionContainsTargetSetCount(step.condition)
-    ) {
+    // Issue #230: ACTIONのTARGET_SET_COUNTは`stepCondition`にしか置けない
+    // （`targetCondition`はTRUE/AND/OR/NOT/TARGET_STATE/TARGET_HAS_MARKERの
+    // みへスキーマ上制限される、`condition-definition.ts`の
+    // `TARGET_CONDITION_KINDS`）。
+    if (step.kind === "ACTION" && conditionContainsTargetSetCount(step.stepCondition)) {
+      return true;
+    }
+    if (step.kind === "BRANCH" && conditionContainsTargetSetCount(step.condition)) {
       return true;
     }
     if (step.kind === "BRANCH") {
@@ -383,23 +406,19 @@ function conditionContainsTargetStateOrMarker(condition: ConditionDefinition): b
 }
 
 /**
- * PRレビュー[P2]再々々指摘・再々々々指摘（Issue #227）: 対象別条件
- * （`TARGET_STATE`/`TARGET_HAS_MARKER`、対象ごとに真偽が変わる「対象ごとの
- * 適用可否フィルタ」）と`TARGET_SET_COUNT`（step全体で1回だけ評価する「step
- * 自体のskip判定」）は、単一のbooleanへ還元する意味論が本質的に異なる。
- * 同じconditionツリーに`AND`/`OR`/`NOT`で混在させると、量化の位置（対象別
- * leafごとに`exists`を取ってから合成するか、複合式を対象ごとに評価してから
- * `exists`を取るか）によって結果が変わり得るだけでなく、後者の場合でも
- * 「対象別条件が全員falseなら対象0件成立扱い」（R-SKL-06）と「集合条件が
- * falseならEffectStepSkipped」という2つの契約のどちらを優先すべきか一意に
- * 定まらない。加えて、`TARGET_STATE`/`TARGET_HAS_MARKER`が`step.target`とは
- * 異なる参照（`SELF`等）であっても、`TARGET_SET_COUNT`と同じconditionツリーに
- * 存在する限り実行時は`TARGET_SET_COUNT`単独経路（`targetContext: undefined`）
- * で評価され例外になるため、参照先を問わず拒否する。`ACTION`/`BRANCH`いずれの
- * `condition`も対象（`BRANCH`のconditionも同じ`targetContext: undefined`経路で
- * 評価されるため同じ危険がある）。混在が将来必要になった場合は、`condition`を
- * stepワイド判定用と対象別フィルタ用のスコープへ分離する専用スキーマを
- * 別Issueで設計する。
+ * PRレビュー[P2]再々々指摘・再々々々指摘（Issue #227）。Issue #230で
+ * `ACTION`は対象外になった: `stepCondition`/`targetCondition`という独立した
+ * フィールドへ分離済みで、`stepCondition`は`TARGET_STATE`/
+ * `TARGET_HAS_MARKER`を、`targetCondition`は`TARGET_SET_COUNT`をスキーマ上
+ * 受理しない（`condition-definition.ts`の`STEP_CONDITION_KINDS`/
+ * `TARGET_CONDITION_KINDS`、`effect-sequence.ts`の`createEffectStepDefinition`）
+ * ため、この2種を同じconditionツリーへ混在させること自体が構造的に不可能
+ * になった。`BRANCH`は`target`を持たず単一の`condition`が常にstep-wideの
+ * ままであり、かつ`resolveBranchStep`（`effect-action-group-resolver.ts`）は
+ * 今も`targetContext: undefined`で評価するため、`TARGET_STATE`/
+ * `TARGET_HAS_MARKER`と`TARGET_SET_COUNT`の混在は変わらず拒否する
+ * （元の理由: 量化の位置に依存して結果が変わり得るだけでなく、後者の場合でも
+ * 評価器が対象コンテキストを持たず例外になる）。
  */
 function collectMixedStepTargetSetConditionPaths(
   steps: readonly EffectStepDefinition[],
@@ -409,7 +428,7 @@ function collectMixedStepTargetSetConditionPaths(
   steps.forEach((step, index) => {
     const stepPath = `${path}[${index}]`;
     if (
-      (step.kind === "ACTION" || step.kind === "BRANCH") &&
+      step.kind === "BRANCH" &&
       conditionContainsTargetStateOrMarker(step.condition) &&
       conditionContainsTargetSetCount(step.condition)
     ) {
@@ -499,12 +518,17 @@ function walkLastResultDataFlowStep(
 ): boolean {
   switch (step.kind) {
     case "ACTION": {
+      // Issue #230: `LAST_RESULT`/`TARGET_SET_COUNT`は`stepCondition`にしか
+      // 置けない。`targetCondition`は常にこのstep自身の`target`だけを参照する
+      // （`assertTargetConditionReferencesOwnTarget`が保証する）ため、
+      // `step.target.kind`のチェックと重複する内容にしかならず、別途走査
+      // する必要がない。
       if (!definitelyAssigned) {
-        if (conditionReferencesLastResult(step.condition)) {
+        if (conditionReferencesLastResult(step.stepCondition)) {
           violations.push({
             targetId: ownerId,
             rule: "MISSING_PRECEDING_RESULT",
-            message: `${path}.condition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+            message: `${path}.stepCondition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
           });
         }
         if (
@@ -517,17 +541,17 @@ function walkLastResultDataFlowStep(
             message: `${path}.target references kind "${step.target.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
           });
         }
-        for (const reference of collectConditionTargetReferences(step.condition)) {
+        for (const reference of collectConditionTargetReferences(step.stepCondition)) {
           if (LAST_RESULT_TARGET_KINDS.has(reference.kind)) {
             violations.push({
               targetId: ownerId,
               rule: "MISSING_PRECEDING_RESULT",
-              message: `${path}.condition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+              message: `${path}.stepCondition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
             });
           }
         }
       }
-      return definitelyAssigned || step.condition.kind === "TRUE";
+      return definitelyAssigned || step.stepCondition.kind === "TRUE";
     }
     case "BRANCH": {
       if (!definitelyAssigned) {

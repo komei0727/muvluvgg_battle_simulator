@@ -261,7 +261,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
         s.actions[0]?.effectActionDefinitionId === "ACT_AOI_ELEGANT_EX_ATK_DOWN",
     );
     expect(atkDownStep).toMatchObject({
-      condition: { kind: "TARGET_HAS_MARKER", markerId: "MARKER_AOI_ELEGANT_UKIASHI" },
+      targetCondition: { kind: "TARGET_HAS_MARKER", markerId: "MARKER_AOI_ELEGANT_UKIASHI" },
     });
 
     const actor = allyUnit(unitId, unitId as never, { column: "LEFT", row: "FRONT" });
@@ -315,7 +315,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
         s.kind === "ACTION" && s.actions[0]?.effectActionDefinitionId === "ACT_LUCIE_MAID_AS1_STUN",
     );
     expect(stunStep).toMatchObject({
-      condition: {
+      targetCondition: {
         kind: "OR",
         conditions: [
           { kind: "TARGET_STATE", field: "UNIT_TYPE", op: "EQ", value: "PHYSICAL" },
@@ -400,7 +400,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
         s.actions[0]?.effectActionDefinitionId === "ACT_LUCIE_MAID_PS2_PP_DOWN",
     );
     expect(ppDownStep).toMatchObject({
-      condition: {
+      targetCondition: {
         kind: "OR",
         conditions: [
           { kind: "TARGET_STATE", field: "UNIT_TYPE", op: "EQ", value: "PHYSICAL" },
@@ -484,7 +484,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
           s.actions[0]?.effectActionDefinitionId === "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
       ),
     ).toMatchObject({
-      condition: { kind: "TARGET_STATE", field: "UNIT_TYPE", op: "EQ", value: "PHYSICAL" },
+      targetCondition: { kind: "TARGET_STATE", field: "UNIT_TYPE", op: "EQ", value: "PHYSICAL" },
     });
     expect(
       steps.find(
@@ -493,7 +493,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
           s.actions[0]?.effectActionDefinitionId === "ACT_ROSIE_ARTIST_PS2_HEALING_UP",
       ),
     ).toMatchObject({
-      condition: {
+      targetCondition: {
         kind: "NOT",
         condition: { kind: "TARGET_STATE", field: "UNIT_TYPE", op: "EQ", value: "PHYSICAL" },
       },
@@ -583,7 +583,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
           s.actions[0]?.effectActionDefinitionId === "ACT_TATIANA_SAGE_EX_DEBUFF",
       ),
     ).toMatchObject({
-      condition: {
+      targetCondition: {
         kind: "TARGET_HAS_MARKER",
         markerId: "MARKER_TATIANA_SAGE_OMEN",
         countCondition: { op: "GTE", value: 2 },
@@ -596,7 +596,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
           s.actions[0]?.effectActionDefinitionId === "ACT_TATIANA_SAGE_EX_MARK",
       ),
     ).toMatchObject({
-      condition: {
+      targetCondition: {
         kind: "NOT",
         condition: {
           kind: "TARGET_HAS_MARKER",

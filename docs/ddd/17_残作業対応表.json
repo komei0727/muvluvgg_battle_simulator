@@ -58,6 +58,9 @@
     { "taskId": "RES-002", "issue": 174, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-003", "issue": 173, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-004", "issue": 171, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-004-STATUS-CONDITION", "issue": 224, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-004-TATIANA-EX", "issue": 225, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-004-CONDITION-SCOPE", "issue": 230, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-005", "issue": 172, "phase": 1, "milestone": "M7" },
     { "taskId": "TGT-001", "issue": 170, "phase": 1, "milestone": "M7" },
     { "taskId": "TGT-002", "issue": 169, "phase": 1, "milestone": "M7" },
@@ -68,6 +71,7 @@
     { "taskId": "M7-003", "issue": 180, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-004", "issue": 183, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-005", "issue": 184, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-005-HEAL-LINK", "issue": 229, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-006", "issue": 179, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-007", "issue": 178, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-008", "issue": 176, "phase": 2, "milestone": "M7" },
@@ -125,7 +129,12 @@
       "rowCount": 8,
       "taskId": "TGT-002"
     },
-    { "milestone": "M7", "theme": "AOE_PER_TARGET_CONDITION", "rowCount": 2, "taskId": "RES-004" },
+    {
+      "milestone": "M7",
+      "theme": "AOE_PER_TARGET_CONDITION",
+      "rowCount": 1,
+      "taskId": "RES-004-STATUS-CONDITION"
+    },
     { "milestone": "M7", "theme": "REMOVE_BUFF_CATEGORY", "rowCount": 5, "taskId": "M7-001" },
     {
       "milestone": "M7",
@@ -180,8 +189,8 @@
     {
       "milestone": "M7",
       "theme": "SET_THRESHOLD_ACTIVATION_CONDITION",
-      "rowCount": 1,
-      "taskId": "RES-004"
+      "rowCount": 2,
+      "taskId": "M7-003"
     },
     { "milestone": "M7", "theme": "STACK_LIMIT_ON_STAT_MOD", "rowCount": 1, "taskId": "EFF-002" },
     {

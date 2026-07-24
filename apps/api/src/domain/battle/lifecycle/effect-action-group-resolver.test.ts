@@ -274,9 +274,15 @@ function deferredStep(
 function actionOn(
   target: TargetReference,
   effectActionDefinitionId: EffectActionDefinition["effectActionDefinitionId"],
-  condition: ConditionDefinition = { kind: "TRUE" },
+  targetCondition: ConditionDefinition = { kind: "TRUE" },
 ): Extract<EffectStepDefinition, { kind: "ACTION" }> {
-  return { kind: "ACTION", condition, target, actions: [{ effectActionDefinitionId }] };
+  return {
+    kind: "ACTION",
+    stepCondition: { kind: "TRUE" },
+    targetCondition,
+    target,
+    actions: [{ effectActionDefinitionId }],
+  };
 }
 
 describe("applyEffectActionGroups", () => {
@@ -1243,13 +1249,15 @@ describe("applyEffectActionGroups", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: bindingTarget,
             actions: [{ effectActionDefinitionId: lethalHit.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: bindingTarget,
             actions: [{ effectActionDefinitionId: secondHit.effectActionDefinitionId }],
           },
@@ -2208,13 +2216,15 @@ describe("applyEffectActionGroups", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TRUE" },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: firstBindingId },
             actions: [{ effectActionDefinitionId: grantMarker.effectActionDefinitionId }],
           },
           {
             kind: "ACTION",
-            condition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
             target: allTarget,
             actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
           },
@@ -2272,7 +2282,8 @@ describe("applyEffectActionGroups", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
             target: allTarget,
             actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
           },
@@ -2363,7 +2374,8 @@ describe("applyEffectActionGroups", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
             target: allTarget,
             actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
           },
@@ -2603,7 +2615,8 @@ describe("applyEffectActionGroups", () => {
           actionOn(enemyTarget, kill.effectActionDefinitionId),
           {
             kind: "ACTION",
-            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            stepCondition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
           },
@@ -2722,7 +2735,8 @@ describe("applyEffectActionGroups", () => {
         steps: [
           {
             kind: "ACTION",
-            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            stepCondition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
           },
@@ -2756,6 +2770,230 @@ describe("applyEffectActionGroups", () => {
               e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
           ),
       ).toBe(false);
+    });
+  });
+
+  describe("CAP_EFFECT_STEP_CONDITION_SCOPE（Issue #230 RES-004-CONDITION-SCOPE）: an ACTION step's stepCondition (step-wide gate) and targetCondition (per-target filter) are independent and can be combined on the same step", () => {
+    function completedTargetsFor(
+      recorder: EventRecorder,
+      effectActionDefinitionId: string,
+    ): readonly string[] {
+      return recorder
+        .getEvents()
+        .filter(
+          (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }> =>
+            e.eventType === "EffectActionCompleted" &&
+            e.payload.effectActionDefinitionId === effectActionDefinitionId,
+        )
+        .flatMap((e) => e.payload.targetUnitIds);
+    }
+
+    function twoEnemyMarkerGateSkill(
+      stepConditionValue: number,
+      grantMarkerTo: "enemyA" | "none" | "both",
+      markerId = createMarkerId("MARKER_TEST"),
+    ) {
+      const grantMarker = markerAction("ACT_GRANT_MARKER", markerId);
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([
+        [grantMarker.effectActionDefinitionId, grantMarker],
+        [conditionalHit.effectActionDefinitionId, conditionalHit],
+      ]);
+
+      const firstBindingId = createTargetBindingId("TGT_FIRST");
+      const allBindingId = createTargetBindingId("TGT_ALL");
+      const enemySelector = (count: number | "ALL"): TargetSelectorDefinition => ({
+        kind: "SELECT",
+        side: "ENEMY",
+        count,
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      });
+      const allTarget: TargetReference = { kind: "BINDING", targetBindingId: allBindingId };
+      // R-TGT-02（`unit()`は全員同じ位置に置くため入力順でタイブレークする、
+      // `UT-R-TGT-10-009`/`UT-R-SKL-06-022`と同じ前提）: TGT_FIRSTは常に
+      // enemyA（`allUnits`の先頭の敵）に束縛される。
+      const grantSteps: EffectStepDefinition[] =
+        grantMarkerTo === "none"
+          ? []
+          : [
+              {
+                kind: "ACTION",
+                stepCondition: { kind: "TRUE" },
+                targetCondition: { kind: "TRUE" },
+                target:
+                  grantMarkerTo === "both"
+                    ? allTarget
+                    : { kind: "BINDING", targetBindingId: firstBindingId },
+                actions: [{ effectActionDefinitionId: grantMarker.effectActionDefinitionId }],
+              },
+            ];
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: firstBindingId, selector: enemySelector(1) },
+          { targetBindingId: allBindingId, selector: enemySelector("ALL") },
+        ],
+        steps: [
+          ...grantSteps,
+          {
+            kind: "ACTION",
+            // step-wide gate（Issue #227 CAP_EFFECT_STEP_SET_CONDITION）:
+            // TGT_ALLの生存数がstepConditionValue以上でなければstep全体をskipする。
+            stepCondition: {
+              kind: "TARGET_SET_COUNT",
+              target: allTarget,
+              op: "GTE",
+              value: stepConditionValue,
+            },
+            // per-target filter（CAP_EFFECT_STEP_CONDITION）: markerを持つ対象だけに絞る。
+            // Issue #227まではこの2つを同じconditionツリーへ同時に持たせること自体が
+            // MIXED_STEP_TARGET_SET_CONDITIONとしてCatalogロード時点で拒否されていた。
+            targetCondition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            target: allTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+      return { skill, effectActions, conditionalHit };
+    }
+
+    it("UT-R-SKL-06-040: stepCondition true (enough survivors) and targetCondition true for every resolved target — both scopes pass, every target's action resolves normally", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const { skill, effectActions, conditionalHit } = twoEnemyMarkerGateSkill(2, "both");
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      expect(
+        [...completedTargetsFor(recorder, conditionalHit.effectActionDefinitionId)].sort(),
+      ).toEqual([enemyA.battleUnitId, enemyB.battleUnitId].sort());
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectStepSkipped")).toBe(false);
+    });
+
+    it("UT-R-SKL-06-041: stepCondition false (not enough survivors) skips the whole step (EffectStepSkipped, no EffectActionStarting) even for a target that would satisfy targetCondition", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      // 2体しかいないためGTE 3は常にfalse — enemyAはmarkerを持つ（targetConditionは
+      // trueになるはず）が、gateがfalseならtargetConditionは一切評価されない。
+      const { skill, effectActions, conditionalHit } = twoEnemyMarkerGateSkill(3, "enemyA");
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      expect(
+        recorder
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+          ),
+      ).toBe(false);
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectStepSkipped")).toBe(true);
+    });
+
+    it("UT-R-SKL-06-042: stepCondition true but targetCondition false for every resolved target produces a 0-target ACTION (SKIPPED LastResult visible to a following LAST_RESULT condition, EffectStepCompleted) rather than EffectStepSkipped", () => {
+      // R-SKL-08: the 0-target SKIPPED "last result" is a runtime-only
+      // LastResultState, not a domain event (`08_ドメインイベント.md`) — so it
+      // must be observed indirectly through a following LAST_RESULT condition,
+      // the same technique `UT-R-SKL-08-011` uses.
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const followUp = damageAction("ACT_FOLLOW_UP");
+      const effectActions = new Map([
+        [conditionalHit.effectActionDefinitionId, conditionalHit],
+        [followUp.effectActionDefinitionId, followUp],
+      ]);
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const noMarkerId = createMarkerId("MARKER_NEVER_GRANTED");
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            // step-wide gate: satisfied (both enemies alive).
+            stepCondition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 2 },
+            // per-target filter: satisfied by nobody (marker never granted).
+            targetCondition: {
+              kind: "TARGET_HAS_MARKER",
+              target: enemyTarget,
+              markerId: noMarkerId,
+            },
+            target: enemyTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+          {
+            kind: "BRANCH",
+            condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "SKIPPED" },
+            thenSteps: [actionOn({ kind: "SELF" }, followUp.effectActionDefinitionId)],
+            elseSteps: [],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      const events = recorder.getEvents();
+      expect(events.some((e) => e.eventType === "EffectStepSkipped")).toBe(false);
+      expect(
+        events.some(
+          (e) =>
+            e.eventType === "EffectActionStarting" &&
+            e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+        ),
+      ).toBe(false);
+      expect(events.some((e) => e.eventType === "EffectStepCompleted")).toBe(true);
+      expect(
+        events.some(
+          (e) =>
+            e.eventType === "EffectActionStarting" &&
+            e.payload.effectActionDefinitionId === followUp.effectActionDefinitionId,
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-SKL-06-043: stepCondition true and targetCondition true for only some resolved targets applies the action to the matching subset only, leaving the rest untouched", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const { skill, effectActions, conditionalHit } = twoEnemyMarkerGateSkill(2, "enemyA");
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      expect([...completedTargetsFor(recorder, conditionalHit.effectActionDefinitionId)]).toEqual([
+        enemyA.battleUnitId,
+      ]);
     });
   });
 });

@@ -74,6 +74,11 @@ export function createTargetReference(
   return { kind: input.kind };
 }
 
+/** Issue #230 RES-004-CONDITION-SCOPE: 2つの`TargetReference`が同じ対象を指すかどうか。 */
+export function targetReferenceEquals(a: TargetReference, b: TargetReference): boolean {
+  return a.kind === b.kind && a.targetBindingId === b.targetBindingId;
+}
+
 const FORMULA_SOURCE_REFERENCE_KINDS = [
   "SKILL_SOURCE",
   "TARGET",

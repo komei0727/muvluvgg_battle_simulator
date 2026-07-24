@@ -139,7 +139,8 @@ function attackerSkill(): SkillDefinition {
       steps: [
         {
           kind: "ACTION",
-          condition: { kind: "TRUE" },
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
           actions: [
             { effectActionDefinitionId: createEffectActionDefinitionId(ATTACKER_EFFECT_ID) },

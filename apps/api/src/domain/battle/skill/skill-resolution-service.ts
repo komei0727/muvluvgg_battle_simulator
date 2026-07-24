@@ -1,7 +1,6 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets, type TriggerContext } from "../targeting/target-selection-policy.js";
 import {
-  conditionReferencesStepTarget,
   conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
   type TargetSetResolver,
@@ -290,13 +289,12 @@ export function resolveActionStepApplications(
 }
 
 /**
- * CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: `step.condition`が
- * 自身の`target`を参照する場合に`resolveActionStepApplications`へ渡す
- * `perTargetFilter`を組み立てる。`resolveEffectSequence`（eager path）と
- * `effect-action-group-resolver.ts`の`resolveRawStep`（JIT path）の両方が、
- * `conditionReferencesStepTarget(step.condition, step.target)`が`true`の
- * ときだけこれを呼ぶ（`false`の場合は従来通りstep全体を一度だけ評価する
- * ため`perTargetFilter`自体を使わない）。
+ * CAP_EFFECT_STEP_CONDITION_SCOPE（Issue #230、旧CAP_EFFECT_STEP_CONDITION
+ * Issue #171 RES-004後半）: `step.targetCondition`が非TRUEの場合に
+ * `resolveActionStepApplications`へ渡す`perTargetFilter`を組み立てる。
+ * `resolveEffectSequence`（eager path）と`effect-action-group-resolver.ts`の
+ * `resolveRawStep`（JIT path）の両方が、`step.targetCondition.kind !== "TRUE"`の
+ * ときだけこれを呼ぶ（`TRUE`の場合は`perTargetFilter`自体を使わない）。
  */
 /**
  * `resolvedBindings`（R-SKL-01: 一度だけ評価し、以後再評価しない対象「集合」の
@@ -358,7 +356,7 @@ export function buildEffectStepPerTargetFilter(
   );
   return (target) =>
     evaluateEffectStepCondition(
-      step.condition,
+      step.targetCondition,
       lastResult,
       {
         stepTarget: step.target,
@@ -397,22 +395,24 @@ function isEagerActionStep(
 ): step is Extract<EffectStepDefinition, { kind: "ACTION" }> {
   return (
     step.kind === "ACTION" &&
-    !conditionReferencesLastResult(step.condition) &&
+    !conditionReferencesLastResult(step.stepCondition) &&
     step.target.kind !== "LAST_ACTION_TARGETS" &&
     step.target.kind !== "LAST_DAMAGED_TARGETS" &&
-    // CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半、PRレビュー[P1]）:
-    // conditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを含む
-    // 場合、その結果は先行stepやEffectStepStarting由来のPS/Memory連鎖が
-    // Marker・HP・リソース等を変更した後の状態に依存しうる。planning時点
-    // （どのstepも未実行）で確定させると、そうした変更を一切反映できない
-    // ため、`LAST_RESULT`と同様にDeferredStepPlanへ回し、実行がその位置まで
-    // 進んだ時点でJITに評価する（`effect-action-group-resolver.ts`の
-    // `resolveRawStep`）。
-    !conditionReferencesStepTarget(step.condition, step.target) &&
+    // CAP_EFFECT_STEP_CONDITION_SCOPE（Issue #230、旧CAP_EFFECT_STEP_CONDITION
+    // Issue #171 RES-004後半）: `targetCondition`が非TRUEの場合、その結果は
+    // 先行stepやEffectStepStarting由来のPS/Memory連鎖がMarker・HP・リソース等を
+    // 変更した後の状態に依存しうる。planning時点（どのstepも未実行）で確定
+    // させると、そうした変更を一切反映できないため、`LAST_RESULT`と同様に
+    // DeferredStepPlanへ回し、実行がその位置まで進んだ時点でJITに評価する
+    // （`effect-action-group-resolver.ts`の`resolveRawStep`）。`targetCondition`は
+    // 常にこのstep自身の`target`だけを参照する（Catalog構築時に
+    // `assertTargetConditionReferencesOwnTarget`が保証する）ため、以前の
+    // `conditionReferencesStepTarget`のような動的な参照先判定はもう不要。
+    step.targetCondition.kind === "TRUE" &&
     // CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件）: 同じ理由で、
-    // TARGET_SET_COUNTを含むconditionも対象集合の最新状態（先行stepやPS/Memory
+    // TARGET_SET_COUNTを含むstepConditionも対象集合の最新状態（先行stepやPS/Memory
     // 連鎖後の生存数など）に依存しうるため、planning時点では確定させない。
-    !conditionReferencesTargetSetCount(step.condition)
+    !conditionReferencesTargetSetCount(step.stepCondition)
   );
 }
 
@@ -536,18 +536,18 @@ function resolveEffectSequence(
       return;
     }
 
-    // R-SKL-06 #1〜#2: conditionを評価し、falseならstep全体をスキップする。
-    // `isEagerActionStep`がconditionReferencesStepTargetを既に除外している
-    // ため、ここへ到達するconditionは常にstep全体で一度だけ評価してよい
+    // R-SKL-06 #1〜#2: stepConditionを評価し、falseならstep全体をスキップする。
+    // `isEagerActionStep`がtargetCondition非TRUEを既に除外している
+    // ため、ここへ到達するstepConditionは常にstep全体で一度だけ評価してよい
     // （対象ごとの評価はJIT解決側`effect-action-group-resolver.ts`の
     // `resolveRawStep`が担う）。
-    const satisfied = evaluateEffectStepCondition(step.condition);
+    const satisfied = evaluateEffectStepCondition(step.stepCondition);
     if (!satisfied) {
       steps.push({
         planKind: "ACTION_PLAN",
         stepIndex,
         stepKind: "ACTION",
-        conditionKind: step.condition.kind,
+        conditionKind: step.stepCondition.kind,
         satisfied: false,
         actions: step.actions,
         applications: [],
@@ -570,7 +570,7 @@ function resolveEffectSequence(
       planKind: "ACTION_PLAN",
       stepIndex,
       stepKind: "ACTION",
-      conditionKind: step.condition.kind,
+      conditionKind: step.stepCondition.kind,
       satisfied: true,
       actions: step.actions,
       applications,

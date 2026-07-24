@@ -5,7 +5,10 @@ import type {
 } from "../../catalog/definitions/condition-definition.js";
 import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
-import type { TargetReference } from "../../catalog/definitions/references.js";
+import {
+  targetReferenceEquals,
+  type TargetReference,
+} from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "./comparison-operator.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
@@ -22,49 +25,20 @@ function lastResultRecord(lastResult: LastEffectActionResult): Readonly<Record<s
 }
 
 /**
- * R-SKL-06（CAP_EFFECT_STEP_CONDITION、Issue #171 RES-004後半）: ACTION stepの
- * `condition`がその step自身の`target`と同じ`TargetReference`を参照する
- * `TARGET_STATE`/`TARGET_HAS_MARKER`を評価するために必要な、対象ごとの文脈。
- * `stepTarget`と一致する`TargetReference`は`current`（今評価している1体）へ
- * 個別に解決し、それ以外（`SELF`/`TRIGGER_SOURCE`など、stepの対象集合とは
- * 無関係な参照）は`resolveOtherReference`で解決する（対象によらず一定の結果
- * になる）。
+ * R-SKL-06（CAP_EFFECT_STEP_CONDITION_SCOPE、Issue #230。旧CAP_EFFECT_STEP_CONDITION
+ * Issue #171 RES-004後半）: ACTION stepの`targetCondition`（常にその step自身の
+ * `target`と同じ`TargetReference`を参照する`TARGET_STATE`/`TARGET_HAS_MARKER`
+ * のみで構成される、Catalogロード時点で保証される）を評価するために必要な、
+ * 対象ごとの文脈。`stepTarget`と一致する`TargetReference`は`current`（今評価
+ * している1体）へ個別に解決し、それ以外（`SELF`/`TRIGGER_SOURCE`など、stepの
+ * 対象集合とは無関係な参照）は`resolveOtherReference`で解決する（対象によらず
+ * 一定の結果になる）。
  */
 export interface EffectStepTargetContext {
   readonly stepTarget: TargetReference;
   readonly current: BattleUnit;
   readonly resolveOtherReference: (reference: TargetReference) => readonly BattleUnit[];
   readonly unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
-}
-
-function targetReferenceEquals(a: TargetReference, b: TargetReference): boolean {
-  return a.kind === b.kind && a.targetBindingId === b.targetBindingId;
-}
-
-/**
- * R-SKL-06: `condition`のどこかに、`stepTarget`と同じ`TargetReference`を持つ
- * `TARGET_STATE`/`TARGET_HAS_MARKER`が含まれるか（AND/OR/NOTを再帰的に見る、
- * `conditionReferencesLastResult`と同じ形）。含まれる場合、この条件はstep全体
- * ではなく対象ごとに個別評価する（呼び出し側 `skill-resolution-service.ts` /
- * `effect-action-group-resolver.ts` が、この関数の結果に応じて一括評価か
- * 対象ごとの`EffectStepTargetContext`付き評価かを選ぶ）。
- */
-export function conditionReferencesStepTarget(
-  condition: ConditionDefinition,
-  stepTarget: TargetReference,
-): boolean {
-  switch (condition.kind) {
-    case "TARGET_STATE":
-    case "TARGET_HAS_MARKER":
-      return targetReferenceEquals(condition.target, stepTarget);
-    case "AND":
-    case "OR":
-      return condition.conditions.some((c) => conditionReferencesStepTarget(c, stepTarget));
-    case "NOT":
-      return conditionReferencesStepTarget(condition.condition, stepTarget);
-    default:
-      return false;
-  }
 }
 
 /**
@@ -174,15 +148,19 @@ export type TargetSetResolver = (reference: TargetReference) => readonly BattleU
  * 本来防ぐべき構成であり、ここでは最終防衛線として明確な例外を投げる。
  *
  * `targetContext`は`TARGET_STATE`/`TARGET_HAS_MARKER`を評価する場合だけ必要
- * （呼び出し側が`conditionReferencesStepTarget`でstep全体を一度だけ評価するか
- * 対象ごとに評価するかを決めるため、両kindとも`targetContext`が無い呼び出し
- * （例: `BRANCH`のcondition評価）では明確な例外を投げ、`EVENT_PAYLOAD`/
- * `RUNTIME_COUNTER`/`TURN_NUMBER`/`ALIVE_UNIT_COUNT`/`POSITION_RELATION`/
- * `RESOLUTION_PHASE`は引き続き未対応とする（`triggering/trigger-condition-evaluator.ts`
- * と同じ隔離方針、これらはPS発動条件の評価器が担う）。`resolveTargetSet`は
- * `TARGET_SET_COUNT`（CAP_EFFECT_STEP_SET_CONDITION、Issue #227）を評価する
- * 場合だけ必要で、`targetContext`とは独立に渡す — BRANCHのconditionや、
- * stepの対象別条件と組み合わせるACTIONのconditionのどちらからも使えるようにする。
+ * （Issue #230以降、この2 kindはACTION stepの`targetCondition`スコープ専用
+ * ——常にこのstep自身の`target`を参照する、Catalogロード時点で保証される
+ * ——であり、呼び出し側は動的な参照先判定なしに、対象ごとの評価が必要な
+ * ケース（`targetCondition`が非TRUE）でだけ`targetContext`を組み立てて渡す）。
+ * `targetContext`が無い呼び出し（例: `BRANCH`のcondition評価、ACTIONの
+ * `stepCondition`評価）でこの2 kindに到達した場合は明確な例外を投げ、
+ * `EVENT_PAYLOAD`/`RUNTIME_COUNTER`/`TURN_NUMBER`/`ALIVE_UNIT_COUNT`/
+ * `POSITION_RELATION`/`RESOLUTION_PHASE`は引き続き未対応とする
+ * （`triggering/trigger-condition-evaluator.ts`と同じ隔離方針、これらはPS
+ * 発動条件の評価器が担う）。`resolveTargetSet`は`TARGET_SET_COUNT`
+ * （CAP_EFFECT_STEP_SET_CONDITION、Issue #227）を評価する場合だけ必要で、
+ * `targetContext`とは独立に渡す — BRANCHの`condition`や、ACTIONの
+ * `stepCondition`のどちらからも使えるようにする。
  */
 export function evaluateEffectStepCondition(
   condition: ConditionDefinition,

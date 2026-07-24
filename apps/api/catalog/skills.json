@@ -248,7 +248,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "condition": {
+          "targetCondition": {
             "kind": "TARGET_HAS_MARKER",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
             "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
@@ -7206,7 +7206,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "condition": {
+          "targetCondition": {
             "kind": "OR",
             "conditions": [
               {
@@ -7351,7 +7351,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "condition": {
+          "targetCondition": {
             "kind": "OR",
             "conditions": [
               {
@@ -11580,7 +11580,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-          "condition": {
+          "targetCondition": {
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_STATE",
@@ -11595,7 +11595,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-          "condition": {
+          "targetCondition": {
             "kind": "TARGET_STATE",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
             "field": "UNIT_TYPE",
@@ -14267,7 +14267,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "condition": {
+          "targetCondition": {
             "kind": "TARGET_HAS_MARKER",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
             "markerId": "MARKER_TATIANA_SAGE_OMEN",
@@ -14278,7 +14278,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "condition": {
+          "targetCondition": {
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_HAS_MARKER",

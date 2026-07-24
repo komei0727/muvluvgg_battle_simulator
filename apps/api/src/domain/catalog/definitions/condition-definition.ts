@@ -7,6 +7,7 @@ import {
 } from "./catalog-ids.js";
 import {
   createTargetReference,
+  targetReferenceEquals,
   type TargetBindingScope,
   type TargetReference,
   type TargetReferenceInput,
@@ -80,6 +81,107 @@ const CONDITION_KINDS = [
   "TARGET_SET_COUNT",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
+
+/**
+ * R-SKL-06（CAP_EFFECT_STEP_CONDITION_SCOPE、Issue #230 RES-004-CONDITION-SCOPE）:
+ * ACTION stepの`stepCondition`（step全体を一度だけ評価するgate。falseなら
+ * `EffectStepSkipped`）に許可するkind。`TARGET_STATE`/`TARGET_HAS_MARKER`は
+ * 対象ごとに真偽が変わりうる（`targetCondition`専用のscope）ため、参照先を
+ * 問わず常にここから除外する — Issue #227までの「参照先が異なれば
+ * stepワイド扱い」という動的な分岐をやめ、フィールドの型自体でscopeを
+ * 固定する（DoD「型レベルで両スコープを区別する」）。
+ */
+export const STEP_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set(
+  CONDITION_KINDS.filter((kind) => kind !== "TARGET_STATE" && kind !== "TARGET_HAS_MARKER"),
+);
+
+/**
+ * ACTION stepの`targetCondition`（対象ごとに個別評価するfilter。false の
+ * 対象だけをこのstepの`actions`適用から除外し、全対象falseなら対象0件の
+ * `SKIPPED` LastResultになる、R-SKL-08）に許可するkind。`TARGET_SET_COUNT`
+ * （集合全体で1回だけ評価する）や`LAST_RESULT`等のstep全体スコープの
+ * kindは、意味的に「対象ごと」に評価できないため`stepCondition`専用とする。
+ */
+export const TARGET_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set([
+  "TRUE",
+  "AND",
+  "OR",
+  "NOT",
+  "TARGET_STATE",
+  "TARGET_HAS_MARKER",
+]);
+
+/**
+ * `condition`ツリー（AND/OR/NOTを再帰的に見る）が`allowedKinds`だけで
+ * 構成されているかを検証する。ACTION stepの`stepCondition`/`targetCondition`
+ * それぞれのscope制約（Issue #230）に使う。
+ */
+export function assertConditionKindsWithin(
+  condition: ConditionDefinition,
+  allowedKinds: ReadonlySet<ConditionKind>,
+  path: string,
+): void {
+  if (!allowedKinds.has(condition.kind)) {
+    throw new DomainValidationError(
+      path,
+      `kind "${condition.kind}" is not allowed in this scope (allowed: ${[...allowedKinds].join(", ")})`,
+    );
+  }
+  switch (condition.kind) {
+    case "AND":
+    case "OR":
+      condition.conditions.forEach((c, i) =>
+        assertConditionKindsWithin(c, allowedKinds, `${path}.conditions[${i}]`),
+      );
+      return;
+    case "NOT":
+      assertConditionKindsWithin(condition.condition, allowedKinds, `${path}.condition`);
+      return;
+    default:
+      return;
+  }
+}
+
+/**
+ * `targetCondition`内の`TARGET_STATE`/`TARGET_HAS_MARKER`が、すべてこの
+ * ACTION step自身の`target`（`expectedTarget`）を参照しているかを検証する
+ * （AND/OR/NOTを再帰的に見る）。`targetCondition`は常に「このstepが今まさに
+ * 処理している対象」の filterであり、他の`TargetReference`を参照する
+ * 意味を持たない（そうしたければ`stepCondition`側で評価する別Capabilityの
+ * 対象になる、Issue #230スコープ外）。
+ */
+export function assertTargetConditionReferencesOwnTarget(
+  condition: ConditionDefinition,
+  expectedTarget: TargetReference,
+  path: string,
+): void {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+      if (!targetReferenceEquals(condition.target, expectedTarget)) {
+        throw new DomainValidationError(
+          `${path}.target`,
+          "must reference this ACTION step's own target (targetCondition only filters the step's own target set; a fixed different TargetReference is out of scope, see stepCondition instead)",
+        );
+      }
+      return;
+    case "AND":
+    case "OR":
+      condition.conditions.forEach((c, i) =>
+        assertTargetConditionReferencesOwnTarget(c, expectedTarget, `${path}.conditions[${i}]`),
+      );
+      return;
+    case "NOT":
+      assertTargetConditionReferencesOwnTarget(
+        condition.condition,
+        expectedTarget,
+        `${path}.condition`,
+      );
+      return;
+    default:
+      return;
+  }
+}
 
 const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   TRUE: ["kind"],
