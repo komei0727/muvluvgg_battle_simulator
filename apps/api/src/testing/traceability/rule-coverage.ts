@@ -521,22 +521,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 自身のtargetを参照しないTARGET_SET_COUNT単独の条件が、対象別条件と同じ
   // `resolveAfterTiming`経路（このstep自身の`EffectStepStarting`が誘発する
   // PS/Memory連鎖後に再評価する）を経由していなかった欠陥を修正し、
-  // `UT-R-SKL-06-039`で検証した。続く再レビュー[P2]再指摘で、対象別条件
-  // （TARGET_STATE/TARGET_HAS_MARKERが自身のtargetを参照する）とTARGET_SET_COUNT
-  // をAND/OR/NOTで組み合わせた複合条件が、集合条件によってfalseになった場合
-  // でも常に`satisfied: true`（対象0件の適用）として扱われ、`EffectStepSkipped`
-  // にならない欠陥を修正し、`UT-R-SKL-06-040`/041で検証した。この最初の修正
-  // （`EffectStepTargetContext.wholeSet`、対象別条件のleaf単位で先に`exists`を
-  // 取ってからAND/OR/NOTで合成する実装）はさらなる再レビュー[P2]再々指摘で、
-  // `exists(P) かつ exists(Q)`が`exists(P かつ Q)`と異なる（別々の対象がPと
-  // Qを別々に満たすだけでtrueになってしまう）ことを指摘され、`wholeSet`を
-  // 撤回。`TARGET_SET_COUNT`を伴う場合は、対象ごとの複合条件評価関数
-  // （`buildEffectStepPerTargetFilter`、`current`固定の通常評価）を先に候補
-  // ごとに評価してから`.some()`で量化する（同一対象について複合式を評価
-  // してから量化する）方式へ修正し、`UT-R-SKL-06-042`（NOT、生存者・戦闘不能
-  // 混在の対象集合）・043（AND、別々の対象がそれぞれのleafだけを満たす場合）
-  // で検証した。`TARGET_SET_COUNT`を伴わない対象別条件のみの場合は従来どおり
-  // `satisfied: true`固定を維持する。
+  // `UT-R-SKL-06-039`で検証した。続く再レビュー[P2]再指摘・再々指摘で、対象別
+  // 条件（TARGET_STATE/TARGET_HAS_MARKERが自身のtargetを参照する、対象ごとに
+  // 真偽が変わる評価）と`TARGET_SET_COUNT`（step全体で1回だけ評価する評価）を
+  // 同じconditionツリーにAND/OR/NOTで混在させた場合の実行時量化ロジック
+  // （`EffectStepTargetContext.wholeSet`、その後`buildEffectStepPerTargetFilter`
+  // を候補ごとに評価してから`.some()`で量化する方式）を2回試みたが、いずれも
+  // 「対象別条件が全員falseなら対象0件成立扱い」（R-SKL-06）と「集合条件が
+  // falseならEffectStepSkipped」という2つの契約のどちらを優先すべきか単一の
+  // booleanでは一意に定まらないことが判明した（再々々指摘、Issue #227）。
+  // 対症的な量化ロジックは全て撤回し、代わりに自身の`target`を参照する対象別
+  // 条件と`TARGET_SET_COUNT`の混在自体を`catalog-integrity.ts`の
+  // `MIXED_STEP_TARGET_SET_CONDITION`検証がCatalogロード時点で明示的に拒否する
+  // よう設計を変更した。`resolveAfterTiming`は対象別条件（`satisfied: true`
+  // 固定）とTARGET_SET_COUNT単独（step全体を一度だけ評価）の2つの独立した
+  // 経路へ戻し、混在時の量化ロジック自体を持たない。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -579,10 +578,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-037",
       "UT-R-SKL-06-038",
       "UT-R-SKL-06-039",
-      "UT-R-SKL-06-040",
-      "UT-R-SKL-06-041",
-      "UT-R-SKL-06-042",
-      "UT-R-SKL-06-043",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",

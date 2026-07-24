@@ -53,6 +53,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_MARKER_LINKED_GROUP",
   "UNSUPPORTED_MARKER_DURATION",
   "MISSING_PRECEDING_RESULT",
+  "MIXED_STEP_TARGET_SET_CONDITION",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -352,6 +353,100 @@ function stepsContainSetCondition(steps: readonly EffectStepDefinition[]): boole
     }
   }
   return false;
+}
+
+/**
+ * `domain/battle/skill/effect-step-condition-evaluator.ts`の
+ * `conditionReferencesStepTarget`と意図的な重複（module境界、上記
+ * `conditionContainsTargetSetCount`と同じ理由）。`target`と同じ
+ * `TargetReference`を参照する`TARGET_STATE`/`TARGET_HAS_MARKER`が
+ * `condition`のどこかに含まれるか（AND/OR/NOTを再帰的に見る）。
+ */
+function conditionReferencesTarget(
+  condition: ConditionDefinition,
+  target: TargetReference,
+): boolean {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+      return (
+        condition.target.kind === target.kind &&
+        condition.target.targetBindingId === target.targetBindingId
+      );
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionReferencesTarget(c, target));
+    case "NOT":
+      return conditionReferencesTarget(condition.condition, target);
+    default:
+      return false;
+  }
+}
+
+/**
+ * PRレビュー[P2]再々々指摘（Issue #227）: 対象別条件（自身のtargetを参照する
+ * `TARGET_STATE`/`TARGET_HAS_MARKER`、対象ごとに真偽が変わる「対象ごとの
+ * 適用可否フィルタ」）と`TARGET_SET_COUNT`（step全体で1回だけ評価する「step
+ * 自体のskip判定」）は、単一のbooleanへ還元する意味論が本質的に異なる。
+ * 同じconditionツリーに`AND`/`OR`/`NOT`で混在させると、量化の位置（対象別
+ * leafごとに`exists`を取ってから合成するか、複合式を対象ごとに評価してから
+ * `exists`を取るか）によって結果が変わり得るだけでなく、後者の場合でも
+ * 「対象別条件が全員falseなら対象0件成立扱い」（R-SKL-06）と「集合条件が
+ * falseならEffectStepSkipped」という2つの契約のどちらを優先すべきか一意に
+ * 定まらない（`TARGET_SET_COUNT`が恒真の場合、対象別条件単体のケースと
+ * 結果が変わってしまう）。`ACTION` stepの`condition`が自身の`target`を参照
+ * する対象別条件と`TARGET_SET_COUNT`を同時に含む場合、Catalogロード時点で
+ * 明示的に拒否する。混在が将来必要になった場合は、`condition`を
+ * stepワイド判定用と対象別フィルタ用のスコープへ分離する専用スキーマを
+ * 別Issueで設計する。
+ */
+function collectMixedStepTargetSetConditionPaths(
+  steps: readonly EffectStepDefinition[],
+  path: string,
+): readonly string[] {
+  const paths: string[] = [];
+  steps.forEach((step, index) => {
+    const stepPath = `${path}[${index}]`;
+    if (
+      step.kind === "ACTION" &&
+      conditionReferencesTarget(step.condition, step.target) &&
+      conditionContainsTargetSetCount(step.condition)
+    ) {
+      paths.push(`${stepPath}.condition`);
+    }
+    if (step.kind === "BRANCH") {
+      paths.push(
+        ...collectMixedStepTargetSetConditionPaths(step.thenSteps, `${stepPath}.thenSteps`),
+        ...collectMixedStepTargetSetConditionPaths(step.elseSteps, `${stepPath}.elseSteps`),
+      );
+    } else if (step.kind === "RANDOM_BRANCH") {
+      step.branches.forEach((branch, branchIndex) => {
+        paths.push(
+          ...collectMixedStepTargetSetConditionPaths(
+            branch.steps,
+            `${stepPath}.branches[${branchIndex}].steps`,
+          ),
+        );
+      });
+    } else if (step.kind === "REPEAT") {
+      paths.push(...collectMixedStepTargetSetConditionPaths(step.steps, `${stepPath}.steps`));
+    }
+  });
+  return paths;
+}
+
+function validateMixedStepTargetSetCondition(
+  steps: readonly EffectStepDefinition[],
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const path of collectMixedStepTargetSetConditionPaths(steps, "steps")) {
+    violations.push({
+      targetId: ownerId,
+      rule: "MIXED_STEP_TARGET_SET_CONDITION",
+      message: `${path} combines TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER that references this step's own target — per-target and step-wide condition scopes cannot be mixed in the same condition tree (RES-004集合条件, Issue #227)`,
+    });
+  }
 }
 
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるか（AND/OR/NOTを再帰的に見る）。 */
@@ -881,6 +976,7 @@ function validateSkill(
       : [skill.resolution];
   for (const sequence of sequences) {
     validateLastResultDataFlow(sequence.steps, skill.skillDefinitionId, violations);
+    validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
   }
   const runtimeTriggers = [
     ...skill.triggers,
@@ -1251,6 +1347,11 @@ function validateMemory(
   for (const triggeredEffect of memory.triggeredEffects) {
     validateTrigger(triggeredEffect.trigger, memory.memoryDefinitionId, violations);
     validateLastResultDataFlow(
+      triggeredEffect.effectSequence.steps,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateMixedStepTargetSetCondition(
       triggeredEffect.effectSequence.steps,
       memory.memoryDefinitionId,
       violations,

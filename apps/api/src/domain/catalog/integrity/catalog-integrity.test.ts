@@ -177,6 +177,62 @@ function setConditionActionSkill(
   });
 }
 
+/**
+ * PRレビュー[P2]再々々指摘（Issue #227）: `TGT_PRIMARY`（ACTION stepの`target`）
+ * と`TGT_OTHER`（`TARGET_SET_COUNT`が参照する別の集合）の2つのbindingを持つ
+ * 最小Skill。`condition`を差し替えてMIXED_STEP_TARGET_SET_CONDITION検証を
+ * テストする。
+ */
+function mixedConditionActionSkill(
+  condition: ConditionDefinitionInput,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: "SKL_AS1",
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: "TGT_PRIMARY",
+          selector: {
+            kind: "SELECT",
+            side: "ENEMY",
+            count: 1,
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: false,
+          },
+        },
+        {
+          targetBindingId: "TGT_OTHER",
+          selector: {
+            kind: "SELECT",
+            side: "ALLY",
+            count: "ALL",
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: false,
+          },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          condition,
+          target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Mixed-condition AS" },
+  });
+}
+
 function randomBranchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -1614,6 +1670,184 @@ describe("buildCatalogIndex", () => {
         ...defs,
         skills: [
           conditionTargetRefSkill({ kind: "LAST_ACTION_TARGETS" }, caps, true),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities,
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-059（PRレビュー[P2]再々々指摘、Issue #227）: rejects an ACTION condition combining TARGET_SET_COUNT with a TARGET_STATE that references the step's own target via AND", () => {
+    const defs = baseDefinitions();
+    const caps = ["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"];
+    const capabilities = [
+      capability("CAP_EFFECT_STEP_CONDITION"),
+      capability("CAP_EFFECT_STEP_SET_CONDITION"),
+    ];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          mixedConditionActionSkill(
+            {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "TARGET_STATE",
+                  target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                {
+                  kind: "TARGET_SET_COUNT",
+                  target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                  op: "GTE",
+                  value: 1,
+                },
+              ],
+            },
+            caps,
+          ),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities,
+      }),
+    ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
+  });
+
+  it("UT-CAT-IDX-060（PRレビュー[P2]再々々指摘、Issue #227）: rejects the same mix nested inside NOT/OR, and inside a BRANCH.thenSteps", () => {
+    const defs = baseDefinitions();
+    const caps = ["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"];
+    const capabilities = [
+      capability("CAP_EFFECT_STEP_CONDITION"),
+      capability("CAP_EFFECT_STEP_SET_CONDITION"),
+    ];
+    const targetState: ConditionDefinitionInput = {
+      kind: "TARGET_STATE",
+      target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+      field: "IS_ALIVE",
+      op: "EQ",
+      value: true,
+    };
+    const setCount: ConditionDefinitionInput = {
+      kind: "TARGET_SET_COUNT",
+      target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+      op: "GTE",
+      value: 1,
+    };
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          mixedConditionActionSkill(
+            {
+              kind: "OR",
+              conditions: [{ kind: "NOT", condition: targetState }, setCount],
+            },
+            caps,
+          ),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities,
+      }),
+    ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
+
+    const branchNestedSkill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_PRIMARY",
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: 1,
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+          {
+            targetBindingId: "TGT_OTHER",
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "BRANCH",
+            condition: { kind: "TRUE" },
+            thenSteps: [
+              {
+                kind: "ACTION",
+                condition: { kind: "AND", conditions: [targetState, setCount] },
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+            elseSteps: [],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities: [...caps, "CAP_RESOLUTION_BRANCH_REPEAT"],
+      metadata: { displayName: "Branch-nested mixed-condition AS" },
+    });
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [branchNestedSkill, exSkill("SKL_EX1", 7)],
+        capabilities: [...capabilities, capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
+  });
+
+  it("UT-CAT-IDX-061（PRレビュー[P2]再々々指摘、Issue #227）: accepts TARGET_SET_COUNT combined with a TARGET_STATE that references a *different* TargetReference (not the step's own target)", () => {
+    const defs = baseDefinitions();
+    const caps = ["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"];
+    const capabilities = [
+      capability("CAP_EFFECT_STEP_CONDITION"),
+      capability("CAP_EFFECT_STEP_SET_CONDITION"),
+    ];
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          mixedConditionActionSkill(
+            {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "TARGET_STATE",
+                  target: { kind: "SELF" },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                {
+                  kind: "TARGET_SET_COUNT",
+                  target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                  op: "GTE",
+                  value: 1,
+                },
+              ],
+            },
+            caps,
+          ),
           exSkill("SKL_EX1", 7),
         ],
         capabilities,

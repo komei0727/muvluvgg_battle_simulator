@@ -1383,14 +1383,22 @@ function* resolveRawStep(
               : {}),
           };
           const lastResultTargets = lastResultTargetsContext(lastResultState, box.units);
-          const resolveTargetSet = buildTargetSetResolver(
-            plan.resolvedBindings,
-            actor,
-            box.units,
-            lastResultTargets,
-            triggerContext,
-          );
 
+          // PRレビュー[P2]再々々指摘（Issue #227）: 対象別条件（TARGET_STATE/
+          // TARGET_HAS_MARKERが自身のtargetを参照する、"対象ごとに真偽が変わる"
+          // 評価）と`TARGET_SET_COUNT`（"step全体で1回だけ評価する"評価）は、
+          // 評価結果を単一のbooleanへ還元する意味論が本質的に異なる（前者は
+          // 対象ごとの適用可否フィルタ、後者はstep自体のskip判定）。両者を
+          // 同じconditionツリーにAND/OR/NOTで混在させると、量化の位置
+          // （leafごとに`exists`を取るか、複合式を先に評価してから`exists`を
+          // 取るか）によって、既存の「対象別条件が全員falseならstep0件成立
+          // 扱い」という契約と、新しい「集合条件がfalseならEffectStepSkipped」
+          // という契約のどちらを優先すべきか一意に定まらない
+          // （`TARGET_SET_COUNT`が恒真の場合と対象別条件単体の場合とで結果が
+          // 変わってしまう等）。この2種の条件の混在は`catalog-integrity.ts`の
+          // `MIXED_STEP_TARGET_SET_CONDITION`検証がCatalogロード時点で拒否する
+          // ため、ここでは両者が同じconditionに同時に現れないという前提の
+          // もとで、素朴に2つの独立した経路へ分岐する。
           if (conditionReferencesStepTarget(step.condition, step.target)) {
             const perTargetFilter = buildEffectStepPerTargetFilter(
               step,
@@ -1402,43 +1410,28 @@ function* resolveRawStep(
               lastResultTargets,
               triggerContext,
             );
-            // PRレビュー[P2]再々指摘（Issue #227）: 対象別条件（TARGET_STATE/
-            // TARGET_HAS_MARKERが自身のtargetを参照する）とTARGET_SET_COUNT
-            // （step全体で評価する集合条件）がAND/OR/NOTで混在する場合、
-            // per-target filterだけでは「集合条件がfalseになったことで複合
-            // 条件全体がfalseになった」ケースを表現できない — filterで全対象が
-            // 除外されても、それは常に`satisfied: true`の「対象0件の適用」に
-            // なってしまい、`EffectStepSkipped`（stepのcondition自体が偽）と
-            // 区別が付かない。TARGET_SET_COUNTを伴わない対象別条件のみの場合は
-            // 従来どおり「対象集合全体が条件を満たさなかった場合は、対象0件の
-            // ACTION stepと同じ扱い」（R-SKL-06）を維持し、`satisfied: true`固定
-            // のままとする。TARGET_SET_COUNTを伴う場合だけ、`perTargetFilter`
-            // （同一対象について複合条件全体を評価する関数）を候補集合へ
-            // `.some()`で量化してsatisfiedを決める — leafごとに個別に
-            // `exists`を取ってからAND/OR/NOTで合成すると意味が変わる
-            // （`exists(P) && exists(Q)` は `exists(P && Q)` と異なり、
-            // `!exists(P)` は `exists(!P)` と異なる）ため、必ず同一対象について
-            // 複合式を先に評価してから量化する。
-            const satisfied = conditionReferencesTargetSetCount(step.condition)
-              ? resolveTargetSet(step.target).some((candidate) => perTargetFilter(candidate))
-              : true;
-            const applications = satisfied
-              ? resolveActionStepApplications(
-                  step,
-                  plan.resolvedBindings,
-                  actor,
-                  box.units,
-                  context.definitions.effectActions,
-                  lastResultTargets,
-                  triggerContext,
-                  perTargetFilter,
-                )
-              : [];
-            return { satisfied, applications };
+            const applications = resolveActionStepApplications(
+              step,
+              plan.resolvedBindings,
+              actor,
+              box.units,
+              context.definitions.effectActions,
+              lastResultTargets,
+              triggerContext,
+              perTargetFilter,
+            );
+            return { satisfied: true, applications };
           }
 
           // TARGET_SET_COUNTのみ（自身のtargetを参照する対象別条件は持たない）:
           // 対象ごとにではなくstep全体を一度だけ、最新状態で評価する。
+          const resolveTargetSet = buildTargetSetResolver(
+            plan.resolvedBindings,
+            actor,
+            box.units,
+            lastResultTargets,
+            triggerContext,
+          );
           const satisfied = evaluateEffectStepCondition(
             step.condition,
             lastResultState.current,
