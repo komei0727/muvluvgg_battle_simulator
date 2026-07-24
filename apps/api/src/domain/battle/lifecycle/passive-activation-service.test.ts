@@ -212,12 +212,13 @@ function contextOf(
   triggerEvent: BattleDomainEvent,
   actionId?: ReturnType<typeof createActionId>,
   resolutionPhase?: PassiveActivationRuntimeContext["resolutionPhase"],
+  turnNumber = 1,
 ): PassiveActivationRuntimeContext {
   return {
     definitions,
     random: new SequenceRandomSource([]),
     recorder,
-    turnNumber: 1,
+    turnNumber,
     cycleNumber: 1,
     resolutionScopeId: triggerEvent.resolutionScopeId,
     rootEventId: triggerEvent.eventId,
@@ -423,6 +424,83 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     const units = runtime.onFactEvent(battleStarted, [owner]);
     expect(units.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(0);
     expect(recorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
+  });
+
+  it("UT-R-PS-01-053 (RES-004, Issue #171): PassiveActivationRuntimeContext.turnNumber reaches candidate detection AND reconfirmation for a TURN_NUMBER-gated PS", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const skill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PS", { ppCost: 1 }),
+      activationCondition: { kind: "TURN_NUMBER", op: "NEQ", value: 1 },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 1, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+
+    const excludedRecorder = new EventRecorder(createBattleId("B_1"));
+    const excludedTurnStarted = recordTurnStarted(excludedRecorder);
+    const excludedRuntime = new PassiveActivationRuntime(
+      contextOf(excludedRecorder, definitions, excludedTurnStarted, undefined, undefined, 1),
+      [owner],
+    );
+    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]);
+    expect(excludedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
+    expect(excludedRecorder.getEvents().map((e) => e.eventType)).not.toContain("PassiveActivated");
+
+    const includedRecorder = new EventRecorder(createBattleId("B_2"));
+    const includedTurnStarted = recordTurnStarted(includedRecorder);
+    const includedRuntime = new PassiveActivationRuntime(
+      contextOf(includedRecorder, definitions, includedTurnStarted, undefined, undefined, 2),
+      [owner],
+    );
+    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner]);
+    expect(includedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(0);
+    expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
+  });
+
+  it("UT-R-PS-01-054 (RES-004, Issue #171): the current unit roster reaches candidate detection AND reconfirmation for an ALIVE_UNIT_COUNT-gated PS", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const allyDefinitionId = createUnitDefinitionId("UNIT_ALLY");
+    const skill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PS", { ppCost: 1 }),
+      activationCondition: {
+        kind: "ALIVE_UNIT_COUNT",
+        side: "ALLY",
+        excludeSelf: true,
+        op: "GT",
+        value: 0,
+      },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 1, maximumPp: 3 });
+    const ally = unit("ALLY_1", "ALLY", { unitDefinitionId: allyDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        [allyDefinitionId, unitDefinitionOf(allyDefinitionId, [])],
+      ]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+
+    const excludedRecorder = new EventRecorder(createBattleId("B_1"));
+    const excludedTurnStarted = recordTurnStarted(excludedRecorder);
+    const excludedRuntime = new PassiveActivationRuntime(
+      contextOf(excludedRecorder, definitions, excludedTurnStarted),
+      [owner],
+    );
+    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]);
+    expect(excludedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
+    expect(excludedRecorder.getEvents().map((e) => e.eventType)).not.toContain("PassiveActivated");
+
+    const includedRecorder = new EventRecorder(createBattleId("B_2"));
+    const includedTurnStarted = recordTurnStarted(includedRecorder);
+    const includedRuntime = new PassiveActivationRuntime(
+      contextOf(includedRecorder, definitions, includedTurnStarted),
+      [owner, ally],
+    );
+    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner, ally]);
+    expect(includedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(0);
+    expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
   it("UT-R-PS-04-012 (Issue #144 review fix [P2]): a POSITION_RELATION-gated PS whose event references a target absent from the roster is discarded deterministically at reconfirmation, not thrown", () => {

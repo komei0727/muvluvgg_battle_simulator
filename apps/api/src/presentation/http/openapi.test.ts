@@ -771,6 +771,49 @@ describe("OpenAPI document", () => {
     expect(validate(withModulo(1.5))).toBe(false);
   });
 
+  it("UT-R-EFF-01-034 (condition-definition.ts TURN_NUMBER modulo assertInteger({min:1}); RES-004, Issue #171, PR #222再レビュー[P2]): rejects a TURN_NUMBER modulo that is 0 or non-integer", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+    function withModulo(modulo: unknown) {
+      return {
+        ...base,
+        details: {
+          ...basePayload,
+          expirationConditions: [{ kind: "TURN_NUMBER", op: "EQ", value: 0, modulo }],
+        },
+      };
+    }
+
+    expect(validate(withModulo(1)), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(withModulo(2)), JSON.stringify(validate.errors)).toBe(true);
+    // Invalid: assertInteger(..., { min: 1 }) rejects both 0 and non-integers.
+    expect(validate(withModulo(0))).toBe(false);
+    expect(validate(withModulo(-2))).toBe(false);
+    expect(validate(withModulo(1.5))).toBe(false);
+  });
+
   it("API-OPENAPI-005 (regression: M5 review [P1] found COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // A mapped type over `BattleDomainEventType` forces a compile error (missing
     // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event

@@ -36,7 +36,10 @@ export type PassiveReconfirmationResult =
  * 渡す。`getUnit`/`resolutionPhase`は`POSITION_RELATION`/`RESOLUTION_PHASE`
  * （Issue #144）を候補検出時と同一の文脈で再評価するために、呼び出し側
  * （`resolve-passive-chain.ts`の`PassiveChainDependencies`）が候補検出時と
- * 同じ値を渡す。
+ * 同じ値を渡す。`units`/`turnNumber`（RES-004、Issue #171）も同じ理由で
+ * `ALIVE_UNIT_COUNT`/`TURN_NUMBER`を候補検出時と同一の文脈で再評価するために
+ * 渡す。`units`は再確認時点の最新状態（呼び出し側が`currentUnit`と同様に
+ * 都度渡す）。
  */
 export function reconfirmPassiveCandidate(
   candidate: PassiveCandidate,
@@ -45,6 +48,8 @@ export function reconfirmPassiveCandidate(
   activationGuard: PassiveActivationGuard,
   getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined,
   resolutionPhase?: ResolutionPhase,
+  units?: readonly BattleUnit[],
+  turnNumber?: number,
 ): PassiveReconfirmationResult {
   if (isDefeated(currentUnit)) {
     return { ok: false, reason: "OWNER_DEFEATED" };
@@ -63,6 +68,8 @@ export function reconfirmPassiveCandidate(
     skillDefinitionId: candidate.skillDefinition.skillDefinitionId,
     ...(getUnit !== undefined ? { getUnit } : {}),
     ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
+    ...(units !== undefined ? { units } : {}),
+    ...(turnNumber !== undefined ? { turnNumber } : {}),
   };
   if (
     !evaluateTriggerCondition(candidate.trigger.condition, event, counterContext) ||

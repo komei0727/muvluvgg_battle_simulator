@@ -139,6 +139,36 @@ describe("ConditionDefinition", () => {
     expect(result).toEqual({ kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: 3 });
   });
 
+  it("UT-CAT-COND-028 (review [P2]): rejects a zero modulo on TURN_NUMBER", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: 0 },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-029 (review [P2]): rejects a negative modulo on TURN_NUMBER", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: -2 },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-030 (review [P2]): rejects a non-integer modulo on TURN_NUMBER", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: 1.5 },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-COND-010: rejects an invalid comparison operator", () => {
     expect(() =>
       createConditionDefinition(

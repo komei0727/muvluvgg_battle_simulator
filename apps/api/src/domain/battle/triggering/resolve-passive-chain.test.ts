@@ -657,6 +657,83 @@ describe("resolvePassiveChain", () => {
     }
   });
 
+  it("UT-R-PS-04-013 (RES-004, Issue #171): deps.turnNumber/deps.getAllUnits reach reconfirmation for a Skill activationCondition using TURN_NUMBER/ALIVE_UNIT_COUNT", () => {
+    const unitA = unit("A");
+    const ally = unit("ALLY_1");
+    const skillA: SkillDefinition = {
+      ...skillOf("SKL_A"),
+      activationCondition: {
+        kind: "AND",
+        conditions: [
+          { kind: "TURN_NUMBER", op: "NEQ", value: 1 },
+          { kind: "ALIVE_UNIT_COUNT", side: "ALLY", excludeSelf: true, op: "GT", value: 0 },
+        ],
+      },
+    };
+    const candA = candidateOf(unitA, skillA);
+
+    const excludedOnFirstTurn = resolvePassiveChain(
+      event("ROOT"),
+      createEmptyPassiveActivationGuard(),
+      {
+        detectCandidates: () => [candA],
+        getCurrentUnit: () => unitA,
+        activate: () => completedActivation(DONE),
+        limits: GENEROUS_LIMITS,
+        turnNumber: 1,
+        getAllUnits: () => [unitA, ally],
+      },
+    );
+    expect(excludedOnFirstTurn.ok).toBe(true);
+    if (excludedOnFirstTurn.ok) {
+      expect(
+        hasActivated(
+          excludedOnFirstTurn.activationGuard,
+          unitA.battleUnitId,
+          skillA.skillDefinitionId,
+        ),
+      ).toBe(false);
+    }
+
+    const excludedWithoutAlly = resolvePassiveChain(
+      event("ROOT"),
+      createEmptyPassiveActivationGuard(),
+      {
+        detectCandidates: () => [candA],
+        getCurrentUnit: () => unitA,
+        activate: () => completedActivation(DONE),
+        limits: GENEROUS_LIMITS,
+        turnNumber: 2,
+        getAllUnits: () => [unitA],
+      },
+    );
+    expect(excludedWithoutAlly.ok).toBe(true);
+    if (excludedWithoutAlly.ok) {
+      expect(
+        hasActivated(
+          excludedWithoutAlly.activationGuard,
+          unitA.battleUnitId,
+          skillA.skillDefinitionId,
+        ),
+      ).toBe(false);
+    }
+
+    const included = resolvePassiveChain(event("ROOT"), createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [candA],
+      getCurrentUnit: () => unitA,
+      activate: () => completedActivation(DONE),
+      limits: GENEROUS_LIMITS,
+      turnNumber: 2,
+      getAllUnits: () => [unitA, ally],
+    });
+    expect(included.ok).toBe(true);
+    if (included.ok) {
+      expect(
+        hasActivated(included.activationGuard, unitA.battleUnitId, skillA.skillDefinitionId),
+      ).toBe(true);
+    }
+  });
+
   it("smoke: a candidate whose activation completes immediately generates no follow-ups", () => {
     const owner = unit("A");
     const candidate = candidateOf(owner, skillOf("SKL_A"));

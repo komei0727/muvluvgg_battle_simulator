@@ -289,4 +289,75 @@ describe("reconfirmPassiveCandidate", () => {
       ),
     ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
   });
+
+  it("UT-R-PS-04-014 (RES-004, Issue #171): reconfirmation re-evaluates a Skill activationCondition using ALIVE_UNIT_COUNT with the caller-supplied units", () => {
+    const unit = owner("ALLY");
+    const skill = skillOf({
+      activationCondition: {
+        kind: "ALIVE_UNIT_COUNT",
+        side: "ALLY",
+        excludeSelf: true,
+        op: "GT",
+        value: 0,
+      },
+    });
+    const candidate = candidateOf(unit, skill);
+    const ally = { ...owner("ALLY"), battleUnitId: createBattleUnitId("ALLY_1") };
+
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        READY_EVENT,
+        createEmptyPassiveActivationGuard(),
+        undefined,
+        undefined,
+        [unit, ally],
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        READY_EVENT,
+        createEmptyPassiveActivationGuard(),
+        undefined,
+        undefined,
+        [unit],
+      ),
+    ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
+  });
+
+  it("UT-R-PS-04-015 (RES-004, Issue #171): reconfirmation re-evaluates a Skill activationCondition using TURN_NUMBER with the caller-supplied turnNumber", () => {
+    const unit = owner("ALLY");
+    const skill = skillOf({
+      activationCondition: { kind: "TURN_NUMBER", op: "NEQ", value: 1 },
+    });
+    const candidate = candidateOf(unit, skill);
+
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        READY_EVENT,
+        createEmptyPassiveActivationGuard(),
+        undefined,
+        undefined,
+        undefined,
+        2,
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        unit,
+        READY_EVENT,
+        createEmptyPassiveActivationGuard(),
+        undefined,
+        undefined,
+        undefined,
+        1,
+      ),
+    ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
+  });
 });

@@ -315,7 +315,7 @@ export function createConditionDefinition(
       if (input.modulo === undefined) {
         return { kind: "TURN_NUMBER", op, value };
       }
-      assertFinite(input.modulo, `${path}.modulo`);
+      assertInteger(input.modulo, `${path}.modulo`, { min: 1 });
       return { kind: "TURN_NUMBER", op, value, modulo: input.modulo };
     }
     case "ALIVE_UNIT_COUNT": {
