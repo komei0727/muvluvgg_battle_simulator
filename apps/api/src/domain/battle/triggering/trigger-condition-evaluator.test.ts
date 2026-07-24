@@ -797,9 +797,9 @@ describe("evaluateTriggerCondition", () => {
       ).toBe(false);
     });
 
-    it("UT-R-PS-01-043: countCondition treats an absent marker as stackCount 0", () => {
+    it("UT-R-PS-01-043: an absent marker is false with countCondition regardless of op/value (presence gates first)", () => {
       const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { markerStates: [] });
-      const condition: ConditionDefinition = {
+      const gteOne: ConditionDefinition = {
         kind: "TARGET_HAS_MARKER",
         target: { kind: "SELF" },
         markerId: createMarkerId("MARKER_KYOCHO"),
@@ -807,7 +807,37 @@ describe("evaluateTriggerCondition", () => {
       };
       expect(
         evaluateTriggerCondition(
-          condition,
+          gteOne,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-043b (review [P2]): an absent marker stays false even for countCondition operators that a stackCount of 0 would satisfy (EQ 0, LTE 1)", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { markerStates: [] });
+      const eqZero: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_KYOCHO"),
+        countCondition: { op: "EQ", value: 0 },
+      };
+      const lteOne: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_KYOCHO"),
+        countCondition: { op: "LTE", value: 1 },
+      };
+      expect(
+        evaluateTriggerCondition(
+          eqZero,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(false);
+      expect(
+        evaluateTriggerCondition(
+          lteOne,
           { payload: {} },
           { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
         ),

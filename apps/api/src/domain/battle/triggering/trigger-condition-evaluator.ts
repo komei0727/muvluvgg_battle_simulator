@@ -254,12 +254,14 @@ export function evaluateTriggerCondition(
           return false;
         }
         const marker = target.markerStates.find((state) => state.markerId === condition.markerId);
-        if (condition.countCondition === undefined) {
-          return marker !== undefined;
+        if (marker === undefined) {
+          return false;
         }
-        const stackCount = marker?.stackCount ?? 0;
+        if (condition.countCondition === undefined) {
+          return true;
+        }
         return compareWithOperator(
-          stackCount,
+          marker.stackCount,
           condition.countCondition.op,
           condition.countCondition.value,
         );
