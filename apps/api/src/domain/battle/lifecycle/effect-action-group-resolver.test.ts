@@ -2874,5 +2874,190 @@ describe("applyEffectActionGroups", () => {
       expect(emitted).not.toContain("EffectStepSkipped");
       expect(emitted).toContain("EffectActionStarting");
     });
+
+    it("UT-R-SKL-06-042（PRレビュー[P2]再々指摘）: a NOT(TARGET_STATE(step.target, IS_ALIVE)) combined with TARGET_SET_COUNT is satisfied by a defeated member of a mixed step.target set, and only that member receives the action", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyAlive = unit("ENEMY_ALIVE", "ENEMY");
+      const enemyDead = unit("ENEMY_DEAD", "ENEMY", { currentHp: 0 });
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const primaryBindingId = createTargetBindingId("TGT_PRIMARY");
+      const primaryTarget: TargetReference = { kind: "BINDING", targetBindingId: primaryBindingId };
+      const otherBindingId = createTargetBindingId("TGT_OTHER");
+      const otherTarget: TargetReference = { kind: "BINDING", targetBindingId: otherBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: primaryBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: true,
+            },
+          },
+          {
+            targetBindingId: otherBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            // AND(NOT(TARGET_STATE(step.target, IS_ALIVE)), TARGET_SET_COUNT(TGT_OTHER, GTE 1)):
+            // the wrong "quantify each leaf, then combine" order would compute
+            // NOT(exists(IS_ALIVE)) = NOT(true) = false (enemyAlive exists), but
+            // the correct per-target-then-quantify order finds enemyDead
+            // satisfies NOT(IS_ALIVE) AND the (candidate-independent) set-count
+            // part, so the step must proceed — applied only to enemyDead.
+            condition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "NOT",
+                  condition: {
+                    kind: "TARGET_STATE",
+                    target: primaryTarget,
+                    field: "IS_ALIVE",
+                    op: "EQ",
+                    value: true,
+                  },
+                },
+                { kind: "TARGET_SET_COUNT", target: otherTarget, op: "GTE", value: 1 },
+              ],
+            },
+            target: primaryTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyAlive, enemyDead], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyAlive, enemyDead], context);
+
+      const events = recorder.getEvents();
+      expect(events.map((e) => e.eventType)).not.toContain("EffectStepSkipped");
+      const startedTargets = events
+        .filter((e) => e.eventType === "EffectActionStarting")
+        .flatMap((e) => e.payload.targetUnitIds);
+      expect(startedTargets).toEqual([enemyDead.battleUnitId]);
+    });
+
+    it("UT-R-SKL-06-043（PRレビュー[P2]再々指摘）: an AND of two per-target leaves that different candidates satisfy separately (but no single candidate satisfies both) is not satisfied, even combined with a true TARGET_SET_COUNT", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const markerId = createMarkerId("MARKER_X");
+      const markerState = (owner: BattleUnit): MarkerState => ({
+        markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
+        markerId,
+        sourceId: actor.battleUnitId,
+        targetId: owner.battleUnitId,
+        stackCount: 1,
+        stackMax: null,
+        duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      });
+      // enemyAliveNoMarker satisfies IS_ALIVE but not HAS_MARKER; enemyDeadWithMarker
+      // satisfies HAS_MARKER but not IS_ALIVE. No single candidate satisfies both.
+      const enemyAliveNoMarkerBase = unit("ENEMY_ALIVE_NO_MARKER", "ENEMY");
+      const enemyAliveNoMarker = enemyAliveNoMarkerBase;
+      const enemyDeadWithMarkerBase = unit("ENEMY_DEAD_WITH_MARKER", "ENEMY", { currentHp: 0 });
+      const enemyDeadWithMarker = {
+        ...enemyDeadWithMarkerBase,
+        markerStates: [markerState(enemyDeadWithMarkerBase)],
+      };
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const primaryBindingId = createTargetBindingId("TGT_PRIMARY");
+      const primaryTarget: TargetReference = { kind: "BINDING", targetBindingId: primaryBindingId };
+      const otherBindingId = createTargetBindingId("TGT_OTHER");
+      const otherTarget: TargetReference = { kind: "BINDING", targetBindingId: otherBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: primaryBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: true,
+            },
+          },
+          {
+            targetBindingId: otherBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            // AND(AND(TARGET_STATE(step.target, IS_ALIVE), TARGET_HAS_MARKER(step.target, MARKER_X)), TARGET_SET_COUNT(TGT_OTHER, GTE 1)):
+            // the wrong order computes exists(IS_ALIVE) && exists(HAS_MARKER) =
+            // true && true = true even though no single candidate satisfies both
+            // leaves; the correct order evaluates the composite per candidate
+            // first, finds no candidate satisfies it, and skips the step.
+            condition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "AND",
+                  conditions: [
+                    {
+                      kind: "TARGET_STATE",
+                      target: primaryTarget,
+                      field: "IS_ALIVE",
+                      op: "EQ",
+                      value: true,
+                    },
+                    { kind: "TARGET_HAS_MARKER", target: primaryTarget, markerId },
+                  ],
+                },
+                { kind: "TARGET_SET_COUNT", target: otherTarget, op: "GTE", value: 1 },
+              ],
+            },
+            target: primaryTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(
+        skill,
+        actor,
+        [actor, enemyAliveNoMarker, enemyDeadWithMarker],
+        effectActions,
+      );
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyAliveNoMarker, enemyDeadWithMarker], context);
+
+      const emitted = recorder.getEvents().map((e) => e.eventType);
+      expect(emitted).toContain("EffectStepSkipped");
+      expect(emitted).not.toContain("EffectActionStarting");
+    });
   });
 });
