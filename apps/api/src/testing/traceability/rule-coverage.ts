@@ -412,36 +412,24 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // Issue #168 (TGT-003, CAP_TARGET_BINDING_FALLBACK)で`R-TGT-10`の3点を実装した:
   // (1) sequence開始時のtargetBindings定義順固定 — `skill-resolution-service.ts`の
   // `resolveEffectSequence`が全bindingとeagerなACTION step対象を一度だけ解決し、
-  // `applyEffectActionGroups`はその計画済みmapを参照するだけで再解決しない（構造上
-  // 保証されており、複数stepが同じbindingを参照する既存回帰テスト群がこれを裏付ける）。
+  // `applyEffectActionGroups`はその計画済みmapを参照するだけで再解決しない（回帰検証は
+  // effect-action-group-resolver.test.tsのUT-R-TGT-10-009: resolveSkillOrderが一度だけ
+  // 解決したbindingが、先行stepによる戦闘不能化後も再評価されず元の対象を指し続ける
+  // ことを、実際の`resolveSkillOrder`→`applyEffectActionGroups`の経路で検証する）。
   // (2) 参照時点の戦闘不能skip（明示`includeDefeated`がない限り）— RES-002（Issue #174）
   // が全EffectAction種別に共通実装済み（回帰検証はeffect-action-group-resolver.test.tsの
   // UT-R-ACTN-01-001〜006/010）。(3) 候補0件時のfallback経路評価 — 本Issueで
   // `target-selection-policy.ts`の`resolveTargets`に実装した（回帰検証は
-  // target-selection-policy.test.tsのUT-R-TGT-10-001〜008）。production Catalogの
-  // `fallback`使用例（`SKL_CLARA_SANTA_AS2`/`SKL_LYDIA_GENIUS_EX`）はいずれも非空
-  // `filters`を伴うため、production統合テストはTGT-002（filters）完了後に追加する
-  // （`CAP_TARGET_BINDING_FALLBACK`のruntimeStatusもそれまで`PLANNED`のまま）。
-  {
-    ruleId: "R-TGT-10",
-    testCaseIds: [
-      "UT-R-TGT-10-001",
-      "UT-R-TGT-10-002",
-      "UT-R-TGT-10-003",
-      "UT-R-TGT-10-004",
-      "UT-R-TGT-10-005",
-      "UT-R-TGT-10-006",
-      "UT-R-TGT-10-007",
-      "UT-R-TGT-10-008",
-      "UT-R-ACTN-01-001",
-      "UT-R-ACTN-01-002",
-      "UT-R-ACTN-01-003",
-      "UT-R-ACTN-01-004",
-      "UT-R-ACTN-01-006",
-      "UT-R-ACTN-01-010",
-    ],
-    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
-  },
+  // target-selection-policy.test.tsのUT-R-TGT-10-001〜008）。3点ともUnitテストレベルの
+  // 実ライフサイクル配線は揃ったが、production Catalogの`fallback`使用例
+  // （`SKL_CLARA_SANTA_AS2`/`SKL_LYDIA_GENIUS_EX`）はいずれも非空`filters`を伴うため、
+  // 無改変のproduction Catalogでfallback経路を通すproduction統合テストは、TGT-002
+  // （filters、CAP_TARGET_FILTER_ORDER、Issue #169）完了後にしか追加できない。
+  // `13_実装計画.md`の完了定義（production経路が揃った時点）と`CAP_TARGET_BINDING_FALLBACK`の
+  // `runtimeStatus: PLANNED`（`apps/api/catalog/capabilities.json`）に照らし、production
+  // 統合テストが揃うまでこのルールは未完了のまま残し、完了責任をTGT-002へ引き継ぐ
+  // （`17_残作業対応表.json`の`ruleAssignments`参照）。
+  { ruleId: "R-TGT-10", testCaseIds: [], kinds: [] },
 
   // SKL: スキル
   // R-SKL-01: 使用者戦闘不能時の中断（`applyDamageAction`のヒット単位中断＋

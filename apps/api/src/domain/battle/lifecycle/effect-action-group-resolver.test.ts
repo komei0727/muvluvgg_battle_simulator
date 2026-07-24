@@ -9,11 +9,16 @@ import { applyMarker } from "../effects/marker-apply-service.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
-import type { EffectSequencePlan } from "../skill/skill-resolution-service.js";
+import { resolveSkillOrder, type EffectSequencePlan } from "../skill/skill-resolution-service.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createEffectInstanceId } from "../../shared/event-ids.js";
+import type {
+  SkillDefinition,
+  SkillResolutionDefinition,
+} from "../../catalog/definitions/skill-definition.js";
+import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
 import {
   createEffectActionDefinitionId,
   createMarkerId,
@@ -135,6 +140,33 @@ function cooldownManipulationAction(
     requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { targetSkillDefinitionId, operation: "RESET" },
+  };
+}
+
+/**
+ * R-TGT-10（Issue #168レビュー[P2]）: `resolveSkillOrder`が実際に組み立てる
+ * `EffectSequencePlan`を、この`applyEffectActionGroups`テストへ橋渡しするための
+ * 最小`SkillDefinition`。`skill-resolution-service.test.ts`の同名ヘルパーと同じ形。
+ */
+function skillOf(resolution: SkillResolutionDefinition): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_TEST"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution,
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: "Test", tags: [] },
   };
 }
 
@@ -1179,6 +1211,92 @@ describe("applyEffectActionGroups", () => {
         { eventType: "EffectActionCompleted" }
       >;
       expect(completed.payload.resultKind).toBe("APPLIED");
+    });
+  });
+
+  describe("R-TGT-10: TargetBinding sequence-start fixation (Issue #168 review [P2])", () => {
+    it("UT-R-TGT-10-009: a targetBinding resolved once by resolveSkillOrder is never re-evaluated by applyEffectActionGroups — a later step referencing the same binding still targets (and skips) the original member after an earlier step defeats it, rather than redirecting to a unit that is only now the sole survivor", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const primary = unit("PRIMARY", "ENEMY", { currentHp: 5 });
+      const other = unit("OTHER", "ENEMY", { currentHp: 100 });
+      const lethalHit = damageAction("ACT_LETHAL");
+      const secondHit = damageAction("ACT_SECOND");
+      const effectActions = new Map([
+        [lethalHit.effectActionDefinitionId, lethalHit],
+        [secondHit.effectActionDefinitionId, secondHit],
+      ]);
+
+      const bindingId = createTargetBindingId("TGT_MAIN");
+      const enemySelector: TargetSelectorDefinition = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+      const bindingTarget: TargetReference = { kind: "BINDING", targetBindingId: bindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: bindingId, selector: enemySelector }],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: bindingTarget,
+            actions: [{ effectActionDefinitionId: lethalHit.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: bindingTarget,
+            actions: [{ effectActionDefinitionId: secondHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      // resolveSkillOrder resolves TGT_MAIN once, while both enemies are still alive:
+      // PRIMARY and OTHER tie on every R-TGT-02 key (this file's `unit()` helper always
+      // places units at the same position), so the stable sort keeps `allUnits`' input
+      // order and TGT_MAIN binds to PRIMARY specifically (not OTHER).
+      const plan = resolveSkillOrder(skill, actor, [actor, primary, other], effectActions);
+      expect(plan.resolvedBindings.get(bindingId)?.units.map((u) => u.battleUnitId)).toEqual([
+        primary.battleUnitId,
+      ]);
+
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      const result = applyEffectActionGroups(plan, [actor, primary, other], context);
+
+      // Step 0 defeats PRIMARY (TGT_MAIN's fixed member). If TGT_MAIN were
+      // re-evaluated before step 1 (a fixation regression), it would now resolve to
+      // OTHER (the only surviving enemy) instead. It does not: step 1's
+      // EffectActionStarting still names PRIMARY, and — because PRIMARY is already
+      // defeated and this selector has no includeDefeated override — R-ACTN-01 #2
+      // skips the application rather than silently redirecting it to OTHER.
+      const actionStartingEvents = recorder
+        .getEvents()
+        .filter(
+          (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionStarting" }> =>
+            e.eventType === "EffectActionStarting",
+        );
+      expect(actionStartingEvents[1]?.targetUnitIds).toEqual([primary.battleUnitId]);
+
+      const actionCompletedEvents = recorder
+        .getEvents()
+        .filter(
+          (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }> =>
+            e.eventType === "EffectActionCompleted",
+        );
+      expect(actionCompletedEvents[1]?.payload.resultKind).toBe("SKIPPED");
+
+      const untouchedOther = result.units.find((u) => u.battleUnitId === other.battleUnitId)!;
+      expect(untouchedOther.currentHp).toBe(100);
+      // resolvedEffectCount counts both hits (step 0's APPLIED and step 1's SKIPPED are
+      // both non-interrupted resolutions); the important assertions are the target
+      // identity and resultKind checks above, and OTHER's untouched HP.
+      expectCompleted(result, 2);
     });
   });
 
