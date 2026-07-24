@@ -570,15 +570,20 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       ),
       currentPp: LIMITS.maximumPp,
     };
-    // PS2's trigger is `HitPointReduced` with `sourceSelector: "ENEMY"`,
-    // `targetSelector: "ALLY"` (PR #220 review [P2]: corrected from "ALLY" —
-    // the real Damage pipeline always sets `HitPointReduced.sourceUnitId` to
-    // the attacker, so a `sourceSelector: "ALLY"` could never match a normal
-    // enemy attack; see catalog-src/units/UNIT_SUIRAN_CHAOS/skills.json).
-    // The condition additionally requires the target's HP_RATIO<=0.5 and the
-    // target positioned in front of Suiran. `woundedAlly.combatStats.maximumHp`
-    // is lowered so a single real hit from `enemyAttacker` (attack 50 -
-    // defense 10 = 40 damage) crosses the 50% threshold.
+    // PS2's trigger is `HitPointReduced` with `sourceSelector: "ANY"`,
+    // `targetSelector: "ALLY"` (PR #220 review [P2] re-review: the raw source
+    // doesn't limit "自身の目の前に編成されている味方のHPが半分以下" to any
+    // particular cause, so `ANY` is the accurate conversion — an earlier fix
+    // to `"ENEMY"` in this same PR was itself too narrow, since it would have
+    // silently excluded ally-caused/self-inflicted HP loss; see
+    // catalog-src/units/UNIT_SUIRAN_CHAOS/skills.json). This test covers the
+    // ordinary case (an enemy attack); `IT-CAP-TRIGGER-CONTEXT-PROD-004`
+    // below covers the boundary case (an ally-caused `HitPointReduced` must
+    // also candidate-ize). The condition additionally requires the target's
+    // HP_RATIO<=0.5 and the target positioned in front of Suiran.
+    // `woundedAlly.combatStats.maximumHp` is lowered so a single real hit
+    // from `enemyAttacker` (attack 50 - defense 10 = 40 damage) crosses the
+    // 50% threshold.
     const woundedAlly = {
       ...createBattleUnit(
         member("ally:wounded", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
@@ -695,6 +700,143 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
 
     expect(() =>
       runtime.onFactEvent(hitPointReduced, [suiran, updatedWoundedAlly, enemyAttacker]),
+    ).toThrowError(/EffectAction kind other than .* is not supported/);
+
+    const passiveActivated = recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId === SUIRAN_PS2_ID,
+      );
+    expect(passiveActivated).toBeDefined();
+  });
+
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-004 (PR #220 review finding [P2] re-review): SKL_SUIRAN_CHAOS_PS2 also candidate-izes for a REAL HitPointReduced whose source is an ALLY, not just an enemy — sourceSelector: ANY must not silently exclude ally-caused/self-inflicted HP loss", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+
+    const suiran = {
+      ...createBattleUnit(
+        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
+        "ALLY",
+        LIMITS,
+      ),
+      currentPp: LIMITS.maximumPp,
+    };
+    const woundedAlly = {
+      ...createBattleUnit(
+        member("ally:wounded", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
+        "ALLY",
+        LIMITS,
+      ),
+      combatStats: {
+        maximumHp: 60,
+        attack: 50,
+        defense: 10,
+        criticalRate: 0,
+        actionSpeed: 10,
+        criticalDamageBonus: 0.5,
+        affinityBonus: 0.25,
+      },
+      currentHp: 60,
+    };
+    // The attacker is an ALLY this time (e.g. a future self-damaging-cost or
+    // friendly-fire mechanic) — same side as Suiran and the wounded target.
+    const allyAttacker = createBattleUnit(
+      member("ally:attacker", ENEMY_UNIT_ID, "ALLY", { column: "RIGHT", row: "FRONT" }),
+      "ALLY",
+      LIMITS,
+    );
+    const unitDefinitions = new Map(snapshot.units);
+    unitDefinitions.set(
+      createUnitDefinitionId(ATTACKER_UNIT_ID),
+      testUnitDefinition(ATTACKER_UNIT_ID, 20),
+    );
+    unitDefinitions.set(
+      createUnitDefinitionId(ENEMY_UNIT_ID),
+      testUnitDefinition(ENEMY_UNIT_ID, 5),
+    );
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: snapshot.effectActions,
+      unitDefinitions,
+      skillDefinitions: snapshot.skills,
+    };
+
+    const recorder = new EventRecorder(createBattleId("B_5"));
+    const resolutionScopeId = recorder.nextResolutionScopeId();
+    const actionId = recorder.nextActionId();
+    const actionStarted = recorder.record({
+      eventType: "ActionStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId,
+      resolutionScopeId,
+      payload: {
+        actorUnitId: allyAttacker.battleUnitId,
+        reservedActionType: "AS",
+        effectiveActionType: "AS",
+        apBefore: 1,
+        apAfter: 0,
+        exBefore: 0,
+        exAfter: 0,
+      },
+    });
+    const attackEffectAction = attackerEffectAction();
+    const damageResult = applyDamageAction(
+      allyAttacker,
+      [
+        {
+          targetBattleUnitId: woundedAlly.battleUnitId,
+          effectActionDefinitionId: attackEffectAction.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ],
+      attackEffectAction,
+      [allyAttacker, woundedAlly],
+      new SequenceRandomSource([]),
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId,
+        skillUseId: recorder.nextSkillUseId(),
+        resolutionScopeId,
+        rootEventId: actionStarted.eventId,
+        parentEventId: actionStarted.eventId,
+        skillDefinitionId: createSkillDefinitionId(ATTACKER_AS_ID),
+      },
+    );
+    const updatedWoundedAlly = damageResult.units.find(
+      (u) => u.battleUnitId === woundedAlly.battleUnitId,
+    )!;
+    expect(updatedWoundedAlly.currentHp).toBe(20);
+
+    const hitPointReduced = recorder.getEvents().find((e) => e.eventType === "HitPointReduced")!;
+    expect(hitPointReduced.sourceUnitId).toBe(allyAttacker.battleUnitId);
+
+    const runtime = new PassiveActivationRuntime(
+      {
+        definitions,
+        random: new SequenceRandomSource([]),
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId,
+        rootEventId: actionStarted.eventId,
+        actionId,
+      },
+      [suiran, updatedWoundedAlly, allyAttacker],
+    );
+
+    // The candidate must still be detected and activation attempted (proving
+    // `sourceSelector: "ANY"` doesn't require an enemy source) — it fails on
+    // the same separately-unimplemented HEAL kind as the enemy-attack case.
+    expect(() =>
+      runtime.onFactEvent(hitPointReduced, [suiran, updatedWoundedAlly, allyAttacker]),
     ).toThrowError(/EffectAction kind other than .* is not supported/);
 
     const passiveActivated = recorder
