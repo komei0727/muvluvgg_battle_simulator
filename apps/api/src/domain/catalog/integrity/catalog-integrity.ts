@@ -356,36 +356,35 @@ function stepsContainSetCondition(steps: readonly EffectStepDefinition[]): boole
 }
 
 /**
- * `domain/battle/skill/effect-step-condition-evaluator.ts`の
- * `conditionReferencesStepTarget`と意図的な重複（module境界、上記
- * `conditionContainsTargetSetCount`と同じ理由）。`target`と同じ
- * `TargetReference`を参照する`TARGET_STATE`/`TARGET_HAS_MARKER`が
- * `condition`のどこかに含まれるか（AND/OR/NOTを再帰的に見る）。
+ * `condition`のどこかに`TARGET_STATE`/`TARGET_HAS_MARKER`が含まれるか
+ * （AND/OR/NOTを再帰的に見る）。参照先の`TargetReference`は問わない —
+ * PRレビュー[P2]再々々々指摘（Issue #227）: `effect-step-condition-evaluator.ts`の
+ * `evaluateEffectStepCondition`は、`TARGET_SET_COUNT`単独経路
+ * （`targetContext: undefined`）で呼ばれる際、参照先が`step.target`と一致
+ * するかどうかに関わらず`TARGET_STATE`/`TARGET_HAS_MARKER`に到達した時点で
+ * 例外を投げる（`EffectStepTargetContext`が無ければ評価できないため）。
+ * `step.target`と一致する参照だけを拒否対象にしていた前回の実装は、
+ * `SELF`など別の参照との組み合わせ（Catalog上は許可、実行時は例外）という
+ * preflightと実行時の不一致を残していた。
  */
-function conditionReferencesTarget(
-  condition: ConditionDefinition,
-  target: TargetReference,
-): boolean {
+function conditionContainsTargetStateOrMarker(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
     case "TARGET_STATE":
     case "TARGET_HAS_MARKER":
-      return (
-        condition.target.kind === target.kind &&
-        condition.target.targetBindingId === target.targetBindingId
-      );
+      return true;
     case "AND":
     case "OR":
-      return condition.conditions.some((c) => conditionReferencesTarget(c, target));
+      return condition.conditions.some((c) => conditionContainsTargetStateOrMarker(c));
     case "NOT":
-      return conditionReferencesTarget(condition.condition, target);
+      return conditionContainsTargetStateOrMarker(condition.condition);
     default:
       return false;
   }
 }
 
 /**
- * PRレビュー[P2]再々々指摘（Issue #227）: 対象別条件（自身のtargetを参照する
- * `TARGET_STATE`/`TARGET_HAS_MARKER`、対象ごとに真偽が変わる「対象ごとの
+ * PRレビュー[P2]再々々指摘・再々々々指摘（Issue #227）: 対象別条件
+ * （`TARGET_STATE`/`TARGET_HAS_MARKER`、対象ごとに真偽が変わる「対象ごとの
  * 適用可否フィルタ」）と`TARGET_SET_COUNT`（step全体で1回だけ評価する「step
  * 自体のskip判定」）は、単一のbooleanへ還元する意味論が本質的に異なる。
  * 同じconditionツリーに`AND`/`OR`/`NOT`で混在させると、量化の位置（対象別
@@ -393,10 +392,12 @@ function conditionReferencesTarget(
  * `exists`を取るか）によって結果が変わり得るだけでなく、後者の場合でも
  * 「対象別条件が全員falseなら対象0件成立扱い」（R-SKL-06）と「集合条件が
  * falseならEffectStepSkipped」という2つの契約のどちらを優先すべきか一意に
- * 定まらない（`TARGET_SET_COUNT`が恒真の場合、対象別条件単体のケースと
- * 結果が変わってしまう）。`ACTION` stepの`condition`が自身の`target`を参照
- * する対象別条件と`TARGET_SET_COUNT`を同時に含む場合、Catalogロード時点で
- * 明示的に拒否する。混在が将来必要になった場合は、`condition`を
+ * 定まらない。加えて、`TARGET_STATE`/`TARGET_HAS_MARKER`が`step.target`とは
+ * 異なる参照（`SELF`等）であっても、`TARGET_SET_COUNT`と同じconditionツリーに
+ * 存在する限り実行時は`TARGET_SET_COUNT`単独経路（`targetContext: undefined`）
+ * で評価され例外になるため、参照先を問わず拒否する。`ACTION`/`BRANCH`いずれの
+ * `condition`も対象（`BRANCH`のconditionも同じ`targetContext: undefined`経路で
+ * 評価されるため同じ危険がある）。混在が将来必要になった場合は、`condition`を
  * stepワイド判定用と対象別フィルタ用のスコープへ分離する専用スキーマを
  * 別Issueで設計する。
  */
@@ -408,8 +409,8 @@ function collectMixedStepTargetSetConditionPaths(
   steps.forEach((step, index) => {
     const stepPath = `${path}[${index}]`;
     if (
-      step.kind === "ACTION" &&
-      conditionReferencesTarget(step.condition, step.target) &&
+      (step.kind === "ACTION" || step.kind === "BRANCH") &&
+      conditionContainsTargetStateOrMarker(step.condition) &&
       conditionContainsTargetSetCount(step.condition)
     ) {
       paths.push(`${stepPath}.condition`);
@@ -444,7 +445,7 @@ function validateMixedStepTargetSetCondition(
     violations.push({
       targetId: ownerId,
       rule: "MIXED_STEP_TARGET_SET_CONDITION",
-      message: `${path} combines TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER that references this step's own target — per-target and step-wide condition scopes cannot be mixed in the same condition tree (RES-004集合条件, Issue #227)`,
+      message: `${path} combines TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER (regardless of which TargetReference it references) — per-target and step-wide condition scopes cannot be mixed in the same condition tree (RES-004集合条件, Issue #227)`,
     });
   }
 }

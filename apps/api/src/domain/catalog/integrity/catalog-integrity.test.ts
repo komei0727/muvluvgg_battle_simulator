@@ -1815,7 +1815,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
   });
 
-  it("UT-CAT-IDX-061（PRレビュー[P2]再々々指摘、Issue #227）: accepts TARGET_SET_COUNT combined with a TARGET_STATE that references a *different* TargetReference (not the step's own target)", () => {
+  it("UT-CAT-IDX-061（PRレビュー[P2]再々々々指摘、Issue #227）: rejects TARGET_SET_COUNT combined with a TARGET_STATE that references a *different* TargetReference (e.g. SELF, not the step's own target) — the runtime TARGET_SET_COUNT-only path evaluates with no per-target context regardless of which TargetReference the TARGET_STATE names, so it would throw at runtime even though it isn't step.target", () => {
     const defs = baseDefinitions();
     const caps = ["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"];
     const capabilities = [
@@ -1852,7 +1852,81 @@ describe("buildCatalogIndex", () => {
         ],
         capabilities,
       }),
-    ).not.toThrow();
+    ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
+  });
+
+  it("UT-CAT-IDX-062（PRレビュー[P2]再々々々指摘、Issue #227）: rejects the same mix inside a BRANCH's own condition, which also evaluates with no per-target context at runtime", () => {
+    const defs = baseDefinitions();
+    const caps = ["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"];
+    const capabilities = [
+      capability("CAP_EFFECT_STEP_CONDITION"),
+      capability("CAP_EFFECT_STEP_SET_CONDITION"),
+    ];
+
+    const branchMixedSkill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_OTHER",
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "TARGET_STATE",
+                  target: { kind: "SELF" },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                {
+                  kind: "TARGET_SET_COUNT",
+                  target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                  op: "GTE",
+                  value: 1,
+                },
+              ],
+            },
+            thenSteps: [
+              {
+                kind: "ACTION",
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+            elseSteps: [],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities: [...caps, "CAP_RESOLUTION_BRANCH_REPEAT"],
+      metadata: { displayName: "Branch-condition mixed AS" },
+    });
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [branchMixedSkill, exSkill("SKL_EX1", 7)],
+        capabilities: [...capabilities, capability("CAP_RESOLUTION_BRANCH_REPEAT")],
+      }),
+    ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
   });
 
   /**

@@ -69,7 +69,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // that references an ACTION step's own target is now rejected outright
     // (`MIXED_STEP_TARGET_SET_CONDITION`) rather than runtime-quantified, since no
     // single-boolean reduction satisfied both the per-target and set-wide contracts.
-    expect(catalog.catalogRevision).toBe("2026-07-24.11");
+    // Broadened to reject regardless of which TargetReference the TARGET_STATE/
+    // TARGET_HAS_MARKER names (the TARGET_SET_COUNT-only runtime path has no
+    // per-target context either way) and to cover BRANCH's own condition too.
+    expect(catalog.catalogRevision).toBe("2026-07-24.12");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

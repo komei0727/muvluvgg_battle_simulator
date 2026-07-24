@@ -1544,7 +1544,7 @@ value: 1
 
 `EffectStep`の`condition`（`ACTION`自身または`BRANCH`）でだけ評価できる（`CAP_EFFECT_STEP_SET_CONDITION`）。AS/EXの`activationCondition`（`CAP_ACTION_ACTIVATION_CONDITION`）やPSの`activationCondition`／`TriggerDefinition.condition`（`CAP_PASSIVE_ACTIVATION_CONDITION`）からの利用は、対象集合を解決するための`resolvedBindings`／`TargetBinding`評価の文脈が異なるため、この完了境界には含めない（Issue #227、#180（M7-003）へ引き渡す）。
 
-`ACTION`の`condition`は、自身の`target`を参照する`TARGET_STATE`/`TARGET_HAS_MARKER`（対象ごとに真偽が変わる対象別条件）と`TARGET_SET_COUNT`（step全体で1回だけ評価する集合条件）を`AND`/`OR`/`NOT`で同時に含められない（PRレビュー[P2]再々々指摘）。両者は単一のbooleanへ還元する意味論が異なり（前者は「対象ごとの適用可否フィルタ」、後者は「step自体のskip判定」）、混在させると量化の位置に依存して結果が変わってしまう。Catalog検証（`catalog-integrity.ts`の`MIXED_STEP_TARGET_SET_CONDITION`）がロード時点で明示的に拒否する。混在が必要になった場合は、`condition`を2つのスコープへ分離する専用スキーマを別Issueで設計する。
+`ACTION`/`BRANCH`いずれの`condition`も、`TARGET_STATE`/`TARGET_HAS_MARKER`（対象ごとに真偽が変わる対象別条件）と`TARGET_SET_COUNT`（step全体で1回だけ評価する集合条件）を`AND`/`OR`/`NOT`で同時に含められない（PRレビュー[P2]再々々指摘・再々々々指摘）。両者は単一のbooleanへ還元する意味論が異なり（前者は「対象ごとの適用可否フィルタ」、後者は「step自体のskip判定」）、混在させると量化の位置に依存して結果が変わってしまう。`TARGET_STATE`/`TARGET_HAS_MARKER`が参照する`TargetReference`が`step.target`と一致するかどうかは問わない — `TARGET_SET_COUNT`単独の評価経路は対象ごとの文脈を持たないため、参照先を問わず例外になる。Catalog検証（`catalog-integrity.ts`の`MIXED_STEP_TARGET_SET_CONDITION`）がロード時点で明示的に拒否する。混在が必要になった場合は、`condition`を2つのスコープへ分離する専用スキーマを別Issueで設計する。
 
 ### counterUpdates（AppliedEffectスコープ、EFF-005）
 

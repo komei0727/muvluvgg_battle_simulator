@@ -535,7 +535,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `MIXED_STEP_TARGET_SET_CONDITION`検証がCatalogロード時点で明示的に拒否する
   // よう設計を変更した。`resolveAfterTiming`は対象別条件（`satisfied: true`
   // 固定）とTARGET_SET_COUNT単独（step全体を一度だけ評価）の2つの独立した
-  // 経路へ戻し、混在時の量化ロジック自体を持たない。
+  // 経路へ戻し、混在時の量化ロジック自体を持たない。続く再々々々指摘で、
+  // 拒否判定が「自身の`target`と一致する」参照だけを見ていたため、`SELF`等
+  // 別のTargetReferenceを参照する対象別条件との組み合わせ（`TARGET_SET_COUNT`
+  // 単独経路は対象ごとの文脈を持たないため、参照先を問わずTARGET_STATE/
+  // TARGET_HAS_MARKERに到達した時点で例外になる）がpreflightを通過してしまう
+  // 配線漏れを指摘され、参照先を問わない判定（`conditionContainsTargetStateOrMarker`）
+  // へ広げ、`BRANCH`自身の`condition`（同じ理由で対象ごとの文脈を持たない）も
+  // 対象に含めた。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
