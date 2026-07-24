@@ -16,12 +16,16 @@ import {
 import { consumeEffectDurations } from "../model/applied-effect-duration.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import {
+  buildEffectStepPerTargetFilter,
   resolveActionStepApplications,
   type EffectActionApplication,
   type EffectSequencePlan,
   type LastResultTargetContext,
 } from "../skill/skill-resolution-service.js";
-import { evaluateEffectStepCondition } from "../skill/effect-step-condition-evaluator.js";
+import {
+  conditionReferencesStepTarget,
+  evaluateEffectStepCondition,
+} from "../skill/effect-step-condition-evaluator.js";
 import { selectWeightedBranch } from "../skill/random-branch-selection.js";
 import type { LastEffectActionResult } from "../skill/last-effect-action-result.js";
 import type {
@@ -1297,23 +1301,45 @@ function* resolveRawStep(
 ): StepResolution {
   switch (step.kind) {
     case "ACTION": {
-      const satisfied = evaluateEffectStepCondition(step.condition, lastResultState.current);
+      const actor = requireUnit(box.units, context.actorId);
+      const triggerContext = {
+        ...(context.triggerSourceUnitId !== undefined
+          ? { triggerSourceUnitId: context.triggerSourceUnitId }
+          : {}),
+        ...(context.triggerTargetUnitIds !== undefined
+          ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+          : {}),
+      };
+      const lastResultTargets = lastResultTargetsContext(lastResultState, box.units);
+      // CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: step自身のtargetを
+      // 参照するTARGET_STATE/TARGET_HAS_MARKERを含む場合は、一度だけの評価を
+      // 行わず（`satisfied`は常にtrue）、対象ごとの評価を`perTargetFilter`へ委ねる
+      // （`skill-resolution-service.ts`のeager pathと同じ方針）。
+      const selfReferencing = conditionReferencesStepTarget(step.condition, step.target);
+      const satisfied =
+        selfReferencing || evaluateEffectStepCondition(step.condition, lastResultState.current);
+      const perTargetFilter = selfReferencing
+        ? buildEffectStepPerTargetFilter(
+            step,
+            plan.resolvedBindings,
+            actor,
+            box.units,
+            context.definitions.unitDefinitions,
+            lastResultState.current,
+            lastResultTargets,
+            triggerContext,
+          )
+        : undefined;
       const applications = satisfied
         ? resolveActionStepApplications(
             step,
             plan.resolvedBindings,
-            requireUnit(box.units, context.actorId),
+            actor,
             box.units,
             context.definitions.effectActions,
-            lastResultTargetsContext(lastResultState, box.units),
-            {
-              ...(context.triggerSourceUnitId !== undefined
-                ? { triggerSourceUnitId: context.triggerSourceUnitId }
-                : {}),
-              ...(context.triggerTargetUnitIds !== undefined
-                ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
-                : {}),
-            },
+            lastResultTargets,
+            triggerContext,
+            perTargetFilter,
           )
         : [];
       return yield* resolveActionStepBody(

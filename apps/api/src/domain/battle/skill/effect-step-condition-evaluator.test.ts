@@ -1,10 +1,67 @@
 import { describe, expect, it } from "vitest";
-import { evaluateEffectStepCondition } from "./effect-step-condition-evaluator.js";
+import {
+  conditionReferencesStepTarget,
+  evaluateEffectStepCondition,
+  type EffectStepTargetContext,
+} from "./effect-step-condition-evaluator.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createEffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createMarkerId,
+  createTargetBindingId,
+  createUnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import {
+  createBattleUnit,
+  type BattleUnit,
+  type BattleUnitResourceLimits,
+} from "../model/battle-unit.js";
+import type { BattlePartyMember } from "../model/battle-party.js";
+import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
+import { buildInitialMarkerState } from "../model/marker-state.js";
+import { createMarkerInstanceId } from "../../shared/event-ids.js";
+import type { TargetReference } from "../../catalog/definitions/references.js";
+
+const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
+
+function unit(
+  id: string,
+  unitDefinitionId: string,
+  overrides: Partial<BattleUnit> = {},
+): BattleUnit {
+  const side = "ENEMY" as const;
+  const position = { row: "FRONT", column: "CENTER" } as const;
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(id),
+    unitDefinitionId: createUnitDefinitionId(unitDefinitionId),
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate(side, position),
+    combatStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0.1,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+    },
+  };
+  return { ...createBattleUnit(member, side, LIMITS), ...overrides };
+}
+
+const STEP_TARGET: TargetReference = {
+  kind: "BINDING",
+  targetBindingId: createTargetBindingId("TGT_COLUMN"),
+};
+const OTHER_BINDING: TargetReference = {
+  kind: "BINDING",
+  targetBindingId: createTargetBindingId("TGT_OTHER"),
+};
 
 describe("evaluateEffectStepCondition", () => {
   it("UT-R-SKL-06-001: TRUE evaluates to true", () => {
@@ -37,7 +94,7 @@ describe("evaluateEffectStepCondition", () => {
     expect(evaluateEffectStepCondition(condition)).toBe(true);
   });
 
-  it("UT-R-SKL-06-005: TARGET_STATE is rejected as M7 scope", () => {
+  it("UT-R-SKL-06-005: TARGET_STATE without an EffectStepTargetContext throws (CAP_EFFECT_STEP_CONDITION only evaluates it per-target)", () => {
     const condition: ConditionDefinition = {
       kind: "TARGET_STATE",
       target: { kind: "SELF" },
@@ -127,6 +184,261 @@ describe("evaluateEffectStepCondition", () => {
         ],
       };
       expect(evaluateEffectStepCondition(condition, damageResult)).toBe(true);
+    });
+  });
+
+  describe("conditionReferencesStepTarget (CAP_EFFECT_STEP_CONDITION, Issue #171 RES-004後半)", () => {
+    it("UT-R-SKL-06-013: detects TARGET_STATE/TARGET_HAS_MARKER referencing the step's own target", () => {
+      const targetState: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      const targetHasMarker: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId: createMarkerId("MARKER_TEST"),
+      };
+      expect(conditionReferencesStepTarget(targetState, STEP_TARGET)).toBe(true);
+      expect(conditionReferencesStepTarget(targetHasMarker, STEP_TARGET)).toBe(true);
+    });
+
+    it("UT-R-SKL-06-014: is false when TARGET_STATE/TARGET_HAS_MARKER reference a different TargetReference", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: OTHER_BINDING,
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      const selfCondition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(conditionReferencesStepTarget(condition, STEP_TARGET)).toBe(false);
+      expect(conditionReferencesStepTarget(selfCondition, STEP_TARGET)).toBe(false);
+    });
+
+    it("UT-R-SKL-06-015: recurses through AND/OR/NOT", () => {
+      const nested: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "TRUE" },
+          {
+            kind: "OR",
+            conditions: [
+              {
+                kind: "NOT",
+                condition: {
+                  kind: "TARGET_STATE",
+                  target: STEP_TARGET,
+                  field: "UNIT_TYPE",
+                  op: "EQ",
+                  value: "PHYSICAL",
+                },
+              },
+            ],
+          },
+        ],
+      };
+      expect(conditionReferencesStepTarget(nested, STEP_TARGET)).toBe(true);
+      expect(conditionReferencesStepTarget({ kind: "TRUE" }, STEP_TARGET)).toBe(false);
+    });
+  });
+
+  describe("TARGET_STATE/TARGET_HAS_MARKER per-target evaluation (CAP_EFFECT_STEP_CONDITION, Issue #171 RES-004後半)", () => {
+    const physicalUnitDefinitionId = createUnitDefinitionId("UNIT_PHYSICAL");
+    const agileUnitDefinitionId = createUnitDefinitionId("UNIT_AGILE");
+    const unitDefinitions = new Map<typeof physicalUnitDefinitionId, UnitDefinition>([
+      [
+        physicalUnitDefinitionId,
+        { unitDefinitionId: physicalUnitDefinitionId, unitType: "PHYSICAL" } as UnitDefinition,
+      ],
+      [
+        agileUnitDefinitionId,
+        { unitDefinitionId: agileUnitDefinitionId, unitType: "AGILE" } as UnitDefinition,
+      ],
+    ]);
+
+    function contextFor(current: BattleUnit, actor: BattleUnit): EffectStepTargetContext {
+      return {
+        stepTarget: STEP_TARGET,
+        current,
+        resolveOtherReference: (reference) => {
+          if (reference.kind === "SELF") {
+            return [actor];
+          }
+          return [];
+        },
+        unitDefinitions,
+      };
+    }
+
+    it("UT-R-SKL-06-016: TARGET_STATE evaluates the field of `current` (the individually-iterated target), not a fixed representative", () => {
+      const physical = unit("t1", "UNIT_PHYSICAL");
+      const agile = unit("t2", "UNIT_AGILE");
+      const actor = unit("actor", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "OR",
+        conditions: [
+          {
+            kind: "TARGET_STATE",
+            target: STEP_TARGET,
+            field: "UNIT_TYPE",
+            op: "EQ",
+            value: "PHYSICAL",
+          },
+          {
+            kind: "TARGET_STATE",
+            target: STEP_TARGET,
+            field: "UNIT_TYPE",
+            op: "EQ",
+            value: "AGILE",
+          },
+        ],
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, contextFor(physical, actor))).toBe(
+        true,
+      );
+      expect(evaluateEffectStepCondition(condition, undefined, contextFor(agile, actor))).toBe(
+        true,
+      );
+    });
+
+    it("UT-R-SKL-06-017: TARGET_STATE UNIT_TYPE throws when the target's UnitDefinition is not in unitDefinitions", () => {
+      const unknown = unit("t3", "UNIT_UNKNOWN");
+      const actor = unit("actor", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "UNIT_TYPE",
+        op: "EQ",
+        value: "PHYSICAL",
+      };
+      expect(() =>
+        evaluateEffectStepCondition(condition, undefined, contextFor(unknown, actor)),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-018: a TARGET_STATE referencing a different TargetReference (e.g. SELF) resolves via resolveOtherReference, constant across targets", () => {
+      const physical = unit("t1", "UNIT_PHYSICAL");
+      const agile = unit("t2", "UNIT_AGILE");
+      const actor = unit("actor", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "UNIT_TYPE",
+        op: "EQ",
+        value: "PHYSICAL",
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, contextFor(physical, actor))).toBe(
+        true,
+      );
+      expect(evaluateEffectStepCondition(condition, undefined, contextFor(agile, actor))).toBe(
+        true,
+      );
+    });
+
+    it("UT-R-SKL-06-019: TARGET_HAS_MARKER checks `current`'s own markerStates", () => {
+      const markerId = createMarkerId("MARKER_UKIASHI");
+      const withMarker = unit("t1", "UNIT_PHYSICAL", {
+        markerStates: [
+          buildInitialMarkerState(
+            createMarkerInstanceId("mi-1"),
+            markerId,
+            createBattleUnitId("actor"),
+            createBattleUnitId("t1"),
+            null,
+            {
+              dispellable: true,
+              linkedEffectGroupId: null,
+              timeLimit: { unit: "BATTLE", count: 1 },
+            },
+            { turnNumber: 1 },
+          ),
+        ],
+      });
+      const withoutMarker = unit("t2", "UNIT_PHYSICAL");
+      const actor = unit("actor", "UNIT_PHYSICAL");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId,
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, contextFor(withMarker, actor))).toBe(
+        true,
+      );
+      expect(
+        evaluateEffectStepCondition(condition, undefined, contextFor(withoutMarker, actor)),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-020: TARGET_HAS_MARKER countCondition compares stackCount", () => {
+      const markerId = createMarkerId("MARKER_OMEN");
+      const actor = unit("actor", "UNIT_PHYSICAL");
+      const twoStacks = unit("t1", "UNIT_PHYSICAL", {
+        markerStates: [
+          {
+            ...buildInitialMarkerState(
+              createMarkerInstanceId("mi-1"),
+              markerId,
+              createBattleUnitId("actor"),
+              createBattleUnitId("t1"),
+              null,
+              {
+                dispellable: true,
+                linkedEffectGroupId: null,
+                timeLimit: { unit: "BATTLE", count: 1 },
+              },
+              { turnNumber: 1 },
+            ),
+            stackCount: 2,
+          },
+        ],
+      });
+      const oneStack = unit("t2", "UNIT_PHYSICAL", {
+        markerStates: [
+          buildInitialMarkerState(
+            createMarkerInstanceId("mi-2"),
+            markerId,
+            createBattleUnitId("actor"),
+            createBattleUnitId("t2"),
+            null,
+            {
+              dispellable: true,
+              linkedEffectGroupId: null,
+              timeLimit: { unit: "BATTLE", count: 1 },
+            },
+            { turnNumber: 1 },
+          ),
+        ],
+      });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId,
+        countCondition: { op: "GTE", value: 2 },
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, contextFor(twoStacks, actor))).toBe(
+        true,
+      );
+      expect(evaluateEffectStepCondition(condition, undefined, contextFor(oneStack, actor))).toBe(
+        false,
+      );
+    });
+
+    it("UT-R-SKL-06-021: TARGET_HAS_MARKER without an EffectStepTargetContext throws", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerId: createMarkerId("MARKER_UKIASHI"),
+      };
+      expect(() => evaluateEffectStepCondition(condition)).toThrow(DomainValidationError);
     });
   });
 });

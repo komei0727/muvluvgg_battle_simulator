@@ -115,6 +115,31 @@
     }
   },
   {
+    "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
+    "kind": "APPLY_HEALING_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.6
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 5
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
     "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": {

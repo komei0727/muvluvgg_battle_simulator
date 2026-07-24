@@ -72,44 +72,34 @@
           ]
         },
         {
-          "kind": "BRANCH",
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "condition": {
             "kind": "OR",
             "conditions": [
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "PHYSICAL"
               },
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "AGILE"
               }
             ]
           },
-          "thenSteps": [
-            {
-              "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_STUN" }]
-            }
-          ],
-          "elseSteps": []
+          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_STUN" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "スタンディクライン", "tags": [] }
   },
   {
@@ -227,34 +217,28 @@
           "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_DAMAGE" }]
         },
         {
-          "kind": "BRANCH",
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "condition": {
             "kind": "OR",
             "conditions": [
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "PHYSICAL"
               },
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "AGILE"
               }
             ]
           },
-          "thenSteps": [
-            {
-              "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_PP_DOWN" }]
-            }
-          ],
-          "elseSteps": []
+          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_PP_DOWN" }]
         }
       ]
     },
@@ -264,7 +248,6 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_PASSIVE_ACTIVATION_CONDITION"
     ],
     "metadata": { "displayName": "スタート・プリエンプティブ", "tags": [] },

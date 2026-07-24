@@ -166,7 +166,14 @@ export function resolveSkillUse(
     );
   }
 
-  const plan = resolveSkillOrder(skill, actorAfterExGain, working, definitions.effectActions);
+  const plan = resolveSkillOrder(
+    skill,
+    actorAfterExGain,
+    working,
+    definitions.effectActions,
+    undefined,
+    definitions.unitDefinitions,
+  );
   const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();

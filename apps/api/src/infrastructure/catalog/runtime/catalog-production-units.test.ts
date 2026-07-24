@@ -45,7 +45,16 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // DIRECTLY_AHEAD_OF_BASE, BEHIND_BASE, SAME_ROW_AS_BASE, SAME_COLUMN_AS_BASE,
     // R-TGT-04/05) plus `order` FARTHEST (R-TGT-03) and FRONT_ROW/BACK_ROW (R-TGT-06)
     // wired the real lifecycle (`IT-CAP-TARGET-DERIVED-AREA-PROD-001`).
-    expect(catalog.catalogRevision).toBe("2026-07-24.6");
+    // RES-004 (Issue #171後半): `CAP_EFFECT_STEP_CONDITION` flipped to IMPLEMENTED
+    // once ACTION step conditions referencing their own `target` (TARGET_STATE/
+    // TARGET_HAS_MARKER) are evaluated per-target instead of once for the whole
+    // step (`effect-step-condition-evaluator.ts`'s `EffectStepTargetContext`,
+    // `skill-resolution-service.ts`'s `buildEffectStepPerTargetFilter`), wiring
+    // the real lifecycle for `SKL_AOI_ELEGANT_EX`/`SKL_LUCIE_MAID_AS1`/
+    // `SKL_LUCIE_MAID_PS2`/`SKL_ROSIE_ARTIST_PS2`
+    // (`IT-CAP-EFFSTEP-001〜004`). The capability's "集合条件" (set-threshold)
+    // half remains unimplemented (no ConditionKind exists for it yet).
+    expect(catalog.catalogRevision).toBe("2026-07-24.8");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

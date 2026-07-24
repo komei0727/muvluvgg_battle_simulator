@@ -28,6 +28,16 @@
         },
         {
           "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+            "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN" }]
+        },
+        {
+          "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_CD_RESET" }]
         }
@@ -35,7 +45,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_COOLDOWN_MANIPULATION"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_COOLDOWN_MANIPULATION"
+    ],
     "metadata": { "displayName": "衣擦れの調べ", "tags": [] }
   },
   {

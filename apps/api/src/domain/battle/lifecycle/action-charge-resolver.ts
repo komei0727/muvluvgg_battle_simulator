@@ -213,7 +213,13 @@ export function resolveChargeRelease(
   });
 
   let working = units;
-  const plan = resolveChargeReleaseOrder(skill, actor, working, definitions.effectActions);
+  const plan = resolveChargeReleaseOrder(
+    skill,
+    actor,
+    working,
+    definitions.effectActions,
+    definitions.unitDefinitions,
+  );
   const targetUnitIds = plan.targetUnitIds;
 
   // PR #142レビュー[P1]: AS/EX（`resolveSkillUse`）と同様、この行動専用の

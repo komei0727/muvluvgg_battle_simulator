@@ -1,6 +1,9 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets, type TriggerContext } from "../targeting/target-selection-policy.js";
-import { evaluateEffectStepCondition } from "./effect-step-condition-evaluator.js";
+import {
+  conditionReferencesStepTarget,
+  evaluateEffectStepCondition,
+} from "./effect-step-condition-evaluator.js";
 import type {
   EffectActionReference,
   EffectSequence,
@@ -10,12 +13,15 @@ import type { EffectActionDefinition } from "../../catalog/definitions/effect-ac
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type {
   EffectActionDefinitionId,
   TargetBindingId,
+  UnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { LastEffectActionResult } from "./last-effect-action-result.js";
 
 export interface ResolvedEffectApplication {
   readonly targetBattleUnitId: BattleUnitId;
@@ -233,8 +239,17 @@ export function resolveActionStepApplications(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   lastResultTargets?: LastResultTargetContext,
   triggerContext?: TriggerContext,
+  /**
+   * CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: `step.condition`が
+   * 自身の`target`を参照する`TARGET_STATE`/`TARGET_HAS_MARKER`を含む場合、
+   * 呼び出し側（`resolveEffectSequence`/`effect-action-group-resolver.ts`の
+   * `resolveRawStep`）が`buildEffectStepPerTargetFilter`で組み立てて渡す。
+   * 対象ごとに個別評価し、falseの対象はこのstepの`actions`を適用しない
+   * （R-SKL-06 #2の「stepを丸ごとスキップ」とは異なり、対象単位で除外する）。
+   */
+  perTargetFilter?: (target: BattleUnit) => boolean,
 ): readonly EffectActionApplication[] {
-  const { units: targets, includeDefeated } = resolveReference(
+  const { units: resolvedTargets, includeDefeated } = resolveReference(
     step.target,
     resolvedBindings,
     actor,
@@ -242,6 +257,8 @@ export function resolveActionStepApplications(
     lastResultTargets,
     triggerContext,
   );
+  const targets =
+    perTargetFilter === undefined ? resolvedTargets : resolvedTargets.filter(perTargetFilter);
   const applications: EffectActionApplication[] = [];
 
   // R-SKL-02: 対象は束縛順に処理する。
@@ -268,6 +285,42 @@ export function resolveActionStepApplications(
     }
   }
   return applications;
+}
+
+/**
+ * CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: `step.condition`が
+ * 自身の`target`を参照する場合に`resolveActionStepApplications`へ渡す
+ * `perTargetFilter`を組み立てる。`resolveEffectSequence`（eager path）と
+ * `effect-action-group-resolver.ts`の`resolveRawStep`（JIT path）の両方が、
+ * `conditionReferencesStepTarget(step.condition, step.target)`が`true`の
+ * ときだけこれを呼ぶ（`false`の場合は従来通りstep全体を一度だけ評価する
+ * ため`perTargetFilter`自体を使わない）。
+ */
+export function buildEffectStepPerTargetFilter(
+  step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  lastResult?: LastEffectActionResult,
+  lastResultTargets?: LastResultTargetContext,
+  triggerContext?: TriggerContext,
+): (target: BattleUnit) => boolean {
+  return (target) =>
+    evaluateEffectStepCondition(step.condition, lastResult, {
+      stepTarget: step.target,
+      current: target,
+      resolveOtherReference: (reference) =>
+        resolveReference(
+          reference,
+          resolvedBindings,
+          actor,
+          allUnits,
+          lastResultTargets,
+          triggerContext,
+        ).units,
+      unitDefinitions,
+    });
 }
 
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるかどうか（AND/OR/NOTを再帰的に見る）。 */
@@ -382,6 +435,7 @@ function resolveEffectSequence(
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = new Map(),
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
@@ -424,7 +478,11 @@ function resolveEffectSequence(
     }
 
     // R-SKL-06 #1〜#2: conditionを評価し、falseならstep全体をスキップする。
-    const satisfied = evaluateEffectStepCondition(step.condition);
+    // CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: step自身のtargetを
+    // 参照するTARGET_STATE/TARGET_HAS_MARKERを含む場合は、一度だけの評価を
+    // 行わず（`satisfied`は常にtrue）、対象ごとの評価を`perTargetFilter`へ委ねる。
+    const selfReferencing = conditionReferencesStepTarget(step.condition, step.target);
+    const satisfied = selfReferencing || evaluateEffectStepCondition(step.condition);
     if (!satisfied) {
       steps.push({
         planKind: "ACTION_PLAN",
@@ -437,6 +495,18 @@ function resolveEffectSequence(
       });
       return;
     }
+    const perTargetFilter = selfReferencing
+      ? buildEffectStepPerTargetFilter(
+          step,
+          resolvedBindings,
+          actor,
+          allUnits,
+          unitDefinitions,
+          undefined,
+          undefined,
+          triggerContext,
+        )
+      : undefined;
     const applications = resolveActionStepApplications(
       step,
       resolvedBindings,
@@ -445,6 +515,7 @@ function resolveEffectSequence(
       effectActions,
       undefined,
       triggerContext,
+      perTargetFilter,
     );
     for (const application of applications) {
       addTargetUnitId(application.targetBattleUnitId);
@@ -485,6 +556,7 @@ export function resolveSkillOrder(
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): EffectSequencePlan {
   if (skill.resolution.kind !== "IMMEDIATE") {
     throw new DomainValidationError(
@@ -492,7 +564,14 @@ export function resolveSkillOrder(
       `kind "${skill.resolution.kind}" is not supported by this basic SkillResolutionService (charge start/release is handled separately, see resolveChargeReleaseOrder)`,
     );
   }
-  return resolveEffectSequence(skill.resolution, actor, allUnits, effectActions, triggerContext);
+  return resolveEffectSequence(
+    skill.resolution,
+    actor,
+    allUnits,
+    effectActions,
+    triggerContext,
+    unitDefinitions,
+  );
 }
 
 /**
@@ -506,6 +585,7 @@ export function resolveChargeReleaseOrder(
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): EffectSequencePlan {
   if (skill.resolution.kind !== "CHARGE") {
     throw new DomainValidationError(
@@ -513,5 +593,12 @@ export function resolveChargeReleaseOrder(
       `kind "${skill.resolution.kind}" has no chargeRelease sequence (only CHARGE skills do)`,
     );
   }
-  return resolveEffectSequence(skill.resolution.chargeRelease, actor, allUnits, effectActions);
+  return resolveEffectSequence(
+    skill.resolution.chargeRelease,
+    actor,
+    allUnits,
+    effectActions,
+    undefined,
+    unitDefinitions,
+  );
 }
