@@ -949,17 +949,22 @@ function* resolveActionStepBody(
   );
   yield { kind: "TIMING_EVENT", event: stepStarting };
 
-  const resolved = resolveAfterTiming?.();
-  const effectiveSatisfied = resolved?.satisfied ?? satisfied;
-  const effectiveApplications = resolved?.applications ?? applications;
-
-  // TIMINGイベント後の再検証（R-SKL-01）。
+  // TIMINGイベント後の再検証（R-SKL-01）。PRレビュー[P2]（Issue #171、2回目の
+  // レビュー）: `resolveAfterTiming`（対象別条件の再評価）より前に行う —
+  // `EffectStepStarting`由来の連鎖で使用者が戦闘不能になった場合、
+  // `08_ドメインイベント.md`の契約上まだEffectActionが1件も開始していない
+  // ため、対象別条件を評価してapplicationsを構築すること自体をせず
+  // （`unresolvedEffectCount`へ計上せず）`INTERRUPTED`とする。
   if (isDefeated(requireUnit(box.units, context.actorId))) {
     return {
       lastEventId: stepStarting.eventId,
-      walkResult: walkInterrupted(0, 0, countHits(effectiveApplications)),
+      walkResult: walkInterrupted(0, 0, countHits(applications)),
     };
   }
+
+  const resolved = resolveAfterTiming?.();
+  const effectiveSatisfied = resolved?.satisfied ?? satisfied;
+  const effectiveApplications = resolved?.applications ?? applications;
 
   if (!effectiveSatisfied) {
     const stepSkipped = context.recorder.record({

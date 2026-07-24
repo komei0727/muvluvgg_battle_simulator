@@ -7,6 +7,7 @@ import {
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveSkillOrder, type EffectSequencePlan } from "../skill/skill-resolution-service.js";
@@ -2317,6 +2318,83 @@ describe("applyEffectActionGroups", () => {
         ) as Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }>;
       expect(completed.payload.resultKind).toBe("APPLIED");
       expect(completed.payload.targetUnitIds).toEqual([enemyA.battleUnitId]);
+    });
+
+    it("UT-R-SKL-06-024（PRレビュー[P2]再指摘）: a self-referencing condition is never evaluated (and its actions never started) once EffectStepStarting's own chain has defeated the actor — INTERRUPTED with unresolvedEffectCount: 0", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const markerId = createMarkerId("MARKER_TEST");
+      // Both enemies already hold the marker before the step even starts, so
+      // the self-referencing condition would match both if it were (wrongly)
+      // evaluated — proving the actor-defeated short-circuit, not an
+      // otherwise-empty match, is why no application happens.
+      const markerState = (owner: BattleUnit): MarkerState => ({
+        markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
+        markerId,
+        sourceId: actor.battleUnitId,
+        targetId: owner.battleUnitId,
+        stackCount: 1,
+        stackMax: null,
+        duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      });
+      const enemyABase = unit("ENEMY_A", "ENEMY");
+      const enemyA = { ...enemyABase, markerStates: [markerState(enemyABase)] };
+      const enemyBBase = unit("ENEMY_B", "ENEMY");
+      const enemyB = { ...enemyBBase, markerStates: [markerState(enemyBBase)] };
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const allBindingId = createTargetBindingId("TGT_ALL");
+      const allTarget: TargetReference = { kind: "BINDING", targetBindingId: allBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: allBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            target: allTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      // Simulates a PS reacting to this step's own `EffectStepStarting` (TIMING)
+      // by defeating the actor before its condition/applications are ever built.
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType !== "EffectStepStarting") {
+          return units;
+        }
+        return units.map((u) =>
+          u.battleUnitId === actor.battleUnitId ? { ...u, currentHp: 0 } : u,
+        );
+      });
+
+      const result = applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      expectInterrupted(result, 0, 0);
+      expect(
+        recorder
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+          ),
+      ).toBe(false);
     });
   });
 });

@@ -503,7 +503,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ごとに個別評価する経路（`conditionReferencesStepTarget`/
   // `EffectStepTargetContext`、`UT-R-SKL-06-013`〜021）とproduction Catalog検証
   // （`IT-CAP-EFFSTEP-001`〜004）を追加した（他の条件kind・「集合条件」は
-  // 引き続き対象外）。
+  // 引き続き対象外）。PRレビュー[P1]（Issue #171）で、対象別条件を常に
+  // `DeferredStepPlan`へ回し（`isEagerActionStep`）、`EffectStepStarting`由来の
+  // 連鎖が確定した後の最新`box.units`で再評価する経路（`resolveAfterTiming`）へ
+  // 修正し、先行stepおよび同stepの連鎖によるMarker変更を正しく反映することを
+  // `UT-R-SKL-06-022`/`023`で検証した。続く再レビュー[P2]で、`EffectStepStarting`
+  // 連鎖が使用者を戦闘不能にした場合は対象別条件の再評価自体を行わない
+  // （`unresolvedEffectCount: 0`のまま`INTERRUPTED`）よう順序を修正し、
+  // `UT-R-SKL-06-024`で検証した。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -528,6 +535,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-019",
       "UT-R-SKL-06-020",
       "UT-R-SKL-06-021",
+      "UT-R-SKL-06-022",
+      "UT-R-SKL-06-023",
+      "UT-R-SKL-06-024",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",
