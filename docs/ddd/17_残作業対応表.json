@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 92
+      "incompleteConversionRows": 93
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -203,6 +203,12 @@
       "taskId": "M7-004"
     },
     { "milestone": "M7", "theme": "HEAL_KIND_UNIMPLEMENTED", "rowCount": 1, "taskId": "M7-005" },
+    {
+      "milestone": "M8",
+      "theme": "DAMAGE_MOD_KIND_UNIMPLEMENTED",
+      "rowCount": 1,
+      "taskId": "DMG-002"
+    },
     { "milestone": "M8", "theme": "HP_RATIO_SCALE_FORMULA", "rowCount": 7, "taskId": "DMG-002" },
     {
       "milestone": "M8",

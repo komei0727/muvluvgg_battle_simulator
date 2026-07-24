@@ -543,8 +543,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 配線漏れを指摘され、参照先を問わない判定（`conditionContainsTargetStateOrMarker`）
   // へ広げ、`BRANCH`自身の`condition`（同じ理由で対象ごとの文脈を持たない）も
   // 対象に含めた。Issue #225（RES-004、親#171）で、raw原文取得により
-  // `SKL_TATIANA_SAGE_EX`の「凶兆」2つ以上／未満の対象別分岐
+  // `SKL_TATIANA_SAGE_EX`の「凶兆」2つ以上／未満の対象別分岐条件
   // （`TARGET_HAS_MARKER`/`NOT(...)`、`IT-CAP-EFFSTEP-005`）を近似なしへ更新した。
+  // デバフ本体（`APPLY_DAMAGE_MOD`）の実行時解決は`CAP_DAMAGE_MOD`（`DMG-002`、
+  // Issue #192）待ちのため、`EffectSequencePlan`レベルの振り分け検証に留め、
+  // `15_Unit_Memory変換台帳.md`の`DAMAGE_MOD_KIND_UNIMPLEMENTED`へ残す。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
