@@ -194,9 +194,38 @@
             "kind": "BINDING",
             "targetBindingId": "TGT_ALL_ALLIES"
           },
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "field": "UNIT_TYPE",
+              "op": "EQ",
+              "value": "PHYSICAL"
+            }
+          },
           "actions": [
             {
               "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS2_HEALING_UP"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ALLIES"
+          },
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "field": "UNIT_TYPE",
+            "op": "EQ",
+            "value": "PHYSICAL"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL"
             }
           ]
         }
@@ -207,7 +236,7 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_HEAL", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": {
       "displayName": "ヒール・アクティブ",
       "tags": []

@@ -178,12 +178,22 @@
   {
     "capabilityId": "CAP_EFFECT_STEP_CONDITION",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-004",
-    "description": "EffectStepの対象別条件・集合条件",
+    "description": "EffectStepの対象別条件（ACTION stepのconditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを対象ごとに個別評価する）。「集合条件」（対象集合のしきい値判定、SET_THRESHOLD_ACTIVATION_CONDITION）はschemaStatus: SUPPORTEDにできる具体的なConditionKind設計がまだ無いため、この完了境界には含めない（PRレビュー[P2]、Issue #171） — 設計でき次第、別Capabilityとして追加する。",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": [
+        "SKL_AOI_ELEGANT_EX",
+        "SKL_LUCIE_MAID_AS1",
+        "SKL_LUCIE_MAID_PS2",
+        "SKL_ROSIE_ARTIST_PS2"
+      ],
+      "testCaseIds": [
+        "IT-CAP-EFFSTEP-001",
+        "IT-CAP-EFFSTEP-002",
+        "IT-CAP-EFFSTEP-003",
+        "IT-CAP-EFFSTEP-004"
+      ]
     }
   },
   {

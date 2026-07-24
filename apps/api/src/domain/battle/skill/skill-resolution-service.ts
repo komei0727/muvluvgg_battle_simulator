@@ -1,6 +1,9 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets, type TriggerContext } from "../targeting/target-selection-policy.js";
-import { evaluateEffectStepCondition } from "./effect-step-condition-evaluator.js";
+import {
+  conditionReferencesStepTarget,
+  evaluateEffectStepCondition,
+} from "./effect-step-condition-evaluator.js";
 import type {
   EffectActionReference,
   EffectSequence,
@@ -10,12 +13,15 @@ import type { EffectActionDefinition } from "../../catalog/definitions/effect-ac
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type {
   EffectActionDefinitionId,
   TargetBindingId,
+  UnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { LastEffectActionResult } from "./last-effect-action-result.js";
 
 export interface ResolvedEffectApplication {
   readonly targetBattleUnitId: BattleUnitId;
@@ -233,8 +239,17 @@ export function resolveActionStepApplications(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   lastResultTargets?: LastResultTargetContext,
   triggerContext?: TriggerContext,
+  /**
+   * CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: `step.condition`が
+   * 自身の`target`を参照する`TARGET_STATE`/`TARGET_HAS_MARKER`を含む場合、
+   * 呼び出し側（`resolveEffectSequence`/`effect-action-group-resolver.ts`の
+   * `resolveRawStep`）が`buildEffectStepPerTargetFilter`で組み立てて渡す。
+   * 対象ごとに個別評価し、falseの対象はこのstepの`actions`を適用しない
+   * （R-SKL-06 #2の「stepを丸ごとスキップ」とは異なり、対象単位で除外する）。
+   */
+  perTargetFilter?: (target: BattleUnit) => boolean,
 ): readonly EffectActionApplication[] {
-  const { units: targets, includeDefeated } = resolveReference(
+  const { units: resolvedTargets, includeDefeated } = resolveReference(
     step.target,
     resolvedBindings,
     actor,
@@ -242,6 +257,8 @@ export function resolveActionStepApplications(
     lastResultTargets,
     triggerContext,
   );
+  const targets =
+    perTargetFilter === undefined ? resolvedTargets : resolvedTargets.filter(perTargetFilter);
   const applications: EffectActionApplication[] = [];
 
   // R-SKL-02: 対象は束縛順に処理する。
@@ -268,6 +285,55 @@ export function resolveActionStepApplications(
     }
   }
   return applications;
+}
+
+/**
+ * CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半）: `step.condition`が
+ * 自身の`target`を参照する場合に`resolveActionStepApplications`へ渡す
+ * `perTargetFilter`を組み立てる。`resolveEffectSequence`（eager path）と
+ * `effect-action-group-resolver.ts`の`resolveRawStep`（JIT path）の両方が、
+ * `conditionReferencesStepTarget(step.condition, step.target)`が`true`の
+ * ときだけこれを呼ぶ（`false`の場合は従来通りstep全体を一度だけ評価する
+ * ため`perTargetFilter`自体を使わない）。
+ */
+/**
+ * `resolvedBindings`（R-SKL-01: 一度だけ評価し、以後再評価しない対象「集合」の
+ * 固定）が保持する`BattleUnit`は、そのbindingを解決した時点のスナップショット
+ * であり、以後の先行stepやPS/Memory連鎖による状態変化（Marker・HP等）を
+ * 反映しない。対象別条件は「集合」ではなく各対象の現在の"状態"を見る必要が
+ * あるため、`allUnits`（呼び出し側が渡す最新の`box.units`）から同じ
+ * `battleUnitId`を引き直す（見つからない場合のみ、defeatedで`allUnits`から
+ * 除かれている等の想定外にフォールバックしてスナップショットを使う）。
+ */
+function refreshUnit(unit: BattleUnit, allUnits: readonly BattleUnit[]): BattleUnit {
+  return allUnits.find((candidate) => candidate.battleUnitId === unit.battleUnitId) ?? unit;
+}
+
+export function buildEffectStepPerTargetFilter(
+  step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  lastResult?: LastEffectActionResult,
+  lastResultTargets?: LastResultTargetContext,
+  triggerContext?: TriggerContext,
+): (target: BattleUnit) => boolean {
+  return (target) =>
+    evaluateEffectStepCondition(step.condition, lastResult, {
+      stepTarget: step.target,
+      current: refreshUnit(target, allUnits),
+      resolveOtherReference: (reference) =>
+        resolveReference(
+          reference,
+          resolvedBindings,
+          actor,
+          allUnits,
+          lastResultTargets,
+          triggerContext,
+        ).units.map((unit) => refreshUnit(unit, allUnits)),
+      unitDefinitions,
+    });
 }
 
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるかどうか（AND/OR/NOTを再帰的に見る）。 */
@@ -299,7 +365,16 @@ function isEagerActionStep(
     step.kind === "ACTION" &&
     !conditionReferencesLastResult(step.condition) &&
     step.target.kind !== "LAST_ACTION_TARGETS" &&
-    step.target.kind !== "LAST_DAMAGED_TARGETS"
+    step.target.kind !== "LAST_DAMAGED_TARGETS" &&
+    // CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半、PRレビュー[P1]）:
+    // conditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを含む
+    // 場合、その結果は先行stepやEffectStepStarting由来のPS/Memory連鎖が
+    // Marker・HP・リソース等を変更した後の状態に依存しうる。planning時点
+    // （どのstepも未実行）で確定させると、そうした変更を一切反映できない
+    // ため、`LAST_RESULT`と同様にDeferredStepPlanへ回し、実行がその位置まで
+    // 進んだ時点でJITに評価する（`effect-action-group-resolver.ts`の
+    // `resolveRawStep`）。
+    !conditionReferencesStepTarget(step.condition, step.target)
   );
 }
 
@@ -424,6 +499,10 @@ function resolveEffectSequence(
     }
 
     // R-SKL-06 #1〜#2: conditionを評価し、falseならstep全体をスキップする。
+    // `isEagerActionStep`がconditionReferencesStepTargetを既に除外している
+    // ため、ここへ到達するconditionは常にstep全体で一度だけ評価してよい
+    // （対象ごとの評価はJIT解決側`effect-action-group-resolver.ts`の
+    // `resolveRawStep`が担う）。
     const satisfied = evaluateEffectStepCondition(step.condition);
     if (!satisfied) {
       steps.push({

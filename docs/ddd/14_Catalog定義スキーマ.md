@@ -1815,47 +1815,49 @@ metadata:
 
 旧IDは互換aliasとして残さない。`catalog-src/`内の参照と生成済み`catalog/`を同じrevisionで一括移行する。API v1はCapability定義本体を公開せず、選択不可理由のCapability IDだけを返すため、レスポンスSchemaの変更はない。
 
+RES-004（Issue #171、PRレビュー[P2]）では、`CAP_EFFECT_STEP_CONDITION`の完了境界を「EffectStepの対象別条件（自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERの個別評価）と、既存productionが使う非TRUE条件（`LAST_RESULT`等）」に絞り、`IMPLEMENTED`はこの境界だけで判断する。「集合条件」（対象集合のしきい値判定、`SET_THRESHOLD_ACTIVATION_CONDITION`）は、`schemaStatus: SUPPORTED`にできる具体的な`ConditionKind`設計がまだ無いため、このCapabilityの完了境界に含めない — 設計でき次第、別Capabilityとして`catalog-src/capabilities.json`へ追加する（Issue #166のような改名ではなく、未着手スコープの新規追加）。
+
 実行時構造から必要Capabilityを一意に導出し、Skill/Memory自身の`requiredCapabilities`へ宣言する。非空`filters`または`["DEFAULT"]`以外の`order`は`CAP_TARGET_FILTER_ORDER`、`BINDING_DERIVED`または`area`は`CAP_TARGET_DERIVED_AREA`、`fallback`は`CAP_TARGET_BINDING_FALLBACK`を必須とする。TargetSelectorのkind/baseまたはEffectStep targetが`TRIGGER_SOURCE`/`TRIGGER_TARGET`なら`CAP_TRIGGER_CONTEXT`、EffectStep targetが`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`なら`CAP_RESOLUTION_BRANCH_REPEAT`を必須とする。`RANDOM_BRANCH`は`CAP_RANDOM_BRANCH`、Memoryの`triggeredEffects`は`CAP_MEMORY_TRIGGERED_EFFECT`を必須とする。Skillの`activationCondition`が`TRUE`以外なら、AS/EXは`CAP_ACTION_ACTIVATION_CONDITION`、PSは`CAP_PASSIVE_ACTIVATION_CONDITION`を必須とする。前者はR-ACT-01/02の行動選択、後者はPS候補判定・発動直前再確認という別ライフサイクルを完了境界とする。Catalog整合性検証はEffectStepの分岐・反復とselectorのfallbackを再帰走査し、宣言漏れを拒否する。
 
 ### 現Capability registry
 
 正本は`catalog-src/capabilities.json`とし、下表は担当境界を示す。
 
-| Capability                         | 完了責任Task | 実行可能化の境界                                                                                      |
-| ---------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------- |
-| `CAP_ACTION_ACTIVATION_CONDITION`  | `M7-003`     | AS / EXのactivationConditionを行動選択で評価する                                                      |
-| `CAP_PASSIVE_ACTIVATION_CONDITION` | `RES-004`    | PSのactivationConditionを候補判定・直前再確認で評価する                                               |
-| `CAP_CHARGE_RESTRICTION`           | `M7-003`     | チャージ中の回避/PS制限                                                                               |
-| `CAP_COMPLEX_EXPIRATION`           | `EFF-003`    | ACTION/TURN期間・消費・特殊失効・親子連動                                                             |
-| `CAP_CONTINUOUS_DAMAGE`            | `DMG-008`    | 継続ダメージ(DoT)                                                                                     |
-| `CAP_CONTINUOUS_HEAL`              | `M7-005`     | 継続回復                                                                                              |
-| `CAP_COOLDOWN_MANIPULATION`        | `M6-CD-001`  | 他スキルのクールタイム短縮・リセット                                                                  |
-| `CAP_COVER_DAMAGE`                 | `DMG-006`    | 肩代わり                                                                                              |
-| `CAP_CRITICAL_CONTROL`             | `DMG-003`    | 会心保証・会心不可                                                                                    |
-| `CAP_DAMAGE_MOD`                   | `DMG-002`    | 与ダメージ・被ダメージ補正                                                                            |
-| `CAP_DEATH_SURVIVAL`               | `DMG-006`    | 致死耐え                                                                                              |
-| `CAP_EFFECT_RUNTIME_COUNTER`       | `EFF-005`    | AppliedEffectスコープのRuntimeCounter（実装済み、production定義が現れるまで`runtimeStatus: PLANNED`） |
-| `CAP_EFFECT_STEP_CONDITION`        | `RES-004`    | EffectStepの対象別条件・集合条件                                                                      |
-| `CAP_FORMULA`                      | `RES-001`    | 動的値計算                                                                                            |
-| `CAP_HEAL`                         | `M7-005`     | 即時回復EffectAction                                                                                  |
-| `CAP_HIT_COUNT_EVASION`            | `M7-004`     | Nヒット回避                                                                                           |
-| `CAP_MARKER`                       | `EFF-004`    | 固有マーカー                                                                                          |
-| `CAP_MARKER_STACK_FORMULA`         | `EFF-004`    | Marker数を参照するFormula                                                                             |
-| `CAP_MEMORY_TRIGGERED_EFFECT`      | `M7-006`     | MemoryのTriggeredEffect発動engine                                                                     |
-| `CAP_PARTIAL_PIERCING`             | `DMG-003`    | 部分防御/シールド無視                                                                                 |
-| `CAP_RANDOM_BRANCH`                | `RES-003`    | 確率分岐                                                                                              |
-| `CAP_REMOVE_EFFECTS`               | `M7-001`     | 効果解除                                                                                              |
-| `CAP_RESOLUTION_BRANCH_REPEAT`     | `RES-003`    | BRANCH / REPEATと直前結果                                                                             |
-| `CAP_RESOURCE_CAPACITY_MOD`        | `M7-002`     | 最大APなどの上限変更                                                                                  |
-| `CAP_RESOURCE_MUTATION`            | `M7-002`     | AP / PP / EX 操作                                                                                     |
-| `CAP_SHIELD`                       | `DMG-004`    | シールド付与                                                                                          |
-| `CAP_SKILL_RUNTIME_COUNTER`        | `M6-RC-001`  | SkillRuntimeスコープの発動回数・累計条件                                                              |
-| `CAP_SPECIFIC_IMMUNITY`            | `M7-001`     | 個別状態異常無効                                                                                      |
-| `CAP_TARGET_BINDING_FALLBACK`      | `TGT-003`    | TargetBinding固定・参照時の戦闘不能skip・fallback判定                                                 |
-| `CAP_TARGET_DERIVED_AREA`          | `TGT-001`    | area・距離・隣接・列による派生対象                                                                    |
-| `CAP_TARGET_FILTER_ORDER`          | `TGT-002`    | Target filter・order・除外選択                                                                        |
-| `CAP_TARGET_REDIRECT`              | `DMG-006`    | 挑発・攻撃引き寄せ                                                                                    |
-| `CAP_TRIGGER_CONTEXT`              | `RES-005`    | TRIGGER_SOURCE / TRIGGER_TARGETと基本Damage事実イベント                                               |
+| Capability                         | 完了責任Task | 実行可能化の境界                                                                                                                                          |
+| ---------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CAP_ACTION_ACTIVATION_CONDITION`  | `M7-003`     | AS / EXのactivationConditionを行動選択で評価する                                                                                                          |
+| `CAP_PASSIVE_ACTIVATION_CONDITION` | `RES-004`    | PSのactivationConditionを候補判定・直前再確認で評価する                                                                                                   |
+| `CAP_CHARGE_RESTRICTION`           | `M7-003`     | チャージ中の回避/PS制限                                                                                                                                   |
+| `CAP_COMPLEX_EXPIRATION`           | `EFF-003`    | ACTION/TURN期間・消費・特殊失効・親子連動                                                                                                                 |
+| `CAP_CONTINUOUS_DAMAGE`            | `DMG-008`    | 継続ダメージ(DoT)                                                                                                                                         |
+| `CAP_CONTINUOUS_HEAL`              | `M7-005`     | 継続回復                                                                                                                                                  |
+| `CAP_COOLDOWN_MANIPULATION`        | `M6-CD-001`  | 他スキルのクールタイム短縮・リセット                                                                                                                      |
+| `CAP_COVER_DAMAGE`                 | `DMG-006`    | 肩代わり                                                                                                                                                  |
+| `CAP_CRITICAL_CONTROL`             | `DMG-003`    | 会心保証・会心不可                                                                                                                                        |
+| `CAP_DAMAGE_MOD`                   | `DMG-002`    | 与ダメージ・被ダメージ補正                                                                                                                                |
+| `CAP_DEATH_SURVIVAL`               | `DMG-006`    | 致死耐え                                                                                                                                                  |
+| `CAP_EFFECT_RUNTIME_COUNTER`       | `EFF-005`    | AppliedEffectスコープのRuntimeCounter（実装済み、production定義が現れるまで`runtimeStatus: PLANNED`）                                                     |
+| `CAP_EFFECT_STEP_CONDITION`        | `RES-004`    | EffectStepの対象別条件（自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを対象ごとに個別評価）。集合条件はConditionKind未設計のためこの境界に含まない |
+| `CAP_FORMULA`                      | `RES-001`    | 動的値計算                                                                                                                                                |
+| `CAP_HEAL`                         | `M7-005`     | 即時回復EffectAction                                                                                                                                      |
+| `CAP_HIT_COUNT_EVASION`            | `M7-004`     | Nヒット回避                                                                                                                                               |
+| `CAP_MARKER`                       | `EFF-004`    | 固有マーカー                                                                                                                                              |
+| `CAP_MARKER_STACK_FORMULA`         | `EFF-004`    | Marker数を参照するFormula                                                                                                                                 |
+| `CAP_MEMORY_TRIGGERED_EFFECT`      | `M7-006`     | MemoryのTriggeredEffect発動engine                                                                                                                         |
+| `CAP_PARTIAL_PIERCING`             | `DMG-003`    | 部分防御/シールド無視                                                                                                                                     |
+| `CAP_RANDOM_BRANCH`                | `RES-003`    | 確率分岐                                                                                                                                                  |
+| `CAP_REMOVE_EFFECTS`               | `M7-001`     | 効果解除                                                                                                                                                  |
+| `CAP_RESOLUTION_BRANCH_REPEAT`     | `RES-003`    | BRANCH / REPEATと直前結果                                                                                                                                 |
+| `CAP_RESOURCE_CAPACITY_MOD`        | `M7-002`     | 最大APなどの上限変更                                                                                                                                      |
+| `CAP_RESOURCE_MUTATION`            | `M7-002`     | AP / PP / EX 操作                                                                                                                                         |
+| `CAP_SHIELD`                       | `DMG-004`    | シールド付与                                                                                                                                              |
+| `CAP_SKILL_RUNTIME_COUNTER`        | `M6-RC-001`  | SkillRuntimeスコープの発動回数・累計条件                                                                                                                  |
+| `CAP_SPECIFIC_IMMUNITY`            | `M7-001`     | 個別状態異常無効                                                                                                                                          |
+| `CAP_TARGET_BINDING_FALLBACK`      | `TGT-003`    | TargetBinding固定・参照時の戦闘不能skip・fallback判定                                                                                                     |
+| `CAP_TARGET_DERIVED_AREA`          | `TGT-001`    | area・距離・隣接・列による派生対象                                                                                                                        |
+| `CAP_TARGET_FILTER_ORDER`          | `TGT-002`    | Target filter・order・除外選択                                                                                                                            |
+| `CAP_TARGET_REDIRECT`              | `DMG-006`    | 挑発・攻撃引き寄せ                                                                                                                                        |
+| `CAP_TRIGGER_CONTEXT`              | `RES-005`    | TRIGGER_SOURCE / TRIGGER_TARGETと基本Damage事実イベント                                                                                                   |
 
 現時点で保留仕様として隔離する `Q-*` Capability はない。
 

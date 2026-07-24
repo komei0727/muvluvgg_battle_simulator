@@ -7,13 +7,14 @@ import {
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveSkillOrder, type EffectSequencePlan } from "../skill/skill-resolution-service.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import type {
   SkillDefinition,
   SkillResolutionDefinition,
@@ -2171,6 +2172,229 @@ describe("applyEffectActionGroups", () => {
       const result = applyEffectActionGroups(plan, [actor], context);
 
       expectInterrupted(result, 1, 2);
+    });
+  });
+
+  describe("CAP_EFFECT_STEP_CONDITION（Issue #171 RES-004後半、PRレビュー[P1]）: 対象別条件は実行時の最新状態で評価する", () => {
+    it("UT-R-SKL-06-022: a later step's TARGET_HAS_MARKER condition sees a marker an earlier step in the same EffectSequence just granted (not the state from before the sequence started)", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const markerId = createMarkerId("MARKER_TEST");
+      const grantMarker = markerAction("ACT_GRANT_MARKER", markerId);
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([
+        [grantMarker.effectActionDefinitionId, grantMarker],
+        [conditionalHit.effectActionDefinitionId, conditionalHit],
+      ]);
+
+      const firstBindingId = createTargetBindingId("TGT_FIRST");
+      const allBindingId = createTargetBindingId("TGT_ALL");
+      const enemySelector = (count: number | "ALL"): TargetSelectorDefinition => ({
+        kind: "SELECT",
+        side: "ENEMY",
+        count,
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      });
+      const allTarget: TargetReference = { kind: "BINDING", targetBindingId: allBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: firstBindingId, selector: enemySelector(1) },
+          { targetBindingId: allBindingId, selector: enemySelector("ALL") },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: firstBindingId },
+            actions: [{ effectActionDefinitionId: grantMarker.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            condition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            target: allTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      // R-TGT-02（`unit()`は全員同じ位置に置くため、この選定はallUnitsの入力順で
+      // タイブレークする — `UT-R-TGT-10-009`と同じ前提）: TGT_FIRSTはenemyAに
+      // 束縛される。TARGET_HAS_MARKERを含むstep 2のconditionは自身のtarget
+      // （TGT_ALL）を参照するため、`isEagerActionStep`によりDeferredへ回り、
+      // step 1がenemyAへMarkerを付与し終えてから（実行が逐次進んだ後に）JITで
+      // 評価される。
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      const completed = recorder
+        .getEvents()
+        .find(
+          (e) =>
+            e.eventType === "EffectActionCompleted" &&
+            e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+        ) as Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }>;
+      expect(completed.payload.resultKind).toBe("APPLIED");
+      expect(completed.payload.targetUnitIds).toEqual([enemyA.battleUnitId]);
+    });
+
+    it("UT-R-SKL-06-023: a self-referencing TARGET_HAS_MARKER condition is (re-)evaluated after EffectStepStarting's own PS/Memory chain has mutated marker state, not before it is emitted", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const markerId = createMarkerId("MARKER_TEST");
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const allBindingId = createTargetBindingId("TGT_ALL");
+      const allTarget: TargetReference = { kind: "BINDING", targetBindingId: allBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: allBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            target: allTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      // Simulates a PS reacting to this step's own `EffectStepStarting` (TIMING)
+      // by granting enemyA the marker — neither enemy has it before this event.
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType !== "EffectStepStarting") {
+          return units;
+        }
+        return units.map((u) =>
+          u.battleUnitId === enemyA.battleUnitId
+            ? {
+                ...u,
+                markerStates: [
+                  {
+                    markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
+                    markerId,
+                    sourceId: actor.battleUnitId,
+                    targetId: u.battleUnitId,
+                    stackCount: 1,
+                    stackMax: null,
+                    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+                  },
+                ],
+              }
+            : u,
+        );
+      });
+
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      const completed = recorder
+        .getEvents()
+        .find(
+          (e) =>
+            e.eventType === "EffectActionCompleted" &&
+            e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+        ) as Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }>;
+      expect(completed.payload.resultKind).toBe("APPLIED");
+      expect(completed.payload.targetUnitIds).toEqual([enemyA.battleUnitId]);
+    });
+
+    it("UT-R-SKL-06-024（PRレビュー[P2]再指摘）: a self-referencing condition is never evaluated (and its actions never started) once EffectStepStarting's own chain has defeated the actor — INTERRUPTED with unresolvedEffectCount: 0", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const markerId = createMarkerId("MARKER_TEST");
+      // Both enemies already hold the marker before the step even starts, so
+      // the self-referencing condition would match both if it were (wrongly)
+      // evaluated — proving the actor-defeated short-circuit, not an
+      // otherwise-empty match, is why no application happens.
+      const markerState = (owner: BattleUnit): MarkerState => ({
+        markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
+        markerId,
+        sourceId: actor.battleUnitId,
+        targetId: owner.battleUnitId,
+        stackCount: 1,
+        stackMax: null,
+        duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      });
+      const enemyABase = unit("ENEMY_A", "ENEMY");
+      const enemyA = { ...enemyABase, markerStates: [markerState(enemyABase)] };
+      const enemyBBase = unit("ENEMY_B", "ENEMY");
+      const enemyB = { ...enemyBBase, markerStates: [markerState(enemyBBase)] };
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([[conditionalHit.effectActionDefinitionId, conditionalHit]]);
+
+      const allBindingId = createTargetBindingId("TGT_ALL");
+      const allTarget: TargetReference = { kind: "BINDING", targetBindingId: allBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: allBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            condition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
+            target: allTarget,
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      // Simulates a PS reacting to this step's own `EffectStepStarting` (TIMING)
+      // by defeating the actor before its condition/applications are ever built.
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType !== "EffectStepStarting") {
+          return units;
+        }
+        return units.map((u) =>
+          u.battleUnitId === actor.battleUnitId ? { ...u, currentHp: 0 } : u,
+        );
+      });
+
+      const result = applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      expectInterrupted(result, 0, 0);
+      expect(
+        recorder
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+          ),
+      ).toBe(false);
     });
   });
 });

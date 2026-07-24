@@ -498,7 +498,19 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UT-R-SKL-06-001`〜005）、対象・action定義順解決とtargetUnitIds集約
   // （`resolveEffectSequence`、`UT-R-SKL-06-006`/007）、step/action単位の
   // ドメインイベント発行（`applyEffectActionGroups`、`UT-R-SKL-06-008`〜011）
-  // をIssue #73で実装した（TARGET_STATE等の条件kindはM7未実装のため対象外）。
+  // をIssue #73で実装した。RES-004後半（Issue #171、`CAP_EFFECT_STEP_CONDITION`）
+  // で、conditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを対象
+  // ごとに個別評価する経路（`conditionReferencesStepTarget`/
+  // `EffectStepTargetContext`、`UT-R-SKL-06-013`〜021）とproduction Catalog検証
+  // （`IT-CAP-EFFSTEP-001`〜004）を追加した（他の条件kind・「集合条件」は
+  // 引き続き対象外）。PRレビュー[P1]（Issue #171）で、対象別条件を常に
+  // `DeferredStepPlan`へ回し（`isEagerActionStep`）、`EffectStepStarting`由来の
+  // 連鎖が確定した後の最新`box.units`で再評価する経路（`resolveAfterTiming`）へ
+  // 修正し、先行stepおよび同stepの連鎖によるMarker変更を正しく反映することを
+  // `UT-R-SKL-06-022`/`023`で検証した。続く再レビュー[P2]で、`EffectStepStarting`
+  // 連鎖が使用者を戦闘不能にした場合は対象別条件の再評価自体を行わない
+  // （`unresolvedEffectCount: 0`のまま`INTERRUPTED`）よう順序を修正し、
+  // `UT-R-SKL-06-024`で検証した。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -514,8 +526,24 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-010",
       "UT-R-SKL-06-011",
       "UT-R-SKL-06-012",
+      "UT-R-SKL-06-013",
+      "UT-R-SKL-06-014",
+      "UT-R-SKL-06-015",
+      "UT-R-SKL-06-016",
+      "UT-R-SKL-06-017",
+      "UT-R-SKL-06-018",
+      "UT-R-SKL-06-019",
+      "UT-R-SKL-06-020",
+      "UT-R-SKL-06-021",
+      "UT-R-SKL-06-022",
+      "UT-R-SKL-06-023",
+      "UT-R-SKL-06-024",
+      "IT-CAP-EFFSTEP-001",
+      "IT-CAP-EFFSTEP-002",
+      "IT-CAP-EFFSTEP-003",
+      "IT-CAP-EFFSTEP-004",
     ],
-    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
   // R-SKL-07: BRANCH/RANDOM_BRANCH/REPEATをIssue #217で実装した
   // （`resolveBranchStep`/`resolveRandomBranchStep`/`resolveRepeatStep`、
