@@ -13,12 +13,28 @@
   {
     "capabilityId": "CAP_PASSIVE_ACTIVATION_CONDITION",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-004",
     "description": "PSのactivationConditionを候補判定と発動直前再確認で評価する",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": [
+        "SKL_KOKORO_SPORTSDAY_PS1",
+        "SKL_LAURA_MOUNTAIN_PS2",
+        "SKL_LUCIE_MAID_PS2",
+        "SKL_MAO_COMMITTEE_PS2",
+        "SKL_MERU_SIRIUS_PS2",
+        "SKL_RAMI_NEWYEAR_PS1",
+        "SKL_TATIANA_SAGE_PS1"
+      ],
+      "testCaseIds": [
+        "IT-CAP-PASSIVE-001",
+        "IT-CAP-PASSIVE-002",
+        "IT-CAP-PASSIVE-003",
+        "IT-CAP-PASSIVE-004",
+        "IT-CAP-PASSIVE-005",
+        "IT-CAP-PASSIVE-006",
+        "IT-CAP-PASSIVE-007"
+      ]
     }
   },
   {

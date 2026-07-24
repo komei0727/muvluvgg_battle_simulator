@@ -12,6 +12,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
+import { matchesRelativeSide } from "../targeting/target-selection-policy.js";
 import { compareWithOperator } from "../skill/comparison-operator.js";
 
 /**
@@ -45,13 +46,20 @@ export interface TriggerConditionPayloadSource {
  *   このcounter mapを使う。`effectCounters`が渡された場合は`skillDefinitionId`
  *   より優先する（両方渡ることは呼び出し側の設計上想定しないが、優先順位は
  *   決定的にする）。どちらも指定しない場合は評価できずthrowする。
- * - `getUnit`: `POSITION_RELATION`/`TARGET_STATE`がevent由来のBattleUnitIdから
- *   対象の`globalCoordinate`/生存状態/その他フィールドを解決するための参照先。
- *   未指定時はどちらも評価できずthrowする（`RUNTIME_COUNTER`と同じ隔離方針）。
+ * - `getUnit`: `POSITION_RELATION`/`TARGET_STATE`/`TARGET_HAS_MARKER`がevent由来の
+ *   BattleUnitIdから対象の`globalCoordinate`/生存状態/`markerStates`/その他
+ *   フィールドを解決するための参照先。未指定時はいずれも評価できずthrowする
+ *   （`RUNTIME_COUNTER`と同じ隔離方針）。
  * - `resolutionPhase`: 呼び出し側（`PassiveActivationRuntime`等）が1解決スコープ
  *   ごとに1回だけ決める、現在のroot/ancestorイベントが属するBattle/Turn phase
  *   （`R-PS-01`「固定のeventType分岐を増やさず」）。行動中など通常の解決スコープ
  *   では`undefined`（既定値、いずれの`phase`とも一致しない）。
+ * - `units`: `ALIVE_UNIT_COUNT`（RES-004、Issue #171、G-03/Issue #44）が生存数を
+ *   数える母集団。`owner`から見た相対陣営（`matchesRelativeSide`、`battle/targeting`
+ *   と同じ相対陣営解決を再利用する）でフィルタする。未指定時は評価できずthrowする。
+ * - `turnNumber`: `TURN_NUMBER`（RES-004、Issue #171）が参照する現在のターン番号。
+ *   呼び出し側が1解決スコープにつき1回だけ決める（`resolutionPhase`と同じ境界）。
+ *   未指定時は評価できずthrowする。
  */
 export interface RuntimeCounterLookupContext {
   readonly owner: BattleUnit;
@@ -59,6 +67,8 @@ export interface RuntimeCounterLookupContext {
   readonly effectCounters?: RuntimeCounterMap;
   readonly getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined;
   readonly resolutionPhase?: ResolutionPhase;
+  readonly units?: readonly BattleUnit[];
+  readonly turnNumber?: number;
 }
 
 /**
@@ -146,10 +156,12 @@ function resolveTargetStateField(target: BattleUnit, field: TargetStateField): J
  * フィールドのみ）に対応する評価器。R-EFF-08（`expiration.conditions`）も同じ
  * 評価器を再利用する — `context.owner`は`AppliedEffect`のholderユニットを渡す
  * （PS発動条件と異なり、R-EFF-08では効果インスタンスごとにholderが変わる）。
- * `TARGET_HAS_MARKER`／`ALIVE_UNIT_COUNT`はMarkerState等の実行時状態(M7)を、
- * `TARGET_STATE`のうち`UNIT_TYPE`/`ROLE`/`HAS_STATUS`はCatalog参照や状態異常
- * 追跡を前提とするため未対応とし、呼び出し側が明確なエラーで気付けるように
- * する(`action-selection-policy.ts`等、他の"basic"policyと同じ隔離方針)。
+ * `TARGET_HAS_MARKER`（`BattleUnit.markerStates`）／`ALIVE_UNIT_COUNT`（`context.units`
+ * を相対陣営でフィルタ）／`TURN_NUMBER`（`context.turnNumber`）はRES-004
+ * （Issue #171、`CAP_PASSIVE_ACTIVATION_CONDITION`）が対応する。`TARGET_STATE`の
+ * うち`UNIT_TYPE`/`ROLE`/`HAS_STATUS`はCatalog参照や状態異常追跡を前提とするため
+ * 未対応とし、呼び出し側が明確なエラーで気付けるようにする(`action-selection-policy.ts`
+ * 等、他の"basic"policyと同じ隔離方針)。
  */
 export function evaluateTriggerCondition(
   condition: ConditionDefinition,
@@ -227,10 +239,69 @@ export function evaluateTriggerCondition(
         return compareWithOperator(actual, condition.op, condition.value);
       });
     }
+    case "TARGET_HAS_MARKER": {
+      if (context?.getUnit === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "TARGET_HAS_MARKER" requires a context with a getUnit lookup (owner + getUnit)',
+        );
+      }
+      const { owner, getUnit } = context;
+      const targetIds = resolveTargetReferenceIds(condition.target, owner, event);
+      return targetIds.some((id) => {
+        const target = getUnit(id);
+        if (target === undefined) {
+          return false;
+        }
+        const marker = target.markerStates.find((state) => state.markerId === condition.markerId);
+        if (condition.countCondition === undefined) {
+          return marker !== undefined;
+        }
+        const stackCount = marker?.stackCount ?? 0;
+        return compareWithOperator(
+          stackCount,
+          condition.countCondition.op,
+          condition.countCondition.value,
+        );
+      });
+    }
+    case "ALIVE_UNIT_COUNT": {
+      if (context?.units === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "ALIVE_UNIT_COUNT" requires a RuntimeCounterLookupContext with units (owner + units)',
+        );
+      }
+      const { owner, units } = context;
+      const count = units.filter(
+        (unit) =>
+          !isDefeated(unit) &&
+          matchesRelativeSide(unit, owner, condition.side) &&
+          !(condition.excludeSelf && unit.battleUnitId === owner.battleUnitId),
+      ).length;
+      return compareWithOperator(count, condition.op, condition.value);
+    }
+    case "TURN_NUMBER": {
+      if (context?.turnNumber === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "TURN_NUMBER" requires a RuntimeCounterLookupContext with turnNumber',
+        );
+      }
+      // `modulo`はRUNTIME_COUNTERと異なり、比較対象そのものを剰余へ置き換える
+      // （turnNumberは「Nターンごと」を表す剰余判定そのものが目的で、RUNTIME_COUNTER
+      // のように剰余ゲート＋生値比較を独立に組み合わせる必要がない）。production
+      // Catalog `SKL_MERU_SIRIUS_PS2`（`op: EQ, value: 0, modulo: 2`）は1始まりの
+      // turnNumberに対し「偶数ターンで発動」を表し、剰余ゲート＋生値比較では
+      // turnNumberが0にならない限り絶対に成立しない。
+      const compared =
+        condition.modulo !== undefined ? context.turnNumber % condition.modulo : context.turnNumber;
+      return compareWithOperator(compared, condition.op, condition.value);
+    }
     default:
       throw new DomainValidationError(
         "condition",
-        `kind "${condition.kind}" is not supported by this basic PassiveTriggerMatcher (TARGET_STATE/TARGET_HAS_MARKER/ALIVE_UNIT_COUNT/LAST_RESULT/TURN_NUMBER are M7 scope)`,
+        `kind "${condition.kind}" is not supported by this basic PassiveTriggerMatcher (LAST_RESULT is EffectStep-scoped, see effect-step-condition-evaluator.ts)`,
       );
   }
 }

@@ -578,4 +578,84 @@ describe("detectPassiveCandidates", () => {
       }),
     ).toHaveLength(0);
   });
+
+  it("UT-R-PS-01-037 (RES-004, Issue #171): a Skill activationCondition using ALIVE_UNIT_COUNT is evaluated against the caller-supplied units", () => {
+    const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" }, UNIT_DEF_B);
+    const skill = passiveSkillOf(
+      "SKL_NEEDS_ALLY",
+      { eventType: "TurnStarted", category: "FACT", sourceSelector: "ANY", targetSelector: "ANY" },
+      { kind: "ALIVE_UNIT_COUNT", side: "ALLY", excludeSelf: true, op: "GT", value: 0 },
+    );
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+      [UNIT_DEF_B, unitDefinitionOf(UNIT_DEF_B, [])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+    const event: TriggerCandidateEvent = {
+      eventType: "TurnStarted",
+      category: "FACT",
+      payload: {},
+    };
+    const guard = createEmptyPassiveActivationGuard();
+
+    expect(
+      detectPassiveCandidates({
+        event,
+        units: [owner, ally],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+      }),
+    ).toHaveLength(1);
+    expect(
+      detectPassiveCandidates({
+        event,
+        units: [owner],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("UT-R-PS-01-038 (RES-004, Issue #171): a Skill activationCondition using TURN_NUMBER is evaluated against the caller-supplied turnNumber", () => {
+    const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
+    const skill = passiveSkillOf(
+      "SKL_SKIPS_FIRST_TURN",
+      { eventType: "TurnStarted", category: "FACT", sourceSelector: "ANY", targetSelector: "ANY" },
+      { kind: "TURN_NUMBER", op: "NEQ", value: 1 },
+    );
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+    const event: TriggerCandidateEvent = {
+      eventType: "TurnStarted",
+      category: "FACT",
+      payload: {},
+    };
+    const guard = createEmptyPassiveActivationGuard();
+
+    expect(
+      detectPassiveCandidates({
+        event,
+        units: [owner],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+        turnNumber: 1,
+      }),
+    ).toHaveLength(0);
+    expect(
+      detectPassiveCandidates({
+        event,
+        units: [owner],
+        unitDefinitions,
+        skillDefinitions,
+        activationGuard: guard,
+        turnNumber: 2,
+      }),
+    ).toHaveLength(1);
+  });
 });

@@ -318,6 +318,7 @@ export class PassiveActivationRuntime {
           unitDefinitions: this.context.definitions.unitDefinitions,
           skillDefinitions: this.context.definitions.skillDefinitions,
           activationGuard: this.guard,
+          turnNumber: this.context.turnNumber,
           ...(this.context.resolutionPhase !== undefined
             ? { resolutionPhase: this.context.resolutionPhase }
             : {}),
@@ -331,6 +332,11 @@ export class PassiveActivationRuntime {
       activate: (candidate, event): PassiveActivation =>
         this.activatePassiveCandidate(candidate, event),
       limits: this.context.limits ?? DEFAULT_PASSIVE_CHAIN_LIMITS,
+      turnNumber: this.context.turnNumber,
+      // RES-004（Issue #171）: `ALIVE_UNIT_COUNT`の再確認（R-PS-04）が候補検出時と
+      // 同じ生存数母集団を使うため、`findUnit`と同様に`this.units`を都度読み直す
+      // 関数として渡す（PS連鎖の途中で`this.units`が変わりうるため固定配列は使えない）。
+      getAllUnits: () => this.units,
       ...(this.context.resolutionPhase !== undefined
         ? { resolutionPhase: this.context.resolutionPhase }
         : {}),

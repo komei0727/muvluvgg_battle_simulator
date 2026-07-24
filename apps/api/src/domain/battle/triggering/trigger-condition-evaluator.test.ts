@@ -4,8 +4,11 @@ import type { ConditionDefinition } from "../../catalog/definitions/condition-de
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
+import type { MarkerState } from "../model/marker-state.js";
 import { createBattleUnitId, type BattleUnitId } from "../../shared/ids.js";
+import { createMarkerInstanceId } from "../../shared/event-ids.js";
 import {
+  createMarkerId,
   createRuntimeCounterId,
   createSkillDefinitionId,
   createUnitDefinitionId,
@@ -75,6 +78,18 @@ function unitAt(
   return {
     ...createBattleUnit(member, side, { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 }),
     ...overrides,
+  };
+}
+
+function marker(unit: BattleUnit, markerIdValue: string, stackCount: number): MarkerState {
+  return {
+    markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
+    markerId: createMarkerId(markerIdValue),
+    sourceId: unit.battleUnitId,
+    targetId: unit.battleUnitId,
+    stackCount,
+    stackMax: null,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
   };
 }
 
@@ -158,11 +173,12 @@ describe("evaluateTriggerCondition", () => {
     expect(evaluateTriggerCondition(condition, { payload: { a: 2 } })).toBe(true);
   });
 
-  it("UT-R-PS-01-008: an unsupported condition kind throws a clear DomainValidationError (M7 scope)", () => {
+  it("UT-R-PS-01-008: an unsupported condition kind throws a clear DomainValidationError (LAST_RESULT is EffectStep-scoped, not a trigger/activationCondition concern)", () => {
     const condition: ConditionDefinition = {
-      kind: "TURN_NUMBER",
+      kind: "LAST_RESULT",
+      field: "resultKind",
       op: "EQ",
-      value: 1,
+      value: "HIT",
     };
     expect(() => evaluateTriggerCondition(condition, { payload: {} })).toThrow(
       DomainValidationError,
@@ -695,6 +711,283 @@ describe("evaluateTriggerCondition", () => {
           condition,
           { payload: {} },
           { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("TARGET_HAS_MARKER (RES-004, Issue #171: CAP_PASSIVE_ACTIVATION_CONDITION)", () => {
+    it("UT-R-PS-01-039: matches when the resolved target has any stack of the marker", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+        markerStates: [marker(unitAt("OWNER", "ALLY", "FRONT", "LEFT"), "MARKER_STOIC", 1)],
+      });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_STOIC"),
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-040: does not match when the resolved target lacks the marker entirely", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { markerStates: [] });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_STOIC"),
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-041: does not match a different markerId held by the same target", () => {
+      const self = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const owner = { ...self, markerStates: [marker(self, "MARKER_OTHER", 1)] };
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_STOIC"),
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-042: countCondition compares the marker's stackCount instead of only checking presence", () => {
+      const self = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const owner = { ...self, markerStates: [marker(self, "MARKER_KYOCHO", 2)] };
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_KYOCHO"),
+        countCondition: { op: "GTE", value: 2 },
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(true);
+      const belowThreshold = {
+        ...self,
+        markerStates: [marker(self, "MARKER_KYOCHO", 1)],
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner: belowThreshold, skillDefinitionId: SKILL_ID, getUnit: () => belowThreshold },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-043: countCondition treats an absent marker as stackCount 0", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { markerStates: [] });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_KYOCHO"),
+        countCondition: { op: "GTE", value: 1 },
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-044: throws when no context with getUnit is supplied", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_STOIC"),
+      };
+      expect(() => evaluateTriggerCondition(condition, { payload: {} })).toThrow(
+        DomainValidationError,
+      );
+    });
+  });
+
+  describe("ALIVE_UNIT_COUNT (RES-004, Issue #171, G-03/Issue #44)", () => {
+    it("UT-R-PS-01-045: counts alive units on the owner's relative ALLY side, excludeSelf true", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const ally = unitAt("ALLY_1", "ALLY", "FRONT", "CENTER");
+      const enemy = unitAt("ENEMY_1", "ENEMY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "ALIVE_UNIT_COUNT",
+        side: "ALLY",
+        excludeSelf: true,
+        op: "GT",
+        value: 0,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, units: [owner, ally, enemy] },
+        ),
+      ).toBe(true);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, units: [owner, enemy] },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-046: excludeSelf false counts the owner itself among ALLY", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "ALIVE_UNIT_COUNT",
+        side: "ALLY",
+        excludeSelf: false,
+        op: "GT",
+        value: 0,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, units: [owner] },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-047: excludes defeated units from the count", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const defeatedAlly = unitAt("ALLY_1", "ALLY", "FRONT", "CENTER", { currentHp: 0 });
+      const condition: ConditionDefinition = {
+        kind: "ALIVE_UNIT_COUNT",
+        side: "ALLY",
+        excludeSelf: true,
+        op: "GT",
+        value: 0,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, units: [owner, defeatedAlly] },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-048: side is relative to the owner (ENEMY counts the opposite side of the owner)", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const enemy = unitAt("ENEMY_1", "ENEMY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "ALIVE_UNIT_COUNT",
+        side: "ENEMY",
+        excludeSelf: false,
+        op: "EQ",
+        value: 1,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, units: [owner, enemy] },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-049: throws when no context with units is supplied", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "ALIVE_UNIT_COUNT",
+        side: "ALLY",
+        excludeSelf: false,
+        op: "GT",
+        value: 0,
+      };
+      expect(() =>
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID },
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("TURN_NUMBER (RES-004, Issue #171)", () => {
+    it("UT-R-PS-01-050: compares context.turnNumber with op/value", () => {
+      const owner = ownerWithCounter();
+      const condition: ConditionDefinition = { kind: "TURN_NUMBER", op: "NEQ", value: 1 };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, turnNumber: 1 },
+        ),
+      ).toBe(false);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, turnNumber: 2 },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-051: modulo compares (turnNumber mod modulo) against op/value (every 2nd turn)", () => {
+      const owner = ownerWithCounter();
+      const condition: ConditionDefinition = {
+        kind: "TURN_NUMBER",
+        op: "EQ",
+        value: 0,
+        modulo: 2,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, turnNumber: 2 },
+        ),
+      ).toBe(true);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, turnNumber: 3 },
+        ),
+      ).toBe(false);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, turnNumber: 4 },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-052: throws when no context with turnNumber is supplied", () => {
+      const owner = ownerWithCounter();
+      const condition: ConditionDefinition = { kind: "TURN_NUMBER", op: "EQ", value: 1 };
+      expect(() =>
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID },
         ),
       ).toThrow(DomainValidationError);
     });

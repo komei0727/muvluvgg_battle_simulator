@@ -124,6 +124,21 @@ export interface PassiveChainDependencies {
    */
   readonly resolutionPhase?: ResolutionPhase;
   /**
+   * `ALIVE_UNIT_COUNT`（RES-004、Issue #171）の再確認（R-PS-04）が候補検出時と
+   * 同じ生存数母集団を使うために渡す。`findUnit`/`getCurrentUnit`と同様、
+   * 呼び出し側の可変な`units`を都度読み直す関数として渡す（`resolveTopGroup`は
+   * PS連鎖の途中で何度も呼ばれるため、固定配列だと再確認のたびに古い状態を
+   * 参照してしまう）。未指定時は`ALIVE_UNIT_COUNT`を参照するactivationCondition
+   * の再確認がthrowする（`evaluateTriggerCondition`の既存契約と同じ）。
+   */
+  readonly getAllUnits?: () => readonly BattleUnit[];
+  /**
+   * `TURN_NUMBER`（RES-004、Issue #171）を候補検出時と同一の値で再確認
+   * （R-PS-04）するために`reconfirmPassiveCandidate`へそのまま渡す。
+   * `resolutionPhase`と同様、1解決スコープの全体を通じて固定。
+   */
+  readonly turnNumber?: number;
+  /**
    * レビュー再指摘[P2]（PR #209）: R-EFF-08（`expiration.conditions`）は
    * 「関連するドメインイベント発行後、PS/Memory候補抽出前に評価する」契約
    * のため、トップレベルの`event`だけでなく、PS連鎖の内部で発行される
@@ -342,6 +357,8 @@ function resolveTopGroup(
     state.guard,
     deps.findUnit,
     deps.resolutionPhase,
+    deps.getAllUnits?.(),
+    deps.turnNumber,
   );
   if (reconfirmation.ok) {
     state.guard = recordActivation(
