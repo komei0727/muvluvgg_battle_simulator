@@ -151,6 +151,32 @@ function conditionalActionSkill(
   });
 }
 
+function setConditionActionSkill(
+  id: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          condition: { kind: "TARGET_SET_COUNT", target: { kind: "SELF" }, op: "GTE", value: 1 },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Set-condition AS" },
+  });
+}
+
 function randomBranchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -1673,6 +1699,40 @@ describe("buildCatalogIndex", () => {
           exSkill("SKL_EX1", 7),
         ],
         capabilities: [capability("CAP_EFFECT_STEP_CONDITION")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-056 (RES-004集合条件, Issue #227): rejects EffectStep TARGET_SET_COUNT conditions without CAP_EFFECT_STEP_SET_CONDITION, even when CAP_EFFECT_STEP_CONDITION is already declared", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          setConditionActionSkill("SKL_AS1", ["CAP_EFFECT_STEP_CONDITION"]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [
+          capability("CAP_EFFECT_STEP_CONDITION"),
+          capability("CAP_EFFECT_STEP_SET_CONDITION"),
+        ],
+      }),
+    ).toThrowError(/must declare "CAP_EFFECT_STEP_SET_CONDITION"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          setConditionActionSkill("SKL_AS1", [
+            "CAP_EFFECT_STEP_CONDITION",
+            "CAP_EFFECT_STEP_SET_CONDITION",
+          ]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [
+          capability("CAP_EFFECT_STEP_CONDITION"),
+          capability("CAP_EFFECT_STEP_SET_CONDITION"),
+        ],
       }),
     ).not.toThrow();
   });

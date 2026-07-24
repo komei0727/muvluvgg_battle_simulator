@@ -59,7 +59,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // narrowed to exclude "集合条件" (set-threshold) — no ConditionKind exists
     // for it yet, so it isn't part of what `IMPLEMENTED` claims here. It becomes
     // its own Capability entry once a concrete schema-supported design exists.
-    expect(catalog.catalogRevision).toBe("2026-07-24.9");
+    // RES-004集合条件 (Issue #227): added that Capability, `CAP_EFFECT_STEP_SET_CONDITION`,
+    // backed by the new `ConditionDefinition.kind: TARGET_SET_COUNT` and its
+    // wiring into the EffectStep condition evaluator (ACTION/BRANCH). No
+    // production Skill uses it yet (`SKL_LYDIA_GENIUS_AS1`/`SKL_ELENA_MOODMAKER_AS1`
+    // need it in their AS `activationCondition`, `CAP_ACTION_ACTIVATION_CONDITION`
+    // scope, handed off to #180/M7-003), so it stays `runtimeStatus: PLANNED`.
+    expect(catalog.catalogRevision).toBe("2026-07-24.10");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

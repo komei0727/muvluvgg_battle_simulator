@@ -17,6 +17,7 @@ import { consumeEffectDurations } from "../model/applied-effect-duration.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import {
   buildEffectStepPerTargetFilter,
+  buildTargetSetResolver,
   resolveActionStepApplications,
   type EffectActionApplication,
   type EffectSequencePlan,
@@ -1095,7 +1096,32 @@ function* resolveBranchStep(
     box,
     lastEventId,
     function* (currentEventId) {
-      const satisfied = evaluateEffectStepCondition(definition.condition, lastResultState.current);
+      // CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件）: BRANCHの
+      // conditionは対象ごとの評価対象を持たないため`EffectStepTargetContext`は
+      // 渡さないが、`TARGET_SET_COUNT`はAND/OR経由で組み合わさりうるため、
+      // 常に最新の`box.units`から解決する`TargetSetResolver`を渡す。
+      const actor = requireUnit(box.units, context.actorId);
+      const triggerContext = {
+        ...(context.triggerSourceUnitId !== undefined
+          ? { triggerSourceUnitId: context.triggerSourceUnitId }
+          : {}),
+        ...(context.triggerTargetUnitIds !== undefined
+          ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+          : {}),
+      };
+      const resolveTargetSet = buildTargetSetResolver(
+        plan.resolvedBindings,
+        actor,
+        box.units,
+        lastResultTargetsContext(lastResultState, box.units),
+        triggerContext,
+      );
+      const satisfied = evaluateEffectStepCondition(
+        definition.condition,
+        lastResultState.current,
+        undefined,
+        resolveTargetSet,
+      );
       const chosenSteps = satisfied ? definition.thenSteps : definition.elseSteps;
       return yield* resolveStepDefinitionList(
         chosenSteps,
@@ -1391,7 +1417,23 @@ function* resolveRawStep(
           ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
           : {}),
       };
-      const satisfied = evaluateEffectStepCondition(step.condition, lastResultState.current);
+      // CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件）: このACTIONの
+      // conditionは自身のtargetを参照する対象別条件は持たない（上のif節が既に
+      // その場合を除外している）が、TARGET_SET_COUNTを持つ可能性はあるため、
+      // 常に最新のbox.unitsから解決するTargetSetResolverを渡す。
+      const resolveTargetSet = buildTargetSetResolver(
+        plan.resolvedBindings,
+        actor,
+        box.units,
+        lastResultTargetsContext(lastResultState, box.units),
+        triggerContext,
+      );
+      const satisfied = evaluateEffectStepCondition(
+        step.condition,
+        lastResultState.current,
+        undefined,
+        resolveTargetSet,
+      );
       const applications = satisfied
         ? resolveActionStepApplications(
             step,

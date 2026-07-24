@@ -510,7 +510,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UT-R-SKL-06-022`/`023`で検証した。続く再レビュー[P2]で、`EffectStepStarting`
   // 連鎖が使用者を戦闘不能にした場合は対象別条件の再評価自体を行わない
   // （`unresolvedEffectCount: 0`のまま`INTERRUPTED`）よう順序を修正し、
-  // `UT-R-SKL-06-024`で検証した。
+  // `UT-R-SKL-06-024`で検証した。RES-004集合条件（Issue #227、
+  // `CAP_EFFECT_STEP_SET_CONDITION`）で、Area/TargetFilterによる絞り込み後の
+  // 対象集合（`TargetReference`が解決する集合）の存在・件数をしきい値判定する
+  // `TARGET_SET_COUNT`を追加した（`TargetSetResolver`/`conditionReferencesTargetSetCount`、
+  // `UT-R-SKL-06-025`〜033）。対象別条件と同じ理由（先行stepやPS/Memory連鎖後の
+  // 最新状態を反映する必要がある）で常に`DeferredStepPlan`へ回し、ACTION step
+  // 自身の条件（対象別条件を伴わない場合を含む）とBRANCHの条件の両方から
+  // 使えることを`UT-R-SKL-06-034`〜038で検証した。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -538,6 +545,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-022",
       "UT-R-SKL-06-023",
       "UT-R-SKL-06-024",
+      "UT-R-SKL-06-025",
+      "UT-R-SKL-06-026",
+      "UT-R-SKL-06-027",
+      "UT-R-SKL-06-028",
+      "UT-R-SKL-06-029",
+      "UT-R-SKL-06-030",
+      "UT-R-SKL-06-031",
+      "UT-R-SKL-06-032",
+      "UT-R-SKL-06-033",
+      "UT-R-SKL-06-034",
+      "UT-R-SKL-06-035",
+      "UT-R-SKL-06-036",
+      "UT-R-SKL-06-037",
+      "UT-R-SKL-06-038",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",

@@ -398,4 +398,99 @@ describe("ConditionDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-031: maps a TARGET_SET_COUNT condition referencing a BINDING declared in scope (RES-004後半, Issue #227)", () => {
+    const scope = new Set(["TGT_COLUMNS"]);
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_SET_COUNT",
+        target: { kind: "BINDING", targetBindingId: "TGT_COLUMNS" },
+        op: "GTE",
+        value: 1,
+      },
+      "condition",
+      scope,
+    );
+    expect(result).toEqual({
+      kind: "TARGET_SET_COUNT",
+      target: { kind: "BINDING", targetBindingId: "TGT_COLUMNS" },
+      op: "GTE",
+      value: 1,
+    });
+  });
+
+  it("UT-CAT-COND-032: maps a TARGET_SET_COUNT condition referencing SELF/TRIGGER_SOURCE-style non-BINDING targets", () => {
+    const result = createConditionDefinition(
+      { kind: "TARGET_SET_COUNT", target: { kind: "TRIGGER_TARGET" }, op: "LT", value: 1 },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "TARGET_SET_COUNT",
+      target: { kind: "TRIGGER_TARGET" },
+      op: "LT",
+      value: 1,
+    });
+  });
+
+  it("UT-CAT-COND-033: rejects a negative value on TARGET_SET_COUNT", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_SET_COUNT",
+          target: { kind: "TRIGGER_TARGET" },
+          op: "GTE",
+          value: -1,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-034: rejects a non-integer value on TARGET_SET_COUNT", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_SET_COUNT",
+          target: { kind: "TRIGGER_TARGET" },
+          op: "GTE",
+          value: 1.5,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-035: rejects a typo'd sibling key on TARGET_SET_COUNT", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_SET_COUNT",
+          target: { kind: "TRIGGER_TARGET" },
+          op: "GTE",
+          value: 1,
+          typoField: 1,
+        } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-036: rejects a TARGET_SET_COUNT BINDING target outside the declared scope", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_SET_COUNT",
+          target: { kind: "BINDING", targetBindingId: "TGT_UNKNOWN" },
+          op: "GTE",
+          value: 1,
+        },
+        "condition",
+        new Set(["TGT_COLUMNS"]),
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

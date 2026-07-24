@@ -77,6 +77,7 @@ const CONDITION_KINDS = [
   "ALIVE_UNIT_COUNT",
   "POSITION_RELATION",
   "RESOLUTION_PHASE",
+  "TARGET_SET_COUNT",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
 
@@ -94,6 +95,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   ALIVE_UNIT_COUNT: ["kind", "side", "excludeSelf", "op", "value"],
   POSITION_RELATION: ["kind", "target", "relation"],
   RESOLUTION_PHASE: ["kind", "phase", "negate"],
+  TARGET_SET_COUNT: ["kind", "target", "op", "value"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
@@ -170,6 +172,12 @@ export type ConditionDefinition =
       readonly kind: "RESOLUTION_PHASE";
       readonly phase: ResolutionPhase;
       readonly negate: boolean;
+    }
+  | {
+      readonly kind: "TARGET_SET_COUNT";
+      readonly target: TargetReference;
+      readonly op: ComparisonOperator;
+      readonly value: number;
     };
 
 export interface ConditionDefinitionInput {
@@ -354,6 +362,21 @@ export function createConditionDefinition(
         negate = input.negate;
       }
       return { kind: "RESOLUTION_PHASE", phase, negate };
+    }
+    case "TARGET_SET_COUNT": {
+      const target = requireField(input, "target", path);
+      const op = createOperator(input, path);
+      const value = requireField(input, "value", path);
+      if (typeof value !== "number") {
+        throw new DomainValidationError(`${path}.value`, `must be a number, got ${typeof value}`);
+      }
+      assertInteger(value, `${path}.value`, { min: 0 });
+      return {
+        kind: "TARGET_SET_COUNT",
+        target: createTargetReference(target, `${path}.target`, scope),
+        op,
+        value,
+      };
     }
   }
 }

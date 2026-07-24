@@ -2397,4 +2397,303 @@ describe("applyEffectActionGroups", () => {
       ).toBe(false);
     });
   });
+
+  describe("CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件）: TARGET_SET_COUNTは対象集合の最新状態を反映する", () => {
+    it("UT-R-SKL-06-034: a BRANCH's TARGET_SET_COUNT (EXISTS: op GTE, value 1) takes elseSteps once a preceding step's DAMAGE has defeated the only member of the referenced set", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY", { currentHp: 1 });
+      const kill = damageAction("ACT_KILL");
+      const thenMarkerId = createMarkerId("MARKER_THEN");
+      const elseMarkerId = createMarkerId("MARKER_ELSE");
+      const thenAction = markerAction("ACT_THEN", thenMarkerId);
+      const elseAction = markerAction("ACT_ELSE", elseMarkerId);
+      const effectActions = new Map([
+        [kill.effectActionDefinitionId, kill],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn(enemyTarget, kill.effectActionDefinitionId),
+          {
+            kind: "BRANCH",
+            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyA], context);
+
+      const completedActionIds = recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectActionCompleted")
+        .map((e) => e.payload.effectActionDefinitionId);
+      expect(completedActionIds).toContain(elseAction.effectActionDefinitionId);
+      expect(completedActionIds).not.toContain(thenAction.effectActionDefinitionId);
+    });
+
+    it("UT-R-SKL-06-035: a BRANCH's TARGET_SET_COUNT (EXISTS: op GTE, value 1) takes thenSteps once a survivor remains in the referenced set", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY", { currentHp: 1 });
+      const enemyB = unit("ENEMY_B", "ENEMY", { currentHp: 100 });
+      const kill = damageAction("ACT_KILL");
+      const thenMarkerId = createMarkerId("MARKER_THEN");
+      const elseMarkerId = createMarkerId("MARKER_ELSE");
+      const thenAction = markerAction("ACT_THEN", thenMarkerId);
+      const elseAction = markerAction("ACT_ELSE", elseMarkerId);
+      const effectActions = new Map([
+        [kill.effectActionDefinitionId, kill],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn(enemyTarget, kill.effectActionDefinitionId),
+          {
+            kind: "BRANCH",
+            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB], context);
+
+      const completedActionIds = recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectActionCompleted")
+        .map((e) => e.payload.effectActionDefinitionId);
+      expect(completedActionIds).toContain(thenAction.effectActionDefinitionId);
+      expect(completedActionIds).not.toContain(elseAction.effectActionDefinitionId);
+    });
+
+    it("UT-R-SKL-06-036: a BRANCH's TARGET_SET_COUNT COUNT threshold (op GTE, value 2) is boundary-exact against the number of survivors", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY", { currentHp: 1 });
+      const enemyB = unit("ENEMY_B", "ENEMY", { currentHp: 100 });
+      const enemyC = unit("ENEMY_C", "ENEMY", { currentHp: 100 });
+      const kill = damageAction("ACT_KILL");
+      const thenMarkerId = createMarkerId("MARKER_THEN");
+      const elseMarkerId = createMarkerId("MARKER_ELSE");
+      const thenAction = markerAction("ACT_THEN", thenMarkerId);
+      const elseAction = markerAction("ACT_ELSE", elseMarkerId);
+      const effectActions = new Map([
+        [kill.effectActionDefinitionId, kill],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      // Only enemyA (currentHp: 1) dies from ACT_KILL; enemyB/enemyC (currentHp: 100)
+      // survive, leaving exactly 2 alive members in TGT_ENEMY — the GTE 2 boundary.
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn(enemyTarget, kill.effectActionDefinitionId),
+          {
+            kind: "BRANCH",
+            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 2 },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA, enemyB, enemyC], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyA, enemyB, enemyC], context);
+
+      const completedActionIds = recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectActionCompleted")
+        .map((e) => e.payload.effectActionDefinitionId);
+      expect(completedActionIds).toContain(thenAction.effectActionDefinitionId);
+      expect(completedActionIds).not.toContain(elseAction.effectActionDefinitionId);
+    });
+
+    it("UT-R-SKL-06-037: an ACTION step's own (non-self-referencing) TARGET_SET_COUNT condition skips the whole step, not just individual targets, once the referenced set is empty", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY", { currentHp: 1 });
+      const kill = damageAction("ACT_KILL");
+      const conditionalHit = damageAction("ACT_CONDITIONAL_HIT");
+      const effectActions = new Map([
+        [kill.effectActionDefinitionId, kill],
+        [conditionalHit.effectActionDefinitionId, conditionalHit],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn(enemyTarget, kill.effectActionDefinitionId),
+          {
+            kind: "ACTION",
+            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+      applyEffectActionGroups(plan, [actor, enemyA], context);
+
+      expect(
+        recorder
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === conditionalHit.effectActionDefinitionId,
+          ),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-038: a BRANCH's TARGET_SET_COUNT sees a marker a PS-style chain granted in reaction to a preceding step's EffectStepStarting, not the state from before that chain ran", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const noop = statModAction("ACT_NOOP");
+      const thenAction = markerAction("ACT_THEN", createMarkerId("MARKER_THEN"));
+      const elseAction = markerAction("ACT_ELSE", createMarkerId("MARKER_ELSE"));
+      const effectActions = new Map([
+        [noop.effectActionDefinitionId, noop],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn({ kind: "SELF" }, noop.effectActionDefinitionId),
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: enemyTarget,
+              op: "GTE",
+              value: 1,
+            },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, enemyA], effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      // Simulates a PS reacting to step 1's own `EffectStepStarting` (TIMING) by
+      // defeating enemyA — before this chain runs, TGT_ENEMY resolves 1 alive
+      // member (`GTE 1` would be true); the BRANCH must see the post-chain state.
+      const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+        if (event.eventType !== "EffectStepStarting" || event.payload.stepIndex !== 0) {
+          return units;
+        }
+        return units.map((u) =>
+          u.battleUnitId === enemyA.battleUnitId ? { ...u, currentHp: 0 } : u,
+        );
+      });
+
+      applyEffectActionGroups(plan, [actor, enemyA], context);
+
+      const completedActionIds = recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectActionCompleted")
+        .map((e) => e.payload.effectActionDefinitionId);
+      expect(completedActionIds).toContain(elseAction.effectActionDefinitionId);
+      expect(completedActionIds).not.toContain(thenAction.effectActionDefinitionId);
+    });
+  });
 });

@@ -199,6 +199,7 @@ type RuntimeStructuralCapabilityId =
   | "CAP_EFFECT_RUNTIME_COUNTER"
   | "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"
   | "CAP_EFFECT_STEP_CONDITION"
+  | "CAP_EFFECT_STEP_SET_CONDITION"
   | "CAP_MEMORY_TRIGGERED_EFFECT"
   | "CAP_RANDOM_BRANCH"
   | "CAP_RESOLUTION_BRANCH_REPEAT"
@@ -262,6 +263,50 @@ function stepsContainNonTrueCondition(steps: readonly EffectStepDefinition[]): b
         return true;
       }
     } else if (step.kind === "REPEAT" && stepsContainNonTrueCondition(step.steps)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * R-SKL-06/07（CAP_EFFECT_STEP_SET_CONDITION、Issue #227 RES-004集合条件）:
+ * `condition`のどこかに`TARGET_SET_COUNT`が含まれるか（AND/OR/NOTを再帰的に見る）。
+ * `domain/catalog`は`domain/battle`へ依存できない（module境界）ため、
+ * `effect-step-condition-evaluator.ts`の`conditionReferencesTargetSetCount`とは
+ * 意図的な重複。
+ */
+function conditionContainsTargetSetCount(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "TARGET_SET_COUNT":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionContainsTargetSetCount(c));
+    case "NOT":
+      return conditionContainsTargetSetCount(condition.condition);
+    default:
+      return false;
+  }
+}
+
+function stepsContainSetCondition(steps: readonly EffectStepDefinition[]): boolean {
+  for (const step of steps) {
+    if (
+      (step.kind === "ACTION" || step.kind === "BRANCH") &&
+      conditionContainsTargetSetCount(step.condition)
+    ) {
+      return true;
+    }
+    if (step.kind === "BRANCH") {
+      if (stepsContainSetCondition(step.thenSteps) || stepsContainSetCondition(step.elseSteps)) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsContainSetCondition(branch.steps))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsContainSetCondition(step.steps)) {
       return true;
     }
   }
@@ -458,6 +503,8 @@ function sequenceRequiresCapability(
       return sequence.targetBindings.some(({ selector }) => selector.fallback !== undefined);
     case "CAP_EFFECT_STEP_CONDITION":
       return stepsContainNonTrueCondition(sequence.steps);
+    case "CAP_EFFECT_STEP_SET_CONDITION":
+      return stepsContainSetCondition(sequence.steps);
     case "CAP_TRIGGER_CONTEXT":
       return (
         sequence.targetBindings.some(({ selector }) =>
@@ -551,6 +598,7 @@ function validateRuntimeCapabilityDeclarations(
     ["CAP_TARGET_DERIVED_AREA", "BINDING_DERIVED/area target selector"],
     ["CAP_TARGET_BINDING_FALLBACK", "Target selector fallback"],
     ["CAP_EFFECT_STEP_CONDITION", "EffectStep non-TRUE condition"],
+    ["CAP_EFFECT_STEP_SET_CONDITION", "EffectStep TARGET_SET_COUNT condition"],
   ] as const) {
     if (sequences.some((sequence) => sequenceRequiresCapability(sequence, capabilityId))) {
       requireRuntimeCapability(targetId, requiredCapabilities, capabilityId, reason, violations);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   conditionReferencesStepTarget,
+  conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
   type EffectStepTargetContext,
 } from "./effect-step-condition-evaluator.js";
@@ -251,6 +252,38 @@ describe("evaluateEffectStepCondition", () => {
     });
   });
 
+  describe("conditionReferencesTargetSetCount (CAP_EFFECT_STEP_SET_CONDITION, Issue #227 RES-004集合条件)", () => {
+    it("UT-R-SKL-06-032: detects a top-level TARGET_SET_COUNT and recurses through AND/OR/NOT", () => {
+      const direct: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        op: "GTE",
+        value: 1,
+      };
+      const nested: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "TRUE" },
+          { kind: "OR", conditions: [{ kind: "NOT", condition: direct }] },
+        ],
+      };
+      expect(conditionReferencesTargetSetCount(direct)).toBe(true);
+      expect(conditionReferencesTargetSetCount(nested)).toBe(true);
+    });
+
+    it("UT-R-SKL-06-033: is false when no TARGET_SET_COUNT is present", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      expect(conditionReferencesTargetSetCount(condition)).toBe(false);
+      expect(conditionReferencesTargetSetCount({ kind: "TRUE" })).toBe(false);
+    });
+  });
+
   describe("TARGET_STATE/TARGET_HAS_MARKER per-target evaluation (CAP_EFFECT_STEP_CONDITION, Issue #171 RES-004後半)", () => {
     const physicalUnitDefinitionId = createUnitDefinitionId("UNIT_PHYSICAL");
     const agileUnitDefinitionId = createUnitDefinitionId("UNIT_AGILE");
@@ -439,6 +472,109 @@ describe("evaluateEffectStepCondition", () => {
         markerId: createMarkerId("MARKER_UKIASHI"),
       };
       expect(() => evaluateEffectStepCondition(condition)).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("TARGET_SET_COUNT（CAP_EFFECT_STEP_SET_CONDITION、Issue #227 RES-004集合条件）", () => {
+    it("UT-R-SKL-06-025: without a resolveTargetSet resolver throws", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        op: "GTE",
+        value: 1,
+      };
+      expect(() => evaluateEffectStepCondition(condition)).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-026: EXISTS-style (op GTE, value 1) is false when the resolved set is empty", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        op: "GTE",
+        value: 1,
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [])).toBe(false);
+    });
+
+    it("UT-R-SKL-06-027: NONE-style (op LT, value 1) is true when the resolved set is empty", () => {
+      const condition: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        op: "LT",
+        value: 1,
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [])).toBe(true);
+    });
+
+    it("UT-R-SKL-06-028: COUNT threshold compares the resolved set size (boundary and multiple members)", () => {
+      const enemyA = unit("ENEMY_A", "UNIT_A");
+      const enemyB = unit("ENEMY_B", "UNIT_A");
+      const condition: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        op: "GTE",
+        value: 2,
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [enemyA])).toBe(
+        false,
+      );
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, () => [enemyA, enemyB]),
+      ).toBe(true);
+    });
+
+    it("UT-R-SKL-06-029: excludes defeated units from the count, reflecting the latest state the resolver returns", () => {
+      const alive = unit("ENEMY_A", "UNIT_A");
+      const defeated = unit("ENEMY_B", "UNIT_A", { currentHp: 0 });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        op: "GTE",
+        value: 1,
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [defeated])).toBe(
+        false,
+      );
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, () => [alive, defeated]),
+      ).toBe(true);
+    });
+
+    it("UT-R-SKL-06-030: recurses through AND/OR/NOT and passes the resolveTargetSet resolver down", () => {
+      const enemyA = unit("ENEMY_A", "UNIT_A");
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "TARGET_SET_COUNT", target: OTHER_BINDING, op: "GTE", value: 1 },
+          {
+            kind: "NOT",
+            condition: { kind: "TARGET_SET_COUNT", target: OTHER_BINDING, op: "GTE", value: 2 },
+          },
+        ],
+      };
+      expect(evaluateEffectStepCondition(condition, undefined, undefined, () => [enemyA])).toBe(
+        true,
+      );
+    });
+
+    it("UT-R-SKL-06-031: resolves via the EffectStepTargetContext's resolveOtherReference when a per-target context is also present (combined with TARGET_STATE self-condition)", () => {
+      const enemyA = unit("ENEMY_A", "UNIT_A");
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "TARGET_STATE", target: STEP_TARGET, field: "IS_ALIVE", op: "EQ", value: true },
+          { kind: "TARGET_SET_COUNT", target: OTHER_BINDING, op: "GTE", value: 1 },
+        ],
+      };
+      const ctx: EffectStepTargetContext = {
+        stepTarget: STEP_TARGET,
+        current: enemyA,
+        resolveOtherReference: () => [enemyA],
+        unitDefinitions: new Map(),
+      };
+      expect(
+        evaluateEffectStepCondition(condition, undefined, ctx, ctx.resolveOtherReference),
+      ).toBe(true);
     });
   });
 });
