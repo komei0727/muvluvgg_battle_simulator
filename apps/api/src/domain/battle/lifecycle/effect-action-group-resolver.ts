@@ -17,6 +17,7 @@ import { consumeEffectDurations } from "../model/applied-effect-duration.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import {
   buildEffectStepPerTargetFilter,
+  buildTargetSetResolver,
   resolveActionStepApplications,
   type EffectActionApplication,
   type EffectSequencePlan,
@@ -24,6 +25,7 @@ import {
 } from "../skill/skill-resolution-service.js";
 import {
   conditionReferencesStepTarget,
+  conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
 } from "../skill/effect-step-condition-evaluator.js";
 import { selectWeightedBranch } from "../skill/random-branch-selection.js";
@@ -1095,7 +1097,32 @@ function* resolveBranchStep(
     box,
     lastEventId,
     function* (currentEventId) {
-      const satisfied = evaluateEffectStepCondition(definition.condition, lastResultState.current);
+      // CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件）: BRANCHの
+      // conditionは対象ごとの評価対象を持たないため`EffectStepTargetContext`は
+      // 渡さないが、`TARGET_SET_COUNT`はAND/OR経由で組み合わさりうるため、
+      // 常に最新の`box.units`から解決する`TargetSetResolver`を渡す。
+      const actor = requireUnit(box.units, context.actorId);
+      const triggerContext = {
+        ...(context.triggerSourceUnitId !== undefined
+          ? { triggerSourceUnitId: context.triggerSourceUnitId }
+          : {}),
+        ...(context.triggerTargetUnitIds !== undefined
+          ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+          : {}),
+      };
+      const resolveTargetSet = buildTargetSetResolver(
+        plan.resolvedBindings,
+        actor,
+        box.units,
+        lastResultTargetsContext(lastResultState, box.units),
+        triggerContext,
+      );
+      const satisfied = evaluateEffectStepCondition(
+        definition.condition,
+        lastResultState.current,
+        undefined,
+        resolveTargetSet,
+      );
       const chosenSteps = satisfied ? definition.thenSteps : definition.elseSteps;
       return yield* resolveStepDefinitionList(
         chosenSteps,
@@ -1331,7 +1358,17 @@ function* resolveRawStep(
       // `resolveActionStepBody`へ「TIMINGイベント後に呼び出す再評価関数」を
       // 渡す（`isEagerActionStep`が同じ理由でこの種のstepを常にDeferredへ
       // 回すため、ここへ来るのはJIT解決経路だけ）。
-      if (conditionReferencesStepTarget(step.condition, step.target)) {
+      // CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件、PRレビュー[P1]）:
+      // TARGET_SET_COUNTを含む条件も、対象別条件と同じ理由（このstep自身の
+      // `EffectStepStarting`が誘発しうるPS/Memory連鎖後の最新状態を反映する
+      // 必要がある）で`resolveAfterTiming`経路へ回す。ここより前に評価して
+      // しまうと、`EffectStepStarting`発行→戦闘不能再検証の後で対象集合の
+      // 最後の生存者が倒された場合でも、古い`satisfied: true`のままACTIONの
+      // actionsが適用されてしまう。
+      if (
+        conditionReferencesStepTarget(step.condition, step.target) ||
+        conditionReferencesTargetSetCount(step.condition)
+      ) {
         const resolveAfterTiming = (): {
           readonly satisfied: boolean;
           readonly applications: readonly EffectActionApplication[];
@@ -1346,27 +1383,73 @@ function* resolveRawStep(
               : {}),
           };
           const lastResultTargets = lastResultTargetsContext(lastResultState, box.units);
-          const perTargetFilter = buildEffectStepPerTargetFilter(
-            step,
+
+          // PRレビュー[P2]再々々指摘（Issue #227）: 対象別条件（TARGET_STATE/
+          // TARGET_HAS_MARKERが自身のtargetを参照する、"対象ごとに真偽が変わる"
+          // 評価）と`TARGET_SET_COUNT`（"step全体で1回だけ評価する"評価）は、
+          // 評価結果を単一のbooleanへ還元する意味論が本質的に異なる（前者は
+          // 対象ごとの適用可否フィルタ、後者はstep自体のskip判定）。両者を
+          // 同じconditionツリーにAND/OR/NOTで混在させると、量化の位置
+          // （leafごとに`exists`を取るか、複合式を先に評価してから`exists`を
+          // 取るか）によって、既存の「対象別条件が全員falseならstep0件成立
+          // 扱い」という契約と、新しい「集合条件がfalseならEffectStepSkipped」
+          // という契約のどちらを優先すべきか一意に定まらない
+          // （`TARGET_SET_COUNT`が恒真の場合と対象別条件単体の場合とで結果が
+          // 変わってしまう等）。この2種の条件の混在は`catalog-integrity.ts`の
+          // `MIXED_STEP_TARGET_SET_CONDITION`検証がCatalogロード時点で拒否する
+          // ため、ここでは両者が同じconditionに同時に現れないという前提の
+          // もとで、素朴に2つの独立した経路へ分岐する。
+          if (conditionReferencesStepTarget(step.condition, step.target)) {
+            const perTargetFilter = buildEffectStepPerTargetFilter(
+              step,
+              plan.resolvedBindings,
+              actor,
+              box.units,
+              context.definitions.unitDefinitions,
+              lastResultState.current,
+              lastResultTargets,
+              triggerContext,
+            );
+            const applications = resolveActionStepApplications(
+              step,
+              plan.resolvedBindings,
+              actor,
+              box.units,
+              context.definitions.effectActions,
+              lastResultTargets,
+              triggerContext,
+              perTargetFilter,
+            );
+            return { satisfied: true, applications };
+          }
+
+          // TARGET_SET_COUNTのみ（自身のtargetを参照する対象別条件は持たない）:
+          // 対象ごとにではなくstep全体を一度だけ、最新状態で評価する。
+          const resolveTargetSet = buildTargetSetResolver(
             plan.resolvedBindings,
             actor,
             box.units,
-            context.definitions.unitDefinitions,
+            lastResultTargets,
+            triggerContext,
+          );
+          const satisfied = evaluateEffectStepCondition(
+            step.condition,
             lastResultState.current,
-            lastResultTargets,
-            triggerContext,
+            undefined,
+            resolveTargetSet,
           );
-          const applications = resolveActionStepApplications(
-            step,
-            plan.resolvedBindings,
-            actor,
-            box.units,
-            context.definitions.effectActions,
-            lastResultTargets,
-            triggerContext,
-            perTargetFilter,
-          );
-          return { satisfied: true, applications };
+          const applications = satisfied
+            ? resolveActionStepApplications(
+                step,
+                plan.resolvedBindings,
+                actor,
+                box.units,
+                context.definitions.effectActions,
+                lastResultTargets,
+                triggerContext,
+              )
+            : [];
+          return { satisfied, applications };
         };
         return yield* resolveActionStepBody(
           stepIndex,

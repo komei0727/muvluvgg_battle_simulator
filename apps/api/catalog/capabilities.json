@@ -150,7 +150,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-004",
-    "description": "EffectStepの対象別条件（ACTION stepのconditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを対象ごとに個別評価する）。「集合条件」（対象集合のしきい値判定、SET_THRESHOLD_ACTIVATION_CONDITION）はschemaStatus: SUPPORTEDにできる具体的なConditionKind設計がまだ無いため、この完了境界には含めない（PRレビュー[P2]、Issue #171） — 設計でき次第、別Capabilityとして追加する。",
+    "description": "EffectStepの対象別条件（ACTION stepのconditionが自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを対象ごとに個別評価する）。対象集合のしきい値判定（EXISTS/NONE/COUNT）はCAP_EFFECT_STEP_SET_CONDITION（Issue #227）が別Capabilityとして担い、この完了境界には含めない（PRレビュー[P2]、Issue #171）。",
     "verification": {
       "productionDefinitionIds": [
         "SKL_AOI_ELEGANT_EX",
@@ -165,6 +165,14 @@
         "IT-CAP-EFFSTEP-004"
       ]
     }
+  },
+  {
+    "capabilityId": "CAP_EFFECT_STEP_SET_CONDITION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-004",
+    "description": "EffectStepのcondition（ACTION step自身またはBRANCH）でTARGET_SET_COUNTを使い、Area/TargetFilterで絞り込んだ対象集合（TargetReferenceが解決する集合）の存在・件数をしきい値判定する（EXISTS: op GTE value 1、NONE: op LT value 1、COUNT: 任意のop/value）。生存数のみを数え、条件評価時点の最新Battle stateを反映する。AS/EXの行動選択（CAP_ACTION_ACTIVATION_CONDITION）・PSの候補判定（CAP_PASSIVE_ACTIVATION_CONDITION）での利用はこの完了境界に含めない（Issue #227、#180（M7-003）へ引き渡す）。ACTION/BRANCHいずれのconditionも、TARGET_STATE/TARGET_HAS_MARKER（対象別条件、参照先のTargetReferenceは問わない）とTARGET_SET_COUNTをAND/OR/NOTで同時に含められない（両者は単一のbooleanへ還元する意味論が異なり、混在させると量化の位置に依存して結果が変わるため、Catalogロード時点でMIXED_STEP_TARGET_SET_CONDITIONとして明示的に拒否する、PRレビュー[P2]再々々指摘・再々々々指摘）。schema・評価器・Catalog検証は実装済みだが、利用するproduction定義が現状存在しないため、productionDefinitionIdsが揃うまでruntimeStatusはPLANNEDのまま。",
+    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
     "capabilityId": "CAP_FORMULA",

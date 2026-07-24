@@ -68,6 +68,30 @@ export function conditionReferencesStepTarget(
 }
 
 /**
+ * R-SKL-06/07（CAP_EFFECT_STEP_SET_CONDITION、Issue #227 RES-004集合条件）:
+ * `condition`のどこかに`TARGET_SET_COUNT`が含まれるか（AND/OR/NOTを再帰的に見る）。
+ * 含まれる場合、この条件は`resolveTargetSet`（`TargetSetResolver`）が必要で、
+ * かつ先行stepやPS/Memory連鎖が変更した後の最新状態を反映する必要があるため、
+ * 呼び出し側（`skill-resolution-service.ts`の`isEagerActionStep`）はplanning
+ * 時点（対象bindingを解決した直後、まだどのstepも実行していない時点）で
+ * 即時評価せず、実行がその位置まで進んだ時点でJITに評価する
+ * （`conditionReferencesLastResult`と同じ理由・同じ形）。
+ */
+export function conditionReferencesTargetSetCount(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "TARGET_SET_COUNT":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionReferencesTargetSetCount(c));
+    case "NOT":
+      return conditionReferencesTargetSetCount(condition.condition);
+    default:
+      return false;
+  }
+}
+
+/**
  * `TARGET_STATE.field`を`BattleUnit`から解決する。`UNIT_TYPE`はCatalogの
  * `UnitDefinition`参照が必要なため`unitDefinitions`を引く。`ROLE`（同じく
  * `UnitDefinition`参照）と`HAS_STATUS`（状態異常追跡、`TARGET_STATE_QUERY_BUFF_DEBUFF`
@@ -128,6 +152,17 @@ function resolveConditionTargets(
 }
 
 /**
+ * `TARGET_SET_COUNT`（CAP_EFFECT_STEP_SET_CONDITION、Issue #227 RES-004集合条件）が
+ * `target`（`TargetReference`）を対象ごとにではなく集合全体として再解決するための
+ * 関数。`EffectStepTargetContext.resolveOtherReference`と同じ形（常に最新の
+ * `BattleUnit`集合を返す）だが、`stepTarget`/`current`という「対象ごとの評価」
+ * 概念を要求しない（BRANCHのconditionのようにstepの対象集合そのものを持たない
+ * 呼び出しにも使えるようにするため、`EffectStepTargetContext`とは独立した
+ * パラメータにする）。
+ */
+export type TargetSetResolver = (reference: TargetReference) => readonly BattleUnit[];
+
+/**
  * R-SKL-06 #1「stepのconditionを評価する。省略時はTRUEとする」に加え、
  * R-SKL-08「直前結果」の`LAST_RESULT`（同じ解決スコープ内の直前に確定した
  * `EffectAction`結果を参照する）、および`TARGET_STATE`/`TARGET_HAS_MARKER`
@@ -144,26 +179,35 @@ function resolveConditionTargets(
  * （例: `BRANCH`のcondition評価）では明確な例外を投げ、`EVENT_PAYLOAD`/
  * `RUNTIME_COUNTER`/`TURN_NUMBER`/`ALIVE_UNIT_COUNT`/`POSITION_RELATION`/
  * `RESOLUTION_PHASE`は引き続き未対応とする（`triggering/trigger-condition-evaluator.ts`
- * と同じ隔離方針、これらはPS発動条件の評価器が担う）。
+ * と同じ隔離方針、これらはPS発動条件の評価器が担う）。`resolveTargetSet`は
+ * `TARGET_SET_COUNT`（CAP_EFFECT_STEP_SET_CONDITION、Issue #227）を評価する
+ * 場合だけ必要で、`targetContext`とは独立に渡す — BRANCHのconditionや、
+ * stepの対象別条件と組み合わせるACTIONのconditionのどちらからも使えるようにする。
  */
 export function evaluateEffectStepCondition(
   condition: ConditionDefinition,
   lastResult?: LastEffectActionResult,
   targetContext?: EffectStepTargetContext,
+  resolveTargetSet?: TargetSetResolver,
 ): boolean {
   switch (condition.kind) {
     case "TRUE":
       return true;
     case "AND":
       return condition.conditions.every((c) =>
-        evaluateEffectStepCondition(c, lastResult, targetContext),
+        evaluateEffectStepCondition(c, lastResult, targetContext, resolveTargetSet),
       );
     case "OR":
       return condition.conditions.some((c) =>
-        evaluateEffectStepCondition(c, lastResult, targetContext),
+        evaluateEffectStepCondition(c, lastResult, targetContext, resolveTargetSet),
       );
     case "NOT":
-      return !evaluateEffectStepCondition(condition.condition, lastResult, targetContext);
+      return !evaluateEffectStepCondition(
+        condition.condition,
+        lastResult,
+        targetContext,
+        resolveTargetSet,
+      );
     case "LAST_RESULT": {
       if (lastResult === undefined) {
         throw new DomainValidationError(
@@ -212,6 +256,18 @@ export function evaluateEffectStepCondition(
           condition.countCondition.value,
         );
       });
+    }
+    case "TARGET_SET_COUNT": {
+      if (resolveTargetSet === undefined) {
+        throw new DomainValidationError(
+          "step.condition",
+          'kind "TARGET_SET_COUNT" requires a TargetSetResolver (CAP_EFFECT_STEP_SET_CONDITION, only available when the caller can re-resolve a TargetReference against the latest Battle state)',
+        );
+      }
+      const aliveCount = resolveTargetSet(condition.target).filter(
+        (unit) => !isDefeated(unit),
+      ).length;
+      return compareWithOperator(aliveCount, condition.op, condition.value);
     }
     default:
       throw new DomainValidationError(

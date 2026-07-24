@@ -510,7 +510,39 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UT-R-SKL-06-022`/`023`で検証した。続く再レビュー[P2]で、`EffectStepStarting`
   // 連鎖が使用者を戦闘不能にした場合は対象別条件の再評価自体を行わない
   // （`unresolvedEffectCount: 0`のまま`INTERRUPTED`）よう順序を修正し、
-  // `UT-R-SKL-06-024`で検証した。
+  // `UT-R-SKL-06-024`で検証した。RES-004集合条件（Issue #227、
+  // `CAP_EFFECT_STEP_SET_CONDITION`）で、Area/TargetFilterによる絞り込み後の
+  // 対象集合（`TargetReference`が解決する集合）の存在・件数をしきい値判定する
+  // `TARGET_SET_COUNT`を追加した（`TargetSetResolver`/`conditionReferencesTargetSetCount`、
+  // `UT-R-SKL-06-025`〜033）。対象別条件と同じ理由（先行stepやPS/Memory連鎖後の
+  // 最新状態を反映する必要がある）で常に`DeferredStepPlan`へ回し、ACTION step
+  // 自身の条件（対象別条件を伴わない場合を含む）とBRANCHの条件の両方から
+  // 使えることを`UT-R-SKL-06-034`〜038で検証した。PRレビュー[P1]再指摘で、
+  // 自身のtargetを参照しないTARGET_SET_COUNT単独の条件が、対象別条件と同じ
+  // `resolveAfterTiming`経路（このstep自身の`EffectStepStarting`が誘発する
+  // PS/Memory連鎖後に再評価する）を経由していなかった欠陥を修正し、
+  // `UT-R-SKL-06-039`で検証した。続く再レビュー[P2]再指摘・再々指摘で、対象別
+  // 条件（TARGET_STATE/TARGET_HAS_MARKERが自身のtargetを参照する、対象ごとに
+  // 真偽が変わる評価）と`TARGET_SET_COUNT`（step全体で1回だけ評価する評価）を
+  // 同じconditionツリーにAND/OR/NOTで混在させた場合の実行時量化ロジック
+  // （`EffectStepTargetContext.wholeSet`、その後`buildEffectStepPerTargetFilter`
+  // を候補ごとに評価してから`.some()`で量化する方式）を2回試みたが、いずれも
+  // 「対象別条件が全員falseなら対象0件成立扱い」（R-SKL-06）と「集合条件が
+  // falseならEffectStepSkipped」という2つの契約のどちらを優先すべきか単一の
+  // booleanでは一意に定まらないことが判明した（再々々指摘、Issue #227）。
+  // 対症的な量化ロジックは全て撤回し、代わりに自身の`target`を参照する対象別
+  // 条件と`TARGET_SET_COUNT`の混在自体を`catalog-integrity.ts`の
+  // `MIXED_STEP_TARGET_SET_CONDITION`検証がCatalogロード時点で明示的に拒否する
+  // よう設計を変更した。`resolveAfterTiming`は対象別条件（`satisfied: true`
+  // 固定）とTARGET_SET_COUNT単独（step全体を一度だけ評価）の2つの独立した
+  // 経路へ戻し、混在時の量化ロジック自体を持たない。続く再々々々指摘で、
+  // 拒否判定が「自身の`target`と一致する」参照だけを見ていたため、`SELF`等
+  // 別のTargetReferenceを参照する対象別条件との組み合わせ（`TARGET_SET_COUNT`
+  // 単独経路は対象ごとの文脈を持たないため、参照先を問わずTARGET_STATE/
+  // TARGET_HAS_MARKERに到達した時点で例外になる）がpreflightを通過してしまう
+  // 配線漏れを指摘され、参照先を問わない判定（`conditionContainsTargetStateOrMarker`）
+  // へ広げ、`BRANCH`自身の`condition`（同じ理由で対象ごとの文脈を持たない）も
+  // 対象に含めた。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -538,6 +570,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-022",
       "UT-R-SKL-06-023",
       "UT-R-SKL-06-024",
+      "UT-R-SKL-06-025",
+      "UT-R-SKL-06-026",
+      "UT-R-SKL-06-027",
+      "UT-R-SKL-06-028",
+      "UT-R-SKL-06-029",
+      "UT-R-SKL-06-030",
+      "UT-R-SKL-06-031",
+      "UT-R-SKL-06-032",
+      "UT-R-SKL-06-033",
+      "UT-R-SKL-06-034",
+      "UT-R-SKL-06-035",
+      "UT-R-SKL-06-036",
+      "UT-R-SKL-06-037",
+      "UT-R-SKL-06-038",
+      "UT-R-SKL-06-039",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",

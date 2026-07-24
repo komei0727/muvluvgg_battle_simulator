@@ -2,7 +2,9 @@ import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets, type TriggerContext } from "../targeting/target-selection-policy.js";
 import {
   conditionReferencesStepTarget,
+  conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
+  type TargetSetResolver,
 } from "./effect-step-condition-evaluator.js";
 import type {
   EffectActionReference,
@@ -309,6 +311,34 @@ function refreshUnit(unit: BattleUnit, allUnits: readonly BattleUnit[]): BattleU
   return allUnits.find((candidate) => candidate.battleUnitId === unit.battleUnitId) ?? unit;
 }
 
+/**
+ * `TARGET_SET_COUNT`（CAP_EFFECT_STEP_SET_CONDITION、Issue #227 RES-004集合条件）
+ * が任意の`TargetReference`を「対象ごと」ではなく「集合全体」として再解決する
+ * ための`TargetSetResolver`を組み立てる。`refreshUnit`と同じ理由（`resolvedBindings`
+ * のスナップショットではなく、呼び出し時点の最新`allUnits`を反映する）で
+ * `buildEffectStepPerTargetFilter`の`resolveOtherReference`と同じ解決を行うが、
+ * ACTION stepの対象ごと評価（`stepTarget`/`current`）を前提としない呼び出し
+ * （BRANCHのcondition評価、または自身のtargetを参照しないACTIONのcondition
+ * 評価）からも使えるよう独立した関数にする。
+ */
+export function buildTargetSetResolver(
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  lastResultTargets?: LastResultTargetContext,
+  triggerContext?: TriggerContext,
+): TargetSetResolver {
+  return (reference) =>
+    resolveReference(
+      reference,
+      resolvedBindings,
+      actor,
+      allUnits,
+      lastResultTargets,
+      triggerContext,
+    ).units.map((unit) => refreshUnit(unit, allUnits));
+}
+
 export function buildEffectStepPerTargetFilter(
   step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
@@ -319,21 +349,25 @@ export function buildEffectStepPerTargetFilter(
   lastResultTargets?: LastResultTargetContext,
   triggerContext?: TriggerContext,
 ): (target: BattleUnit) => boolean {
+  const resolveTargetSet = buildTargetSetResolver(
+    resolvedBindings,
+    actor,
+    allUnits,
+    lastResultTargets,
+    triggerContext,
+  );
   return (target) =>
-    evaluateEffectStepCondition(step.condition, lastResult, {
-      stepTarget: step.target,
-      current: refreshUnit(target, allUnits),
-      resolveOtherReference: (reference) =>
-        resolveReference(
-          reference,
-          resolvedBindings,
-          actor,
-          allUnits,
-          lastResultTargets,
-          triggerContext,
-        ).units.map((unit) => refreshUnit(unit, allUnits)),
-      unitDefinitions,
-    });
+    evaluateEffectStepCondition(
+      step.condition,
+      lastResult,
+      {
+        stepTarget: step.target,
+        current: refreshUnit(target, allUnits),
+        resolveOtherReference: resolveTargetSet,
+        unitDefinitions,
+      },
+      resolveTargetSet,
+    );
 }
 
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるかどうか（AND/OR/NOTを再帰的に見る）。 */
@@ -374,7 +408,11 @@ function isEagerActionStep(
     // ため、`LAST_RESULT`と同様にDeferredStepPlanへ回し、実行がその位置まで
     // 進んだ時点でJITに評価する（`effect-action-group-resolver.ts`の
     // `resolveRawStep`）。
-    !conditionReferencesStepTarget(step.condition, step.target)
+    !conditionReferencesStepTarget(step.condition, step.target) &&
+    // CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件）: 同じ理由で、
+    // TARGET_SET_COUNTを含むconditionも対象集合の最新状態（先行stepやPS/Memory
+    // 連鎖後の生存数など）に依存しうるため、planning時点では確定させない。
+    !conditionReferencesTargetSetCount(step.condition)
   );
 }
 

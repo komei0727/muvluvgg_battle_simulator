@@ -23,6 +23,7 @@ import { toReadonlyMap } from "../../shared/readonly-map.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TriggerDefinition } from "../definitions/trigger-definition.js";
 import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
+import type { TargetReference } from "../definitions/references.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
 
 /**
@@ -52,6 +53,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_MARKER_LINKED_GROUP",
   "UNSUPPORTED_MARKER_DURATION",
   "MISSING_PRECEDING_RESULT",
+  "MIXED_STEP_TARGET_SET_CONDITION",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -199,6 +201,7 @@ type RuntimeStructuralCapabilityId =
   | "CAP_EFFECT_RUNTIME_COUNTER"
   | "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"
   | "CAP_EFFECT_STEP_CONDITION"
+  | "CAP_EFFECT_STEP_SET_CONDITION"
   | "CAP_MEMORY_TRIGGERED_EFFECT"
   | "CAP_RANDOM_BRANCH"
   | "CAP_RESOLUTION_BRANCH_REPEAT"
@@ -218,17 +221,57 @@ function selectorTreeSome(
   );
 }
 
+/**
+ * `ConditionDefinition`内に埋め込まれた`TargetReference`（`TARGET_STATE`/
+ * `TARGET_HAS_MARKER`/`POSITION_RELATION`/`TARGET_SET_COUNT`の`target`）を
+ * 再帰的に収集する（AND/OR/NOTを辿る）。PRレビュー[P2]（Issue #227）:
+ * `stepsContainTargetReferenceKinds`と`walkLastResultDataFlowStep`は従来
+ * ACTIONの`step.target`だけを見ており、condition内のTargetReferenceが
+ * `TRIGGER_SOURCE`/`TRIGGER_TARGET`（`CAP_TRIGGER_CONTEXT`）や
+ * `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`（`MISSING_PRECEDING_RESULT`）を
+ * 参照していても検証を迂回していた。
+ */
+function collectConditionTargetReferences(
+  condition: ConditionDefinition,
+): readonly TargetReference[] {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+    case "POSITION_RELATION":
+    case "TARGET_SET_COUNT":
+      return [condition.target];
+    case "AND":
+    case "OR":
+      return condition.conditions.flatMap((c) => collectConditionTargetReferences(c));
+    case "NOT":
+      return collectConditionTargetReferences(condition.condition);
+    default:
+      return [];
+  }
+}
+
+function conditionContainsTargetReferenceKind(
+  condition: ConditionDefinition,
+  kinds: ReadonlySet<string>,
+): boolean {
+  return collectConditionTargetReferences(condition).some((reference) => kinds.has(reference.kind));
+}
+
 function stepsContainTargetReferenceKinds(
   steps: readonly EffectStepDefinition[],
   kinds: ReadonlySet<string>,
 ): boolean {
   for (const step of steps) {
     if (step.kind === "ACTION") {
-      if (kinds.has(step.target.kind)) {
+      if (
+        kinds.has(step.target.kind) ||
+        conditionContainsTargetReferenceKind(step.condition, kinds)
+      ) {
         return true;
       }
     } else if (step.kind === "BRANCH") {
       if (
+        conditionContainsTargetReferenceKind(step.condition, kinds) ||
         stepsContainTargetReferenceKinds(step.thenSteps, kinds) ||
         stepsContainTargetReferenceKinds(step.elseSteps, kinds)
       ) {
@@ -266,6 +309,145 @@ function stepsContainNonTrueCondition(steps: readonly EffectStepDefinition[]): b
     }
   }
   return false;
+}
+
+/**
+ * R-SKL-06/07（CAP_EFFECT_STEP_SET_CONDITION、Issue #227 RES-004集合条件）:
+ * `condition`のどこかに`TARGET_SET_COUNT`が含まれるか（AND/OR/NOTを再帰的に見る）。
+ * `domain/catalog`は`domain/battle`へ依存できない（module境界）ため、
+ * `effect-step-condition-evaluator.ts`の`conditionReferencesTargetSetCount`とは
+ * 意図的な重複。
+ */
+function conditionContainsTargetSetCount(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "TARGET_SET_COUNT":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionContainsTargetSetCount(c));
+    case "NOT":
+      return conditionContainsTargetSetCount(condition.condition);
+    default:
+      return false;
+  }
+}
+
+function stepsContainSetCondition(steps: readonly EffectStepDefinition[]): boolean {
+  for (const step of steps) {
+    if (
+      (step.kind === "ACTION" || step.kind === "BRANCH") &&
+      conditionContainsTargetSetCount(step.condition)
+    ) {
+      return true;
+    }
+    if (step.kind === "BRANCH") {
+      if (stepsContainSetCondition(step.thenSteps) || stepsContainSetCondition(step.elseSteps)) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsContainSetCondition(branch.steps))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsContainSetCondition(step.steps)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * `condition`のどこかに`TARGET_STATE`/`TARGET_HAS_MARKER`が含まれるか
+ * （AND/OR/NOTを再帰的に見る）。参照先の`TargetReference`は問わない —
+ * PRレビュー[P2]再々々々指摘（Issue #227）: `effect-step-condition-evaluator.ts`の
+ * `evaluateEffectStepCondition`は、`TARGET_SET_COUNT`単独経路
+ * （`targetContext: undefined`）で呼ばれる際、参照先が`step.target`と一致
+ * するかどうかに関わらず`TARGET_STATE`/`TARGET_HAS_MARKER`に到達した時点で
+ * 例外を投げる（`EffectStepTargetContext`が無ければ評価できないため）。
+ * `step.target`と一致する参照だけを拒否対象にしていた前回の実装は、
+ * `SELF`など別の参照との組み合わせ（Catalog上は許可、実行時は例外）という
+ * preflightと実行時の不一致を残していた。
+ */
+function conditionContainsTargetStateOrMarker(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionContainsTargetStateOrMarker(c));
+    case "NOT":
+      return conditionContainsTargetStateOrMarker(condition.condition);
+    default:
+      return false;
+  }
+}
+
+/**
+ * PRレビュー[P2]再々々指摘・再々々々指摘（Issue #227）: 対象別条件
+ * （`TARGET_STATE`/`TARGET_HAS_MARKER`、対象ごとに真偽が変わる「対象ごとの
+ * 適用可否フィルタ」）と`TARGET_SET_COUNT`（step全体で1回だけ評価する「step
+ * 自体のskip判定」）は、単一のbooleanへ還元する意味論が本質的に異なる。
+ * 同じconditionツリーに`AND`/`OR`/`NOT`で混在させると、量化の位置（対象別
+ * leafごとに`exists`を取ってから合成するか、複合式を対象ごとに評価してから
+ * `exists`を取るか）によって結果が変わり得るだけでなく、後者の場合でも
+ * 「対象別条件が全員falseなら対象0件成立扱い」（R-SKL-06）と「集合条件が
+ * falseならEffectStepSkipped」という2つの契約のどちらを優先すべきか一意に
+ * 定まらない。加えて、`TARGET_STATE`/`TARGET_HAS_MARKER`が`step.target`とは
+ * 異なる参照（`SELF`等）であっても、`TARGET_SET_COUNT`と同じconditionツリーに
+ * 存在する限り実行時は`TARGET_SET_COUNT`単独経路（`targetContext: undefined`）
+ * で評価され例外になるため、参照先を問わず拒否する。`ACTION`/`BRANCH`いずれの
+ * `condition`も対象（`BRANCH`のconditionも同じ`targetContext: undefined`経路で
+ * 評価されるため同じ危険がある）。混在が将来必要になった場合は、`condition`を
+ * stepワイド判定用と対象別フィルタ用のスコープへ分離する専用スキーマを
+ * 別Issueで設計する。
+ */
+function collectMixedStepTargetSetConditionPaths(
+  steps: readonly EffectStepDefinition[],
+  path: string,
+): readonly string[] {
+  const paths: string[] = [];
+  steps.forEach((step, index) => {
+    const stepPath = `${path}[${index}]`;
+    if (
+      (step.kind === "ACTION" || step.kind === "BRANCH") &&
+      conditionContainsTargetStateOrMarker(step.condition) &&
+      conditionContainsTargetSetCount(step.condition)
+    ) {
+      paths.push(`${stepPath}.condition`);
+    }
+    if (step.kind === "BRANCH") {
+      paths.push(
+        ...collectMixedStepTargetSetConditionPaths(step.thenSteps, `${stepPath}.thenSteps`),
+        ...collectMixedStepTargetSetConditionPaths(step.elseSteps, `${stepPath}.elseSteps`),
+      );
+    } else if (step.kind === "RANDOM_BRANCH") {
+      step.branches.forEach((branch, branchIndex) => {
+        paths.push(
+          ...collectMixedStepTargetSetConditionPaths(
+            branch.steps,
+            `${stepPath}.branches[${branchIndex}].steps`,
+          ),
+        );
+      });
+    } else if (step.kind === "REPEAT") {
+      paths.push(...collectMixedStepTargetSetConditionPaths(step.steps, `${stepPath}.steps`));
+    }
+  });
+  return paths;
+}
+
+function validateMixedStepTargetSetCondition(
+  steps: readonly EffectStepDefinition[],
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const path of collectMixedStepTargetSetConditionPaths(steps, "steps")) {
+    violations.push({
+      targetId: ownerId,
+      rule: "MIXED_STEP_TARGET_SET_CONDITION",
+      message: `${path} combines TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER (regardless of which TargetReference it references) — per-target and step-wide condition scopes cannot be mixed in the same condition tree (RES-004集合条件, Issue #227)`,
+    });
+  }
 }
 
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるか（AND/OR/NOTを再帰的に見る）。 */
@@ -335,16 +517,36 @@ function walkLastResultDataFlowStep(
             message: `${path}.target references kind "${step.target.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
           });
         }
+        for (const reference of collectConditionTargetReferences(step.condition)) {
+          if (LAST_RESULT_TARGET_KINDS.has(reference.kind)) {
+            violations.push({
+              targetId: ownerId,
+              rule: "MISSING_PRECEDING_RESULT",
+              message: `${path}.condition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+            });
+          }
+        }
       }
       return definitelyAssigned || step.condition.kind === "TRUE";
     }
     case "BRANCH": {
-      if (!definitelyAssigned && conditionReferencesLastResult(step.condition)) {
-        violations.push({
-          targetId: ownerId,
-          rule: "MISSING_PRECEDING_RESULT",
-          message: `${path}.condition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
-        });
+      if (!definitelyAssigned) {
+        if (conditionReferencesLastResult(step.condition)) {
+          violations.push({
+            targetId: ownerId,
+            rule: "MISSING_PRECEDING_RESULT",
+            message: `${path}.condition references kind "LAST_RESULT" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+          });
+        }
+        for (const reference of collectConditionTargetReferences(step.condition)) {
+          if (LAST_RESULT_TARGET_KINDS.has(reference.kind)) {
+            violations.push({
+              targetId: ownerId,
+              rule: "MISSING_PRECEDING_RESULT",
+              message: `${path}.condition's TargetReference references kind "${reference.kind}" but no preceding EffectAction result is definitely assigned on every path reaching this step`,
+            });
+          }
+        }
       }
       const assignedThen = walkLastResultDataFlowList(
         step.thenSteps,
@@ -458,6 +660,8 @@ function sequenceRequiresCapability(
       return sequence.targetBindings.some(({ selector }) => selector.fallback !== undefined);
     case "CAP_EFFECT_STEP_CONDITION":
       return stepsContainNonTrueCondition(sequence.steps);
+    case "CAP_EFFECT_STEP_SET_CONDITION":
+      return stepsContainSetCondition(sequence.steps);
     case "CAP_TRIGGER_CONTEXT":
       return (
         sequence.targetBindings.some(({ selector }) =>
@@ -551,6 +755,7 @@ function validateRuntimeCapabilityDeclarations(
     ["CAP_TARGET_DERIVED_AREA", "BINDING_DERIVED/area target selector"],
     ["CAP_TARGET_BINDING_FALLBACK", "Target selector fallback"],
     ["CAP_EFFECT_STEP_CONDITION", "EffectStep non-TRUE condition"],
+    ["CAP_EFFECT_STEP_SET_CONDITION", "EffectStep TARGET_SET_COUNT condition"],
   ] as const) {
     if (sequences.some((sequence) => sequenceRequiresCapability(sequence, capabilityId))) {
       requireRuntimeCapability(targetId, requiredCapabilities, capabilityId, reason, violations);
@@ -772,6 +977,7 @@ function validateSkill(
       : [skill.resolution];
   for (const sequence of sequences) {
     validateLastResultDataFlow(sequence.steps, skill.skillDefinitionId, violations);
+    validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
   }
   const runtimeTriggers = [
     ...skill.triggers,
@@ -1142,6 +1348,11 @@ function validateMemory(
   for (const triggeredEffect of memory.triggeredEffects) {
     validateTrigger(triggeredEffect.trigger, memory.memoryDefinitionId, violations);
     validateLastResultDataFlow(
+      triggeredEffect.effectSequence.steps,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateMixedStepTargetSetCondition(
       triggeredEffect.effectSequence.steps,
       memory.memoryDefinitionId,
       violations,
