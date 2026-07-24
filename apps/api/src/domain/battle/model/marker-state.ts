@@ -2,7 +2,7 @@ import type { EffectDurationState } from "./applied-effect.js";
 import { buildInitialDurationState } from "./applied-effect.js";
 import type { ActionId, MarkerInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
+import { createMarkerId, type MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 
 /**
@@ -53,3 +53,13 @@ export function clampMarkerStack(stackCount: number, stackMax: number | null): n
   const floored = Math.max(0, stackCount);
   return stackMax === null ? floored : Math.min(floored, stackMax);
 }
+
+/**
+ * R-TGT-08（TGT-004、Issue #167）「ステルス」: 戦闘システム上ただ1つ存在する
+ * 固定バフのため、`APPLY_MARKER`のCatalog固有`markerId`（例: `MARKER_CURSE`）とは
+ * 異なり、engineが予約するCatalog横断の固定IDとして扱う。Stealthを付与する
+ * production skillは`APPLY_MARKER`でこのIDを指定する（`APPLY_STATUS`の
+ * `status: STEALTH`は`AppliedEffect`側の未実装経路であり、この予約Markerとは
+ * 独立している）。
+ */
+export const STEALTH_MARKER_ID: MarkerId = createMarkerId("MARKER_STEALTH");
