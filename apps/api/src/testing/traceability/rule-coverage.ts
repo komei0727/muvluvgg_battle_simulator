@@ -381,10 +381,27 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // PS発動処理自身の中断検知・`PassiveInterrupted`発行）をIssue #34
   // （`UT-R-SKL-01-001`〜003）が満たし、Issue #73でACTION step/EffectAction
   // 単位の中断（`EffectStepStarting`/`EffectActionStarting`後の再検証、
-  // `UT-R-SKL-01-004`）を追加して6項目を満たし切った。
+  // `UT-R-SKL-01-004`）を追加して6項目を満たし切った。Issue #217で
+  // `resolveEffectSequencePlan`をpending execution state一本化に再設計し、
+  // BRANCH/RANDOM_BRANCH/REPEAT各段のstep entry・EffectStepStarting直後・
+  // RandomBranchSelected直後・iteration間での中断不変条件
+  // （`UT-R-SKL-INT-001`〜006、中断イベント種別が未解決件数から独立している
+  // こと、中断後は追加のEffectAction・乱数・PS/Memory連鎖を発生させないこと）
+  // を追加した。
   {
     ruleId: "R-SKL-01",
-    testCaseIds: ["UT-R-SKL-01-001", "UT-R-SKL-01-002", "UT-R-SKL-01-003", "UT-R-SKL-01-004"],
+    testCaseIds: [
+      "UT-R-SKL-01-001",
+      "UT-R-SKL-01-002",
+      "UT-R-SKL-01-003",
+      "UT-R-SKL-01-004",
+      "UT-R-SKL-INT-001",
+      "UT-R-SKL-INT-002",
+      "UT-R-SKL-INT-003",
+      "UT-R-SKL-INT-004",
+      "UT-R-SKL-INT-005",
+      "UT-R-SKL-INT-006",
+    ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
   // R-SKL-02: 対象ごとの効果適用直後にPS候補を直ちに解決する要件をIssue #34
@@ -445,8 +462,67 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
-  { ruleId: "R-SKL-07", testCaseIds: [], kinds: [] },
-  { ruleId: "R-SKL-08", testCaseIds: [], kinds: [] },
+  // R-SKL-07: BRANCH/RANDOM_BRANCH/REPEATをIssue #217で実装した
+  // （`resolveBranchStep`/`resolveRandomBranchStep`/`resolveRepeatStep`、
+  // `effect-action-group-resolver.ts`）。`DeferredStepPlan`（`skill-resolution-service.ts`）
+  // がこれらのstepを生の定義のまま持ち越し、実行時にJITで解決する。
+  {
+    ruleId: "R-SKL-07",
+    testCaseIds: [
+      "UT-R-SKL-07-001",
+      "UT-R-SKL-07-002",
+      "UT-R-SKL-07-101",
+      "UT-R-SKL-07-102",
+      "UT-R-SKL-07-103",
+      "UT-R-SKL-07-104",
+      "UT-R-SKL-07-105",
+      "UT-R-SKL-07-106",
+      "UT-R-SKL-07-107",
+      "UT-R-SKL-07-108",
+      "UT-R-SKL-07-109",
+      "UT-R-SKL-07-110",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
+  // R-SKL-08: 直前結果（`LAST_RESULT` Condition、`LAST_ACTION_TARGETS`/
+  // `LAST_DAMAGED_TARGETS` TargetReference）をIssue #217で実装した
+  // （`effect-step-condition-evaluator.ts`のfield比較、
+  // `effect-action-group-resolver.ts`の`LastResultState`）。Catalog preflight
+  // の`MISSING_PRECEDING_RESULT`定義済み解析（`catalog-integrity.ts`）が、
+  // 到達しうる全経路で先行結果を保証できないCatalogを拒否する
+  // （`UT-CAT-IDX-042`〜055）。
+  {
+    ruleId: "R-SKL-08",
+    testCaseIds: [
+      "UT-R-SKL-08-001",
+      "UT-R-SKL-08-002",
+      "UT-R-SKL-08-003",
+      "UT-R-SKL-08-004",
+      "UT-R-SKL-08-005",
+      "UT-R-SKL-08-006",
+      "UT-R-SKL-08-007",
+      "UT-R-SKL-08-008",
+      "UT-R-SKL-08-009",
+      "UT-R-SKL-08-010",
+      "UT-R-SKL-08-011",
+      "UT-R-SKL-08-012",
+      "UT-CAT-IDX-042",
+      "UT-CAT-IDX-043",
+      "UT-CAT-IDX-044",
+      "UT-CAT-IDX-045",
+      "UT-CAT-IDX-046",
+      "UT-CAT-IDX-047",
+      "UT-CAT-IDX-048",
+      "UT-CAT-IDX-049",
+      "UT-CAT-IDX-050",
+      "UT-CAT-IDX-051",
+      "UT-CAT-IDX-052",
+      "UT-CAT-IDX-053",
+      "UT-CAT-IDX-054",
+      "UT-CAT-IDX-055",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
   {
     ruleId: "R-SKL-09",
     testCaseIds: [

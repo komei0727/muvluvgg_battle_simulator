@@ -16,6 +16,7 @@ import type { TargetReferenceInput } from "../definitions/references.js";
 import type { TargetSelectorDefinitionInput } from "../definitions/target-selector-definition.js";
 import { createUnitDefinition, type UnitDefinition } from "../definitions/unit-definition.js";
 import type { ConditionDefinitionInput } from "../definitions/condition-definition.js";
+import type { EffectStepDefinitionInput } from "../definitions/effect-sequence.js";
 
 function damageAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
@@ -1477,6 +1478,46 @@ describe("buildCatalogIndex", () => {
     ).not.toThrow();
   });
 
+  /**
+   * UT-CAT-IDX-030 (Issue #217 follow-up): `targetingSkill`'s single-ACTION-step
+   * shape can't be reused here once `MISSING_PRECEDING_RESULT` (design point E)
+   * exists — a bare `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` step with no
+   * preceding EffectAction result is now *also* independently invalid. This
+   * variant adds an unconditional preceding ACTION step so the capability
+   * check under test stays isolated from that separate invariant.
+   */
+  function targetingSkillWithPrecedingAction(
+    selector: TargetSelectorDefinitionInput,
+    requiredCapabilities: readonly string[],
+    target: TargetReferenceInput,
+  ): SkillDefinition {
+    return createSkillDefinition({
+      skillDefinitionId: "SKL_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+          },
+          {
+            kind: "ACTION",
+            target,
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities,
+      metadata: { displayName: "Targeting AS" },
+    });
+  }
+
   it.each(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const)(
     "UT-CAT-IDX-030: rejects %s EffectStep references without CAP_RESOLUTION_BRANCH_REPEAT",
     (kind) => {
@@ -1485,7 +1526,10 @@ describe("buildCatalogIndex", () => {
       expect(() =>
         buildCatalogIndex({
           ...defs,
-          skills: [targetingSkill(selector, [], { kind }), exSkill("SKL_EX1", 7)],
+          skills: [
+            targetingSkillWithPrecedingAction(selector, [], { kind }),
+            exSkill("SKL_EX1", 7),
+          ],
           capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
         }),
       ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
@@ -1494,7 +1538,7 @@ describe("buildCatalogIndex", () => {
         buildCatalogIndex({
           ...defs,
           skills: [
-            targetingSkill(selector, ["CAP_RESOLUTION_BRANCH_REPEAT"], { kind }),
+            targetingSkillWithPrecedingAction(selector, ["CAP_RESOLUTION_BRANCH_REPEAT"], { kind }),
             exSkill("SKL_EX1", 7),
           ],
           capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
@@ -1752,5 +1796,188 @@ describe("buildCatalogIndex", () => {
         capabilities: [capability("CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER")],
       }),
     ).not.toThrow();
+  });
+
+  describe("MISSING_PRECEDING_RESULT: LAST_RESULT/LAST_*_TARGETS definite-assignment (Issue #217 design point E)", () => {
+    function skillWithSteps(steps: readonly EffectStepDefinitionInput[]): SkillDefinition {
+      return createSkillDefinition({
+        skillDefinitionId: "SKL_AS2",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 1 },
+        resolution: { kind: "IMMEDIATE", steps },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        requiredCapabilities: [
+          "CAP_EFFECT_STEP_CONDITION",
+          "CAP_RESOLUTION_BRANCH_REPEAT",
+          "CAP_RANDOM_BRANCH",
+        ],
+        metadata: { displayName: "LAST_RESULT dataflow AS" },
+      });
+    }
+
+    const CAPS = [
+      capability("CAP_EFFECT_STEP_CONDITION"),
+      capability("CAP_RESOLUTION_BRANCH_REPEAT"),
+      capability("CAP_RANDOM_BRANCH"),
+    ];
+
+    const selfAction = {
+      kind: "ACTION",
+      target: { kind: "SELF" },
+      actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+    } as const;
+    const lastResultBranch = {
+      kind: "BRANCH",
+      condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+      thenSteps: [],
+      elseSteps: [],
+    } as const;
+
+    function buildWith(steps: readonly EffectStepDefinitionInput[]) {
+      const defs = baseDefinitions();
+      return () =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [...defs.skills, skillWithSteps(steps)],
+          units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+          capabilities: CAPS,
+        });
+    }
+
+    it("UT-CAT-IDX-042: rejects a first ACTION step whose condition references LAST_RESULT (nothing precedes it)", () => {
+      expect(
+        buildWith([
+          {
+            ...selfAction,
+            condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+          },
+        ]),
+      ).toThrowError(/MISSING_PRECEDING_RESULT/);
+    });
+
+    it("UT-CAT-IDX-043: rejects a first BRANCH step whose own condition references LAST_RESULT", () => {
+      expect(buildWith([lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
+    });
+
+    it("UT-CAT-IDX-044: accepts a LAST_RESULT condition once a preceding always-true ACTION step exists", () => {
+      expect(buildWith([selfAction, lastResultBranch])).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-045: rejects LAST_RESULT after a BRANCH where only one side (thenSteps) produces a result", () => {
+      const branch = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [selfAction],
+        elseSteps: [],
+      } as const;
+      expect(buildWith([branch, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
+    });
+
+    it("UT-CAT-IDX-046: accepts LAST_RESULT after a BRANCH where both then/elseSteps produce a result", () => {
+      const branch = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [selfAction],
+        elseSteps: [selfAction],
+      } as const;
+      expect(buildWith([branch, lastResultBranch])).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-047: rejects LAST_RESULT after RANDOM_BRANCH WEIGHTED_ONE where one reachable branch is missing a result", () => {
+      const randomBranch = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          { weight: 1, steps: [selfAction] },
+          { weight: 1, steps: [] },
+        ],
+      } as const;
+      expect(buildWith([randomBranch, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
+    });
+
+    it("UT-CAT-IDX-048: a weight-0 (unreachable) WEIGHTED_ONE branch missing a result does not block LAST_RESULT afterward", () => {
+      const randomBranch = {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          { weight: 1, steps: [selfAction] },
+          { weight: 0, steps: [] },
+        ],
+      } as const;
+      expect(buildWith([randomBranch, lastResultBranch])).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-049: rejects LAST_RESULT after RANDOM_BRANCH INDEPENDENT relying solely on branch-interior ACTIONs (0-branch-success path is always live)", () => {
+      const randomBranch = {
+        kind: "RANDOM_BRANCH",
+        mode: "INDEPENDENT",
+        branches: [
+          { probability: 1, steps: [selfAction] },
+          { probability: 1, steps: [selfAction] },
+        ],
+      } as const;
+      expect(buildWith([randomBranch, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
+    });
+
+    it("UT-CAT-IDX-050: accepts LAST_RESULT after RANDOM_BRANCH INDEPENDENT when already definitely-assigned beforehand", () => {
+      const randomBranch = {
+        kind: "RANDOM_BRANCH",
+        mode: "INDEPENDENT",
+        branches: [{ probability: 1, steps: [] }],
+      } as const;
+      expect(buildWith([selfAction, randomBranch, lastResultBranch])).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-051: rejects LAST_RESULT after a REPEAT whose body only conditionally produces a result", () => {
+      const repeat = {
+        kind: "REPEAT",
+        count: 2,
+        steps: [{ ...selfAction, condition: { kind: "TURN_NUMBER", op: "GTE", value: 1 } }],
+      } as const;
+      expect(buildWith([repeat, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
+    });
+
+    it("UT-CAT-IDX-052: accepts LAST_RESULT after a REPEAT whose body unconditionally produces a result", () => {
+      const repeat = { kind: "REPEAT", count: 2, steps: [selfAction] } as const;
+      expect(buildWith([repeat, lastResultBranch])).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-053: rejects a nested BRANCH (inside thenSteps) whose own condition references LAST_RESULT with nothing preceding it", () => {
+      const outer = {
+        kind: "BRANCH",
+        condition: { kind: "TRUE" },
+        thenSteps: [lastResultBranch],
+        elseSteps: [],
+      } as const;
+      expect(buildWith([outer])).toThrowError(/MISSING_PRECEDING_RESULT/);
+    });
+
+    it("UT-CAT-IDX-054: rejects a first ACTION step targeting LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS", () => {
+      for (const kind of ["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const) {
+        expect(
+          buildWith([
+            {
+              kind: "ACTION",
+              target: { kind },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ]),
+        ).toThrowError(/MISSING_PRECEDING_RESULT/);
+      }
+    });
+
+    it("UT-CAT-IDX-055: violation carries the Catalog path and rule id", () => {
+      try {
+        buildWith([lastResultBranch])();
+        expect.unreachable();
+      } catch (error) {
+        expect(error).toBeInstanceOf(CatalogIntegrityError);
+        const err = error as CatalogIntegrityError;
+        const violation = err.violations.find((v) => v.rule === "MISSING_PRECEDING_RESULT");
+        expect(violation?.targetId).toBe("SKL_AS2");
+        expect(violation?.message).toContain("steps[0].condition");
+      }
+    });
   });
 });

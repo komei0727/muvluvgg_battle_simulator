@@ -308,6 +308,21 @@ const effectStepCompletedDetailsSchema = {
   },
 } as const;
 
+const RANDOM_BRANCH_MODE_ENUM = ["WEIGHTED_ONE", "INDEPENDENT"] as const;
+
+/** R-SKL-07（RES-003、Issue #173/#217）: `RandomBranchSelected`。 */
+const randomBranchSelectedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stepIndex", "mode", "branchIndex"],
+  properties: {
+    stepIndex: { type: "integer", minimum: 0 },
+    mode: { type: "string", enum: RANDOM_BRANCH_MODE_ENUM },
+    branchIndex: { type: "integer", minimum: 0 },
+    label: { type: "string" },
+  },
+} as const;
+
 const effectActionStartingDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -647,6 +662,22 @@ const passiveResolvedDetailsSchema = {
   },
 } as const;
 
+/**
+ * Issue #217設計方針C（案1、厳密値のみを公開）／レビュー指摘[P2]（PR #218、
+ * 2度目の再レビュー）: `unresolvedEffectCount`は、中断が起きた時点で実際に
+ * 開いていたACTION適用一覧のうち未処理のまま残った「効果単位」数の厳密値で
+ * あり、静的な見積もりや上限値ではない。計数単位は実装（`countHits`、
+ * `application.hits.length`の合計）と一致させる: DAMAGEは残りヒットごとに1、
+ * 非DAMAGE（`APPLY_STAT_MOD`等）は残りapplication（対象1件×EffectAction1件）
+ * ごとに1として数える（DAMAGE以外は常にhits.length === 1のため、結果として
+ * 「残りapplication数」と同じ値になる）。まだ開始していないstep・branch・
+ * iterationは、その内容を一切見積もらず常に0として扱う（`RANDOM_BRANCH`が
+ * 選択・判定前に中断した場合を含む）ため、`INTERRUPTED`かつこの値が0の
+ * 組合せも正当。
+ */
+const UNRESOLVED_EFFECT_COUNT_DESCRIPTION =
+  "Exact count of unprocessed effect units left within the ACTION step that was actually open at the moment of interruption. Each remaining hit of a DAMAGE EffectAction counts as 1; each remaining application (one target x one EffectAction) of a non-DAMAGE EffectAction also counts as 1 (non-DAMAGE EffectActions always resolve to exactly one hit per application). Steps, branches, or REPEAT iterations not yet entered (including an unresolved RANDOM_BRANCH selection) always contribute 0 rather than an estimate, so INTERRUPTED with unresolvedEffectCount: 0 is a valid combination.";
+
 const passiveInterruptedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -655,7 +686,11 @@ const passiveInterruptedDetailsSchema = {
     actorUnitId: { type: "string" },
     skillDefinitionId: { type: "string" },
     reason: { type: "string", enum: ["OWNER_DEFEATED"] },
-    unresolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: {
+      type: "integer",
+      minimum: 0,
+      description: UNRESOLVED_EFFECT_COUNT_DESCRIPTION,
+    },
   },
 } as const;
 
@@ -674,7 +709,11 @@ const skillUseInterruptedDetailsSchema = {
     skillDefinitionId: { type: "string" },
     reason: { type: "string", enum: ["ACTOR_DEFEATED"] },
     resolvedEffectCount: { type: "integer", minimum: 0 },
-    unresolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: {
+      type: "integer",
+      minimum: 0,
+      description: UNRESOLVED_EFFECT_COUNT_DESCRIPTION,
+    },
   },
 } as const;
 
@@ -1271,6 +1310,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_STEP_STARTING: effectStepStartingDetailsSchema,
   EFFECT_STEP_SKIPPED: effectStepSkippedDetailsSchema,
   EFFECT_STEP_COMPLETED: effectStepCompletedDetailsSchema,
+  RANDOM_BRANCH_SELECTED: randomBranchSelectedDetailsSchema,
   EFFECT_ACTION_STARTING: effectActionStartingDetailsSchema,
   EFFECT_ACTION_COMPLETED: effectActionCompletedDetailsSchema,
   UNIT_BEING_ATTACKED: unitBeingAttackedDetailsSchema,

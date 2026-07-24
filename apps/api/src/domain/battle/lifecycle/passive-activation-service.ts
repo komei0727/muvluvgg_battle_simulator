@@ -1352,7 +1352,7 @@ export class PassiveActivationRuntime {
     }
     this.units = box.units;
     const effectResult = step.value;
-    const interruptedCount = effectResult.interruptedCount;
+    const outcome = effectResult.outcome;
 
     // EFF-006/Issue #212: このPS自身のEffectSequence解決が完了した時点で、
     // そのcounterを直ちに破棄する（`resolveEffectSequencePlan`が中断で終わった
@@ -1366,15 +1366,15 @@ export class PassiveActivationRuntime {
       lastEventId = recorded.eventId;
     }
 
-    // R-PS-05 #6 / R-SKL-01: 使用者(PS所有者)が戦闘不能になり、未解決のまま
-    // 打ち切られた適用が実際に残った場合だけ中断とする（PR #141再レビュー[P2]:
-    // 戦闘不能かどうかだけでは判定しない — 最後の効果で倒れても残り0件なら
-    // 正常解決のまま）。
-    const interrupted = interruptedCount > 0;
+    // Issue #217設計方針B: `PassiveInterrupted`/`PassiveResolved`の選択は
+    // `outcome.status`（実際に解決が最後まで進んだか、PS所有者戦闘不能で
+    // 打ち切ったかという事実）だけから決める。`unresolvedEffectCount`の値
+    // からは決して導出しない（`INTERRUPTED`かつ`unresolvedEffectCount: 0`も
+    // 正当な結果として扱う）。
     const resolvedStepCount =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0;
     let terminalEvent: BattleDomainEvent;
-    if (interrupted) {
+    if (outcome.status === "INTERRUPTED") {
       terminalEvent = this.context.recorder.record({
         eventType: "PassiveInterrupted",
         category: "FACT",
@@ -1390,7 +1390,7 @@ export class PassiveActivationRuntime {
           actorUnitId: ownerId,
           skillDefinitionId: skill.skillDefinitionId,
           reason: "OWNER_DEFEATED",
-          unresolvedEffectCount: interruptedCount,
+          unresolvedEffectCount: outcome.unresolvedEffectCount,
         },
       });
     } else {
@@ -1426,6 +1426,6 @@ export class PassiveActivationRuntime {
     }
     yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
 
-    return { interrupted };
+    return { interrupted: outcome.status === "INTERRUPTED" };
   }
 }

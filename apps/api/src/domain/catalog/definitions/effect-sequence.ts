@@ -67,6 +67,7 @@ const EFFECT_ACTION_REFERENCE_ALLOWED_KEYS = ["effectActionDefinitionId"] as con
 
 const EFFECT_STEP_KINDS = ["ACTION", "BRANCH", "RANDOM_BRANCH", "REPEAT"] as const;
 const RANDOM_BRANCH_MODES = ["WEIGHTED_ONE", "INDEPENDENT"] as const;
+export type RandomBranchMode = (typeof RANDOM_BRANCH_MODES)[number];
 
 const EFFECT_STEP_ALLOWED_KEYS: Record<(typeof EFFECT_STEP_KINDS)[number], readonly string[]> = {
   ACTION: ["kind", "condition", "target", "actions"],
@@ -202,12 +203,24 @@ export function createEffectStepDefinition(
         throw new DomainValidationError(`${path}.branches`, "is required");
       }
       assertNonEmptyArray(branches, `${path}.branches`);
+      const createdBranches = branches.map((b, i) =>
+        createRandomBranch(b, mode, `${path}.branches[${i}]`, scope),
+      );
+      // レビュー指摘[P2]（PR #218）: 個々のbranchの`weight: 0`はCatalog上有効
+      // （常に不成立の分岐として許容する）が、WEIGHTED_ONE全体で1つも
+      // `weight > 0`のbranchがないと、`selectWeightedBranch`が選択できる
+      // branchを持たない。この構成を戦闘実行まで持ち越さず、Catalog解析時点で
+      // 定義pathを添えて拒否する。
+      if (mode === "WEIGHTED_ONE" && !createdBranches.some((b) => (b.weight ?? 0) > 0)) {
+        throw new DomainValidationError(
+          `${path}.branches`,
+          "WEIGHTED_ONE requires at least one branch with weight > 0",
+        );
+      }
       return {
         kind: "RANDOM_BRANCH",
         mode,
-        branches: branches.map((b, i) =>
-          createRandomBranch(b, mode, `${path}.branches[${i}]`, scope),
-        ),
+        branches: createdBranches,
       };
     }
     case "REPEAT": {

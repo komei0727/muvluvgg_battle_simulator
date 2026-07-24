@@ -1,4 +1,3 @@
-import type { ComparisonOperator } from "../../catalog/definitions/catalog-enums.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   ConditionDefinition,
@@ -13,6 +12,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
+import { compareWithOperator } from "../skill/comparison-operator.js";
 
 /**
  * `PassiveTriggerMatcher`が参照する、任意イベントのpayloadだけを持つ最小形。
@@ -138,29 +138,6 @@ function resolveTargetStateField(target: BattleUnit, field: TargetStateField): J
   }
 }
 
-function compare(actual: unknown, op: ComparisonOperator, expected: JsonPrimitive): boolean {
-  switch (op) {
-    case "GT":
-      return typeof actual === "number" && typeof expected === "number" && actual > expected;
-    case "GTE":
-      return typeof actual === "number" && typeof expected === "number" && actual >= expected;
-    case "LT":
-      return typeof actual === "number" && typeof expected === "number" && actual < expected;
-    case "LTE":
-      return typeof actual === "number" && typeof expected === "number" && actual <= expected;
-    case "EQ":
-      return actual === expected;
-    case "NEQ":
-      return actual !== expected;
-    case "IN":
-      return Array.isArray(expected) && (expected as readonly unknown[]).includes(actual);
-    case "CONTAINS":
-      return Array.isArray(actual) && (actual as readonly unknown[]).includes(expected);
-    default:
-      return false;
-  }
-}
-
 /**
  * R-PS-01「発生源、対象、陣営、スキル種別などをConditionDefinitionで評価する」の
  * うち、`08_ドメインイベント.md`「EVENT_PAYLOAD」、`RUNTIME_COUNTER`（M6最小実装、
@@ -190,7 +167,7 @@ export function evaluateTriggerCondition(
       return !evaluateTriggerCondition(condition.condition, event, context);
     case "EVENT_PAYLOAD": {
       const actual = event.payload[condition.field];
-      return compare(actual, condition.op, condition.value);
+      return compareWithOperator(actual, condition.op, condition.value);
     }
     case "RUNTIME_COUNTER": {
       let value: number;
@@ -208,7 +185,7 @@ export function evaluateTriggerCondition(
       if (condition.modulo !== undefined && value % condition.modulo !== 0) {
         return false;
       }
-      return compare(value, condition.op, condition.value);
+      return compareWithOperator(value, condition.op, condition.value);
     }
     case "POSITION_RELATION": {
       if (context?.getUnit === undefined) {
@@ -247,7 +224,7 @@ export function evaluateTriggerCondition(
           return false;
         }
         const actual = resolveTargetStateField(target, condition.field);
-        return compare(actual, condition.op, condition.value);
+        return compareWithOperator(actual, condition.op, condition.value);
       });
     }
     default:

@@ -3,6 +3,7 @@ import {
   flattenEffectSequencePlan,
   resolveChargeReleaseOrder,
   resolveSkillOrder,
+  type ActionStepPlan,
 } from "./skill-resolution-service.js";
 import {
   createBattleUnit,
@@ -278,17 +279,139 @@ describe("resolveSkillOrder", () => {
     expect(fromShuffled).toEqual(fromOriginal);
   });
 
-  it("UT-SKILL-RESOLUTION-SERVICE-001: throws for a BRANCH step (only ACTION steps are supported by this basic SkillResolutionService)", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-001: a BRANCH step becomes a DeferredStepPlan carrying the raw definition (RES-003, Issue #217)", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const branchStep = {
+      kind: "BRANCH",
+      condition: { kind: "TRUE" },
+      thenSteps: [],
+      elseSteps: [],
+    } as const;
     const skill = skillOf({
       kind: "IMMEDIATE",
       targetBindings: [],
-      steps: [{ kind: "BRANCH", condition: { kind: "TRUE" }, thenSteps: [], elseSteps: [] }],
+      steps: [branchStep],
     });
 
-    expect(() => resolveSkillOrder(skill, actor, [actor], new Map())).toThrow(
-      DomainValidationError,
+    const plan = resolveSkillOrder(skill, actor, [actor], new Map());
+
+    expect(plan.steps).toEqual([
+      { planKind: "DEFERRED", stepIndex: 0, stepKind: "BRANCH", definition: branchStep },
+    ]);
+  });
+
+  it("UT-R-SKL-07-001: RANDOM_BRANCH and REPEAT steps also become DeferredStepPlan entries", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const randomBranchStep = {
+      kind: "RANDOM_BRANCH",
+      mode: "WEIGHTED_ONE",
+      branches: [{ weight: 1, steps: [] }],
+    } as const;
+    const repeatStep = { kind: "REPEAT", count: 2, steps: [] } as const;
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [randomBranchStep, repeatStep],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor], new Map());
+
+    expect(plan.steps).toEqual([
+      {
+        planKind: "DEFERRED",
+        stepIndex: 0,
+        stepKind: "RANDOM_BRANCH",
+        definition: randomBranchStep,
+      },
+      { planKind: "DEFERRED", stepIndex: 1, stepKind: "REPEAT", definition: repeatStep },
+    ]);
+  });
+
+  it("UT-R-SKL-08-007: an ACTION step whose condition references LAST_RESULT becomes a DeferredStepPlan", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const actionStep = {
+      kind: "ACTION",
+      condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+      target: { kind: "SELF" },
+      actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+    } as const;
+    const skill = skillOf({ kind: "IMMEDIATE", targetBindings: [], steps: [actionStep] });
+
+    const plan = resolveSkillOrder(
+      skill,
+      actor,
+      [actor],
+      new Map([[attack.effectActionDefinitionId, attack]]),
     );
+
+    expect(plan.steps).toEqual([
+      { planKind: "DEFERRED", stepIndex: 0, stepKind: "ACTION", definition: actionStep },
+    ]);
+  });
+
+  it("UT-R-SKL-08-008: an ACTION step targeting LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS becomes a DeferredStepPlan", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    for (const targetKind of ["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const) {
+      const actionStep = {
+        kind: "ACTION",
+        condition: { kind: "TRUE" },
+        target: { kind: targetKind },
+        actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+      } as const;
+      const skill = skillOf({ kind: "IMMEDIATE", targetBindings: [], steps: [actionStep] });
+
+      const plan = resolveSkillOrder(skill, actor, [actor], effectActions);
+
+      expect(plan.steps).toEqual([
+        { planKind: "DEFERRED", stepIndex: 0, stepKind: "ACTION", definition: actionStep },
+      ]);
+    }
+  });
+
+  it("UT-R-SKL-07-002: targetUnitIds includes structural SELF/BINDING candidates reachable inside deferred BRANCH/RANDOM_BRANCH/REPEAT subtrees, deduped in first-occurrence order", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const near = unit("NEAR", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const far = unit("FAR", "ENEMY", { column: "LEFT", row: "BACK" });
+    const attack = damageAction("ACT_ATTACK");
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const bindingTarget = {
+      kind: "BINDING",
+      targetBindingId: createTargetBindingId("TGT_1"),
+    } as const;
+    const actionOn = (target: typeof bindingTarget | { kind: "SELF" }) =>
+      ({
+        kind: "ACTION",
+        condition: { kind: "TRUE" },
+        target,
+        actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+      }) as const;
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [
+        {
+          kind: "BRANCH",
+          condition: { kind: "TRUE" },
+          thenSteps: [actionOn(bindingTarget)],
+          elseSteps: [actionOn({ kind: "SELF" })],
+        },
+        {
+          kind: "RANDOM_BRANCH",
+          mode: "INDEPENDENT",
+          branches: [{ probability: 1, steps: [actionOn(bindingTarget)] }],
+        },
+        { kind: "REPEAT", count: 2, steps: [actionOn({ kind: "SELF" })] },
+      ],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor, far, near], effectActions);
+
+    expect(plan.targetUnitIds).toEqual([near.battleUnitId, far.battleUnitId, actor.battleUnitId]);
   });
 
   it("UT-SKILL-RESOLUTION-SERVICE-002: throws for a CHARGE skill (charge behavior is out of scope for this basic SkillResolutionService)", () => {
@@ -462,17 +585,21 @@ describe("resolveSkillOrder", () => {
 
     expect(plan.steps).toEqual([
       {
+        planKind: "ACTION_PLAN",
         stepIndex: 0,
         stepKind: "ACTION",
         conditionKind: "NOT",
         satisfied: false,
+        actions: [{ effectActionDefinitionId: skipped.effectActionDefinitionId }],
         applications: [],
       },
       {
+        planKind: "ACTION_PLAN",
         stepIndex: 1,
         stepKind: "ACTION",
         conditionKind: "TRUE",
         satisfied: true,
+        actions: [{ effectActionDefinitionId: resolved.effectActionDefinitionId }],
         applications: [
           {
             targetBattleUnitId: enemy.battleUnitId,
@@ -522,7 +649,7 @@ describe("resolveSkillOrder", () => {
 
     const plan = resolveSkillOrder(skill, actor, [actor, defeatedEnemy], effectActions);
 
-    expect(plan.steps[0]?.applications).toEqual([
+    expect((plan.steps[0] as ActionStepPlan).applications).toEqual([
       {
         targetBattleUnitId: defeatedEnemy.battleUnitId,
         effectActionDefinitionId: attack.effectActionDefinitionId,

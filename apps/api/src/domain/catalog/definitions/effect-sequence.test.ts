@@ -651,4 +651,55 @@ describe("EffectSequence", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-SEQ-032 (PR #218 review [P2]): rejects a WEIGHTED_ONE RANDOM_BRANCH where every branch has weight: 0 (selectWeightedBranch would have no branch to choose)", () => {
+    expect(() =>
+      createEffectSequence(
+        {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "RANDOM_BRANCH",
+              mode: "WEIGHTED_ONE",
+              branches: [
+                { weight: 0, steps: [] },
+                { weight: 0, steps: [] },
+              ],
+            },
+          ],
+        },
+        "resolution",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SEQ-033 (PR #218 review [P2]): accepts a WEIGHTED_ONE RANDOM_BRANCH where only one of several branches has weight > 0", () => {
+    const result = createEffectSequence(
+      {
+        targetBindings: [],
+        steps: [
+          {
+            kind: "RANDOM_BRANCH",
+            mode: "WEIGHTED_ONE",
+            branches: [
+              { weight: 0, steps: [], label: "unreachable" },
+              { weight: 1, steps: [], label: "only" },
+            ],
+          },
+        ],
+      },
+      "resolution",
+    );
+
+    expect(result.steps).toEqual([
+      {
+        kind: "RANDOM_BRANCH",
+        mode: "WEIGHTED_ONE",
+        branches: [
+          { weight: 0, steps: [], label: "unreachable" },
+          { weight: 1, steps: [], label: "only" },
+        ],
+      },
+    ]);
+  });
 });
