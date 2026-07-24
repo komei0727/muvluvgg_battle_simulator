@@ -1643,6 +1643,66 @@ describe("applyEffectActionGroups", () => {
       expectCompleted(result, 1);
     });
 
+    it("UT-R-SKL-08-013 (PR #218 review [P2]): a zero-target ACTION step with multiple actions records the definition-order-last action as the synthetic SKIPPED last-result, not the first", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const firstAction = damageAction("ACT_FIRST");
+      const lastAction = damageAction("ACT_LAST");
+      const followUp = damageAction("ACT_FOLLOW_UP");
+      const effectActions = new Map([
+        [firstAction.effectActionDefinitionId, firstAction],
+        [lastAction.effectActionDefinitionId, lastAction],
+        [followUp.effectActionDefinitionId, followUp],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      // A follow-up that only applies when the synthesized last-result's
+      // effectActionDefinitionId is the definition-order-last action
+      // (`ACT_LAST`), not the first (`ACT_FIRST`).
+      const branch: EffectStepDefinition = {
+        kind: "BRANCH",
+        condition: {
+          kind: "LAST_RESULT",
+          field: "effectActionDefinitionId",
+          op: "EQ",
+          value: lastAction.effectActionDefinitionId,
+        },
+        thenSteps: [actionOn({ kind: "SELF" }, followUp.effectActionDefinitionId)],
+        elseSteps: [],
+      };
+      const plan: EffectSequencePlan = {
+        steps: [
+          {
+            planKind: "ACTION_PLAN",
+            stepIndex: 0,
+            stepKind: "ACTION",
+            conditionKind: "TRUE",
+            satisfied: true,
+            actions: [
+              { effectActionDefinitionId: firstAction.effectActionDefinitionId },
+              { effectActionDefinitionId: lastAction.effectActionDefinitionId },
+            ],
+            applications: [],
+          },
+          deferredStep(1, branch),
+        ],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      expect(
+        recorder
+          .getEvents()
+          .some(
+            (e) =>
+              e.eventType === "EffectActionStarting" &&
+              e.payload.effectActionDefinitionId === followUp.effectActionDefinitionId,
+          ),
+      ).toBe(true);
+      expectCompleted(result, 1);
+    });
+
     it("UT-R-SKL-08-012: a LAST_RESULT condition with no preceding EffectAction result throws a Catalog-authoring error (defensive; Catalog preflight should already reject this Catalog)", () => {
       const actor = unit("ACTOR", "ALLY");
       const { recorder, rootEventId } = seedRecorder();

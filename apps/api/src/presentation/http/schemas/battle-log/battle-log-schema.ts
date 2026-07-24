@@ -662,6 +662,17 @@ const passiveResolvedDetailsSchema = {
   },
 } as const;
 
+/**
+ * Issue #217設計方針C（案1、厳密値のみを公開）: `unresolvedEffectCount`は、
+ * 中断が起きた時点で実際に開いていたACTION適用一覧（同じstepの残りtarget・
+ * EffectAction）のうち未処理のまま残った件数の厳密値であり、静的な見積もりや
+ * 上限値ではない。まだ開始していないstep・branch・iterationは、その内容を
+ * 一切見積もらず常に0として扱う（`RANDOM_BRANCH`が選択・判定前に中断した場合を
+ * 含む）ため、`INTERRUPTED`かつこの値が0の組合せも正当。
+ */
+const UNRESOLVED_EFFECT_COUNT_DESCRIPTION =
+  "Exact count of target x EffectAction applications left unprocessed within the ACTION step that was actually open at the moment of interruption. Steps, branches, or REPEAT iterations not yet entered (including an unresolved RANDOM_BRANCH selection) always contribute 0 rather than an estimate, so INTERRUPTED with unresolvedEffectCount: 0 is a valid combination.";
+
 const passiveInterruptedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -670,7 +681,11 @@ const passiveInterruptedDetailsSchema = {
     actorUnitId: { type: "string" },
     skillDefinitionId: { type: "string" },
     reason: { type: "string", enum: ["OWNER_DEFEATED"] },
-    unresolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: {
+      type: "integer",
+      minimum: 0,
+      description: UNRESOLVED_EFFECT_COUNT_DESCRIPTION,
+    },
   },
 } as const;
 
@@ -689,7 +704,11 @@ const skillUseInterruptedDetailsSchema = {
     skillDefinitionId: { type: "string" },
     reason: { type: "string", enum: ["ACTOR_DEFEATED"] },
     resolvedEffectCount: { type: "integer", minimum: 0 },
-    unresolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: {
+      type: "integer",
+      minimum: 0,
+      description: UNRESOLVED_EFFECT_COUNT_DESCRIPTION,
+    },
   },
 } as const;
 

@@ -922,16 +922,21 @@ function* resolveActionStepBody(
   if (applications.length === 0) {
     // R-SKL-08 / Catalog preflight（`MISSING_PRECEDING_RESULT`）: 対象0件まで
     // 解決へ到達したACTIONも、仕様どおりSKIPPED結果を直前結果として記録する。
-    const first = actions[0];
+    // レビュー指摘[P2]（PR #218）: R-SKL-06 #4は対象ごとにactionsを定義順で
+    // 適用する（対象があれば最後に処理されるのは定義順で最後のaction）ため、
+    // 対象0件でも「代表結果」は定義順で最後のaction（`actions[0]`ではなく
+    // `actions[actions.length - 1]`）を採用し、対象がいた場合の処理順と
+    // 一貫させる。
+    const last = actions[actions.length - 1];
     const effectAction =
-      first !== undefined
-        ? context.definitions.effectActions.get(first.effectActionDefinitionId)
+      last !== undefined
+        ? context.definitions.effectActions.get(last.effectActionDefinitionId)
         : undefined;
-    if (first !== undefined && effectAction !== undefined) {
+    if (last !== undefined && effectAction !== undefined) {
       lastResultState.current = {
         resultKind: "SKIPPED",
         effectActionKind: effectAction.kind,
-        effectActionDefinitionId: first.effectActionDefinitionId,
+        effectActionDefinitionId: last.effectActionDefinitionId,
         targetUnitIds: [],
       };
     }
