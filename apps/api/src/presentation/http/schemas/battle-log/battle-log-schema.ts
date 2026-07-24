@@ -1025,9 +1025,8 @@ export const conditionDefinitionDetailsSchema = {
         op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
         value: { type: "number" },
         // `condition-definition.ts`: `assertInteger(input.modulo, ..., { min: 1 })`
-        // （PR #207再レビュー[P2]）。`TURN_NUMBER.modulo`は`assertFinite`のみで
-        // 整数・下限制約を持たないため、同じ`modulo`名でも`type: "number"`の
-        // ままにする（下のTURN_NUMBER variant）。
+        // （PR #207再レビュー[P2]）。`TURN_NUMBER.modulo`（下のvariant）もRES-004
+        // （Issue #171、PR #222再レビュー[P2]）で同じ制約へ揃えた。
         modulo: { type: "integer", minimum: 1 },
       },
     },
@@ -1039,7 +1038,9 @@ export const conditionDefinitionDetailsSchema = {
         kind: { const: "TURN_NUMBER" },
         op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
         value: { type: "number" },
-        modulo: { type: "number" },
+        // `condition-definition.ts`: `assertInteger(input.modulo, ..., { min: 1 })`
+        // （RES-004、Issue #171、PR #222再レビュー[P2]）。
+        modulo: { type: "integer", minimum: 1 },
       },
     },
     {
