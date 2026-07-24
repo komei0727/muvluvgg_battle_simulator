@@ -156,13 +156,15 @@
         "SKL_AOI_ELEGANT_EX",
         "SKL_LUCIE_MAID_AS1",
         "SKL_LUCIE_MAID_PS2",
-        "SKL_ROSIE_ARTIST_PS2"
+        "SKL_ROSIE_ARTIST_PS2",
+        "SKL_TATIANA_SAGE_EX"
       ],
       "testCaseIds": [
         "IT-CAP-EFFSTEP-001",
         "IT-CAP-EFFSTEP-002",
         "IT-CAP-EFFSTEP-003",
-        "IT-CAP-EFFSTEP-004"
+        "IT-CAP-EFFSTEP-004",
+        "IT-CAP-EFFSTEP-005"
       ]
     }
   },

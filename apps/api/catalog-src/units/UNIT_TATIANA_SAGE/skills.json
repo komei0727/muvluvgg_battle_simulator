@@ -30,6 +30,57 @@
               "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DAMAGE"
             }
           ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ENEMIES"
+            },
+            "markerId": "MARKER_TATIANA_SAGE_OMEN",
+            "countCondition": {
+              "op": "GTE",
+              "value": 2
+            }
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DEBUFF"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_MARKER",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ALL_ENEMIES"
+              },
+              "markerId": "MARKER_TATIANA_SAGE_OMEN",
+              "countCondition": {
+                "op": "GTE",
+                "value": 2
+              }
+            }
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_MARK"
+            }
+          ]
         }
       ]
     },
@@ -38,7 +89,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": {
       "displayName": "静かな時を",
       "tags": []

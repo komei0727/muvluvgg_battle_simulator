@@ -125,7 +125,7 @@
       "rowCount": 8,
       "taskId": "TGT-002"
     },
-    { "milestone": "M7", "theme": "AOE_PER_TARGET_CONDITION", "rowCount": 3, "taskId": "RES-004" },
+    { "milestone": "M7", "theme": "AOE_PER_TARGET_CONDITION", "rowCount": 2, "taskId": "RES-004" },
     { "milestone": "M7", "theme": "REMOVE_BUFF_CATEGORY", "rowCount": 5, "taskId": "M7-001" },
     {
       "milestone": "M7",
@@ -203,6 +203,12 @@
       "taskId": "M7-004"
     },
     { "milestone": "M7", "theme": "HEAL_KIND_UNIMPLEMENTED", "rowCount": 1, "taskId": "M7-005" },
+    {
+      "milestone": "M8",
+      "theme": "DAMAGE_MOD_KIND_UNIMPLEMENTED",
+      "rowCount": 1,
+      "taskId": "DMG-002"
+    },
     { "milestone": "M8", "theme": "HP_RATIO_SCALE_FORMULA", "rowCount": 7, "taskId": "DMG-002" },
     {
       "milestone": "M8",

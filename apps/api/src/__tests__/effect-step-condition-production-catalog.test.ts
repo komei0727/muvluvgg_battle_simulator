@@ -124,13 +124,13 @@ function allyUnit(
   };
 }
 
-function markerOf(unit: BattleUnit, markerIdValue: string): MarkerState {
+function markerOf(unit: BattleUnit, markerIdValue: string, stackCount = 1): MarkerState {
   return {
     markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
     markerId: createMarkerId(markerIdValue),
     sourceId: unit.battleUnitId,
     targetId: unit.battleUnitId,
-    stackCount: 1,
+    stackCount,
     stackMax: null,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
   };
@@ -564,5 +564,137 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
         "ACT_ROSIE_ARTIST_PS2_HEALING_UP",
       ),
     ).toEqual([energyAlly.battleUnitId]);
+  });
+
+  it("IT-CAP-EFFSTEP-005: SKL_TATIANA_SAGE_EX's real TARGET_HAS_MARKER(MARKER_TATIANA_SAGE_OMEN GTE 2)/NOT(...) complementary per-target conditions apply the dealt-damage-nullify debuff to targets with 2+ Omen stacks and grant an Omen stack to the rest", () => {
+    const unitId = "UNIT_TATIANA_SAGE";
+    const skillId = "SKL_TATIANA_SAGE_EX";
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot([unitId as never], []);
+    const skill = snapshot.skills.get(skillId as never)!;
+    expect(skill.requiredCapabilities).toEqual(
+      expect.arrayContaining(["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION"]),
+    );
+    const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
+    expect(
+      steps.find(
+        (s) =>
+          s.kind === "ACTION" &&
+          s.actions[0]?.effectActionDefinitionId === "ACT_TATIANA_SAGE_EX_DEBUFF",
+      ),
+    ).toMatchObject({
+      condition: {
+        kind: "TARGET_HAS_MARKER",
+        markerId: "MARKER_TATIANA_SAGE_OMEN",
+        countCondition: { op: "GTE", value: 2 },
+      },
+    });
+    expect(
+      steps.find(
+        (s) =>
+          s.kind === "ACTION" &&
+          s.actions[0]?.effectActionDefinitionId === "ACT_TATIANA_SAGE_EX_MARK",
+      ),
+    ).toMatchObject({
+      condition: {
+        kind: "NOT",
+        condition: {
+          kind: "TARGET_HAS_MARKER",
+          markerId: "MARKER_TATIANA_SAGE_OMEN",
+          countCondition: { op: "GTE", value: 2 },
+        },
+      },
+    });
+
+    const actor = allyUnit(unitId, unitId as never, { column: "LEFT", row: "FRONT" });
+    const noOmen = enemyUnit("enemy-no-omen", "UNIT_TEST_ENEMY" as never, {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    const belowThreshold = enemyUnit("enemy-below-threshold", "UNIT_TEST_ENEMY" as never, {
+      column: "LEFT",
+      row: "BACK",
+    });
+    const atThreshold = enemyUnit("enemy-at-threshold", "UNIT_TEST_ENEMY" as never, {
+      column: "RIGHT",
+      row: "FRONT",
+    });
+    const aboveThreshold = enemyUnit("enemy-above-threshold", "UNIT_TEST_ENEMY" as never, {
+      column: "RIGHT",
+      row: "BACK",
+    });
+    const withBelow = {
+      ...belowThreshold,
+      markerStates: [markerOf(belowThreshold, "MARKER_TATIANA_SAGE_OMEN", 1)],
+    };
+    const withAt = {
+      ...atThreshold,
+      markerStates: [markerOf(atThreshold, "MARKER_TATIANA_SAGE_OMEN", 2)],
+    };
+    const withAbove = {
+      ...aboveThreshold,
+      markerStates: [markerOf(aboveThreshold, "MARKER_TATIANA_SAGE_OMEN", 3)],
+    };
+    const allUnits = [actor, noOmen, withBelow, withAt, withAbove];
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: snapshot.effectActions,
+      unitDefinitions: new Map(),
+      skillDefinitions: new Map([[skillId as never, skill]]),
+    };
+    // `ACT_TATIANA_SAGE_EX_DEBUFF`（`APPLY_DAMAGE_MOD`）は`CAP_DAMAGE_MOD`
+    // （DMG-002/Issue #192、別Capability、PLANNEDのまま）が未実装で基本のturn
+    // action resolverが実行できないため、`resolveSkillOrder`が返す
+    // `EffectSequencePlan`（対象別条件を持つstepは常にDeferredへ回るため
+    // `applicationsFor`が実行時と同じ関数でフィルタ結果を再現する）を直接
+    // 検証する。`ACT_TATIANA_SAGE_EX_MARK`（`APPLY_MARKER`）と
+    // `ACT_TATIANA_SAGE_EX_DAMAGE`は同じ理由で揃えるため同じ経路で検証する。
+    const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions);
+
+    expect(
+      [
+        ...applicationsFor(
+          plan,
+          actor,
+          allUnits,
+          definitions.effectActions,
+          definitions.unitDefinitions,
+          "ACT_TATIANA_SAGE_EX_DEBUFF",
+        ),
+      ].sort(),
+    ).toEqual([withAt.battleUnitId, withAbove.battleUnitId].sort());
+    expect(
+      [
+        ...applicationsFor(
+          plan,
+          actor,
+          allUnits,
+          definitions.effectActions,
+          definitions.unitDefinitions,
+          "ACT_TATIANA_SAGE_EX_MARK",
+        ),
+      ].sort(),
+    ).toEqual([noOmen.battleUnitId, withBelow.battleUnitId].sort());
+    expect(
+      [
+        ...applicationsFor(
+          plan,
+          actor,
+          allUnits,
+          definitions.effectActions,
+          definitions.unitDefinitions,
+          "ACT_TATIANA_SAGE_EX_DAMAGE",
+        ),
+      ].sort(),
+    ).toEqual(
+      [
+        noOmen.battleUnitId,
+        withBelow.battleUnitId,
+        withAt.battleUnitId,
+        withAbove.battleUnitId,
+      ].sort(),
+    );
   });
 });
