@@ -31,14 +31,21 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `SKL_JULIE_SNOW_PS2`/`SKL_MAO_COMMITTEE_PS1` corrected from a misused
     // `LAST_ACTION_TARGETS` (no preceding EffectAction result in their own
     // EffectSequence, R-SKL-08) to `TRIGGER_TARGET` (the actually-intended
-    // "the AS/EX that triggered me" target, per raw/units/ design source;
-    // wiring itself remains RES-005/Issue #172 scope). Issue #170 (TGT-001):
+    // "the AS/EX that triggered me" target, per raw/units/ design source).
+    // RES-005 (Issue #172): `CAP_TRIGGER_CONTEXT` flipped to IMPLEMENTED once
+    // `TRIGGER_SOURCE`/`TRIGGER_TARGET` effect-target resolution
+    // (`skill-resolution-service.ts`/`target-selection-policy.ts`) and the
+    // `HitPointReduced` basic pipeline event wired the real lifecycle
+    // (`IT-CAP-TRIGGER-CONTEXT-PROD-001`, `SKL_SUIRAN_CHAOS_PS3`). Both of
+    // `SKL_JULIE_SNOW_PS2`/`SKL_MAO_COMMITTEE_PS1` still require other
+    // not-yet-implemented capabilities of their own before they fully
+    // activate. Issue #170 (TGT-001):
     // `CAP_TARGET_DERIVED_AREA` flipped to IMPLEMENTED once `TargetSelectorDefinition`
     // `kind: BINDING_DERIVED` (`base`: SELF/BINDING) and `area` (ADJACENT_ORTHOGONAL,
     // DIRECTLY_AHEAD_OF_BASE, BEHIND_BASE, SAME_ROW_AS_BASE, SAME_COLUMN_AS_BASE,
     // R-TGT-04/05) plus `order` FARTHEST (R-TGT-03) and FRONT_ROW/BACK_ROW (R-TGT-06)
     // wired the real lifecycle (`IT-CAP-TARGET-DERIVED-AREA-PROD-001`).
-    expect(catalog.catalogRevision).toBe("2026-07-24.2");
+    expect(catalog.catalogRevision).toBe("2026-07-24.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -92,6 +92,16 @@ export interface EffectActionGroupContext {
    * EffectActionは`FormulaEvaluator`が明確な例外で拒否する。
    */
   readonly lastDamageResults?: LastDamageResultRegistry;
+  /**
+   * CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因イベントの
+   * 発生源・対象。`TargetReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`（DEFERRED
+   * stepのJIT解決、`resolveRawStep`）と、`FormulaSourceReference.kind: TRIGGER_SOURCE`/
+   * `TRIGGER_TARGET`（`APPLY_STAT_MOD`等のFormula評価）の両方がこれを参照する。
+   * AS/EX使用や行動外トップレベルイベントから解決する場合は原因イベントが
+   * 存在しないため`undefined`のまま素通しする。
+   */
+  readonly triggerSourceUnit?: BattleUnit;
+  readonly triggerTargetUnits?: readonly BattleUnit[];
 }
 
 /**
@@ -485,6 +495,12 @@ function* resolveOneEffectActionApplication(
         ...(context.lastDamageResults !== undefined
           ? { lastDamageResults: context.lastDamageResults }
           : {}),
+        ...(context.triggerSourceUnit !== undefined
+          ? { triggerSourceUnit: context.triggerSourceUnit }
+          : {}),
+        ...(context.triggerTargetUnits !== undefined
+          ? { triggerTargetUnits: context.triggerTargetUnits }
+          : {}),
       },
     );
     box.units = damageResult.units;
@@ -537,11 +553,14 @@ function* resolveOneEffectActionApplication(
     // `damage-application-service.ts`が呼ぶ`duration-expiry-service.ts`）が
     // 完成したため、`CAP_STAT_MOD`は`capabilities.json`で`IMPLEMENTED`に
     // 変わっている — 期間付きStat Modifierも正しく失効・除去される。
-    // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`は
-    // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
-    // では用意できない。production CatalogのAPPLY_STAT_MOD FormulaはSKILL_SOURCE
-    // 参照のみを使うため、それらを要求するFormulaは`FormulaEvaluator`が明確な
-    // 例外で拒否する。`lastResults`（R-SKL-08、レビュー再指摘[P1] PR #214）は
+    // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
+    // `context.triggerSourceUnit`/`triggerTargetUnits`（`TRIGGER_TARGET`は
+    // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
+    // R-TGT-10と同じ規約）から配線する。`bindings`はこの呼び出し元では引き続き
+    // 用意できない。production CatalogのAPPLY_STAT_MOD Formulaは現時点で
+    // SKILL_SOURCE参照のみを使うため、`bindings`を要求するFormulaは
+    // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（R-SKL-08、
+    // レビュー再指摘[P1] PR #214）は
     // `context.lastDamageResults`（呼び出し側が1解決スコープごとに新規生成する
     // 共有registry、`damage-application-service.ts`と同じもの）から使用者自身の
     // 直前DAMAGE結果だけを取り出す（`SUM_*`は現時点で参照するproduction定義が
@@ -552,6 +571,12 @@ function* resolveOneEffectActionApplication(
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
       lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+      ...(context.triggerSourceUnit !== undefined
+        ? { triggerSource: context.triggerSourceUnit }
+        : {}),
+      ...(context.triggerTargetUnits?.[0] !== undefined
+        ? { triggerTarget: context.triggerTargetUnits[0] }
+        : {}),
     });
     const beforeGrantUnits = box.units;
     const grantResult = grantEffect(
@@ -1269,6 +1294,14 @@ function* resolveRawStep(
             requireUnit(box.units, context.actorId),
             context.definitions.effectActions,
             lastResultTargetsContext(lastResultState, box.units),
+            {
+              ...(context.triggerSourceUnit !== undefined
+                ? { triggerSourceUnit: context.triggerSourceUnit }
+                : {}),
+              ...(context.triggerTargetUnits !== undefined
+                ? { triggerTargetUnits: context.triggerTargetUnits }
+                : {}),
+            },
           )
         : [];
       return yield* resolveActionStepBody(

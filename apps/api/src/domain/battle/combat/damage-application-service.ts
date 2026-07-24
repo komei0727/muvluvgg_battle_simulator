@@ -129,6 +129,15 @@ export interface DamageEventContext {
    * 尊重する（`effect-action-group-resolver.ts`の非DAMAGE分岐と対になる契約）。
    */
   readonly includeDefeated?: boolean;
+  /**
+   * CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因イベントの
+   * 発生源・対象。`FormulaSourceReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`
+   * を持つDAMAGE Formulaの評価に使う。`TRIGGER_TARGET`は複数ユニットを指し
+   * うるが、Formula側は単一参照のため先頭の1体を使う（R-TGT-10と同じ規約）。
+   * 未指定ならこれらを要求するFormulaは`FormulaEvaluator`が明確な例外で拒否する。
+   */
+  readonly triggerSourceUnit?: BattleUnit;
+  readonly triggerTargetUnits?: readonly BattleUnit[];
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -404,14 +413,14 @@ export function applyDamageAction(
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
-      // R-NUM-04: `triggerSource`/`triggerTarget`/`bindings`は
-      // RES-005（Issue #172）が実ライフサイクルへ配線するまでこの呼び出し元
-      // では用意できない。production CatalogのDAMAGE Formulaは現時点で
-      // SKILL_SOURCE/TARGET参照のみを使うため、それらを要求するFormulaは
-      // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（R-SKL-08、
-      // レビュー再指摘[P1] PR #214）は`context.lastDamageResults`（呼び出し側が
-      // 1解決スコープごとに新規生成する共有registry）から、この攻撃者自身の
-      // 直前DAMAGE結果だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
+      // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
+      // `context.triggerSourceUnit`/`triggerTargetUnits`（`TRIGGER_TARGET`は
+      // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
+      // R-TGT-10と同じ規約）から配線する。`bindings`はこの呼び出し元では
+      // 引き続き用意できない。`lastResults`（R-SKL-08、レビュー再指摘[P1]
+      // PR #214）は`context.lastDamageResults`（呼び出し側が1解決スコープ
+      // ごとに新規生成する共有registry）から、この攻撃者自身の直前DAMAGE結果
+      // だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
       // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
       // Issue #174/#173） — 現時点で参照するproduction定義がないため。
       formulaContext: {
@@ -422,6 +431,12 @@ export function applyDamageAction(
           context.lastDamageResults,
           attackerAfterTiming.battleUnitId,
         ),
+        ...(context.triggerSourceUnit !== undefined
+          ? { triggerSource: context.triggerSourceUnit }
+          : {}),
+        ...(context.triggerTargetUnits?.[0] !== undefined
+          ? { triggerTarget: context.triggerTargetUnits[0] }
+          : {}),
       },
     });
 
@@ -477,8 +492,12 @@ export function applyDamageAction(
       damageResult.finalDamage,
     );
 
-    const damageApplied = context.recorder.record({
-      eventType: "DamageApplied",
+    // `08_ドメインイベント.md`「HitPointReduced」(RES-005、Issue #172): HPを
+    // 減らした後、R-DMG-05の並び上は`DamageCalculated`と`DamageApplied`の間に
+    // 発行する。HP変化のStateDeltaはここに持たせる — `DamageApplied`にも同じ
+    // deltaを付けると独立Reducer復元が同じ変化を二重適用してしまうため。
+    const hitPointReduced = context.recorder.record({
+      eventType: "HitPointReduced",
       category: "FACT",
       turnNumber: context.turnNumber,
       cycleNumber: context.cycleNumber,
@@ -493,14 +512,36 @@ export function applyDamageAction(
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
         targetUnitId: hit.targetBattleUnitId,
+        hitPointDamage: hpBefore - hpAfter,
+        hpBefore,
+        hpAfter,
+      },
+      stateDelta: {
+        units: { [targetAfterTiming.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+      },
+    });
+
+    const damageApplied = context.recorder.record({
+      eventType: "DamageApplied",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: hitPointReduced.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+        targetUnitId: hit.targetBattleUnitId,
         calculatedDamage: damageResult.finalDamage,
         hitPointDamage: hpBefore - hpAfter,
         hpBefore,
         hpAfter,
         defeated: isDefeated(updatedTarget),
-      },
-      stateDelta: {
-        units: { [targetAfterTiming.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
       },
     });
 
@@ -518,7 +559,7 @@ export function applyDamageAction(
     // 再発行してしまう。実際にこのヒットでHPが0へ遷移した場合
     // （`targetAfterTiming`が生存していた場合）だけ発行する。
     lastEventId = damageApplied.eventId;
-    const factEvents: BattleDomainEvent[] = [damageApplied];
+    const factEvents: BattleDomainEvent[] = [hitPointReduced, damageApplied];
     if (!isDefeated(targetAfterTiming) && isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",

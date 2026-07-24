@@ -19,6 +19,18 @@ export type ResolvedTargetBindings = ReadonlyMap<TargetBindingId, readonly Battl
 const EMPTY_RESOLVED_BINDINGS: ResolvedTargetBindings = new Map();
 
 /**
+ * R-TGT-09/CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: `selector.kind`または
+ * `BINDING_DERIVED.base`が参照する`TRIGGER_SOURCE`/`TRIGGER_TARGET`の解決先。
+ * 呼び出し側（`passive-activation-service.ts`）が候補検出に使った
+ * `TriggerCandidateEvent`の`sourceUnitId`/`targetUnitIds`を`BattleUnit`へ
+ * 解決してから渡す。`skill-resolution-service.ts`もこの同じ型を再利用する。
+ */
+export interface TriggerContext {
+  readonly triggerSourceUnit?: BattleUnit;
+  readonly triggerTargetUnits?: readonly BattleUnit[];
+}
+
+/**
  * `05_ドメインモデル.md`「TargetBinding / TargetSelector」: Catalogの`side`は使用者から見た相対陣営を表す。
  * `battle/skill`の`FormulaEvaluator`（`ALIVE_UNIT_COUNT_SCALE`、RES-001/Issue #175）も
  * 同じ相対陣営解決を再利用する（`no-restricted-imports`は`battle/skill`→`battle/targeting`
@@ -139,6 +151,7 @@ function resolveBase(
   selector: TargetSelectorDefinition,
   actor: BattleUnit,
   resolvedBindings: ResolvedTargetBindings,
+  triggerContext?: TriggerContext,
 ): BattleUnit | undefined {
   if (selector.kind !== "BINDING_DERIVED") {
     return actor;
@@ -157,6 +170,26 @@ function resolveBase(
       );
     }
     return units[0];
+  }
+  if (reference.kind === "TRIGGER_SOURCE") {
+    if (triggerContext?.triggerSourceUnit === undefined) {
+      throw new DomainValidationError(
+        "selector.base.kind",
+        'kind "TRIGGER_SOURCE" requires a triggerContext.triggerSourceUnit (CAP_TRIGGER_CONTEXT/RES-005)',
+      );
+    }
+    return triggerContext.triggerSourceUnit;
+  }
+  if (reference.kind === "TRIGGER_TARGET") {
+    if (triggerContext?.triggerTargetUnits === undefined) {
+      throw new DomainValidationError(
+        "selector.base.kind",
+        'kind "TRIGGER_TARGET" requires a triggerContext.triggerTargetUnits (CAP_TRIGGER_CONTEXT/RES-005)',
+      );
+    }
+    // R-TGT-10「先頭の1体を基準対象とする」と同じ規約: `TRIGGER_TARGET`が複数
+    // ユニットを指す場合も、areaの基準は先頭の1体とする。
+    return triggerContext.triggerTargetUnits[0];
   }
   throw new DomainValidationError(
     "selector.base.kind",
@@ -229,15 +262,40 @@ function applyArea(
  * R-TGT-09（`kind`→戦闘不能除外→`filters`→`area`→`order`→`count`→`fallback`の評価順、
  * `BINDING_DERIVED`の`base`解決）を実装する。`filters`（非空）と`fallback`は
  * TGT-002/TGT-003（`CAP_TARGET_FILTER_ORDER`/`CAP_TARGET_BINDING_FALLBACK`）の
- * スコープのため明示的に例外を投げる。`base`/`area`の`TRIGGER_SOURCE`/
- * `TRIGGER_TARGET`/`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`参照は
- * `CAP_TRIGGER_CONTEXT`（RES-005）のスコープのため同様に例外を投げる。
+ * スコープのため明示的に例外を投げる。`selector.kind`/`base`の`TRIGGER_SOURCE`/
+ * `TRIGGER_TARGET`は`triggerContext`（`CAP_TRIGGER_CONTEXT`、RES-005、Issue #172）
+ * から解決する。`base`の`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`参照は
+ * 引き続き未対応のため例外を投げる。
  */
+function resolveTriggerPool(
+  kind: "TRIGGER_SOURCE" | "TRIGGER_TARGET",
+  actor: BattleUnit,
+  selector: TargetSelectorDefinition,
+  triggerContext: TriggerContext | undefined,
+): readonly BattleUnit[] {
+  const units =
+    kind === "TRIGGER_SOURCE"
+      ? triggerContext?.triggerSourceUnit !== undefined
+        ? [triggerContext.triggerSourceUnit]
+        : undefined
+      : triggerContext?.triggerTargetUnits;
+  if (units === undefined) {
+    throw new DomainValidationError(
+      "selector.kind",
+      `kind "${kind}" requires a matching triggerContext (CAP_TRIGGER_CONTEXT/RES-005)`,
+    );
+  }
+  return selector.side === undefined
+    ? units
+    : units.filter((u) => matchesRelativeSide(u, actor, selector.side as SelectorSide));
+}
+
 export function resolveTargets(
   selector: TargetSelectorDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
+  triggerContext?: TriggerContext,
 ): readonly BattleUnit[] {
   assertNoFilters(selector);
   assertNoFallback(selector);
@@ -262,10 +320,8 @@ export function resolveTargets(
       break;
     case "TRIGGER_SOURCE":
     case "TRIGGER_TARGET":
-      throw new DomainValidationError(
-        "selector.kind",
-        `kind "${selector.kind}" is not supported by this TargetSelectionPolicy (M7 scope, see CAP_TRIGGER_CONTEXT/RES-005)`,
-      );
+      pool = resolveTriggerPool(selector.kind, actor, selector, triggerContext);
+      break;
   }
 
   // R-TGT-01 #2 / R-TGT-09 #2: 戦闘不能者を明示的に含める指定がない限り除く。
@@ -275,7 +331,7 @@ export function resolveTargets(
 
   // R-TGT-09 #4: areaが指定されている場合、baseを基準に候補を範囲で絞る。
   if (selector.area !== undefined) {
-    const base = resolveBase(selector, actor, resolvedBindings);
+    const base = resolveBase(selector, actor, resolvedBindings, triggerContext);
     pool = applyArea(selector.area, base, pool);
   }
 

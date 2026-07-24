@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 96
+      "incompleteConversionRows": 97
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 35,
-      "implemented": 7
+      "implemented": 8
     }
   },
   "tasks": [
@@ -138,7 +138,7 @@
     { "milestone": "M7", "theme": "TARGET_ORDER_MARKER_COUNT", "rowCount": 4, "taskId": "TGT-002" },
     { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
     { "milestone": "M7", "theme": "REMOVE_EFFECTS_COUNT_LIMIT", "rowCount": 3, "taskId": "M7-001" },
-    { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "RES-005" },
+    { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "M7-010" },
     {
       "milestone": "M7",
       "theme": "EFFECT_IMMUNITY_STATUS_GRANULARITY",
@@ -164,7 +164,7 @@
       "rowCount": 2,
       "taskId": "TGT-002"
     },
-    { "milestone": "M7", "theme": "TRIGGER_PAYLOAD_FILTER", "rowCount": 2, "taskId": "RES-005" },
+    { "milestone": "M7", "theme": "TRIGGER_PAYLOAD_FILTER", "rowCount": 2, "taskId": "M7-010" },
     {
       "milestone": "M7",
       "theme": "DYNAMIC_DURATION_ON_REAPPLY",
@@ -197,7 +197,13 @@
       "rowCount": 1,
       "taskId": "TGT-002"
     },
-    { "milestone": "M7", "theme": "TRIGGER_POSITION_RELATION", "rowCount": 1, "taskId": "RES-005" },
+    {
+      "milestone": "M7",
+      "theme": "APPLY_STATUS_KIND_UNIMPLEMENTED",
+      "rowCount": 1,
+      "taskId": "M7-004"
+    },
+    { "milestone": "M7", "theme": "HEAL_KIND_UNIMPLEMENTED", "rowCount": 1, "taskId": "M7-005" },
     { "milestone": "M8", "theme": "HP_RATIO_SCALE_FORMULA", "rowCount": 7, "taskId": "DMG-002" },
     {
       "milestone": "M8",

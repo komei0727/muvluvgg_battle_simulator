@@ -425,6 +425,28 @@ const damageCalculatedDetailsSchema = {
   },
 } as const;
 
+/** `HitPointReduced`（RES-005、Issue #172）。HPを減らした後、`DamageCalculated`と`DamageApplied`の間に発行する。 */
+const hitPointReducedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectActionDefinitionId",
+    "hitIndex",
+    "targetUnitId",
+    "hitPointDamage",
+    "hpBefore",
+    "hpAfter",
+  ],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+    hitPointDamage: { type: "integer", minimum: 0 },
+    hpBefore: { type: "integer", minimum: 0 },
+    hpAfter: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 const damageAppliedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1317,6 +1339,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   HIT_CONFIRMED: hitConfirmedDetailsSchema,
   CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
+  HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
   UNIT_DEFEATED: unitDefeatedDetailsSchema,
   ACTION_COMPLETING: actorEffectiveActionDetailsSchema,

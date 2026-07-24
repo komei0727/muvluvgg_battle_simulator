@@ -261,6 +261,42 @@ describe("applyDamageAction", () => {
     expect(updatedTarget.currentHp).toBe(80);
   });
 
+  it("UT-HP-REDUCED-001 (RES-005, Issue #172): a hit records a HitPointReduced FACT between DamageCalculated and DamageApplied, carrying the HP StateDelta (not duplicated onto DamageApplied)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    const events = context.recorder.getEvents();
+    const damageCalculated = events.find((e) => e.eventType === "DamageCalculated")!;
+    const hitPointReduced = events.find((e) => e.eventType === "HitPointReduced")!;
+    const damageApplied = events.find((e) => e.eventType === "DamageApplied")!;
+
+    expect(hitPointReduced.parentEventId).toBe(damageCalculated.eventId);
+    expect(damageApplied.parentEventId).toBe(hitPointReduced.eventId);
+    expect(hitPointReduced.payload).toEqual({
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK"),
+      hitIndex: 1,
+      targetUnitId: createBattleUnitId("TARGET"),
+      hitPointDamage: 20,
+      hpBefore: 100,
+      hpAfter: 80,
+    });
+    expect(hitPointReduced.stateDelta).toEqual({
+      units: { [createBattleUnitId("TARGET")]: { hp: { before: 100, after: 80 } } },
+    });
+    expect(damageApplied.stateDelta).toBeUndefined();
+  });
+
   it("UT-DAMAGE-APPLICATION-002: overkill damage clamps HP at 0 and defeats the target", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 999 });
     const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 50 });
@@ -577,13 +613,20 @@ describe("applyDamageAction", () => {
     expect(
       isDefeated(result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!),
     ).toBe(true);
-    // Both facts from this one lethal hit must reach the hook, in causal
+    // All facts from this one lethal hit must reach the hook, in causal
     // order, so a third party's DamageApplied-triggered PS (e.g. "when an
     // ally is damaged") is not silently skipped just because the hit also
     // happened to be lethal. `UnitBeingAttacked` (R-EFF-07, EFF-003) also
-    // reaches the hook, ahead of both — the target was determined attackable
-    // before hit judgment, damage calculation, or defeat.
-    expect(seenEventTypes).toEqual(["UnitBeingAttacked", "DamageApplied", "UnitDefeated"]);
+    // reaches the hook, ahead of all three — the target was determined
+    // attackable before hit judgment, damage calculation, or defeat.
+    // `HitPointReduced` (RES-005, Issue #172) reaches the hook right before
+    // `DamageApplied` — it's the fact of the HP change itself.
+    expect(seenEventTypes).toEqual([
+      "UnitBeingAttacked",
+      "HitPointReduced",
+      "DamageApplied",
+      "UnitDefeated",
+    ]);
   });
 
   it("UT-R-EFF-07-007 (R-EFF-07 NEXT_OUTGOING_ATTACK/OUTGOING_HIT): consumes the attacker's matching effects when a hit reaches judgment and is confirmed (not MISS)", () => {

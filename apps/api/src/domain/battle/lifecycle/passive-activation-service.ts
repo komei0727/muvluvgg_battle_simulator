@@ -16,6 +16,7 @@ import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
 import { expireEffects, type ExpirationSeed } from "../effects/duration-expiry-service.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
+import type { TriggerContext } from "../targeting/target-selection-policy.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { BattleUnit } from "../model/battle-unit.js";
@@ -1274,12 +1275,30 @@ export class PassiveActivationRuntime {
     // 加えた変更を`plan`の解決から見落とす）。
     const ownerAfterChainedActivations = requireUnit(this.units, ownerId);
 
+    // CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因
+    // イベント（`event`、候補検出に使ったもの）の発生源・対象を`BattleUnit`へ
+    // 解決する。`TargetReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`は
+    // これを参照する。AS/EX使用や行動外トップレベルイベントには存在しない
+    // フィールドのため、`event.sourceUnitId`/`targetUnitIds`が無ければ
+    // 対応するフィールドを持たないまま素通しする。
+    const triggerContext: TriggerContext = {
+      ...(event.sourceUnitId !== undefined
+        ? { triggerSourceUnit: requireUnit(this.units, event.sourceUnitId) }
+        : {}),
+      ...(event.targetUnitIds !== undefined
+        ? {
+            triggerTargetUnits: event.targetUnitIds.map((id) => requireUnit(this.units, id)),
+          }
+        : {}),
+    };
+
     // R-PS-05 #5: EffectSequenceをR-SKL-01〜08に従って解決する。
     const plan = resolveSkillOrder(
       skill,
       ownerAfterChainedActivations,
       this.units,
       this.context.definitions.effectActions,
+      triggerContext,
     );
     // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
     // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
@@ -1312,6 +1331,7 @@ export class PassiveActivationRuntime {
       parentEventId: lastEventId,
       skillDefinitionId: skill.skillDefinitionId,
       lastDamageResults: this.lastDamageResults,
+      ...triggerContext,
     };
     // EFF-006/Issue #212: このPS自身のEffectSequence解決を開始する前に登録する
     // （`SkillUseStarting`相当のTIMINGはPSには無いため、`resolveEffectSequencePlan`

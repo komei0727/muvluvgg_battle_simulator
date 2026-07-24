@@ -25,6 +25,7 @@ import { detectPassiveCandidates } from "../domain/battle/triggering/passive-tri
 import { createEmptyPassiveActivationGuard } from "../domain/battle/triggering/passive-activation-guard.js";
 import type { TriggerCandidateEvent } from "../domain/battle/triggering/trigger-event.js";
 import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { PassiveActivationRuntime } from "../domain/battle/lifecycle/passive-activation-service.js";
 
 /**
  * Issue #144 follow-up (docs/ddd/15_Unit_Memory変換台帳.md 該当行):
@@ -32,19 +33,22 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * 発行するが、実ライフサイクル経由で候補検出（trigger一致）を確認する統合
  * テストがまだ無かった。
  *
- * 完全な発動・実効果解決までは検証しない: `SKL_SUIRAN_CHAOS_PS3`のEffectSequence
- * step は `target: { kind: "TRIGGER_TARGET" }` / `{ kind: "TRIGGER_SOURCE" }` を
- * 参照するが、`skill-resolution-service.ts`の基本実装（M6/M7スコープ）は
- * `SELF`/`BINDING`しか解決できず、これらのkindは未対応のため例外を送出する
- * （このIssueとは独立したギャップ）。そのため、ここでは`detectPassiveCandidates`
- * （R-PS-01候補抽出）だけを、Battle Engineが実際に発行する`SkillUseStarting`
- * （本Issueで`skillType`欠落を修正した実データ）と、real production `catalog/`
- * から読み込んだ未改変のSuiranの`UnitDefinition`/`SkillDefinition`で検証する。
+ * RES-005（Issue #172）: `SKL_SUIRAN_CHAOS_PS3`のEffectSequence stepが参照する
+ * `target: { kind: "TRIGGER_TARGET" }` / `{ kind: "TRIGGER_SOURCE" }` を
+ * `skill-resolution-service.ts`/`target-selection-policy.ts`が解決できるように
+ * なったため、2つ目のテスト（IT-CAP-TRIGGER-CONTEXT-PROD-001）で候補検出から
+ * PS発動・EffectSequence解決・ダメージ/APPLY_STAT_MOD適用までの完全な経路を
+ * 実際のSuiran production Catalog定義（未改変）で検証する。PS1
+ * （`APPLY_STATUS`、Issue #183）・PS2（`HEAL`、Issue #184）は、この経路とは
+ * 独立に未実装のEffectActionDefinition kindへ依存するため、完全な発動までは
+ * このIssueのスコープ外のまま — 台帳の該当行を参照。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
 
 const SUIRAN_UNIT_ID = "UNIT_SUIRAN_CHAOS";
+const SUIRAN_PS1_ID = "SKL_SUIRAN_CHAOS_PS1";
+const SUIRAN_PS2_ID = "SKL_SUIRAN_CHAOS_PS2";
 const SUIRAN_PS3_ID = "SKL_SUIRAN_CHAOS_PS3";
 
 const ATTACKER_UNIT_ID = "UNIT_TEST_PS3_ATTACKER";
@@ -276,5 +280,385 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     );
     expect(ps3Candidate).toBeDefined();
     expect(ps3Candidate!.unit.battleUnitId).toBe(suiran.battleUnitId);
+  });
+
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-001 (RES-005, Issue #172): PassiveActivationRuntime fully activates SKL_SUIRAN_CHAOS_PS3 from a real SkillUseStarting event — TRIGGER_TARGET resolves to the real attacker's real enemy target (DAMAGE + speed-down), TRIGGER_SOURCE resolves to the real attacker (crit-up), using unmodified production Catalog definitions", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+
+    // `createBattleUnit` always starts PP at 0 (only `startBattle`'s
+    // READY→RUNNING resource recovery grants any) — since this test drives
+    // `PassiveActivationRuntime` directly rather than a full battle, Suiran
+    // needs enough PP for PS3's cost (2) set explicitly, same as
+    // `passive-activation-service.test.ts`'s own `unit()` helper does.
+    const suiran = {
+      ...createBattleUnit(
+        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
+        "ALLY",
+        LIMITS,
+      ),
+      currentPp: LIMITS.maximumPp,
+    };
+    const attacker = createBattleUnit(
+      member("ally:attacker", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
+      "ALLY",
+      LIMITS,
+    );
+    const enemy = createBattleUnit(
+      member("enemy:1", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
+      "ENEMY",
+      LIMITS,
+    );
+
+    const unitDefinitions = new Map(snapshot.units);
+    unitDefinitions.set(
+      createUnitDefinitionId(ATTACKER_UNIT_ID),
+      testUnitDefinition(ATTACKER_UNIT_ID, 20),
+    );
+    unitDefinitions.set(
+      createUnitDefinitionId(ENEMY_UNIT_ID),
+      testUnitDefinition(ENEMY_UNIT_ID, 5),
+    );
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: snapshot.effectActions,
+      unitDefinitions,
+      skillDefinitions: snapshot.skills,
+    };
+
+    // Build the exact `SkillUseStarting` event `action-skill-use-resolver.ts`
+    // emits for an AS use (same envelope proven for real by Step 1 of the
+    // preceding test), driving `PassiveActivationRuntime` directly — this is
+    // the same production candidate-detection + activation path
+    // `resolvePassiveChain`/`battle.ts` use, without needing Suiran to also
+    // take her own turn (her AS1/EX use unrelated `EffectActionDefinition`
+    // kinds not yet implemented, see Issue #183/#184 — orthogonal to RES-005).
+    const recorder = new EventRecorder(createBattleId("B_2"));
+    const resolutionScopeId = recorder.nextResolutionScopeId();
+    const actionId = recorder.nextActionId();
+    const actionStarted = recorder.record({
+      eventType: "ActionStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId,
+      resolutionScopeId,
+      payload: {
+        actorUnitId: attacker.battleUnitId,
+        reservedActionType: "AS",
+        effectiveActionType: "AS",
+        apBefore: 1,
+        apAfter: 0,
+        exBefore: 0,
+        exAfter: 0,
+      },
+    });
+    const skillUseStarting = recorder.record({
+      eventType: "SkillUseStarting",
+      category: "TIMING",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId,
+      resolutionScopeId,
+      parentEventId: actionStarted.eventId,
+      rootEventId: actionStarted.eventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [enemy.battleUnitId],
+      payload: {
+        skillDefinitionId: createSkillDefinitionId(ATTACKER_AS_ID),
+        skillType: "AS",
+        actorUnitId: attacker.battleUnitId,
+        targetUnitIds: [enemy.battleUnitId],
+        costResource: "AP",
+        costAmount: 1,
+      },
+    });
+
+    const runtime = new PassiveActivationRuntime(
+      {
+        definitions,
+        // DAMAGE_ADD's critical.mode built from the production Catalog
+        // resolves via a RandomSource draw (R-CRT-01); a high value avoids a
+        // critical roll without affecting which units get targeted.
+        random: new SequenceRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]),
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId,
+        rootEventId: actionStarted.eventId,
+        actionId,
+      },
+      [suiran, attacker, enemy],
+    );
+
+    const updatedUnits = runtime.onFactEvent(skillUseStarting, [suiran, attacker, enemy]);
+
+    const events = recorder.getEvents();
+    const passiveActivated = events.find(
+      (e) =>
+        e.eventType === "PassiveActivated" &&
+        (e.payload as { skillDefinitionId: string }).skillDefinitionId === SUIRAN_PS3_ID,
+    );
+    expect(passiveActivated).toBeDefined();
+
+    // ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD (target: TRIGGER_TARGET) actually
+    // damaged the enemy the attacker's AS targeted, not Suiran or the
+    // attacker.
+    const damageApplied = events.find(
+      (e) => e.eventType === "DamageApplied" && e.targetUnitIds?.includes(enemy.battleUnitId),
+    );
+    expect(damageApplied).toBeDefined();
+
+    // ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN (target: TRIGGER_TARGET) applied to the
+    // same enemy.
+    const speedDownApplied = events.find(
+      (e) =>
+        e.eventType === "EffectApplied" &&
+        (e.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+          "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN" &&
+        e.targetUnitIds?.includes(enemy.battleUnitId),
+    );
+    expect(speedDownApplied).toBeDefined();
+
+    // ACT_SUIRAN_CHAOS_PS3_CRIT_UP (target: TRIGGER_SOURCE) applied to the
+    // attacker instead — proving TRIGGER_SOURCE and TRIGGER_TARGET resolve to
+    // different, correct real units within the same EffectSequence.
+    const critUpApplied = events.find(
+      (e) =>
+        e.eventType === "EffectApplied" &&
+        (e.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+          "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
+    );
+    expect(critUpApplied).toBeDefined();
+    expect(critUpApplied!.targetUnitIds).toEqual([attacker.battleUnitId]);
+
+    const passiveResolved = events.find(
+      (e) =>
+        e.eventType === "PassiveResolved" &&
+        (e.payload as { skillDefinitionId: string }).skillDefinitionId === SUIRAN_PS3_ID,
+    );
+    expect(passiveResolved).toBeDefined();
+
+    const updatedEnemy = updatedUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(updatedEnemy.currentHp).toBeLessThan(enemy.currentHp);
+  });
+
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-002 (RES-005, Issue #172): SKL_SUIRAN_CHAOS_PS1 is detected and activates through the real UnitBeingAttacked event, then fails on the separately-unimplemented APPLY_STATUS kind (Issue #183) — not on TRIGGER_TARGET resolution, proving RES-005's part of this row is fixed", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+
+    const suiran = {
+      ...createBattleUnit(
+        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
+        "ALLY",
+        LIMITS,
+      ),
+      currentPp: LIMITS.maximumPp,
+    };
+    // PS1's trigger is `UnitBeingAttacked` with `sourceSelector: "ENEMY"`,
+    // `targetSelector: "ALLY"`: an enemy attacks an ally positioned in front
+    // of Suiran.
+    const attackedAlly = createBattleUnit(
+      member("ally:attacked", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
+      "ALLY",
+      LIMITS,
+    );
+    const enemyAttacker = createBattleUnit(
+      member("enemy:attacker", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
+      "ENEMY",
+      LIMITS,
+    );
+    const unitDefinitions = new Map(snapshot.units);
+    unitDefinitions.set(
+      createUnitDefinitionId(ATTACKER_UNIT_ID),
+      testUnitDefinition(ATTACKER_UNIT_ID, 20),
+    );
+    unitDefinitions.set(
+      createUnitDefinitionId(ENEMY_UNIT_ID),
+      testUnitDefinition(ENEMY_UNIT_ID, 5),
+    );
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: snapshot.effectActions,
+      unitDefinitions,
+      skillDefinitions: snapshot.skills,
+    };
+
+    const recorder = new EventRecorder(createBattleId("B_3"));
+    const resolutionScopeId = recorder.nextResolutionScopeId();
+    const actionId = recorder.nextActionId();
+    const actionStarted = recorder.record({
+      eventType: "ActionStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId,
+      resolutionScopeId,
+      payload: {
+        actorUnitId: enemyAttacker.battleUnitId,
+        reservedActionType: "AS",
+        effectiveActionType: "AS",
+        apBefore: 1,
+        apAfter: 0,
+        exBefore: 0,
+        exAfter: 0,
+      },
+    });
+    const unitBeingAttacked = recorder.record({
+      eventType: "UnitBeingAttacked",
+      category: "TIMING",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId,
+      resolutionScopeId,
+      parentEventId: actionStarted.eventId,
+      rootEventId: actionStarted.eventId,
+      sourceUnitId: enemyAttacker.battleUnitId,
+      targetUnitIds: [attackedAlly.battleUnitId],
+      payload: {
+        skillDefinitionId: createSkillDefinitionId(ATTACKER_AS_ID),
+        effectActionDefinitionId: createEffectActionDefinitionId(ATTACKER_EFFECT_ID),
+        hitIndex: 1,
+        targetUnitId: attackedAlly.battleUnitId,
+      },
+    });
+
+    const runtime = new PassiveActivationRuntime(
+      {
+        definitions,
+        random: new SequenceRandomSource([]),
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId,
+        rootEventId: actionStarted.eventId,
+        actionId,
+      },
+      [suiran, attackedAlly, enemyAttacker],
+    );
+
+    expect(() =>
+      runtime.onFactEvent(unitBeingAttacked, [suiran, attackedAlly, enemyAttacker]),
+    ).toThrowError(/EffectAction kind other than .* is not supported/);
+
+    // Candidate detection + activation genuinely started (PP was consumed) —
+    // the throw comes from the unimplemented EffectAction kind, not from a
+    // TRIGGER_TARGET resolution failure or a missed candidate.
+    const passiveActivated = recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId === SUIRAN_PS1_ID,
+      );
+    expect(passiveActivated).toBeDefined();
+  });
+
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the real HitPointReduced event, then fails on the separately-unimplemented HEAL kind (Issue #184) — not on TRIGGER_TARGET resolution", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+
+    const suiran = {
+      ...createBattleUnit(
+        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
+        "ALLY",
+        LIMITS,
+      ),
+      currentPp: LIMITS.maximumPp,
+    };
+    // PS2's trigger is `HitPointReduced` with `sourceSelector: "ALLY"`,
+    // `targetSelector: "ALLY"`, condition requires the target's HP_RATIO<=0.5
+    // and the target positioned in front of Suiran.
+    const woundedAlly = {
+      ...createBattleUnit(
+        member("ally:wounded", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
+        "ALLY",
+        LIMITS,
+      ),
+      currentHp: 40,
+    };
+    const unitDefinitions = new Map(snapshot.units);
+    unitDefinitions.set(
+      createUnitDefinitionId(ATTACKER_UNIT_ID),
+      testUnitDefinition(ATTACKER_UNIT_ID, 20),
+    );
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: snapshot.effectActions,
+      unitDefinitions,
+      skillDefinitions: snapshot.skills,
+    };
+
+    const recorder = new EventRecorder(createBattleId("B_4"));
+    const resolutionScopeId = recorder.nextResolutionScopeId();
+    const actionId = recorder.nextActionId();
+    const actionStarted = recorder.record({
+      eventType: "ActionStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId,
+      resolutionScopeId,
+      payload: {
+        actorUnitId: woundedAlly.battleUnitId,
+        reservedActionType: "AS",
+        effectiveActionType: "AS",
+        apBefore: 1,
+        apAfter: 0,
+        exBefore: 0,
+        exAfter: 0,
+      },
+    });
+    const hitPointReduced = recorder.record({
+      eventType: "HitPointReduced",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId,
+      resolutionScopeId,
+      parentEventId: actionStarted.eventId,
+      rootEventId: actionStarted.eventId,
+      sourceUnitId: woundedAlly.battleUnitId,
+      targetUnitIds: [woundedAlly.battleUnitId],
+      payload: {
+        effectActionDefinitionId: createEffectActionDefinitionId(ATTACKER_EFFECT_ID),
+        hitIndex: 1,
+        targetUnitId: woundedAlly.battleUnitId,
+        hitPointDamage: 60,
+        hpBefore: 100,
+        hpAfter: 40,
+      },
+    });
+
+    const runtime = new PassiveActivationRuntime(
+      {
+        definitions,
+        random: new SequenceRandomSource([]),
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId,
+        rootEventId: actionStarted.eventId,
+        actionId,
+      },
+      [suiran, woundedAlly],
+    );
+
+    expect(() => runtime.onFactEvent(hitPointReduced, [suiran, woundedAlly])).toThrowError(
+      /EffectAction kind other than .* is not supported/,
+    );
+
+    const passiveActivated = recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId === SUIRAN_PS2_ID,
+      );
+    expect(passiveActivated).toBeDefined();
   });
 });

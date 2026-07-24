@@ -499,12 +499,22 @@
   {
     "capabilityId": "CAP_TRIGGER_CONTEXT",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-005",
     "description": "TRIGGER_SOURCE / TRIGGER_TARGETと基本Damage事実イベント",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": ["SKL_SUIRAN_CHAOS_PS3"],
+      "testCaseIds": [
+        "IT-CAP-TRIGGER-CONTEXT-PROD-001",
+        "UT-CAP-TRIGGER-CONTEXT-001",
+        "UT-CAP-TRIGGER-CONTEXT-002",
+        "UT-CAP-TRIGGER-CONTEXT-003",
+        "UT-CAP-TRIGGER-CONTEXT-004",
+        "UT-CAP-TRIGGER-CONTEXT-005",
+        "UT-CAP-TRIGGER-CONTEXT-006",
+        "UT-CAP-TRIGGER-CONTEXT-007",
+        "UT-CAP-TRIGGER-CONTEXT-008"
+      ]
     }
   }
 ]
