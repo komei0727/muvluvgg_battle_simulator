@@ -686,6 +686,72 @@ describe("applyEffectActionGroups", () => {
     expect(grantedTarget.appliedEffects[0]).toMatchObject({ magnitude: 10 });
   });
 
+  it("UT-CAP-TRIGGER-CONTEXT-009 (RES-005 review finding [P2]): a TRIGGER_TARGET Formula reads the unit's CURRENT state at evaluation time, not a stale snapshot from when the PS activated", () => {
+    const actor = unit("ACTOR", "ALLY");
+    // `defense: 0` so `SKILL_POWER power: 1` damage equals the attacker's
+    // attack (20) exactly, with no rounding ambiguity.
+    const triggerTarget = unit("TRIGGER_TARGET_UNIT", "ENEMY", {
+      combatStats: {
+        maximumHp: 100,
+        attack: 20,
+        defense: 0,
+        criticalRate: 0,
+        actionSpeed: 10,
+        criticalDamageBonus: 0.5,
+        affinityBonus: 0,
+      },
+    });
+    const attack = damageAction("ACT_ATTACK");
+    // Reads `TRIGGER_TARGET`'s CURRENT_HP_RATIO (ratio 1 => just currentHp) —
+    // if the step below evaluates this using a `BattleUnit` snapshot resolved
+    // once when the PS activated (before the DAMAGE step reduced its HP),
+    // this reads the pre-damage 100. If it correctly re-resolves the current
+    // `box.units` state at Formula-evaluation time, it reads the post-damage
+    // 80 (100 - 20 attack, 0 defense).
+    const hpRatioStatMod: EffectActionDefinition = {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_HP_RATIO_BUFF"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TRIGGER_TARGET" }, ratio: 1 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "TURN", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([
+      [attack.effectActionDefinitionId, attack],
+      [hpRatioStatMod.effectActionDefinitionId, hpRatioStatMod],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context: EffectActionGroupContext = {
+      ...contextFor(actor, effectActions, recorder, rootEventId),
+      triggerTargetUnitIds: [triggerTarget.battleUnitId],
+    };
+    const plan: EffectSequencePlan = {
+      steps: [
+        // Step 0: DAMAGE reduces triggerTarget's HP from 100 to 80.
+        singleActionStep(0, true, triggerTarget.battleUnitId, attack.effectActionDefinitionId),
+        // Step 1: APPLY_STAT_MOD on the actor, magnitude = triggerTarget's
+        // CURRENT HP (post-step-0) via TRIGGER_TARGET.
+        singleActionStep(1, true, actor.battleUnitId, hpRatioStatMod.effectActionDefinitionId),
+      ],
+      targetUnitIds: [triggerTarget.battleUnitId, actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, triggerTarget], context);
+
+    const updatedActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updatedActor.appliedEffects[0]).toMatchObject({ magnitude: 80 });
+  });
+
   it("UT-R-EFF-07-013 (レビュー再々指摘[P1]、PR #209、実Catalog ACT_MERU_FLATSPIN_PS1_ATK_UP相当): a NEXT_OUTGOING_ATTACK-consumed ATTACK buff still boosts the damage of the very attack that consumes it, then is actually removed afterward", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");

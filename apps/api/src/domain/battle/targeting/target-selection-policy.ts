@@ -1,6 +1,7 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { frontDirectionStep, manhattanDistance } from "./position-policy.js";
 import type { Side } from "../../shared/side.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side as SelectorSide } from "../../catalog/definitions/catalog-enums.js";
 import type {
   AreaDefinition,
@@ -22,12 +23,16 @@ const EMPTY_RESOLVED_BINDINGS: ResolvedTargetBindings = new Map();
  * R-TGT-09/CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: `selector.kind`または
  * `BINDING_DERIVED.base`が参照する`TRIGGER_SOURCE`/`TRIGGER_TARGET`の解決先。
  * 呼び出し側（`passive-activation-service.ts`）が候補検出に使った
- * `TriggerCandidateEvent`の`sourceUnitId`/`targetUnitIds`を`BattleUnit`へ
- * 解決してから渡す。`skill-resolution-service.ts`もこの同じ型を再利用する。
+ * `TriggerCandidateEvent`の`sourceUnitId`/`targetUnitIds`をそのまま渡す
+ * （PRレビュー指摘[P2]: `BattleUnit`をここで解決・保持すると、先行する
+ * EffectActionや子PS連鎖が対象のHP・combatStatsを変更した後でも古いスナップ
+ * ショットを読み続けてしまう。IDだけを保持し、実際に`BattleUnit`が必要な
+ * 各呼び出し元が、その時点の最新`allUnits`/`box.units`/`working`から都度
+ * 解決し直す）。`skill-resolution-service.ts`もこの同じ型を再利用する。
  */
 export interface TriggerContext {
-  readonly triggerSourceUnit?: BattleUnit;
-  readonly triggerTargetUnits?: readonly BattleUnit[];
+  readonly triggerSourceUnitId?: BattleUnitId;
+  readonly triggerTargetUnitIds?: readonly BattleUnitId[];
 }
 
 /**
@@ -147,9 +152,14 @@ function compareByOrder(orderKeys: readonly TargetOrderKey[], actor: BattleUnit)
  * 常に使用者(`actor`)を暗黙のbaseとする（`UT-CAT-TSEL-007`: `kind: SELF`と
  * `area: SAME_ROW_AS_BASE`のような組み合わせもCatalog上は許容されるため）。
  */
+function findUnit(allUnits: readonly BattleUnit[], id: BattleUnitId): BattleUnit | undefined {
+  return allUnits.find((candidate) => candidate.battleUnitId === id);
+}
+
 function resolveBase(
   selector: TargetSelectorDefinition,
   actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
   resolvedBindings: ResolvedTargetBindings,
   triggerContext?: TriggerContext,
 ): BattleUnit | undefined {
@@ -172,24 +182,30 @@ function resolveBase(
     return units[0];
   }
   if (reference.kind === "TRIGGER_SOURCE") {
-    if (triggerContext?.triggerSourceUnit === undefined) {
+    const unit =
+      triggerContext?.triggerSourceUnitId !== undefined
+        ? findUnit(allUnits, triggerContext.triggerSourceUnitId)
+        : undefined;
+    if (unit === undefined) {
       throw new DomainValidationError(
         "selector.base.kind",
-        'kind "TRIGGER_SOURCE" requires a triggerContext.triggerSourceUnit (CAP_TRIGGER_CONTEXT/RES-005)',
+        'kind "TRIGGER_SOURCE" requires a triggerContext.triggerSourceUnitId resolvable in allUnits (CAP_TRIGGER_CONTEXT/RES-005)',
       );
     }
-    return triggerContext.triggerSourceUnit;
+    return unit;
   }
   if (reference.kind === "TRIGGER_TARGET") {
-    if (triggerContext?.triggerTargetUnits === undefined) {
-      throw new DomainValidationError(
-        "selector.base.kind",
-        'kind "TRIGGER_TARGET" requires a triggerContext.triggerTargetUnits (CAP_TRIGGER_CONTEXT/RES-005)',
-      );
-    }
     // R-TGT-10「先頭の1体を基準対象とする」と同じ規約: `TRIGGER_TARGET`が複数
     // ユニットを指す場合も、areaの基準は先頭の1体とする。
-    return triggerContext.triggerTargetUnits[0];
+    const firstId = triggerContext?.triggerTargetUnitIds?.[0];
+    const unit = firstId !== undefined ? findUnit(allUnits, firstId) : undefined;
+    if (unit === undefined) {
+      throw new DomainValidationError(
+        "selector.base.kind",
+        'kind "TRIGGER_TARGET" requires a triggerContext.triggerTargetUnitIds resolvable in allUnits (CAP_TRIGGER_CONTEXT/RES-005)',
+      );
+    }
+    return unit;
   }
   throw new DomainValidationError(
     "selector.base.kind",
@@ -271,20 +287,31 @@ function resolveTriggerPool(
   kind: "TRIGGER_SOURCE" | "TRIGGER_TARGET",
   actor: BattleUnit,
   selector: TargetSelectorDefinition,
+  allUnits: readonly BattleUnit[],
   triggerContext: TriggerContext | undefined,
 ): readonly BattleUnit[] {
-  const units =
+  const ids =
     kind === "TRIGGER_SOURCE"
-      ? triggerContext?.triggerSourceUnit !== undefined
-        ? [triggerContext.triggerSourceUnit]
+      ? triggerContext?.triggerSourceUnitId !== undefined
+        ? [triggerContext.triggerSourceUnitId]
         : undefined
-      : triggerContext?.triggerTargetUnits;
-  if (units === undefined) {
+      : triggerContext?.triggerTargetUnitIds;
+  if (ids === undefined) {
     throw new DomainValidationError(
       "selector.kind",
       `kind "${kind}" requires a matching triggerContext (CAP_TRIGGER_CONTEXT/RES-005)`,
     );
   }
+  const units = ids.map((id) => {
+    const unit = findUnit(allUnits, id);
+    if (unit === undefined) {
+      throw new DomainValidationError(
+        "selector.kind",
+        `kind "${kind}" referenced battleUnitId "${id}" that is not present in allUnits`,
+      );
+    }
+    return unit;
+  });
   return selector.side === undefined
     ? units
     : units.filter((u) => matchesRelativeSide(u, actor, selector.side as SelectorSide));
@@ -320,7 +347,7 @@ export function resolveTargets(
       break;
     case "TRIGGER_SOURCE":
     case "TRIGGER_TARGET":
-      pool = resolveTriggerPool(selector.kind, actor, selector, triggerContext);
+      pool = resolveTriggerPool(selector.kind, actor, selector, allUnits, triggerContext);
       break;
   }
 
@@ -331,7 +358,7 @@ export function resolveTargets(
 
   // R-TGT-09 #4: areaが指定されている場合、baseを基準に候補を範囲で絞る。
   if (selector.area !== undefined) {
-    const base = resolveBase(selector, actor, resolvedBindings, triggerContext);
+    const base = resolveBase(selector, actor, allUnits, resolvedBindings, triggerContext);
     pool = applyArea(selector.area, base, pool);
   }
 

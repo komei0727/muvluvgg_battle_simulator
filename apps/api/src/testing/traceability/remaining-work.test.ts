@@ -657,7 +657,12 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(manifest.current.capabilities.implemented).toBeGreaterThanOrEqual(
       manifest.baseline.capabilities.implemented,
     );
-  });
+    // PRレビュー指摘: このテストは`collectTestCaseDefinitions`でリポジトリ内の
+    // 全`.test.ts`ファイルへTypeScript Compiler APIを個別実行するため、テスト数の
+    // 増加とともに実行時間が伸び、CI（GitHub Actionsのランナーはローカンより低速）
+    // ではデフォルトの5000msタイムアウトを超えて失敗した。ロジックの不具合では
+    // なくテストの重さそのものが原因のため、専用のタイムアウトを設定する。
+  }, 30000);
 
   it("UT-PLAN-001-006: preserves an internally coherent historical baseline", () => {
     const { baseline } = readManifest();

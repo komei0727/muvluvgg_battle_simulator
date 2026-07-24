@@ -112,10 +112,20 @@ export interface EffectSequencePlan {
   readonly resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>;
 }
 
+/**
+ * PRレビュー指摘[P2]: `triggerContext`はBattleUnitIdだけを持つ（stale
+ * snapshot回避のため）。`allUnits`（呼び出し時点の最新roster）から都度
+ * 引き直す。
+ */
+function findUnitById(allUnits: readonly BattleUnit[], id: BattleUnitId): BattleUnit | undefined {
+  return allUnits.find((candidate) => candidate.battleUnitId === id);
+}
+
 export function resolveReference(
   reference: TargetReference,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
   lastResultTargets?: LastResultTargetContext,
   triggerContext?: TriggerContext,
 ): ResolvedBinding {
@@ -123,22 +133,36 @@ export function resolveReference(
     return { units: [actor], includeDefeated: false };
   }
   if (reference.kind === "TRIGGER_SOURCE") {
-    if (triggerContext?.triggerSourceUnit === undefined) {
+    const unit =
+      triggerContext?.triggerSourceUnitId !== undefined
+        ? findUnitById(allUnits, triggerContext.triggerSourceUnitId)
+        : undefined;
+    if (unit === undefined) {
       throw new DomainValidationError(
         "target.kind",
-        'kind "TRIGGER_SOURCE" requires a triggerContext.triggerSourceUnit (only available when a trigger event caused this resolution, RES-005/CAP_TRIGGER_CONTEXT)',
+        'kind "TRIGGER_SOURCE" requires a triggerContext.triggerSourceUnitId resolvable in allUnits (only available when a trigger event caused this resolution, RES-005/CAP_TRIGGER_CONTEXT)',
       );
     }
-    return { units: [triggerContext.triggerSourceUnit], includeDefeated: false };
+    return { units: [unit], includeDefeated: false };
   }
   if (reference.kind === "TRIGGER_TARGET") {
-    if (triggerContext?.triggerTargetUnits === undefined) {
+    if (triggerContext?.triggerTargetUnitIds === undefined) {
       throw new DomainValidationError(
         "target.kind",
-        'kind "TRIGGER_TARGET" requires a triggerContext.triggerTargetUnits (only available when a trigger event caused this resolution, RES-005/CAP_TRIGGER_CONTEXT)',
+        'kind "TRIGGER_TARGET" requires a triggerContext.triggerTargetUnitIds (only available when a trigger event caused this resolution, RES-005/CAP_TRIGGER_CONTEXT)',
       );
     }
-    return { units: triggerContext.triggerTargetUnits, includeDefeated: false };
+    const units = triggerContext.triggerTargetUnitIds.map((id) => {
+      const unit = findUnitById(allUnits, id);
+      if (unit === undefined) {
+        throw new DomainValidationError(
+          "target.kind",
+          `kind "TRIGGER_TARGET" referenced battleUnitId "${id}" that is not present in allUnits`,
+        );
+      }
+      return unit;
+    });
+    return { units, includeDefeated: false };
   }
   if (reference.kind === "BINDING") {
     const resolved = resolvedBindings.get(reference.targetBindingId as TargetBindingId);
@@ -205,6 +229,7 @@ export function resolveActionStepApplications(
   step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
   actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   lastResultTargets?: LastResultTargetContext,
   triggerContext?: TriggerContext,
@@ -213,6 +238,7 @@ export function resolveActionStepApplications(
     step.target,
     resolvedBindings,
     actor,
+    allUnits,
     lastResultTargets,
     triggerContext,
   );
@@ -415,6 +441,7 @@ function resolveEffectSequence(
       step,
       resolvedBindings,
       actor,
+      allUnits,
       effectActions,
       undefined,
       triggerContext,

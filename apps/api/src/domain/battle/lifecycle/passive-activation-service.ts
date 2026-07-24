@@ -1276,20 +1276,18 @@ export class PassiveActivationRuntime {
     const ownerAfterChainedActivations = requireUnit(this.units, ownerId);
 
     // CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因
-    // イベント（`event`、候補検出に使ったもの）の発生源・対象を`BattleUnit`へ
-    // 解決する。`TargetReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`は
-    // これを参照する。AS/EX使用や行動外トップレベルイベントには存在しない
-    // フィールドのため、`event.sourceUnitId`/`targetUnitIds`が無ければ
-    // 対応するフィールドを持たないまま素通しする。
+    // イベント（`event`、候補検出に使ったもの）の発生源・対象。
+    // `TargetReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`はこれを参照する。
+    // AS/EX使用や行動外トップレベルイベントには存在しないフィールドのため、
+    // `event.sourceUnitId`/`targetUnitIds`が無ければ対応するフィールドを
+    // 持たないまま素通しする。PRレビュー指摘[P2]: ここでは`BattleUnit`へ解決
+    // せずIDのまま保持する — 先行するEffectActionや子PS連鎖が対象のHP・
+    // combatStatsを変更した後も、実際に参照する各時点（`resolveReference`の
+    // JIT解決、Formula評価、DAMAGE解決）で最新の`box.units`/`working`から
+    // 都度引き直させるため。
     const triggerContext: TriggerContext = {
-      ...(event.sourceUnitId !== undefined
-        ? { triggerSourceUnit: requireUnit(this.units, event.sourceUnitId) }
-        : {}),
-      ...(event.targetUnitIds !== undefined
-        ? {
-            triggerTargetUnits: event.targetUnitIds.map((id) => requireUnit(this.units, id)),
-          }
-        : {}),
+      ...(event.sourceUnitId !== undefined ? { triggerSourceUnitId: event.sourceUnitId } : {}),
+      ...(event.targetUnitIds !== undefined ? { triggerTargetUnitIds: event.targetUnitIds } : {}),
     };
 
     // R-PS-05 #5: EffectSequenceをR-SKL-01〜08に従って解決する。

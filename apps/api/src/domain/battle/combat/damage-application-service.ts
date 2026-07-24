@@ -131,13 +131,18 @@ export interface DamageEventContext {
   readonly includeDefeated?: boolean;
   /**
    * CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因イベントの
-   * 発生源・対象。`FormulaSourceReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`
-   * を持つDAMAGE Formulaの評価に使う。`TRIGGER_TARGET`は複数ユニットを指し
-   * うるが、Formula側は単一参照のため先頭の1体を使う（R-TGT-10と同じ規約）。
-   * 未指定ならこれらを要求するFormulaは`FormulaEvaluator`が明確な例外で拒否する。
+   * 発生源・対象の`BattleUnitId`。`FormulaSourceReference.kind: TRIGGER_SOURCE`/
+   * `TRIGGER_TARGET`を持つDAMAGE Formulaの評価に使う。`TRIGGER_TARGET`は複数
+   * ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う（R-TGT-10
+   * と同じ規約）。未指定ならこれらを要求するFormulaは`FormulaEvaluator`が
+   * 明確な例外で拒否する。
+   *
+   * PRレビュー指摘[P2]: `BattleUnit`ではなくIDを保持する — ヒットごとの
+   * ループで先行するヒットが対象のHP・combatStatsを変更しうるため、Formula
+   * 評価の直前に`working`（このヒット時点の最新状態）から都度引き直す。
    */
-  readonly triggerSourceUnit?: BattleUnit;
-  readonly triggerTargetUnits?: readonly BattleUnit[];
+  readonly triggerSourceUnitId?: BattleUnitId;
+  readonly triggerTargetUnitIds?: readonly BattleUnitId[];
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -414,7 +419,7 @@ export function applyDamageAction(
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
       // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
-      // `context.triggerSourceUnit`/`triggerTargetUnits`（`TRIGGER_TARGET`は
+      // `context.triggerSourceUnitId`/`triggerTargetUnitIds`（`TRIGGER_TARGET`は
       // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
       // R-TGT-10と同じ規約）から配線する。`bindings`はこの呼び出し元では
       // 引き続き用意できない。`lastResults`（R-SKL-08、レビュー再指摘[P1]
@@ -423,6 +428,8 @@ export function applyDamageAction(
       // だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
       // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
       // Issue #174/#173） — 現時点で参照するproduction定義がないため。
+      // PRレビュー指摘[P2]: IDから`working`（このヒット時点の最新状態、
+      // 先行するヒットやPS連鎖による変更を反映済み）へ都度引き直す。
       formulaContext: {
         skillSource: attackerAfterTiming,
         target: targetAfterTiming,
@@ -431,11 +438,23 @@ export function applyDamageAction(
           context.lastDamageResults,
           attackerAfterTiming.battleUnitId,
         ),
-        ...(context.triggerSourceUnit !== undefined
-          ? { triggerSource: context.triggerSourceUnit }
+        ...(context.triggerSourceUnitId !== undefined
+          ? {
+              triggerSource: findUnit(
+                working,
+                context.triggerSourceUnitId,
+                "context.triggerSourceUnitId",
+              ),
+            }
           : {}),
-        ...(context.triggerTargetUnits?.[0] !== undefined
-          ? { triggerTarget: context.triggerTargetUnits[0] }
+        ...(context.triggerTargetUnitIds?.[0] !== undefined
+          ? {
+              triggerTarget: findUnit(
+                working,
+                context.triggerTargetUnitIds[0],
+                "context.triggerTargetUnitIds[0]",
+              ),
+            }
           : {}),
       },
     });

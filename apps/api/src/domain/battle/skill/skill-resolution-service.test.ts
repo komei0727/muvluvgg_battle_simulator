@@ -721,7 +721,7 @@ describe("resolveSkillOrder", () => {
       });
 
       const plan = resolveSkillOrder(skill, actor, [actor, triggerTarget], effectActions, {
-        triggerTargetUnits: [triggerTarget],
+        triggerTargetUnitIds: [triggerTarget.battleUnitId],
       });
 
       expect(flattenEffectSequencePlan(plan)).toEqual([
@@ -752,7 +752,7 @@ describe("resolveSkillOrder", () => {
       });
 
       const plan = resolveSkillOrder(skill, actor, [actor, triggerSource], effectActions, {
-        triggerSourceUnit: triggerSource,
+        triggerSourceUnitId: triggerSource.battleUnitId,
       });
 
       expect(flattenEffectSequencePlan(plan)).toEqual([

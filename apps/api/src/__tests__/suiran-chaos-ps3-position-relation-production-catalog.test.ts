@@ -26,6 +26,7 @@ import { createEmptyPassiveActivationGuard } from "../domain/battle/triggering/p
 import type { TriggerCandidateEvent } from "../domain/battle/triggering/trigger-event.js";
 import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { PassiveActivationRuntime } from "../domain/battle/lifecycle/passive-activation-service.js";
+import { applyDamageAction } from "../domain/battle/combat/damage-application-service.js";
 
 /**
  * Issue #144 follow-up (docs/ddd/15_Unit_Memory変換台帳.md 該当行):
@@ -159,7 +160,7 @@ function attackerSkill(): SkillDefinition {
   };
 }
 
-function attackerEffectAction(): EffectActionDefinition {
+function attackerEffectAction(): Extract<EffectActionDefinition, { kind: "DAMAGE" }> {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ATTACKER_EFFECT_ID),
@@ -557,7 +558,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     expect(passiveActivated).toBeDefined();
   });
 
-  it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the real HitPointReduced event, then fails on the separately-unimplemented HEAL kind (Issue #184) — not on TRIGGER_TARGET resolution", () => {
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172; PR #220 review finding [P2]): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the REAL HitPointReduced event applyDamageAction emits for a genuine enemy attack, then fails on the separately-unimplemented HEAL kind (Issue #184) — not on TRIGGER_TARGET resolution", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
 
@@ -569,21 +570,45 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       ),
       currentPp: LIMITS.maximumPp,
     };
-    // PS2's trigger is `HitPointReduced` with `sourceSelector: "ALLY"`,
-    // `targetSelector: "ALLY"`, condition requires the target's HP_RATIO<=0.5
-    // and the target positioned in front of Suiran.
+    // PS2's trigger is `HitPointReduced` with `sourceSelector: "ENEMY"`,
+    // `targetSelector: "ALLY"` (PR #220 review [P2]: corrected from "ALLY" —
+    // the real Damage pipeline always sets `HitPointReduced.sourceUnitId` to
+    // the attacker, so a `sourceSelector: "ALLY"` could never match a normal
+    // enemy attack; see catalog-src/units/UNIT_SUIRAN_CHAOS/skills.json).
+    // The condition additionally requires the target's HP_RATIO<=0.5 and the
+    // target positioned in front of Suiran. `woundedAlly.combatStats.maximumHp`
+    // is lowered so a single real hit from `enemyAttacker` (attack 50 -
+    // defense 10 = 40 damage) crosses the 50% threshold.
     const woundedAlly = {
       ...createBattleUnit(
         member("ally:wounded", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
         "ALLY",
         LIMITS,
       ),
-      currentHp: 40,
+      combatStats: {
+        maximumHp: 60,
+        attack: 50,
+        defense: 10,
+        criticalRate: 0,
+        actionSpeed: 10,
+        criticalDamageBonus: 0.5,
+        affinityBonus: 0.25,
+      },
+      currentHp: 60,
     };
+    const enemyAttacker = createBattleUnit(
+      member("enemy:attacker", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
+      "ENEMY",
+      LIMITS,
+    );
     const unitDefinitions = new Map(snapshot.units);
     unitDefinitions.set(
       createUnitDefinitionId(ATTACKER_UNIT_ID),
       testUnitDefinition(ATTACKER_UNIT_ID, 20),
+    );
+    unitDefinitions.set(
+      createUnitDefinitionId(ENEMY_UNIT_ID),
+      testUnitDefinition(ENEMY_UNIT_ID, 5),
     );
     const definitions: BattleDefinitions = {
       activeSkillsByUnit: new Map(),
@@ -593,6 +618,10 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       skillDefinitions: snapshot.skills,
     };
 
+    // Step 1: drive the REAL `applyDamageAction` (the actual production
+    // Damage pipeline, not a hand-authored stand-in) so the `HitPointReduced`
+    // event fed into the PS runtime below is byte-for-byte what a real enemy
+    // attack produces — including `sourceUnitId` being the attacker.
     const recorder = new EventRecorder(createBattleId("B_4"));
     const resolutionScopeId = recorder.nextResolutionScopeId();
     const actionId = recorder.nextActionId();
@@ -604,7 +633,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       actionId,
       resolutionScopeId,
       payload: {
-        actorUnitId: woundedAlly.battleUnitId,
+        actorUnitId: enemyAttacker.battleUnitId,
         reservedActionType: "AS",
         effectiveActionType: "AS",
         apBefore: 1,
@@ -613,27 +642,43 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
         exAfter: 0,
       },
     });
-    const hitPointReduced = recorder.record({
-      eventType: "HitPointReduced",
-      category: "FACT",
-      turnNumber: 1,
-      cycleNumber: 1,
-      actionId,
-      resolutionScopeId,
-      parentEventId: actionStarted.eventId,
-      rootEventId: actionStarted.eventId,
-      sourceUnitId: woundedAlly.battleUnitId,
-      targetUnitIds: [woundedAlly.battleUnitId],
-      payload: {
-        effectActionDefinitionId: createEffectActionDefinitionId(ATTACKER_EFFECT_ID),
-        hitIndex: 1,
-        targetUnitId: woundedAlly.battleUnitId,
-        hitPointDamage: 60,
-        hpBefore: 100,
-        hpAfter: 40,
+    const attackEffectAction = attackerEffectAction();
+    const damageResult = applyDamageAction(
+      enemyAttacker,
+      [
+        {
+          targetBattleUnitId: woundedAlly.battleUnitId,
+          effectActionDefinitionId: attackEffectAction.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ],
+      attackEffectAction,
+      [enemyAttacker, woundedAlly],
+      new SequenceRandomSource([]),
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId,
+        skillUseId: recorder.nextSkillUseId(),
+        resolutionScopeId,
+        rootEventId: actionStarted.eventId,
+        parentEventId: actionStarted.eventId,
+        skillDefinitionId: createSkillDefinitionId(ATTACKER_AS_ID),
       },
-    });
+    );
+    const updatedWoundedAlly = damageResult.units.find(
+      (u) => u.battleUnitId === woundedAlly.battleUnitId,
+    )!;
+    // Sanity-check the real pipeline actually produced the intended state
+    // before trusting it to drive candidate detection below.
+    expect(updatedWoundedAlly.currentHp).toBe(20);
 
+    const hitPointReduced = recorder.getEvents().find((e) => e.eventType === "HitPointReduced")!;
+    expect(hitPointReduced.sourceUnitId).toBe(enemyAttacker.battleUnitId);
+
+    // Step 2: feed that REAL emitted event into the PS runtime, together with
+    // Suiran's REAL, unmodified `UnitDefinition`/`SkillDefinition`.
     const runtime = new PassiveActivationRuntime(
       {
         definitions,
@@ -645,12 +690,12 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
         rootEventId: actionStarted.eventId,
         actionId,
       },
-      [suiran, woundedAlly],
+      [suiran, updatedWoundedAlly, enemyAttacker],
     );
 
-    expect(() => runtime.onFactEvent(hitPointReduced, [suiran, woundedAlly])).toThrowError(
-      /EffectAction kind other than .* is not supported/,
-    );
+    expect(() =>
+      runtime.onFactEvent(hitPointReduced, [suiran, updatedWoundedAlly, enemyAttacker]),
+    ).toThrowError(/EffectAction kind other than .* is not supported/);
 
     const passiveActivated = recorder
       .getEvents()

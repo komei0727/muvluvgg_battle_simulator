@@ -740,7 +740,7 @@ describe("resolveTargets", () => {
         actor,
         [actor, triggerTarget, rowMate, other],
         undefined,
-        { triggerTargetUnits: [triggerTarget] },
+        { triggerTargetUnitIds: [triggerTarget.battleUnitId] },
       );
 
       expect(targets.map((t) => t.battleUnitId).sort()).toEqual(
@@ -768,7 +768,7 @@ describe("resolveTargets", () => {
         actor,
         [actor, triggerSource, adjacent],
         undefined,
-        { triggerSourceUnit: triggerSource },
+        { triggerSourceUnitId: triggerSource.battleUnitId },
       );
 
       expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ADJ")]);
@@ -792,7 +792,7 @@ describe("resolveTargets", () => {
         actor,
         [actor, enemyTarget, allyTarget],
         undefined,
-        { triggerTargetUnits: [enemyTarget, allyTarget] },
+        { triggerTargetUnitIds: [enemyTarget.battleUnitId, allyTarget.battleUnitId] },
       );
 
       expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ENEMY_TARGET")]);
@@ -810,7 +810,7 @@ describe("resolveTargets", () => {
       };
 
       const targets = resolveTargets(selectorDef, actor, [actor, triggerSource], undefined, {
-        triggerSourceUnit: triggerSource,
+        triggerSourceUnitId: triggerSource.battleUnitId,
       });
 
       expect(targets.map((t) => t.battleUnitId)).toEqual([

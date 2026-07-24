@@ -121,7 +121,7 @@
       {
         "eventType": "HitPointReduced",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "ENEMY",
         "targetSelector": "ALLY",
         "condition": {
           "kind": "AND",
