@@ -303,7 +303,7 @@
         {
           "kind": "ACTION",
           "target": {
-            "kind": "LAST_ACTION_TARGETS"
+            "kind": "TRIGGER_TARGET"
           },
           "actions": [
             {
@@ -321,7 +321,7 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL", "CAP_RESOLUTION_BRANCH_REPEAT"],
+    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_HEAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "防寒はバッチリ！",
       "tags": []

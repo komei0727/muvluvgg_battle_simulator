@@ -165,7 +165,7 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "LAST_ACTION_TARGETS" },
+          "target": { "kind": "TRIGGER_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS1_DAMAGE" }]
         },
         {
@@ -177,11 +177,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_SKILL_RUNTIME_COUNTER"
-    ],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {

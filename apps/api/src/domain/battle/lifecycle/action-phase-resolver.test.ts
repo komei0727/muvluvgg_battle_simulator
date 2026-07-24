@@ -2210,10 +2210,12 @@ describe("resolveActionPhase", () => {
     expect(interrupted.payload).toMatchObject({
       skillDefinitionId: skill.skillDefinitionId,
       reason: "ACTOR_DEFEATED",
-      // PR #141 re-review [P2]: exact counts, not an approximation — the
-      // self-damage hit resolved, the enemy hit never got the chance to.
+      // Issue #217 design point D2: unresolvedEffectCount is the exact
+      // remainder of the currently-open ACTION step only (the self-damage
+      // step resolved). The second top-level step was never entered, so it
+      // contributes 0, not an estimate of its own hit count.
       resolvedEffectCount: 1,
-      unresolvedEffectCount: 1,
+      unresolvedEffectCount: 0,
     });
   });
 
@@ -2394,9 +2396,12 @@ describe("resolveActionPhase", () => {
     expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(true);
     expect(events.some((e) => e.eventType === "SkillUseCompleted")).toBe(false);
     const interrupted = events.find((e) => e.eventType === "SkillUseInterrupted")!;
+    // Issue #217 design point D2: unresolvedEffectCount is the exact
+    // remainder of the currently-open ACTION step only. The second top-level
+    // step (COOLDOWN_MANIPULATION) was never entered, so it contributes 0.
     expect(interrupted.payload).toMatchObject({
       resolvedEffectCount: 1,
-      unresolvedEffectCount: 1,
+      unresolvedEffectCount: 0,
     });
   });
 });

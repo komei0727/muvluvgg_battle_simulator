@@ -35,7 +35,10 @@ import type {
   ConditionKind,
 } from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
-import type { EffectStepDefinition } from "../../catalog/definitions/effect-sequence.js";
+import type {
+  EffectStepDefinition,
+  RandomBranchMode,
+} from "../../catalog/definitions/effect-sequence.js";
 
 /**
  * `08_ドメインイベント.md`「イベントの分類」。M3〜M5はFACT/TIMINGだけを使い、
@@ -170,7 +173,7 @@ export interface BattleDomainEventPayloadMap {
     readonly resolvedStepCount: number;
     readonly targetUnitIds: readonly BattleUnitId[];
   };
-  /** R-SKL-06 #1〜#2: ACTION stepのcondition評価前（`08_ドメインイベント.md`「EffectStepStarting」）。BRANCH/RANDOM_BRANCH/REPEATはM7スコープのため`stepKind`は常に"ACTION"。 */
+  /** R-SKL-01/06/07 #1〜#2: stepのcondition評価前（`08_ドメインイベント.md`「EffectStepStarting」）。`RANDOM_BRANCH`/`REPEAT`は自身のconditionを持たないため`conditionKind`は常に"TRUE"。 */
   readonly EffectStepStarting: {
     readonly stepIndex: number;
     readonly stepKind: EffectStepDefinition["kind"];
@@ -186,6 +189,18 @@ export interface BattleDomainEventPayloadMap {
   readonly EffectStepCompleted: {
     readonly stepIndex: number;
     readonly resolvedActionCount: number;
+  };
+  /**
+   * R-SKL-07（RES-003、Issue #173/#217）: `RANDOM_BRANCH`の分岐決定後
+   * （`08_ドメインイベント.md`「RandomBranchSelected」）。`FACT`イベントとして
+   * PS/Memory即時連鎖の契機になり得る。`WEIGHTED_ONE`は必ず1件、
+   * `INDEPENDENT`は成立したbranchごとに1件ずつ発行する。
+   */
+  readonly RandomBranchSelected: {
+    readonly stepIndex: number;
+    readonly mode: RandomBranchMode;
+    readonly branchIndex: number;
+    readonly label?: string;
   };
   /** R-SKL-06 #4: 対象へEffectAction適用前（`08_ドメインイベント.md`「EffectActionStarting」）。PS/Memory連鎖による対象生存の再検証はこの直前に行う。 */
   readonly EffectActionStarting: {
@@ -360,14 +375,23 @@ export interface BattleDomainEventPayloadMap {
     readonly skillDefinitionId: SkillDefinitionId;
     readonly resolvedStepCount: number;
   };
-  /** R-SKL-01: PS所有者が解決中に戦闘不能になり中断した時。 */
+  /**
+   * R-SKL-01: PS所有者が解決中に戦闘不能になり中断した時。Issue #217設計方針
+   * B/C: `PassiveResolved`/`PassiveInterrupted`の選択は、実際に解決が最後まで
+   * 進んだか使用者戦闘不能で打ち切ったかという事実だけから決まり、
+   * `unresolvedEffectCount`の値からは導出しない。`unresolvedEffectCount`は
+   * 中断時点で実際に開いていたACTION適用一覧（同じstepの残りtarget・
+   * EffectAction）のうち未処理のまま残った件数の厳密値であり、まだ開始して
+   * いないstep・branch・iterationは常に0として扱う（静的な見積もりを行わない
+   * ため、`INTERRUPTED`かつこの値が0の組合せも正当）。
+   */
   readonly PassiveInterrupted: {
     readonly actorUnitId: BattleUnitId;
     readonly skillDefinitionId: SkillDefinitionId;
     readonly reason: "OWNER_DEFEATED";
     readonly unresolvedEffectCount: number;
   };
-  /** R-SKL-01: AS/EX使用者が解決中に戦闘不能になり中断した時。 */
+  /** R-SKL-01: AS/EX使用者が解決中に戦闘不能になり中断した時。`unresolvedEffectCount`の契約は`PassiveInterrupted`と同じ（Issue #217設計方針B/C）。 */
   readonly SkillUseInterrupted: {
     readonly actorUnitId: BattleUnitId;
     readonly skillDefinitionId: SkillDefinitionId;

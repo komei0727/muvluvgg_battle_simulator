@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 109,
-      "completed": 58,
-      "remaining": 51
+      "completed": 60,
+      "remaining": 49
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -104,7 +104,6 @@
     },
     { "taskId": "TGT-004", "ruleIds": ["R-TGT-08"] },
     { "taskId": "TGT-003", "ruleIds": ["R-TGT-10"] },
-    { "taskId": "RES-003", "ruleIds": ["R-SKL-07", "R-SKL-08"] },
     {
       "taskId": "M7-006",
       "ruleIds": ["R-MEM-01", "R-MEM-02", "R-MEM-03", "R-MEM-04"]

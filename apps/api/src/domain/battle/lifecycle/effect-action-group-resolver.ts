@@ -15,10 +15,20 @@ import {
 } from "../effects/duration-expiry-service.js";
 import { consumeEffectDurations } from "../model/applied-effect-duration.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
-import type {
-  EffectActionApplication,
-  EffectSequencePlan,
+import {
+  resolveActionStepApplications,
+  type EffectActionApplication,
+  type EffectSequencePlan,
+  type LastResultTargetContext,
 } from "../skill/skill-resolution-service.js";
+import { evaluateEffectStepCondition } from "../skill/effect-step-condition-evaluator.js";
+import { selectWeightedBranch } from "../skill/random-branch-selection.js";
+import type { LastEffectActionResult } from "../skill/last-effect-action-result.js";
+import type {
+  EffectActionReference,
+  EffectStepDefinition,
+} from "../../catalog/definitions/effect-sequence.js";
+import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type {
   ActionId,
   DomainEventId,
@@ -84,17 +94,39 @@ export interface EffectActionGroupContext {
   readonly lastDamageResults?: LastDamageResultRegistry;
 }
 
+/**
+ * Issue #217設計方針B: resolverの終了状態を判別可能unionにする。`COMPLETED`/
+ * `INTERRUPTED`は、実際に解決が最後まで進んだか、使用者戦闘不能で解決を
+ * 打ち切ったかという事実だけから決まり、`unresolvedEffectCount`の値からは
+ * 決して導出しない（`INTERRUPTED`かつ`unresolvedEffectCount: 0`の組合せを
+ * 正当な結果として許容する — 例えば`EffectStepStarting`自身が誘発した
+ * PS/Memory連鎖で使用者が戦闘不能になり、そのstepのACTIONが1件も開始
+ * されなかった場合）。
+ */
+export type EffectSequenceOutcome =
+  | {
+      readonly status: "COMPLETED";
+      /** 実際に処理したヒット・適用の総数。 */
+      readonly resolvedEffectCount: number;
+    }
+  | {
+      readonly status: "INTERRUPTED";
+      readonly reason: "ACTOR_DEFEATED";
+      /** 使用者が戦闘不能になる前に到達し、実際に処理したヒット・適用の総数。 */
+      readonly resolvedEffectCount: number;
+      /**
+       * Issue #217設計方針C（案1、厳密値のみを公開）: 中断が起きた時点で
+       * 実際に開いていたACTION適用一覧（同じstepの残りtarget・EffectAction）
+       * のうち、未処理のまま残った件数の厳密値。まだ開始していないstep・
+       * branch・iterationは、その内容を静的に見積もらず常に0として扱う
+       * （実行状態を二重に解釈する見積もり器を持たないための唯一の情報源）。
+       */
+      readonly unresolvedEffectCount: number;
+    };
+
 export interface EffectActionGroupsResult {
   readonly units: readonly BattleUnit[];
-  /** 使用者が戦闘不能になる前に到達し、実際に処理したヒット・適用の総数。 */
-  readonly resolvedCount: number;
-  /**
-   * PR #141再レビュー[P2]: 使用者が戦闘不能になったことで未処理のまま残った
-   * ヒット・適用の総数。0より大きい場合だけが「中断」(R-SKL-01)であり、
-   * 呼び出し側は`resolvedCount`/`interruptedCount`のどちらもここから得て、
-   * 戦闘不能かどうかだけで中断を判定しない。
-   */
-  readonly interruptedCount: number;
+  readonly outcome: EffectSequenceOutcome;
 }
 
 /**
@@ -121,6 +153,62 @@ export type EffectResolutionStep =
 
 function countHits(applications: readonly EffectActionApplication[]): number {
   return applications.reduce((sum, application) => sum + application.hits.length, 0);
+}
+
+/**
+ * R-SKL-08「直前結果」: 同じ解決スコープ内で実際に確定したEffectAction結果だけを
+ * 保持する可変箱（Issue #217設計方針D）。`resolveEffectSequencePlan`の
+ * generator呼び出し全体（ACTION・BRANCH・RANDOM_BRANCH・REPEATの再帰呼び出し
+ * すべて）を通じて同じインスタンスを共有し、実際に実行が到達した箇所でのみ
+ * 更新する。「もし実行していたら」の結果を書き込む経路は存在しない。
+ * `lastActionTargetUnitIds`/`lastDamagedTargetUnitIds`は、直前に完了した
+ * ACTION step全体（複数対象を含みうる）が対象にした/実際に損傷させたunit id
+ * の集合を表し、`current`（単一EffectAction結果、`LAST_RESULT`のfield比較に使う）
+ * とは独立に更新する。
+ */
+interface LastResultState {
+  current?: LastEffectActionResult;
+  lastActionTargetUnitIds: readonly BattleUnitId[];
+  lastDamagedTargetUnitIds: readonly BattleUnitId[];
+}
+
+function lastResultTargetsContext(
+  lastResultState: LastResultState,
+  allUnits: readonly BattleUnit[],
+): LastResultTargetContext {
+  return {
+    allUnits,
+    lastActionTargetUnitIds: lastResultState.lastActionTargetUnitIds,
+    lastDamagedTargetUnitIds: lastResultState.lastDamagedTargetUnitIds,
+  };
+}
+
+/**
+ * Issue #217設計方針D3: 再帰呼び出しの各段（ACTION適用ループ、step一覧、
+ * BRANCH、RANDOM_BRANCH、REPEAT）が返す共通の中間結果。呼び出し元は
+ * `interrupted`を見た瞬間、自分の残りの一覧・分岐・iterationへは一切進まず
+ * （追加のEffectAction・乱数消費・PS/Memory連鎖を発生させず）、同じ
+ * `resolvedCount`/`unresolvedCount`をそのまま呼び出し元へ伝播する。
+ * 「まだ開始していない」部分の`unresolvedCount`への寄与は常に0。
+ */
+interface StepWalkResult {
+  readonly resolvedCount: number;
+  /** `EffectStepCompleted.resolvedActionCount`用: 解決したEffectAction適用（target×action）数。 */
+  readonly resolvedActionCount: number;
+  readonly interrupted: boolean;
+  readonly unresolvedCount: number;
+}
+
+function walkCompleted(resolvedCount: number, resolvedActionCount: number): StepWalkResult {
+  return { resolvedCount, resolvedActionCount, interrupted: false, unresolvedCount: 0 };
+}
+
+function walkInterrupted(
+  resolvedCount: number,
+  resolvedActionCount: number,
+  unresolvedCount: number,
+): StepWalkResult {
+  return { resolvedCount, resolvedActionCount, interrupted: true, unresolvedCount };
 }
 
 /**
@@ -248,6 +336,13 @@ interface OneApplicationResult {
   readonly resolvedCount: number;
   readonly interruptedCount: number;
   readonly interrupted: boolean;
+  /**
+   * R-SKL-08/Issue #217設計方針D: このapplicationが実際に確定した結果。
+   * TIMINGイベント後の再検証で使用者が既に戦闘不能だった場合（このapplication
+   * 自体は一度も開始されていない）は`undefined`— 「もし実行していたら」の
+   * 結果を`LastResultState`へ書き戻さないための境界。
+   */
+  readonly lastResult?: LastEffectActionResult;
 }
 
 /**
@@ -627,20 +722,656 @@ function* resolveOneEffectActionApplication(
     resolvedCount,
     interruptedCount,
     interrupted: resultKind === "INTERRUPTED",
+    lastResult: {
+      resultKind,
+      effectActionKind: effectAction.kind,
+      effectActionDefinitionId: application.effectActionDefinitionId,
+      targetUnitIds: [application.targetBattleUnitId],
+    },
+  };
+}
+
+type StepResolution = Generator<
+  EffectResolutionStep,
+  { readonly lastEventId: DomainEventId; readonly walkResult: StepWalkResult },
+  void
+>;
+
+function emitEffectStepStarting(
+  stepIndex: number,
+  stepKind: EffectStepDefinition["kind"],
+  conditionKind: ConditionDefinition["kind"],
+  context: EffectActionGroupContext,
+  parentEventId: DomainEventId,
+): BattleDomainEvent {
+  return context.recorder.record({
+    eventType: "EffectStepStarting",
+    category: "TIMING",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    skillUseId: context.skillUseId,
+    resolutionScopeId: context.actionScope,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: context.actorId,
+    payload: { stepIndex, stepKind, conditionKind },
+  });
+}
+
+function emitEffectStepCompleted(
+  stepIndex: number,
+  resolvedActionCount: number,
+  context: EffectActionGroupContext,
+  parentEventId: DomainEventId,
+): BattleDomainEvent {
+  return context.recorder.record({
+    eventType: "EffectStepCompleted",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    skillUseId: context.skillUseId,
+    resolutionScopeId: context.actionScope,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: context.actorId,
+    payload: { stepIndex, resolvedActionCount },
+  });
+}
+
+/**
+ * R-SKL-06「ACTION step」#3〜#5・R-SKL-08: 1つのACTION stepの`applications`を
+ * 対象・action定義順に適用する。使用者の戦闘不能を各適用の直前に再確認し、
+ * 検出した時点でこのstepの中でまだ開始していないapplicationsの正確な
+ * ヒット数を`unresolvedCount`として報告し、それ以上は一切処理しない
+ * （Issue #217設計方針D2〜D3）。実際に確定した結果は`lastResultState`へ
+ * 書き戻す（R-SKL-08、D4: 未実行の結果は書き込まない）。
+ */
+function* resolveActionApplications(
+  applications: readonly EffectActionApplication[],
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  lastResultState: LastResultState,
+  startEventId: DomainEventId,
+): StepResolution {
+  let lastEventId = startEventId;
+  let resolvedCount = 0;
+  let resolvedActionCount = 0;
+  const stepActionTargetUnitIds: BattleUnitId[] = [];
+  const seenActionTargetUnitIds = new Set<BattleUnitId>();
+  const stepDamagedTargetUnitIds: BattleUnitId[] = [];
+  const seenDamagedTargetUnitIds = new Set<BattleUnitId>();
+
+  const finalizeStepTargets = (): void => {
+    lastResultState.lastActionTargetUnitIds = stepActionTargetUnitIds;
+    lastResultState.lastDamagedTargetUnitIds = stepDamagedTargetUnitIds;
+  };
+
+  for (let index = 0; index < applications.length; index += 1) {
+    const application = applications[index]!;
+    if (isDefeated(requireUnit(box.units, context.actorId))) {
+      finalizeStepTargets();
+      return {
+        lastEventId,
+        walkResult: walkInterrupted(
+          resolvedCount,
+          resolvedActionCount,
+          countHits(applications.slice(index)),
+        ),
+      };
+    }
+
+    const applied = yield* resolveOneEffectActionApplication(
+      application,
+      box,
+      context,
+      lastEventId,
+    );
+    lastEventId = applied.lastEventId;
+    resolvedCount += applied.resolvedCount;
+
+    if (applied.lastResult !== undefined) {
+      lastResultState.current = applied.lastResult;
+      if (!seenActionTargetUnitIds.has(application.targetBattleUnitId)) {
+        seenActionTargetUnitIds.add(application.targetBattleUnitId);
+        stepActionTargetUnitIds.push(application.targetBattleUnitId);
+      }
+      if (
+        applied.lastResult.resultKind === "APPLIED" &&
+        applied.lastResult.effectActionKind === "DAMAGE" &&
+        !seenDamagedTargetUnitIds.has(application.targetBattleUnitId)
+      ) {
+        seenDamagedTargetUnitIds.add(application.targetBattleUnitId);
+        stepDamagedTargetUnitIds.push(application.targetBattleUnitId);
+      }
+    }
+
+    if (applied.interrupted) {
+      finalizeStepTargets();
+      return {
+        lastEventId,
+        walkResult: walkInterrupted(
+          resolvedCount,
+          resolvedActionCount,
+          applied.interruptedCount + countHits(applications.slice(index + 1)),
+        ),
+      };
+    }
+    resolvedActionCount += 1;
+  }
+
+  finalizeStepTargets();
+  return { lastEventId, walkResult: walkCompleted(resolvedCount, resolvedActionCount) };
+}
+
+/**
+ * R-SKL-06「ACTION step」全体を解決する。`EffectStepStarting`(`TIMING_EVENT`)/
+ * `EffectStepSkipped`(DIAGNOSTIC、PSの発動契機になり得ないため`yield`しない)/
+ * `EffectStepCompleted`(`EFFECT_RESOLVED`)を、`resolveActionApplications`へ
+ * 委譲しながら発行する。中断された場合は`EffectStepStarting`が既に発行済み
+ * でも`EffectStepCompleted`は発行しない（step自体が完了していないため）。
+ * `applications`が既定計画済み（`ActionStepPlan`）・JIT解決済み
+ * （`DeferredStepPlan`のACTION）のどちらから来たかは区別しない。
+ */
+function* resolveActionStepBody(
+  stepIndex: number,
+  conditionKind: ConditionDefinition["kind"],
+  satisfied: boolean,
+  actions: readonly EffectActionReference[],
+  applications: readonly EffectActionApplication[],
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  lastResultState: LastResultState,
+  lastEventId: DomainEventId,
+): StepResolution {
+  const stepStarting = emitEffectStepStarting(
+    stepIndex,
+    "ACTION",
+    conditionKind,
+    context,
+    lastEventId,
+  );
+  yield { kind: "TIMING_EVENT", event: stepStarting };
+
+  // TIMINGイベント後の再検証（R-SKL-01）。
+  if (isDefeated(requireUnit(box.units, context.actorId))) {
+    return {
+      lastEventId: stepStarting.eventId,
+      walkResult: walkInterrupted(0, 0, countHits(applications)),
+    };
+  }
+
+  if (!satisfied) {
+    const stepSkipped = context.recorder.record({
+      eventType: "EffectStepSkipped",
+      category: "DIAGNOSTIC",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.actionScope,
+      parentEventId: stepStarting.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: context.actorId,
+      payload: { stepIndex, conditionKind, result: false },
+    });
+    return { lastEventId: stepSkipped.eventId, walkResult: walkCompleted(0, 0) };
+  }
+
+  if (applications.length === 0) {
+    // R-SKL-08 / Catalog preflight（`MISSING_PRECEDING_RESULT`）: 対象0件まで
+    // 解決へ到達したACTIONも、仕様どおりSKIPPED結果を直前結果として記録する。
+    const first = actions[0];
+    const effectAction =
+      first !== undefined
+        ? context.definitions.effectActions.get(first.effectActionDefinitionId)
+        : undefined;
+    if (first !== undefined && effectAction !== undefined) {
+      lastResultState.current = {
+        resultKind: "SKIPPED",
+        effectActionKind: effectAction.kind,
+        effectActionDefinitionId: first.effectActionDefinitionId,
+        targetUnitIds: [],
+      };
+    }
+    lastResultState.lastActionTargetUnitIds = [];
+    lastResultState.lastDamagedTargetUnitIds = [];
+    const stepCompleted = emitEffectStepCompleted(stepIndex, 0, context, stepStarting.eventId);
+    yield { kind: "EFFECT_RESOLVED", events: [stepCompleted] };
+    return { lastEventId: stepCompleted.eventId, walkResult: walkCompleted(0, 0) };
+  }
+
+  const applied = yield* resolveActionApplications(
+    applications,
+    box,
+    context,
+    lastResultState,
+    stepStarting.eventId,
+  );
+  if (applied.walkResult.interrupted) {
+    return applied;
+  }
+
+  const stepCompleted = emitEffectStepCompleted(
+    stepIndex,
+    applied.walkResult.resolvedActionCount,
+    context,
+    applied.lastEventId,
+  );
+  yield { kind: "EFFECT_RESOLVED", events: [stepCompleted] };
+  return { lastEventId: stepCompleted.eventId, walkResult: applied.walkResult };
+}
+
+/**
+ * BRANCH/RANDOM_BRANCH/REPEAT（R-SKL-07）共通のstepライフサイクル:
+ * `EffectStepStarting`発行→戦闘不能再検証→`body`（各stepの実体）→
+ * （中断していなければ）`EffectStepCompleted`発行。これらのstep種別は
+ * ACTIONと異なり自身のconditionでstep全体をスキップすることがないため
+ * （BRANCHは常にthen/elseどちらかを解決する）、`EffectStepSkipped`に相当する
+ * 分岐は持たない。
+ */
+function* wrapStepLifecycle(
+  stepIndex: number,
+  stepKind: EffectStepDefinition["kind"],
+  conditionKind: ConditionDefinition["kind"],
+  context: EffectActionGroupContext,
+  box: UnitsBox,
+  lastEventId: DomainEventId,
+  body: (currentEventId: DomainEventId) => StepResolution,
+): StepResolution {
+  const stepStarting = emitEffectStepStarting(
+    stepIndex,
+    stepKind,
+    conditionKind,
+    context,
+    lastEventId,
+  );
+  yield { kind: "TIMING_EVENT", event: stepStarting };
+
+  if (isDefeated(requireUnit(box.units, context.actorId))) {
+    return { lastEventId: stepStarting.eventId, walkResult: walkInterrupted(0, 0, 0) };
+  }
+
+  const result = yield* body(stepStarting.eventId);
+  if (result.walkResult.interrupted) {
+    return result;
+  }
+
+  const stepCompleted = emitEffectStepCompleted(
+    stepIndex,
+    result.walkResult.resolvedActionCount,
+    context,
+    result.lastEventId,
+  );
+  yield { kind: "EFFECT_RESOLVED", events: [stepCompleted] };
+  return { lastEventId: stepCompleted.eventId, walkResult: result.walkResult };
+}
+
+/** R-SKL-07 BRANCH: conditionがtrueならthenSteps、falseならelseStepsを定義順に解決する。 */
+function* resolveBranchStep(
+  stepIndex: number,
+  definition: Extract<EffectStepDefinition, { kind: "BRANCH" }>,
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  plan: EffectSequencePlan,
+  lastResultState: LastResultState,
+  lastEventId: DomainEventId,
+): StepResolution {
+  return yield* wrapStepLifecycle(
+    stepIndex,
+    "BRANCH",
+    definition.condition.kind,
+    context,
+    box,
+    lastEventId,
+    function* (currentEventId) {
+      const satisfied = evaluateEffectStepCondition(definition.condition, lastResultState.current);
+      const chosenSteps = satisfied ? definition.thenSteps : definition.elseSteps;
+      return yield* resolveStepDefinitionList(
+        chosenSteps,
+        box,
+        context,
+        plan,
+        lastResultState,
+        currentEventId,
+      );
+    },
+  );
+}
+
+/**
+ * R-SKL-07 RANDOM_BRANCH: `WEIGHTED_ONE`はweightに応じて1分岐だけを選び
+ * （`selectWeightedBranch`でRNGを1回だけ消費）、`INDEPENDENT`はbranch定義順に
+ * 確率判定を行い、成功したbranchのstepsを定義順に解決する。乱数消費順は
+ * Catalog定義順（`weight`/`probability`が0の到達不能branchはRNGを消費しない）。
+ * 選択結果は`RandomBranchSelected`(`EFFECT_RESOLVED`)としてPS/Memory即時連鎖に
+ * 参加させる。
+ */
+function* resolveRandomBranchStep(
+  stepIndex: number,
+  definition: Extract<EffectStepDefinition, { kind: "RANDOM_BRANCH" }>,
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  plan: EffectSequencePlan,
+  lastResultState: LastResultState,
+  lastEventId: DomainEventId,
+): StepResolution {
+  return yield* wrapStepLifecycle(
+    stepIndex,
+    "RANDOM_BRANCH",
+    "TRUE",
+    context,
+    box,
+    lastEventId,
+    function* (currentEventId) {
+      const recordSelected = (
+        branchIndex: number,
+        label: string | undefined,
+        parentEventId: DomainEventId,
+      ) =>
+        context.recorder.record({
+          eventType: "RandomBranchSelected",
+          category: "FACT",
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          parentEventId,
+          rootEventId: context.rootEventId,
+          sourceUnitId: context.actorId,
+          payload: {
+            stepIndex,
+            mode: definition.mode,
+            branchIndex,
+            ...(label !== undefined ? { label } : {}),
+          },
+        });
+
+      if (definition.mode === "WEIGHTED_ONE") {
+        const selected = selectWeightedBranch(definition.branches, context.random);
+        const selectedEvent = recordSelected(
+          selected.branchIndex,
+          selected.branch.label,
+          currentEventId,
+        );
+        yield { kind: "EFFECT_RESOLVED", events: [selectedEvent] };
+
+        if (isDefeated(requireUnit(box.units, context.actorId))) {
+          return { lastEventId: selectedEvent.eventId, walkResult: walkInterrupted(0, 0, 0) };
+        }
+
+        return yield* resolveStepDefinitionList(
+          selected.branch.steps,
+          box,
+          context,
+          plan,
+          lastResultState,
+          selectedEvent.eventId,
+        );
+      }
+
+      // INDEPENDENT: 各branchの確率判定をCatalog定義順に独立して行う。0件成立
+      // 経路も正当（design point E参照）。
+      let eventId = currentEventId;
+      let resolvedCount = 0;
+      let resolvedActionCount = 0;
+      for (const [branchIndex, branch] of definition.branches.entries()) {
+        if (isDefeated(requireUnit(box.units, context.actorId))) {
+          return {
+            lastEventId: eventId,
+            walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
+          };
+        }
+        const probability = branch.probability ?? 0;
+        const succeeded = probability > 0 && context.random.next() < probability;
+        if (!succeeded) {
+          continue;
+        }
+
+        const selectedEvent = recordSelected(branchIndex, branch.label, eventId);
+        yield { kind: "EFFECT_RESOLVED", events: [selectedEvent] };
+        eventId = selectedEvent.eventId;
+
+        if (isDefeated(requireUnit(box.units, context.actorId))) {
+          return {
+            lastEventId: eventId,
+            walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
+          };
+        }
+
+        const result = yield* resolveStepDefinitionList(
+          branch.steps,
+          box,
+          context,
+          plan,
+          lastResultState,
+          eventId,
+        );
+        eventId = result.lastEventId;
+        resolvedCount += result.walkResult.resolvedCount;
+        resolvedActionCount += result.walkResult.resolvedActionCount;
+        if (result.walkResult.interrupted) {
+          return {
+            lastEventId: eventId,
+            walkResult: walkInterrupted(
+              resolvedCount,
+              resolvedActionCount,
+              result.walkResult.unresolvedCount,
+            ),
+          };
+        }
+      }
+      return {
+        lastEventId: eventId,
+        walkResult: walkCompleted(resolvedCount, resolvedActionCount),
+      };
+    },
+  );
+}
+
+/**
+ * R-SKL-07 REPEAT: 指定回数だけstepsを繰り返す。繰り返し途中で使用者が
+ * 戦闘不能になった場合、残りの繰り返しを中断する（同じ`lastResultState`を
+ * iteration間で共有し、あるiterationのLAST_RESULTが次のiterationから見える）。
+ */
+function* resolveRepeatStep(
+  stepIndex: number,
+  definition: Extract<EffectStepDefinition, { kind: "REPEAT" }>,
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  plan: EffectSequencePlan,
+  lastResultState: LastResultState,
+  lastEventId: DomainEventId,
+): StepResolution {
+  return yield* wrapStepLifecycle(
+    stepIndex,
+    "REPEAT",
+    "TRUE",
+    context,
+    box,
+    lastEventId,
+    function* (currentEventId) {
+      let eventId = currentEventId;
+      let resolvedCount = 0;
+      let resolvedActionCount = 0;
+      for (let iteration = 0; iteration < definition.count; iteration += 1) {
+        if (isDefeated(requireUnit(box.units, context.actorId))) {
+          return {
+            lastEventId: eventId,
+            walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
+          };
+        }
+        const result = yield* resolveStepDefinitionList(
+          definition.steps,
+          box,
+          context,
+          plan,
+          lastResultState,
+          eventId,
+        );
+        eventId = result.lastEventId;
+        resolvedCount += result.walkResult.resolvedCount;
+        resolvedActionCount += result.walkResult.resolvedActionCount;
+        if (result.walkResult.interrupted) {
+          return {
+            lastEventId: eventId,
+            walkResult: walkInterrupted(
+              resolvedCount,
+              resolvedActionCount,
+              result.walkResult.unresolvedCount,
+            ),
+          };
+        }
+      }
+      return {
+        lastEventId: eventId,
+        walkResult: walkCompleted(resolvedCount, resolvedActionCount),
+      };
+    },
+  );
+}
+
+/**
+ * 生の`EffectStepDefinition`1件をkindに応じて解決する（Issue #217: pending
+ * execution stateを実行のsingle source of truthにする — トップレベルの
+ * `DeferredStepPlan`、BRANCH/RANDOM_BRANCH/REPEATが持つ生のネストされた
+ * step一覧のどちらから来ても同じ関数を使う）。`ACTION`はJITで対象・conditionを
+ * 解決する（`LAST_RESULT`/`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`を含み
+ * うるため、`resolveEffectSequencePlan`は最初から解決できない）。
+ */
+function* resolveRawStep(
+  stepIndex: number,
+  step: EffectStepDefinition,
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  plan: EffectSequencePlan,
+  lastResultState: LastResultState,
+  lastEventId: DomainEventId,
+): StepResolution {
+  switch (step.kind) {
+    case "ACTION": {
+      const satisfied = evaluateEffectStepCondition(step.condition, lastResultState.current);
+      const applications = satisfied
+        ? resolveActionStepApplications(
+            step,
+            plan.resolvedBindings,
+            requireUnit(box.units, context.actorId),
+            context.definitions.effectActions,
+            lastResultTargetsContext(lastResultState, box.units),
+          )
+        : [];
+      return yield* resolveActionStepBody(
+        stepIndex,
+        step.condition.kind,
+        satisfied,
+        step.actions,
+        applications,
+        box,
+        context,
+        lastResultState,
+        lastEventId,
+      );
+    }
+    case "BRANCH":
+      return yield* resolveBranchStep(
+        stepIndex,
+        step,
+        box,
+        context,
+        plan,
+        lastResultState,
+        lastEventId,
+      );
+    case "RANDOM_BRANCH":
+      return yield* resolveRandomBranchStep(
+        stepIndex,
+        step,
+        box,
+        context,
+        plan,
+        lastResultState,
+        lastEventId,
+      );
+    case "REPEAT":
+      return yield* resolveRepeatStep(
+        stepIndex,
+        step,
+        box,
+        context,
+        plan,
+        lastResultState,
+        lastEventId,
+      );
+  }
+}
+
+/**
+ * 生の`EffectStepDefinition[]`（BRANCHの`thenSteps`/`elseSteps`、RANDOM_BRANCHの
+ * 選択済み`branch.steps`、REPEATの`steps`）を定義順に解決する。子が中断を
+ * 報告した瞬間、残りの一覧へは一切進まない（Issue #217設計方針D3）。
+ */
+function* resolveStepDefinitionList(
+  steps: readonly EffectStepDefinition[],
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  plan: EffectSequencePlan,
+  lastResultState: LastResultState,
+  lastEventId: DomainEventId,
+): StepResolution {
+  let currentEventId = lastEventId;
+  let resolvedCount = 0;
+  let resolvedActionCount = 0;
+
+  for (const [index, step] of steps.entries()) {
+    if (isDefeated(requireUnit(box.units, context.actorId))) {
+      return {
+        lastEventId: currentEventId,
+        walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
+      };
+    }
+
+    const result = yield* resolveRawStep(
+      index,
+      step,
+      box,
+      context,
+      plan,
+      lastResultState,
+      currentEventId,
+    );
+    currentEventId = result.lastEventId;
+    resolvedCount += result.walkResult.resolvedCount;
+    resolvedActionCount += result.walkResult.resolvedActionCount;
+
+    if (result.walkResult.interrupted) {
+      return {
+        lastEventId: currentEventId,
+        walkResult: walkInterrupted(
+          resolvedCount,
+          resolvedActionCount,
+          result.walkResult.unresolvedCount,
+        ),
+      };
+    }
+  }
+
+  return {
+    lastEventId: currentEventId,
+    walkResult: walkCompleted(resolvedCount, resolvedActionCount),
   };
 }
 
 /**
- * R-SKL-06「ACTION step」全体を解決するgenerator本体。stepごとに
- * `EffectStepStarting`(`TIMING_EVENT`)/`EffectStepSkipped`(DIAGNOSTIC、
- * PSの発動契機になり得ないため`yield`しない)/`EffectStepCompleted`
- * (`EFFECT_RESOLVED`)を、EffectAction(target)ごとに
- * `resolveOneEffectActionApplication`を`yield*`委譲しながら解決する。
- * 使用者の戦闘不能を各step開始前・各EffectAction適用前後に再確認し、検出した
- * 時点でそのstep以降（当stepの残りのapplicationsと、後続のstep全て）を静かに
- * 中断へ計上する（R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断
- * する」）。中断されたstepでは`EffectStepStarting`が既に発行済みでも
- * `EffectStepCompleted`は発行しない（step自体が完了していないため）。
+ * R-SKL-01〜R-SKL-08を通じた`EffectSequence`解決のトップレベルgenerator。
+ * `plan.steps`を定義順に解決し、`ActionStepPlan`（既定計画済みACTION）は
+ * `resolveActionStepBody`へ、`DeferredStepPlan`（BRANCH/RANDOM_BRANCH/REPEAT、
+ * またはLAST_RESULT/LAST_*_TARGETSに依存するACTION）は`resolveRawStep`へ
+ * それぞれ委譲する。戻り値は`EffectSequenceOutcome`（Issue #217設計方針B）—
+ * `COMPLETED`/`INTERRUPTED`は解決が実際に最後まで進んだか、使用者戦闘不能で
+ * 打ち切ったかという事実だけから決まり、`unresolvedEffectCount`の値からは
+ * 決して導出しない。
  *
  * PR #142レビュー[P1]: PSの`EffectSequence`自身の解決（`passive-activation-service.ts`）
  * はこのgeneratorへ`yield*`委譲することで、`resolvePassiveChain`の
@@ -657,110 +1388,66 @@ export function* resolveEffectSequencePlan(
   box: UnitsBox,
   context: EffectActionGroupContext,
 ): Generator<EffectResolutionStep, EffectActionGroupsResult, void> {
-  let resolvedCount = 0;
-  let interruptedCount = 0;
+  const lastResultState: LastResultState = {
+    lastActionTargetUnitIds: [],
+    lastDamagedTargetUnitIds: [],
+  };
   let lastEventId = context.parentEventId;
-  let sequenceInterrupted = false;
+  let resolvedCount = 0;
 
   for (const step of plan.steps) {
-    if (sequenceInterrupted || isDefeated(requireUnit(box.units, context.actorId))) {
-      sequenceInterrupted = true;
-      interruptedCount += countHits(step.applications);
-      continue;
-    }
-
-    const stepStarting = context.recorder.record({
-      eventType: "EffectStepStarting",
-      category: "TIMING",
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      skillUseId: context.skillUseId,
-      resolutionScopeId: context.actionScope,
-      parentEventId: lastEventId,
-      rootEventId: context.rootEventId,
-      sourceUnitId: context.actorId,
-      payload: {
-        stepIndex: step.stepIndex,
-        stepKind: step.stepKind,
-        conditionKind: step.conditionKind,
-      },
-    });
-    yield { kind: "TIMING_EVENT", event: stepStarting };
-    lastEventId = stepStarting.eventId;
-
     if (isDefeated(requireUnit(box.units, context.actorId))) {
-      sequenceInterrupted = true;
-      interruptedCount += countHits(step.applications);
-      continue;
+      return {
+        units: box.units,
+        outcome: {
+          status: "INTERRUPTED",
+          reason: "ACTOR_DEFEATED",
+          resolvedEffectCount: resolvedCount,
+          unresolvedEffectCount: 0,
+        },
+      };
     }
 
-    if (!step.satisfied) {
-      const stepSkipped = context.recorder.record({
-        eventType: "EffectStepSkipped",
-        category: "DIAGNOSTIC",
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        parentEventId: lastEventId,
-        rootEventId: context.rootEventId,
-        sourceUnitId: context.actorId,
-        payload: { stepIndex: step.stepIndex, conditionKind: step.conditionKind, result: false },
-      });
-      lastEventId = stepSkipped.eventId;
-      continue;
-    }
+    const result: { readonly lastEventId: DomainEventId; readonly walkResult: StepWalkResult } =
+      step.planKind === "ACTION_PLAN"
+        ? yield* resolveActionStepBody(
+            step.stepIndex,
+            step.conditionKind,
+            step.satisfied,
+            step.actions,
+            step.applications,
+            box,
+            context,
+            lastResultState,
+            lastEventId,
+          )
+        : yield* resolveRawStep(
+            step.stepIndex,
+            step.definition,
+            box,
+            context,
+            plan,
+            lastResultState,
+            lastEventId,
+          );
 
-    let stepCutShort = false;
-    let resolvedActionCount = 0;
+    lastEventId = result.lastEventId;
+    resolvedCount += result.walkResult.resolvedCount;
 
-    for (const application of step.applications) {
-      if (isDefeated(requireUnit(box.units, context.actorId))) {
-        stepCutShort = true;
-        sequenceInterrupted = true;
-        interruptedCount += application.hits.length;
-        continue;
-      }
-
-      const applied = yield* resolveOneEffectActionApplication(
-        application,
-        box,
-        context,
-        lastEventId,
-      );
-      lastEventId = applied.lastEventId;
-      resolvedCount += applied.resolvedCount;
-      interruptedCount += applied.interruptedCount;
-      if (applied.interrupted) {
-        stepCutShort = true;
-        sequenceInterrupted = true;
-      } else {
-        resolvedActionCount += 1;
-      }
-    }
-
-    if (!stepCutShort) {
-      const stepCompleted = context.recorder.record({
-        eventType: "EffectStepCompleted",
-        category: "FACT",
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        parentEventId: lastEventId,
-        rootEventId: context.rootEventId,
-        sourceUnitId: context.actorId,
-        payload: { stepIndex: step.stepIndex, resolvedActionCount },
-      });
-      yield { kind: "EFFECT_RESOLVED", events: [stepCompleted] };
-      lastEventId = stepCompleted.eventId;
+    if (result.walkResult.interrupted) {
+      return {
+        units: box.units,
+        outcome: {
+          status: "INTERRUPTED",
+          reason: "ACTOR_DEFEATED",
+          resolvedEffectCount: resolvedCount,
+          unresolvedEffectCount: result.walkResult.unresolvedCount,
+        },
+      };
     }
   }
 
-  return { units: box.units, resolvedCount, interruptedCount };
+  return { units: box.units, outcome: { status: "COMPLETED", resolvedEffectCount: resolvedCount } };
 }
 
 /**

@@ -283,12 +283,13 @@ export function resolveSkillUse(
   // 単位で破棄する`finalizeResolutionScope`とは異なるscope）。
   working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
 
-  // PR #141 review [P1] / re-review [P2]: 使用者がEffectSequence解決中(自傷や
-  // PSの反射等で)戦闘不能になり、未解決のまま打ち切られたヒット・適用が実際に
-  // 残った場合だけ`SkillUseInterrupted`を発行する（戦闘不能かどうかだけでは
-  // 判定しない — 最後の効果で倒れても残り0件なら`SkillUseCompleted`のまま）。
+  // Issue #217設計方針B: `SkillUseInterrupted`/`SkillUseCompleted`の選択は
+  // `effectResult.outcome.status`（実際に解決が最後まで進んだか、使用者戦闘
+  // 不能で打ち切ったかという事実）だけから決める。`unresolvedEffectCount`の
+  // 値からは決して導出しない（`INTERRUPTED`かつ`unresolvedEffectCount: 0`も
+  // 正当な結果として扱う）。
   const skillUseCompleted =
-    effectResult.interruptedCount > 0
+    effectResult.outcome.status === "INTERRUPTED"
       ? recorder.record({
           eventType: "SkillUseInterrupted",
           category: "FACT",
@@ -304,9 +305,9 @@ export function resolveSkillUse(
           payload: {
             actorUnitId: actorId,
             skillDefinitionId: skill.skillDefinitionId,
-            reason: "ACTOR_DEFEATED",
-            resolvedEffectCount: effectResult.resolvedCount,
-            unresolvedEffectCount: effectResult.interruptedCount,
+            reason: effectResult.outcome.reason,
+            resolvedEffectCount: effectResult.outcome.resolvedEffectCount,
+            unresolvedEffectCount: effectResult.outcome.unresolvedEffectCount,
           },
         })
       : recorder.record({

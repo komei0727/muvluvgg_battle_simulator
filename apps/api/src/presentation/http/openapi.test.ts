@@ -792,6 +792,7 @@ describe("OpenAPI document", () => {
       EffectStepStarting: true,
       EffectStepSkipped: true,
       EffectStepCompleted: true,
+      RandomBranchSelected: true,
       EffectActionStarting: true,
       EffectActionCompleted: true,
       UnitBeingAttacked: true,

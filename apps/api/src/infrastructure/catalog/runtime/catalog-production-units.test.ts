@@ -27,8 +27,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // ACTION/TURN duration expiration (R-EFF-10) wired the real lifecycle
     // (`IT-MARKER-PROD-001〜002`). RES-001 (Issue #175, PR #214 re-review):
     // `CAP_FORMULA` flipped to IMPLEMENTED once the general FormulaEvaluator
-    // wired the real lifecycle (`IT-CAP-FORMULA-PROD-001〜004`).
-    expect(catalog.catalogRevision).toBe("2026-07-23.2");
+    // wired the real lifecycle (`IT-CAP-FORMULA-PROD-001〜004`). Issue #217:
+    // `SKL_JULIE_SNOW_PS2`/`SKL_MAO_COMMITTEE_PS1` corrected from a misused
+    // `LAST_ACTION_TARGETS` (no preceding EffectAction result in their own
+    // EffectSequence, R-SKL-08) to `TRIGGER_TARGET` (the actually-intended
+    // "the AS/EX that triggered me" target, per raw/units/ design source;
+    // wiring itself remains RES-005/Issue #172 scope).
+    expect(catalog.catalogRevision).toBe("2026-07-24.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

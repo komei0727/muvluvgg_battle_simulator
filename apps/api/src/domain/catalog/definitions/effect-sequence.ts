@@ -67,6 +67,7 @@ const EFFECT_ACTION_REFERENCE_ALLOWED_KEYS = ["effectActionDefinitionId"] as con
 
 const EFFECT_STEP_KINDS = ["ACTION", "BRANCH", "RANDOM_BRANCH", "REPEAT"] as const;
 const RANDOM_BRANCH_MODES = ["WEIGHTED_ONE", "INDEPENDENT"] as const;
+export type RandomBranchMode = (typeof RANDOM_BRANCH_MODES)[number];
 
 const EFFECT_STEP_ALLOWED_KEYS: Record<(typeof EFFECT_STEP_KINDS)[number], readonly string[]> = {
   ACTION: ["kind", "condition", "target", "actions"],
