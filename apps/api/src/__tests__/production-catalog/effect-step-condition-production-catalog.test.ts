@@ -3,30 +3,30 @@ import { describe, expect, it } from "vitest";
 import {
   applyEffectActionGroups,
   type EffectActionGroupContext,
-} from "../domain/battle/lifecycle/effect-action-group-resolver.js";
+} from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
 import {
   buildEffectStepPerTargetFilter,
   resolveActionStepApplications,
   resolveSkillOrder,
-} from "../domain/battle/skill/skill-resolution-service.js";
-import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { MarkerState } from "../domain/battle/model/marker-state.js";
-import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
-import type { UnitDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
+} from "../../domain/battle/skill/skill-resolution-service.js";
+import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { MarkerState } from "../../domain/battle/model/marker-state.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import type { UnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import {
   createMarkerId,
   createSkillDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import { createMarkerInstanceId } from "../domain/shared/event-ids.js";
-import type { Side } from "../domain/shared/side.js";
-import type { FormationPosition } from "../domain/battle/model/formation-input.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
+import type { Side } from "../../domain/shared/side.js";
+import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 
 /**
  * RES-004（Issue #171後半、`CAP_EFFECT_STEP_CONDITION`）: ACTION stepの
@@ -63,7 +63,7 @@ import { SequenceRandomSource } from "../testing/random/sequence-random-source.j
  * 集合条件用ConditionKindなど）にも依存するため、この検証範囲には含めない。
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const NO_MISS_NO_CRIT = new SequenceRandomSource(new Array(64).fill(0.99));
 
 function enemyUnit(

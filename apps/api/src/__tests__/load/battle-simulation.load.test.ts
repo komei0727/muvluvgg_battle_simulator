@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createProductionBattleRunner,
   selectableProductionUnitIds,
-} from "../testing/scenario/run-production-battle.js";
+} from "../../testing/scenario/run-production-battle.js";
 
 /**
  * 負荷・耐久（soak）テストの最小1本（`12_テスト戦略.md`「負荷・耐久テスト」）。
@@ -14,7 +14,7 @@ import {
  * catalog は一度だけロードして戦闘を反復する（Workerが catalog を一度だけ読み込む設計に整合し、
  * 1戦あたりコストから catalog ロードを除外する）。nightly / リリース前に `mise run test:load` で実行。
  */
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const ITERATIONS = 200;
 const TURN_LIMIT = 99;
 

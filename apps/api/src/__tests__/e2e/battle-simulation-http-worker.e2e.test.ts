@@ -3,9 +3,9 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import type { buildServer as buildServerFn } from "../presentation/http/build-server.js";
-import type { SimulationWorkerPool as SimulationWorkerPoolClass } from "../infrastructure/worker/simulation-worker-pool.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+import type { buildServer as buildServerFn } from "../../presentation/http/build-server.js";
+import type { SimulationWorkerPool as SimulationWorkerPoolClass } from "../../infrastructure/worker/simulation-worker-pool.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * `12_テスト戦略.md`「Main branch」が要求する「HTTP＋WorkerのEnd-to-End」
@@ -27,17 +27,20 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * （src版とdist版で`application-error.ts`が別モジュールとして二重ロード
  * されるため）。二重ロードを避けるため、両方を同じdist配下から揃える。
  */
-const apiPackageRoot = fileURLToPath(new URL("../../", import.meta.url));
-const tscBin = fileURLToPath(new URL("../../node_modules/.bin/tsc", import.meta.url));
+const apiPackageRoot = fileURLToPath(new URL("../../../", import.meta.url));
+const tscBin = fileURLToPath(new URL("../../../node_modules/.bin/tsc", import.meta.url));
 const distPoolUrl = new URL(
-  "../../dist/infrastructure/worker/simulation-worker-pool.js",
+  "../../../dist/infrastructure/worker/simulation-worker-pool.js",
   import.meta.url,
 );
-const distBuildServerUrl = new URL("../../dist/presentation/http/build-server.js", import.meta.url);
+const distBuildServerUrl = new URL(
+  "../../../dist/presentation/http/build-server.js",
+  import.meta.url,
+);
 
 function fixturePath(...segments: string[]): string {
   return fileURLToPath(
-    new URL(`../infrastructure/catalog/__fixtures__/${segments.join("/")}`, import.meta.url),
+    new URL(`../../infrastructure/catalog/__fixtures__/${segments.join("/")}`, import.meta.url),
   );
 }
 

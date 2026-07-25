@@ -3,16 +3,16 @@ import { describe, expect, it } from "vitest";
 import {
   loadBattleCatalogDirectory,
   loadCatalogFromDirectory,
-} from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { GetBattleSimulationCatalogUseCase } from "../application/catalog/get-battle-simulation-catalog-use-case.js";
-import { SimulateBattleUseCase } from "../application/simulation/simulate-battle-use-case.js";
-import type { SimulateBattleCommand } from "../application/simulation/simulate-battle-command.js";
-import type { SimulationExecutionContext } from "../application/simulation/simulation-execution-context.js";
-import { FixedBattleIdGenerator } from "../testing/id/fixed-battle-id-generator.js";
-import { ManualClock } from "../testing/clock/manual-clock.js";
-import type { RandomSource } from "../domain/ports/random-source.js";
-import type { RandomSourceFactory } from "../domain/ports/random-source-factory.js";
-import { createUnitDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
+} from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { GetBattleSimulationCatalogUseCase } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
+import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import type { SimulateBattleCommand } from "../../application/simulation/simulate-battle-command.js";
+import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
+import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
+import { ManualClock } from "../../testing/clock/manual-clock.js";
+import type { RandomSource } from "../../domain/ports/random-source.js";
+import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
+import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 
 /**
  * RES-003（Issue #173）レビュー[P1]の回帰テスト: `CAP_RESOLUTION_BRANCH_REPEAT`を
@@ -36,7 +36,7 @@ import { createUnitDefinitionId } from "../domain/catalog/definitions/catalog-id
  * 主張する（E2E-CATALOG-PROD-SMOKE-001と同じ主張水準）。
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const KEI = "UNIT_KEI_JACKKNIFE";
 
 /** 枯渇しない決定的RandomSource（常に同じ値を返す）。完走のみを検証するため値は任意。 */

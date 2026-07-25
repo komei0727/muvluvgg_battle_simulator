@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { ApplicationError } from "../application/contracts/application-error.js";
-import { createCapabilityDefinition } from "../domain/catalog/capability/capability-definition.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
+import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
   createCapabilityId,
   createSkillDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import type { SkillDefinition } from "../domain/catalog/definitions/skill-definition.js";
-import { createBattleUnitId } from "../domain/shared/ids.js";
-import { CatalogBuilder } from "../testing/scenario/catalog-builder.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
+import { CatalogBuilder } from "../../testing/scenario/catalog-builder.js";
 import {
   attackSkill,
   battleCommand,
   damageEffectAction,
   formationSlot,
   unitDefinition,
-} from "../testing/scenario/definition-builders.js";
-import { runScenario } from "../testing/scenario/run-scenario.js";
+} from "../../testing/scenario/definition-builders.js";
+import { runScenario } from "../../testing/scenario/run-scenario.js";
 
 /**
  * harness ベースの Battle シナリオ（`12_テスト戦略.md`「基準シナリオ」）。散在する既存の
@@ -58,7 +58,8 @@ describe("battle scenarios (harness)", () => {
   });
 
   it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {
-    const { reduceStateDeltas } = await import("../domain/battle/lifecycle/state-delta-reducer.js");
+    const { reduceStateDeltas } =
+      await import("../../domain/battle/lifecycle/state-delta-reducer.js");
     const skillId = "SKL_ATTACK";
     const effectActionId = "ACT_ATTACK";
     // UNIT_001 (activeSkillDefinitionIds: []) always WAITs, exercising both

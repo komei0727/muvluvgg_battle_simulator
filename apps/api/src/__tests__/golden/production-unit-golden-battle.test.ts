@@ -1,10 +1,10 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { assertBattleInvariants } from "../testing/scenario/run-scenario.js";
+import { assertBattleInvariants } from "../../testing/scenario/run-scenario.js";
 import {
   runProductionUnitBattle,
   selectableProductionUnitIds,
-} from "../testing/scenario/run-production-battle.js";
+} from "../../testing/scenario/run-production-battle.js";
 
 /**
  * Golden battle 回帰層（`12_テスト戦略.md`「golden battle」）。GET一覧APIが
@@ -15,7 +15,7 @@ import {
  * 新たに `selectable` となったUnitは自動的にケースが増え、snapshot未登録なら失敗する
  * （強制関数）。個別の回帰意図を持つテスト（例: `kei-jackknife-...`）は別途残す。
  */
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const SELECTABLE_UNIT_IDS = selectableProductionUnitIds(CATALOG_DIR);
 
 describe("production Unit golden battles", () => {

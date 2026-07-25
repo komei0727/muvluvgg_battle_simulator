@@ -1,14 +1,14 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { applyCooldownManipulationAction } from "../domain/battle/lifecycle/cooldown-manipulation-application-service.js";
-import { createBattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { ResolvedEffectApplication } from "../domain/battle/skill/skill-resolution-service.js";
-import { collectEffectActionReferences } from "../domain/catalog/integrity/catalog-integrity.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { applyCooldownManipulationAction } from "../../domain/battle/lifecycle/cooldown-manipulation-application-service.js";
+import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { ResolvedEffectApplication } from "../../domain/battle/skill/skill-resolution-service.js";
+import { collectEffectActionReferences } from "../../domain/catalog/integrity/catalog-integrity.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * Issue #129 (COOLDOWN_MANIPULATION): exercises the REAL production
@@ -31,7 +31,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * executor are correct against unmodified production data.
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function actorFor(unitDefinitionId: string): ReturnType<typeof createBattleUnit> {
   const member: BattlePartyMember = {

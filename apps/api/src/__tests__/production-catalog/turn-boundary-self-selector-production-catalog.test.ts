@@ -1,13 +1,13 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import { createBattleUnitId } from "../domain/shared/ids.js";
-import { detectPassiveCandidates } from "../domain/battle/triggering/passive-trigger-matcher.js";
-import { createEmptyPassiveActivationGuard } from "../domain/battle/triggering/passive-activation-guard.js";
-import type { TriggerCandidateEvent } from "../domain/battle/triggering/trigger-event.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
+import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
+import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
+import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * Review fix [P1] (Issue #144 follow-up, PR #152): `TurnStarted`/`TurnCompleting`
@@ -28,7 +28,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * proving `detectPassiveCandidates` now candidates it for its own owner.
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 const KARINA_UNIT_ID = "UNIT_KARINA_DOWNER";
 const KARINA_PS2_ID = "SKL_KARINA_DOWNER_PS2";

@@ -1,21 +1,21 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { BattleCatalogSnapshot } from "../domain/ports/battle-catalog.js";
-import { createBattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { PassiveActivationRuntime } from "../domain/battle/lifecycle/passive-activation-service.js";
-import { reduceStateDeltas } from "../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../domain/battle/lifecycle/battle-state-snapshot.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
-import { detectRuntimeCounterUpdates } from "../domain/battle/triggering/runtime-counter-matcher.js";
-import { evaluateTriggerCondition } from "../domain/battle/triggering/trigger-condition-evaluator.js";
-import type { TriggerCandidateEvent } from "../domain/battle/triggering/trigger-event.js";
-import type { Side } from "../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { detectRuntimeCounterUpdates } from "../../domain/battle/triggering/runtime-counter-matcher.js";
+import { evaluateTriggerCondition } from "../../domain/battle/triggering/trigger-condition-evaluator.js";
+import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
+import type { Side } from "../../domain/shared/side.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 
 /**
  * Issue #143 review re-fix [P1]: the 3 `CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`
@@ -30,7 +30,7 @@ import { SequenceRandomSource } from "../testing/random/sequence-random-source.j
  * it, both cases matched — the bug this Issue's review caught).
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function actorFor(
   unitDefinitionId: string,

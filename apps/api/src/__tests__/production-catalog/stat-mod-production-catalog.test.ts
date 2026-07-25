@@ -1,13 +1,13 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { grantEffect } from "../domain/battle/effects/effect-grant-service.js";
-import { recalculateCombatStats } from "../domain/battle/effects/combat-stat-recalculation-service.js";
-import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
+import { recalculateCombatStats } from "../../domain/battle/effects/combat-stat-recalculation-service.js";
+import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * EFF-002 (Issue #165): exercises the REAL production `catalog/`
@@ -22,7 +22,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * (Issue #129).
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function actorFor(unitDefinitionId: string): BattleUnit {
   const member: BattlePartyMember = {

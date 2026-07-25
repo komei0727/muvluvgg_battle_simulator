@@ -3,22 +3,22 @@ import { describe, expect, it } from "vitest";
 import {
   applyDamageAction,
   type DamageEventContext,
-} from "../domain/battle/combat/damage-application-service.js";
+} from "../../domain/battle/combat/damage-application-service.js";
 import {
   evaluateFormula,
   type LastDamageResultRegistry,
-} from "../domain/battle/skill/formula-evaluator.js";
-import { grantEffect } from "../domain/battle/effects/effect-grant-service.js";
-import { recalculateCombatStats } from "../domain/battle/effects/combat-stat-recalculation-service.js";
-import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { ResolvedEffectApplication } from "../domain/battle/skill/skill-resolution-service.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
-import { createUnitDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+} from "../../domain/battle/skill/formula-evaluator.js";
+import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
+import { recalculateCombatStats } from "../../domain/battle/effects/combat-stat-recalculation-service.js";
+import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { ResolvedEffectApplication } from "../../domain/battle/skill/skill-resolution-service.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * RES-001 (Issue #175, R-NUM-04): exercises the REAL production `catalog/`
@@ -40,7 +40,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  *   (`ACT_AOI_GUARDIAN_PS2_COUNTER`, `ACT_STELLA_STATUE_PS2_COUNTER`).
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function unitFor(
   id: string,

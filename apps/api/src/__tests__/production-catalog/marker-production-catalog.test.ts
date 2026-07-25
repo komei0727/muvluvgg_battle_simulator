@@ -1,13 +1,13 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { applyMarker } from "../domain/battle/effects/marker-apply-service.js";
-import { removeMarkers } from "../domain/battle/effects/marker-removal-service.js";
-import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { applyMarker } from "../../domain/battle/effects/marker-apply-service.js";
+import { removeMarkers } from "../../domain/battle/effects/marker-removal-service.js";
+import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * EFF-004 (Issue #160): exercises REAL production `catalog/` `APPLY_MARKER`/
@@ -19,7 +19,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * `IMPLEMENTED` alongside this test (`catalog-src/capabilities.json`).
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function actorFor(unitDefinitionId: string, battleUnitId: string): BattleUnit {
   const member: BattlePartyMember = {

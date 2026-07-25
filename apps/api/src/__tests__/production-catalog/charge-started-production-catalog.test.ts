@@ -1,19 +1,19 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import { createBattleUnitId } from "../domain/shared/ids.js";
-import { detectPassiveCandidates } from "../domain/battle/triggering/passive-trigger-matcher.js";
-import { createEmptyPassiveActivationGuard } from "../domain/battle/triggering/passive-activation-guard.js";
-import type { TriggerCandidateEvent } from "../domain/battle/triggering/trigger-event.js";
-import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
+import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
+import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
+import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
+import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import {
   createSkillDefinitionId,
   createUnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import type { Side } from "../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { Side } from "../../domain/shared/side.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * Issue #143 review re-fix [P2]: `ChargeStarted` previously carried no
@@ -27,7 +27,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  * production Catalog trigger.
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function actorFor(
   unitDefinitionId: string,

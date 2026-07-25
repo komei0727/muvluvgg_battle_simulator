@@ -1,32 +1,32 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { advanceBattle, createBattle, startBattle } from "../domain/battle/lifecycle/battle.js";
-import { createBattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createTurnLimit } from "../domain/battle/model/turn-limit.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
+import { advanceBattle, createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
+import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import type { EffectActionDefinition } from "../domain/catalog/definitions/effect-action-definition.js";
-import type { SkillDefinition } from "../domain/catalog/definitions/skill-definition.js";
-import type { TargetSelectorDefinition } from "../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../domain/shared/side.js";
-import { detectPassiveCandidates } from "../domain/battle/triggering/passive-trigger-matcher.js";
-import { createEmptyPassiveActivationGuard } from "../domain/battle/triggering/passive-activation-guard.js";
-import type { TriggerCandidateEvent } from "../domain/battle/triggering/trigger-event.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { PassiveActivationRuntime } from "../domain/battle/lifecycle/passive-activation-service.js";
-import { applyDamageAction } from "../domain/battle/combat/damage-application-service.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import type { Side } from "../../domain/shared/side.js";
+import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
+import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
+import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import { applyDamageAction } from "../../domain/battle/combat/damage-application-service.js";
 
 /**
  * Issue #144 follow-up (docs/ddd/15_Unit_Memory変換台帳.md 該当行):
@@ -45,7 +45,7 @@ import { applyDamageAction } from "../domain/battle/combat/damage-application-se
  * このIssueのスコープ外のまま — 台帳の該当行を参照。
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 const SUIRAN_UNIT_ID = "UNIT_SUIRAN_CHAOS";
 const SUIRAN_PS1_ID = "SKL_SUIRAN_CHAOS_PS1";
