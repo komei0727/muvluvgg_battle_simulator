@@ -3,14 +3,14 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import type { buildServer as buildServerFn } from "../presentation/http/build-server.js";
-import type { SimulationWorkerPool as SimulationWorkerPoolClass } from "../infrastructure/worker/simulation-worker-pool.js";
+import type { buildServer as buildServerFn } from "../../presentation/http/build-server.js";
+import type { SimulationWorkerPool as SimulationWorkerPoolClass } from "../../infrastructure/worker/simulation-worker-pool.js";
 import {
   loadBattleCatalogDirectory,
   loadCatalogFromDirectory,
-} from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { GetBattleSimulationCatalogUseCase } from "../application/catalog/get-battle-simulation-catalog-use-case.js";
-import { buildSimulationSmokeRequest } from "../infrastructure/deploy/simulation-smoke-request.js";
+} from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { GetBattleSimulationCatalogUseCase } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
+import { buildSimulationSmokeRequest } from "../../infrastructure/deploy/simulation-smoke-request.js";
 
 /**
  * Issue #106 review (2026-07-15, 4th round): the Cloud Run CI/CD post-deploy
@@ -33,15 +33,18 @@ import { buildSimulationSmokeRequest } from "../infrastructure/deploy/simulation
  * to avoid the dual-module-instance `ApplicationError` mismatch described
  * there.
  */
-const apiPackageRoot = fileURLToPath(new URL("../../", import.meta.url));
-const tscBin = fileURLToPath(new URL("../../node_modules/.bin/tsc", import.meta.url));
+const apiPackageRoot = fileURLToPath(new URL("../../../", import.meta.url));
+const tscBin = fileURLToPath(new URL("../../../node_modules/.bin/tsc", import.meta.url));
 const distPoolUrl = new URL(
-  "../../dist/infrastructure/worker/simulation-worker-pool.js",
+  "../../../dist/infrastructure/worker/simulation-worker-pool.js",
   import.meta.url,
 );
-const distBuildServerUrl = new URL("../../dist/presentation/http/build-server.js", import.meta.url);
+const distBuildServerUrl = new URL(
+  "../../../dist/presentation/http/build-server.js",
+  import.meta.url,
+);
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 describe("production Catalog has a selectable unit that actually completes a battle", () => {
   let SimulationWorkerPool: typeof SimulationWorkerPoolClass;

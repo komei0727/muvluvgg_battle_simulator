@@ -19,7 +19,7 @@ let eslint: ESLint;
 
 beforeAll(() => {
   eslint = new ESLint({
-    cwd: new URL("../..", import.meta.url).pathname,
+    cwd: new URL("../../..", import.meta.url).pathname,
     overrideConfig: [tseslint.configs.disableTypeChecked],
   });
 });
@@ -322,7 +322,7 @@ describe("Module boundary — presentation cannot depend on domain directly", ()
 });
 
 describe("Module boundary — no stray top-level files under domain/battle or application (#132 flattening guard)", () => {
-  const srcDir = fileURLToPath(new URL("..", import.meta.url));
+  const srcDir = fileURLToPath(new URL("../..", import.meta.url));
 
   it("UT-MOD-027: domain/battle contains only recognized submodule directories", () => {
     expect(() =>

@@ -3,23 +3,23 @@ import { describe, expect, it } from "vitest";
 import {
   applyEffectActionGroups,
   type EffectActionGroupContext,
-} from "../domain/battle/lifecycle/effect-action-group-resolver.js";
-import { resolveSkillOrder } from "../domain/battle/skill/skill-resolution-service.js";
-import { selectWeightedBranch } from "../domain/battle/skill/random-branch-selection.js";
-import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { UnitDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import { createSkillDefinitionId } from "../domain/catalog/definitions/catalog-ids.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
-import { reduceStateDeltas } from "../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../domain/battle/lifecycle/battle-state-snapshot.js";
-import type { Side } from "../domain/shared/side.js";
-import type { FormationPosition } from "../domain/battle/model/formation-input.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
+} from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
+import { selectWeightedBranch } from "../../domain/battle/skill/random-branch-selection.js";
+import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { UnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import type { Side } from "../../domain/shared/side.js";
+import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 
 /**
  * RES-003（Issue #173、`CAP_RANDOM_BRANCH`）: `RANDOM_BRANCH`の`WEIGHTED_ONE`が
@@ -39,7 +39,7 @@ import { SequenceRandomSource } from "../testing/random/sequence-random-source.j
  * ことだけを検証する。
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const UNIT_ID = "UNIT_KATE_PALADIN";
 const SKILL_ID = "SKL_KATE_PALADIN_EX";
 const DAMAGE_ACTION_ID = "ACT_KATE_PALADIN_EX_DAMAGE5";

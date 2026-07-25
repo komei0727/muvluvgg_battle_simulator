@@ -1,30 +1,30 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { resolveSkillUse } from "../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import type { BattleDomainEvent } from "../domain/battle/events/domain-event.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
-import { createActionId } from "../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
+import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import { createActionId } from "../../domain/shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
-} from "../domain/catalog/definitions/catalog-ids.js";
-import type { EffectActionDefinition } from "../domain/catalog/definitions/effect-action-definition.js";
-import type { SkillDefinition } from "../domain/catalog/definitions/skill-definition.js";
-import type { TargetSelectorDefinition } from "../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { applyStateDelta } from "../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../domain/battle/lifecycle/battle-state-snapshot.js";
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import type { Side } from "../../domain/shared/side.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 
 /**
  * TGT-004フェーズ3（Issue #167、R-TGT-08「ステルス」production Catalog統合）:
@@ -47,7 +47,7 @@ import type { BattleStateSnapshot } from "../domain/battle/lifecycle/battle-stat
  * 同じ方針）。
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const MAO_UNIT_ID = "UNIT_MAO_COMMITTEE";
 const STEALTH_EFFECT_ID = "ACT_MAO_COMMITTEE_PS2_STEALTH";
 

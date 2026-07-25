@@ -12,7 +12,7 @@ let eslint: ESLint;
 
 beforeAll(() => {
   eslint = new ESLint({
-    cwd: new URL("../..", import.meta.url).pathname,
+    cwd: new URL("../../..", import.meta.url).pathname,
     overrideConfig: [
       // Disable all type-checked rules so virtual-path lintText calls succeed.
       tseslint.configs.disableTypeChecked,

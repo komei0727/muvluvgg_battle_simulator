@@ -1,25 +1,25 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { MarkerState } from "../domain/battle/model/marker-state.js";
-import type { UnitDefinition } from "../domain/catalog/definitions/unit-definition.js";
-import { EventRecorder } from "../domain/battle/events/event-recorder.js";
-import { PassiveActivationRuntime } from "../domain/battle/lifecycle/passive-activation-service.js";
-import { reduceStateDeltas } from "../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../domain/battle/lifecycle/battle-state-snapshot.js";
-import { createEmptyPassiveActivationGuard } from "../domain/battle/triggering/passive-activation-guard.js";
-import { detectPassiveCandidates } from "../domain/battle/triggering/passive-trigger-matcher.js";
-import { reconfirmPassiveCandidate } from "../domain/battle/triggering/reconfirm-passive-candidate.js";
-import type { TriggerCandidateEvent } from "../domain/battle/triggering/trigger-event.js";
-import { createBattleId, createBattleUnitId } from "../domain/shared/ids.js";
-import { createMarkerId } from "../domain/catalog/definitions/catalog-ids.js";
-import { createMarkerInstanceId } from "../domain/shared/event-ids.js";
-import type { Side } from "../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { SequenceRandomSource } from "../testing/random/sequence-random-source.js";
+import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { MarkerState } from "../../domain/battle/model/marker-state.js";
+import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
+import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
+import { reconfirmPassiveCandidate } from "../../domain/battle/triggering/reconfirm-passive-candidate.js";
+import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
+import type { Side } from "../../domain/shared/side.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 
 /**
  * RES-004（Issue #171、`CAP_PASSIVE_ACTIVATION_CONDITION`）: PSの
@@ -41,7 +41,7 @@ import { SequenceRandomSource } from "../testing/random/sequence-random-source.j
  * 常に`PADDING_UNIT_DEFINITION_ID`（`passiveSkillDefinitionIds: []`）で作る。
  */
 
-const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const PADDING_UNIT_DEFINITION_ID = "UNIT_TEST_PADDING";
 
 function actorFor(

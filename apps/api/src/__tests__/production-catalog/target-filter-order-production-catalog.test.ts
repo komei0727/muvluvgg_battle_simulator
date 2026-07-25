@@ -1,15 +1,15 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
-import { buildInitialMarkerState } from "../domain/battle/model/marker-state.js";
-import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../domain/battle/model/formation-input.js";
-import { createBattleUnitId } from "../domain/shared/ids.js";
-import { createMarkerInstanceId } from "../domain/shared/event-ids.js";
-import type { Side } from "../domain/shared/side.js";
-import { resolveBindingSelections } from "../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import { buildInitialMarkerState } from "../../domain/battle/model/marker-state.js";
+import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
+import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
+import type { Side } from "../../domain/shared/side.js";
+import { resolveBindingSelections } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 
 /**
  * Issue #169 (TGT-002): `CAP_TARGET_FILTER_ORDER` — `TargetSelectorDefinition`
@@ -25,7 +25,7 @@ import { loadCatalogFromDirectory } from "../infrastructure/catalog/runtime/cata
  */
 
 function catalogPath(): string {
-  return fileURLToPath(new URL("../../catalog", import.meta.url));
+  return fileURLToPath(new URL("../../../catalog", import.meta.url));
 }
 
 function unitAt(
