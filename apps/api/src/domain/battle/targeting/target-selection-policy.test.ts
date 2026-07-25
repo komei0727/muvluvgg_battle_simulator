@@ -1845,6 +1845,62 @@ describe("resolveTargets", () => {
       });
     });
 
+    it("UT-R-TGT-08-010 (R-TGT-08 #7, PR #237再々レビュー[P1]): a SELECT selector narrowed by a POSITION_SLOT filter to a single definitionally-unique slot never redirects, even though kind is SELECT (not just a survivor happenstance)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const slotHolder = unit(
+        "SLOT_HOLDER",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("SLOT_HOLDER")] },
+      );
+      const other = unit("OTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        filters: [{ kind: "POSITION_SLOT", row: "FRONT", column: "CENTER" }],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const result = resolveTargetsWithStealthConsumption(selectorDef, actor, [
+        actor,
+        slotHolder,
+        other,
+      ]);
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("SLOT_HOLDER")]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
+    it("UT-R-TGT-08-011 (R-TGT-08 #7, PR #237再々レビュー[P1]): a BINDING_DERIVED selector with a DIRECTLY_AHEAD_OF_BASE area (a single unique coordinate) never redirects", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "BACK" });
+      const ahead = unit(
+        "AHEAD",
+        "ALLY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("AHEAD")] },
+      );
+      const unrelated = unit("UNRELATED", "ALLY", { column: "LEFT", row: "FRONT" });
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        base: { kind: "SELF" },
+        area: { kind: "DIRECTLY_AHEAD_OF_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const result = resolveTargetsWithStealthConsumption(selectorDef, actor, [
+        actor,
+        ahead,
+        unrelated,
+      ]);
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("AHEAD")]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
     it("UT-R-TGT-08-006: Stealth redirect also applies inside a fallback selector's own evaluation", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const nearestEnemy = unit(
