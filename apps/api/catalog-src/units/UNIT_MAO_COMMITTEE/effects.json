@@ -121,7 +121,7 @@
   {
     "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_CLEANSE",
     "kind": "REMOVE_EFFECTS",
-    "payload": { "categories": ["DEBUFF"] },
+    "payload": { "categories": ["BUFF", "DEBUFF"] },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },

@@ -31,7 +31,6 @@ import {
   RESOURCE_CAPACITY_OPERATIONS,
   STATUS_KINDS,
   type DamageThreshold,
-  type RemoveEffectsPayload,
 } from "./effect-action-payload.js";
 import {
   createFormulaDefinition,
@@ -71,10 +70,13 @@ const STACKING_MODES = ["STACKABLE"] as const;
 const DAMAGE_MOD_DIRECTIONS = ["OUTGOING", "INCOMING"] as const;
 const ACTION_KINDS = ["DAMAGE", "DEBUFF", "ANY"] as const;
 const EFFECT_IMMUNITY_CATEGORIES = [
+  "BUFF",
   "DEBUFF",
   "STATUS",
   "MARKER",
   "DAMAGE_MOD",
+  "SHIELD",
+  "SUBUNIT",
   "SPECIFIC_EFFECT",
 ] as const;
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
@@ -108,10 +110,10 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "damageThreshold",
   ],
   APPLY_SHIELD: ["formula", "duration"],
-  REMOVE_EFFECTS: ["categories", "effectActionDefinitionIds"],
+  REMOVE_EFFECTS: ["categories", "effectActionDefinitionIds", "maxRemovals"],
   EFFECT_IMMUNITY: ["categories", "effectActionDefinitionIds", "duration", "maxBlocks"],
   APPLY_MARKER: ["markerId", "stack", "duration"],
-  REMOVE_MARKER: ["markerId"],
+  REMOVE_MARKER: ["markerId", "count"],
   APPLY_DEATH_SURVIVAL: ["trigger", "survivalHp", "healAfterSurvival", "duration"],
   APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
   APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
@@ -572,21 +574,50 @@ function createPayload(
       assertNonEmptyArray(categories ?? [], `${path}.categories`);
       for (const [i, category] of (categories ?? []).entries()) {
         assertEnumValue(category, EFFECT_IMMUNITY_CATEGORIES, `${path}.categories[${i}]`);
+        // M7-001（Issue #181、レビュー[P2]）: `MARKER`は`REMOVE_EFFECTS`（AppliedEffect
+        // だけを走査する）では解除できず黙ってno-opになるため、Catalogロード時点で
+        // 拒否する。Markerの解除は`REMOVE_MARKER`（`markerId`指定）を使う。
+        if (category === "MARKER") {
+          throw new DomainValidationError(
+            `${path}.categories[${i}]`,
+            'REMOVE_EFFECTS does not support the "MARKER" category — use REMOVE_MARKER (markerId) for marker removal',
+          );
+        }
+        // M7-001（Issue #181、再々レビュー[P2]）: SHIELD/SUBUNITはシールド/サブユニットの
+        // 実行時状態が未モデル化（DMG-004/DMG-005、#242）なため、選択されたUnit/Memory
+        // グラフに対してのみ`UNSUPPORTED_RULE`とすべきで、Catalog全体のロードを
+        // 失敗させてはならない（`09_アプリケーション設計.md`のCapability契約）。
+        // そのためFactoryでは拒否せず、schema上は有効な値のまま通す。実際の拒否は
+        // `catalog-integrity.ts`が要求する`CAP_SHIELD`/`CAP_SUBUNIT`宣言
+        // （いずれも`PLANNED`）を経由し、`SimulationPreflightValidator`が選択時に
+        // `UNSUPPORTED_RULE`とする。resolver側の実行時ガードは、Factoryを迂回した
+        // 直接構築に対するdefense-in-depthとして別途存在する。
       }
       const typedCategories = (categories ?? []) as readonly EffectImmunityCategory[];
-      const result: RemoveEffectsPayload = { categories: typedCategories };
+      const result: {
+        categories: readonly EffectImmunityCategory[];
+        effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
+        maxRemovals?: number;
+      } = { categories: typedCategories };
+      // M7-001（Issue #181、REMOVE_EFFECTS_COUNT_LIMIT）: 解除件数の上限。
+      const maxRemovals = payload["maxRemovals"];
+      if (maxRemovals !== undefined) {
+        if (typeof maxRemovals !== "number") {
+          throw new DomainValidationError(
+            `${path}.maxRemovals`,
+            `must be a positive integer, got ${typeof maxRemovals}`,
+          );
+        }
+        assertInteger(maxRemovals, `${path}.maxRemovals`, { min: 1 });
+        result.maxRemovals = maxRemovals;
+      }
       if (typedCategories.includes("SPECIFIC_EFFECT")) {
         const ids = payload["effectActionDefinitionIds"] as readonly string[] | undefined;
         assertNonEmptyArray(ids ?? [], `${path}.effectActionDefinitionIds`);
-        return {
-          kind: "REMOVE_EFFECTS",
-          payload: {
-            ...result,
-            effectActionDefinitionIds: (ids ?? []).map((id, i) =>
-              createEffectActionDefinitionId(id, `${path}.effectActionDefinitionIds[${i}]`),
-            ),
-          },
-        };
+        result.effectActionDefinitionIds = (ids ?? []).map((id, i) =>
+          createEffectActionDefinitionId(id, `${path}.effectActionDefinitionIds[${i}]`),
+        );
+        return { kind: "REMOVE_EFFECTS", payload: result };
       }
       if (payload["effectActionDefinitionIds"] !== undefined) {
         throw new DomainValidationError(
@@ -656,6 +687,18 @@ function createPayload(
         requireField(payload["markerId"] as string | undefined, `${path}.markerId`),
         `${path}.markerId`,
       );
+      // M7-001（Issue #181、REMOVE_EFFECTS_COUNT_LIMIT）: 解除スタック数の上限。
+      const count = payload["count"];
+      if (count !== undefined) {
+        if (typeof count !== "number") {
+          throw new DomainValidationError(
+            `${path}.count`,
+            `must be a positive integer, got ${typeof count}`,
+          );
+        }
+        assertInteger(count, `${path}.count`, { min: 1 });
+        return { kind: "REMOVE_MARKER", payload: { markerId, count } };
+      }
       return { kind: "REMOVE_MARKER", payload: { markerId } };
     }
     case "APPLY_DEATH_SURVIVAL": {

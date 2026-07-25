@@ -1197,7 +1197,43 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
-  { ruleId: "R-EFF-02", testCaseIds: [], kinds: [] },
+  // R-EFF-02: M7-001（Issue #181）。効果カテゴリ分類（`effect-category-classifier.ts`）・
+  // 解除件数上限・付与順優先・R-EFF-09カスケード・EffectRemoved/StateDelta/CombatStat
+  // 再計算（`effect-removal-service.ts`）と実ライフサイクル配線
+  // （`effect-action-group-resolver.ts`のREMOVE_EFFECTS branch、REMOVE_MARKERのcount）。
+  // REMOVE_BUFF_CATEGORY・REMOVE_EFFECTS_COUNT_LIMITを実production Catalog
+  // （Mihime/Lily/Mao）に対して`IT-REMOVE-EFFECTS-PROD-001/002`が検証する。
+  // SHIELD/SUBUNITカテゴリは`categories`として受理し、`CAP_SHIELD`/`CAP_SUBUNIT`
+  // （いずれも`PLANNED`、DMG-004/005）の宣言をCatalogロード時点で要求すること
+  // （`catalog-integrity.ts`）で選択時に`SimulationPreflightValidator`が
+  // `UNSUPPORTED_RULE`として拒否する経路までは本Issueで配線した
+  // （`UT-PREFLIGHT-012`）が、実際の解除ロジック自体はIssue #242のスコープ。
+  // 状態異常種別限定免疫（R-EFF-03、`CAP_SPECIFIC_IMMUNITY`）はIssue #243のスコープ。
+  {
+    ruleId: "R-EFF-02",
+    testCaseIds: [
+      "UT-R-EFF-02-001",
+      "UT-R-EFF-02-002",
+      "UT-R-EFF-02-003",
+      "UT-R-EFF-02-004",
+      "UT-R-EFF-02-005",
+      "UT-R-EFF-02-006",
+      "UT-R-EFF-02-010",
+      "UT-R-EFF-02-011",
+      "UT-R-EFF-02-012",
+      "UT-R-EFF-02-013",
+      "UT-R-EFF-02-014",
+      "UT-R-EFF-02-015",
+      "UT-R-EFF-02-016",
+      "UT-R-EFF-02-020",
+      "UT-R-EFF-02-021",
+      "UT-R-EFF-02-022",
+      "IT-REMOVE-EFFECTS-PROD-001",
+      "IT-REMOVE-EFFECTS-PROD-002",
+      "IT-REMOVE-EFFECTS-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   { ruleId: "R-EFF-03", testCaseIds: [], kinds: [] },
   // R-EFF-04: EFF-003（Issue #159）。行動単位期間の減算・失効
   // （`applied-effect-duration.ts`のowner解決、`duration-expiry-service.ts`の

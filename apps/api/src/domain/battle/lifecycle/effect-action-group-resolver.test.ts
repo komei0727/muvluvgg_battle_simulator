@@ -3515,4 +3515,160 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
 
     expect(emitted).not.toContain("EffectExpired");
   });
+
+  // --- M7-001 (Issue #181): REMOVE_EFFECTS (R-EFF-02) real lifecycle wiring ---
+
+  function removeEffectsAction(
+    id: string,
+    payload: Extract<EffectActionDefinition, { kind: "REMOVE_EFFECTS" }>["payload"],
+  ): EffectActionDefinition {
+    return {
+      kind: "REMOVE_EFFECTS",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload,
+    };
+  }
+
+  function buffEffectOn(
+    holder: BattleUnit,
+    instanceId: string,
+    definitionId: EffectActionDefinition["effectActionDefinitionId"],
+    magnitude: number,
+  ): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId(instanceId),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      sourceId: holder.battleUnitId,
+      targetId: holder.battleUnitId,
+      magnitude,
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 0,
+    };
+  }
+
+  it("UT-R-EFF-02-020 (REMOVE_BUFF_CATEGORY, real lifecycle wiring): a REMOVE_EFFECTS BUFF ACTION step clears a pre-existing buff AppliedEffect, emits EffectRemoved(reason REMOVED)+CombatStatChanged(EFFECT_REMOVED), and reverts the stat", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const buffDef = statModAction("ACT_ATK_UP");
+    // Target already carries the buff and its combatStats reflect it (+20 attack).
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        buffEffectOn(unit("ENEMY", "ENEMY"), "existing-buff", buffDef.effectActionDefinitionId, 20),
+      ],
+      combatStats: { ...unit("ENEMY", "ENEMY").combatStats, attack: 40 },
+    });
+    const remove = removeEffectsAction("ACT_STRIP_BUFF", { categories: ["BUFF"] });
+    const effectActions = new Map([
+      [buffDef.effectActionDefinitionId, buffDef],
+      [remove.effectActionDefinitionId, remove],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectRemoved",
+      "CombatStatChanged",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+    expectCompleted(result, 1);
+
+    const strippedTarget = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(strippedTarget.appliedEffects).toHaveLength(0);
+    expect(strippedTarget.combatStats.attack).toBe(20);
+
+    const removed = recorder.getEvents().find((e) => e.eventType === "EffectRemoved") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectRemoved" }
+    >;
+    expect(removed.payload).toMatchObject({
+      effectInstanceId: createEffectInstanceId("existing-buff"),
+      battleUnitId: enemy.battleUnitId,
+      reason: "REMOVED",
+      cascaded: false,
+    });
+    const statChanged = recorder
+      .getEvents()
+      .find((e) => e.eventType === "CombatStatChanged") as Extract<
+      BattleDomainEvent,
+      { eventType: "CombatStatChanged" }
+    >;
+    expect(statChanged.payload).toMatchObject({ reason: "EFFECT_REMOVED", before: 40, after: 20 });
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("APPLIED");
+  });
+
+  it("UT-R-EFF-02-021 (REMOVE_EFFECTS_COUNT_LIMIT, real lifecycle wiring): a REMOVE_EFFECTS DEBUFF with maxRemovals=2 removes only the two oldest debuffs", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const debuffDef = statModAction("ACT_ATK_DOWN");
+    const debuffs = [1, 2, 3].map((n) =>
+      buffEffectOn(unit("ENEMY", "ENEMY"), `debuff-${n}`, debuffDef.effectActionDefinitionId, -5),
+    );
+    const enemy = unit("ENEMY", "ENEMY", { appliedEffects: debuffs });
+    const remove = removeEffectsAction("ACT_CLEANSE_2", {
+      categories: ["DEBUFF"],
+      maxRemovals: 2,
+    });
+    const effectActions = new Map([
+      [debuffDef.effectActionDefinitionId, debuffDef],
+      [remove.effectActionDefinitionId, remove],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const strippedTarget = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(strippedTarget.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      createEffectInstanceId("debuff-3"),
+    ]);
+    expect(recorder.getEvents().filter((e) => e.eventType === "EffectRemoved")).toHaveLength(2);
+  });
+
+  it("UT-R-EFF-02-022 (REMOVE_EFFECTS_CATEGORY_GAP deferred, defense-in-depth): a factory-bypassing SHIELD REMOVE_EFFECTS def is still rejected by the resolver guard (primary rejection is at Catalog load, UT-CAT-ACT-069)", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const remove = removeEffectsAction("ACT_STRIP_SHIELD", { categories: ["SHIELD"] });
+    const effectActions = new Map([[remove.effectActionDefinitionId, remove]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
+      DomainValidationError,
+    );
+  });
 });

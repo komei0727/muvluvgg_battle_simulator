@@ -36,10 +36,11 @@ import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-s
  * リダイレクト・消費（`target-selection-policy.ts`/`expireEffects`）が
  * 近似なしの本番効果に対して機能することを検証する。
  *
- * `SKL_MAO_COMMITTEE_PS2`自身は同じstepでCLEANSE（`REMOVE_EFFECTS`、M7-001）・
- * HEAL（`APPLY_CONTINUOUS_HEAL`、M7-005）・DMG_DOWN（`APPLY_DAMAGE_MOD`、
- * DMG-002）も解決するが、これらは`capabilities.json`で別タスク化された
- * 未実装kindのため、そのままではCLEANSEで例外になりSTEALTHへ到達できない。
+ * `SKL_MAO_COMMITTEE_PS2`自身は同じstepでCLEANSE（`REMOVE_EFFECTS`、M7-001で
+ * 実装済み）・HEAL（`APPLY_CONTINUOUS_HEAL`、M7-005）・DMG_DOWN
+ * （`APPLY_DAMAGE_MOD`、DMG-002）も解決するが、後者2つは`capabilities.json`で
+ * 別タスク化された未実装kindのため、そのまま丸ごと実行するとHEAL/DMG_DOWNで
+ * 例外になりSTEALTHへ到達できない。
  * そのためこのテストは`SKL_MAO_COMMITTEE_PS2`を丸ごと実行するのではなく、
  * 実カタログから読み込んだ`ACT_MAO_COMMITTEE_PS2_STEALTH`定義そのものだけを
  * 単一actionに持つ最小限の合成AS skillで包み、STEALTH付与単体を実配線経由で

@@ -1104,12 +1104,12 @@ payload:
   maxBlocks: null
 ```
 
-| フィールド                  | 型                 | 制約                                                              |
-| --------------------------- | ------------------ | ----------------------------------------------------------------- |
-| `categories`                | enum[]             | `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SPECIFIC_EFFECT` |
-| `effectActionDefinitionIds` | string[]           | `SPECIFIC_EFFECT` の場合に対象IDを指定                            |
-| `duration`                  | DurationDefinition | 省略時は即時効果として不正                                        |
-| `maxBlocks`                 | integer/null       | null = 期間中は上限なし                                           |
+| フィールド                  | 型                 | 制約                                                                                              |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| `categories`                | enum[]             | `BUFF` / `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT` / `SPECIFIC_EFFECT` |
+| `effectActionDefinitionIds` | string[]           | `SPECIFIC_EFFECT` の場合に対象IDを指定                                                            |
+| `duration`                  | DurationDefinition | 省略時は即時効果として不正                                                                        |
+| `maxBlocks`                 | integer/null       | null = 期間中は上限なし                                                                           |
 
 `EFFECT_IMMUNITY` により付与を拒否した場合は `EffectApplicationRejected` を発行する。
 
@@ -1124,12 +1124,17 @@ payload:
     - DEBUFF
 ```
 
-| フィールド                  | 型       | 制約                                                                       |
-| --------------------------- | -------- | -------------------------------------------------------------------------- |
-| `categories`                | enum[]   | `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SPECIFIC_EFFECT`。1件以上 |
-| `effectActionDefinitionIds` | string[] | `SPECIFIC_EFFECT` の場合に対象IDを指定                                     |
+| フィールド                  | 型       | 制約                                                                                                                        |
+| --------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `categories`                | enum[]   | `BUFF` / `DEBUFF` / `STATUS` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT` / `SPECIFIC_EFFECT`。1件以上（`MARKER`は不可、下記参照） |
+| `effectActionDefinitionIds` | string[] | `SPECIFIC_EFFECT` の場合に対象IDを指定                                                                                      |
+| `maxRemovals`               | integer? | 解除件数の上限（M7-001、`REMOVE_EFFECTS_COUNT_LIMIT`）。省略時は該当カテゴリの全件を解除する。1以上                         |
 
-`duration` を持たない即時効果である点が `EFFECT_IMMUNITY` との違い。`Marker` の解除は既存の `REMOVE_MARKER`（`markerId` 指定）を使う。
+`duration` を持たない即時効果である点が `EFFECT_IMMUNITY` との違い。`Marker` の解除は `REMOVE_EFFECTS` の `categories` ではなく既存の `REMOVE_MARKER`（`markerId` 指定。M7-001で `count?`（解除スタック数の上限、省略時は全スタック解除）を追加）を使う。`REMOVE_EFFECTS` は `AppliedEffect` のみを走査するため、`categories` に `MARKER` を指定すると黙って no-op になる。これを避けるため、`REMOVE_EFFECTS` の `categories` は `MARKER` をCatalogロード時点で拒否する（`MARKER` は `EFFECT_IMMUNITY` 専用）。
+
+M7-001（Issue #181）で `BUFF`（`REMOVE_BUFF_CATEGORY`）・`SHIELD`・`SUBUNIT`（`REMOVE_EFFECTS_CATEGORY_GAP`）を `categories` へ追加した。バフ/デバフ判定は R-EFF-05「バフは正の効果量、デバフは弱化量」に従い符号付き効果量から導き、状態異常（`STATUS`）は R-STS-01 により `DEBUFF` も兼ねる（`effect-category-classifier.ts`）。解除優先順が定義されていない場合の既定は付与順の古い順とする（R-EFF-02 #3）。
+
+`SHIELD`/`SUBUNIT` はシールド/サブユニットの実行時状態が未モデル化（`CAP_SHIELD`=DMG-004、`CAP_SUBUNIT`=DMG-005、いずれも`runtimeStatus: PLANNED`、Issue #242）。`categories` へこれらを指定する `REMOVE_EFFECTS` は、対応する Capability（`SHIELD`→`CAP_SHIELD`、`SUBUNIT`→`CAP_SUBUNIT`）を `requiredCapabilities` へ宣言すること（`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体をCatalogロード時点で拒否する」パターン）。宣言してさえいれば、その Capability が `PLANNED` のままでも Catalog 自体は正しくロードできる — 実際の拒否は、そのUnit/Memoryが選択された時点で `SimulationPreflightValidator` が `UNSUPPORTED_RULE` として行う（`09_アプリケーション設計.md`）。`MARKER`（Catalogロード時点の即時拒否、直前の段落）とは異なり、SHIELD/SUBUNITは「将来実装される」性質のため、Catalog全体のロードを失敗させてはならない。
 
 `REMOVE_EFFECTS` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_REMOVE_EFFECTS` を含めること。Battle Engineが未実装のkindは、Capabilityで隔離しないと preflight（`SimulationPreflightValidator`、`09_アプリケーション設計.md`）を素通りしてしまう。
 
@@ -1902,6 +1907,7 @@ RES-004後続（Issue #227）で、`ConditionDefinition.kind: TARGET_SET_COUNT`�
 | `CAP_SHIELD`                       | `DMG-004`    | シールド付与                                                                                                                                                                                                                                                                               |
 | `CAP_SKILL_RUNTIME_COUNTER`        | `M6-RC-001`  | SkillRuntimeスコープの発動回数・累計条件                                                                                                                                                                                                                                                   |
 | `CAP_SPECIFIC_IMMUNITY`            | `M7-001`     | 個別状態異常無効                                                                                                                                                                                                                                                                           |
+| `CAP_SUBUNIT`                      | `DMG-005`    | サブユニット付与。M7-001で`REMOVE_EFFECTS`の`SUBUNIT`カテゴリが要求するCapabilityとしても登録する                                                                                                                                                                                          |
 | `CAP_TARGET_BINDING_FALLBACK`      | `TGT-003`    | TargetBinding固定・参照時の戦闘不能skip・fallback判定                                                                                                                                                                                                                                      |
 | `CAP_TARGET_DERIVED_AREA`          | `TGT-001`    | area・距離・隣接・列による派生対象                                                                                                                                                                                                                                                         |
 | `CAP_TARGET_FILTER_ORDER`          | `TGT-002`    | Target filter・order・除外選択                                                                                                                                                                                                                                                             |

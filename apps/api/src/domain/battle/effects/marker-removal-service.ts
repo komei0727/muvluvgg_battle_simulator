@@ -4,6 +4,7 @@ import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { MarkerRemovalReason } from "../events/domain-event.js";
 import type { MarkerDurationChange } from "../model/marker-duration.js";
+import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   ActionId,
   DomainEventId,
@@ -209,4 +210,92 @@ export function removeMarkers(
   }
 
   return { units: working, lastEventId };
+}
+
+export interface ReduceMarkerStackResult {
+  readonly units: readonly BattleUnit[];
+  readonly lastEventId: DomainEventId;
+  /** スタック解除・除去のいずれかが実際に発生した場合`true`（対象Marker不所持なら`false`）。 */
+  readonly changed: boolean;
+}
+
+/**
+ * M7-001（Issue #181、`REMOVE_EFFECTS_COUNT_LIMIT`）: `REMOVE_MARKER`の`count`指定に
+ * よる部分解除。対象が`markerId`のMarkerを`count`スタック分だけ失う。残スタックが
+ * 0以下になる場合は`removeMarkers`でインスタンスごと除去し（`MarkerRemoved`、
+ * reason `REMOVED`、R-EFF-09カスケードを含む）、正の残スタックが残る場合は
+ * `MarkerUpdated`（policyを持たないスタック減算、`domain-event.ts`の`MarkerUpdated`
+ * コメントの統合方針に従う）を発行する。対象Markerを所持しない場合はno-op。
+ */
+export function reduceMarkerStack(
+  context: RemoveMarkersContext,
+  units: readonly BattleUnit[],
+  targetId: BattleUnitId,
+  markerId: MarkerId,
+  count: number,
+  parentEventId: DomainEventId,
+): ReduceMarkerStackResult {
+  const target = requireUnit(units, targetId);
+  const existing = target.markerStates.find((marker) => marker.markerId === markerId);
+  if (existing === undefined) {
+    return { units, lastEventId: parentEventId, changed: false };
+  }
+
+  const stackAfter = existing.stackCount - count;
+  if (stackAfter <= 0) {
+    const result = removeMarkers(
+      context,
+      units,
+      [{ battleUnitId: targetId, markerInstanceId: existing.markerInstanceId, reason: "REMOVED" }],
+      parentEventId,
+    );
+    return { units: result.units, lastEventId: result.lastEventId, changed: true };
+  }
+
+  const nextMarker = { ...existing, stackCount: stackAfter };
+  const nextUnits = units.map((unit) =>
+    unit.battleUnitId === targetId
+      ? {
+          ...unit,
+          markerStates: unit.markerStates.map((marker) =>
+            marker.markerInstanceId === existing.markerInstanceId ? nextMarker : marker,
+          ),
+        }
+      : unit,
+  );
+  const updated = context.recorder.record({
+    eventType: "MarkerUpdated",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+    resolutionScopeId: context.resolutionScopeId,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: targetId,
+    targetUnitIds: [targetId],
+    payload: {
+      markerInstanceId: existing.markerInstanceId,
+      markerId: existing.markerId,
+      targetUnitId: targetId,
+      sourceUnitId: existing.sourceId,
+      stackBefore: existing.stackCount,
+      stackAfter,
+      linkedEffectGroupId: existing.duration.definition.linkedEffectGroupId,
+    },
+    stateDelta: {
+      units: {
+        [targetId]: {
+          markers: {
+            [existing.markerInstanceId]: {
+              before: toMarkerSnapshot(existing),
+              after: toMarkerSnapshot(nextMarker),
+            },
+          },
+        },
+      },
+    },
+  });
+  return { units: nextUnits, lastEventId: updated.eventId, changed: true };
 }

@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 109,
-      "completed": 66,
-      "remaining": 43
+      "completed": 67,
+      "remaining": 42
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 75
+      "incompleteConversionRows": 72
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 26
     },
     "capabilities": {
-      "total": 36,
-      "implemented": 14
+      "total": 37,
+      "implemented": 15
     }
   },
   "tasks": [
@@ -112,7 +112,7 @@
       "ruleIds": ["R-HIT-02", "R-HIT-03", "R-DMG-02", "R-STS-03", "R-STS-04"]
     },
     { "taskId": "M7-005", "ruleIds": ["R-HEAL-01", "R-HEAL-02", "R-HEAL-03"] },
-    { "taskId": "M7-001", "ruleIds": ["R-EFF-02", "R-EFF-03"] },
+    { "taskId": "M7-001", "ruleIds": ["R-EFF-03"] },
     { "taskId": "DMG-001", "ruleIds": ["R-SKL-03", "R-ACTN-02", "R-DMG-05"] },
     { "taskId": "DMG-006", "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"] },
     { "taskId": "DMG-002", "ruleIds": ["R-DMG-03", "R-DMG-04"] },
@@ -128,7 +128,7 @@
       "rowCount": 1,
       "taskId": "RES-004-STATUS-CONDITION"
     },
-    { "milestone": "M7", "theme": "REMOVE_BUFF_CATEGORY", "rowCount": 5, "taskId": "M7-001" },
+    { "milestone": "M7", "theme": "REMOVE_BUFF_CATEGORY", "rowCount": 4, "taskId": "M7-001" },
     {
       "milestone": "M7",
       "theme": "TARGET_STATE_QUERY_BUFF_DEBUFF",
@@ -137,7 +137,7 @@
     },
     { "milestone": "M7", "theme": "HP_DIRECT_COST", "rowCount": 4, "taskId": "M7-002" },
     { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
-    { "milestone": "M7", "theme": "REMOVE_EFFECTS_COUNT_LIMIT", "rowCount": 3, "taskId": "M7-001" },
+    { "milestone": "M7", "theme": "REMOVE_EFFECTS_COUNT_LIMIT", "rowCount": 1, "taskId": "M7-001" },
     { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "M7-010" },
     {
       "milestone": "M7",

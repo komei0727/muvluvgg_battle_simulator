@@ -1124,6 +1124,124 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  // --- M7-001 (Issue #181): REMOVE_BUFF_CATEGORY / REMOVE_EFFECTS_COUNT_LIMIT / CATEGORY_GAP ---
+
+  it("UT-CAT-ACT-062: maps REMOVE_EFFECTS clearing the BUFF category (REMOVE_BUFF_CATEGORY)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_REMOVE_BUFFS",
+        kind: "REMOVE_EFFECTS",
+        payload: { categories: ["BUFF"] },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result).toMatchObject({ kind: "REMOVE_EFFECTS", payload: { categories: ["BUFF"] } });
+  });
+
+  it("UT-CAT-ACT-063: maps REMOVE_EFFECTS with maxRemovals as a count limit (REMOVE_EFFECTS_COUNT_LIMIT)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_REMOVE_3_DEBUFFS",
+        kind: "REMOVE_EFFECTS",
+        payload: { categories: ["DEBUFF"], maxRemovals: 3 },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("REMOVE_EFFECTS");
+    if (result.kind === "REMOVE_EFFECTS") {
+      expect(result.payload.maxRemovals).toBe(3);
+    }
+  });
+
+  it("UT-CAT-ACT-064: rejects REMOVE_EFFECTS with a non-positive maxRemovals", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_1",
+          kind: "REMOVE_EFFECTS",
+          payload: { categories: ["DEBUFF"], maxRemovals: 0 },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-064b: rejects REMOVE_EFFECTS with a non-integer maxRemovals", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_1",
+          kind: "REMOVE_EFFECTS",
+          payload: { categories: ["DEBUFF"], maxRemovals: 1.5 },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-066: maps REMOVE_MARKER with a count limiting how many stacks are removed (REMOVE_EFFECTS_COUNT_LIMIT)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_REMOVE_3_STACKS",
+        kind: "REMOVE_MARKER",
+        payload: { markerId: "MARKER_MAKENKI", count: 3 },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("REMOVE_MARKER");
+    if (result.kind === "REMOVE_MARKER") {
+      expect(result.payload.count).toBe(3);
+    }
+  });
+
+  it("UT-CAT-ACT-068: rejects REMOVE_EFFECTS with the MARKER category (use REMOVE_MARKER instead; would otherwise be a silent no-op)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_MARKER_CAT",
+          kind: "REMOVE_EFFECTS",
+          payload: { categories: ["MARKER"] },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-069: maps REMOVE_EFFECTS with SHIELD/SUBUNIT categories at the Factory level (schema-valid; the required-capability gate that keeps preflight's UNSUPPORTED_RULE contract lives in catalog-integrity.ts, not here — see UT-CAT-IDX-018..021)", () => {
+    for (const category of ["SHIELD", "SUBUNIT"] as const) {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_GAP",
+          kind: "REMOVE_EFFECTS",
+          payload: { categories: [category] },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      );
+      expect(result).toMatchObject({ kind: "REMOVE_EFFECTS", payload: { categories: [category] } });
+    }
+  });
+
+  it("UT-CAT-ACT-067: rejects REMOVE_MARKER with a non-positive count", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_STACKS",
+          kind: "REMOVE_MARKER",
+          payload: { markerId: "MARKER_MAKENKI", count: 0 },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   // --- Issue #44 G-06: APPLY_STATUS.damageThreshold ---
 
   it("UT-CAT-ACT-050: maps APPLY_STATUS DAMAGE_IMMUNITY with a damageThreshold (only large hits are nullified)", () => {

@@ -170,6 +170,13 @@ export interface ApplyShieldPayload {
 export interface RemoveEffectsPayload {
   readonly categories: readonly EffectImmunityCategory[];
   readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
+  /**
+   * M7-001（Issue #181、`REMOVE_EFFECTS_COUNT_LIMIT`）: 解除する効果インスタンス
+   * 数の上限。省略時は該当カテゴリの全効果を解除する。R-EFF-02 #3「解除数や
+   * 優先順が定義されている場合はその指定に従う」に対応する（優先順の既定は
+   * 付与順の古い順、`effect-removal-service.ts`）。
+   */
+  readonly maxRemovals?: number;
 }
 
 export interface ApplyMarkerPayload {
@@ -180,6 +187,12 @@ export interface ApplyMarkerPayload {
 
 export interface RemoveMarkerPayload {
   readonly markerId: MarkerId;
+  /**
+   * M7-001（Issue #181、`REMOVE_EFFECTS_COUNT_LIMIT`）: 解除するスタック数の上限。
+   * 省略時は対象Markerを全スタック解除する（従来の挙動）。`count`を指定した
+   * 場合はスタック数を`count`だけ減らし、0になったインスタンスだけを除去する。
+   */
+  readonly count?: number;
 }
 
 export interface ApplyDeathSurvivalPayload {

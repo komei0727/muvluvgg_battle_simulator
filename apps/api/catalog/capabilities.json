@@ -293,10 +293,26 @@
   {
     "capabilityId": "CAP_REMOVE_EFFECTS",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001",
-    "description": "効果解除",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "REMOVE_EFFECTS による効果解除（R-EFF-02、M7-001）。categories （BUFF/DEBUFF/STATUS/DAMAGE_MOD/SPECIFIC_EFFECT）ごとの一致抽出（effect-category-classifier.ts）・maxRemovals による解除件数上限・付与順優先・R-EFF-09 linkedEffectGroup カスケード・EffectRemoved/StateDelta/CombatStat 再計算（effect-removal-service.ts）と実ライフサイクル配線（effect-action-group-resolver.ts の REMOVE_EFFECTS branch）。REMOVE_MARKER の count による部分スタック解除も本タスクで配線した。SHIELD/SUBUNIT カテゴリはシールド/サブユニットの実行時状態が未モデル化（DMG-004/DMG-005）のため実行時に明示的に拒否する。状態異常種別限定免疫（R-EFF-03、CAP_SPECIFIC_IMMUNITY）は本タスク対象外。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_MIHIME_SNIPER_PS1_REMOVE_DEBUFF",
+        "ACT_LILY_SINGER_PS1_REMOVE_DEBUFF",
+        "ACT_MAO_COMMITTEE_PS2_CLEANSE"
+      ],
+      "testCaseIds": [
+        "UT-R-EFF-02-011",
+        "UT-R-EFF-02-012",
+        "UT-R-EFF-02-020",
+        "UT-R-EFF-02-021",
+        "UT-R-EFF-02-022",
+        "IT-REMOVE-EFFECTS-PROD-001",
+        "IT-REMOVE-EFFECTS-PROD-002",
+        "IT-REMOVE-EFFECTS-PROD-003"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_RESOLUTION_BRANCH_REPEAT",
@@ -420,6 +436,14 @@
         "IT-CAP-COMPLEX-EXPIRATION-PROD-003"
       ]
     }
+  },
+  {
+    "capabilityId": "CAP_SUBUNIT",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-005",
+    "description": "サブユニット付与（R-SUB-01/02）。M7-001（Issue #181、再々レビュー[P2]）でREMOVE_EFFECTSのSUBUNITカテゴリが要求するcapabilityとしても登録する（未実装であることを明示し、選択されたUnit/MemoryグラフだけをSimulationPreflightValidatorがUNSUPPORTED_RULEで拒否できるようにするため）。",
+    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
     "capabilityId": "CAP_TARGET_BINDING_FALLBACK",
