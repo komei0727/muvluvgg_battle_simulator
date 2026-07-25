@@ -460,6 +460,101 @@ describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167, PR #234
     expect(updated.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
   });
 
+  it("UT-R-EFF-01-040 (owner=EFFECT_SOURCE, mirrors UT-R-EFF-04-007): decrements on the SOURCE's skill use even though the instance is held by the target", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const grantingSkillUseId = createSkillUseId("B_1:skill-use:1");
+    const sourceNextSkillUseId = createSkillUseId("B_1:skill-use:3");
+    const effect = effectOn(
+      target,
+      source,
+      {
+        timeLimit: { unit: "SKILL_USE", count: 1, owner: "EFFECT_SOURCE" },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      {
+        duration: {
+          definition: {
+            timeLimit: { unit: "SKILL_USE", count: 1, owner: "EFFECT_SOURCE" },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+          timeLimitRemaining: 1,
+          grantedSkillUseId: grantingSkillUseId,
+        },
+      },
+    );
+    target = withEffects(target, [effect]);
+
+    // The target's own skill use must not decrement a SOURCE-owned duration.
+    const untouched = decrementSkillUseEffectDurations(
+      [source, target],
+      target.battleUnitId,
+      createSkillUseId("B_1:skill-use:2"),
+    );
+    expect(untouched.changes).toHaveLength(0);
+
+    const result = decrementSkillUseEffectDurations(
+      [source, target],
+      source.battleUnitId,
+      sourceNextSkillUseId,
+    );
+    expect(result.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: effect.effectInstanceId,
+        unit: "SKILL_USE",
+        before: 1,
+        after: 0,
+      },
+    ]);
+  });
+
+  it("UT-R-EFF-01-041 (owner=BATTLE, mirrors UT-R-EFF-04-008): decrements on ANY unit's skill use completion", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const other = unit("other-1");
+    const grantingSkillUseId = createSkillUseId("B_1:skill-use:1");
+    const effect = effectOn(
+      target,
+      source,
+      {
+        timeLimit: { unit: "SKILL_USE", count: 1, owner: "BATTLE" },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      {
+        duration: {
+          definition: {
+            timeLimit: { unit: "SKILL_USE", count: 1, owner: "BATTLE" },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+          timeLimitRemaining: 1,
+          grantedSkillUseId: grantingSkillUseId,
+        },
+      },
+    );
+    target = withEffects(target, [effect]);
+
+    const result = decrementSkillUseEffectDurations(
+      [source, target, other],
+      other.battleUnitId,
+      createSkillUseId("B_1:skill-use:2"),
+    );
+
+    expect(result.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: effect.effectInstanceId,
+        unit: "SKILL_USE",
+        before: 1,
+        after: 0,
+      },
+    ]);
+  });
+
   it("UT-R-EFF-01-039: ignores ACTION/TURN-unit and battle-persistent effects", () => {
     const source = unit("source-1");
     let target = unit("target-1");
