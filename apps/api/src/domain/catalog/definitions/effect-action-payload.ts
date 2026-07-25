@@ -35,6 +35,14 @@ export const STATUS_KINDS = [
   "HIT_EVASION",
 ] as const;
 
+/**
+ * TGT-004フェーズ1（Issue #167、PR #234再レビュー）: `AppliedEffect.statusKind`
+ * （`domain/battle/model/applied-effect.ts`）が参照する公開型。`STATUS_KINDS`は
+ * このファイル内のCatalog payload検証専用だったが、ドメイン層が同じ値集合を
+ * 実行時状態の識別子として再利用するため、対応する型をここで公開する。
+ */
+export type StatusKind = (typeof STATUS_KINDS)[number];
+
 /** `APPLY_REFLECT`のtiming値。現時点では単一値のみ定義されている。 */
 export const REFLECT_TIMINGS = ["AFTER_DAMAGE_APPLIED"] as const;
 

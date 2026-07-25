@@ -1,8 +1,9 @@
 import type { Brand } from "../../shared/brand.js";
-import type { ActionId, EffectInstanceId } from "../../shared/event-ids.js";
+import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 import type { RuntimeCounterMap } from "./runtime-counter-state.js";
 
 /**
@@ -47,6 +48,13 @@ export interface EffectDurationState {
   /** `definition.timeLimit.unit === "TURN"`の場合、付与されたターン番号（R-EFF-06の初回減算除外判定に使う）。 */
   readonly grantedTurnNumber?: number;
   /**
+   * TGT-004フェーズ1（Issue #167、PR #234再レビュー）: `definition.timeLimit.unit
+   * === "SKILL_USE"`の場合、付与時の`SkillUseId`。R-EFF-04/06の初回減算除外
+   * （`grantedActionId`/`grantedTurnNumber`）と同じ規約 — 付与自身のスキル使用
+   * では減算しない。
+   */
+  readonly grantedSkillUseId?: SkillUseId;
+  /**
    * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープ（R-EFF-11、
    * EFF-005/Issue #162）。`definition.counterUpdates`が存在する場合だけ空の
    * マップから始まる（`AppliedEffect`／`MarkerState`のどちらも同じ
@@ -60,7 +68,11 @@ export interface EffectDurationState {
 /** R-EFF-01: `DurationDefinition`から付与直後の`EffectDurationState`を組み立てる。 */
 export function buildInitialDurationState(
   definition: DurationDefinition,
-  context: { readonly actionId?: ActionId; readonly turnNumber: number },
+  context: {
+    readonly actionId?: ActionId;
+    readonly turnNumber: number;
+    readonly skillUseId?: SkillUseId;
+  },
 ): EffectDurationState {
   const timeLimit = definition.timeLimit;
   return {
@@ -73,6 +85,9 @@ export function buildInitialDurationState(
       ? { grantedActionId: context.actionId }
       : {}),
     ...(timeLimit?.unit === "TURN" ? { grantedTurnNumber: context.turnNumber } : {}),
+    ...(timeLimit?.unit === "SKILL_USE" && context.skillUseId !== undefined
+      ? { grantedSkillUseId: context.skillUseId }
+      : {}),
     ...(definition.counterUpdates !== undefined && definition.counterUpdates.length > 0
       ? { counters: {} }
       : {}),
@@ -97,6 +112,15 @@ export interface AppliedEffect {
   readonly targetId: BattleUnitId;
   /** 効果量。符号付き（バフは正、デバフは負）。 */
   readonly magnitude: number;
+  /**
+   * TGT-004フェーズ1（Issue #167、PR #234再レビュー）: `APPLY_STATUS`由来の
+   * `AppliedEffect`だけが持つ、R-ACTN-03の分類（`StatusKind`）。他のkind
+   * （`APPLY_STAT_MOD`等）由来の`AppliedEffect`は`undefined`のまま。同じ対象・
+   * 同じ`statusKind`の再付与は新規インスタンスを追加せず、既存インスタンスの
+   * 期間を更新する（`status-grant-service.ts`、`marker-apply-service.ts`の
+   * REFRESHスタック方針と同じ規約）。
+   */
+  readonly statusKind?: StatusKind;
   readonly duration: EffectDurationState;
   /** 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。 */
   readonly snapshot?: Readonly<Record<string, number>>;

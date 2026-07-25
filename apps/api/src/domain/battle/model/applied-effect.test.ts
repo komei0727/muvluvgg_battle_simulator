@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildInitialDurationState, effectKindKeyFromDefinitionId } from "./applied-effect.js";
-import { createActionId } from "../../shared/event-ids.js";
+import { createActionId, createSkillUseId } from "../../shared/event-ids.js";
 import {
   createRuntimeCounterId,
   type EffectActionDefinitionId,
@@ -78,6 +78,34 @@ describe("buildInitialDurationState", () => {
     const state = buildInitialDurationState(definition, { turnNumber: 1 });
 
     expect(state.grantedActionId).toBeUndefined();
+  });
+
+  it("UT-R-EFF-01-008 (TGT-004 Phase 1, Issue #167): sets timeLimitRemaining and grantedSkillUseId for a SKILL_USE-unit duration", () => {
+    const definition: DurationDefinition = {
+      timeLimit: { unit: "SKILL_USE", count: 3 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+    const skillUseId = createSkillUseId("battle-1:skill-use:1");
+
+    const state = buildInitialDurationState(definition, { turnNumber: 1, skillUseId });
+
+    expect(state.timeLimitRemaining).toBe(3);
+    expect(state.grantedSkillUseId).toBe(skillUseId);
+    expect(state.grantedActionId).toBeUndefined();
+    expect(state.grantedTurnNumber).toBeUndefined();
+  });
+
+  it("UT-R-EFF-01-009 (TGT-004 Phase 1, Issue #167): does not set grantedSkillUseId for a SKILL_USE-unit duration granted outside a skill use", () => {
+    const definition: DurationDefinition = {
+      timeLimit: { unit: "SKILL_USE", count: 3 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+
+    const state = buildInitialDurationState(definition, { turnNumber: 1 });
+
+    expect(state.grantedSkillUseId).toBeUndefined();
   });
 
   it("UT-R-EFF-11-005 (EFF-005 Issue #162): starts with an empty counters map when the definition declares counterUpdates", () => {

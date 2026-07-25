@@ -1197,6 +1197,7 @@ const EFFECT_EXPIRATION_REASON_ENUM = [
   "CONSUMPTION",
   "EXPIRATION_CONDITION",
   "LINKED_GROUP_CASCADE",
+  "REFRESHED",
 ] as const;
 
 /** `EffectExpired`（R-EFF-04/06/07/08/09、EFF-003）。効果インスタンスの失効直後に発行する。 */

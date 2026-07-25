@@ -1,6 +1,6 @@
 import type { AppliedEffect } from "./applied-effect.js";
 import type { BattleUnit } from "./battle-unit.js";
-import type { ActionId, EffectInstanceId } from "../../shared/event-ids.js";
+import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
 
@@ -16,7 +16,7 @@ const DEFAULT_TIME_LIMIT_OWNER = "EFFECT_TARGET";
 export interface EffectDurationChange {
   readonly battleUnitId: BattleUnitId;
   readonly effectInstanceId: EffectInstanceId;
-  readonly unit: "ACTION" | "TURN";
+  readonly unit: "ACTION" | "TURN" | "SKILL_USE";
   readonly before: number;
   readonly after: number;
 }
@@ -45,7 +45,7 @@ export function resolveTimeLimitOwnerUnitId(effect: AppliedEffect): BattleUnitId
 
 function decrementDurations(
   units: readonly BattleUnit[],
-  unit: "ACTION" | "TURN",
+  unit: "ACTION" | "TURN" | "SKILL_USE",
   isEligible: (effect: AppliedEffect) => boolean,
   wasGrantedInCurrentScope: (effect: AppliedEffect) => boolean,
 ): DecrementEffectDurationsResult {
@@ -102,6 +102,34 @@ export function decrementActionEffectDurations(
       return owner === "BATTLE" || owner === actingUnitId;
     },
     (effect) => effect.duration.grantedActionId === currentActionId,
+  );
+}
+
+/**
+ * TGT-004フェーズ1（Issue #167、PR #234再レビュー）「SKILL_USE単位期間の減算」:
+ * `actingUnitId`が1回のスキル使用（AS/EX、`SkillUseCompleted`）を完了したときに
+ * 呼ぶ。R-EFF-04（ACTION単位）と同じ規約 — `timeLimit.owner`が解決する具体的な
+ * ユニットが`actingUnitId`と一致する（`BATTLE`はどのユニットのスキル使用でも
+ * 一致する）スキル使用単位効果のうち、今回完了した使用中に付与されたもの
+ * （`grantedSkillUseId === currentSkillUseId`）を除く各インスタンスの残り回数を
+ * 1減らす。中断された（`SkillUseInterrupted`）スキル使用はこの関数の呼び出し
+ * 契機に含めない（呼び出し側が`SkillUseCompleted`だけを境界にする、PR #234
+ * レビュー[P1]で明示された仕様固定）。0になったインスタンスもこの関数自身は
+ * 除去しない — 失効処理は呼び出し側の責務。
+ */
+export function decrementSkillUseEffectDurations(
+  units: readonly BattleUnit[],
+  actingUnitId: BattleUnitId,
+  currentSkillUseId: SkillUseId,
+): DecrementEffectDurationsResult {
+  return decrementDurations(
+    units,
+    "SKILL_USE",
+    (effect) => {
+      const owner = resolveTimeLimitOwnerUnitId(effect);
+      return owner === "BATTLE" || owner === actingUnitId;
+    },
+    (effect) => effect.duration.grantedSkillUseId === currentSkillUseId,
   );
 }
 
