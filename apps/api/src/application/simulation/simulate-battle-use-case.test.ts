@@ -14,7 +14,6 @@ import {
   createMemoryDefinitionId,
   createRuntimeCounterId,
   createSkillDefinitionId,
-  createTargetBindingId,
   createUnitDefinitionId,
   type CapabilityId,
   type EffectActionDefinitionId,
@@ -28,8 +27,14 @@ import {
   type MemoryDefinition,
 } from "../../domain/catalog/definitions/memory-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
-import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+// harness/Builder 採用: 重複していた fixture を共有 Builder へ集約（`12_テスト戦略.md`「テストデータ設計」）。
+import {
+  attackSkill,
+  damageEffectAction,
+  exSkillDefinition,
+  formationSlot as slot,
+} from "../../testing/scenario/definition-builders.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 
 function unitDefinition(
@@ -59,29 +64,6 @@ function unitDefinition(
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
     requiredCapabilities,
     metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
-  };
-}
-
-/** `unitDefinition`の`extraSkillDefinitionId`（"SKL_EX"）が参照するEXスキル。EXゲージは満タンにならないため実際には使用されない。 */
-function exSkillDefinition(id: string): SkillDefinition {
-  return {
-    skillDefinitionId: createSkillDefinitionId(id),
-    skillType: "EX",
-    cost: { resource: "EX_GAUGE", amount: 100 },
-    activationCondition: { kind: "TRUE" },
-    triggers: [],
-    counterUpdates: [],
-    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
-    cooldown: { unit: "ACTION", count: 0 },
-    traits: {
-      priorityAttack: false,
-      simultaneousActivationLimited: false,
-      exclusiveActivationGroupId: null,
-      accuracy: { guaranteedHit: false },
-      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
-    },
-    requiredCapabilities: [],
-    metadata: { displayName: id, tags: [] },
   };
 }
 
@@ -123,72 +105,6 @@ class FakeBattleCatalog implements BattleCatalog {
       capabilities: this.capabilities,
     };
   }
-}
-
-const ENEMY_ALL: TargetSelectorDefinition = {
-  kind: "SELECT",
-  side: "ENEMY",
-  count: "ALL",
-  filters: [],
-  order: ["DEFAULT"],
-  includeDefeated: false,
-};
-
-function attackSkill(id: string, effectActionId: string): SkillDefinition {
-  return {
-    skillDefinitionId: createSkillDefinitionId(id),
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
-    activationCondition: { kind: "TRUE" },
-    triggers: [],
-    counterUpdates: [],
-    resolution: {
-      kind: "IMMEDIATE",
-      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
-      steps: [
-        {
-          kind: "ACTION",
-          stepCondition: { kind: "TRUE" },
-          targetCondition: { kind: "TRUE" },
-          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
-          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 0 },
-    traits: {
-      priorityAttack: false,
-      simultaneousActivationLimited: false,
-      exclusiveActivationGroupId: null,
-      accuracy: { guaranteedHit: false },
-      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
-    },
-    requiredCapabilities: [],
-    metadata: { displayName: "Attack", tags: [] },
-  };
-}
-
-function damageEffectAction(id: string): EffectActionDefinition {
-  return {
-    kind: "DAMAGE",
-    effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
-    metadata: { tags: [] },
-    payload: {
-      damageType: "PHYSICAL",
-      formula: { kind: "SKILL_POWER", power: 1 },
-      hitCount: 1,
-      critical: { mode: "NORMAL" },
-      accuracy: { mode: "NORMAL" },
-      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
-      damageModifiers: [],
-      link: { enabled: false },
-    },
-  };
-}
-
-function slot(unitId: string, column: 0 | 1 | 2, row: "FRONT" | "REAR" = "FRONT") {
-  return { unitDefinitionId: createUnitDefinitionId(unitId), position: { column, row } };
 }
 
 function command(overrides: Partial<SimulateBattleCommand> = {}): SimulateBattleCommand {

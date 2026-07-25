@@ -149,8 +149,16 @@ export function attackSkill(id: string, effectActionId: string): SkillDefinition
   };
 }
 
-/** スキル威力ぶんの物理ダメージを与える最小のEffectAction。 */
-export function damageEffectAction(id: string, power = 1): EffectActionDefinition {
+/**
+ * スキル威力ぶんの物理ダメージを与える最小のEffectAction。
+ * `criticalMode: "PREVENTED"` にすると会心判定が RandomSource を消費しないため、
+ * 乱数消費数を数えずに完走させたい property/長さ可変シナリオで使える。
+ */
+export function damageEffectAction(
+  id: string,
+  power = 1,
+  criticalMode: "NORMAL" | "GUARANTEED" | "PREVENTED" = "NORMAL",
+): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
@@ -160,7 +168,7 @@ export function damageEffectAction(id: string, power = 1): EffectActionDefinitio
       damageType: "PHYSICAL",
       formula: { kind: "SKILL_POWER", power },
       hitCount: 1,
-      critical: { mode: "NORMAL" },
+      critical: { mode: criticalMode },
       accuracy: { mode: "NORMAL" },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       damageModifiers: [],

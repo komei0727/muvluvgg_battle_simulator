@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { calculateDamage, type DamageCalculationInput } from "./damage-calculator.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import type { Attribute } from "../../catalog/definitions/catalog-enums.js";
+import { fc, PROPERTY_ASSERT_CONFIG } from "../../../testing/property/index.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import { createMarkerInstanceId } from "../../shared/event-ids.js";
@@ -238,5 +240,112 @@ describe("calculateDamage", () => {
       input({ skillPowerFormula: { kind: "SKILL_POWER", power: 1.5 } }),
     );
     expect(result.skillPower).toBe(1.5);
+  });
+});
+
+/**
+ * R-DMG-01（基礎ダメージ）とその最終化（最終切り捨て・最低1ダメージ）の不変条件を
+ * property-based test（fast-check）で検証する（`12_テスト戦略.md`「Property／Modelテスト」:
+ * ダメージが負にならない・最低1・最終切り捨て）。SKILL_POWER・modifier空では
+ * formulaContext は評価されないため、既存の `input()` の文脈をそのまま使う。
+ */
+const attributeArb = fc.constantFrom<Attribute>(
+  "AGGRESSIVE",
+  "SHY",
+  "CUTE",
+  "SMART",
+  "COMICAL",
+  "CLEVER",
+);
+
+const damageScalarsArb = fc.record({
+  attackerAttack: fc.integer({ min: 0, max: 2000 }),
+  defenderDefense: fc.integer({ min: 0, max: 2000 }),
+  defenseIgnoreRate: fc.double({ min: 0, max: 1, noNaN: true }),
+  power: fc.double({ min: 0, max: 10, noNaN: true }),
+  criticalMultiplier: fc.double({ min: 1, max: 3, noNaN: true }),
+  attackerAffinityBonus: fc.double({ min: 0, max: 1, noNaN: true }),
+  attackerAttribute: attributeArb,
+  defenderAttribute: attributeArb,
+});
+
+function inputFromScalars(s: {
+  attackerAttack: number;
+  defenderDefense: number;
+  defenseIgnoreRate: number;
+  power: number;
+  criticalMultiplier: number;
+  attackerAffinityBonus: number;
+  attackerAttribute: Attribute;
+  defenderAttribute: Attribute;
+}): DamageCalculationInput {
+  return input({
+    attackerAttack: s.attackerAttack,
+    defenderDefense: s.defenderDefense,
+    defenseIgnoreRate: s.defenseIgnoreRate,
+    skillPowerFormula: { kind: "SKILL_POWER", power: s.power },
+    criticalMultiplier: s.criticalMultiplier,
+    attackerAffinityBonus: s.attackerAffinityBonus,
+    attackerAttribute: s.attackerAttribute,
+    defenderAttribute: s.defenderAttribute,
+  });
+}
+
+describe("calculateDamage properties (R-DMG-01)", () => {
+  it("PROP-DMG-01-001: finalDamage is always an integer of at least 1 (min-1 + final truncation)", () => {
+    fc.assert(
+      fc.property(damageScalarsArb, (s) => {
+        const { finalDamage } = calculateDamage(inputFromScalars(s));
+        return Number.isInteger(finalDamage) && finalDamage >= 1;
+      }),
+      PROPERTY_ASSERT_CONFIG,
+    );
+  });
+
+  it("PROP-DMG-01-002: preTruncationDamage is non-negative and finalDamage = max(1, floor(preTruncation))", () => {
+    fc.assert(
+      fc.property(damageScalarsArb, (s) => {
+        const result = calculateDamage(inputFromScalars(s));
+        return (
+          result.preTruncationDamage >= 0 &&
+          result.finalDamage === Math.max(1, Math.floor(result.preTruncationDamage))
+        );
+      }),
+      PROPERTY_ASSERT_CONFIG,
+    );
+  });
+
+  it("PROP-DMG-01-003: finalDamage is monotonic non-decreasing in attacker attack", () => {
+    fc.assert(
+      fc.property(
+        damageScalarsArb,
+        fc.integer({ min: 0, max: 2000 }),
+        fc.integer({ min: 0, max: 2000 }),
+        (s, attackA, attackB) => {
+          const lower = Math.min(attackA, attackB);
+          const higher = Math.max(attackA, attackB);
+          const damageLower = calculateDamage(
+            inputFromScalars({ ...s, attackerAttack: lower }),
+          ).finalDamage;
+          const damageHigher = calculateDamage(
+            inputFromScalars({ ...s, attackerAttack: higher }),
+          ).finalDamage;
+          return damageHigher >= damageLower;
+        },
+      ),
+      PROPERTY_ASSERT_CONFIG,
+    );
+  });
+
+  it("PROP-DMG-01-004: effectiveDefense equals defenderDefense scaled by the defense-ignore rate", () => {
+    fc.assert(
+      fc.property(damageScalarsArb, (s) => {
+        const result = calculateDamage(inputFromScalars(s));
+        return (
+          Math.abs(result.effectiveDefense - s.defenderDefense * (1 - s.defenseIgnoreRate)) < 1e-9
+        );
+      }),
+      PROPERTY_ASSERT_CONFIG,
+    );
   });
 });

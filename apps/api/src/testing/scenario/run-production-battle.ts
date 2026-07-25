@@ -40,6 +40,7 @@ export interface ProductionBattleOptions {
   readonly turnLimit?: number;
   readonly randomValue?: number;
   readonly battleId?: string;
+  readonly logLevel?: SimulateBattleCommand["logLevel"];
 }
 
 /**
@@ -61,7 +62,7 @@ export function runProductionUnitBattle(
     allyFormation: { slots: [slot], memoryDefinitionIds: [] },
     enemyFormation: { slots: [slot], memoryDefinitionIds: [] },
     turnLimit: options.turnLimit ?? 5,
-    logLevel: "DETAILED",
+    logLevel: options.logLevel ?? "DETAILED",
   };
   const useCase = new SimulateBattleUseCase({
     battleCatalog,
@@ -73,4 +74,41 @@ export function runProductionUnitBattle(
     requestId: "golden-battle",
     deadlineEpochMs: Number.MAX_SAFE_INTEGER,
   });
+}
+
+/**
+ * Catalogを一度だけロードし、同じ定義グラフで戦闘を繰り返し実行するrunnerを返す
+ * （`11_インフラストラクチャ設計.md`「Workerごとにcatalogを一度だけ読み込む」に整合。
+ * 負荷・耐久テストで1戦あたりコストからcatalogロードを除外するため）。
+ */
+export function createProductionBattleRunner(
+  catalogDir: string,
+  unitDefinitionId: string,
+  options: ProductionBattleOptions = {},
+): (battleId: string) => SimulateBattleResult {
+  const battleCatalog = loadCatalogFromDirectory(catalogDir);
+  const slot = {
+    unitDefinitionId: createUnitDefinitionId(unitDefinitionId),
+    position: { column: 0 as const, row: "FRONT" as const },
+  };
+  const command: SimulateBattleCommand = {
+    allyFormation: { slots: [slot], memoryDefinitionIds: [] },
+    enemyFormation: { slots: [slot], memoryDefinitionIds: [] },
+    turnLimit: options.turnLimit ?? 5,
+    logLevel: options.logLevel ?? "DETAILED",
+  };
+  const randomSourceFactory = new ConstantRandomSourceFactory(options.randomValue ?? 0.5);
+  const clock = new ManualClock(0);
+  return (battleId: string): SimulateBattleResult => {
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog,
+      battleIdGenerator: new FixedBattleIdGenerator([battleId]),
+      randomSourceFactory,
+      clock,
+    });
+    return useCase.execute(command, {
+      requestId: `soak-${battleId}`,
+      deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+    });
+  };
 }

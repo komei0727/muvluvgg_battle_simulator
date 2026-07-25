@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { CatalogBuilder } from "./catalog-builder.js";
-import { battleCommand, formationSlot, unitDefinition } from "./definition-builders.js";
+import {
+  attackSkill,
+  battleCommand,
+  damageEffectAction,
+  formationSlot,
+  unitDefinition,
+} from "./definition-builders.js";
 import {
   assertBattleInvariants,
   assertResourcesWithinBounds,
   runScenario,
 } from "./run-scenario.js";
+import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { fc } from "../property/index.js";
 
 /**
  * Battle Scenario Harness（`12_テスト戦略.md`「シナリオHarness」）自体の自己検証。
@@ -72,5 +80,85 @@ describe("runScenario harness", () => {
     } as unknown as Parameters<typeof assertResourcesWithinBounds>[0];
 
     expect(() => assertResourcesWithinBounds(brokenResult)).toThrow(/hp must be non-negative/);
+  });
+});
+
+/**
+ * 全戦闘の不変条件を property-based test（fast-check）で検証する（`12_テスト戦略.md`
+ * 「Property／Modelテスト」: 任意の有効編成でHP/AP/PP/EX/期間が負数にならない、
+ * `COMPLETED`後に状態が変化しない、状態versionが連続する）。攻撃はPREVENTED会心で
+ * RandomSourceを消費しないため、可変長の戦闘でも乱数計上なしに完走できる。
+ */
+const SKL_ATK = createSkillDefinitionId("SKL_ATK_PROP");
+
+const SIDE_POSITIONS = [
+  { column: 0, row: "FRONT" },
+  { column: 1, row: "FRONT" },
+  { column: 2, row: "FRONT" },
+  { column: 0, row: "REAR" },
+  { column: 1, row: "REAR" },
+  { column: 2, row: "REAR" },
+] as const;
+
+/** 1〜5体の互いに異なる配置のスロット列（同一の攻撃Unitを参照）。 */
+const sideSlotsArb = fc
+  .uniqueArray(fc.integer({ min: 0, max: SIDE_POSITIONS.length - 1 }), {
+    minLength: 1,
+    maxLength: 5,
+  })
+  .map((indices) =>
+    indices.map((i) => {
+      const p = SIDE_POSITIONS[i]!;
+      return formationSlot("UNIT_ATK", p.column, p.row);
+    }),
+  );
+
+const battleSetupArb = fc.record({
+  allySlots: sideSlotsArb,
+  enemySlots: sideSlotsArb,
+  attack: fc.integer({ min: 1, max: 200 }),
+  defense: fc.integer({ min: 0, max: 100 }),
+  maximumHp: fc.integer({ min: 10, max: 300 }),
+  actionSpeed: fc.integer({ min: 1, max: 100 }),
+  turnLimit: fc.integer({ min: 1, max: 20 }),
+});
+
+describe("runScenario battle invariants (property)", () => {
+  it("PROP-BATTLE-001: any valid formation runs to a decided outcome with all battle invariants held", () => {
+    fc.assert(
+      fc.property(battleSetupArb, (setup) => {
+        const attacker = unitDefinition("UNIT_ATK", {
+          activeSkillDefinitionIds: [SKL_ATK],
+          baseStats: {
+            attack: setup.attack,
+            defense: setup.defense,
+            maximumHp: setup.maximumHp,
+            actionSpeed: setup.actionSpeed,
+          },
+        });
+        const catalog = new CatalogBuilder()
+          .withUnit(attacker)
+          .withSkill(attackSkill("SKL_ATK_PROP", "ACT_DMG_PROP"))
+          // PREVENTED会心: RandomSourceを一切消費しない。
+          .withEffectAction(damageEffectAction("ACT_DMG_PROP", 50, "PREVENTED"))
+          .build();
+
+        const result = runScenario({
+          catalog,
+          command: battleCommand({
+            allyFormation: { slots: setup.allySlots, memoryDefinitionIds: [] },
+            enemyFormation: { slots: setup.enemySlots, memoryDefinitionIds: [] },
+            turnLimit: setup.turnLimit,
+          }),
+        });
+
+        expect(typeof result.outcome).toBe("string");
+        expect(result.finalState.status).toBe("COMPLETED");
+        assertBattleInvariants(result);
+        return true;
+      }),
+      // 戦闘は純関数より重いので実行回数を抑える。seedは固定して再現可能にする。
+      { seed: 0x5eed, numRuns: 60 },
+    );
   });
 });

@@ -141,8 +141,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-PREFLIGHT-006",
       "UT-USECASE-003",
       "UT-USECASE-004",
+      "SCN-BTL-022",
     ],
-    kinds: ["POSITIVE", "NEGATIVE"],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
 
   // POS: 座標
@@ -1105,8 +1106,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DMG-01-006",
       "UT-R-DMG-01-007",
       "UT-R-DMG-01-008",
+      "PROP-DMG-01-001",
+      "PROP-DMG-01-002",
+      "PROP-DMG-01-003",
+      "PROP-DMG-01-004",
     ],
-    kinds: ["POSITIVE", "BOUNDARY"],
+    kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },
   // R-DMG-02はダメージ計算の最終切り捨てと最低1ダメージ(damage-calculator.ts、
   // UT-DAMAGE-CALCULATOR-001/002で検証)だけを#9で実装している。「ダメージ無効
