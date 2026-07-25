@@ -720,6 +720,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // [P1]（Issue #230）: BRANCHの`condition`が`SELF`等の高々1体にしか解決され
   // ない`TARGET_STATE`/`TARGET_HAS_MARKER`を含んでいても、`resolveBranchStep`が
   // 例外を投げず正しく分岐することを`UT-R-SKL-07-111`で検証した。
+  // RES-003 production統合（Issue #173）: 実`catalog/`からロードした未改変の
+  // production代表を実resolver（`applyEffectActionGroups`）で駆動し、`RANDOM_BRANCH`の
+  // 定義順weighted選択（`SKL_KATE_PALADIN_EX`、`IT-CAP-RANDOM-BRANCH-PROD-001〜002`）と
+  // `BRANCH`のthen/else分岐（`SKL_KEI_JACKKNIFE_AS2`のマーカー条件、
+  // `SKL_SENKA_SCHEMER_EX`のIS_ALIVE条件・空else、`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）を
+  // Domain Event・StateDelta・独立Reducer復元まで確認した。`CAP_RANDOM_BRANCH`/
+  // `CAP_RESOLUTION_BRANCH_REPEAT`を`IMPLEMENTED`へ昇格。`REPEAT`はランタイム実装済み・
+  // 単体テスト（下記UT）済みだがproduction定義が現時点で存在しない。
   {
     ruleId: "R-SKL-07",
     testCaseIds: [
@@ -736,8 +744,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-109",
       "UT-R-SKL-07-110",
       "UT-R-SKL-07-111",
+      "IT-CAP-RANDOM-BRANCH-PROD-001",
+      "IT-CAP-RANDOM-BRANCH-PROD-002",
+      "IT-CAP-BRANCH-REPEAT-PROD-001",
+      "IT-CAP-BRANCH-REPEAT-PROD-002",
+      "IT-CAP-BRANCH-REPEAT-PROD-003",
+      "IT-CAP-BRANCH-REPEAT-PROD-004",
     ],
-    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE", "SCENARIO"],
   },
   // R-SKL-08: 直前結果（`LAST_RESULT` Condition、`LAST_ACTION_TARGETS`/
   // `LAST_DAMAGED_TARGETS` TargetReference）をIssue #217で実装した

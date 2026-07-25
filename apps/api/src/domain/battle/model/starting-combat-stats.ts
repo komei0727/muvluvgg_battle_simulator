@@ -71,6 +71,11 @@ export function calculateStartingCombatStats(input: StartingCombatStatsInput): C
   }
 
   return {
+    // R-NUM-01/R-STA-01: 戦闘中ステータス計算値は途中で丸めず全精度で保持する
+    // （後続の R-STA-04 再計算がこの値を基準に比率補正を重ねるため、ここで
+    // 丸めると二重丸め誤差になる）。maximumHp が HP ゲージの最大値として整数を
+    // 要求される制約は、ゲージへ渡す境界（`createBattleUnit`/`applyDamageAction`）
+    // で R-NUM-02（0方向へ切り捨て）により満たす。
     maximumHp: stat("MAXIMUM_HP", input.baseStats.maximumHp),
     attack: stat("ATTACK", input.baseStats.attack),
     defense: stat("DEFENSE", input.baseStats.defense),

@@ -282,10 +282,13 @@
   {
     "capabilityId": "CAP_RANDOM_BRANCH",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-003",
-    "description": "確率分岐",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "EffectStepの`RANDOM_BRANCH`（確率分岐）を実resolverでJIT解決する（R-SKL-07、Issue #173）。`WEIGHTED_ONE`はCatalog定義順の累積weightへ乱数を1回だけ対応づけて1分岐を選び（`random-branch-selection.ts`の`selectWeightedBranch`、乱数消費順=定義順）、`INDEPENDENT`はbranch定義順に独立して確率判定する。選択結果は`RandomBranchSelected`(FACT)としてPS/Memory即時連鎖の契機になり得る（`effect-action-group-resolver.ts`の`resolveRandomBranchStep`）。production代表`SKL_KATE_PALADIN_EX`（実`WEIGHTED_ONE`・3分岐）のbranch[0]（純DAMAGE）を実ライフサイクル（`RandomBranchSelected`→`DamageApplied`→StateDelta→独立Reducer復元）まで検証し、3分岐すべての定義順・weight別選択を`selectWeightedBranch`で検証する（`IT-CAP-RANDOM-BRANCH-PROD-001〜002`）。分岐内の葉が要する他Capability（`CAP_HEAL`/`CAP_DAMAGE_MOD`等）は別途管理する。",
+    "verification": {
+      "productionDefinitionIds": ["SKL_KATE_PALADIN_EX"],
+      "testCaseIds": ["IT-CAP-RANDOM-BRANCH-PROD-001", "IT-CAP-RANDOM-BRANCH-PROD-002"]
+    }
   },
   {
     "capabilityId": "CAP_REMOVE_EFFECTS",
@@ -298,10 +301,20 @@
   {
     "capabilityId": "CAP_RESOLUTION_BRANCH_REPEAT",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-003",
-    "description": "BRANCH / REPEATと直前結果",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "EffectStepの`BRANCH`（条件分岐）・`REPEAT`（反復）と直前結果（`LAST_RESULT` Condition、`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` TargetReference）を実resolverでJIT解決する（R-SKL-07/08、Issue #173）。`BRANCH`は`condition`をstep-wideスコープで評価し（`resolveBranchStep`→`evaluateEffectStepCondition`）trueなら`thenSteps`・falseなら`elseSteps`を定義順に解決する。`REPEAT`は指定回数`steps`を繰り返し、途中で使用者が戦闘不能になれば残りを中断する。直前結果は同じ解決スコープ内で実際に確定した`EffectAction`結果だけ（MISS/付与拒否/対象なし/対象0件SKIPPEDを含む）を`LastResultState`へ記録する。production代表`SKL_KEI_JACKKNIFE_AS2`（`TARGET_HAS_MARKER`条件のthen/else両枝が純DAMAGE）・`SKL_SENKA_SCHEMER_EX`（`IS_ALIVE`条件、先行stepの副作用を反映したstate評価・空else）を実ライフサイクル（`EffectStepStarting`→`DamageApplied`→StateDelta→独立Reducer復元）まで検証する（`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）。`REPEAT`と直前結果はランタイム実装済み・domain単体テスト（`UT-R-SKL-07`/`UT-R-SKL-08`、`rule-coverage.ts`）済みだが、これらを使うproduction Skill定義が現時点で1件も存在しない（`catalog-src/`全走査）ため、production代表は`BRANCH`のみとする。本Capabilityの`IMPLEMENTED`化により`UNIT_KEI_JACKKNIFE`が初の`selectable`な実production Unitになるため、GET一覧APIの`selectable`公開と実戦闘の完走を`IT-CAP-BRANCH-REPEAT-PROD-005〜006`で検証する（PS1の`MAXIMUM_HP`比率補正で非整数化するHPゲージ最大値を、statは全精度保持のままゲージ境界`createBattleUnit`/`applyDamageAction`でR-NUM-02整数化する。合成Unit`UNIT_CI_SMOKE_TEST`の削除は`REL-002`管理のまま）。",
+    "verification": {
+      "productionDefinitionIds": ["SKL_KEI_JACKKNIFE_AS2", "SKL_SENKA_SCHEMER_EX"],
+      "testCaseIds": [
+        "IT-CAP-BRANCH-REPEAT-PROD-001",
+        "IT-CAP-BRANCH-REPEAT-PROD-002",
+        "IT-CAP-BRANCH-REPEAT-PROD-003",
+        "IT-CAP-BRANCH-REPEAT-PROD-004",
+        "IT-CAP-BRANCH-REPEAT-PROD-005",
+        "IT-CAP-BRANCH-REPEAT-PROD-006"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",

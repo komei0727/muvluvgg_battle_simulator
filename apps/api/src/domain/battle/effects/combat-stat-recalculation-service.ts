@@ -97,6 +97,12 @@ export function computeCombatStats(
     const field = STAT_FIELD[stat];
     const bucket = byStat.get(stat);
     const before = unit.combatStats[field];
+    // R-NUM-01/R-STA-01/R-STA-04: maximumHp を含む全ステータスは途中で丸めず
+    // 全精度で保持する。基準は `baseCombatStats`（未丸めの編成補正値）であり、
+    // ここで MAXIMUM_HP の比率補正を丸めた値へ重ねると二重丸め誤差になる
+    // （例: 編成補正で 40347.6 → さらに +20% は 48417.12 = trunc 48417 が正、
+    // 開始時に 40347 へ丸めてから ×1.2 すると 48416 になり1ずれる。PR #239
+    // 再レビュー[P2]）。ゲージ最大値としての整数化はゲージへ渡す境界で行う。
     const after = calculateCombatStat({
       baseValue: unit.baseCombatStats[field],
       formationBonus: ZERO_PERCENTAGE,

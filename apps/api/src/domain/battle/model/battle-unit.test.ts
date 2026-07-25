@@ -75,6 +75,19 @@ describe("createBattleUnit", () => {
     expect(unit.baseCombatStats).toEqual(unit.combatStats);
     expect(unit.baseCombatStats).toEqual(member().combatStats);
   });
+
+  it("UT-BATTLE-UNIT-010: a fractional combatStats.maximumHp yields an integer HP gauge (R-NUM-02, gauge boundary) while combatStats/baseCombatStats keep full precision (R-NUM-01)", () => {
+    // 33623 × 1.2 = 40347.6（編成補正で端数が生じたケース）。ゲージ最大値は
+    // 整数でなければならない（`createHitPoint`→`assertInteger`）ため0方向へ
+    // 切り捨てる一方、後続の R-STA-04 再計算の基準となる combatStats/baseCombatStats
+    // は全精度のまま保持する（PR #239 再レビュー[P2]）。
+    const fractional = { ...member().combatStats, maximumHp: 40347.6 };
+    const unit = createBattleUnit(member({ combatStats: fractional }), "ALLY", LIMITS);
+
+    expect(unit.currentHp).toBe(40347);
+    expect(unit.combatStats.maximumHp).toBeCloseTo(40347.6);
+    expect(unit.baseCombatStats.maximumHp).toBeCloseTo(40347.6);
+  });
 });
 
 describe("isDefeated", () => {
