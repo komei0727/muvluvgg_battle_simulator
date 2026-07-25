@@ -498,6 +498,17 @@
     }
   },
   {
+    "capabilityId": "CAP_SUBUNIT",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "DMG-005",
+    "description": "サブユニット付与（R-SUB-01/02）。M7-001（Issue #181、再々レビュー[P2]）でREMOVE_EFFECTSのSUBUNITカテゴリが要求するcapabilityとしても登録する（未実装であることを明示し、選択されたUnit/MemoryグラフだけをSimulationPreflightValidatorがUNSUPPORTED_RULEで拒否できるようにするため）。",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
     "capabilityId": "CAP_TARGET_BINDING_FALLBACK",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",

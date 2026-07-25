@@ -803,10 +803,14 @@ function* resolveOneEffectActionApplication(
     // R-EFF-02（M7-001、Issue #181）: 対象カテゴリに一致する`AppliedEffect`を
     // 即時解除する（`effect-removal-service.ts`）。`REMOVE_EFFECTS_CATEGORY_GAP`の
     // SHIELD/SUBUNITはシールド・サブユニットの実行時状態がまだモデル化されて
-    // いない（`CAP_SHIELD`=DMG-004、サブユニット=DMG-005、いずれも未着手、#242）。
-    // これらは`effect-action-definition-factory.ts`がCatalogロード時点で拒否する
-    // ため、production定義はここへ到達しない。以下はfactoryを迂回した直接構築に
-    // 対する防御的ガード（defense-in-depth）で、silent no-opへの退行を防ぐ。
+    // いない（`CAP_SHIELD`=DMG-004、`CAP_SUBUNIT`=DMG-005、いずれも`PLANNED`、#242）。
+    // schema自体はSHIELD/SUBUNITを有効な値として受理する（Catalog全体のロードを
+    // 失敗させないため）が、`catalog-integrity.ts`が対応するCapability宣言を必須にし、
+    // 実際に選択されたUnit/Memoryグラフに対してだけ`SimulationPreflightValidator`が
+    // `UNSUPPORTED_RULE`として拒否する（`UT-PREFLIGHT-012`）ため、通常の
+    // Catalog駆動battle生成経路ではここへ到達しない。以下はpreflightを迂回した
+    // 直接構築（テスト等）に対する防御的ガード（defense-in-depth）で、
+    // silent no-opへの退行を防ぐ。
     const unsupportedCategories = effectAction.payload.categories.filter(
       (category) => category === "SHIELD" || category === "SUBUNIT",
     );

@@ -1228,6 +1228,38 @@ function validateEffectAction(
       }
     }
   }
+  // M7-001（Issue #181、再々レビュー[P2]）: REMOVE_EFFECTSのSHIELD/SUBUNITカテゴリは
+  // シールド/サブユニットの実行時状態が未モデル化（`CAP_SHIELD`=DMG-004、
+  // `CAP_SUBUNIT`=DMG-005、いずれも`PLANNED`、#242）。`COOLDOWN_MANIPULATION`/
+  // `CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体を拒否する」パターンで、対応する
+  // Capabilityの宣言を必須にする。これによりCatalog自体は正しく宣言されていれば
+  // ロードでき（Capabilityが`PLANNED`のままでも）、実際の拒否は選択時の
+  // `SimulationPreflightValidator`（`findUnimplementedCapabilities`）が
+  // `UNSUPPORTED_RULE`として行う — Catalog全体のロード失敗にはしない。
+  if (effectAction.kind === "REMOVE_EFFECTS") {
+    if (
+      effectAction.payload.categories.includes("SHIELD") &&
+      !effectAction.requiredCapabilities.some((id) => id === "CAP_SHIELD")
+    ) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message:
+          'REMOVE_EFFECTS with the "SHIELD" category must declare "CAP_SHIELD" in requiredCapabilities',
+      });
+    }
+    if (
+      effectAction.payload.categories.includes("SUBUNIT") &&
+      !effectAction.requiredCapabilities.some((id) => id === "CAP_SUBUNIT")
+    ) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message:
+          'REMOVE_EFFECTS with the "SUBUNIT" category must declare "CAP_SUBUNIT" in requiredCapabilities',
+      });
+    }
+  }
   // Issue #129: COOLDOWN_MANIPULATIONの対象スキル存在チェック。所有者一致は
   // `checkCooldownManipulationOwnership`（Unit視点でのみ判定可能）が担う。
   if (effectAction.kind === "COOLDOWN_MANIPULATION") {

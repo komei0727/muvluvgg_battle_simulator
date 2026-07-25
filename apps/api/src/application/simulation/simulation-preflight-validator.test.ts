@@ -94,6 +94,21 @@ function statModAction(
   );
 }
 
+function removeEffectsShieldAction(
+  id: string,
+  requiredCapabilities: readonly string[] = [],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "REMOVE_EFFECTS",
+      payload: { categories: ["SHIELD"] },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function asSkill(
   id: string,
   targetActionId: string,
@@ -506,6 +521,90 @@ describe("runPreflight", () => {
       expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
       expect((error as ApplicationError).violations).toContainEqual(
         expect.objectContaining({ ruleId: capabilityId, definitionId: "ACT_STAT_MOD" }),
+      );
+    }
+  });
+
+  it("UT-PREFLIGHT-012 (M7-001, Issue #181, 再々レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a selected Skill uses REMOVE_EFFECTS with the SHIELD category (CAP_SHIELD is PLANNED, DMG-004) — proves REMOVE_EFFECTS_CATEGORY_GAP is rejected per-selection, not by failing the whole Catalog load", () => {
+    const capabilityId = createCapabilityId("CAP_SHIELD");
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+      enemyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+            position: { column: 0, row: "FRONT" },
+          },
+        ],
+        memoryDefinitionIds: [],
+      },
+    });
+    const unit: UnitDefinition = {
+      ...unitDefinition("UNIT_A"),
+      activeSkillDefinitionIds: [createSkillDefinitionId("SKL_REMOVE_SHIELD")],
+    };
+    const snap = snapshot({
+      units: new Map([[createUnitDefinitionId("UNIT_A"), unit]]),
+      skills: new Map<SkillDefinitionId, SkillDefinition>([
+        [
+          createSkillDefinitionId("SKL_REMOVE_SHIELD"),
+          asSkill("SKL_REMOVE_SHIELD", "ACT_REMOVE_SHIELD"),
+        ],
+      ]),
+      effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+        [
+          createEffectActionDefinitionId("ACT_REMOVE_SHIELD"),
+          removeEffectsShieldAction("ACT_REMOVE_SHIELD", [
+            createCapabilityId("CAP_REMOVE_EFFECTS"),
+            capabilityId,
+          ]),
+        ],
+      ]),
+      capabilities: new Map([
+        [
+          createCapabilityId("CAP_REMOVE_EFFECTS"),
+          createCapabilityDefinition({
+            capabilityId: "CAP_REMOVE_EFFECTS",
+            schemaStatus: "SUPPORTED",
+            runtimeStatus: "IMPLEMENTED",
+            implementationTaskId: "M7-001",
+            description: "効果解除",
+            verification: {
+              productionDefinitionIds: ["TEST_DEFINITION"],
+              testCaseIds: ["TEST-001"],
+            },
+          }),
+        ],
+        [
+          capabilityId,
+          createCapabilityDefinition({
+            capabilityId: "CAP_SHIELD",
+            schemaStatus: "SUPPORTED",
+            runtimeStatus: "PLANNED",
+            implementationTaskId: "DMG-004",
+            description: "シールド付与",
+            verification: { productionDefinitionIds: [], testCaseIds: [] },
+          }),
+        ],
+      ]),
+    });
+
+    try {
+      runPreflight(cmd, snap);
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ ruleId: capabilityId, definitionId: "ACT_REMOVE_SHIELD" }),
       );
     }
   });

@@ -1203,7 +1203,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`effect-action-group-resolver.ts`のREMOVE_EFFECTS branch、REMOVE_MARKERのcount）。
   // REMOVE_BUFF_CATEGORY・REMOVE_EFFECTS_COUNT_LIMITを実production Catalog
   // （Mihime/Lily/Mao）に対して`IT-REMOVE-EFFECTS-PROD-001/002`が検証する。
-  // SHIELD/SUBUNITカテゴリ（DMG-004/005）と状態異常種別限定免疫R-EFF-03は本Issue対象外。
+  // SHIELD/SUBUNITカテゴリは`categories`として受理し、`CAP_SHIELD`/`CAP_SUBUNIT`
+  // （いずれも`PLANNED`、DMG-004/005）の宣言をCatalogロード時点で要求すること
+  // （`catalog-integrity.ts`）で選択時に`SimulationPreflightValidator`が
+  // `UNSUPPORTED_RULE`として拒否する経路までは本Issueで配線した
+  // （`UT-PREFLIGHT-012`）が、実際の解除ロジック自体はIssue #242のスコープ。
+  // 状態異常種別限定免疫（R-EFF-03、`CAP_SPECIFIC_IMMUNITY`）はIssue #243のスコープ。
   {
     ruleId: "R-EFF-02",
     testCaseIds: [
