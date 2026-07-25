@@ -35,6 +35,7 @@ function unit(
     currentHp?: number;
     maximumHp?: number;
     currentAp?: number;
+    currentPp?: number;
   } = {},
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
@@ -59,10 +60,14 @@ function unit(
     ...built,
     currentHp: overrides.currentHp ?? built.currentHp,
     currentAp: overrides.currentAp ?? built.currentAp,
+    currentPp: overrides.currentPp ?? built.currentPp,
   };
 }
 
-function unitDefinitionOf(id: UnitDefinitionId): UnitDefinition {
+function unitDefinitionOf(
+  id: UnitDefinitionId,
+  passiveSkillDefinitionIds: readonly SkillDefinitionId[] = [],
+): UnitDefinition {
   return {
     unitDefinitionId: id,
     attribute: "AGGRESSIVE",
@@ -82,7 +87,7 @@ function unitDefinitionOf(id: UnitDefinitionId): UnitDefinition {
     },
     extraGaugeMaximum: 10,
     activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
+    passiveSkillDefinitionIds,
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
     requiredCapabilities: [],
     metadata: {
@@ -427,5 +432,112 @@ describe("resolveSkillUse", () => {
     expect(eventsFromSecondUse.indexOf(reduced!)).toBeLessThan(
       eventsFromSecondUse.indexOf(expired!),
     );
+  });
+
+  it("UT-R-EFF-01-054 (TGT-004フェーズ3再レビュー[P2]、Issue #167): a PS triggered by this very SkillUseCompleted that grants a fresh SKILL_USE(count:1) status is not immediately decremented/expired by the outer AS's own SKILL_USE decrement pass (the PS's grant carries its own distinct skillUseId, granted after the outer decrement already ran)", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_REACTIVE_PS");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_REACTIVE_PS");
+    const hit = damageEffectAction("ACT_HIT_REACTIVE");
+    const attackSkill = trivialAttackSkill("SKL_ATTACK_REACTIVE", "ACT_HIT_REACTIVE");
+    const grantAction = statusEffectAction("ACT_REACTIVE_PS_GRANT_STEALTH", 1);
+    const reactivePs: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_REACTIVE_PS_GRANT_STEALTH"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "SkillUseCompleted",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: grantAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "ReactivePS", tags: [] },
+    };
+
+    // currentPp: createBattleUnit defaults PP to 0 (accumulates over the
+    // battle, unlike AP), so the reactive PS (cost 1 PP) needs an explicit
+    // starting balance to be able to afford activating.
+    const actor = unit("ACTOR", "ALLY", {
+      unitDefinitionId: actorUnitDefinitionId,
+      currentAp: 3,
+      currentPp: 3,
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          actorUnitDefinitionId,
+          unitDefinitionOf(actorUnitDefinitionId, [reactivePs.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([[reactivePs.skillDefinitionId, reactivePs]]),
+      new Map([
+        [hit.effectActionDefinitionId, hit],
+        [grantAction.effectActionDefinitionId, grantAction],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    const result = resolveSkillUse(
+      actor,
+      attackSkill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const actorAfter = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(actorAfter.appliedEffects).toHaveLength(1);
+    const granted = actorAfter.appliedEffects[0]!;
+    expect(granted).toMatchObject({ statusKind: "STEALTH" });
+    // The reactive PS's own grant must survive this same overall resolution
+    // untouched — it must not be swept up by the outer AS's SKILL_USE
+    // decrement pass, which uses a different (earlier) skillUseId.
+    expect(granted.duration.timeLimitRemaining).toBe(1);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
+    expect(
+      recorder
+        .getEvents()
+        .some(
+          (e) =>
+            e.eventType === "EffectDurationReduced" &&
+            (e.payload as { effectInstanceId: string }).effectInstanceId ===
+              granted.effectInstanceId,
+        ),
+    ).toBe(false);
   });
 });

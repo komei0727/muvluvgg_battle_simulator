@@ -365,15 +365,17 @@ export function resolveSkillUse(
             targetUnitIds,
           },
         });
-  working = passiveRuntime.onFactEvent(skillUseCompleted, working);
-
-  // TGT-004フェーズ3（Issue #167、R-EFF-04と同じ規約のSKILL_USE単位版）:
-  // 中断された（`SkillUseInterrupted`）スキル使用はこの減算契機に含めない
-  // （`applied-effect-duration.ts`の`decrementSkillUseEffectDurations`が
-  // 明示する仕様固定）。`ACTION`単位（`action-completion.ts`）と同じ手順
-  // （減算→`EffectDurationReduced`発行→0になったインスタンスの失効）を、
-  // `SkillUseCompleted`自身の直後・`recordActionCompletion`（ACTION/TURN単位の
-  // 減算はそちら側の責務）より前に行う。
+  // TGT-004フェーズ3再レビュー[P2]（Issue #167、R-EFF-04と同じ規約のSKILL_USE
+  // 単位版）: 中断された（`SkillUseInterrupted`）スキル使用はこの減算契機に
+  // 含めない（`applied-effect-duration.ts`の`decrementSkillUseEffectDurations`
+  // が明示する仕様固定）。`SkillUseCompleted`を`passiveRuntime.onFactEvent`へ
+  // 渡してPS連鎖を解決する前に行う——`SkillUseCompleted`（sourceSelector: SELF
+  // 等）に反応するPSがこのAS/EX自身のskill useとは別の`skillUseId`で新たな
+  // `SKILL_USE`期間効果を付与し得るため、先に減算・PS連鎖解決の順にすると、
+  // そのPSが付与したばかりの効果（`grantedSkillUseId`がこの外側の`skillUseId`
+  // と一致しない）まで「直前のAS/EX使用分」として誤って減算・即時失効させて
+  // しまう（`count: 1`なら付与直後に失効する）。減算をPS連鎖より前に済ませる
+  // ことで、その時点でまだ存在しない新規付与を対象外にする。
   if (skillUseCompleted.eventType === "SkillUseCompleted") {
     const skillUseDurationDecrement = decrementSkillUseEffectDurations(
       working,
@@ -433,6 +435,7 @@ export function resolveSkillUse(
       }
     }
   }
+  working = passiveRuntime.onFactEvent(skillUseCompleted, working);
 
   const completion = recordActionCompletion(
     recorder,

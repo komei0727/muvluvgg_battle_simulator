@@ -14,7 +14,12 @@ import {
 } from "./effect-action-group-resolver.js";
 import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
-import { expireEffects, type ExpirationSeed } from "../effects/duration-expiry-service.js";
+import {
+  emitEffectDurationReducedEvents,
+  expireEffects,
+  type ExpirationSeed,
+} from "../effects/duration-expiry-service.js";
+import { decrementSkillUseEffectDurations } from "../model/applied-effect-duration.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { TriggerContext } from "../targeting/target-selection-policy.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -1436,6 +1441,71 @@ export class PassiveActivationRuntime {
           resolvedStepCount,
         },
       });
+      // TGT-004フェーズ3再レビュー[P1]（Issue #167）: PSもEFF-006/Issue #212で
+      // 独立した`SkillUseId`を持つ1回のスキル使用のため、正常完了時には
+      // AS/EXの`SkillUseCompleted`（`action-skill-use-resolver.ts`）と同じ規約
+      // でSKILL_USE単位期間効果を減算する（`PassiveInterrupted`では減算しない
+      // ——`decrementSkillUseEffectDurations`自身が明示する仕様固定、AS/EXの
+      // `SkillUseInterrupted`除外と同じ）。`terminalEvent`（`PassiveResolved`）を
+      // 候補解決へyieldする前に行うことで、この完了に反応する子PS連鎖が
+      // 新たに付与するSKILL_USE効果（別の`skillUseId`を持つ）を、この減算が
+      // 誤って巻き込まないようにする（PR #238再レビュー[P2]と同じ理由）。
+      const skillUseDurationDecrement = decrementSkillUseEffectDurations(
+        this.units,
+        ownerId,
+        skillUseId,
+      );
+      if (skillUseDurationDecrement.changes.length > 0) {
+        this.units = skillUseDurationDecrement.units;
+        const reducedEventsStart = this.context.recorder.getEvents().length;
+        lastEventId = emitEffectDurationReducedEvents(
+          {
+            recorder: this.context.recorder,
+            turnNumber: this.context.turnNumber,
+            cycleNumber: this.context.cycleNumber,
+            ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+            skillUseId,
+            resolutionScopeId: this.context.resolutionScopeId,
+            rootEventId: this.context.rootEventId,
+          },
+          this.units,
+          skillUseDurationDecrement.changes,
+          terminalEvent.eventId,
+        );
+        for (const event of this.context.recorder.getEvents().slice(reducedEventsStart)) {
+          yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(event) };
+        }
+
+        const skillUseExpirySeeds: ExpirationSeed[] = skillUseDurationDecrement.changes
+          .filter((change) => change.after === 0)
+          .map((change) => ({
+            battleUnitId: change.battleUnitId,
+            effectInstanceId: change.effectInstanceId,
+            reason: "TIME_LIMIT",
+          }));
+        if (skillUseExpirySeeds.length > 0) {
+          const expiryEventsStart = this.context.recorder.getEvents().length;
+          const skillUseExpiry = expireEffects(
+            {
+              recorder: this.context.recorder,
+              turnNumber: this.context.turnNumber,
+              cycleNumber: this.context.cycleNumber,
+              ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+              skillUseId,
+              resolutionScopeId: this.context.resolutionScopeId,
+              rootEventId: this.context.rootEventId,
+            },
+            this.units,
+            skillUseExpirySeeds,
+            this.context.definitions.effectActions,
+            lastEventId,
+          );
+          this.units = skillUseExpiry.units;
+          for (const event of this.context.recorder.getEvents().slice(expiryEventsStart)) {
+            yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(event) };
+          }
+        }
+      }
     }
     // レビュー指摘[P1]: `PassiveActivated`と同じ理由（544行目付近）で、
     // `PassiveResolved`/`PassiveInterrupted`もPS発動契機にできる契約

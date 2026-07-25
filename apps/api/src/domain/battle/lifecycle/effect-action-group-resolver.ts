@@ -651,23 +651,22 @@ function* resolveOneEffectActionApplication(
     effectLastEventId = recalculation.lastEventId;
     resultKind = "APPLIED";
   } else if (effectAction.kind === "APPLY_STATUS") {
-    // TGT-004フェーズ3（Issue #167、R-ACTN-03）: `AppliedEffect.statusKind`を
-    // 付与するresolver。`probability`（確率判定）・`appliesTo`（着弾行動種別
-    // 限定）・`damageThreshold`/`damageAmplificationOnBreak`（STUN/FREEZE/BLIND/
-    // DAMAGE_IMMUNITY等、R-STS-01〜04固有の解除条件）はいずれも本Issueのスコープ
-    // （R-TGT-08「ステルス」）が要求する無条件付与の範囲を超えるため、Catalog
-    // スキーマ（`effect-action-definition-factory.ts`）は将来のR-STS-*実装に
-    // 備えて既に許容しているが、この resolver は明確な例外で未対応を伝える
-    // （`EXCLUDE_RESOLVED_UNIT`/`MARKER_IN_AREA`の未対応area kind拒否と同じ方針）。
-    if (
-      effectAction.payload.probability !== undefined ||
-      effectAction.payload.appliesTo !== undefined ||
-      effectAction.payload.damageThreshold !== undefined ||
-      effectAction.payload.damageAmplificationOnBreak !== undefined
-    ) {
+    // TGT-004フェーズ3再レビュー[P1]（Issue #167、R-ACTN-03）: `AppliedEffect.
+    // statusKind`を付与するresolverだが、本Issueのスコープ（R-TGT-08
+    // 「ステルス」）が要求する無条件付与を実際に持つのは`status: "STEALTH"`
+    // だけ。他のstatus種別（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY等、
+    // R-STS-01〜04）は行動不能化・ダメージ無効化といった実効処理が別途必要で、
+    // それらは未実装のまま。`probability`/`appliesTo`/`damageThreshold`等の
+    // 追加fieldの有無だけで判定すると、`ACT_CHIZURU_DOMESTIC_AS1_STUN`のように
+    // 追加fieldを持たないSTUN定義が実効なしのままgrantEffectまで進んでしまい、
+    // 「未対応として明確に失敗する」から「EffectAppliedとして成功するが実際の
+    // 効果はない」というsilent partial implementationへ退行する
+    // （PR #238再レビュー[P1]で指摘）。そのため`status`自体で許可リストを取り、
+    // `STEALTH`以外は無条件で拒否する。
+    if (effectAction.payload.status !== "STEALTH") {
       throw new DomainValidationError(
         "effectActionDefinitionId",
-        `APPLY_STATUS payload fields "probability"/"appliesTo"/"damageThreshold"/"damageAmplificationOnBreak" are not yet supported by this resolver (R-STS-01〜04 scope, tracked separately from R-TGT-08)`,
+        `APPLY_STATUS status "${effectAction.payload.status}" is not yet supported by this resolver (only "STEALTH" is, R-TGT-08 scope; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
       );
     }
     // Stealthを含む現行production定義は`stacking`相当の設定を持たないため
