@@ -39,4 +39,12 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Local dev tooling (see scripts/sync-character-images.mjs) — runs under
+    // Node directly, not bundled by Vite, so it needs Node globals.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: { process: "readonly", console: "readonly" },
+    },
+  },
 );

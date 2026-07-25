@@ -1,6 +1,8 @@
 .slot {
   position: relative;
-  aspect-ratio: 1 / 1;
+  /* Matches the memory art's 16:9 ratio (DefinitionImage.module.css) so the
+     image fills the slot without letterboxing or cropping. */
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-sm);

@@ -53,7 +53,9 @@
 
 .item {
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) auto;
+  /* Landscape (16:9) thumbnail column; minmax(0, 1fr) lets the text column
+     shrink so the image never has to overflow into it. */
+  grid-template-columns: 112px minmax(0, 1fr) auto;
   align-items: center;
   gap: 11px;
   min-height: 76px;
