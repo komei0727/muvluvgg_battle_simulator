@@ -856,4 +856,126 @@ describe("resolveSkillUse", () => {
       eventsFromAttack.indexOf(expiredEvents[0]!),
     );
   });
+
+  it("UT-R-EFF-01-058 (TGT-004フェーズ3再々々レビュー[P2]、Issue #167、08_ドメインイベント.md「現在処理中のイベントから直接発生したイベントを子とする」契約): the outer AS's own SKILL_USE decrement pass records its first EffectDurationReduced with parentEventId === skillUseCompleted.eventId, not the last event recorded by a PS chain that SkillUseCompleted happened to trigger in the meantime", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_DECREMENT_PARENT");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_DECREMENT_PARENT");
+    const grantAction = statusEffectAction("ACT_GRANT_STEALTH_DECREMENT_PARENT", 2);
+    const hit = damageEffectAction("ACT_HIT_DECREMENT_PARENT");
+    const attackSkill = trivialAttackSkill(
+      "SKL_ATTACK_DECREMENT_PARENT",
+      "ACT_HIT_DECREMENT_PARENT",
+    );
+
+    // Same shape as UT-R-EFF-01-057 (a reactive PS with EMPTY steps, reacting
+    // to the outer attack's own SkillUseCompleted, whose own PassiveResolved
+    // independently decrements the same pre-existing SKILL_USE(count:2)
+    // effect first) — here reused specifically because the PS's own
+    // completion leaves an EffectDurationReduced as the LAST recorded event
+    // before the outer AS's own decrement pass runs, which is exactly the
+    // condition needed to expose a parentEventId mistakenly borrowed from
+    // that trailing PS-chain event instead of skillUseCompleted itself.
+    const reactivePs: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_DECREMENT_PARENT"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "SkillUseCompleted",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: attackSkill.skillDefinitionId,
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "PSDecrementParent", tags: [] },
+    };
+
+    const preExisting: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("effect:pre-existing-decrement-parent"),
+      effectActionDefinitionId: grantAction.effectActionDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(grantAction.effectActionDefinitionId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ACTOR"),
+      targetId: createBattleUnitId("ACTOR"),
+      magnitude: 0,
+      statusKind: "STEALTH",
+      duration: {
+        definition: {
+          timeLimit: { unit: "SKILL_USE", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+        grantedSkillUseId: createSkillUseId("B_1:skill-use:0"),
+      },
+      appliedTurnNumber: 1,
+    };
+    const actor = {
+      ...unit("ACTOR", "ALLY", {
+        unitDefinitionId: actorUnitDefinitionId,
+        currentAp: 3,
+        currentPp: 3,
+      }),
+      appliedEffects: [preExisting],
+    };
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          actorUnitDefinitionId,
+          unitDefinitionOf(actorUnitDefinitionId, [reactivePs.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([[reactivePs.skillDefinitionId, reactivePs]]),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const eventsBeforeAttack = recorder.getEvents().length;
+
+    resolveSkillUse(
+      actor,
+      attackSkill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const eventsFromAttack = recorder.getEvents().slice(eventsBeforeAttack);
+    const skillUseCompleted = eventsFromAttack.find((e) => e.eventType === "SkillUseCompleted")!;
+    const reducedEvents = eventsFromAttack.filter((e) => e.eventType === "EffectDurationReduced");
+    expect(reducedEvents).toHaveLength(2);
+    // reducedEvents[0] (2 -> 1) is from the reactive PS's own completion pass
+    // and is the last event recorded before the outer AS's own decrement
+    // pass runs. reducedEvents[1] (1 -> 0) is the outer AS's own decrement's
+    // first (and only) EffectDurationReduced, and must be parented directly
+    // on skillUseCompleted rather than on reducedEvents[0].
+    expect(reducedEvents[1]!.parentEventId).toBe(skillUseCompleted.eventId);
+    expect(reducedEvents[1]!.parentEventId).not.toBe(reducedEvents[0]!.eventId);
+  });
 });

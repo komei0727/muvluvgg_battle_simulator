@@ -412,10 +412,15 @@ export function resolveSkillUse(
     );
     if (skillUseDurationDecrement.changes.length > 0) {
       working = skillUseDurationDecrement.units;
-      let skillUseDurationLastEventId =
-        recorder.getEvents()[recorder.getEvents().length - 1]!.eventId;
+      // PR #238再々々レビュー[P2]: 最初の`EffectDurationReduced`の親は、直前の
+      // `skillUseCompleted`自身のPS連鎖解決で記録された最後のイベント（誘発
+      // されたPSの`PassiveResolved`やその子イベント等）ではなく、この減算の
+      // 直接の原因である`skillUseCompleted.eventId`自身にする——
+      // `08_ドメインイベント.md`「現在処理中のイベントから直接発生したイベント
+      // を子とする」契約と、PS自身の完了経路（`passive-activation-service.ts`が
+      // `terminalEvent.eventId`を親に使う）との一貫性のため。
       const reducedEventsStart = recorder.getEvents().length;
-      skillUseDurationLastEventId = emitEffectDurationReducedEvents(
+      const skillUseDurationLastEventId = emitEffectDurationReducedEvents(
         {
           recorder,
           turnNumber,
@@ -427,7 +432,7 @@ export function resolveSkillUse(
         },
         working,
         skillUseDurationDecrement.changes,
-        skillUseDurationLastEventId,
+        skillUseCompleted.eventId,
       );
       for (const event of recorder.getEvents().slice(reducedEventsStart)) {
         working = passiveRuntime.onFactEvent(event, working);
