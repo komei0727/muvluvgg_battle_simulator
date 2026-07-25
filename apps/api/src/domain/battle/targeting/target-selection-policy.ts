@@ -2,6 +2,7 @@ import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { frontDirectionStep, manhattanDistance } from "./position-policy.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { EffectInstanceId } from "../../shared/event-ids.js";
 import type { Side as SelectorSide, UnitType } from "../../catalog/definitions/catalog-enums.js";
 import type {
   AreaDefinition,
@@ -558,14 +559,155 @@ function resolveTriggerPool(
     : units.filter((u) => matchesRelativeSide(u, actor, selector.side as SelectorSide));
 }
 
-export function resolveTargets(
+/** R-TGT-08（TGT-004、Issue #167）: 消費された（第一優先対象として移動された）Stealth AppliedEffectインスタンス。 */
+export interface StealthConsumption {
+  readonly battleUnitId: BattleUnitId;
+  readonly effectInstanceId: EffectInstanceId;
+}
+
+interface ResolveTargetsCoreResult {
+  readonly selected: readonly BattleUnit[];
+  readonly stealthConsumption?: StealthConsumption;
+}
+
+const EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS: ReadonlySet<EffectInstanceId> = new Set();
+
+/**
+ * PR #237再々レビュー[P1]: `filters`（`POSITION_SLOT`、`AND`で組み合わされた
+ * 場合も含む）が候補集合を定義上最大1体へ限定するかどうか。`POSITION_SLOT`は
+ * row+columnの組で一意なスロットを指すため、選択対象が単一の陣営
+ * （`side: "ALLY"`/`"ENEMY"`）に絞られている限り、そのスロットに存在しうる
+ * ユニットは最大1体になる（呼び出し側`isStructurallySingleCandidateSelector`が
+ * `side`側の絞り込みを別途確認する）。
+ */
+function filterStructurallyLimitsToSingleCandidate(filter: TargetFilterDefinition): boolean {
+  switch (filter.kind) {
+    case "POSITION_SLOT":
+      return true;
+    case "AND":
+      // ANDは条件を狭める方向にしか働かないため、いずれか1つが単一候補への
+      // 限定を保証すれば全体も保証される。
+      return filter.conditions.some((condition) =>
+        filterStructurallyLimitsToSingleCandidate(condition),
+      );
+    default:
+      // OR/NOTを含むその他のkindは候補数の上限を一般に保証できないため、
+      // 構造的な限定とはみなさない（安全側: Q-TGT-05の通常経路へ進める）。
+      return false;
+  }
+}
+
+/**
+ * PR #237再々レビュー[P1]: `area`が候補集合を定義上最大1体へ限定するかどうか。
+ * `DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`は`applyArea`内部で`u.side === base.side`
+ * かつ単一の(x, y)座標に絞り込むため、`selector.side`の値に関わらず常に最大1体
+ * （その座標を占有できるユニットは高々1体）。他のarea kindは複数座標に及びうる
+ * ため対象外。
+ */
+function areaStructurallyLimitsToSingleCandidate(area: AreaDefinition): boolean {
+  return area.kind === "DIRECTLY_AHEAD_OF_BASE" || area.kind === "BEHIND_BASE";
+}
+
+/**
+ * PR #237再レビュー[P1]・再々レビュー[P1]: R-TGT-08 #6（自身を対象とする自身の
+ * スキル）と#7（イベント／条件によって対象範囲が構造的に1体へ限定されている
+ * 場合）が指す「構造的に1体」のselector。`kind`が`SELF`/`TRIGGER_SOURCE`/
+ * `TRIGGER_TARGET`の場合は候補集合が使用者自身またはtrigger eventが渡した
+ * 固定集合から構造的に導かれる。`SELECT`/`BINDING_DERIVED`は候補が盤面の
+ * 生存状況に依存するため原則対象外だが（たとえ現在1件しかなくても、それは
+ * Q-TGT-05の「代替対象なし」であり#7の「構造的な限定」ではない）、`filters`に
+ * `POSITION_SLOT`（単一陣営に絞られている場合）や`area`に`DIRECTLY_AHEAD_OF_BASE`/
+ * `BEHIND_BASE`を持つ場合は、盤面の生存状況とは無関係に候補が定義上1体以下へ
+ * 限定されるため、これらも#7の「構造的な限定」として扱う。
+ */
+function isStructurallySingleCandidateSelector(selector: TargetSelectorDefinition): boolean {
+  if (
+    selector.kind === "SELF" ||
+    selector.kind === "TRIGGER_SOURCE" ||
+    selector.kind === "TRIGGER_TARGET"
+  ) {
+    return true;
+  }
+  const isSingleSideSelector = selector.side === "ALLY" || selector.side === "ENEMY";
+  if (
+    isSingleSideSelector &&
+    selector.filters.some((filter) => filterStructurallyLimitsToSingleCandidate(filter))
+  ) {
+    return true;
+  }
+  if (selector.area !== undefined && areaStructurallyLimitsToSingleCandidate(selector.area)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * R-TGT-08「ステルス」#1〜#5: `order`適用後・`count`適用前の候補順に対し、
+ * 第一優先対象（先頭）がStealth状態（`APPLY_STATUS`由来の`AppliedEffect`、
+ * `statusKind === "STEALTH"`、R-ACTN-03）を持つ場合に限りそれを候補順の末尾へ
+ * 移動する（非先頭のStealth所持者は順序を変更しない、#5）。TGT-004フェーズ2
+ * （Issue #167、PR #236以降の再レビューを受け、フェーズ1でMarkerState経由の
+ * 予約IDアプローチから`AppliedEffect.statusKind`ベースへ設計変更——`APPLY_STATUS`は
+ * `MarkerState`ではなく`AppliedEffect`として保持するR-ACTN-03に合わせた）。#6/#7
+ * は`isStructurallySingleCandidateSelector`が真になるselectorで、かつ候補が1件
+ * しかない場合だけ適用しない。それ以外（候補2件以上、またはSELECT/BINDING_DERIVEDで
+ * 候補1件かつ構造的な限定なし）は#2〜#4（Q-TGT-05「移動後に代替対象が存在しない
+ * 場合は、ステルスを消費したうえで元の対象へ発動する」を含む）へ進む（候補0件は
+ * `selected.length === 0`のfallback判定へ委ねるため、ここでは扱わない）。移動は
+ * Stealthの消費（`resolveEffectSequence`の呼び出し元が`EffectExpired`/
+ * reason:"CONSUMPTION"として実際に失効させる、`expireEffects`）を伴うが、
+ * この関数自体は純粋関数のため、消費対象（`StealthConsumption`）を返すだけで
+ * `appliedEffects`を変更しない。
+ */
+function applyStealthRedirect(
+  ordered: readonly BattleUnit[],
+  selector: TargetSelectorDefinition,
+  alreadyConsumedEffectInstanceIds: ReadonlySet<EffectInstanceId>,
+): {
+  readonly ordered: readonly BattleUnit[];
+  readonly consumption?: StealthConsumption;
+} {
+  if (ordered.length === 0) {
+    return { ordered };
+  }
+  // R-TGT-08 #6/#7: 候補が1件だけで、かつそれがselector自体によって構造的に
+  // 導かれた候補集合（SELF/TRIGGER_SOURCE/TRIGGER_TARGET、または
+  // POSITION_SLOT filter・DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE areaによる
+  // 定義上の1体限定）の場合は適用しない。候補が2件以上ある場合や、候補が1件
+  // でもそのような構造的限定を持たないSELECT/BINDING_DERIVED（盤面の生存状況
+  // 依存）の場合は、以降の通常処理（#2〜#4、Q-TGT-05の「代替対象なし」を含む）
+  // へ進む。
+  if (ordered.length === 1 && isStructurallySingleCandidateSelector(selector)) {
+    return { ordered };
+  }
+  const [firstPriority, ...rest] = ordered as [BattleUnit, ...BattleUnit[]];
+  const stealthEffect = firstPriority.appliedEffects.find(
+    (effect) =>
+      effect.statusKind === "STEALTH" &&
+      !alreadyConsumedEffectInstanceIds.has(effect.effectInstanceId),
+  );
+  if (stealthEffect === undefined) {
+    return { ordered };
+  }
+  return {
+    // R-TGT-08 #3: 第一優先対象を候補順の最後へ移動する。
+    ordered: [...rest, firstPriority],
+    consumption: {
+      battleUnitId: firstPriority.battleUnitId,
+      effectInstanceId: stealthEffect.effectInstanceId,
+    },
+  };
+}
+
+function resolveTargetsCore(
   selector: TargetSelectorDefinition,
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
-  resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
-  triggerContext?: TriggerContext,
-  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
-): readonly BattleUnit[] {
+  resolvedBindings: ResolvedTargetBindings,
+  triggerContext: TriggerContext | undefined,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  alreadyConsumedStealthEffectInstanceIds: ReadonlySet<EffectInstanceId>,
+): ResolveTargetsCoreResult {
   // R-TGT-09 #5相当の事前検証: orderは並べ替え前に検証する（候補0/1件でも不正なorderは拒否する）。
   const compare = compareByOrder(selector.order, actor, unitDefinitions);
 
@@ -615,24 +757,100 @@ export function resolveTargets(
   // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
   // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
   // 候補数を変えないため、fallback判定（#7）は0/1件の場合と同じ結果になるここで行う。
+  // R-TGT-08: Stealth所持者が第一優先対象の場合、候補順の末尾へ移動する。
+  // 候補の集合・件数は変えないため、直後のcount適用・fallback判定（#6/#7）には影響しない。
+  const stealthResult = applyStealthRedirect(
+    ordered,
+    selector,
+    alreadyConsumedStealthEffectInstanceIds,
+  );
+
+  // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
+  // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
+  // 候補数を変えないため、fallback判定（#7）は0/1件の場合と同じ結果になるここで行う。
   const selected =
     selector.count === undefined || selector.count === "ALL"
-      ? ordered
-      : ordered.slice(0, selector.count);
+      ? stealthResult.ordered
+      : stealthResult.ordered.slice(0, selector.count);
 
   // R-TGT-09 #7/R-TGT-10（CAP_TARGET_BINDING_FALLBACK、Issue #168/TGT-003）:
   // 候補が0件かつfallbackがあれば、fallback自身を独立したTargetSelectorDefinition
-  // として同じ評価順（kind→戦闘不能除外→filters→area→order→count→fallback）で
+  // として同じ評価順（kind→戦闘不能除外→filters→area→order→Stealth→count→fallback）で
   // 評価する。fallbackが自身のfallbackを持つ場合も同じ規約で連鎖する。
   if (selected.length === 0 && selector.fallback !== undefined) {
-    return resolveTargets(
+    return resolveTargetsCore(
       selector.fallback,
       actor,
       allUnits,
       resolvedBindings,
       triggerContext,
       unitDefinitions,
+      alreadyConsumedStealthEffectInstanceIds,
     );
   }
-  return selected;
+  return {
+    selected,
+    ...(stealthResult.consumption !== undefined
+      ? { stealthConsumption: stealthResult.consumption }
+      : {}),
+  };
+}
+
+export function resolveTargets(
+  selector: TargetSelectorDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
+  triggerContext?: TriggerContext,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
+): readonly BattleUnit[] {
+  return resolveTargetsCore(
+    selector,
+    actor,
+    allUnits,
+    resolvedBindings,
+    triggerContext,
+    unitDefinitions,
+    EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS,
+  ).selected;
+}
+
+/**
+ * `resolveTargets`と同じ解決を行うが、R-TGT-08で発生したStealthの消費
+ * （あれば）も返す。実際の失効・`EffectExpired`（reason:"CONSUMPTION"）発行は
+ * 呼び出し側（`resolveEffectSequence`が集約し、`resolveEffectSequencePlan`が
+ * `expireEffects`で適用する）の責務であり、この関数自身は`appliedEffects`を
+ * 変更しない。AS選択時のフィージビリティ判定（`hasResolvableTargets`）や
+ * `TargetsSelected`イベントpayload用の監査再解決（`resolveBindingSelections`）は
+ * 消費を確定させてはならないため、引き続き`resolveTargets`を使う。
+ * `alreadyConsumedStealthEffectInstanceIds`（PR #234レビュー[P2]、フェーズ2で
+ * `EffectInstanceId`ベースへ移行）: 呼び出し元（`resolveEffectSequence`）が
+ * 同じ`EffectSequence`内で先行する`targetBindings`から検出済みの消費を渡す
+ * ことで、複数のbindingが同じStealth所持者を第一優先対象に選ぶ場合でも
+ * 移動・消費が1回だけ成立するようにする。
+ */
+export function resolveTargetsWithStealthConsumption(
+  selector: TargetSelectorDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
+  triggerContext?: TriggerContext,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
+  alreadyConsumedStealthEffectInstanceIds: ReadonlySet<EffectInstanceId> = EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS,
+): { readonly units: readonly BattleUnit[]; readonly stealthConsumption?: StealthConsumption } {
+  const result = resolveTargetsCore(
+    selector,
+    actor,
+    allUnits,
+    resolvedBindings,
+    triggerContext,
+    unitDefinitions,
+    alreadyConsumedStealthEffectInstanceIds,
+  );
+  return {
+    units: result.selected,
+    ...(result.stealthConsumption !== undefined
+      ? { stealthConsumption: result.stealthConsumption }
+      : {}),
+  };
 }

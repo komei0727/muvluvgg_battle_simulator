@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { resolveTargets } from "./target-selection-policy.js";
+import { resolveTargets, resolveTargetsWithStealthConsumption } from "./target-selection-policy.js";
 import {
   createBattleUnit,
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "../model/battle-unit.js";
 import { buildInitialMarkerState, type MarkerState } from "../model/marker-state.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createMarkerInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import {
+  createEffectActionDefinitionId,
   createMarkerId,
   createSkillDefinitionId,
   createTargetBindingId,
@@ -75,6 +77,27 @@ function marker(markerId: MarkerId, stackCount = 1): MarkerState {
       { turnNumber: 1 },
     ),
     stackCount,
+  };
+}
+
+/**
+ * TGT-004フェーズ2（Issue #167）: `statusKind: "STEALTH"`を持つ`AppliedEffect`。
+ * R-EFF-01の他フィールド（`duplicate`/`magnitude`等）はR-TGT-08の対象選択とは
+ * 無関係な値で固定する。
+ */
+function stealthEffect(targetId: string, instanceSuffix = targetId): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId("ACT_STEALTH_TEST");
+  return {
+    effectInstanceId: createEffectInstanceId(`ei-stealth-${instanceSuffix}`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: createBattleUnitId(targetId),
+    targetId: createBattleUnitId(targetId),
+    magnitude: 0,
+    statusKind: "STEALTH",
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
   };
 }
 
@@ -1667,6 +1690,269 @@ describe("resolveTargets", () => {
       );
 
       expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("OTHER_ALLY")]);
+    });
+  });
+
+  describe("R-TGT-08: Stealth redirect (TGT-004, Issue #167, Phase 2: AppliedEffect-based)", () => {
+    it("UT-R-TGT-08-001: a first-priority target holding Stealth is moved to the end of candidate order, redirecting a count:1 selector to the next candidate", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const nearest = unit(
+        "NEAREST",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("NEAREST")] },
+      );
+      const farther = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      const result = resolveTargetsWithStealthConsumption(
+        selector({ side: "ENEMY", count: 1 }),
+        actor,
+        [actor, nearest, farther],
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("FARTHER")]);
+      expect(result.stealthConsumption).toEqual({
+        battleUnitId: createBattleUnitId("NEAREST"),
+        effectInstanceId: nearest.appliedEffects[0]!.effectInstanceId,
+      });
+
+      // `resolveTargets` (used by callers that don't need the consumption signal) reflects
+      // the same redirected order.
+      const plain = resolveTargets(selector({ side: "ENEMY", count: 1 }), actor, [
+        actor,
+        nearest,
+        farther,
+      ]);
+      expect(plain.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("FARTHER")]);
+    });
+
+    it("UT-R-TGT-08-002: a Stealth holder who is not the first-priority target keeps their position and is not consumed", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const nearest = unit("NEAREST", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const farther = unit(
+        "FARTHER",
+        "ENEMY",
+        { column: "LEFT", row: "BACK" },
+        { appliedEffects: [stealthEffect("FARTHER")] },
+      );
+
+      const result = resolveTargetsWithStealthConsumption(
+        selector({ side: "ENEMY", count: "ALL" }),
+        actor,
+        [actor, nearest, farther],
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("NEAREST"),
+        createBattleUnitId("FARTHER"),
+      ]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
+    it("UT-R-TGT-08-003 (Q-TGT-05): when no alternative remains after the move (count requires the whole pool), Stealth is still consumed and the original target is still hit", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const nearest = unit(
+        "NEAREST",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("NEAREST")] },
+      );
+      const farther = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      const result = resolveTargetsWithStealthConsumption(
+        selector({ side: "ENEMY", count: "ALL" }),
+        actor,
+        [actor, nearest, farther],
+      );
+
+      expect(result.units.map((t) => t.battleUnitId).sort()).toEqual(
+        [createBattleUnitId("NEAREST"), createBattleUnitId("FARTHER")].sort(),
+      );
+      expect(result.stealthConsumption).toEqual({
+        battleUnitId: createBattleUnitId("NEAREST"),
+        effectInstanceId: nearest.appliedEffects[0]!.effectInstanceId,
+      });
+    });
+
+    it("UT-R-TGT-08-004 (R-TGT-08 #6): a SELF selector never redirects, even when the actor holds Stealth (self-cast self-target skill)", () => {
+      const actor = unit(
+        "ACTOR",
+        "ALLY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("ACTOR")] },
+      );
+      const ally = unit("ALLY_1", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const result = resolveTargetsWithStealthConsumption(
+        { kind: "SELF", filters: [], order: ["DEFAULT"], includeDefeated: false },
+        actor,
+        [actor, ally],
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ACTOR")]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
+    it("UT-R-TGT-08-005 (R-TGT-08 #7, PR #237再レビュー[P1]): a TRIGGER_TARGET selector whose event-provided candidate set is structurally limited to a single unit never redirects (『攻撃を受けた味方単体』例)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const onlyCandidate = unit(
+        "ONLY",
+        "ALLY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("ONLY")] },
+      );
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "TRIGGER_TARGET",
+        side: "ALLY",
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const result = resolveTargetsWithStealthConsumption(
+        selectorDef,
+        actor,
+        [actor, onlyCandidate],
+        undefined,
+        { triggerTargetUnitIds: [onlyCandidate.battleUnitId] },
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ONLY")]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
+    it("UT-R-TGT-08-008 (Q-TGT-05, PR #237再レビュー[P1]): a normal SELECT selector whose only surviving candidate holds Stealth still consumes it and hits them (battlefield happenstance, not a structural limitation)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const onlySurvivor = unit(
+        "ONLY_SURVIVOR",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("ONLY_SURVIVOR")] },
+      );
+
+      const result = resolveTargetsWithStealthConsumption(
+        selector({ side: "ENEMY", count: 1 }),
+        actor,
+        [actor, onlySurvivor],
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("ONLY_SURVIVOR"),
+      ]);
+      expect(result.stealthConsumption).toEqual({
+        battleUnitId: createBattleUnitId("ONLY_SURVIVOR"),
+        effectInstanceId: onlySurvivor.appliedEffects[0]!.effectInstanceId,
+      });
+    });
+
+    it("UT-R-TGT-08-010 (R-TGT-08 #7, PR #237再々レビュー[P1]): a SELECT selector narrowed by a POSITION_SLOT filter to a single definitionally-unique slot never redirects, even though kind is SELECT (not just a survivor happenstance)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const slotHolder = unit(
+        "SLOT_HOLDER",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("SLOT_HOLDER")] },
+      );
+      const other = unit("OTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        filters: [{ kind: "POSITION_SLOT", row: "FRONT", column: "CENTER" }],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const result = resolveTargetsWithStealthConsumption(selectorDef, actor, [
+        actor,
+        slotHolder,
+        other,
+      ]);
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("SLOT_HOLDER")]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
+    it("UT-R-TGT-08-011 (R-TGT-08 #7, PR #237再々レビュー[P1]): a BINDING_DERIVED selector with a DIRECTLY_AHEAD_OF_BASE area (a single unique coordinate) never redirects", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "BACK" });
+      const ahead = unit(
+        "AHEAD",
+        "ALLY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("AHEAD")] },
+      );
+      const unrelated = unit("UNRELATED", "ALLY", { column: "LEFT", row: "FRONT" });
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "BINDING_DERIVED",
+        base: { kind: "SELF" },
+        area: { kind: "DIRECTLY_AHEAD_OF_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const result = resolveTargetsWithStealthConsumption(selectorDef, actor, [
+        actor,
+        ahead,
+        unrelated,
+      ]);
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("AHEAD")]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
+    it("UT-R-TGT-08-006: Stealth redirect also applies inside a fallback selector's own evaluation", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const nearestEnemy = unit(
+        "NEAREST_ENEMY",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("NEAREST_ENEMY")] },
+      );
+      const fartherEnemy = unit("FARTHER_ENEMY", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      const result = resolveTargetsWithStealthConsumption(
+        selector({
+          side: "ALLY",
+          count: 1,
+          // actor's own HP_RATIO is always 1, never < 0: the primary selector (targeting
+          // the actor's own side) always resolves to zero candidates, forcing fallback.
+          filters: [{ kind: "HP_RATIO", op: "LT", value: 0 }],
+          fallback: selector({ side: "ENEMY", count: 1 }),
+        }),
+        actor,
+        [actor, nearestEnemy, fartherEnemy],
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("FARTHER_ENEMY"),
+      ]);
+      expect(result.stealthConsumption).toEqual({
+        battleUnitId: createBattleUnitId("NEAREST_ENEMY"),
+        effectInstanceId: nearestEnemy.appliedEffects[0]!.effectInstanceId,
+      });
+    });
+
+    it("UT-R-TGT-08-007 (TGT-004フェーズ2): a non-STEALTH statusKind AppliedEffect is not treated as Stealth", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const nearest = unit(
+        "NEAREST",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        {
+          appliedEffects: [{ ...stealthEffect("NEAREST"), statusKind: "EVASION" }],
+        },
+      );
+      const farther = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+
+      const result = resolveTargetsWithStealthConsumption(
+        selector({ side: "ENEMY", count: 1 }),
+        actor,
+        [actor, nearest, farther],
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("NEAREST")]);
+      expect(result.stealthConsumption).toBeUndefined();
     });
   });
 });

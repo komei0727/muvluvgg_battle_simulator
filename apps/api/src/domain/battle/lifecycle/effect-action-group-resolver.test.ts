@@ -294,6 +294,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
@@ -344,6 +345,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [
         singleActionStep(0, false, enemy.battleUnitId, attack.effectActionDefinitionId),
         singleActionStep(1, true, enemy.battleUnitId, attack.effectActionDefinitionId),
@@ -395,6 +397,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [
         {
           planKind: "ACTION_PLAN",
@@ -496,6 +499,7 @@ describe("applyEffectActionGroups", () => {
       );
     });
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
@@ -527,6 +531,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
@@ -550,6 +555,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(enemy, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, actor.battleUnitId, attack.effectActionDefinitionId)],
       targetUnitIds: [actor.battleUnitId],
       resolvedBindings: new Map(),
@@ -573,6 +579,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, actor.battleUnitId, reset.effectActionDefinitionId)],
       targetUnitIds: [actor.battleUnitId],
       resolvedBindings: new Map(),
@@ -596,6 +603,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, enemy.battleUnitId, statMod.effectActionDefinitionId)],
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
@@ -674,6 +682,7 @@ describe("applyEffectActionGroups", () => {
       return units;
     });
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, enemy.battleUnitId, statMod.effectActionDefinitionId)],
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
@@ -713,6 +722,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, enemy.battleUnitId, statMod.effectActionDefinitionId)],
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
@@ -774,6 +784,7 @@ describe("applyEffectActionGroups", () => {
       triggerTargetUnitIds: [triggerTarget.battleUnitId],
     };
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [
         // Step 0: DAMAGE reduces triggerTarget's HP from 100 to 80.
         singleActionStep(0, true, triggerTarget.battleUnitId, attack.effectActionDefinitionId),
@@ -844,6 +855,7 @@ describe("applyEffectActionGroups", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actorWithBuff, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
       steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
@@ -883,6 +895,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(0, true, defeatedEnemy.battleUnitId, statMod.effectActionDefinitionId),
         ],
@@ -926,6 +939,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(0, true, defeatedEnemy.battleUnitId, apply.effectActionDefinitionId),
         ],
@@ -979,6 +993,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(0, true, defeatedEnemy.battleUnitId, remove.effectActionDefinitionId),
         ],
@@ -1013,6 +1028,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(0, true, defeatedEnemy.battleUnitId, reset.effectActionDefinitionId),
         ],
@@ -1044,6 +1060,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [singleActionStep(0, true, enemy.battleUnitId, apply.effectActionDefinitionId)],
         targetUnitIds: [enemy.battleUnitId],
         resolvedBindings: new Map(),
@@ -1070,6 +1087,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(
             0,
@@ -1104,6 +1122,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(
             0,
@@ -1166,6 +1185,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(0, true, grantedEnemy.battleUnitId, remove.effectActionDefinitionId),
         ],
@@ -1199,6 +1219,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [singleActionStep(0, true, enemy.battleUnitId, reset.effectActionDefinitionId)],
         targetUnitIds: [enemy.battleUnitId],
         resolvedBindings: new Map(),
@@ -1328,6 +1349,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [actionOn({ kind: "SELF" }, elseHit.effectActionDefinitionId)],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, branch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1380,6 +1402,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [actionOn({ kind: "SELF" }, elseHit.effectActionDefinitionId)],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, branch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1428,6 +1451,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, outer)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1470,6 +1494,7 @@ describe("applyEffectActionGroups", () => {
         ],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1522,6 +1547,7 @@ describe("applyEffectActionGroups", () => {
         ],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1568,6 +1594,7 @@ describe("applyEffectActionGroups", () => {
         ],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1597,6 +1624,7 @@ describe("applyEffectActionGroups", () => {
         ],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [],
         resolvedBindings: new Map(),
@@ -1623,6 +1651,7 @@ describe("applyEffectActionGroups", () => {
         ],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [],
         resolvedBindings: new Map(),
@@ -1652,6 +1681,7 @@ describe("applyEffectActionGroups", () => {
         steps: [actionOn({ kind: "SELF" }, hit.effectActionDefinitionId)],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, repeat)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1677,6 +1707,7 @@ describe("applyEffectActionGroups", () => {
         steps: [actionOn({ kind: "SELF" }, selfHit.effectActionDefinitionId)],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, repeat)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1711,6 +1742,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId),
           deferredStep(1, branch),
@@ -1752,6 +1784,7 @@ describe("applyEffectActionGroups", () => {
         followUpMarker.effectActionDefinitionId,
       );
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           {
             planKind: "ACTION_PLAN",
@@ -1810,6 +1843,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           {
             planKind: "ACTION_PLAN",
@@ -1867,6 +1901,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           {
             planKind: "ACTION_PLAN",
@@ -1911,6 +1946,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, branch)],
         targetUnitIds: [],
         resolvedBindings: new Map(),
@@ -1952,6 +1988,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, branch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -1983,6 +2020,7 @@ describe("applyEffectActionGroups", () => {
         branches: [{ weight: 1, steps: [] }],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [],
         resolvedBindings: new Map(),
@@ -2019,6 +2057,7 @@ describe("applyEffectActionGroups", () => {
         ],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -2049,6 +2088,7 @@ describe("applyEffectActionGroups", () => {
         steps: [actionOn({ kind: "SELF" }, hit.effectActionDefinitionId)],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, repeat)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -2080,6 +2120,7 @@ describe("applyEffectActionGroups", () => {
         elseSteps: [],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, outer)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -2125,6 +2166,7 @@ describe("applyEffectActionGroups", () => {
         ],
       };
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, randomBranch)],
         targetUnitIds: [actor.battleUnitId],
         resolvedBindings: new Map(),
@@ -2151,6 +2193,7 @@ describe("applyEffectActionGroups", () => {
       const { recorder, rootEventId } = seedRecorder();
       const context = contextFor(actor, effectActions, recorder, rootEventId);
       const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [
           {
             planKind: "ACTION_PLAN",
@@ -3159,6 +3202,7 @@ describe("applyEffectActionGroups", () => {
       const lowHpActor = unit("ACTOR_LOW", "ALLY", { currentHp: 40 });
       const enemy1 = unit("ENEMY_1", "ENEMY");
       const plan1: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, branch)],
         targetUnitIds: [enemy1.battleUnitId],
         resolvedBindings: new Map([
@@ -3190,6 +3234,7 @@ describe("applyEffectActionGroups", () => {
       const fullHpActor = unit("ACTOR_FULL", "ALLY");
       const enemy2 = unit("ENEMY_2", "ENEMY");
       const plan2: EffectSequencePlan = {
+        stealthConsumptions: [],
         steps: [deferredStep(0, branch)],
         targetUnitIds: [enemy2.battleUnitId],
         resolvedBindings: new Map([
@@ -3218,5 +3263,76 @@ describe("applyEffectActionGroups", () => {
           ),
       ).toBe(false);
     });
+  });
+});
+
+describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issue #167, Phase 2: AppliedEffect-based)", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-013: a plan.stealthConsumptions entry is applied before the first step, expiring the AppliedEffect and emitting EffectExpired(reason:CONSUMPTION)", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const stealthDefinitionId = createEffectActionDefinitionId("ACT_STEALTH_TEST");
+    const stealthInstance: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("ei-stealth-1"),
+      effectActionDefinitionId: stealthDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(stealthDefinitionId),
+      duplicate: true,
+      sourceId: createBattleUnitId("HOLDER"),
+      targetId: createBattleUnitId("HOLDER"),
+      magnitude: 0,
+      statusKind: "STEALTH",
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const holder = unit("HOLDER", "ENEMY", { appliedEffects: [stealthInstance] });
+    const attack = damageAction("ACT_ATTACK");
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [
+        { battleUnitId: holder.battleUnitId, effectInstanceId: stealthInstance.effectInstanceId },
+      ],
+      steps: [singleActionStep(0, true, holder.battleUnitId, attack.effectActionDefinitionId)],
+      targetUnitIds: [holder.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor, holder], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted[0]).toBe("EffectExpired");
+    expect(recorder.getEvents()[before]!.payload).toMatchObject({
+      effectInstanceId: stealthInstance.effectInstanceId,
+      reason: "CONSUMPTION",
+    });
+    const nextHolder = result.units.find((u) => u.battleUnitId === holder.battleUnitId)!;
+    expect(nextHolder.appliedEffects).toHaveLength(0);
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-014: an empty plan.stealthConsumptions emits no EffectExpired", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const attack = damageAction("ACT_ATTACK");
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    applyEffectActionGroups(plan, [actor, enemy], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).not.toContain("EffectExpired");
   });
 });

@@ -1,5 +1,9 @@
 import type { BattleUnit } from "../model/battle-unit.js";
-import { resolveTargets, type TriggerContext } from "../targeting/target-selection-policy.js";
+import {
+  resolveTargetsWithStealthConsumption,
+  type StealthConsumption,
+  type TriggerContext,
+} from "../targeting/target-selection-policy.js";
 import {
   conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
@@ -22,6 +26,7 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { EffectInstanceId } from "../../shared/event-ids.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
 
 export interface ResolvedEffectApplication {
@@ -117,6 +122,16 @@ export interface EffectSequencePlan {
    * 戦闘状態が変化しても、同じ sequence 内の当該 binding は再評価しない」）。
    */
   readonly resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>;
+  /**
+   * R-TGT-08「ステルス」（TGT-004、Issue #167）: `targetBindings`の解決中に
+   * 第一優先対象として選ばれ、候補順の末尾へ移動されたStealth所持者
+   * （`AppliedEffect.statusKind === "STEALTH"`、フェーズ2でMarkerStateベースから
+   * 移行）。実際の失効・`EffectExpired`（reason:"CONSUMPTION"）発行は
+   * `resolveEffectSequencePlan`（`effect-action-group-resolver.ts`）が
+   * stepsの解決を開始する前に一括で行う — `EventRecorder`を持たないこの
+   * 計画関数自身は`appliedEffects`を変更しない。
+   */
+  readonly stealthConsumptions: readonly StealthConsumption[];
 }
 
 /**
@@ -499,18 +514,29 @@ function resolveEffectSequence(
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
-  // ここまでに解決済みのbindingを`resolveTargets`へ渡しながら1件ずつ確定する。
+  // ここまでに解決済みのbindingを`resolveTargetsWithStealthConsumption`へ渡しながら1件ずつ確定する。
+  // PR #234レビュー[P2]: 同じStealth所持者を複数のbindingが第一優先対象に選ぶ場合、
+  // R-TGT-10の定義順評価と「第一優先対象になった時点で消費」（R-TGT-08 #2）に従い、
+  // 最初に検出したbindingでのみ移動・消費が成立するよう、検出済みの`effectInstanceId`を
+  // 後続bindingの評価へ引き継ぐ。
   const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>();
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
+  const stealthConsumptions: StealthConsumption[] = [];
+  const consumedStealthEffectInstanceIds = new Set<EffectInstanceId>();
   for (const binding of sequence.targetBindings) {
-    const units = resolveTargets(
+    const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
       binding.selector,
       actor,
       allUnits,
       resolvedBindingUnits,
       triggerContext,
       unitDefinitions,
+      consumedStealthEffectInstanceIds,
     );
+    if (stealthConsumption !== undefined) {
+      stealthConsumptions.push(stealthConsumption);
+      consumedStealthEffectInstanceIds.add(stealthConsumption.effectInstanceId);
+    }
     resolvedBindingUnits.set(binding.targetBindingId, units);
     resolvedBindings.set(binding.targetBindingId, {
       units,
@@ -579,7 +605,7 @@ function resolveEffectSequence(
     });
   });
 
-  return { steps, targetUnitIds, resolvedBindings };
+  return { steps, targetUnitIds, resolvedBindings, stealthConsumptions };
 }
 
 /** テスト・呼び出し側がstep構造を無視して、旧来のヒット単位の平坦な順序だけを見たい場合に使う。 */

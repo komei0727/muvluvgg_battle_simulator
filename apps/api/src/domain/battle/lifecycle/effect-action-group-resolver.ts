@@ -1601,6 +1601,57 @@ export function* resolveEffectSequencePlan(
   let lastEventId = context.parentEventId;
   let resolvedCount = 0;
 
+  // R-TGT-08「ステルス」（TGT-004、Issue #167）: targetBindings解決時に第一優先
+  // 対象として選ばれ候補順の末尾へ移動されたStealth所持者（`AppliedEffect.
+  // statusKind === "STEALTH"`）を、実際のstep解決を始める前に一括で消費する
+  // （`EffectExpired`/reason:"CONSUMPTION"）。フェーズ2でMarkerState＋
+  // `removeMarkers`からAppliedEffect＋`expireEffects`へ移行 — 後者は
+  // `linkedEffectGroupId`カスケード・CombatStat再計算も自動で扱うため、
+  // production Catalogが将来Stealthをlinked groupの一員として付与する場合も
+  // 追加配線なしでR-EFF-09のカスケードが働く。
+  // PR #237再レビュー[P1]: `context.onFactEventForPassiveChain`が未指定の場合
+  // （PS自身のEffectSequenceが`passive-activation-service.ts`から`yield*`で
+  // 委譲されている経路）は、同期callbackで子PS連鎖を駆動できないため、
+  // 消費で発生したイベント列を他のEffectAction内部イベントと同様
+  // `EFFECT_RESOLVED`としてyieldし、`resolvePassiveChain`/`driveActivation`側の
+  // driverに子PS連鎖の処理を委ねる。`box`は共有可変オブジェクトのため、
+  // yieldで一時停止している間にdriverが`box.units`を書き換えれば、
+  // resume後の後続処理は自然に最新の`units`を参照する。
+  if (plan.stealthConsumptions.length > 0) {
+    const innerEventsStart = context.recorder.getEvents().length;
+    const expiry = expireEffects(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      plan.stealthConsumptions.map((consumption) => ({
+        battleUnitId: consumption.battleUnitId,
+        effectInstanceId: consumption.effectInstanceId,
+        reason: "CONSUMPTION",
+      })),
+      context.definitions.effectActions,
+      lastEventId,
+    );
+    box.units = expiry.units;
+    lastEventId = expiry.lastEventId;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    } else {
+      const innerEvents = context.recorder.getEvents().slice(innerEventsStart);
+      if (innerEvents.length > 0) {
+        yield { kind: "EFFECT_RESOLVED", events: innerEvents };
+      }
+    }
+  }
+
   for (const step of plan.steps) {
     if (isDefeated(requireUnit(box.units, context.actorId))) {
       return {

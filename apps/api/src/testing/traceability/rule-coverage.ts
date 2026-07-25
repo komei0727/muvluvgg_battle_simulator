@@ -399,6 +399,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-TGT-07-001", "UT-R-TGT-07-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
+  // TGT-004（Issue #167）: R-TGT-08「ステルス」のアルゴリズム本体（対象選択
+  // リダイレクト・消費、target-selection-policy.tsの`applyStealthRedirect`と
+  // `EffectSequencePlan.stealthConsumptions`/`resolveEffectSequencePlan`の
+  // `expireEffects`配線）はフェーズ1（AppliedEffect基盤、PR #236）・フェーズ2
+  // （本体実装、PR #237）でunit/lifecycle配線レベルまで実装・テスト済み
+  // （target-selection-policy.test.tsのUT-R-TGT-08-001〜008、
+  // skill-resolution-service.test.ts/effect-action-group-resolver.test.tsの
+  // UT-SKILL-RESOLUTION-SERVICE-010〜014）。ただしPR #237再レビュー[P1]の指摘
+  // どおり、この台帳の`testCaseIds`非空はRule完了（production Catalogでの実
+  // ライフサイクル統合・独立Reducer復元まで確認済み）を意味する既存規約のため、
+  // production定義から実際に`APPLY_STATUS`/`STEALTH`を付与するresolver・
+  // production Catalog変換・実ライフサイクル統合テストを終えるフェーズ3
+  // （production Catalog完全変換）が完了するまでは、この規約に従い空のまま
+  // 残す（`17_残作業対応表.json`の`TGT-004`/`R-TGT-08`割当も維持する）。
   { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
   // Issue #170 (TGT-001)で`kind`評価(SELF/SELECT/BINDING_DERIVED)・戦闘不能除外・
   // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
