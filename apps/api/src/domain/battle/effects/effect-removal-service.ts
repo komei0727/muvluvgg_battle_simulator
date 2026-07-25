@@ -92,37 +92,57 @@ export function removeEffects(
   const target = requireUnit(units, targetId);
 
   // #1〜#3: 一致する効果を付与順で抽出し、maxRemovalsで解除数を制限する。
-  const matchedSeeds: EffectInstanceId[] = [];
-  for (const effect of target.appliedEffects) {
+  // R-EFF-01/R-EFF-02（レビュー[P1]）: 明示的に解除不可（`dispellable: false`）と
+  // された効果・永続効果は直接解除の対象にしない。linkedEffectGroupの親解除に伴う
+  // cascade（R-EFF-09）はこれとは別扱いで、`dispellable`を問わず巻き込む。
+  const matched = target.appliedEffects.filter((effect) => {
+    if (effect.duration.definition.dispellable === false) {
+      return false;
+    }
     const definition = effectActions.get(effect.effectActionDefinitionId);
-    if (definition === undefined) {
-      continue;
-    }
-    if (matchesCriteria(effect, definition, criteria)) {
-      matchedSeeds.push(effect.effectInstanceId);
-    }
-  }
-  const seedIds =
-    criteria.maxRemovals !== undefined ? matchedSeeds.slice(0, criteria.maxRemovals) : matchedSeeds;
+    return definition !== undefined && matchesCriteria(effect, definition, criteria);
+  });
+  const capped =
+    criteria.maxRemovals !== undefined ? matched.slice(0, criteria.maxRemovals) : matched;
 
-  if (seedIds.length === 0) {
+  if (capped.length === 0) {
     return { units, lastEventId: parentEventId, removedCount: 0 };
   }
 
-  // R-EFF-09: 直接解除した効果に連動する子効果をカスケード対象に含める。
-  const seedIdSet = new Set(seedIds);
-  const cascadeIds = collectLinkedGroupCascade(units, seedIdSet);
+  // R-EFF-09（レビュー[P2]）: 親子の両方が解除カテゴリへ一致した場合、子を独立seedと
+  // せず親のcascade対象として扱い、「子を先に（`LINKED_GROUP_CASCADE`/`cascaded:true`）、
+  // 親を最後に（`REMOVED`）」の順序・reasonを保証する。ある一致効果は、同じ
+  // linkedEffectGroupに一致した非CHILDメンバー（cascade起点になり得る親/ロールなし）が
+  // 存在するCHILDロールのとき、root seedから除外する（cascadeが必ず巻き込むため）。
+  const hasMatchedParent = (effect: AppliedEffect): boolean => {
+    const groupId = effect.duration.definition.linkedEffectGroupId;
+    if (groupId === null || effect.duration.definition.linkedEffectGroupRole !== "CHILD") {
+      return false;
+    }
+    return capped.some(
+      (candidate) =>
+        candidate.effectInstanceId !== effect.effectInstanceId &&
+        candidate.duration.definition.linkedEffectGroupId === groupId &&
+        candidate.duration.definition.linkedEffectGroupRole !== "CHILD",
+    );
+  };
+  const rootSeedIds = capped
+    .filter((effect) => !hasMatchedParent(effect))
+    .map((effect) => effect.effectInstanceId);
+
+  const rootSeedSet = new Set(rootSeedIds);
+  const cascadeIds = collectLinkedGroupCascade(units, rootSeedSet);
   const reasonById = new Map<
     EffectInstanceId,
     { reason: EffectRemovalReason; cascaded: boolean }
   >();
-  for (const id of seedIds) {
+  for (const id of rootSeedIds) {
     reasonById.set(id, { reason: "REMOVED", cascaded: false });
   }
   const cascadedOnlyOrdered: EffectInstanceId[] = [];
   for (const unit of units) {
     for (const effect of unit.appliedEffects) {
-      if (cascadeIds.has(effect.effectInstanceId) && !seedIdSet.has(effect.effectInstanceId)) {
+      if (cascadeIds.has(effect.effectInstanceId) && !rootSeedSet.has(effect.effectInstanceId)) {
         cascadedOnlyOrdered.push(effect.effectInstanceId);
         reasonById.set(effect.effectInstanceId, {
           reason: "LINKED_GROUP_CASCADE",
@@ -131,7 +151,7 @@ export function removeEffects(
       }
     }
   }
-  const orderedInstanceIds = [...cascadedOnlyOrdered, ...seedIds];
+  const orderedInstanceIds = [...cascadedOnlyOrdered, ...rootSeedIds];
 
   let working = units;
   let lastEventId = parentEventId;
@@ -226,5 +246,6 @@ export function removeEffects(
     lastEventId = recalculation.lastEventId;
   }
 
-  return { units: working, lastEventId, removedCount: seedIds.length };
+  // 「解除数」は直接一致で解除したインスタンス数（cascadeで巻き込んだ子効果は含めない）。
+  return { units: working, lastEventId, removedCount: capped.length };
 }

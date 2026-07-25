@@ -1124,13 +1124,13 @@ payload:
     - DEBUFF
 ```
 
-| フィールド                  | 型       | 制約                                                                                                       |
-| --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `categories`                | enum[]   | `BUFF` / `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT` / `SPECIFIC_EFFECT`。1件以上 |
-| `effectActionDefinitionIds` | string[] | `SPECIFIC_EFFECT` の場合に対象IDを指定                                                                     |
-| `maxRemovals`               | integer? | 解除件数の上限（M7-001、`REMOVE_EFFECTS_COUNT_LIMIT`）。省略時は該当カテゴリの全件を解除する。1以上        |
+| フィールド                  | 型       | 制約                                                                                                                        |
+| --------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `categories`                | enum[]   | `BUFF` / `DEBUFF` / `STATUS` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT` / `SPECIFIC_EFFECT`。1件以上（`MARKER`は不可、下記参照） |
+| `effectActionDefinitionIds` | string[] | `SPECIFIC_EFFECT` の場合に対象IDを指定                                                                                      |
+| `maxRemovals`               | integer? | 解除件数の上限（M7-001、`REMOVE_EFFECTS_COUNT_LIMIT`）。省略時は該当カテゴリの全件を解除する。1以上                         |
 
-`duration` を持たない即時効果である点が `EFFECT_IMMUNITY` との違い。`Marker` の解除は既存の `REMOVE_MARKER`（`markerId` 指定。M7-001で `count?`（解除スタック数の上限、省略時は全スタック解除）を追加）を使う。
+`duration` を持たない即時効果である点が `EFFECT_IMMUNITY` との違い。`Marker` の解除は `REMOVE_EFFECTS` の `categories` ではなく既存の `REMOVE_MARKER`（`markerId` 指定。M7-001で `count?`（解除スタック数の上限、省略時は全スタック解除）を追加）を使う。`REMOVE_EFFECTS` は `AppliedEffect` のみを走査するため、`categories` に `MARKER` を指定すると黙って no-op になる。これを避けるため、`REMOVE_EFFECTS` の `categories` は `MARKER` をCatalogロード時点で拒否する（`MARKER` は `EFFECT_IMMUNITY` 専用）。
 
 M7-001（Issue #181）で `BUFF`（`REMOVE_BUFF_CATEGORY`）・`SHIELD`・`SUBUNIT`（`REMOVE_EFFECTS_CATEGORY_GAP`）を `categories` へ追加した。バフ/デバフ判定は R-EFF-05「バフは正の効果量、デバフは弱化量」に従い符号付き効果量から導き、状態異常（`STATUS`）は R-STS-01 により `DEBUFF` も兼ねる（`effect-category-classifier.ts`）。解除優先順が定義されていない場合の既定は付与順の古い順とする（R-EFF-02 #3）。`SHIELD`/`SUBUNIT` はシールド/サブユニットの実行時状態が未モデル化（`CAP_SHIELD`=DMG-004、サブユニット=DMG-005）のため、Battle Engine は実行時に明示的に拒否する。
 

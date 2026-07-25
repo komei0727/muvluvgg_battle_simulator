@@ -250,4 +250,83 @@ describe("removeEffects (R-EFF-02)", () => {
     expect(result.removedCount).toBe(0);
     expect(result.units[0]!.appliedEffects).toHaveLength(1);
   });
+
+  it("UT-R-EFF-02-015 (R-EFF-01, review [P1]): a dispellable:false BUFF is not directly removed", () => {
+    const buffDef = statModDefinition("ACT_ATK_UP");
+    const target = unit("target-1");
+    const permanent = effect("effect-1", target.battleUnitId, buffDef.effectActionDefinitionId, {
+      magnitude: 0.2,
+      duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+    });
+    const withEffect = { ...target, appliedEffects: [permanent] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = removeEffects(
+      context(recorder, rootEventId),
+      [withEffect],
+      target.battleUnitId,
+      { categories: ["BUFF"] },
+      new Map([[buffDef.effectActionDefinitionId, buffDef]]),
+      rootEventId,
+    );
+
+    expect(result.removedCount).toBe(0);
+    expect(result.units[0]!.appliedEffects).toHaveLength(1);
+    expect(recorder.getEvents().filter((ev) => ev.eventType === "EffectRemoved")).toHaveLength(0);
+  });
+
+  it("UT-R-EFF-02-016 (R-EFF-09, review [P2]): when a linked parent and child both match, the child is removed first (LINKED_GROUP_CASCADE) and the parent last (REMOVED)", () => {
+    const buffDef = statModDefinition("ACT_ATK_UP");
+    const target = unit("target-1");
+    // Granted parent-first (appliedEffects order [parent, child]); both are BUFFs
+    // and both match, but R-EFF-09 requires child-first cascade order.
+    const parent = effect("parent", target.battleUnitId, buffDef.effectActionDefinitionId, {
+      magnitude: 0.2,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "G1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+    });
+    const child = effect("child", target.battleUnitId, buffDef.effectActionDefinitionId, {
+      magnitude: 0.3,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "G1",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    });
+    const withEffects = { ...target, appliedEffects: [parent, child] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = removeEffects(
+      context(recorder, rootEventId),
+      [withEffects],
+      target.battleUnitId,
+      { categories: ["BUFF"] },
+      new Map([[buffDef.effectActionDefinitionId, buffDef]]),
+      rootEventId,
+    );
+
+    expect(result.units[0]!.appliedEffects).toHaveLength(0);
+    const removed = recorder
+      .getEvents()
+      .filter((ev) => ev.eventType === "EffectRemoved")
+      .map((ev) => ev.payload as { effectInstanceId: string; reason: string; cascaded: boolean });
+    expect(removed).toHaveLength(2);
+    expect(removed[0]).toMatchObject({
+      effectInstanceId: createEffectInstanceId("child"),
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(removed[1]).toMatchObject({
+      effectInstanceId: createEffectInstanceId("parent"),
+      reason: "REMOVED",
+      cascaded: false,
+    });
+  });
 });

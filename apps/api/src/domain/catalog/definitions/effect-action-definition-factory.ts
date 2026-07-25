@@ -574,6 +574,15 @@ function createPayload(
       assertNonEmptyArray(categories ?? [], `${path}.categories`);
       for (const [i, category] of (categories ?? []).entries()) {
         assertEnumValue(category, EFFECT_IMMUNITY_CATEGORIES, `${path}.categories[${i}]`);
+        // M7-001（Issue #181、レビュー[P2]）: `MARKER`は`REMOVE_EFFECTS`（AppliedEffect
+        // だけを走査する）では解除できず黙ってno-opになるため、Catalogロード時点で
+        // 拒否する。Markerの解除は`REMOVE_MARKER`（`markerId`指定）を使う。
+        if (category === "MARKER") {
+          throw new DomainValidationError(
+            `${path}.categories[${i}]`,
+            'REMOVE_EFFECTS does not support the "MARKER" category — use REMOVE_MARKER (markerId) for marker removal',
+          );
+        }
       }
       const typedCategories = (categories ?? []) as readonly EffectImmunityCategory[];
       const result: {

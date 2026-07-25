@@ -1215,6 +1215,20 @@ describe("EffectActionDefinition", () => {
     }
   });
 
+  it("UT-CAT-ACT-068: rejects REMOVE_EFFECTS with the MARKER category (use REMOVE_MARKER instead; would otherwise be a silent no-op)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_REMOVE_MARKER_CAT",
+          kind: "REMOVE_EFFECTS",
+          payload: { categories: ["MARKER"] },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-067: rejects REMOVE_MARKER with a non-positive count", () => {
     expect(() =>
       createEffectActionDefinition(
