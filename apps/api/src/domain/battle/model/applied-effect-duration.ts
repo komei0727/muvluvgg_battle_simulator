@@ -134,6 +134,50 @@ export function decrementSkillUseEffectDurations(
 }
 
 /**
+ * TGT-004フェーズ3再々レビュー[P1]（Issue #167）: `decrementSkillUseEffectDurations`
+ * 等が返す`changes`（対象の決定）と、その適用先unitsを分離して適用する。
+ * `08_ドメインイベント.md`「イベント発行と処理」の順序契約（原因イベント自身の
+ * PS/Memory候補を直ちに解決してから、子イベントを発生順に処理する）を満たす
+ * ため、`SkillUseCompleted`/`PassiveResolved`自身のPS連鎖解決を終えてから
+ * 期間減算を行う必要がある。しかしその連鎖解決前のunitsスナップショットから
+ * 減算対象（`changes`）を決定しないと、連鎖中に新たに付与された別の
+ * `SkillUseId`を持つ`SKILL_USE`効果まで「直前の使用分」として誤って減算・
+ * 即時失効させてしまう（PR #238再レビュー[P2]）。そのため呼び出し側は
+ * 「連鎖解決前のunitsで対象を決定→連鎖解決後のunitsへこの関数で適用」という
+ * 2段階に分ける。連鎖解決中に対象インスタンス自身が既に除去されていた場合は
+ * 何もしない（該当`effectInstanceId`が現在の`appliedEffects`に無ければ無視）。
+ */
+export function applyEffectDurationChanges(
+  units: readonly BattleUnit[],
+  changes: readonly EffectDurationChange[],
+): readonly BattleUnit[] {
+  if (changes.length === 0) {
+    return units;
+  }
+  const changesByUnit = new Map<BattleUnitId, Map<EffectInstanceId, number>>();
+  for (const change of changes) {
+    const byEffect = changesByUnit.get(change.battleUnitId) ?? new Map<EffectInstanceId, number>();
+    byEffect.set(change.effectInstanceId, change.after);
+    changesByUnit.set(change.battleUnitId, byEffect);
+  }
+  return units.map((unit) => {
+    const byEffect = changesByUnit.get(unit.battleUnitId);
+    if (byEffect === undefined) {
+      return unit;
+    }
+    return {
+      ...unit,
+      appliedEffects: unit.appliedEffects.map((effect) => {
+        const after = byEffect.get(effect.effectInstanceId);
+        return after === undefined
+          ? effect
+          : { ...effect, duration: { ...effect.duration, timeLimitRemaining: after } };
+      }),
+    };
+  });
+}
+
+/**
  * R-EFF-06「ターン単位期間の減算」: ターン終了時に1度だけ呼ぶ。行動単位と
  * 異なり、ターン終了は特定ユニットの行動に紐付かないトップレベルの契機の
  * ため、`timeLimit.owner`に関わらず全ユニットのターン単位効果を対象にする

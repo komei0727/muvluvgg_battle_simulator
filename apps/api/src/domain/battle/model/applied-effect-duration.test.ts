@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyEffectDurationChanges,
   consumeEffectDurations,
   decrementActionEffectDurations,
   decrementSkillUseEffectDurations,
@@ -829,5 +830,90 @@ describe("consumeEffectDurations", () => {
     const result = consumeEffectDurations([source, target], target.battleUnitId, "OUTGOING_HIT");
 
     expect(result.changes).toHaveLength(0);
+  });
+});
+
+describe("applyEffectDurationChanges (TGT-004フェーズ3再々レビュー[P1], Issue #167)", () => {
+  it("UT-R-EFF-04-018: applies a precomputed change onto a units array that has since gained an unrelated new AppliedEffect (e.g. from a child PS chain), without touching the new instance", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const existing = effectOn(
+      target,
+      source,
+      { timeLimit: { unit: "SKILL_USE", count: 3 }, dispellable: true, linkedEffectGroupId: null },
+      {
+        duration: {
+          definition: {
+            timeLimit: { unit: "SKILL_USE", count: 3 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+          timeLimitRemaining: 3,
+        },
+      },
+    );
+    target = withEffects(target, [existing]);
+    const changes = decrementSkillUseEffectDurations(
+      [source, target],
+      target.battleUnitId,
+      createSkillUseId("B_1:skill-use:99"),
+    ).changes;
+    expect(changes).toHaveLength(1);
+
+    // Simulate a child PS chain granting a brand-new AppliedEffect after the
+    // change list above was computed (a different, later units snapshot).
+    const freshlyGranted = effectOn(target, source, {
+      timeLimit: { unit: "SKILL_USE", count: 1 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    });
+    const postChainTarget = withEffects(target, [existing, freshlyGranted]);
+
+    const result = applyEffectDurationChanges([source, postChainTarget], changes);
+
+    const updatedTarget = result.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(2);
+    const updatedExisting = updatedTarget.appliedEffects.find(
+      (e) => e.effectInstanceId === existing.effectInstanceId,
+    )!;
+    expect(updatedExisting.duration.timeLimitRemaining).toBe(2);
+    const untouchedFresh = updatedTarget.appliedEffects.find(
+      (e) => e.effectInstanceId === freshlyGranted.effectInstanceId,
+    )!;
+    expect(untouchedFresh.duration.timeLimitRemaining).toBe(1);
+  });
+
+  it("UT-R-EFF-04-019: silently ignores a change whose effectInstanceId no longer exists on the target (e.g. removed by the chain in the meantime), instead of throwing", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const existing = effectOn(target, source, {
+      timeLimit: { unit: "SKILL_USE", count: 3 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    });
+    target = withEffects(target, [existing]);
+    const changes = decrementSkillUseEffectDurations(
+      [source, target],
+      target.battleUnitId,
+      createSkillUseId("B_1:skill-use:99"),
+    ).changes;
+    expect(changes).toHaveLength(1);
+
+    const postChainTarget = withEffects(target, []);
+
+    const result = applyEffectDurationChanges([source, postChainTarget], changes);
+
+    const updatedTarget = result.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(0);
+  });
+
+  it("UT-R-EFF-04-020: an empty changes array returns the units unchanged", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+
+    const result = applyEffectDurationChanges([source, target], []);
+
+    expect(result[0]).toBe(source);
+    expect(result[1]).toBe(target);
   });
 });

@@ -4,8 +4,13 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { EventRecorder } from "../events/event-recorder.js";
-import { createActionId } from "../../shared/event-ids.js";
+import {
+  createActionId,
+  createEffectInstanceId,
+  createSkillUseId,
+} from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import {
   createEffectActionDefinitionId,
   createRuntimeCounterId,
@@ -539,5 +544,174 @@ describe("resolveSkillUse", () => {
               granted.effectInstanceId,
         ),
     ).toBe(false);
+  });
+
+  it("UT-R-EFF-01-055 (TGT-004フェーズ3再々レビュー[P1]、Issue #167、08_ドメインイベント.md イベント発行と処理の順序契約): a PS reacting to SkillUseCompleted itself fully resolves before a PS reacting to the resulting EffectExpired, matching the events' own recorded (causal) order — not the reverse", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_ORDER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_ORDER");
+    const grantAction = statusEffectAction("ACT_GRANT_STEALTH_ORDER", 1);
+    const hit = damageEffectAction("ACT_HIT_ORDER");
+    const attackSkill = trivialAttackSkill("SKL_ATTACK_ORDER", "ACT_HIT_ORDER");
+
+    // psOnCompletion reacts to this specific attack skill's own
+    // SkillUseCompleted (not the earlier grant skill's).
+    const psOnCompletion: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_COMPLETION"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "SkillUseCompleted",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: attackSkill.skillDefinitionId,
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "PSOnCompletion", tags: [] },
+    };
+    const psOnExpiry: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_EXPIRY"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "EffectExpired",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "PSOnExpiry", tags: [] },
+    };
+
+    // Hand-built pre-existing SKILL_USE(count:1) effect (granted in a
+    // different, earlier skillUseId than the attack skill below will use),
+    // instead of an extra grant skill use, to keep PP within LIMITS.maximumPp.
+    const preExisting: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("effect:pre-existing"),
+      effectActionDefinitionId: grantAction.effectActionDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(grantAction.effectActionDefinitionId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ACTOR"),
+      targetId: createBattleUnitId("ACTOR"),
+      magnitude: 0,
+      statusKind: "STEALTH",
+      duration: {
+        definition: {
+          timeLimit: { unit: "SKILL_USE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 1,
+        grantedSkillUseId: createSkillUseId("B_1:skill-use:0"),
+      },
+      appliedTurnNumber: 1,
+    };
+    const actor = {
+      ...unit("ACTOR", "ALLY", {
+        unitDefinitionId: actorUnitDefinitionId,
+        currentAp: 3,
+        currentPp: 3,
+      }),
+      appliedEffects: [preExisting],
+    };
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          actorUnitDefinitionId,
+          unitDefinitionOf(actorUnitDefinitionId, [
+            psOnCompletion.skillDefinitionId,
+            psOnExpiry.skillDefinitionId,
+          ]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([
+        [psOnCompletion.skillDefinitionId, psOnCompletion],
+        [psOnExpiry.skillDefinitionId, psOnExpiry],
+      ]),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const eventsBeforeAttack = recorder.getEvents().length;
+
+    resolveSkillUse(
+      actor,
+      attackSkill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const eventsFromAttack = recorder.getEvents().slice(eventsBeforeAttack);
+    const eventTypes = eventsFromAttack.map((e) => e.eventType);
+    // Recorded (causal) order: SkillUseCompleted, then EffectDurationReduced,
+    // then EffectExpired.
+    expect(eventTypes.indexOf("SkillUseCompleted")).toBeLessThan(
+      eventTypes.indexOf("EffectDurationReduced"),
+    );
+    expect(eventTypes.indexOf("EffectDurationReduced")).toBeLessThan(
+      eventTypes.indexOf("EffectExpired"),
+    );
+
+    const completionActivated = eventsFromAttack.find(
+      (e) =>
+        e.eventType === "PassiveActivated" &&
+        (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          psOnCompletion.skillDefinitionId,
+    );
+    const expiryActivated = eventsFromAttack.find(
+      (e) =>
+        e.eventType === "PassiveActivated" &&
+        (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          psOnExpiry.skillDefinitionId,
+    );
+    expect(completionActivated).toBeDefined();
+    expect(expiryActivated).toBeDefined();
+    // Actual PS activation order must match the events' own recorded order
+    // (SkillUseCompleted's own candidates resolve before its child duration
+    // events'), not the reverse.
+    expect(eventsFromAttack.indexOf(completionActivated!)).toBeLessThan(
+      eventsFromAttack.indexOf(expiryActivated!),
+    );
   });
 });

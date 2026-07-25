@@ -19,7 +19,10 @@ import {
   expireEffects,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
-import { decrementSkillUseEffectDurations } from "../model/applied-effect-duration.js";
+import {
+  applyEffectDurationChanges,
+  decrementSkillUseEffectDurations,
+} from "../model/applied-effect-duration.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { TriggerContext } from "../targeting/target-selection-policy.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -1441,22 +1444,55 @@ export class PassiveActivationRuntime {
           resolvedStepCount,
         },
       });
-      // TGT-004フェーズ3再レビュー[P1]（Issue #167）: PSもEFF-006/Issue #212で
-      // 独立した`SkillUseId`を持つ1回のスキル使用のため、正常完了時には
-      // AS/EXの`SkillUseCompleted`（`action-skill-use-resolver.ts`）と同じ規約
-      // でSKILL_USE単位期間効果を減算する（`PassiveInterrupted`では減算しない
-      // ——`decrementSkillUseEffectDurations`自身が明示する仕様固定、AS/EXの
-      // `SkillUseInterrupted`除外と同じ）。`terminalEvent`（`PassiveResolved`）を
-      // 候補解決へyieldする前に行うことで、この完了に反応する子PS連鎖が
-      // 新たに付与するSKILL_USE効果（別の`skillUseId`を持つ）を、この減算が
-      // 誤って巻き込まないようにする（PR #238再レビュー[P2]と同じ理由）。
+    }
+    // レビュー指摘[P1]: `PassiveActivated`と同じ理由（544行目付近）で、
+    // `PassiveResolved`/`PassiveInterrupted`もPS発動契機にできる契約
+    // （08_ドメインイベント.md「同じSkillUseIdに属するイベント」節、
+    // 「味方のPS解決後」を条件とするPS等）を満たすため、TIMING_EVENTとして
+    // yieldし進行中の`driveActivation`が共有するstateへ候補解決させる。
+    // `RuntimeCounterChanged`（`terminalCounterChanges`）は`08_ドメインイベント.md`
+    // が明示する唯一の前倒し例外のため、引き続き`terminalEvent`自身より先に
+    // 解決する。
+    const terminalCounterChanges = this.detectAndRecordRuntimeCounterChanges(
+      terminalEvent,
+      skillUseId,
+    );
+    for (const changed of terminalCounterChanges) {
+      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
+    }
+    // TGT-004フェーズ3再々レビュー[P1]（Issue #167、08_ドメインイベント.md
+    // 「イベント発行と処理」の順序契約）: `RuntimeCounterChanged`以外の子イベント
+    // （`SKILL_USE`単位期間減算）は、原因イベント（`terminalEvent`＝
+    // `PassiveResolved`）自身のPS/Memory候補解決より後でなければならない。
+    // そのためSKILL_USE単位減算はこの`yield`より後で行う。ただし、この連鎖
+    // 解決前のunitsスナップショット（`preTerminalChainUnits`）から減算対象
+    // （`changes`）を決定する——`PassiveResolved`に反応するPSがこのPS自身とは
+    // 別の`skillUseId`で新たな`SKILL_USE`期間効果を付与し得るため、連鎖解決後の
+    // unitsから対象を決定すると、そのPSが付与したばかりの効果まで誤って
+    // 減算・即時失効させてしまう（PR #238再レビュー[P2]と同じ理由）。
+    const preTerminalChainUnits = this.units;
+    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
+
+    if (outcome.status !== "INTERRUPTED") {
       const skillUseDurationDecrement = decrementSkillUseEffectDurations(
-        this.units,
+        preTerminalChainUnits,
         ownerId,
         skillUseId,
       );
-      if (skillUseDurationDecrement.changes.length > 0) {
-        this.units = skillUseDurationDecrement.units;
+      // PR #238再々レビュー[P1]対応中に判明した派生ケース: `terminalEvent`
+      // 自身のPS連鎖（上でyield済み）の中で、その子PS自身の`PassiveResolved`が
+      // 同じ対象へ独立にSKILL_USE単位減算をかけ、スナップショット時点でまだ
+      // 生きていたインスタンスを既に失効・除去している場合がある（この親PSと
+      // 子PSはどちらも同じownerの「1回のスキル使用完了」であり、互いに独立して
+      // R-EFF-04と同じ規約で減算するため）。連鎖解決後のunitsに実際にまだ
+      // 存在する対象だけへ絞り込む。
+      const stillPresentChanges = skillUseDurationDecrement.changes.filter((change) =>
+        this.units
+          .find((unit) => unit.battleUnitId === change.battleUnitId)
+          ?.appliedEffects.some((effect) => effect.effectInstanceId === change.effectInstanceId),
+      );
+      if (stillPresentChanges.length > 0) {
+        this.units = applyEffectDurationChanges(this.units, stillPresentChanges);
         const reducedEventsStart = this.context.recorder.getEvents().length;
         lastEventId = emitEffectDurationReducedEvents(
           {
@@ -1469,14 +1505,14 @@ export class PassiveActivationRuntime {
             rootEventId: this.context.rootEventId,
           },
           this.units,
-          skillUseDurationDecrement.changes,
+          stillPresentChanges,
           terminalEvent.eventId,
         );
         for (const event of this.context.recorder.getEvents().slice(reducedEventsStart)) {
           yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(event) };
         }
 
-        const skillUseExpirySeeds: ExpirationSeed[] = skillUseDurationDecrement.changes
+        const skillUseExpirySeeds: ExpirationSeed[] = stillPresentChanges
           .filter((change) => change.after === 0)
           .map((change) => ({
             battleUnitId: change.battleUnitId,
@@ -1507,19 +1543,6 @@ export class PassiveActivationRuntime {
         }
       }
     }
-    // レビュー指摘[P1]: `PassiveActivated`と同じ理由（544行目付近）で、
-    // `PassiveResolved`/`PassiveInterrupted`もPS発動契機にできる契約
-    // （08_ドメインイベント.md「同じSkillUseIdに属するイベント」節、
-    // 「味方のPS解決後」を条件とするPS等）を満たすため、TIMING_EVENTとして
-    // yieldし進行中の`driveActivation`が共有するstateへ候補解決させる。
-    const terminalCounterChanges = this.detectAndRecordRuntimeCounterChanges(
-      terminalEvent,
-      skillUseId,
-    );
-    for (const changed of terminalCounterChanges) {
-      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
-    }
-    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
 
     return { interrupted: outcome.status === "INTERRUPTED" };
   }
