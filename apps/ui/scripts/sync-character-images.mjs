@@ -75,9 +75,16 @@ async function buildFileIndex(srcDir) {
   return index;
 }
 
-async function convert(inputPath, outputPath, { width, height }) {
+// Source art (both units and memories) is landscape — roughly 16:9. Thumbnails
+// are generated at that same ratio so `fit: cover` crops next to nothing, and
+// the UI displays them in matching 16:9 boxes (DefinitionImage.module.css).
+// Cropping to a square/portrait box instead lopped off ~40% of each image.
+const THUMBNAIL_WIDTH = 480;
+const THUMBNAIL_HEIGHT = 270;
+
+async function convert(inputPath, outputPath) {
   await sharp(inputPath)
-    .resize(width, height, { fit: "cover", position: "attention" })
+    .resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, { fit: "cover", position: "attention" })
     .webp({ quality: 80 })
     .toFile(outputPath);
 }
@@ -110,10 +117,6 @@ async function syncUnits() {
     await convert(
       path.join(UNIT_IMAGE_SRC_DIR, filename),
       path.join(UNIT_OUT_DIR, `${definitionId}.webp`),
-      {
-        width: 320,
-        height: 320,
-      },
     );
     matched += 1;
   }
@@ -152,7 +155,6 @@ async function syncMemories() {
     await convert(
       path.join(MEMORY_IMAGE_SRC_DIR, filename),
       path.join(MEMORY_OUT_DIR, `${definitionId}.webp`),
-      { width: 360, height: 480 },
     );
     matched += 1;
   }

@@ -74,6 +74,13 @@
   min-width: 0;
 }
 
+/* DefinitionImage defaults to width:100%; here it's a small avatar beside the
+   name, so pin it to a fixed 16:9 thumbnail instead of filling the cell. */
+.unit > :first-child {
+  width: 64px;
+  flex: none;
+}
+
 .name {
   overflow: hidden;
   font-size: 11px;
