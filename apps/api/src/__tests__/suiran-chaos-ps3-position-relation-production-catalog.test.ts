@@ -447,7 +447,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     expect(updatedEnemy.currentHp).toBeLessThan(enemy.currentHp);
   });
 
-  it("IT-CAP-TRIGGER-CONTEXT-PROD-002 (RES-005, Issue #172): SKL_SUIRAN_CHAOS_PS1 is detected and activates through the real UnitBeingAttacked event, then fails on the separately-unimplemented APPLY_STATUS kind (Issue #183) — not on TRIGGER_TARGET resolution, proving RES-005's part of this row is fixed", () => {
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-002 (RES-005, Issue #172): SKL_SUIRAN_CHAOS_PS1 is detected and activates through the real UnitBeingAttacked event, then fails on the separately-unimplemented APPLY_STATUS probability/appliesTo fields (Issue #183, CAP_HIT_COUNT_EVASION) — not on TRIGGER_TARGET resolution, proving RES-005's part of this row is fixed", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
 
@@ -542,13 +542,18 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       [suiran, attackedAlly, enemyAttacker],
     );
 
+    // TGT-004フェーズ3（Issue #167）でAPPLY_STATUSの無条件付与（`status`+
+    // `duration`だけ）はresolver対応したが、`ACT_SUIRAN_CHAOS_PS1_EVASION`は
+    // `probability`/`appliesTo`（Issue #183、CAP_HIT_COUNT_EVASIONスコープ）を
+    // 使うため、依然として明確な未対応エラーで失敗する — kind自体は
+    // 未対応ではなくなったため、エラーメッセージがそちらに変わった。
     expect(() =>
       runtime.onFactEvent(unitBeingAttacked, [suiran, attackedAlly, enemyAttacker]),
-    ).toThrowError(/EffectAction kind other than .* is not supported/);
+    ).toThrowError(/APPLY_STATUS payload fields .* are not yet supported/);
 
     // Candidate detection + activation genuinely started (PP was consumed) —
-    // the throw comes from the unimplemented EffectAction kind, not from a
-    // TRIGGER_TARGET resolution failure or a missed candidate.
+    // the throw comes from the unimplemented probability/appliesTo fields, not
+    // from a TRIGGER_TARGET resolution failure or a missed candidate.
     const passiveActivated = recorder
       .getEvents()
       .find(

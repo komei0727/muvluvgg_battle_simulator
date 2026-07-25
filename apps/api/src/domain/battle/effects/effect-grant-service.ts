@@ -16,6 +16,7 @@ import type {
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 
 export interface GrantEffectContext {
   readonly recorder: EventRecorder;
@@ -33,6 +34,8 @@ export interface GrantEffectRequest {
   readonly targetId: BattleUnitId;
   readonly duplicate: boolean;
   readonly magnitude: number;
+  /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ。 */
+  readonly statusKind?: StatusKind;
   readonly durationDefinition: DurationDefinition;
   readonly snapshot?: Readonly<Record<string, number>>;
 }
@@ -67,9 +70,11 @@ export function grantEffect(
     sourceId: request.sourceId,
     targetId: request.targetId,
     magnitude: request.magnitude,
+    ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
     duration: buildInitialDurationState(request.durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,
+      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
     }),
     appliedTurnNumber: context.turnNumber,
     ...(context.actionId !== undefined ? { appliedActionId: context.actionId } : {}),
@@ -112,6 +117,7 @@ export function grantEffect(
       duplicate: request.duplicate,
       kindKey,
       magnitude: request.magnitude,
+      ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
       linkedEffectGroupId: request.durationDefinition.linkedEffectGroupId,
       ...(timeLimit !== undefined
         ? { durationUnit: timeLimit.unit, initialRemaining: timeLimit.count }

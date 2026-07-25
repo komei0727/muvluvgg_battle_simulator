@@ -399,21 +399,48 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-TGT-07-001", "UT-R-TGT-07-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
-  // TGT-004（Issue #167）: R-TGT-08「ステルス」のアルゴリズム本体（対象選択
-  // リダイレクト・消費、target-selection-policy.tsの`applyStealthRedirect`と
+  // TGT-004（Issue #167）: R-TGT-08「ステルス」。フェーズ1（AppliedEffect基盤、
+  // PR #236）・フェーズ2（対象選択リダイレクト・消費本体、PR #237、
+  // target-selection-policy.tsの`applyStealthRedirect`・
   // `EffectSequencePlan.stealthConsumptions`/`resolveEffectSequencePlan`の
-  // `expireEffects`配線）はフェーズ1（AppliedEffect基盤、PR #236）・フェーズ2
-  // （本体実装、PR #237）でunit/lifecycle配線レベルまで実装・テスト済み
-  // （target-selection-policy.test.tsのUT-R-TGT-08-001〜008、
-  // skill-resolution-service.test.ts/effect-action-group-resolver.test.tsの
-  // UT-SKILL-RESOLUTION-SERVICE-010〜014）。ただしPR #237再レビュー[P1]の指摘
-  // どおり、この台帳の`testCaseIds`非空はRule完了（production Catalogでの実
-  // ライフサイクル統合・独立Reducer復元まで確認済み）を意味する既存規約のため、
-  // production定義から実際に`APPLY_STATUS`/`STEALTH`を付与するresolver・
-  // production Catalog変換・実ライフサイクル統合テストを終えるフェーズ3
-  // （production Catalog完全変換）が完了するまでは、この規約に従い空のまま
-  // 残す（`17_残作業対応表.json`の`TGT-004`/`R-TGT-08`割当も維持する）。
-  { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
+  // `expireEffects`配線）に続き、フェーズ3でproduction Catalogの
+  // `ACT_MAO_COMMITTEE_PS2_STEALTH`（近似なし、`APPLY_STATUS`/`STEALTH`/
+  // `SKILL_USE`期間/`linkedEffectGroupId`）を実際に付与する`APPLY_STATUS`
+  // resolver（`effect-action-group-resolver.ts`）・`statusKind`のDomain
+  // Event/StateDelta/独立Reducer配線・`SKILL_USE`期間減算の実配線
+  // （`action-skill-use-resolver.ts`）を完成させ、実カタログ定義を単体実行する
+  // 統合テスト（`mao-committee-ps2-stealth-production-catalog.test.ts`の
+  // IT-CAP-STEALTH-PROD-001/002）で対象選択・消費・独立Reducer復元まで確認した
+  // ため、Rule完了として扱う。`SKL_MAO_COMMITTEE_PS2`自身が同じstepで解決する
+  // CLEANSE（`REMOVE_EFFECTS`、M7-001）・HEAL（`APPLY_CONTINUOUS_HEAL`、
+  // M7-005）・DMG_DOWN（`APPLY_DAMAGE_MOD`、DMG-002）は`capabilities.json`で
+  // 別タスク化された未実装kindのため、スキル全体のend-to-end実行はスコープ外
+  // のまま（R-TGT-08自体の完了とは独立）。
+  {
+    ruleId: "R-TGT-08",
+    testCaseIds: [
+      "UT-R-TGT-08-001",
+      "UT-R-TGT-08-002",
+      "UT-R-TGT-08-003",
+      "UT-R-TGT-08-004",
+      "UT-R-TGT-08-005",
+      "UT-R-TGT-08-006",
+      "UT-R-TGT-08-007",
+      "UT-R-TGT-08-008",
+      "UT-R-TGT-08-009",
+      "UT-R-TGT-08-010",
+      "UT-R-TGT-08-011",
+      "UT-R-EFF-09-008",
+      "UT-SKILL-RESOLUTION-SERVICE-010",
+      "UT-SKILL-RESOLUTION-SERVICE-011",
+      "UT-SKILL-RESOLUTION-SERVICE-012",
+      "UT-SKILL-RESOLUTION-SERVICE-013",
+      "UT-SKILL-RESOLUTION-SERVICE-014",
+      "IT-CAP-STEALTH-PROD-001",
+      "IT-CAP-STEALTH-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // Issue #170 (TGT-001)で`kind`評価(SELF/SELECT/BINDING_DERIVED)・戦闘不能除外・
   // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
   // SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE)・orderの評価順を実装した（回帰検証は

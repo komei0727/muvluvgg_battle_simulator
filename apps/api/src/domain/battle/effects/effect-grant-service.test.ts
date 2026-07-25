@@ -3,7 +3,11 @@ import { grantEffect } from "./effect-grant-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
-import { createActionId, type createDomainEventId } from "../../shared/event-ids.js";
+import {
+  createActionId,
+  createSkillUseId,
+  type createDomainEventId,
+} from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
@@ -343,5 +347,112 @@ describe("grantEffect", () => {
       consumptionMaxCount: 3,
       consumptionRemaining: 3,
     });
+  });
+
+  it("UT-R-EFF-01-042 (TGT-004フェーズ3、Issue #167、R-ACTN-03): a statusKind request carries through to the created AppliedEffect and the EffectApplied payload", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STEALTH",
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    expect(result.appliedEffect.statusKind).toBe("STEALTH");
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({ statusKind: "STEALTH" });
+    const effectDelta =
+      applied!.stateDelta?.units?.[target.battleUnitId]?.effects?.[
+        result.appliedEffect.effectInstanceId
+      ];
+    expect(effectDelta?.after?.statusKind).toBe("STEALTH");
+  });
+
+  it("UT-R-EFF-01-043 (TGT-004フェーズ3、Issue #167): omits statusKind from the EffectApplied payload when the request has none (non-APPLY_STATUS kinds)", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 20,
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    expect(result.appliedEffect.statusKind).toBeUndefined();
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).not.toHaveProperty("statusKind");
+    const effectDelta =
+      applied!.stateDelta?.units?.[target.battleUnitId]?.effects?.[
+        result.appliedEffect.effectInstanceId
+      ];
+    expect(effectDelta?.after).not.toHaveProperty("statusKind");
+  });
+
+  it("UT-R-EFF-01-048 (TGT-004フェーズ3、Issue #167): a SKILL_USE-unit duration grant records context.skillUseId as grantedSkillUseId, so the granting skill use itself can be excluded from decrementSkillUseEffectDurations", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const skillUseId = createSkillUseId("B_1:skill-use:1");
+    const skillUseDuration: DurationDefinition = {
+      timeLimit: { unit: "SKILL_USE", count: 3 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        skillUseId,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STEALTH",
+        durationDefinition: skillUseDuration,
+      },
+      rootEventId,
+    );
+
+    expect(result.appliedEffect.duration.grantedSkillUseId).toBe(skillUseId);
   });
 });

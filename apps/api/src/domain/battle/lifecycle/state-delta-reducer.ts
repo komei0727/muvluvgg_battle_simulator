@@ -89,6 +89,7 @@ export function sameEffectSnapshot(
     a.duplicate === b.duplicate &&
     a.isEffective === b.isEffective &&
     a.magnitude === b.magnitude &&
+    a.statusKind === b.statusKind &&
     a.duration?.unit === b.duration?.unit &&
     a.duration?.remaining === b.duration?.remaining &&
     a.consumptionRemaining === b.consumptionRemaining &&

@@ -14,6 +14,12 @@ import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
+import { decrementSkillUseEffectDurations } from "../model/applied-effect-duration.js";
+import {
+  emitEffectDurationReducedEvents,
+  expireEffects,
+  type ExpirationSeed,
+} from "../effects/duration-expiry-service.js";
 import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { TargetBindingDefinition } from "../../catalog/definitions/effect-sequence.js";
@@ -360,6 +366,73 @@ export function resolveSkillUse(
           },
         });
   working = passiveRuntime.onFactEvent(skillUseCompleted, working);
+
+  // TGT-004フェーズ3（Issue #167、R-EFF-04と同じ規約のSKILL_USE単位版）:
+  // 中断された（`SkillUseInterrupted`）スキル使用はこの減算契機に含めない
+  // （`applied-effect-duration.ts`の`decrementSkillUseEffectDurations`が
+  // 明示する仕様固定）。`ACTION`単位（`action-completion.ts`）と同じ手順
+  // （減算→`EffectDurationReduced`発行→0になったインスタンスの失効）を、
+  // `SkillUseCompleted`自身の直後・`recordActionCompletion`（ACTION/TURN単位の
+  // 減算はそちら側の責務）より前に行う。
+  if (skillUseCompleted.eventType === "SkillUseCompleted") {
+    const skillUseDurationDecrement = decrementSkillUseEffectDurations(
+      working,
+      actorId,
+      skillUseId,
+    );
+    if (skillUseDurationDecrement.changes.length > 0) {
+      working = skillUseDurationDecrement.units;
+      let skillUseDurationLastEventId = skillUseCompleted.eventId;
+      const reducedEventsStart = recorder.getEvents().length;
+      skillUseDurationLastEventId = emitEffectDurationReducedEvents(
+        {
+          recorder,
+          turnNumber,
+          cycleNumber,
+          actionId,
+          skillUseId,
+          resolutionScopeId: actionScope,
+          rootEventId: actionStarted.eventId,
+        },
+        working,
+        skillUseDurationDecrement.changes,
+        skillUseDurationLastEventId,
+      );
+      for (const event of recorder.getEvents().slice(reducedEventsStart)) {
+        working = passiveRuntime.onFactEvent(event, working);
+      }
+
+      const skillUseExpirySeeds: ExpirationSeed[] = skillUseDurationDecrement.changes
+        .filter((change) => change.after === 0)
+        .map((change) => ({
+          battleUnitId: change.battleUnitId,
+          effectInstanceId: change.effectInstanceId,
+          reason: "TIME_LIMIT",
+        }));
+      if (skillUseExpirySeeds.length > 0) {
+        const expiryEventsStart = recorder.getEvents().length;
+        const skillUseExpiry = expireEffects(
+          {
+            recorder,
+            turnNumber,
+            cycleNumber,
+            actionId,
+            skillUseId,
+            resolutionScopeId: actionScope,
+            rootEventId: actionStarted.eventId,
+          },
+          working,
+          skillUseExpirySeeds,
+          definitions.effectActions,
+          skillUseDurationLastEventId,
+        );
+        working = skillUseExpiry.units;
+        for (const event of recorder.getEvents().slice(expiryEventsStart)) {
+          working = passiveRuntime.onFactEvent(event, working);
+        }
+      }
+    }
+  }
 
   const completion = recordActionCompletion(
     recorder,

@@ -123,6 +123,93 @@ const ENEMY_ALL: TargetSelectorDefinition = {
   includeDefeated: false,
 };
 
+function statusEffectAction(id: string, skillUseCount: number): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      status: "STEALTH",
+      duration: {
+        timeLimit: { unit: "SKILL_USE", count: skillUseCount },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
+/** A self-targeting AS skill that grants a SKILL_USE-duration status (e.g. Stealth) on the actor. */
+function selfStatusSkill(id: string, effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
+/** A trivial AS skill (attacks all enemies) used purely to complete a second skill use for the same actor. */
+function trivialAttackSkill(id: string, effectActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
 /** An AS skill whose own EffectSequence declares an EFFECT_SEQUENCE-scoped counterUpdates (EFF-006/Issue #212). */
 function asSkillWithCounterUpdates(effectActionId: string): SkillDefinition {
   return {
@@ -253,5 +340,92 @@ describe("resolveSkillUse", () => {
 
     const actorAfter = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
     expect(actorAfter.effectSequenceCounters).toBeUndefined();
+  });
+
+  it("UT-R-EFF-01-047 (TGT-004フェーズ3、Issue #167、SKILL_USE単位期間減算の実配線): the AppliedEffect that grants a SKILL_USE(count:1) status is not decremented by its own granting skill use, but is decremented (and expires) by the actor's next completed skill use", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const grantAction = statusEffectAction("ACT_GRANT_STEALTH", 1);
+    const grantSkill = selfStatusSkill("SKL_GRANT_STEALTH", "ACT_GRANT_STEALTH");
+    const hit = damageEffectAction("ACT_HIT");
+    const attackSkill = trivialAttackSkill("SKL_ATTACK", "ACT_HIT");
+
+    const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId, currentAp: 3 });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([
+        [grantAction.effectActionDefinitionId, grantAction],
+        [hit.effectActionDefinitionId, hit],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    const grantResult = resolveSkillUse(
+      actor,
+      grantSkill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+    const actorAfterGrant = grantResult.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(actorAfterGrant.appliedEffects).toHaveLength(1);
+    expect(actorAfterGrant.appliedEffects[0]).toMatchObject({
+      statusKind: "STEALTH",
+    });
+    // The granting skill use itself must not decrement its own instance.
+    expect(actorAfterGrant.appliedEffects[0]!.duration.timeLimitRemaining).toBe(1);
+    const eventsBeforeSecondUse = recorder.getEvents().length;
+
+    const secondResult = resolveSkillUse(
+      actorAfterGrant,
+      attackSkill,
+      "AS",
+      "AS",
+      grantResult.units,
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:2"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const actorAfterSecondUse = secondResult.units.find(
+      (u) => u.battleUnitId === actor.battleUnitId,
+    )!;
+    expect(actorAfterSecondUse.appliedEffects).toHaveLength(0);
+
+    const eventsFromSecondUse = recorder.getEvents().slice(eventsBeforeSecondUse);
+    const reduced = eventsFromSecondUse.find((e) => e.eventType === "EffectDurationReduced");
+    expect(reduced).toBeDefined();
+    expect(reduced!.payload).toMatchObject({
+      battleUnitId: actor.battleUnitId,
+      unit: "SKILL_USE",
+      before: 1,
+      after: 0,
+    });
+    const expired = eventsFromSecondUse.find((e) => e.eventType === "EffectExpired");
+    expect(expired).toBeDefined();
+    expect(expired!.payload).toMatchObject({
+      battleUnitId: actor.battleUnitId,
+      reason: "TIME_LIMIT",
+    });
+    expect(eventsFromSecondUse.indexOf(reduced!)).toBeLessThan(
+      eventsFromSecondUse.indexOf(expired!),
+    );
   });
 });

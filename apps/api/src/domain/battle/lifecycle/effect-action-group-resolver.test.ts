@@ -101,6 +101,26 @@ function statModAction(id: string): EffectActionDefinition {
   };
 }
 
+function statusAction(
+  id: string,
+  duration: DurationDefinition = {
+    timeLimit: { unit: "SKILL_USE", count: 3 },
+    dispellable: true,
+    linkedEffectGroupId: null,
+  },
+): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      status: "STEALTH",
+      duration,
+    },
+  };
+}
+
 function markerAction(
   id: string,
   markerId: ReturnType<typeof createMarkerId>,
@@ -691,6 +711,131 @@ describe("applyEffectActionGroups", () => {
     applyEffectActionGroups(plan, [actor, enemy], context);
 
     expect(observedEventTypes).toContain("EffectApplied");
+  });
+
+  it("UT-R-EFF-01-044 (TGT-004フェーズ3、Issue #167、R-ACTN-03、real lifecycle wiring): an APPLY_STATUS ACTION step grants a statusKind-bearing AppliedEffect through the real Catalog -> EffectSequence -> AppliedEffect -> event pipeline, without touching CombatStats", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const status = statusAction("ACT_STEALTH");
+    const effectActions = new Map([[status.effectActionDefinitionId, status]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, status.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectApplied",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+    expectCompleted(result, 1);
+
+    const grantedTarget = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(grantedTarget.appliedEffects).toHaveLength(1);
+    expect(grantedTarget.appliedEffects[0]).toMatchObject({
+      effectActionDefinitionId: status.effectActionDefinitionId,
+      sourceId: actor.battleUnitId,
+      targetId: enemy.battleUnitId,
+      duplicate: true,
+      magnitude: 0,
+      statusKind: "STEALTH",
+      appliedTurnNumber: 1,
+    });
+    expect(grantedTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(3);
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectApplied" }
+    >;
+    expect(applied.payload).toMatchObject({
+      effectInstanceId: grantedTarget.appliedEffects[0]!.effectInstanceId,
+      statusKind: "STEALTH",
+      durationUnit: "SKILL_USE",
+      initialRemaining: 3,
+    });
+
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("APPLIED");
+    expect(completed.parentEventId).toBe(applied.eventId);
+  });
+
+  it("UT-R-EFF-01-045 (TGT-004フェーズ3、Issue #167): an APPLY_STATUS ACTION step against an already-defeated target grants no AppliedEffect and completes as SKIPPED", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const defeated = unit("DEFEATED", "ENEMY", { currentHp: 0 });
+    const status = statusAction("ACT_STEALTH");
+    const effectActions = new Map([[status.effectActionDefinitionId, status]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, defeated.battleUnitId, status.effectActionDefinitionId)],
+      targetUnitIds: [defeated.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, defeated], context);
+
+    const target = result.units.find((u) => u.battleUnitId === defeated.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(0);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectApplied")).toBe(false);
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("SKIPPED");
+  });
+
+  it("UT-R-EFF-01-046 (TGT-004フェーズ3、Issue #167): an APPLY_STATUS payload with probability/appliesTo/damageThreshold/damageAmplificationOnBreak (R-STS-01〜04 scope, not yet implemented) throws a clear error instead of silently granting unconditionally", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const status: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        probability: 0.5,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[status.effectActionDefinitionId, status]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, status.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
+      DomainValidationError,
+    );
   });
 
   it("UT-R-NUM-04-027 (real lifecycle wiring): an APPLY_STAT_MOD formula can use any FormulaKind now that the general FormulaEvaluator is wired in, not just CONSTANT", () => {
