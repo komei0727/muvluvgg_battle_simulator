@@ -12,6 +12,17 @@ import type {
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
 import type { BattleSimulationRequest } from "../features/formation/request-mapper.js";
 
+// The real definition-image-map.ts globs locally-synced, gitignored assets
+// (apps/ui/scripts/sync-character-images.mjs) that are absent in CI. Mock it
+// with a fixed map so the top-level imageMap wiring itself can be asserted
+// deterministically, independent of what's synced on the machine running
+// this test.
+vi.mock("../features/catalog-selection/definition-image-map.js", () => ({
+  unitImageMap: { UNIT_A: "/assets/unit-a.webp" },
+  memoryImageMap: {},
+  definitionImageMap: { UNIT_A: "/assets/unit-a.webp" },
+}));
+
 function catalogResponse(): BattleSimulationCatalogResponse {
   return {
     schemaVersion: 1,
@@ -183,6 +194,29 @@ describe("BattleSimulatorPage — formation editing once the catalog is ready", 
 
     expect(screen.getByRole("button", { name: "ロックを選択" })).toBeDisabled();
     expect(screen.getByText(/CAP_LOCKED/)).toBeInTheDocument();
+  });
+
+  it("renders the mapped image for a unit once selected into a formation slot", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /ALLY FORMATION/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getAllByRole("button", { name: "前衛1にユニットを追加" })[0]!);
+    await user.click(screen.getByRole("button", { name: "アルファを選択" }));
+
+    const images = screen.getAllByRole("img", { name: "アルファ" });
+    expect(images.length).toBeGreaterThan(0);
+    for (const image of images) {
+      expect(image.tagName).toBe("IMG");
+      expect(image.getAttribute("src")).toBe("/assets/unit-a.webp");
+    }
   });
 
   it("blocks a 6th ally unit selection with a capacity notice instead of a state change (UI-CT-007)", async () => {

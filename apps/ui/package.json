@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test --grep-invert @visual",
     "test:e2e:visual": "playwright test --grep @visual",
-    "test:e2e:live": "playwright test --config=playwright.live.config.ts"
+    "test:e2e:live": "playwright test --config=playwright.live.config.ts",
+    "assets:sync": "node scripts/sync-character-images.mjs"
   },
   "dependencies": {
     "react": "19.2.7",
@@ -39,6 +40,7 @@
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-react-refresh": "0.5.3",
     "jsdom": "29.1.1",
+    "sharp": "^0.35.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.62.0",
     "vite": "8.1.4",

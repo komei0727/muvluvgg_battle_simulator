@@ -20,6 +20,11 @@ import { ValidationSummary } from "../features/formation/ValidationSummary.js";
 import type { UseCatalogLoaderOptions } from "../features/catalog-selection/catalog-loader.js";
 import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
 import {
+  definitionImageMap,
+  memoryImageMap,
+  unitImageMap,
+} from "../features/catalog-selection/definition-image-map.js";
+import {
   selectDisplayedSuccess,
   selectIsCatalogRevisionMismatch,
   selectIsResultDirty,
@@ -111,6 +116,7 @@ export function BattleSimulatorPage({
                   catalog={catalog.response}
                   violations={displayedViolations}
                   disabled={formationDisabled}
+                  imageMap={definitionImageMap}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                   }}
@@ -130,6 +136,7 @@ export function BattleSimulatorPage({
                   catalog={catalog.response}
                   violations={displayedViolations}
                   disabled={formationDisabled}
+                  imageMap={definitionImageMap}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                   }}
@@ -193,6 +200,7 @@ export function BattleSimulatorPage({
               response={displayedSuccess.response}
               {...(catalog.status === "ready" ? { catalog: catalog.response } : {})}
               turnLimit={displayedSuccess.request.turnLimit}
+              imageMap={unitImageMap}
             />
           </Panel>
           <Panel step="03" title="戦闘詳細データ" meta="AUDIT TRAIL / RAW RESPONSE">
@@ -224,6 +232,7 @@ export function BattleSimulatorPage({
                   ? { currentUnitDefinitionId: slot.unitDefinitionId }
                   : {})}
                 atCapacity={atCapacity}
+                imageMap={unitImageMap}
                 onSelect={(unitDefinitionId) => {
                   dispatch({ type: "unitSelected", slotKey, unitDefinitionId });
                 }}
@@ -246,6 +255,7 @@ export function BattleSimulatorPage({
               <MemorySelectionDialog
                 memories={catalog.response.memories}
                 {...(currentMemoryDefinitionId !== undefined ? { currentMemoryDefinitionId } : {})}
+                imageMap={memoryImageMap}
                 onSelect={(memoryDefinitionId) => {
                   dispatch({ type: "memorySelected", side, index, memoryDefinitionId });
                 }}

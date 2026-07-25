@@ -12,6 +12,7 @@ export interface BattleSummarySectionProps {
   readonly response: BattleSimulationResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
   readonly turnLimit: number;
+  readonly imageMap?: Readonly<Record<string, string>>;
 }
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -25,7 +26,12 @@ const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
 // API DTOを直接集計せず、selectBattleSummaryの結果だけを描画する。catalogが
 // 一時的に「ready」でない場合(reload中など)もdisplayNameがunitDefinitionId
 // へfallbackするだけで表示自体は継続する。
-export function BattleSummarySection({ response, catalog, turnLimit }: BattleSummarySectionProps) {
+export function BattleSummarySection({
+  response,
+  catalog,
+  turnLimit,
+  imageMap,
+}: BattleSummarySectionProps) {
   const projection = useMemo(
     () => selectBattleSummary(response, catalog ?? EMPTY_CATALOG),
     [response, catalog],
@@ -45,8 +51,16 @@ export function BattleSummarySection({ response, catalog, turnLimit }: BattleSum
         </p>
       ) : null}
       <div className={styles["grid"]}>
-        <UnitSummaryTable side="ally" rows={projection.allyRows} />
-        <UnitSummaryTable side="enemy" rows={projection.enemyRows} />
+        <UnitSummaryTable
+          side="ally"
+          rows={projection.allyRows}
+          {...(imageMap !== undefined ? { imageMap } : {})}
+        />
+        <UnitSummaryTable
+          side="enemy"
+          rows={projection.enemyRows}
+          {...(imageMap !== undefined ? { imageMap } : {})}
+        />
       </div>
     </div>
   );
