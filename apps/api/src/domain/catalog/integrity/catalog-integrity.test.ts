@@ -70,7 +70,7 @@ function removeEffectsAction(
 
 function removeEffectsCategoryAction(
   id: string,
-  categories: readonly ("SHIELD" | "SUBUNIT")[],
+  categories: readonly ("BUFF" | "DEBUFF" | "STATUS" | "DAMAGE_MOD" | "SHIELD" | "SUBUNIT")[],
   requiredCapabilities: readonly string[] = [],
 ): EffectActionDefinition {
   return createEffectActionDefinition(
@@ -1018,14 +1018,15 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-018 (M7-001, Issue #181, 再々レビュー[P2]): rejects a REMOVE_EFFECTS with the SHIELD category missing the required CAP_SHIELD declaration", () => {
+  it("UT-CAT-IDX-071 (M7-001, Issue #181, 再々レビュー[P2]): rejects a REMOVE_EFFECTS with the SHIELD category missing the required CAP_SHIELD declaration", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
       effectActions: [
         ...defs.effectActions,
-        removeEffectsCategoryAction("ACT_REMOVE_SHIELD", ["SHIELD"]),
+        removeEffectsCategoryAction("ACT_REMOVE_SHIELD", ["SHIELD"], ["CAP_REMOVE_EFFECTS"]),
       ],
+      capabilities: [capability("CAP_REMOVE_EFFECTS")],
     };
     try {
       buildCatalogIndex(withMissingCapability);
@@ -1040,15 +1041,19 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-019 (M7-001, Issue #181, 再々レビュー[P2]): accepts a REMOVE_EFFECTS with the SHIELD category that declares CAP_SHIELD, even though CAP_SHIELD itself is PLANNED (Catalog build only checks declaration, not implementation status)", () => {
+  it("UT-CAT-IDX-072 (M7-001, Issue #181, 再々レビュー[P2]): accepts a REMOVE_EFFECTS with the SHIELD category that declares both CAP_REMOVE_EFFECTS and CAP_SHIELD, even though CAP_SHIELD itself is PLANNED (Catalog build only checks declaration, not implementation status)", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {
       ...defs,
       effectActions: [
         ...defs.effectActions,
-        removeEffectsCategoryAction("ACT_REMOVE_SHIELD", ["SHIELD"], ["CAP_SHIELD"]),
+        removeEffectsCategoryAction(
+          "ACT_REMOVE_SHIELD",
+          ["SHIELD"],
+          ["CAP_REMOVE_EFFECTS", "CAP_SHIELD"],
+        ),
       ],
-      capabilities: [capability("CAP_SHIELD", "PLANNED")],
+      capabilities: [capability("CAP_REMOVE_EFFECTS"), capability("CAP_SHIELD", "PLANNED")],
     };
 
     const index = buildCatalogIndex(withCapability);
@@ -1056,14 +1061,15 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_REMOVE_SHIELD" as never)).toBeDefined();
   });
 
-  it("UT-CAT-IDX-020 (M7-001, Issue #181, 再々レビュー[P2]): rejects a REMOVE_EFFECTS with the SUBUNIT category missing the required CAP_SUBUNIT declaration", () => {
+  it("UT-CAT-IDX-073 (M7-001, Issue #181, 再々レビュー[P2]): rejects a REMOVE_EFFECTS with the SUBUNIT category missing the required CAP_SUBUNIT declaration", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
       effectActions: [
         ...defs.effectActions,
-        removeEffectsCategoryAction("ACT_REMOVE_SUBUNIT", ["SUBUNIT"]),
+        removeEffectsCategoryAction("ACT_REMOVE_SUBUNIT", ["SUBUNIT"], ["CAP_REMOVE_EFFECTS"]),
       ],
+      capabilities: [capability("CAP_REMOVE_EFFECTS")],
     };
     try {
       buildCatalogIndex(withMissingCapability);
@@ -1078,20 +1084,46 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-021 (M7-001, Issue #181, 再々レビュー[P2]): accepts a REMOVE_EFFECTS with the SUBUNIT category that declares CAP_SUBUNIT", () => {
+  it("UT-CAT-IDX-074 (M7-001, Issue #181, 再々レビュー[P2]): accepts a REMOVE_EFFECTS with the SUBUNIT category that declares both CAP_REMOVE_EFFECTS and CAP_SUBUNIT", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {
       ...defs,
       effectActions: [
         ...defs.effectActions,
-        removeEffectsCategoryAction("ACT_REMOVE_SUBUNIT", ["SUBUNIT"], ["CAP_SUBUNIT"]),
+        removeEffectsCategoryAction(
+          "ACT_REMOVE_SUBUNIT",
+          ["SUBUNIT"],
+          ["CAP_REMOVE_EFFECTS", "CAP_SUBUNIT"],
+        ),
       ],
-      capabilities: [capability("CAP_SUBUNIT", "PLANNED")],
+      capabilities: [capability("CAP_REMOVE_EFFECTS"), capability("CAP_SUBUNIT", "PLANNED")],
     };
 
     const index = buildCatalogIndex(withCapability);
 
     expect(index.effectActions.get("ACT_REMOVE_SUBUNIT" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-075 (Issue #181, 再々々レビュー[P2]): rejects ANY REMOVE_EFFECTS missing CAP_REMOVE_EFFECTS, regardless of categories (e.g. STATUS, which needs no other capability)", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        removeEffectsCategoryAction("ACT_REMOVE_STATUS", ["STATUS"], []),
+      ],
+    };
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_REMOVE_STATUS",
+        ),
+      ).toBe(true);
+    }
   });
 
   it("UT-CAT-IDX-017: rejects a COOLDOWN_MANIPULATION payload.targetSkillDefinitionId referencing a missing SkillDefinition (Issue #129)", () => {

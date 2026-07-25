@@ -1237,6 +1237,18 @@ function validateEffectAction(
   // `SimulationPreflightValidator`（`findUnimplementedCapabilities`）が
   // `UNSUPPORTED_RULE`として行う — Catalog全体のロード失敗にはしない。
   if (effectAction.kind === "REMOVE_EFFECTS") {
+    // `14_Catalog定義スキーマ.md`「REMOVE_EFFECTSを使うEffectActionDefinitionは
+    // requiredCapabilitiesにCAP_REMOVE_EFFECTSを含めること」（再々々レビュー[P2]）:
+    // categoriesの内容によらず、REMOVE_EFFECTS自体の宣言を無条件で必須にする。
+    // SHIELD/SUBUNIT固有のCAP_SHIELD/CAP_SUBUNIT宣言はこれとは独立な追加要件
+    // （両方とも要求されうる）。
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_REMOVE_EFFECTS")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message: 'REMOVE_EFFECTS must declare "CAP_REMOVE_EFFECTS" in requiredCapabilities',
+      });
+    }
     if (
       effectAction.payload.categories.includes("SHIELD") &&
       !effectAction.requiredCapabilities.some((id) => id === "CAP_SHIELD")
