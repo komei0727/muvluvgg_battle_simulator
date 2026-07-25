@@ -219,7 +219,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。TGT-004（Issue #167、R-TGT-08「ステルス」）: `ACT_MAO_COMMITTEE_PS2_STEALTH`（大賀真桜PS2）は、TargetSelectionPolicyが自動認識する予約`markerId`（`MARKER_STEALTH`、`domain/battle/model/marker-state.ts`のSTEALTH_MARKER_ID）を付与する——`APPLY_STATUS`（未実装のAppliedEffect経路）ではなくこのCAP_MARKER経路を使う。元は`APPLY_STATUS`/`status: STEALTH`かつ`duration.timeLimit.unit: SKILL_USE`・`linkedEffectGroupId`によるHeal/DMG_DOWNとの異種間カスケードだったが、SKILL_USE単位のDuration減算と異種間linkedEffectGroupカスケードはいずれも未実装（上記UNSUPPORTED_MARKER_DURATION/UNSUPPORTED_MARKER_LINKED_GROUP）のため、`stack: {policy: REFRESH, max: 1}`・`timeLimit`省略（消費されるかdispelされるまで持続）・`linkedEffectGroupId: null`へ近似変換した（PR #234レビュー[P1]、`15_Unit_Memory変換台帳.md`に記録）。R-TGT-08自体の対象選択リダイレクト・消費ロジックは`target-selection-policy.ts`の`applyStealthRedirect`／`resolveEffectSequencePlan`が実装する（Catalog schemaへの追加要素はなく、この`markerId`規約自体は別Capabilityを持たない）。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -229,7 +229,8 @@
         "ACT_KARINA_DOWNER_PS1_MARK_ATTACKER",
         "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI",
         "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI",
-        "ACT_HARRIET_SAGE_AS1_MARKER"
+        "ACT_HARRIET_SAGE_AS1_MARKER",
+        "ACT_MAO_COMMITTEE_PS2_STEALTH"
       ],
       "testCaseIds": [
         "UT-R-EFF-10-001",
@@ -251,7 +252,8 @@
         "UT-R-EFF-10-017",
         "UT-R-EFF-10-018",
         "IT-MARKER-PROD-001",
-        "IT-MARKER-PROD-002"
+        "IT-MARKER-PROD-002",
+        "IT-CAP-TARGET-STEALTH-REDIRECT-PROD-001"
       ]
     }
   },

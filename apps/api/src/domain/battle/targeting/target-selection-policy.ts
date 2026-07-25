@@ -571,6 +571,8 @@ interface ResolveTargetsCoreResult {
   readonly stealthConsumption?: StealthConsumption;
 }
 
+const EMPTY_CONSUMED_STEALTH_MARKER_INSTANCE_IDS: ReadonlySet<MarkerInstanceId> = new Set();
+
 /**
  * R-TGT-08「ステルス」#1〜#5: `order`適用後・`count`適用前の候補順に対し、
  * 第一優先対象（先頭）がStealth Markerを持つ場合に限りそれを候補順の末尾へ
@@ -582,9 +584,18 @@ interface ResolveTargetsCoreResult {
  * 要らない。移動はStealth Markerの消費（`resolveEffectSequence`の呼び出し元が
  * `MarkerRemoved`/reason:"CONSUMPTION"として実際に除去する）を伴うが、この
  * 関数自体は純粋関数のため、除去対象（`StealthConsumption`）を返すだけで
- * `markerStates`を変更しない。
+ * `markerStates`を変更しない。`alreadyConsumedMarkerInstanceIds`（PR #234レビュー
+ * [P2]）: 同じ`EffectSequence`内で定義順に評価される複数の`targetBindings`が
+ * 同じStealth所持者を第一優先対象として選ぶ場合、R-TGT-10の定義順評価と
+ * 「第一優先対象になった時点で消費」（#2）に従い、最初のbindingでのみ移動・
+ * 消費が成立する — 以降のbindingでは、その`markerInstanceId`をここへ渡すことで
+ * 既に消費済みとして扱い（`stackCount > 0`のまま実除去前でも）、二重の移動・
+ * 消費検出を防ぐ。
  */
-function applyStealthRedirect(ordered: readonly BattleUnit[]): {
+function applyStealthRedirect(
+  ordered: readonly BattleUnit[],
+  alreadyConsumedMarkerInstanceIds: ReadonlySet<MarkerInstanceId>,
+): {
   readonly ordered: readonly BattleUnit[];
   readonly consumption?: StealthConsumption;
 } {
@@ -593,7 +604,10 @@ function applyStealthRedirect(ordered: readonly BattleUnit[]): {
   }
   const [firstPriority, ...rest] = ordered as [BattleUnit, ...BattleUnit[]];
   const stealthMarker = firstPriority.markerStates.find(
-    (state) => state.markerId === STEALTH_MARKER_ID && state.stackCount > 0,
+    (state) =>
+      state.markerId === STEALTH_MARKER_ID &&
+      state.stackCount > 0 &&
+      !alreadyConsumedMarkerInstanceIds.has(state.markerInstanceId),
   );
   if (stealthMarker === undefined) {
     return { ordered };
@@ -615,6 +629,7 @@ function resolveTargetsCore(
   resolvedBindings: ResolvedTargetBindings,
   triggerContext: TriggerContext | undefined,
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  alreadyConsumedStealthMarkerInstanceIds: ReadonlySet<MarkerInstanceId>,
 ): ResolveTargetsCoreResult {
   // R-TGT-09 #5相当の事前検証: orderは並べ替え前に検証する（候補0/1件でも不正なorderは拒否する）。
   const compare = compareByOrder(selector.order, actor, unitDefinitions);
@@ -664,7 +679,7 @@ function resolveTargetsCore(
 
   // R-TGT-08: Stealth所持者が第一優先対象の場合、候補順の末尾へ移動する。
   // 候補の集合・件数は変えないため、直後のcount適用・fallback判定（#6/#7）には影響しない。
-  const stealthResult = applyStealthRedirect(ordered);
+  const stealthResult = applyStealthRedirect(ordered, alreadyConsumedStealthMarkerInstanceIds);
 
   // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
   // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
@@ -686,6 +701,7 @@ function resolveTargetsCore(
       resolvedBindings,
       triggerContext,
       unitDefinitions,
+      alreadyConsumedStealthMarkerInstanceIds,
     );
   }
   return {
@@ -711,6 +727,7 @@ export function resolveTargets(
     resolvedBindings,
     triggerContext,
     unitDefinitions,
+    EMPTY_CONSUMED_STEALTH_MARKER_INSTANCE_IDS,
   ).selected;
 }
 
@@ -722,6 +739,10 @@ export function resolveTargets(
  * 変更しない。AS選択時のフィージビリティ判定（`hasResolvableTargets`）や
  * `TargetsSelected`イベント payload 用の監査再解決（`resolveBindingSelections`）は
  * 消費を確定させてはならないため、引き続き`resolveTargets`を使う。
+ * `alreadyConsumedStealthMarkerInstanceIds`（PR #234レビュー[P2]）: 呼び出し元
+ * （`resolveEffectSequence`）が同じ`EffectSequence`内で先行する`targetBindings`から
+ * 検出済みの消費を渡すことで、複数のbindingが同じStealth所持者を第一優先対象に
+ * 選ぶ場合でも移動・消費が1回だけ成立するようにする。
  */
 export function resolveTargetsWithStealthConsumption(
   selector: TargetSelectorDefinition,
@@ -730,6 +751,7 @@ export function resolveTargetsWithStealthConsumption(
   resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
   triggerContext?: TriggerContext,
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
+  alreadyConsumedStealthMarkerInstanceIds: ReadonlySet<MarkerInstanceId> = EMPTY_CONSUMED_STEALTH_MARKER_INSTANCE_IDS,
 ): { readonly units: readonly BattleUnit[]; readonly stealthConsumption?: StealthConsumption } {
   const result = resolveTargetsCore(
     selector,
@@ -738,6 +760,7 @@ export function resolveTargetsWithStealthConsumption(
     resolvedBindings,
     triggerContext,
     unitDefinitions,
+    alreadyConsumedStealthMarkerInstanceIds,
   );
   return {
     units: result.selected,

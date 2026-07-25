@@ -406,7 +406,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 2件未満（`kind: SELF`常時／イベント由来の狭い候補集合）の場合は適用しない
   // （#6/#7）。実消費（`MarkerRemoved`/reason:"CONSUMPTION"）は
   // `EffectSequencePlan.stealthConsumptions`（`resolveEffectSequence`が集約）を
-  // `resolveEffectSequencePlan`がstep解決開始前に一括適用する。
+  // `resolveEffectSequencePlan`がstep解決開始前に一括適用する。PR #234レビュー
+  // [P2]: 同じStealth所持者を複数のtargetBindingsが第一優先対象に選ぶ場合、
+  // R-TGT-10の定義順評価に従い最初のbindingでのみ移動・消費が成立する
+  // （`resolveEffectSequence`が検出済みmarkerInstanceIdを後続bindingへ引き継ぐ）。
   {
     ruleId: "R-TGT-08",
     testCaseIds: [
@@ -421,6 +424,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-SKILL-RESOLUTION-SERVICE-011",
       "UT-SKILL-RESOLUTION-SERVICE-012",
       "UT-SKILL-RESOLUTION-SERVICE-013",
+      "UT-SKILL-RESOLUTION-SERVICE-014",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

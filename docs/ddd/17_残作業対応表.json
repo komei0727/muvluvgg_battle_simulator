@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 75
+      "incompleteConversionRows": 77
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -180,6 +180,18 @@
       "taskId": "M7-004"
     },
     { "milestone": "M7", "theme": "HEAL_KIND_UNIMPLEMENTED", "rowCount": 1, "taskId": "M7-005" },
+    {
+      "milestone": "M7",
+      "theme": "MARKER_SKILL_USE_DURATION",
+      "rowCount": 1,
+      "taskId": "M7-010"
+    },
+    {
+      "milestone": "M7",
+      "theme": "MARKER_APPLIED_EFFECT_CROSS_TYPE_LINK",
+      "rowCount": 1,
+      "taskId": "M7-010"
+    },
     {
       "milestone": "M8",
       "theme": "DAMAGE_MOD_KIND_UNIMPLEMENTED",

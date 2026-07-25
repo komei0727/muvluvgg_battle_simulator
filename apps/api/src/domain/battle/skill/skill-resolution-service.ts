@@ -26,6 +26,7 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { MarkerInstanceId } from "../../shared/event-ids.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
 
 export interface ResolvedEffectApplication {
@@ -513,9 +514,14 @@ function resolveEffectSequence(
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
   // ここまでに解決済みのbindingを`resolveTargetsWithStealthConsumption`へ渡しながら1件ずつ確定する。
+  // PR #234レビュー[P2]: 同じStealth所持者を複数のbindingが第一優先対象に選ぶ場合、
+  // R-TGT-10の定義順評価と「第一優先対象になった時点で消費」（R-TGT-08 #2）に従い、
+  // 最初に検出したbindingでのみ移動・消費が成立するよう、検出済みのmarkerInstanceIdを
+  // 後続bindingの評価へ引き継ぐ。
   const resolvedBindings = new Map<TargetBindingId, ResolvedBinding>();
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
   const stealthConsumptions: StealthConsumption[] = [];
+  const consumedStealthMarkerInstanceIds = new Set<MarkerInstanceId>();
   for (const binding of sequence.targetBindings) {
     const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
       binding.selector,
@@ -524,9 +530,11 @@ function resolveEffectSequence(
       resolvedBindingUnits,
       triggerContext,
       unitDefinitions,
+      consumedStealthMarkerInstanceIds,
     );
     if (stealthConsumption !== undefined) {
       stealthConsumptions.push(stealthConsumption);
+      consumedStealthMarkerInstanceIds.add(stealthConsumption.markerInstanceId);
     }
     resolvedBindingUnits.set(binding.targetBindingId, units);
     resolvedBindings.set(binding.targetBindingId, {

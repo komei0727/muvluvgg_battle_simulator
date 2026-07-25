@@ -920,6 +920,58 @@ describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Iss
     ).toEqual([createBattleUnitId("FARTHER")]);
   });
 
+  it("UT-SKILL-RESOLUTION-SERVICE-014 (R-TGT-10 definition order / R-TGT-08 #2 consume-on-first-priority): two targetBindings that both pick the same Stealth holder as first priority only redirect and consume once — the later binding sees the holder as no longer Stealthed", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const nearestEnemy = unit(
+      "NEAREST",
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      {
+        markerStates: [
+          buildInitialMarkerState(
+            createMarkerInstanceId("mi-stealth-1"),
+            STEALTH_MARKER_ID,
+            createBattleUnitId("NEAREST"),
+            createBattleUnitId("NEAREST"),
+            null,
+            { dispellable: true, linkedEffectGroupId: null },
+            { turnNumber: 1 },
+          ),
+        ],
+      },
+    );
+    const fartherEnemy = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: createTargetBindingId("TGT_1"),
+          selector: { ...ENEMY_ALL_SELECTOR, count: 1 },
+        },
+        {
+          targetBindingId: createTargetBindingId("TGT_2"),
+          selector: { ...ENEMY_ALL_SELECTOR, count: 1 },
+        },
+      ],
+      steps: [],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor, nearestEnemy, fartherEnemy], new Map());
+
+    expect(plan.stealthConsumptions).toEqual([
+      {
+        battleUnitId: createBattleUnitId("NEAREST"),
+        markerInstanceId: createMarkerInstanceId("mi-stealth-1"),
+      },
+    ]);
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_1"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("FARTHER")]);
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_2"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("NEAREST")]);
+  });
+
   it("UT-SKILL-RESOLUTION-SERVICE-011: no Stealth holder means an empty stealthConsumptions array", () => {
     const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
     const enemy = unit("ENEMY_1", "ENEMY", { column: "CENTER", row: "FRONT" });

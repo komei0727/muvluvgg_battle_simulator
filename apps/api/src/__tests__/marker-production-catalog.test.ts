@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { applyMarker } from "../domain/battle/effects/marker-apply-service.js";
 import { removeMarkers } from "../domain/battle/effects/marker-removal-service.js";
 import { createBattleUnit, type BattleUnit } from "../domain/battle/model/battle-unit.js";
+import { STEALTH_MARKER_ID } from "../domain/battle/model/marker-state.js";
+import { resolveTargetsWithStealthConsumption } from "../domain/battle/targeting/target-selection-policy.js";
 import type { BattlePartyMember } from "../domain/battle/model/battle-party.js";
 import { EventRecorder } from "../domain/battle/events/event-recorder.js";
 import { toGlobalCoordinate } from "../domain/battle/model/global-coordinate.js";
@@ -209,4 +211,106 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
       expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(true);
     },
   );
+});
+
+function positionedUnit(
+  unitDefinitionId: string,
+  battleUnitId: string,
+  side: "ALLY" | "ENEMY",
+  position: { column: "LEFT" | "CENTER" | "RIGHT"; row: "FRONT" | "BACK" },
+): BattleUnit {
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(battleUnitId),
+    unitDefinitionId: unitDefinitionId as never,
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate(side, position),
+    combatStats: {
+      maximumHp: 1000,
+      attack: 100,
+      defense: 50,
+      criticalRate: 0.1,
+      actionSpeed: 100,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+    },
+  };
+  return createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+}
+
+/**
+ * TGT-004 (Issue #167, PR #234レビュー[P1]): `ACT_MAO_COMMITTEE_PS2_STEALTH`は
+ * `APPLY_STATUS`（未実装のAppliedEffect経路）ではなく`APPLY_MARKER`＋予約
+ * `MarkerId`（`STEALTH_MARKER_ID`）でStealthを付与する唯一のproduction定義。
+ * 実Catalogペイロードで`applyMarker`によりMarkerを付与し、
+ * `resolveTargetsWithStealthConsumption`が実際にR-TGT-08の対象リダイレクト・
+ * 消費を発動することを、unmodified production dataに対して検証する。
+ */
+describe("production Catalog Stealth redirect (R-TGT-08, TGT-004, Issue #167)", () => {
+  it("IT-CAP-TARGET-STEALTH-REDIRECT-PROD-001: ACT_MAO_COMMITTEE_PS2_STEALTH's real payload grants MARKER_STEALTH, and a first-priority holder is redirected and consumed", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot(["UNIT_MAO_COMMITTEE" as never], []);
+
+    const stealthAction = snapshot.effectActions.get("ACT_MAO_COMMITTEE_PS2_STEALTH" as never);
+    expect(stealthAction?.kind).toBe("APPLY_MARKER");
+    if (stealthAction?.kind !== "APPLY_MARKER") {
+      return;
+    }
+    expect(stealthAction.payload.markerId).toBe(STEALTH_MARKER_ID);
+
+    const mao = positionedUnit("UNIT_MAO_COMMITTEE", "MAO", "ALLY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
+    const otherAlly = positionedUnit("UNIT_MAO_COMMITTEE", "OTHER_ALLY", "ALLY", {
+      column: "LEFT",
+      row: "BACK",
+    });
+    // A separate ally healer (not itself a target candidate here) uses a count:1
+    // ally-targeted selector. Distance-wise Mao (CENTER/FRONT) is nearer than
+    // otherAlly (LEFT/BACK), so she'd normally be first priority.
+    const actor = positionedUnit("UNIT_MAO_COMMITTEE", "HEALER", "ALLY", {
+      column: "RIGHT",
+      row: "FRONT",
+    });
+    const { context } = newContext();
+
+    const granted = applyMarker(
+      context,
+      [mao],
+      {
+        markerId: stealthAction.payload.markerId,
+        sourceId: mao.battleUnitId,
+        targetId: mao.battleUnitId,
+        stackPolicy: stealthAction.payload.stack.policy,
+        stackMax: stealthAction.payload.stack.max,
+        durationDefinition: stealthAction.payload.duration,
+      },
+      context.rootEventId,
+    );
+    const maoWithStealth = granted.units.find((u) => u.battleUnitId === mao.battleUnitId)!;
+    expect(maoWithStealth.markerStates).toHaveLength(1);
+
+    // Her Stealth should redirect the healer's selector to the other ally instead
+    // (`actor` itself is deliberately excluded from the candidate roster below, so
+    // this isolates the redirect from any self-targeting concern, R-TGT-08 #6).
+    const result = resolveTargetsWithStealthConsumption(
+      {
+        kind: "SELECT",
+        side: "ALLY",
+        count: 1,
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      },
+      actor,
+      [maoWithStealth, otherAlly],
+    );
+
+    expect(result.units.map((u) => u.battleUnitId)).toEqual([otherAlly.battleUnitId]);
+    expect(result.stealthConsumption).toEqual({
+      battleUnitId: mao.battleUnitId,
+      markerInstanceId: maoWithStealth.markerStates[0]!.markerInstanceId,
+    });
+  });
 });

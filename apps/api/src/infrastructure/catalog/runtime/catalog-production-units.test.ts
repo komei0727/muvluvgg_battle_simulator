@@ -75,7 +75,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by Issue #225's unrelated catalog-src change (SKL_TATIANA_SAGE_EX).
     // Bumped again by TGT-002 (Issue #169): filter/order runtime evaluation lands,
     // resolving the 18 approximated catalog-src rows across 14 units that needed it.
-    expect(catalog.catalogRevision).toBe("2026-07-25.1");
+    // Bumped again by TGT-004 (Issue #167, PR #234 review [P1]): Mao Oga's
+    // ACT_MAO_COMMITTEE_PS2_STEALTH converts from the unimplemented APPLY_STATUS/
+    // STEALTH path to APPLY_MARKER with the reserved MARKER_STEALTH id, so R-TGT-08's
+    // redirect actually fires in production.
+    expect(catalog.catalogRevision).toBe("2026-07-25.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

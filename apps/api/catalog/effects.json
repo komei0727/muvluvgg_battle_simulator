@@ -4751,16 +4751,13 @@
   },
   {
     "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_STEALTH",
-    "kind": "APPLY_STATUS",
+    "kind": "APPLY_MARKER",
     "payload": {
-      "status": "STEALTH",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": { "unit": "SKILL_USE", "count": 3 },
-        "linkedEffectGroupId": "MAO_COMMITTEE_PS2_LINK"
-      }
+      "markerId": "MARKER_STEALTH",
+      "stack": { "policy": "REFRESH", "max": 1 },
+      "duration": { "dispellable": true, "linkedEffectGroupId": null }
     },
-    "requiredCapabilities": ["CAP_COMPLEX_EXPIRATION"],
+    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
