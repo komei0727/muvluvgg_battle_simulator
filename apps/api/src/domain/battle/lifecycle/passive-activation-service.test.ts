@@ -3700,4 +3700,412 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(ownerFinal.effectSequenceCounters).toBeUndefined();
     });
   });
+
+  describe("R-TGT-08 Stealth consumption inside a PS's own EffectSequence (TGT-004, Issue #167, PR #237再レビュー[P1])", () => {
+    it("UT-R-TGT-08-009: a Stealth AppliedEffect consumed by a PS's own targetBindings redirect (not the AS/EX callback path) still reaches the PS chain — a watcher PS triggered by the resulting EffectExpired(CONSUMPTION) fully resolves before the parent's own first EffectAction starts", () => {
+      const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_STEALTH");
+      const watcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_STEALTH");
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE_STEALTH");
+      const watcherAction = damageEffectAction("ACT_WATCHER_SELF");
+      const stealthDefinitionId = createEffectActionDefinitionId("ACT_STEALTH_PS_OWN");
+
+      const parentSkill: SkillDefinition = {
+        ...passiveSkillOf("SKL_PARENT_STEALTH"),
+        // TurnStarted起動（actionIdなし）のためTURN単位cooldownにする
+        // （"PR #141 review [P1]"と同じ理由）。
+        cooldown: { unit: "TURN", count: 0 },
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            {
+              targetBindingId: enemyBindingId,
+              selector: {
+                kind: "SELECT",
+                side: "ENEMY",
+                count: "ALL",
+                filters: [],
+                order: ["DEFAULT"],
+                includeDefeated: false,
+              },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: enemyBindingId },
+              actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+            },
+          ],
+        },
+      };
+      // watcherPS: EffectExpired(reason: CONSUMPTION)に反応する。Stealth消費が
+      // `context.onFactEventForPassiveChain`未指定（PS自身のEffectSequenceが
+      // `yield*`委譲される経路）でも、他のEffectAction内部イベントと同様
+      // `EFFECT_RESOLVED`としてyieldされ、`resolvePassiveChain`/`driveActivation`
+      // 側のdriverが子PS連鎖を処理できることを検証する。
+      const watcherSkill: SkillDefinition = {
+        ...passiveSkillOf("SKL_WATCHER_CONSUMPTION"),
+        cooldown: { unit: "TURN", count: 0 },
+        triggers: [
+          {
+            eventType: "EffectExpired",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "EVENT_PAYLOAD", field: "reason", op: "EQ", value: "CONSUMPTION" },
+          },
+        ],
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: watcherAction.effectActionDefinitionId }],
+            },
+          ],
+        },
+      };
+
+      const stealthInstance: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("ei-stealth-ps-own"),
+        effectActionDefinitionId: stealthDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(stealthDefinitionId),
+        duplicate: true,
+        sourceId: createBattleUnitId("HOLDER"),
+        targetId: createBattleUnitId("HOLDER"),
+        magnitude: 0,
+        statusKind: "STEALTH",
+        duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+        appliedTurnNumber: 1,
+      };
+      const holder: BattleUnit = {
+        ...unit("HOLDER", "ENEMY"),
+        appliedEffects: [stealthInstance],
+      };
+      const parentOwner = unit("PARENT", "ALLY", {
+        unitDefinitionId: parentUnitDefinitionId,
+        currentPp: 3,
+        attack: 100,
+      });
+      const watcherOwner = unit("WATCHER", "ALLY", {
+        unitDefinitionId: watcherUnitDefinitionId,
+        currentPp: 3,
+      });
+      const definitions = definitionsOf(
+        new Map([
+          [
+            parentUnitDefinitionId,
+            unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+          ],
+          [
+            watcherUnitDefinitionId,
+            unitDefinitionOf(watcherUnitDefinitionId, [watcherSkill.skillDefinitionId]),
+          ],
+          [
+            createUnitDefinitionId("UNIT_A"),
+            unitDefinitionOf(createUnitDefinitionId("UNIT_A"), []),
+          ],
+        ]),
+        new Map([
+          [parentSkill.skillDefinitionId, parentSkill],
+          [watcherSkill.skillDefinitionId, watcherSkill],
+        ]),
+        new Map<ReturnType<typeof createEffectActionDefinitionId>, EffectActionDefinition>([
+          [enemyDamage.effectActionDefinitionId, enemyDamage],
+          [watcherAction.effectActionDefinitionId, watcherAction],
+        ]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        parentOwner,
+        watcherOwner,
+        holder,
+      ]);
+
+      const updatedUnits = runtime.onFactEvent(turnStarted, [parentOwner, watcherOwner, holder]);
+
+      const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updatedHolder.appliedEffects).toHaveLength(0);
+
+      const events = recorder.getEvents();
+      const expiredEvent = events.find((e) => e.eventType === "EffectExpired")!;
+      expect(expiredEvent.payload).toMatchObject({
+        effectInstanceId: stealthInstance.effectInstanceId,
+        reason: "CONSUMPTION",
+      });
+      const expiredIndex = events.indexOf(expiredEvent);
+      const watcherActivatedEvents = events.filter(
+        (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === watcherOwner.battleUnitId,
+      );
+      expect(watcherActivatedEvents).toHaveLength(1);
+      const watcherActivatedIndex = events.indexOf(watcherActivatedEvents[0]!);
+      const parentActionStartingIndex = events.findIndex(
+        (e) =>
+          e.eventType === "EffectActionStarting" &&
+          e.payload.effectActionDefinitionId === enemyDamage.effectActionDefinitionId,
+      );
+      expect(watcherActivatedIndex).toBeGreaterThan(expiredIndex);
+      expect(parentActionStartingIndex).toBeGreaterThan(watcherActivatedIndex);
+    });
+
+    it("UT-R-EFF-09-008 (R-EFF-09, PR #237再レビュー[P1]): a Stealth holder whose AppliedEffect is PARENT-role in a linkedEffectGroupId cascades its CHILD-role sibling first, and both resulting EffectExpired events reach the PS chain in order via the same PS-own-EffectSequence path", () => {
+      const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_STEALTH_LINK");
+      const cascadeWatcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_CASCADE");
+      const consumptionWatcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_CONSUMPTION");
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE_STEALTH_LINK");
+      const cascadeWatcherAction = damageEffectAction("ACT_WATCHER_CASCADE_SELF");
+      const consumptionWatcherAction = damageEffectAction("ACT_WATCHER_CONSUMPTION_SELF");
+      const stealthDefinitionId = createEffectActionDefinitionId("ACT_STEALTH_PS_OWN_LINK");
+      const siblingDefinitionId = createEffectActionDefinitionId("ACT_LINK_SIBLING");
+
+      const parentSkill: SkillDefinition = {
+        ...passiveSkillOf("SKL_PARENT_STEALTH_LINK"),
+        cooldown: { unit: "TURN", count: 0 },
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            {
+              targetBindingId: enemyBindingId,
+              selector: {
+                kind: "SELECT",
+                side: "ENEMY",
+                count: "ALL",
+                filters: [],
+                order: ["DEFAULT"],
+                includeDefeated: false,
+              },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: enemyBindingId },
+              actions: [{ effectActionDefinitionId: enemyDamage.effectActionDefinitionId }],
+            },
+          ],
+        },
+      };
+      const cascadeWatcherSkill: SkillDefinition = {
+        ...passiveSkillOf("SKL_WATCHER_CASCADE"),
+        cooldown: { unit: "TURN", count: 0 },
+        triggers: [
+          {
+            eventType: "EffectExpired",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: {
+              kind: "EVENT_PAYLOAD",
+              field: "reason",
+              op: "EQ",
+              value: "LINKED_GROUP_CASCADE",
+            },
+          },
+        ],
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [
+                { effectActionDefinitionId: cascadeWatcherAction.effectActionDefinitionId },
+              ],
+            },
+          ],
+        },
+      };
+      const consumptionWatcherSkill: SkillDefinition = {
+        ...passiveSkillOf("SKL_WATCHER_CONSUMPTION_LINK"),
+        cooldown: { unit: "TURN", count: 0 },
+        triggers: [
+          {
+            eventType: "EffectExpired",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "EVENT_PAYLOAD", field: "reason", op: "EQ", value: "CONSUMPTION" },
+          },
+        ],
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [
+                { effectActionDefinitionId: consumptionWatcherAction.effectActionDefinitionId },
+              ],
+            },
+          ],
+        },
+      };
+
+      const stealthInstance: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("ei-stealth-ps-own-link"),
+        effectActionDefinitionId: stealthDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(stealthDefinitionId),
+        duplicate: true,
+        sourceId: createBattleUnitId("HOLDER"),
+        targetId: createBattleUnitId("HOLDER"),
+        magnitude: 0,
+        statusKind: "STEALTH",
+        duration: {
+          definition: {
+            dispellable: true,
+            linkedEffectGroupId: "GROUP_STEALTH_LINK",
+            linkedEffectGroupRole: "PARENT",
+          },
+        },
+        appliedTurnNumber: 1,
+      };
+      const siblingInstance: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("ei-sibling-ps-own-link"),
+        effectActionDefinitionId: siblingDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(siblingDefinitionId),
+        duplicate: true,
+        sourceId: createBattleUnitId("HOLDER"),
+        targetId: createBattleUnitId("HOLDER"),
+        magnitude: 0,
+        duration: {
+          definition: {
+            dispellable: true,
+            linkedEffectGroupId: "GROUP_STEALTH_LINK",
+            linkedEffectGroupRole: "CHILD",
+          },
+        },
+        appliedTurnNumber: 1,
+      };
+      const holder: BattleUnit = {
+        ...unit("HOLDER", "ENEMY"),
+        appliedEffects: [stealthInstance, siblingInstance],
+      };
+      const parentOwner = unit("PARENT", "ALLY", {
+        unitDefinitionId: parentUnitDefinitionId,
+        currentPp: 3,
+        attack: 100,
+      });
+      const cascadeWatcherOwner = unit("WATCHER_CASCADE", "ALLY", {
+        unitDefinitionId: cascadeWatcherUnitDefinitionId,
+        currentPp: 3,
+      });
+      const consumptionWatcherOwner = unit("WATCHER_CONSUMPTION", "ALLY", {
+        unitDefinitionId: consumptionWatcherUnitDefinitionId,
+        currentPp: 3,
+      });
+      const definitions = definitionsOf(
+        new Map([
+          [
+            parentUnitDefinitionId,
+            unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+          ],
+          [
+            cascadeWatcherUnitDefinitionId,
+            unitDefinitionOf(cascadeWatcherUnitDefinitionId, [
+              cascadeWatcherSkill.skillDefinitionId,
+            ]),
+          ],
+          [
+            consumptionWatcherUnitDefinitionId,
+            unitDefinitionOf(consumptionWatcherUnitDefinitionId, [
+              consumptionWatcherSkill.skillDefinitionId,
+            ]),
+          ],
+          [
+            createUnitDefinitionId("UNIT_A"),
+            unitDefinitionOf(createUnitDefinitionId("UNIT_A"), []),
+          ],
+        ]),
+        new Map([
+          [parentSkill.skillDefinitionId, parentSkill],
+          [cascadeWatcherSkill.skillDefinitionId, cascadeWatcherSkill],
+          [consumptionWatcherSkill.skillDefinitionId, consumptionWatcherSkill],
+        ]),
+        new Map<ReturnType<typeof createEffectActionDefinitionId>, EffectActionDefinition>([
+          [enemyDamage.effectActionDefinitionId, enemyDamage],
+          [cascadeWatcherAction.effectActionDefinitionId, cascadeWatcherAction],
+          [consumptionWatcherAction.effectActionDefinitionId, consumptionWatcherAction],
+        ]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        parentOwner,
+        cascadeWatcherOwner,
+        consumptionWatcherOwner,
+        holder,
+      ]);
+
+      const updatedUnits = runtime.onFactEvent(turnStarted, [
+        parentOwner,
+        cascadeWatcherOwner,
+        consumptionWatcherOwner,
+        holder,
+      ]);
+
+      const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updatedHolder.appliedEffects).toHaveLength(0);
+
+      const events = recorder.getEvents();
+      const expiredEvents = events.filter((e) => e.eventType === "EffectExpired");
+      expect(expiredEvents).toHaveLength(2);
+      expect(expiredEvents[0]!.payload).toMatchObject({
+        effectInstanceId: siblingInstance.effectInstanceId,
+        reason: "LINKED_GROUP_CASCADE",
+        cascaded: true,
+      });
+      expect(expiredEvents[1]!.payload).toMatchObject({
+        effectInstanceId: stealthInstance.effectInstanceId,
+        reason: "CONSUMPTION",
+        cascaded: false,
+      });
+
+      const cascadeWatcherActivatedEvents = events.filter(
+        (e) =>
+          e.eventType === "PassiveActivated" && e.sourceUnitId === cascadeWatcherOwner.battleUnitId,
+      );
+      const consumptionWatcherActivatedEvents = events.filter(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          e.sourceUnitId === consumptionWatcherOwner.battleUnitId,
+      );
+      expect(cascadeWatcherActivatedEvents).toHaveLength(1);
+      expect(consumptionWatcherActivatedEvents).toHaveLength(1);
+
+      const consumptionIndex = events.indexOf(expiredEvents[1]!);
+      const cascadeWatcherActivatedIndex = events.indexOf(cascadeWatcherActivatedEvents[0]!);
+      const consumptionWatcherActivatedIndex = events.indexOf(
+        consumptionWatcherActivatedEvents[0]!,
+      );
+      const parentActionStartingIndex = events.findIndex(
+        (e) =>
+          e.eventType === "EffectActionStarting" &&
+          e.payload.effectActionDefinitionId === enemyDamage.effectActionDefinitionId,
+      );
+      // 両方のEffectExpired（カスケード・消費）は、その事後PS連鎖が走るより前に
+      // 一括で記録済み（`expireEffects`が両方を返す前に記録する）。カスケード
+      // 側watcherは消費側watcherより前のイベント（配列内で先）に反応するため、
+      // その候補連鎖全体（PassiveActivated含む）を消費側watcherより先に完了する。
+      expect(cascadeWatcherActivatedIndex).toBeGreaterThan(consumptionIndex);
+      expect(consumptionWatcherActivatedIndex).toBeGreaterThan(cascadeWatcherActivatedIndex);
+      expect(parentActionStartingIndex).toBeGreaterThan(consumptionWatcherActivatedIndex);
+    });
+  });
 });

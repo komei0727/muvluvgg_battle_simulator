@@ -1793,23 +1793,56 @@ describe("resolveTargets", () => {
       expect(result.stealthConsumption).toBeUndefined();
     });
 
-    it("UT-R-TGT-08-005 (R-TGT-08 #7): a selector whose candidate pool is structurally limited to a single unit never redirects (『攻撃を受けた味方単体』例)", () => {
+    it("UT-R-TGT-08-005 (R-TGT-08 #7, PR #237再レビュー[P1]): a TRIGGER_TARGET selector whose event-provided candidate set is structurally limited to a single unit never redirects (『攻撃を受けた味方単体』例)", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const onlyCandidate = unit(
         "ONLY",
-        "ENEMY",
+        "ALLY",
         { column: "CENTER", row: "FRONT" },
         { appliedEffects: [stealthEffect("ONLY")] },
+      );
+      const selectorDef: TargetSelectorDefinition = {
+        kind: "TRIGGER_TARGET",
+        side: "ALLY",
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      };
+
+      const result = resolveTargetsWithStealthConsumption(
+        selectorDef,
+        actor,
+        [actor, onlyCandidate],
+        undefined,
+        { triggerTargetUnitIds: [onlyCandidate.battleUnitId] },
+      );
+
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ONLY")]);
+      expect(result.stealthConsumption).toBeUndefined();
+    });
+
+    it("UT-R-TGT-08-008 (Q-TGT-05, PR #237再レビュー[P1]): a normal SELECT selector whose only surviving candidate holds Stealth still consumes it and hits them (battlefield happenstance, not a structural limitation)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const onlySurvivor = unit(
+        "ONLY_SURVIVOR",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { appliedEffects: [stealthEffect("ONLY_SURVIVOR")] },
       );
 
       const result = resolveTargetsWithStealthConsumption(
         selector({ side: "ENEMY", count: 1 }),
         actor,
-        [actor, onlyCandidate],
+        [actor, onlySurvivor],
       );
 
-      expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ONLY")]);
-      expect(result.stealthConsumption).toBeUndefined();
+      expect(result.units.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("ONLY_SURVIVOR"),
+      ]);
+      expect(result.stealthConsumption).toEqual({
+        battleUnitId: createBattleUnitId("ONLY_SURVIVOR"),
+        effectInstanceId: onlySurvivor.appliedEffects[0]!.effectInstanceId,
+      });
     });
 
     it("UT-R-TGT-08-006: Stealth redirect also applies inside a fallback selector's own evaluation", () => {

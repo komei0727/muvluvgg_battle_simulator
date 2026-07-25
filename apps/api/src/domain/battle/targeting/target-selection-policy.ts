@@ -573,30 +573,51 @@ interface ResolveTargetsCoreResult {
 const EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS: ReadonlySet<EffectInstanceId> = new Set();
 
 /**
+ * PR #237再レビュー[P1]: R-TGT-08 #6（自身を対象とする自身のスキル）と#7（イベント
+ * ／条件によって対象範囲が構造的に1体へ限定されている場合）が指す「構造的に1体」の
+ * kind。これらのkindは候補集合が盤面の生存状況ではなく、使用者自身（`SELF`）または
+ * trigger eventが渡した固定集合（`TRIGGER_SOURCE`/`TRIGGER_TARGET`）から構造的に
+ * 導かれる——`SELECT`/`BINDING_DERIVED`は候補が盤面の生存状況に依存するため対象外
+ * （たとえ現在1件しかなくても、それはQ-TGT-05の「代替対象なし」であり#7の
+ * 「構造的な限定」ではない）。
+ */
+function isStructurallySingleCandidateKind(kind: TargetSelectorDefinition["kind"]): boolean {
+  return kind === "SELF" || kind === "TRIGGER_SOURCE" || kind === "TRIGGER_TARGET";
+}
+
+/**
  * R-TGT-08「ステルス」#1〜#5: `order`適用後・`count`適用前の候補順に対し、
  * 第一優先対象（先頭）がStealth状態（`APPLY_STATUS`由来の`AppliedEffect`、
  * `statusKind === "STEALTH"`、R-ACTN-03）を持つ場合に限りそれを候補順の末尾へ
  * 移動する（非先頭のStealth所持者は順序を変更しない、#5）。TGT-004フェーズ2
  * （Issue #167、PR #236以降の再レビューを受け、フェーズ1でMarkerState経由の
  * 予約IDアプローチから`AppliedEffect.statusKind`ベースへ設計変更——`APPLY_STATUS`は
- * `MarkerState`ではなく`AppliedEffect`として保持するR-ACTN-03に合わせた）。
- * #6/#7（自身を対象とする自身のスキル／条件によって対象が1体に限定されている
- * 場合は適用しない）は、候補が2件未満の場合に必ず一致する — `kind: SELF`は常に
- * 候補1件（`pool = [actor]`）にしかならず、`TRIGGER_TARGET`のようなイベント
- * 由来の狭い候補集合も同様に1件へ収束しうるため、追加のkind分岐は不要
- * （`applyStealthRedirect`）。移動はStealthの消費（`resolveEffectSequence`の
- * 呼び出し元が`EffectExpired`/reason:"CONSUMPTION"として実際に失効させる、
- * `expireEffects`）を伴うが、この関数自体は純粋関数のため、消費対象
- * （`StealthConsumption`）を返すだけで`appliedEffects`を変更しない。
+ * `MarkerState`ではなく`AppliedEffect`として保持するR-ACTN-03に合わせた）。#6/#7
+ * は`isStructurallySingleCandidateKind`が真になるkindで、かつ候補が1件しかない
+ * 場合だけ適用しない。それ以外（候補2件以上、またはSELECT/BINDING_DERIVEDで
+ * 候補1件）は#2〜#4（Q-TGT-05「移動後に代替対象が存在しない場合は、ステルスを
+ * 消費したうえで元の対象へ発動する」を含む）へ進む（候補0件は`selected.length
+ * === 0`のfallback判定へ委ねるため、ここでは扱わない）。移動はStealthの消費
+ * （`resolveEffectSequence`の呼び出し元が`EffectExpired`/reason:"CONSUMPTION"
+ * として実際に失効させる、`expireEffects`）を伴うが、この関数自体は純粋関数の
+ * ため、消費対象（`StealthConsumption`）を返すだけで`appliedEffects`を変更しない。
  */
 function applyStealthRedirect(
   ordered: readonly BattleUnit[],
+  selectorKind: TargetSelectorDefinition["kind"],
   alreadyConsumedEffectInstanceIds: ReadonlySet<EffectInstanceId>,
 ): {
   readonly ordered: readonly BattleUnit[];
   readonly consumption?: StealthConsumption;
 } {
-  if (ordered.length < 2) {
+  if (ordered.length === 0) {
+    return { ordered };
+  }
+  // R-TGT-08 #6/#7: 候補が1件だけで、かつそれがselectorのkind自体によって構造的に
+  // 導かれた候補集合（SELF/TRIGGER_SOURCE/TRIGGER_TARGET）の場合は適用しない。
+  // 候補が2件以上ある場合や、候補が1件でもSELECT/BINDING_DERIVED（盤面依存）の
+  // 場合は、以降の通常処理（#2〜#4、Q-TGT-05の「代替対象なし」を含む）へ進む。
+  if (ordered.length === 1 && isStructurallySingleCandidateKind(selectorKind)) {
     return { ordered };
   }
   const [firstPriority, ...rest] = ordered as [BattleUnit, ...BattleUnit[]];
@@ -678,7 +699,11 @@ function resolveTargetsCore(
   // 候補数を変えないため、fallback判定（#7）は0/1件の場合と同じ結果になるここで行う。
   // R-TGT-08: Stealth所持者が第一優先対象の場合、候補順の末尾へ移動する。
   // 候補の集合・件数は変えないため、直後のcount適用・fallback判定（#6/#7）には影響しない。
-  const stealthResult = applyStealthRedirect(ordered, alreadyConsumedStealthEffectInstanceIds);
+  const stealthResult = applyStealthRedirect(
+    ordered,
+    selector.kind,
+    alreadyConsumedStealthEffectInstanceIds,
+  );
 
   // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
   // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
