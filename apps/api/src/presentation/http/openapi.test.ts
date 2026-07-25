@@ -873,6 +873,7 @@ describe("OpenAPI document", () => {
       EffectDurationReduced: true,
       EffectConsumptionChanged: true,
       EffectExpired: true,
+      EffectRemoved: true,
       MarkerApplied: true,
       MarkerUpdated: true,
       MarkerRemoved: true,

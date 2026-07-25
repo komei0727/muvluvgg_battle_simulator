@@ -6,7 +6,8 @@ import {
 } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
-import { removeMarkers } from "../effects/marker-removal-service.js";
+import { removeMarkers, reduceMarkerStack } from "../effects/marker-removal-service.js";
+import { removeEffects } from "../effects/effect-removal-service.js";
 import { recalculateCombatStats } from "../effects/combat-stat-recalculation-service.js";
 import {
   emitEffectConsumptionChangedEvents,
@@ -749,20 +750,34 @@ function* resolveOneEffectActionApplication(
     const existingMarker = target.markerStates.find(
       (marker) => marker.markerId === effectAction.payload.markerId,
     );
+    const removalContext = {
+      recorder: context.recorder,
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.actionScope,
+      rootEventId: context.rootEventId,
+    };
     if (existingMarker === undefined) {
       effectLastEventId = starting.eventId;
       resultKind = "SKIPPED";
+    } else if (effectAction.payload.count !== undefined) {
+      // M7-001（Issue #181、REMOVE_EFFECTS_COUNT_LIMIT）: 指定スタック数だけ部分解除。
+      const reduction = reduceMarkerStack(
+        removalContext,
+        box.units,
+        application.targetBattleUnitId,
+        effectAction.payload.markerId,
+        effectAction.payload.count,
+        starting.eventId,
+      );
+      box.units = reduction.units;
+      effectLastEventId = reduction.lastEventId;
+      resultKind = reduction.changed ? "APPLIED" : "SKIPPED";
     } else {
       const removalResult = removeMarkers(
-        {
-          recorder: context.recorder,
-          turnNumber: context.turnNumber,
-          cycleNumber: context.cycleNumber,
-          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-          skillUseId: context.skillUseId,
-          resolutionScopeId: context.actionScope,
-          rootEventId: context.rootEventId,
-        },
+        removalContext,
         box.units,
         [
           {
@@ -784,10 +799,60 @@ function* resolveOneEffectActionApplication(
     }
     resolvedCount = application.hits.length;
     interruptedCount = 0;
+  } else if (effectAction.kind === "REMOVE_EFFECTS") {
+    // R-EFF-02（M7-001、Issue #181）: 対象カテゴリに一致する`AppliedEffect`を
+    // 即時解除する（`effect-removal-service.ts`）。`REMOVE_EFFECTS_CATEGORY_GAP`の
+    // SHIELD/SUBUNITはシールド・サブユニットの実行時状態がまだモデル化されて
+    // いない（`CAP_SHIELD`=DMG-004、サブユニット=DMG-005、いずれも未着手）ため、
+    // 「解除対象が黙って存在しない」silent no-opへ退行させず、明示的に拒否する
+    // （`APPLY_STATUS`が非STEALTHを拒否するのと同じ方針）。
+    const unsupportedCategories = effectAction.payload.categories.filter(
+      (category) => category === "SHIELD" || category === "SUBUNIT",
+    );
+    if (unsupportedCategories.length > 0) {
+      throw new DomainValidationError(
+        "effectActionDefinitionId",
+        `REMOVE_EFFECTS categories ${unsupportedCategories.join("/")} are not yet supported by this resolver — shield/subunit runtime state is owned by DMG-004/DMG-005 (still open). M7-001 wires BUFF/DEBUFF/STATUS/DAMAGE_MOD/SPECIFIC_EFFECT removal only`,
+      );
+    }
+    const removal = removeEffects(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      application.targetBattleUnitId,
+      {
+        categories: effectAction.payload.categories,
+        ...(effectAction.payload.effectActionDefinitionIds !== undefined
+          ? { effectActionDefinitionIds: effectAction.payload.effectActionDefinitionIds }
+          : {}),
+        ...(effectAction.payload.maxRemovals !== undefined
+          ? { maxRemovals: effectAction.payload.maxRemovals }
+          : {}),
+      },
+      context.definitions.effectActions,
+      starting.eventId,
+    );
+    box.units = removal.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    }
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = removal.lastEventId;
+    resultKind = removal.removedCount > 0 ? "APPLIED" : "SKIPPED";
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

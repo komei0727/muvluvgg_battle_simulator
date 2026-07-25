@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyMarker } from "./marker-apply-service.js";
 import {
   emitMarkerDurationChangedEvents,
+  reduceMarkerStack,
   removeMarkers,
   type MarkerRemovalSeed,
 } from "./marker-removal-service.js";
@@ -106,6 +107,108 @@ describe("removeMarkers", () => {
       reason: "REMOVED",
       cascaded: false,
     });
+  });
+
+  it("UT-R-EFF-10-009b (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes only `count` stacks and emits MarkerUpdated when a positive stack remains", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const markerId = createMarkerId("MARKER_MAKENKI");
+
+    // Build up 5 stacks via ADD.
+    let units: readonly BattleUnit[] = [source, target];
+    let lastEventId: DomainEventId = rootEventId;
+    for (let i = 0; i < 5; i += 1) {
+      const granted = applyMarker(
+        context,
+        units,
+        {
+          markerId,
+          sourceId: source.battleUnitId,
+          targetId: target.battleUnitId,
+          stackPolicy: "ADD",
+          stackMax: null,
+          durationDefinition: BATTLE_DURATION,
+        },
+        lastEventId,
+      );
+      units = granted.units;
+      lastEventId = granted.lastEventId;
+    }
+
+    const before = recorder.getEvents().length;
+    const result = reduceMarkerStack(context, units, target.battleUnitId, markerId, 3, lastEventId);
+
+    expect(result.changed).toBe(true);
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(nextTarget.markerStates).toHaveLength(1);
+    expect(nextTarget.markerStates[0]!.stackCount).toBe(2);
+    const emitted = recorder.getEvents().slice(before);
+    expect(emitted.map((e) => e.eventType)).toEqual(["MarkerUpdated"]);
+    expect(emitted[0]!.payload).toMatchObject({ stackBefore: 5, stackAfter: 2 });
+  });
+
+  it("UT-R-EFF-10-009c (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes the instance (MarkerRemoved) when count meets or exceeds the stacks", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const markerId = createMarkerId("MARKER_MAKENKI");
+
+    const granted = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+      },
+      rootEventId,
+    );
+
+    const before = recorder.getEvents().length;
+    const result = reduceMarkerStack(
+      context,
+      granted.units,
+      target.battleUnitId,
+      markerId,
+      3,
+      granted.lastEventId,
+    );
+
+    expect(result.changed).toBe(true);
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(nextTarget.markerStates).toHaveLength(0);
+    expect(
+      recorder
+        .getEvents()
+        .slice(before)
+        .map((e) => e.eventType),
+    ).toEqual(["MarkerRemoved"]);
+  });
+
+  it("UT-R-EFF-10-009d: reduceMarkerStack is a no-op (changed=false) when the target does not hold the marker", () => {
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+
+    const before = recorder.getEvents().length;
+    const result = reduceMarkerStack(
+      context,
+      [target],
+      target.battleUnitId,
+      createMarkerId("MARKER_ABSENT"),
+      2,
+      rootEventId,
+    );
+
+    expect(result.changed).toBe(false);
+    expect(result.units).toEqual([target]);
+    expect(recorder.getEvents().slice(before)).toHaveLength(0);
   });
 
   it("UT-R-EFF-10-010: a linkedEffectGroupId PARENT MarkerState removal cascades to its CHILD MarkerState", () => {

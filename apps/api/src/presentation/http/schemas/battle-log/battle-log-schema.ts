@@ -1148,7 +1148,11 @@ const effectiveEffectChangedDetailsSchema = {
   },
 } as const;
 
-const COMBAT_STAT_CHANGE_REASON_ENUM = ["EFFECT_APPLIED", "EFFECT_EXPIRED"] as const;
+const COMBAT_STAT_CHANGE_REASON_ENUM = [
+  "EFFECT_APPLIED",
+  "EFFECT_EXPIRED",
+  "EFFECT_REMOVED",
+] as const;
 
 /** `CombatStatChanged`（R-STA-04）。実際に値が変わったstatごとに発行する。 */
 const combatStatChangedDetailsSchema = {
@@ -1218,6 +1222,32 @@ const effectExpiredDetailsSchema = {
     effectActionDefinitionId: { type: "string" },
     kindKey: { type: "string" },
     reason: { type: "string", enum: EFFECT_EXPIRATION_REASON_ENUM },
+    linkedEffectGroupId: { type: ["string", "null"] },
+    cascaded: { type: "boolean" },
+  },
+} as const;
+
+const EFFECT_REMOVAL_REASON_ENUM = ["REMOVED", "LINKED_GROUP_CASCADE"] as const;
+
+/** `EffectRemoved`（R-EFF-02/R-EFF-09、M7-001）。`REMOVE_EFFECTS`で`AppliedEffect`を解除した直後に発行する。`EffectExpired`と同じ形だが`reason`が解除固有。 */
+const effectRemovedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "battleUnitId",
+    "effectActionDefinitionId",
+    "kindKey",
+    "reason",
+    "linkedEffectGroupId",
+    "cascaded",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    battleUnitId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    kindKey: { type: "string" },
+    reason: { type: "string", enum: EFFECT_REMOVAL_REASON_ENUM },
     linkedEffectGroupId: { type: ["string", "null"] },
     cascaded: { type: "boolean" },
   },
@@ -1375,6 +1405,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,
   EFFECT_CONSUMPTION_CHANGED: effectConsumptionChangedDetailsSchema,
   EFFECT_EXPIRED: effectExpiredDetailsSchema,
+  EFFECT_REMOVED: effectRemovedDetailsSchema,
   MARKER_APPLIED: markerAppliedDetailsSchema,
   MARKER_UPDATED: markerUpdatedDetailsSchema,
   MARKER_REMOVED: markerRemovedDetailsSchema,

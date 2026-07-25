@@ -542,6 +542,23 @@ export interface BattleDomainEventPayloadMap {
     readonly cascaded: boolean;
   };
   /**
+   * `08_ドメインイベント.md`「効果イベント」EffectRemoved（R-EFF-02）: `REMOVE_EFFECTS`
+   * による明示的な効果解除で`AppliedEffect`を除去した直後に発行する。時間制限・
+   * 消費・特殊失効による自然失効（`EffectExpired`）とは区別する — 解除は外部
+   * スキルが能動的に取り除いた事実を表す。`MarkerRemoved`と同じく、R-EFF-09の
+   * `linkedEffectGroupId`カスケードで巻き込まれた子効果は`cascaded: true`/
+   * `reason: LINKED_GROUP_CASCADE`として同じ種別で表す（子を先に、親を後に発行）。
+   */
+  readonly EffectRemoved: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly battleUnitId: BattleUnitId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly kindKey: string;
+    readonly reason: EffectRemovalReason;
+    readonly linkedEffectGroupId: string | null;
+    readonly cascaded: boolean;
+  };
+  /**
    * `08_ドメインイベント.md`「Markerイベント」/R-EFF-10: 新しい`MarkerState`
    * インスタンスを追加した直後に発行する（ADD/KEEP_EXISTING/REFRESH/REPLACEの
    * いずれも、既存Markerが無い場合はこのイベントになる）。`EffectApplied`と同じ
@@ -623,7 +640,7 @@ export interface BattleDomainEventPayloadMap {
  * 「メモリー効果の有効/無効条件の変化」はRES-005のスコープで到達可能になった
  * 時点で追加する。
  */
-export type CombatStatChangeReason = "EFFECT_APPLIED" | "EFFECT_EXPIRED";
+export type CombatStatChangeReason = "EFFECT_APPLIED" | "EFFECT_EXPIRED" | "EFFECT_REMOVED";
 
 /**
  * `07_戦闘ルール詳細.md` R-EFF-04/06/07/08/09: 効果インスタンスが失効した理由。
@@ -649,6 +666,15 @@ export type MarkerRemovalReason =
   | "CONSUMPTION"
   | "EXPIRATION_CONDITION"
   | "LINKED_GROUP_CASCADE";
+
+/**
+ * `07_戦闘ルール詳細.md` R-EFF-02/R-EFF-09: `AppliedEffect`が`REMOVE_EFFECTS`で
+ * 解除された理由。`REMOVED`は解除スキルが直接対象にしたインスタンス、
+ * `LINKED_GROUP_CASCADE`は`linkedEffectGroupId`を共有する親の解除に連動した
+ * 子効果（`cascaded: true`）。時間制限・消費・特殊失効による自然失効は
+ * `EffectExpired`（`EffectExpirationReason`）が表し、この型には含めない。
+ */
+export type EffectRemovalReason = "REMOVED" | "LINKED_GROUP_CASCADE";
 
 /**
  * `08_ドメインイベント.md`「EffectActionCompleted payload」。M6時点では

@@ -1104,12 +1104,12 @@ payload:
   maxBlocks: null
 ```
 
-| フィールド                  | 型                 | 制約                                                              |
-| --------------------------- | ------------------ | ----------------------------------------------------------------- |
-| `categories`                | enum[]             | `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SPECIFIC_EFFECT` |
-| `effectActionDefinitionIds` | string[]           | `SPECIFIC_EFFECT` の場合に対象IDを指定                            |
-| `duration`                  | DurationDefinition | 省略時は即時効果として不正                                        |
-| `maxBlocks`                 | integer/null       | null = 期間中は上限なし                                           |
+| フィールド                  | 型                 | 制約                                                                                              |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| `categories`                | enum[]             | `BUFF` / `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT` / `SPECIFIC_EFFECT` |
+| `effectActionDefinitionIds` | string[]           | `SPECIFIC_EFFECT` の場合に対象IDを指定                                                            |
+| `duration`                  | DurationDefinition | 省略時は即時効果として不正                                                                        |
+| `maxBlocks`                 | integer/null       | null = 期間中は上限なし                                                                           |
 
 `EFFECT_IMMUNITY` により付与を拒否した場合は `EffectApplicationRejected` を発行する。
 
@@ -1124,12 +1124,15 @@ payload:
     - DEBUFF
 ```
 
-| フィールド                  | 型       | 制約                                                                       |
-| --------------------------- | -------- | -------------------------------------------------------------------------- |
-| `categories`                | enum[]   | `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SPECIFIC_EFFECT`。1件以上 |
-| `effectActionDefinitionIds` | string[] | `SPECIFIC_EFFECT` の場合に対象IDを指定                                     |
+| フィールド                  | 型       | 制約                                                                                                       |
+| --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `categories`                | enum[]   | `BUFF` / `DEBUFF` / `STATUS` / `MARKER` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT` / `SPECIFIC_EFFECT`。1件以上 |
+| `effectActionDefinitionIds` | string[] | `SPECIFIC_EFFECT` の場合に対象IDを指定                                                                     |
+| `maxRemovals`               | integer? | 解除件数の上限（M7-001、`REMOVE_EFFECTS_COUNT_LIMIT`）。省略時は該当カテゴリの全件を解除する。1以上        |
 
-`duration` を持たない即時効果である点が `EFFECT_IMMUNITY` との違い。`Marker` の解除は既存の `REMOVE_MARKER`（`markerId` 指定）を使う。
+`duration` を持たない即時効果である点が `EFFECT_IMMUNITY` との違い。`Marker` の解除は既存の `REMOVE_MARKER`（`markerId` 指定。M7-001で `count?`（解除スタック数の上限、省略時は全スタック解除）を追加）を使う。
+
+M7-001（Issue #181）で `BUFF`（`REMOVE_BUFF_CATEGORY`）・`SHIELD`・`SUBUNIT`（`REMOVE_EFFECTS_CATEGORY_GAP`）を `categories` へ追加した。バフ/デバフ判定は R-EFF-05「バフは正の効果量、デバフは弱化量」に従い符号付き効果量から導き、状態異常（`STATUS`）は R-STS-01 により `DEBUFF` も兼ねる（`effect-category-classifier.ts`）。解除優先順が定義されていない場合の既定は付与順の古い順とする（R-EFF-02 #3）。`SHIELD`/`SUBUNIT` はシールド/サブユニットの実行時状態が未モデル化（`CAP_SHIELD`=DMG-004、サブユニット=DMG-005）のため、Battle Engine は実行時に明示的に拒否する。
 
 `REMOVE_EFFECTS` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_REMOVE_EFFECTS` を含めること。Battle Engineが未実装のkindは、Capabilityで隔離しないと preflight（`SimulationPreflightValidator`、`09_アプリケーション設計.md`）を素通りしてしまう。
 

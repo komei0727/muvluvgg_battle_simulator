@@ -84,11 +84,21 @@ export type EventCategory = "FACT" | "TIMING";
 
 export type ActionKind = "DAMAGE" | "DEBUFF" | "ANY";
 
+/**
+ * `REMOVE_EFFECTS`/`EFFECT_IMMUNITY`が共有する「どの種類の効果を対象にするか」の
+ * 分類軸（`14_Catalog定義スキーマ.md`、R-EFF-02/03）。M7-001（Issue #181）で
+ * `BUFF`（`DEBUFF`の対になる正の効果全体、`REMOVE_BUFF_CATEGORY`）・`SHIELD`・
+ * `SUBUNIT`（`REMOVE_EFFECTS_CATEGORY_GAP`）を追加した。名称は歴史的経緯で
+ * `EffectImmunity*`のままだが、両kindの`categories`列挙として機能する。
+ */
 export type EffectImmunityCategory =
+  | "BUFF"
   | "DEBUFF"
   | "STATUS"
   | "MARKER"
   | "DAMAGE_MOD"
+  | "SHIELD"
+  | "SUBUNIT"
   | "SPECIFIC_EFFECT";
 
 export type MarkerStackPolicy = "ADD" | "KEEP_EXISTING" | "REFRESH" | "REPLACE";

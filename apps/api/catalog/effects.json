@@ -3875,7 +3875,7 @@
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_PS1_REMOVE_DEBUFF",
     "kind": "REMOVE_EFFECTS",
-    "payload": { "categories": ["DEBUFF"] },
+    "payload": { "categories": ["DEBUFF"], "maxRemovals": 5 },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
@@ -4745,7 +4745,7 @@
   {
     "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_CLEANSE",
     "kind": "REMOVE_EFFECTS",
-    "payload": { "categories": ["DEBUFF"] },
+    "payload": { "categories": ["BUFF", "DEBUFF"] },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
@@ -5329,7 +5329,7 @@
   {
     "effectActionDefinitionId": "ACT_MIHIME_SNIPER_PS1_REMOVE_DEBUFF",
     "kind": "REMOVE_EFFECTS",
-    "payload": { "categories": ["DEBUFF"] },
+    "payload": { "categories": ["DEBUFF"], "maxRemovals": 3 },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },

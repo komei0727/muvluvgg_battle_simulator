@@ -490,9 +490,10 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
     const holder = units.find((u) => u.battleUnitId === owner.battleUnitId)!;
     expect(holder.appliedEffects).toHaveLength(2);
 
-    // Simulate the ATKDOWN parent expiring (its own trigger — dispel/
-    // REMOVE_EFFECTS, R-EFF-02 — is M7-001 scope, not yet implemented; this
-    // proves the cascade mechanism itself against the real linkedGroup data).
+    // Simulate the ATKDOWN parent expiring via TIME_LIMIT. Active removal
+    // (dispel/REMOVE_EFFECTS, R-EFF-02) is now implemented in M7-001, but this
+    // test deliberately drives the parent's expiry through TIME_LIMIT to prove
+    // the linkedGroup cascade mechanism itself against the real linkedGroup data.
     const expiry = expireEffects(
       context,
       units,

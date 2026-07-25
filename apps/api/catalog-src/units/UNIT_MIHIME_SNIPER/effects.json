@@ -234,7 +234,8 @@
     "effectActionDefinitionId": "ACT_MIHIME_SNIPER_PS1_REMOVE_DEBUFF",
     "kind": "REMOVE_EFFECTS",
     "payload": {
-      "categories": ["DEBUFF"]
+      "categories": ["DEBUFF"],
+      "maxRemovals": 3
     },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
