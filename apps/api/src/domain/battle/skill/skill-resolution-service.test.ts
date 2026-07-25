@@ -10,8 +10,10 @@ import {
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -55,6 +57,23 @@ function unit(
     },
   };
   return { ...createBattleUnit(member, side, LIMITS), ...overrides };
+}
+
+/** TGT-004フェーズ2（Issue #167）: `statusKind: "STEALTH"`を持つ`AppliedEffect`。 */
+function stealthEffect(targetId: string): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId("ACT_STEALTH_TEST");
+  return {
+    effectInstanceId: createEffectInstanceId(`ei-stealth-${targetId}`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: createBattleUnitId(targetId),
+    targetId: createBattleUnitId(targetId),
+    magnitude: 0,
+    statusKind: "STEALTH",
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
 }
 
 function damageAction(id: string, hitCount = 1): EffectActionDefinition {
@@ -869,5 +888,96 @@ describe("resolveChargeReleaseOrder", () => {
     expect(() => resolveChargeReleaseOrder(skill, actor, [actor], new Map())).toThrow(
       DomainValidationError,
     );
+  });
+});
+
+describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Issue #167, Phase 2: AppliedEffect-based)", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-010: a targetBinding whose first-priority candidate holds Stealth surfaces a stealthConsumption on the plan, and resolves to the redirected candidate", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const nearestEnemy = unit(
+      "NEAREST",
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      { appliedEffects: [stealthEffect("NEAREST")] },
+    );
+    const fartherEnemy = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: createTargetBindingId("TGT_1"),
+          selector: { ...ENEMY_ALL_SELECTOR, count: 1 },
+        },
+      ],
+      steps: [],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor, nearestEnemy, fartherEnemy], new Map());
+
+    expect(plan.stealthConsumptions).toEqual([
+      {
+        battleUnitId: createBattleUnitId("NEAREST"),
+        effectInstanceId: createEffectInstanceId("ei-stealth-NEAREST"),
+      },
+    ]);
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_1"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("FARTHER")]);
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-011: no Stealth holder means an empty stealthConsumptions array", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor, enemy], new Map());
+
+    expect(plan.stealthConsumptions).toEqual([]);
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-012 (R-TGT-10 definition order / R-TGT-08 #2 consume-on-first-priority): two targetBindings that both pick the same Stealth holder as first priority only redirect and consume once — the later binding sees the holder as no longer Stealthed", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const nearestEnemy = unit(
+      "NEAREST",
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      { appliedEffects: [stealthEffect("NEAREST")] },
+    );
+    const fartherEnemy = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: createTargetBindingId("TGT_1"),
+          selector: { ...ENEMY_ALL_SELECTOR, count: 1 },
+        },
+        {
+          targetBindingId: createTargetBindingId("TGT_2"),
+          selector: { ...ENEMY_ALL_SELECTOR, count: 1 },
+        },
+      ],
+      steps: [],
+    });
+
+    const plan = resolveSkillOrder(skill, actor, [actor, nearestEnemy, fartherEnemy], new Map());
+
+    expect(plan.stealthConsumptions).toEqual([
+      {
+        battleUnitId: createBattleUnitId("NEAREST"),
+        effectInstanceId: createEffectInstanceId("ei-stealth-NEAREST"),
+      },
+    ]);
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_1"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("FARTHER")]);
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_2"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("NEAREST")]);
   });
 });

@@ -399,7 +399,40 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-TGT-07-001", "UT-R-TGT-07-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
-  { ruleId: "R-TGT-08", testCaseIds: [], kinds: [] },
+  // TGT-004フェーズ2（Issue #167）: 第一優先対象がStealth状態（`APPLY_STATUS`由来の
+  // `AppliedEffect`、`statusKind === "STEALTH"`、R-ACTN-03）を持つ場合に候補順の
+  // 末尾へ移動し、消費する（#1〜#5、target-selection-policy.tsの
+  // `applyStealthRedirect`）。移動後に代替対象がいない場合も消費したうえで
+  // 元の対象へ発動する（#4、Q-TGT-05）。候補が2件未満（`kind: SELF`常時／
+  // イベント由来の狭い候補集合）の場合は適用しない（#6/#7）。同じEffectSequence内の
+  // 複数targetBindingsが同じStealth所持者を第一優先対象に選ぶ場合、最初のbindingでのみ
+  // 移動・消費が成立する（R-TGT-10定義順評価）。実消費（`EffectExpired`/
+  // reason:"CONSUMPTION"）は`EffectSequencePlan.stealthConsumptions`
+  // （`resolveEffectSequence`が集約）を`resolveEffectSequencePlan`がstep解決開始前に
+  // 一括で`expireEffects`により適用する——フェーズ1で予約`MarkerId`（`MARKER_STEALTH`）
+  // による近似を採用したが、PR #234再レビューでQ-ACTN-03の`APPLY_STATUS`は
+  // `AppliedEffect`として保持するという決定仕様と整合しないと指摘され、
+  // `AppliedEffect.statusKind`ベースへ設計変更した。production Catalogで実際に
+  // `APPLY_STATUS`/`STEALTH`を付与するresolver・実ライフサイクル統合はフェーズ3
+  // （production Catalog完全変換）のスコープ。
+  {
+    ruleId: "R-TGT-08",
+    testCaseIds: [
+      "UT-R-TGT-08-001",
+      "UT-R-TGT-08-002",
+      "UT-R-TGT-08-003",
+      "UT-R-TGT-08-004",
+      "UT-R-TGT-08-005",
+      "UT-R-TGT-08-006",
+      "UT-R-TGT-08-007",
+      "UT-SKILL-RESOLUTION-SERVICE-010",
+      "UT-SKILL-RESOLUTION-SERVICE-011",
+      "UT-SKILL-RESOLUTION-SERVICE-012",
+      "UT-SKILL-RESOLUTION-SERVICE-013",
+      "UT-SKILL-RESOLUTION-SERVICE-014",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // Issue #170 (TGT-001)で`kind`評価(SELF/SELECT/BINDING_DERIVED)・戦闘不能除外・
   // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
   // SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE)・orderの評価順を実装した（回帰検証は
