@@ -80,7 +80,7 @@ describe("buildInitialDurationState", () => {
     expect(state.grantedActionId).toBeUndefined();
   });
 
-  it("UT-R-EFF-01-008 (TGT-004 Phase 1, Issue #167): sets timeLimitRemaining and grantedSkillUseId for a SKILL_USE-unit duration", () => {
+  it("UT-R-EFF-01-035 (TGT-004 Phase 1, Issue #167): sets timeLimitRemaining and grantedSkillUseId for a SKILL_USE-unit duration", () => {
     const definition: DurationDefinition = {
       timeLimit: { unit: "SKILL_USE", count: 3 },
       dispellable: true,
@@ -96,7 +96,7 @@ describe("buildInitialDurationState", () => {
     expect(state.grantedTurnNumber).toBeUndefined();
   });
 
-  it("UT-R-EFF-01-009 (TGT-004 Phase 1, Issue #167): does not set grantedSkillUseId for a SKILL_USE-unit duration granted outside a skill use", () => {
+  it("UT-R-EFF-01-036 (TGT-004 Phase 1, Issue #167): does not set grantedSkillUseId for a SKILL_USE-unit duration granted outside a skill use", () => {
     const definition: DurationDefinition = {
       timeLimit: { unit: "SKILL_USE", count: 3 },
       dispellable: true,

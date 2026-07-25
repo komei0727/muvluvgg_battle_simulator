@@ -113,12 +113,15 @@ export interface AppliedEffect {
   /** 効果量。符号付き（バフは正、デバフは負）。 */
   readonly magnitude: number;
   /**
-   * TGT-004フェーズ1（Issue #167、PR #234再レビュー）: `APPLY_STATUS`由来の
+   * TGT-004フェーズ1（Issue #167、PR #234/#236再レビュー）: `APPLY_STATUS`由来の
    * `AppliedEffect`だけが持つ、R-ACTN-03の分類（`StatusKind`）。他のkind
-   * （`APPLY_STAT_MOD`等）由来の`AppliedEffect`は`undefined`のまま。同じ対象・
-   * 同じ`statusKind`の再付与は新規インスタンスを追加せず、既存インスタンスの
-   * 期間を更新する（`status-grant-service.ts`、`marker-apply-service.ts`の
-   * REFRESHスタック方針と同じ規約）。
+   * （`APPLY_STAT_MOD`等）由来の`AppliedEffect`は`undefined`のまま。Q-EFF-10
+   * 「重複あり・重複なしのどちらも、効果インスタンスと効果期間を個別に保持する。
+   * 再付与によって既存インスタンスの期間を上書きしない」により、同じ対象・同じ
+   * `statusKind`への再付与も他の`APPLY_STATUS`種別（R-STS-02〜04の気絶・凍結・
+   * 暗闇はそれぞれ異なる再付与規則を持つ）と同様に常に新規インスタンスを追加する
+   * — Stealth固有の再付与規則（PR #234レビューで候補に挙がったREFRESH相当）は、
+   * 対応するQ項目が決定されるまで導入しない（PR #236再レビュー[P1]）。
    */
   readonly statusKind?: StatusKind;
   readonly duration: EffectDurationState;

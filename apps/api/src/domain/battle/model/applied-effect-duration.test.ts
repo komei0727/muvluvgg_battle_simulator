@@ -371,7 +371,7 @@ describe("decrementActionEffectDurations", () => {
 });
 
 describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167, PR #234再レビュー)", () => {
-  it("UT-R-EFF-01-010: does not decrement on the same skill use the effect was granted in", () => {
+  it("UT-R-EFF-01-037: does not decrement on the same skill use the effect was granted in", () => {
     const source = unit("source-1");
     let target = unit("target-1");
     const grantingSkillUseId = createSkillUseId("B_1:skill-use:1");
@@ -408,7 +408,7 @@ describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167, PR #234
     expect(updated.appliedEffects[0]!.duration.timeLimitRemaining).toBe(3);
   });
 
-  it("UT-R-EFF-01-011: decrements by 1 when the owner (EFFECT_TARGET) completes a later skill use, not on other units' skill uses", () => {
+  it("UT-R-EFF-01-038: decrements by 1 when the owner (EFFECT_TARGET) completes a later skill use, not on other units' skill uses", () => {
     const source = unit("source-1");
     let target = unit("target-1");
     const grantingSkillUseId = createSkillUseId("B_1:skill-use:1");
@@ -460,7 +460,7 @@ describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167, PR #234
     expect(updated.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
   });
 
-  it("UT-R-EFF-01-012: ignores ACTION/TURN-unit and battle-persistent effects", () => {
+  it("UT-R-EFF-01-039: ignores ACTION/TURN-unit and battle-persistent effects", () => {
     const source = unit("source-1");
     let target = unit("target-1");
     const actionEffect = effectOn(target, source, {

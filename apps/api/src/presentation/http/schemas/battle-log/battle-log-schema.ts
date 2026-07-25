@@ -1164,15 +1164,15 @@ const combatStatChangedDetailsSchema = {
   },
 } as const;
 
-/** `EffectDurationReduced`（R-EFF-04/06、EFF-003）。行動・ターン単位効果の残り回数を1減らすたびに発行する。 */
-const effectDurationReducedDetailsSchema = {
+/** `EffectDurationReduced`（R-EFF-04/06、EFF-003。TGT-004フェーズ1/Issue #167でSKILL_USE単位を追加）。行動・ターン・スキル使用単位効果の残り回数を1減らすたびに発行する。 */
+export const effectDurationReducedDetailsSchema = {
   type: "object",
   additionalProperties: false,
   required: ["effectInstanceId", "battleUnitId", "unit", "before", "after"],
   properties: {
     effectInstanceId: { type: "string" },
     battleUnitId: { type: "string" },
-    unit: { type: "string", enum: ["ACTION", "TURN"] },
+    unit: { type: "string", enum: ["ACTION", "TURN", "SKILL_USE"] },
     before: { type: "integer", minimum: 0 },
     after: { type: "integer", minimum: 0 },
   },
@@ -1197,7 +1197,6 @@ const EFFECT_EXPIRATION_REASON_ENUM = [
   "CONSUMPTION",
   "EXPIRATION_CONDITION",
   "LINKED_GROUP_CASCADE",
-  "REFRESHED",
 ] as const;
 
 /** `EffectExpired`（R-EFF-04/06/07/08/09、EFF-003）。効果インスタンスの失効直後に発行する。 */

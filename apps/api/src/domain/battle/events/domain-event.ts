@@ -627,19 +627,12 @@ export type CombatStatChangeReason = "EFFECT_APPLIED" | "EFFECT_EXPIRED";
  * `LINKED_GROUP_CASCADE`は、自身は時間制限・消費・特殊失効のいずれにも達して
  * いないが、`linkedEffectGroupId`を共有する親効果の失効・解除に連動して失効
  * した子効果自身の理由（`EffectExpired.cascaded`も併せて`true`にする）。
- * `REFRESHED`（TGT-004フェーズ1、Issue #167、PR #234再レビュー）は
- * `APPLY_STATUS`が同一対象・同一`statusKind`へ再付与された際、既存インスタンス
- * を新しい期間で作り直す（`status-grant-service.ts`）ために、その場でだけ
- * 古いインスタンスを失効させる理由 — `marker-apply-service.ts`のREFRESHスタック
- * 方針と同じ意味（`MarkerState`は専用イベントに統合するが、`AppliedEffect`は
- * 既存の`EffectExpired`＋新規`EffectApplied`の組み合わせで表す）。
  */
 export type EffectExpirationReason =
   | "TIME_LIMIT"
   | "CONSUMPTION"
   | "EXPIRATION_CONDITION"
-  | "LINKED_GROUP_CASCADE"
-  | "REFRESHED";
+  | "LINKED_GROUP_CASCADE";
 
 /**
  * `07_戦闘ルール詳細.md` R-EFF-10: `MarkerState`が除去された理由。`REMOVED`は

@@ -6,10 +6,12 @@ import {
   battleSimulationResponseSchema,
   battleSimulationResponseDocSchema,
   cooldownStateResponseSchema,
+  effectStateResponseSchema,
 } from "./schemas/simulation/simulation-schema.js";
 import {
   battleLogEventResponseDocSchema,
   runtimeCounterChangedDetailsSchema,
+  effectDurationReducedDetailsSchema,
 } from "./schemas/battle-log/battle-log-schema.js";
 import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 import type { BattleSimulationResponseBody } from "../../application/contracts/response.js";
@@ -966,5 +968,37 @@ describe("OpenAPI document", () => {
     // Mismatched: SKILL_RUNTIME scope carrying the APPLIED_EFFECT-shaped id instead.
     const { skillDefinitionId: _omitted3, ...skillRuntimeBase } = skillRuntime;
     expect(validate({ ...skillRuntimeBase, effectInstanceId: "battle-1:effect:1" })).toBe(false);
+  });
+
+  it("API-OPENAPI-013 (TGT-004 Phase 1, Issue #167, PR #236再レビュー[P1]): effectStateResponseSchema/effectDurationReducedDetailsSchema accept duration.unit: SKILL_USE, matching the Domain EffectSnapshot/EffectDurationReduced types widened for SKILL_USE decrement", () => {
+    const ajv = new Ajv({ strict: false });
+    const validateEffectState = ajv.compile(effectStateResponseSchema);
+    const validateDurationReduced = ajv.compile(effectDurationReducedDetailsSchema);
+
+    expect(
+      validateEffectState({
+        effectInstanceId: "battle-1:effect:1",
+        effectDefinitionId: "ACT_STEALTH",
+        category: "BUFF",
+        effectKindKey: "ACT_STEALTH",
+        stackMode: "NON_STACKING",
+        isEffective: true,
+        value: {},
+        duration: { unit: "SKILL_USE", remaining: 3 },
+        appliedTurnNumber: 1,
+      }),
+      JSON.stringify(validateEffectState.errors),
+    ).toBe(true);
+
+    expect(
+      validateDurationReduced({
+        effectInstanceId: "battle-1:effect:1",
+        battleUnitId: "unit-1",
+        unit: "SKILL_USE",
+        before: 3,
+        after: 2,
+      }),
+      JSON.stringify(validateDurationReduced.errors),
+    ).toBe(true);
   });
 });
