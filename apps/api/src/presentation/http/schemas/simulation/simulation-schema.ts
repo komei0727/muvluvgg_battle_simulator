@@ -262,7 +262,7 @@ const subUnitStateResponseSchema = {
  * （`10_API設計.md`「`effectKindKey`を`value`の判別子として使用し、
  * 効果種別ごとの`value`SchemaはOpenAPIのoneOfで定義する」はM7時点の完成形）。
  */
-const effectStateResponseSchema = {
+export const effectStateResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -289,7 +289,7 @@ const effectStateResponseSchema = {
       additionalProperties: false,
       required: ["unit", "remaining"],
       properties: {
-        unit: { type: "string", enum: ["ACTION", "TURN"] },
+        unit: { type: "string", enum: ["ACTION", "TURN", "SKILL_USE"] },
         remaining: { type: "integer", minimum: 0 },
       },
     },

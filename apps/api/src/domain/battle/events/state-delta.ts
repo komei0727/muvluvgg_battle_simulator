@@ -52,9 +52,10 @@ export interface ChargeState {
  * wire変換でありResponse Mapperの責務）。`isEffective`はR-EFF-05の選択結果
  * （`effective-effect-selector.ts`）— 重複あり効果は常に`true`、重複なし効果は
  * 同種グループの最強1件だけが`true`になる。`duration`は
- * `AppliedEffect.duration.definition.timeLimit.unit`が`ACTION`/`TURN`の場合だけ
- * 持つ（`10_API設計.md`の`EffectStateResponse.duration`が表現できる範囲、
- * `BATTLE`/`HIT`/`SKILL_USE`は対象外）。`consumptionRemaining`（EFF-003、
+ * `AppliedEffect.duration.definition.timeLimit.unit`が`ACTION`/`TURN`/`SKILL_USE`
+ * の場合だけ持つ（`10_API設計.md`の`EffectStateResponse.duration`が表現できる
+ * 範囲。TGT-004フェーズ1、Issue #167、PR #234再レビューで`SKILL_USE`を追加した
+ * — `BATTLE`/`HIT`は引き続き対象外）。`consumptionRemaining`（EFF-003、
  * R-EFF-07）は`10_API設計.md`の`EffectStateResponse`が公開契約として持たない
  * 内部専用フィールド — `EffectConsumptionChanged`のstateDelta・独立Reducer
  * 復元のためだけに保持する。
@@ -67,7 +68,10 @@ export interface EffectSnapshot {
   readonly duplicate: boolean;
   readonly isEffective: boolean;
   readonly magnitude: number;
-  readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
+  readonly duration?: {
+    readonly unit: "ACTION" | "TURN" | "SKILL_USE";
+    readonly remaining: number;
+  };
   readonly consumptionRemaining?: number;
   readonly appliedTurnNumber: number;
   readonly appliedActionId?: ActionId;
@@ -91,7 +95,9 @@ export interface EffectSnapshot {
 export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): EffectSnapshot {
   const timeLimit = effect.duration.definition.timeLimit;
   const duration =
-    (timeLimit?.unit === "ACTION" || timeLimit?.unit === "TURN") &&
+    (timeLimit?.unit === "ACTION" ||
+      timeLimit?.unit === "TURN" ||
+      timeLimit?.unit === "SKILL_USE") &&
     effect.duration.timeLimitRemaining !== undefined
       ? { unit: timeLimit.unit, remaining: effect.duration.timeLimitRemaining }
       : undefined;

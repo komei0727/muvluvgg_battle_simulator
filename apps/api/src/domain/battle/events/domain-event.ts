@@ -506,7 +506,7 @@ export interface BattleDomainEventPayloadMap {
   readonly EffectDurationReduced: {
     readonly effectInstanceId: EffectInstanceId;
     readonly battleUnitId: BattleUnitId;
-    readonly unit: Extract<DurationTimeUnit, "ACTION" | "TURN">;
+    readonly unit: Extract<DurationTimeUnit, "ACTION" | "TURN" | "SKILL_USE">;
     readonly before: number;
     readonly after: number;
   };

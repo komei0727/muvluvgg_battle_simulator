@@ -1117,6 +1117,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-01-020",
       "UT-R-EFF-01-021",
       "UT-R-EFF-01-022",
+      // TGT-004フェーズ1（Issue #167、PR #236再レビュー[P2]）: SKILL_USE単位の
+      // grantedSkillUseId初期化・減算（applied-effect.ts/applied-effect-duration.ts）。
+      "UT-R-EFF-01-035",
+      "UT-R-EFF-01-036",
+      "UT-R-EFF-01-037",
+      "UT-R-EFF-01-038",
+      "UT-R-EFF-01-039",
+      "UT-R-EFF-01-040",
+      "UT-R-EFF-01-041",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
