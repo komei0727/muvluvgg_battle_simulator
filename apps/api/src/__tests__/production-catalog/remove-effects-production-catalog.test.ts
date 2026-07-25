@@ -9,6 +9,14 @@ import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import { toEffectSnapshot } from "../../domain/battle/events/state-delta.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../domain/battle/model/applied-effect.js";
+import { createEffectInstanceId } from "../../domain/shared/event-ids.js";
 
 /**
  * M7-001 (Issue #181, R-EFF-02): exercises REAL production `catalog/`
@@ -221,5 +229,95 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
     expect(result.removedCount).toBe(2);
     const holder = result.units.find((u) => u.battleUnitId === owner.battleUnitId)!;
     expect(holder.appliedEffects).toHaveLength(0);
+  });
+
+  it("IT-REMOVE-EFFECTS-PROD-003 (Issue #181 DoD, independent Reducer restoration): applying the EffectRemoved + CombatStatChanged StateDeltas to the initial snapshot reconstructs the final live state", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const snapshot = catalog.loadSnapshot(["UNIT_MAO_COMMITTEE" as never], []);
+    const cleanse = snapshot.effectActions.get("ACT_MAO_COMMITTEE_PS2_CLEANSE" as never);
+    expect(cleanse?.kind).toBe("REMOVE_EFFECTS");
+    if (cleanse?.kind !== "REMOVE_EFFECTS") {
+      return;
+    }
+
+    // Owner already carries a +20 ATTACK buff whose contribution is reflected in
+    // its live combatStats (100 base -> 120). Removing it must both drop the
+    // effect and revert the stat; both are captured as StateDeltas.
+    const buffDefId = "ACT_TEST_ATK_BUFF" as EffectActionDefinition["effectActionDefinitionId"];
+    const buffDef: EffectActionDefinition = {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: buffDefId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 20 },
+        stacking: { mode: "STACKABLE" },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    };
+    const base = actorFor("UNIT_MAO_COMMITTEE", "B_1:unit:1");
+    const buff: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("buff-1"),
+      effectActionDefinitionId: buffDefId,
+      kindKey: effectKindKeyFromDefinitionId(buffDefId),
+      duplicate: true,
+      sourceId: base.battleUnitId,
+      targetId: base.battleUnitId,
+      magnitude: 20,
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 0,
+    };
+    const owner: BattleUnit = {
+      ...base,
+      appliedEffects: [buff],
+      combatStats: { ...base.combatStats, attack: base.combatStats.attack + 20 },
+    };
+
+    const snapshotOf = (units: readonly BattleUnit[]): BattleStateSnapshot => ({
+      status: "RUNNING",
+      currentTurn: 1,
+      units: Object.fromEntries(
+        units.map((unit) => [
+          unit.battleUnitId,
+          {
+            hp: unit.currentHp,
+            ap: unit.currentAp,
+            pp: unit.currentPp,
+            extraGauge: unit.currentExtraGauge,
+            combatStats: unit.combatStats,
+            ...(unit.appliedEffects.length > 0
+              ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
+              : {}),
+          },
+        ]),
+      ),
+    });
+
+    const { recorder, context } = newContext();
+    const initial = snapshotOf([owner]);
+    const before = recorder.getEvents().length;
+    const result = removeEffects(
+      context,
+      [owner],
+      owner.battleUnitId,
+      { categories: cleanse.payload.categories },
+      new Map([[buffDefId, buffDef]]),
+      context.rootEventId,
+    );
+
+    // Independent restoration: only the StateDeltas emitted by the removal.
+    const deltas = recorder
+      .getEvents()
+      .slice(before)
+      .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta]));
+    const reconstructed = reduceStateDeltas(initial, deltas);
+
+    expect(reconstructed).toEqual(snapshotOf(result.units));
+    expect(reconstructed.units[owner.battleUnitId]?.effects).toBeUndefined();
+    expect(reconstructed.units[owner.battleUnitId]?.combatStats.attack).toBe(
+      base.combatStats.attack,
+    );
   });
 });

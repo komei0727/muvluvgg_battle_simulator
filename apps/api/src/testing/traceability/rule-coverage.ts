@@ -1225,6 +1225,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-022",
       "IT-REMOVE-EFFECTS-PROD-001",
       "IT-REMOVE-EFFECTS-PROD-002",
+      "IT-REMOVE-EFFECTS-PROD-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

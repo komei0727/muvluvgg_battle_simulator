@@ -1183,22 +1183,6 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-065: maps REMOVE_EFFECTS with SHIELD and SUBUNIT categories (REMOVE_EFFECTS_CATEGORY_GAP, schema-level)", () => {
-    const result = createEffectActionDefinition(
-      {
-        effectActionDefinitionId: "ACT_REMOVE_SHIELD_SUBUNIT",
-        kind: "REMOVE_EFFECTS",
-        payload: { categories: ["SHIELD", "SUBUNIT"] },
-        requiredCapabilities: [],
-      },
-      "effectAction",
-    );
-    expect(result).toMatchObject({
-      kind: "REMOVE_EFFECTS",
-      payload: { categories: ["SHIELD", "SUBUNIT"] },
-    });
-  });
-
   it("UT-CAT-ACT-066: maps REMOVE_MARKER with a count limiting how many stacks are removed (REMOVE_EFFECTS_COUNT_LIMIT)", () => {
     const result = createEffectActionDefinition(
       {
@@ -1227,6 +1211,22 @@ describe("EffectActionDefinition", () => {
         "effectAction",
       ),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-069: rejects REMOVE_EFFECTS SHIELD/SUBUNIT categories at Catalog load (owned by DMG-004/005, #242; keeps preflight's UNSUPPORTED_RULE contract instead of a late runtime error)", () => {
+    for (const category of ["SHIELD", "SUBUNIT"] as const) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_REMOVE_GAP",
+            kind: "REMOVE_EFFECTS",
+            payload: { categories: [category] },
+            requiredCapabilities: [],
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
   });
 
   it("UT-CAT-ACT-067: rejects REMOVE_MARKER with a non-positive count", () => {

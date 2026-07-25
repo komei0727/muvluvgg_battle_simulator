@@ -803,16 +803,17 @@ function* resolveOneEffectActionApplication(
     // R-EFF-02（M7-001、Issue #181）: 対象カテゴリに一致する`AppliedEffect`を
     // 即時解除する（`effect-removal-service.ts`）。`REMOVE_EFFECTS_CATEGORY_GAP`の
     // SHIELD/SUBUNITはシールド・サブユニットの実行時状態がまだモデル化されて
-    // いない（`CAP_SHIELD`=DMG-004、サブユニット=DMG-005、いずれも未着手）ため、
-    // 「解除対象が黙って存在しない」silent no-opへ退行させず、明示的に拒否する
-    // （`APPLY_STATUS`が非STEALTHを拒否するのと同じ方針）。
+    // いない（`CAP_SHIELD`=DMG-004、サブユニット=DMG-005、いずれも未着手、#242）。
+    // これらは`effect-action-definition-factory.ts`がCatalogロード時点で拒否する
+    // ため、production定義はここへ到達しない。以下はfactoryを迂回した直接構築に
+    // 対する防御的ガード（defense-in-depth）で、silent no-opへの退行を防ぐ。
     const unsupportedCategories = effectAction.payload.categories.filter(
       (category) => category === "SHIELD" || category === "SUBUNIT",
     );
     if (unsupportedCategories.length > 0) {
       throw new DomainValidationError(
         "effectActionDefinitionId",
-        `REMOVE_EFFECTS categories ${unsupportedCategories.join("/")} are not yet supported by this resolver — shield/subunit runtime state is owned by DMG-004/DMG-005 (still open). M7-001 wires BUFF/DEBUFF/STATUS/DAMAGE_MOD/SPECIFIC_EFFECT removal only`,
+        `REMOVE_EFFECTS categories ${unsupportedCategories.join("/")} are not yet supported by this resolver — shield/subunit runtime state is owned by DMG-004/DMG-005 (still open, #242). M7-001 wires BUFF/DEBUFF/STATUS/DAMAGE_MOD/SPECIFIC_EFFECT removal only`,
       );
     }
     const removal = removeEffects(

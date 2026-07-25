@@ -3653,7 +3653,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(recorder.getEvents().filter((e) => e.eventType === "EffectRemoved")).toHaveLength(2);
   });
 
-  it("UT-R-EFF-02-022 (REMOVE_EFFECTS_CATEGORY_GAP deferred): a REMOVE_EFFECTS SHIELD ACTION step is rejected because shield runtime state is owned by DMG-004", () => {
+  it("UT-R-EFF-02-022 (REMOVE_EFFECTS_CATEGORY_GAP deferred, defense-in-depth): a factory-bypassing SHIELD REMOVE_EFFECTS def is still rejected by the resolver guard (primary rejection is at Catalog load, UT-CAT-ACT-069)", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const remove = removeEffectsAction("ACT_STRIP_SHIELD", { categories: ["SHIELD"] });
