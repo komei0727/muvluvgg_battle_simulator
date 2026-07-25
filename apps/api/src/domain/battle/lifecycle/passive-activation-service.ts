@@ -14,7 +14,15 @@ import {
 } from "./effect-action-group-resolver.js";
 import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
-import { expireEffects, type ExpirationSeed } from "../effects/duration-expiry-service.js";
+import {
+  emitEffectDurationReducedEvents,
+  expireEffects,
+  type ExpirationSeed,
+} from "../effects/duration-expiry-service.js";
+import {
+  decrementSkillUseEffectDurations,
+  reapplySkillUseDurationDecrement,
+} from "../model/applied-effect-duration.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { TriggerContext } from "../targeting/target-selection-policy.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -1442,6 +1450,9 @@ export class PassiveActivationRuntime {
     // （08_ドメインイベント.md「同じSkillUseIdに属するイベント」節、
     // 「味方のPS解決後」を条件とするPS等）を満たすため、TIMING_EVENTとして
     // yieldし進行中の`driveActivation`が共有するstateへ候補解決させる。
+    // `RuntimeCounterChanged`（`terminalCounterChanges`）は`08_ドメインイベント.md`
+    // が明示する唯一の前倒し例外のため、引き続き`terminalEvent`自身より先に
+    // 解決する。
     const terminalCounterChanges = this.detectAndRecordRuntimeCounterChanges(
       terminalEvent,
       skillUseId,
@@ -1449,7 +1460,96 @@ export class PassiveActivationRuntime {
     for (const changed of terminalCounterChanges) {
       yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
     }
+    // TGT-004フェーズ3再々レビュー[P1]（Issue #167、08_ドメインイベント.md
+    // 「イベント発行と処理」の順序契約）: `RuntimeCounterChanged`以外の子イベント
+    // （`SKILL_USE`単位期間減算）は、原因イベント（`terminalEvent`＝
+    // `PassiveResolved`）自身のPS/Memory候補解決より後でなければならない。
+    // そのためSKILL_USE単位減算はこの`yield`より後で行う。ただし、この連鎖
+    // 解決前のunitsスナップショット（`preTerminalChainUnits`）から減算対象
+    // （`battleUnitId`+`effectInstanceId`のキーのみ）を決定する——
+    // `PassiveResolved`に反応するPSがこのPS自身とは別の`skillUseId`で新たな
+    // `SKILL_USE`期間効果を付与し得るため、連鎖解決後のunitsから対象を決定
+    // すると、そのPSが付与したばかりの効果まで誤って減算・即時失効させて
+    // しまう（PR #238再レビュー[P2]と同じ理由）。
+    const preTerminalChainUnits = this.units;
     yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
+
+    if (outcome.status !== "INTERRUPTED") {
+      const skillUseDurationTargets = decrementSkillUseEffectDurations(
+        preTerminalChainUnits,
+        ownerId,
+        skillUseId,
+      ).changes.map((change) => ({
+        battleUnitId: change.battleUnitId,
+        effectInstanceId: change.effectInstanceId,
+      }));
+      // PR #238再々レビュー[P1]: 決定した対象は`reapplySkillUseDurationDecrement`
+      // で連鎖解決後のunitsへ適用する——連鎖解決前のスナップショット値
+      // （before/after）をそのまま使い回さず、連鎖解決後の現在値から都度
+      // 再計算する。`terminalEvent`自身のPS連鎖（上でyield済み）の中で、
+      // その子PS自身の`PassiveResolved`が同じ対象へ独立にSKILL_USE単位減算を
+      // かけている場合があるため（この親PSと子PSはどちらも同じownerの
+      // 「1回のスキル使用完了」であり、互いに独立してR-EFF-04と同じ規約で
+      // 減算する）——古いスナップショット値をそのまま設定すると、子PSが既に
+      // 適用した減算を上書きし、2回分の減算のうち1回を消してしまう
+      // （PR #238再々レビュー[P1]）。対象インスタンスが連鎖解決中に既に
+      // 除去されていた場合は`reapplySkillUseDurationDecrement`が無視する。
+      const skillUseDurationDecrement = reapplySkillUseDurationDecrement(
+        this.units,
+        skillUseDurationTargets,
+      );
+      if (skillUseDurationDecrement.changes.length > 0) {
+        this.units = skillUseDurationDecrement.units;
+        const reducedEventsStart = this.context.recorder.getEvents().length;
+        lastEventId = emitEffectDurationReducedEvents(
+          {
+            recorder: this.context.recorder,
+            turnNumber: this.context.turnNumber,
+            cycleNumber: this.context.cycleNumber,
+            ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+            skillUseId,
+            resolutionScopeId: this.context.resolutionScopeId,
+            rootEventId: this.context.rootEventId,
+          },
+          this.units,
+          skillUseDurationDecrement.changes,
+          terminalEvent.eventId,
+        );
+        for (const event of this.context.recorder.getEvents().slice(reducedEventsStart)) {
+          yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(event) };
+        }
+
+        const skillUseExpirySeeds: ExpirationSeed[] = skillUseDurationDecrement.changes
+          .filter((change) => change.after === 0)
+          .map((change) => ({
+            battleUnitId: change.battleUnitId,
+            effectInstanceId: change.effectInstanceId,
+            reason: "TIME_LIMIT",
+          }));
+        if (skillUseExpirySeeds.length > 0) {
+          const expiryEventsStart = this.context.recorder.getEvents().length;
+          const skillUseExpiry = expireEffects(
+            {
+              recorder: this.context.recorder,
+              turnNumber: this.context.turnNumber,
+              cycleNumber: this.context.cycleNumber,
+              ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+              skillUseId,
+              resolutionScopeId: this.context.resolutionScopeId,
+              rootEventId: this.context.rootEventId,
+            },
+            this.units,
+            skillUseExpirySeeds,
+            this.context.definitions.effectActions,
+            lastEventId,
+          );
+          this.units = skillUseExpiry.units;
+          for (const event of this.context.recorder.getEvents().slice(expiryEventsStart)) {
+            yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(event) };
+          }
+        }
+      }
+    }
 
     return { interrupted: outcome.status === "INTERRUPTED" };
   }

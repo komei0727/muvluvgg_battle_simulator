@@ -39,6 +39,7 @@ import type {
   EffectStepDefinition,
   RandomBranchMode,
 } from "../../catalog/definitions/effect-sequence.js";
+import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 
 /**
  * `08_ドメインイベント.md`「イベントの分類」。M3〜M5はFACT/TIMINGだけを使い、
@@ -467,6 +468,8 @@ export interface BattleDomainEventPayloadMap {
     readonly duplicate: boolean;
     readonly kindKey: string;
     readonly magnitude: number;
+    /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ。 */
+    readonly statusKind?: StatusKind;
     readonly durationUnit?: DurationTimeUnit;
     readonly durationOwner?: DurationOwner;
     readonly initialRemaining?: number;

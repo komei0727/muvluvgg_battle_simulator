@@ -635,6 +635,63 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_B]!.effects).toEqual([first, second]);
   });
 
+  it("UT-R-EFF-01-049 (TGT-004フェーズ3、Issue #167、R-ACTN-03): an APPLY_STATUS-style delta (statusKind set) round-trips through the independent Reducer", () => {
+    const stealth: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "ACT_MAO_COMMITTEE_PS2_STEALTH",
+      sourceUnitId: UNIT_A,
+      kindKey: "ACT_MAO_COMMITTEE_PS2_STEALTH",
+      duplicate: true,
+      isEffective: true,
+      magnitude: 0,
+      statusKind: "STEALTH",
+      duration: { unit: "SKILL_USE", remaining: 3 },
+      appliedTurnNumber: 1,
+    };
+
+    const next = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: {
+          effects: { [stealth.effectInstanceId]: { before: undefined, after: stealth } },
+        },
+      },
+    });
+
+    expect(next.units[UNIT_B]!.effects).toEqual([stealth]);
+  });
+
+  it("UT-R-EFF-01-050 (TGT-004フェーズ3、Issue #167): a delta whose before.statusKind does not match the current snapshot's statusKind is rejected (dropped/reordered delta), not silently accepted", () => {
+    const stealth: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "ACT_MAO_COMMITTEE_PS2_STEALTH",
+      sourceUnitId: UNIT_A,
+      kindKey: "ACT_MAO_COMMITTEE_PS2_STEALTH",
+      duplicate: true,
+      isEffective: true,
+      magnitude: 0,
+      statusKind: "STEALTH",
+      appliedTurnNumber: 1,
+    };
+    const withStealth = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: {
+          effects: { [stealth.effectInstanceId]: { before: undefined, after: stealth } },
+        },
+      },
+    });
+    const { statusKind: _statusKind, ...staleBefore } = stealth;
+
+    expect(() =>
+      applyStateDelta(withStealth, {
+        units: {
+          [UNIT_B]: {
+            effects: { [stealth.effectInstanceId]: { before: staleBefore, after: undefined } },
+          },
+        },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-R-EFF-01-011: throws when an effect delta's before does not match the current entry (dropped or reordered delta)", () => {
     const effect: EffectSnapshot = {
       effectInstanceId: createEffectInstanceId("battle-1:effect:1"),

@@ -4,6 +4,7 @@ import {
   decrementActionEffectDurations,
   decrementSkillUseEffectDurations,
   decrementTurnEffectDurations,
+  reapplySkillUseDurationDecrement,
   resolveTimeLimitOwnerUnitId,
 } from "./applied-effect-duration.js";
 import { createBattleUnit, type BattleUnit } from "./battle-unit.js";
@@ -829,5 +830,157 @@ describe("consumeEffectDurations", () => {
     const result = consumeEffectDurations([source, target], target.battleUnitId, "OUTGOING_HIT");
 
     expect(result.changes).toHaveLength(0);
+  });
+});
+
+describe("reapplySkillUseDurationDecrement (TGT-004フェーズ3再々レビュー[P1], Issue #167)", () => {
+  it("UT-R-EFF-04-018: decrements by 1 from the CURRENT value on a units array that has since gained an unrelated new AppliedEffect (e.g. from a child PS chain), without touching the new instance", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const existing = effectOn(
+      target,
+      source,
+      { timeLimit: { unit: "SKILL_USE", count: 3 }, dispellable: true, linkedEffectGroupId: null },
+      {
+        duration: {
+          definition: {
+            timeLimit: { unit: "SKILL_USE", count: 3 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+          timeLimitRemaining: 3,
+        },
+      },
+    );
+    target = withEffects(target, [existing]);
+    const targets = decrementSkillUseEffectDurations(
+      [source, target],
+      target.battleUnitId,
+      createSkillUseId("B_1:skill-use:99"),
+    ).changes.map((change) => ({
+      battleUnitId: change.battleUnitId,
+      effectInstanceId: change.effectInstanceId,
+    }));
+    expect(targets).toHaveLength(1);
+
+    // Simulate a child PS chain granting a brand-new AppliedEffect after the
+    // target list above was computed (a different, later units snapshot).
+    const freshlyGranted = effectOn(target, source, {
+      timeLimit: { unit: "SKILL_USE", count: 1 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    });
+    const postChainTarget = withEffects(target, [existing, freshlyGranted]);
+
+    const result = reapplySkillUseDurationDecrement([source, postChainTarget], targets);
+
+    expect(result.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: existing.effectInstanceId,
+        unit: "SKILL_USE",
+        before: 3,
+        after: 2,
+      },
+    ]);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(2);
+    const updatedExisting = updatedTarget.appliedEffects.find(
+      (e) => e.effectInstanceId === existing.effectInstanceId,
+    )!;
+    expect(updatedExisting.duration.timeLimitRemaining).toBe(2);
+    const untouchedFresh = updatedTarget.appliedEffects.find(
+      (e) => e.effectInstanceId === freshlyGranted.effectInstanceId,
+    )!;
+    expect(untouchedFresh.duration.timeLimitRemaining).toBe(1);
+  });
+
+  it("UT-R-EFF-04-019: silently ignores a target whose effectInstanceId no longer exists (e.g. removed by the chain in the meantime), instead of throwing", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const existing = effectOn(target, source, {
+      timeLimit: { unit: "SKILL_USE", count: 3 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    });
+    target = withEffects(target, [existing]);
+    const targets = decrementSkillUseEffectDurations(
+      [source, target],
+      target.battleUnitId,
+      createSkillUseId("B_1:skill-use:99"),
+    ).changes.map((change) => ({
+      battleUnitId: change.battleUnitId,
+      effectInstanceId: change.effectInstanceId,
+    }));
+    expect(targets).toHaveLength(1);
+
+    const postChainTarget = withEffects(target, []);
+
+    const result = reapplySkillUseDurationDecrement([source, postChainTarget], targets);
+
+    expect(result.changes).toHaveLength(0);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(0);
+  });
+
+  it("UT-R-EFF-04-020: an empty targets array returns the units unchanged", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+
+    const result = reapplySkillUseDurationDecrement([source, target], []);
+
+    expect(result.units[0]).toBe(source);
+    expect(result.units[1]).toBe(target);
+    expect(result.changes).toHaveLength(0);
+  });
+
+  it("UT-R-EFF-04-021 (PR #238再々レビュー[P1]の核心): recomputes before/after from the CURRENT value rather than reusing a stale snapshot value, so a target already decremented once (2 -> 1) by an independent completion earlier in the chain correctly becomes 1 -> 0 instead of being clobbered back to a stale after:1", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const existing = effectOn(
+      target,
+      source,
+      { timeLimit: { unit: "SKILL_USE", count: 2 }, dispellable: true, linkedEffectGroupId: null },
+      {
+        duration: {
+          definition: {
+            timeLimit: { unit: "SKILL_USE", count: 2 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+          timeLimitRemaining: 2,
+        },
+      },
+    );
+    target = withEffects(target, [existing]);
+    // Decided from a pre-chain snapshot where the instance was still at 2 —
+    // only the identity of the target is kept, not its stale before/after.
+    const targets = [
+      { battleUnitId: target.battleUnitId, effectInstanceId: existing.effectInstanceId },
+    ];
+
+    // Simulate an independent nested completion (e.g. a child PS's own
+    // PassiveResolved) having already decremented the SAME instance once
+    // during the chain, 2 -> 1, before this outer decrement gets applied.
+    const alreadyDecrementedOnceTarget = withEffects(target, [
+      { ...existing, duration: { ...existing.duration, timeLimitRemaining: 1 } },
+    ]);
+
+    const result = reapplySkillUseDurationDecrement(
+      [source, alreadyDecrementedOnceTarget],
+      targets,
+    );
+
+    expect(result.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: existing.effectInstanceId,
+        unit: "SKILL_USE",
+        before: 1,
+        after: 0,
+      },
+    ]);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(0);
   });
 });

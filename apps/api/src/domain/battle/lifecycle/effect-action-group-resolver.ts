@@ -650,6 +650,61 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
     effectLastEventId = recalculation.lastEventId;
     resultKind = "APPLIED";
+  } else if (effectAction.kind === "APPLY_STATUS") {
+    // TGT-004フェーズ3再レビュー[P1]（Issue #167、R-ACTN-03）: `AppliedEffect.
+    // statusKind`を付与するresolverだが、本Issueのスコープ（R-TGT-08
+    // 「ステルス」）が要求する無条件付与を実際に持つのは`status: "STEALTH"`
+    // だけ。他のstatus種別（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY等、
+    // R-STS-01〜04）は行動不能化・ダメージ無効化といった実効処理が別途必要で、
+    // それらは未実装のまま。`probability`/`appliesTo`/`damageThreshold`等の
+    // 追加fieldの有無だけで判定すると、`ACT_CHIZURU_DOMESTIC_AS1_STUN`のように
+    // 追加fieldを持たないSTUN定義が実効なしのままgrantEffectまで進んでしまい、
+    // 「未対応として明確に失敗する」から「EffectAppliedとして成功するが実際の
+    // 効果はない」というsilent partial implementationへ退行する
+    // （PR #238再レビュー[P1]で指摘）。そのため`status`自体で許可リストを取り、
+    // `STEALTH`以外は無条件で拒否する。
+    if (effectAction.payload.status !== "STEALTH") {
+      throw new DomainValidationError(
+        "effectActionDefinitionId",
+        `APPLY_STATUS status "${effectAction.payload.status}" is not yet supported by this resolver (only "STEALTH" is, R-TGT-08 scope; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
+      );
+    }
+    // Stealthを含む現行production定義は`stacking`相当の設定を持たないため
+    // （`ApplyStatusPayload`自体に`stacking`フィールドが無い）、`APPLY_STAT_MOD`と
+    // 同じ理由でduplicate: trueに固定する（Q-EFF-10「重複あり・重複なしの
+    // どちらも、効果インスタンスと効果期間を個別に保持する」）。
+    const grantResult = grantEffect(
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      },
+      box.units,
+      {
+        effectActionDefinitionId: application.effectActionDefinitionId,
+        sourceId: context.actorId,
+        targetId: application.targetBattleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: effectAction.payload.status,
+        durationDefinition: effectAction.payload.duration,
+      },
+      starting.eventId,
+    );
+    box.units = grantResult.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    }
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = grantResult.lastEventId;
+    resultKind = "APPLIED";
   } else if (effectAction.kind === "APPLY_MARKER") {
     // R-EFF-10: ADD/KEEP_EXISTING/REFRESH/REPLACEのスタック方針を対象1件・
     // Marker1件単位で適用する（`marker-apply-service.ts`）。`APPLY_MARKER`は
@@ -732,7 +787,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_MARKER"/"REMOVE_MARKER" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

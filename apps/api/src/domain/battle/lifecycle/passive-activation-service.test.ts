@@ -11,7 +11,11 @@ import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
+import {
+  createActionId,
+  createEffectInstanceId,
+  createSkillUseId,
+} from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createRuntimeCounterId,
@@ -174,6 +178,23 @@ function damageEffectAction(id: string): EffectActionDefinition {
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       damageModifiers: [],
       link: { enabled: false },
+    },
+  };
+}
+
+function statusEffectAction(id: string, skillUseCount: number): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      status: "STEALTH",
+      duration: {
+        timeLimit: { unit: "SKILL_USE", count: skillUseCount },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
     },
   };
 }
@@ -4106,6 +4127,318 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(cascadeWatcherActivatedIndex).toBeGreaterThan(consumptionIndex);
       expect(consumptionWatcherActivatedIndex).toBeGreaterThan(cascadeWatcherActivatedIndex);
       expect(parentActionStartingIndex).toBeGreaterThan(consumptionWatcherActivatedIndex);
+    });
+  });
+
+  describe("SKILL_USE duration decrement on a PS's own completion (TGT-004フェーズ3再レビュー[P1], Issue #167)", () => {
+    it("UT-R-EFF-01-052: a SKILL_USE(count:1) status granted by a PS's own EffectSequence is not decremented by that same PassiveResolved, but is decremented (and expires) by the owner's next completed PS activation — which itself grants a fresh, untouched instance", () => {
+      const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_STEALTH_SKILLUSE");
+      const grantAction = statusEffectAction("ACT_PS_GRANT_STEALTH", 1);
+      const skill: SkillDefinition = {
+        ...passiveSkillOf("SKL_PS_GRANT_STEALTH", { ppCost: 1 }),
+        cooldown: { unit: "TURN", count: 0 },
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: grantAction.effectActionDefinitionId }],
+            },
+          ],
+        },
+      };
+      const definitions = definitionsOf(
+        new Map([
+          [
+            ownerUnitDefinitionId,
+            unitDefinitionOf(ownerUnitDefinitionId, [skill.skillDefinitionId]),
+          ],
+        ]),
+        new Map([[skill.skillDefinitionId, skill]]),
+        new Map([[grantAction.effectActionDefinitionId, grantAction]]),
+      );
+      // ppCost: 1固定で2回連続発動しても足りるだけのPPを持たせる（PS発動条件
+      // 自体はこのテストの対象外）。
+      const owner = unit("OWNER", "ALLY", {
+        unitDefinitionId: ownerUnitDefinitionId,
+        currentPp: 3,
+      });
+
+      // A single shared EventRecorder across both activations (matching the
+      // real battle: one EventRecorder for the whole battle) — using two
+      // separate recorders would let their independent nextSkillUseId()
+      // counters both start at 1, colliding and defeating the very exclusion
+      // this test verifies.
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted1 = recordTurnStarted(recorder);
+      const runtime1 = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted1),
+        [owner],
+      );
+      const unitsAfterFirst = runtime1.onFactEvent(turnStarted1, [owner]);
+      const ownerAfterFirst = unitsAfterFirst.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(ownerAfterFirst.appliedEffects).toHaveLength(1);
+      const firstInstance = ownerAfterFirst.appliedEffects[0]!;
+      // The granting PS activation itself must not decrement its own instance.
+      expect(firstInstance.duration.timeLimitRemaining).toBe(1);
+
+      const turnStarted2 = recordTurnStarted(recorder);
+      const runtime2 = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted2),
+        [ownerAfterFirst],
+      );
+      const eventsBeforeSecond = recorder.getEvents().length;
+      const unitsAfterSecond = runtime2.onFactEvent(turnStarted2, [ownerAfterFirst]);
+      const ownerAfterSecond = unitsAfterSecond.find((u) => u.battleUnitId === owner.battleUnitId)!;
+
+      // The first instance was decremented (1 -> 0) and expired by the SECOND
+      // PassiveResolved, and a fresh instance from that same activation is
+      // present untouched (not swept up by its own completion's decrement).
+      expect(ownerAfterSecond.appliedEffects).toHaveLength(1);
+      const secondInstance = ownerAfterSecond.appliedEffects[0]!;
+      expect(secondInstance.effectInstanceId).not.toBe(firstInstance.effectInstanceId);
+      expect(secondInstance.duration.timeLimitRemaining).toBe(1);
+
+      const events2 = recorder.getEvents().slice(eventsBeforeSecond);
+      const reduced = events2.find((e) => e.eventType === "EffectDurationReduced");
+      expect(reduced).toBeDefined();
+      expect(reduced!.payload).toMatchObject({
+        effectInstanceId: firstInstance.effectInstanceId,
+        battleUnitId: owner.battleUnitId,
+        unit: "SKILL_USE",
+        before: 1,
+        after: 0,
+      });
+      const expired = events2.find((e) => e.eventType === "EffectExpired");
+      expect(expired).toBeDefined();
+      expect(expired!.payload).toMatchObject({
+        effectInstanceId: firstInstance.effectInstanceId,
+        battleUnitId: owner.battleUnitId,
+        reason: "TIME_LIMIT",
+      });
+    });
+
+    it("UT-R-EFF-01-053: PassiveInterrupted (owner defeated mid-resolution) does not decrement SKILL_USE-unit effects, matching AS/EX's SkillUseInterrupted exclusion", () => {
+      const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_STEALTH_INTERRUPTED");
+      const grantAction = statusEffectAction("ACT_PS_INTERRUPTED_STEALTH", 1);
+      const selfDamage = damageEffectAction("ACT_PS_INTERRUPTED_SELF_DAMAGE");
+      const skill: SkillDefinition = {
+        ...passiveSkillOf("SKL_PS_INTERRUPTED"),
+        cooldown: { unit: "TURN", count: 0 },
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: selfDamage.effectActionDefinitionId }],
+            },
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: grantAction.effectActionDefinitionId }],
+            },
+          ],
+        },
+      };
+      const definitions = definitionsOf(
+        new Map([
+          [
+            ownerUnitDefinitionId,
+            unitDefinitionOf(ownerUnitDefinitionId, [skill.skillDefinitionId]),
+          ],
+        ]),
+        new Map([[skill.skillDefinitionId, skill]]),
+        new Map([
+          [grantAction.effectActionDefinitionId, grantAction],
+          [selfDamage.effectActionDefinitionId, selfDamage],
+        ]),
+      );
+      // Lethal self-damage interrupts the PS before it reaches the STEALTH step.
+      const owner = unit("OWNER", "ALLY", {
+        unitDefinitionId: ownerUnitDefinitionId,
+        currentPp: 3,
+        currentHp: 1,
+        attack: 100,
+      });
+
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        owner,
+      ]);
+      const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+
+      expect(recorder.getEvents().some((e) => e.eventType === "PassiveInterrupted")).toBe(true);
+      expect(recorder.getEvents().some((e) => e.eventType === "PassiveResolved")).toBe(false);
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectDurationReduced")).toBe(false);
+      const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(updatedOwner.appliedEffects).toHaveLength(0);
+    });
+
+    it("UT-R-EFF-01-056 (TGT-004フェーズ3再々レビュー[P1]、Issue #167、08_ドメインイベント.md イベント発行と処理の順序契約): a PS reacting to another PS's own PassiveResolved fully resolves before a PS reacting to the resulting EffectExpired, matching the events' own recorded (causal) order", () => {
+      const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_ORDER");
+      const mainSkill: SkillDefinition = {
+        ...passiveSkillOf("SKL_PS_MAIN_ORDER", { ppCost: 1 }),
+        cooldown: { unit: "TURN", count: 0 },
+      };
+      const psOnCompletion: SkillDefinition = {
+        skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_COMPLETION_ORDER"),
+        skillType: "PS",
+        cost: { resource: "PP", amount: 1 },
+        activationCondition: { kind: "TRUE" },
+        triggers: [
+          {
+            eventType: "PassiveResolved",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+            condition: {
+              kind: "EVENT_PAYLOAD",
+              field: "skillDefinitionId",
+              op: "EQ",
+              value: mainSkill.skillDefinitionId,
+            },
+          },
+        ],
+        counterUpdates: [],
+        resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+        cooldown: { unit: "TURN", count: 0 },
+        traits: {
+          priorityAttack: false,
+          simultaneousActivationLimited: false,
+          exclusiveActivationGroupId: null,
+          accuracy: { guaranteedHit: false },
+          piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        },
+        requiredCapabilities: [],
+        metadata: { displayName: "PSOnCompletion", tags: [] },
+      };
+      const psOnExpiry: SkillDefinition = {
+        skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_EXPIRY_ORDER"),
+        skillType: "PS",
+        cost: { resource: "PP", amount: 1 },
+        activationCondition: { kind: "TRUE" },
+        triggers: [
+          {
+            eventType: "EffectExpired",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+        ],
+        counterUpdates: [],
+        resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+        cooldown: { unit: "TURN", count: 0 },
+        traits: {
+          priorityAttack: false,
+          simultaneousActivationLimited: false,
+          exclusiveActivationGroupId: null,
+          accuracy: { guaranteedHit: false },
+          piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        },
+        requiredCapabilities: [],
+        metadata: { displayName: "PSOnExpiry", tags: [] },
+      };
+
+      // Hand-built pre-existing SKILL_USE(count:1) effect, granted in a
+      // different, earlier skillUseId than mainSkill's own activation will use.
+      const preExisting: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("effect:pre-existing-order"),
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_PRE_EXISTING_ORDER"),
+        kindKey: effectKindKeyFromDefinitionId(
+          createEffectActionDefinitionId("ACT_PRE_EXISTING_ORDER"),
+        ),
+        duplicate: true,
+        sourceId: createBattleUnitId("OWNER"),
+        targetId: createBattleUnitId("OWNER"),
+        magnitude: 0,
+        statusKind: "STEALTH",
+        duration: {
+          definition: {
+            timeLimit: { unit: "SKILL_USE", count: 1 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+          timeLimitRemaining: 1,
+          grantedSkillUseId: createSkillUseId("B_1:skill-use:0"),
+        },
+        appliedTurnNumber: 1,
+      };
+      const owner = {
+        ...unit("OWNER", "ALLY", { unitDefinitionId: ownerUnitDefinitionId, currentPp: 3 }),
+        appliedEffects: [preExisting],
+      };
+      const definitions = definitionsOf(
+        new Map([
+          [
+            ownerUnitDefinitionId,
+            unitDefinitionOf(ownerUnitDefinitionId, [
+              mainSkill.skillDefinitionId,
+              psOnCompletion.skillDefinitionId,
+              psOnExpiry.skillDefinitionId,
+            ]),
+          ],
+        ]),
+        new Map([
+          [mainSkill.skillDefinitionId, mainSkill],
+          [psOnCompletion.skillDefinitionId, psOnCompletion],
+          [psOnExpiry.skillDefinitionId, psOnExpiry],
+        ]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+        owner,
+      ]);
+
+      runtime.onFactEvent(turnStarted, [owner]);
+
+      const events = recorder.getEvents();
+      const eventTypes = events.map((e) => e.eventType);
+      // Recorded (causal) order: PassiveResolved (main), then
+      // EffectDurationReduced, then EffectExpired.
+      const mainResolvedIndex = events.findIndex(
+        (e) =>
+          e.eventType === "PassiveResolved" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            mainSkill.skillDefinitionId,
+      );
+      expect(mainResolvedIndex).toBeGreaterThanOrEqual(0);
+      expect(mainResolvedIndex).toBeLessThan(eventTypes.indexOf("EffectDurationReduced"));
+      expect(eventTypes.indexOf("EffectDurationReduced")).toBeLessThan(
+        eventTypes.indexOf("EffectExpired"),
+      );
+
+      const completionActivated = events.find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            psOnCompletion.skillDefinitionId,
+      );
+      const expiryActivated = events.find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            psOnExpiry.skillDefinitionId,
+      );
+      expect(completionActivated).toBeDefined();
+      expect(expiryActivated).toBeDefined();
+      // Actual PS activation order must match the events' own recorded
+      // order (the main PS's own PassiveResolved candidates resolve before
+      // its child duration events'), not the reverse.
+      expect(events.indexOf(completionActivated!)).toBeLessThan(events.indexOf(expiryActivated!));
     });
   });
 });

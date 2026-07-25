@@ -16,6 +16,7 @@ import type {
   MarkerInstanceId,
   SkillUseId,
 } from "../../shared/event-ids.js";
+import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 
 export interface ValueChange<T> {
   readonly before: T;
@@ -68,6 +69,8 @@ export interface EffectSnapshot {
   readonly duplicate: boolean;
   readonly isEffective: boolean;
   readonly magnitude: number;
+  /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の効果だけが持つ。 */
+  readonly statusKind?: StatusKind;
   readonly duration?: {
     readonly unit: "ACTION" | "TURN" | "SKILL_USE";
     readonly remaining: number;
@@ -109,6 +112,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     duplicate: effect.duplicate,
     isEffective,
     magnitude: effect.magnitude,
+    ...(effect.statusKind !== undefined ? { statusKind: effect.statusKind } : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
       ? { consumptionRemaining: effect.duration.consumptionRemaining }
