@@ -6,3 +6,18 @@ export { SequenceRandomSource } from "./random/sequence-random-source.js";
 export { SequenceRandomSourceFactory } from "./random/sequence-random-source-factory.js";
 export type { RuleTestCoverage } from "./traceability/rule-coverage.js";
 export { RULE_COVERAGE } from "./traceability/rule-coverage.js";
+export {
+  CatalogBuilder,
+  TestBattleCatalog,
+  assertBattleInvariants,
+  assertEventSequenceMonotonic,
+  assertResourcesWithinBounds,
+  assertStateVersionsContiguous,
+  attackSkill,
+  battleCommand,
+  damageEffectAction,
+  exSkillDefinition,
+  formationSlot,
+  runScenario,
+  unitDefinition,
+} from "./scenario/index.js";
