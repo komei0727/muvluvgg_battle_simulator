@@ -714,4 +714,146 @@ describe("resolveSkillUse", () => {
       eventsFromAttack.indexOf(expiryActivated!),
     );
   });
+
+  it("UT-R-EFF-01-057 (TGT-004フェーズ3再々レビュー[P1]、Issue #167): a SKILL_USE(count:2) effect decremented once by a reactive PS's own completion (nested within the outer AS's SkillUseCompleted chain) and once by the outer AS's own completion correctly reaches 0 via 2 -> 1 -> 0, recording 2 distinct EffectDurationReduced events for that transition instead of the second one clobbering the first with a stale snapshot value", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_DOUBLE_DECREMENT");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_DOUBLE_DECREMENT");
+    const grantAction = statusEffectAction("ACT_GRANT_STEALTH_DOUBLE_DECREMENT", 2);
+    const hit = damageEffectAction("ACT_HIT_DOUBLE_DECREMENT");
+    const attackSkill = trivialAttackSkill(
+      "SKL_ATTACK_DOUBLE_DECREMENT",
+      "ACT_HIT_DOUBLE_DECREMENT",
+    );
+
+    // The reactive PS reacts to the outer attack's own SkillUseCompleted and
+    // has EMPTY steps, so its own PassiveResolved (a second, independent
+    // "1 skill use completed" boundary for the same owner) fires immediately
+    // within the outer SkillUseCompleted's chain and decrements the same
+    // owner's SKILL_USE effects on its own.
+    const reactivePs: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_DOUBLE_DECREMENT"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "SkillUseCompleted",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: attackSkill.skillDefinitionId,
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "PSDoubleDecrement", tags: [] },
+    };
+
+    // Hand-built pre-existing SKILL_USE(count:2) effect (granted in a
+    // different, earlier skillUseId than the attack skill below will use),
+    // instead of an extra grant skill use, to keep PP within LIMITS.maximumPp.
+    const preExisting: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("effect:pre-existing-double-decrement"),
+      effectActionDefinitionId: grantAction.effectActionDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(grantAction.effectActionDefinitionId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ACTOR"),
+      targetId: createBattleUnitId("ACTOR"),
+      magnitude: 0,
+      statusKind: "STEALTH",
+      duration: {
+        definition: {
+          timeLimit: { unit: "SKILL_USE", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+        grantedSkillUseId: createSkillUseId("B_1:skill-use:0"),
+      },
+      appliedTurnNumber: 1,
+    };
+    const actor = {
+      ...unit("ACTOR", "ALLY", {
+        unitDefinitionId: actorUnitDefinitionId,
+        currentAp: 3,
+        currentPp: 3,
+      }),
+      appliedEffects: [preExisting],
+    };
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          actorUnitDefinitionId,
+          unitDefinitionOf(actorUnitDefinitionId, [reactivePs.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([[reactivePs.skillDefinitionId, reactivePs]]),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const eventsBeforeAttack = recorder.getEvents().length;
+
+    const result = resolveSkillUse(
+      actor,
+      attackSkill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const actorAfter = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(actorAfter.appliedEffects).toHaveLength(0);
+
+    const eventsFromAttack = recorder.getEvents().slice(eventsBeforeAttack);
+    const reducedEvents = eventsFromAttack.filter((e) => e.eventType === "EffectDurationReduced");
+    expect(reducedEvents).toHaveLength(2);
+    expect(reducedEvents[0]!.payload).toMatchObject({
+      battleUnitId: actor.battleUnitId,
+      effectInstanceId: preExisting.effectInstanceId,
+      unit: "SKILL_USE",
+      before: 2,
+      after: 1,
+    });
+    expect(reducedEvents[1]!.payload).toMatchObject({
+      battleUnitId: actor.battleUnitId,
+      effectInstanceId: preExisting.effectInstanceId,
+      unit: "SKILL_USE",
+      before: 1,
+      after: 0,
+    });
+
+    const expiredEvents = eventsFromAttack.filter((e) => e.eventType === "EffectExpired");
+    expect(expiredEvents).toHaveLength(1);
+    expect(expiredEvents[0]!.payload).toMatchObject({
+      battleUnitId: actor.battleUnitId,
+      effectInstanceId: preExisting.effectInstanceId,
+      reason: "TIME_LIMIT",
+    });
+    expect(eventsFromAttack.indexOf(reducedEvents[1]!)).toBeLessThan(
+      eventsFromAttack.indexOf(expiredEvents[0]!),
+    );
+  });
 });

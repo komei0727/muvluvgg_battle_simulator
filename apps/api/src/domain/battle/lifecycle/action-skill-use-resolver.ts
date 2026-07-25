@@ -15,8 +15,8 @@ import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import {
-  applyEffectDurationChanges,
   decrementSkillUseEffectDurations,
+  reapplySkillUseDurationDecrement,
 } from "../model/applied-effect-duration.js";
 import {
   emitEffectDurationReducedEvents,
@@ -374,42 +374,44 @@ export function resolveSkillUse(
   // （前倒しできる明示的な例外は`RuntimeCounterChanged`のみ）。そのため
   // `SKILL_USE`単位期間減算より先に`SkillUseCompleted`自身をPS連鎖へ渡す。
   // ただし、この連鎖解決前のunitsスナップショット（`preCompletionChainWorking`）
-  // から減算対象（`changes`）を決定する——`SkillUseCompleted`
-  // （sourceSelector: SELF等）に反応するPSがこのAS/EX自身とは別の
-  // `skillUseId`で新たな`SKILL_USE`期間効果を付与し得るため、連鎖解決後の
-  // unitsから対象を決定すると、そのPSが付与したばかりの効果
+  // から減算対象（`battleUnitId`+`effectInstanceId`のキーのみ）を決定する
+  // ——`SkillUseCompleted`（sourceSelector: SELF等）に反応するPSがこのAS/EX
+  // 自身とは別の`skillUseId`で新たな`SKILL_USE`期間効果を付与し得るため、
+  // 連鎖解決後のunitsから対象を決定すると、そのPSが付与したばかりの効果
   // （`grantedSkillUseId`がこの外側の`skillUseId`と一致しない）まで
   // 「直前のAS/EX使用分」として誤って減算・即時失効させてしまう
-  // （PR #238再レビュー[P2]）。決定した`changes`は`applyEffectDurationChanges`
-  // で連鎖解決後のunitsへ適用し（連鎖が付与した新規効果には触れない）、
-  // 中断された（`SkillUseInterrupted`）スキル使用はこの減算契機に含めない
-  // （`decrementSkillUseEffectDurations`が明示する仕様固定）。
+  // （PR #238再レビュー[P2]）。中断された（`SkillUseInterrupted`）スキル使用
+  // はこの減算契機に含めない（`decrementSkillUseEffectDurations`が明示する
+  // 仕様固定）。
   const preCompletionChainWorking = working;
   working = passiveRuntime.onFactEvent(skillUseCompleted, working);
 
   if (skillUseCompleted.eventType === "SkillUseCompleted") {
-    const skillUseDurationDecrement = decrementSkillUseEffectDurations(
+    const skillUseDurationTargets = decrementSkillUseEffectDurations(
       preCompletionChainWorking,
       actorId,
       skillUseId,
+    ).changes.map((change) => ({
+      battleUnitId: change.battleUnitId,
+      effectInstanceId: change.effectInstanceId,
+    }));
+    // PR #238再々レビュー[P1]: 決定した対象は`reapplySkillUseDurationDecrement`
+    // で連鎖解決後のunitsへ適用する——連鎖解決前のスナップショット値
+    // （before/after）をそのまま使い回さず、連鎖解決後の現在値から
+    // 都度再計算する。`SkillUseCompleted`自身のPS連鎖（上でdispatch済み）の
+    // 中で、その子PS自身の`PassiveResolved`が同じ対象へ独立にSKILL_USE単位
+    // 減算をかけている場合があるため（このAS/EXとPSはどちらも同じownerの
+    // 「1回のスキル使用完了」であり、互いに独立してR-EFF-04と同じ規約で
+    // 減算する）——古いスナップショット値をそのまま設定すると、子PSが既に
+    // 適用した減算を上書きし、2回分の減算のうち1回を消してしまう
+    // （PR #238再々レビュー[P1]）。対象インスタンスが連鎖解決中に既に
+    // 除去されていた場合は`reapplySkillUseDurationDecrement`が無視する。
+    const skillUseDurationDecrement = reapplySkillUseDurationDecrement(
+      working,
+      skillUseDurationTargets,
     );
-    // PR #238再々レビュー[P1]対応中に判明した派生ケース: `SkillUseCompleted`
-    // 自身のPS連鎖（上でdispatch済み）の中で、その子PS自身の`PassiveResolved`
-    // が同じ対象へ独立にSKILL_USE単位減算をかけ、スナップショット時点で
-    // まだ生きていたインスタンスを既に失効・除去している場合がある
-    // （このAS/EXとPSはどちらも同じownerの「1回のスキル使用完了」であり、
-    // 互いに独立してR-EFF-04と同じ規約で減算するため）。その場合
-    // `applyEffectDurationChanges`はそのインスタンスへ何もしない（無視）ため、
-    // `changes`をそのまま`emitEffectDurationReducedEvents`へ渡すと、既に
-    // 存在しないインスタンスを参照してしまう。連鎖解決後のunitsに実際に
-    // まだ存在する対象だけへ絞り込む。
-    const stillPresentChanges = skillUseDurationDecrement.changes.filter((change) =>
-      working
-        .find((unit) => unit.battleUnitId === change.battleUnitId)
-        ?.appliedEffects.some((effect) => effect.effectInstanceId === change.effectInstanceId),
-    );
-    if (stillPresentChanges.length > 0) {
-      working = applyEffectDurationChanges(working, stillPresentChanges);
+    if (skillUseDurationDecrement.changes.length > 0) {
+      working = skillUseDurationDecrement.units;
       let skillUseDurationLastEventId =
         recorder.getEvents()[recorder.getEvents().length - 1]!.eventId;
       const reducedEventsStart = recorder.getEvents().length;
@@ -424,14 +426,14 @@ export function resolveSkillUse(
           rootEventId: actionStarted.eventId,
         },
         working,
-        stillPresentChanges,
+        skillUseDurationDecrement.changes,
         skillUseDurationLastEventId,
       );
       for (const event of recorder.getEvents().slice(reducedEventsStart)) {
         working = passiveRuntime.onFactEvent(event, working);
       }
 
-      const skillUseExpirySeeds: ExpirationSeed[] = stillPresentChanges
+      const skillUseExpirySeeds: ExpirationSeed[] = skillUseDurationDecrement.changes
         .filter((change) => change.after === 0)
         .map((change) => ({
           battleUnitId: change.battleUnitId,

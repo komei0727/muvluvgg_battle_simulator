@@ -133,48 +133,78 @@ export function decrementSkillUseEffectDurations(
   );
 }
 
+/** `reapplySkillUseDurationDecrement`が対象を指定するための最小限のキー。 */
+export interface SkillUseDurationDecrementTarget {
+  readonly battleUnitId: BattleUnitId;
+  readonly effectInstanceId: EffectInstanceId;
+}
+
 /**
  * TGT-004フェーズ3再々レビュー[P1]（Issue #167）: `decrementSkillUseEffectDurations`
- * 等が返す`changes`（対象の決定）と、その適用先unitsを分離して適用する。
- * `08_ドメインイベント.md`「イベント発行と処理」の順序契約（原因イベント自身の
- * PS/Memory候補を直ちに解決してから、子イベントを発生順に処理する）を満たす
- * ため、`SkillUseCompleted`/`PassiveResolved`自身のPS連鎖解決を終えてから
- * 期間減算を行う必要がある。しかしその連鎖解決前のunitsスナップショットから
- * 減算対象（`changes`）を決定しないと、連鎖中に新たに付与された別の
- * `SkillUseId`を持つ`SKILL_USE`効果まで「直前の使用分」として誤って減算・
- * 即時失効させてしまう（PR #238再レビュー[P2]）。そのため呼び出し側は
- * 「連鎖解決前のunitsで対象を決定→連鎖解決後のunitsへこの関数で適用」という
- * 2段階に分ける。連鎖解決中に対象インスタンス自身が既に除去されていた場合は
- * 何もしない（該当`effectInstanceId`が現在の`appliedEffects`に無ければ無視）。
+ * が連鎖解決前のunitsスナップショットから決定した対象（`battleUnitId`+
+ * `effectInstanceId`のキーだけ）を、連鎖解決後のunitsへ実際に1減算として適用
+ * する。`08_ドメインイベント.md`「イベント発行と処理」の順序契約（原因イベント
+ * 自身のPS/Memory候補を直ちに解決してから、子イベントを発生順に処理する）を
+ * 満たすため、`SkillUseCompleted`/`PassiveResolved`自身のPS連鎖解決を終えて
+ * から期間減算を行う必要がある。しかしその連鎖解決前のunitsスナップショットから
+ * 対象を決定しないと、連鎖中に新たに付与された別の`SkillUseId`を持つ
+ * `SKILL_USE`効果まで「直前の使用分」として誤って減算・即時失効させてしまう
+ * （PR #238再レビュー[P2]）。そのため呼び出し側は「連鎖解決前のunitsで対象
+ * （キーのみ）を決定→連鎖解決後のunitsへこの関数で実際に減算」という2段階に
+ * 分ける。
+ *
+ * 減算量（before/after）は連鎖解決前のスナップショット値を使い回さず、この
+ * 関数へ渡された`units`（連鎖解決後の現在値）から都度再計算する
+ * （PR #238再々レビュー[P1]）: 同じownerに属する独立した「1回のスキル使用
+ * 完了」（この完了イベント自身の連鎖の中で反応した子PS自身の完了など）が、
+ * 連鎖解決中に同じインスタンスを既に1減算している場合があるため——古い
+ * スナップショット値をそのまま設定すると、子PSが既に適用した減算を上書きし、
+ * 2回分の減算のうち1回を消してしまう。対象インスタンスが連鎖解決中に既に
+ * 除去されていた場合、または`timeLimitRemaining`を持たない場合は無視する。
  */
-export function applyEffectDurationChanges(
+export function reapplySkillUseDurationDecrement(
   units: readonly BattleUnit[],
-  changes: readonly EffectDurationChange[],
-): readonly BattleUnit[] {
-  if (changes.length === 0) {
-    return units;
+  targets: readonly SkillUseDurationDecrementTarget[],
+): DecrementEffectDurationsResult {
+  if (targets.length === 0) {
+    return { units, changes: [] };
   }
-  const changesByUnit = new Map<BattleUnitId, Map<EffectInstanceId, number>>();
-  for (const change of changes) {
-    const byEffect = changesByUnit.get(change.battleUnitId) ?? new Map<EffectInstanceId, number>();
-    byEffect.set(change.effectInstanceId, change.after);
-    changesByUnit.set(change.battleUnitId, byEffect);
+  const targetInstanceIdsByUnit = new Map<BattleUnitId, Set<EffectInstanceId>>();
+  for (const target of targets) {
+    const instanceIds =
+      targetInstanceIdsByUnit.get(target.battleUnitId) ?? new Set<EffectInstanceId>();
+    instanceIds.add(target.effectInstanceId);
+    targetInstanceIdsByUnit.set(target.battleUnitId, instanceIds);
   }
-  return units.map((unit) => {
-    const byEffect = changesByUnit.get(unit.battleUnitId);
-    if (byEffect === undefined) {
+  const changes: EffectDurationChange[] = [];
+  const nextUnits = units.map((unit) => {
+    const instanceIds = targetInstanceIdsByUnit.get(unit.battleUnitId);
+    if (instanceIds === undefined) {
       return unit;
     }
-    return {
-      ...unit,
-      appliedEffects: unit.appliedEffects.map((effect) => {
-        const after = byEffect.get(effect.effectInstanceId);
-        return after === undefined
-          ? effect
-          : { ...effect, duration: { ...effect.duration, timeLimitRemaining: after } };
-      }),
-    };
+    let changedInUnit = false;
+    const nextEffects = unit.appliedEffects.map((effect) => {
+      if (
+        !instanceIds.has(effect.effectInstanceId) ||
+        effect.duration.timeLimitRemaining === undefined
+      ) {
+        return effect;
+      }
+      const before = effect.duration.timeLimitRemaining;
+      const after = before - 1;
+      changes.push({
+        battleUnitId: unit.battleUnitId,
+        effectInstanceId: effect.effectInstanceId,
+        unit: "SKILL_USE",
+        before,
+        after,
+      });
+      changedInUnit = true;
+      return { ...effect, duration: { ...effect.duration, timeLimitRemaining: after } };
+    });
+    return changedInUnit ? { ...unit, appliedEffects: nextEffects } : unit;
   });
+  return { units: nextUnits, changes };
 }
 
 /**

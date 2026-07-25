@@ -20,8 +20,8 @@ import {
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
 import {
-  applyEffectDurationChanges,
   decrementSkillUseEffectDurations,
+  reapplySkillUseDurationDecrement,
 } from "../model/applied-effect-duration.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import type { TriggerContext } from "../targeting/target-selection-policy.js";
@@ -1466,33 +1466,40 @@ export class PassiveActivationRuntime {
     // `PassiveResolved`）自身のPS/Memory候補解決より後でなければならない。
     // そのためSKILL_USE単位減算はこの`yield`より後で行う。ただし、この連鎖
     // 解決前のunitsスナップショット（`preTerminalChainUnits`）から減算対象
-    // （`changes`）を決定する——`PassiveResolved`に反応するPSがこのPS自身とは
-    // 別の`skillUseId`で新たな`SKILL_USE`期間効果を付与し得るため、連鎖解決後の
-    // unitsから対象を決定すると、そのPSが付与したばかりの効果まで誤って
-    // 減算・即時失効させてしまう（PR #238再レビュー[P2]と同じ理由）。
+    // （`battleUnitId`+`effectInstanceId`のキーのみ）を決定する——
+    // `PassiveResolved`に反応するPSがこのPS自身とは別の`skillUseId`で新たな
+    // `SKILL_USE`期間効果を付与し得るため、連鎖解決後のunitsから対象を決定
+    // すると、そのPSが付与したばかりの効果まで誤って減算・即時失効させて
+    // しまう（PR #238再レビュー[P2]と同じ理由）。
     const preTerminalChainUnits = this.units;
     yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
 
     if (outcome.status !== "INTERRUPTED") {
-      const skillUseDurationDecrement = decrementSkillUseEffectDurations(
+      const skillUseDurationTargets = decrementSkillUseEffectDurations(
         preTerminalChainUnits,
         ownerId,
         skillUseId,
+      ).changes.map((change) => ({
+        battleUnitId: change.battleUnitId,
+        effectInstanceId: change.effectInstanceId,
+      }));
+      // PR #238再々レビュー[P1]: 決定した対象は`reapplySkillUseDurationDecrement`
+      // で連鎖解決後のunitsへ適用する——連鎖解決前のスナップショット値
+      // （before/after）をそのまま使い回さず、連鎖解決後の現在値から都度
+      // 再計算する。`terminalEvent`自身のPS連鎖（上でyield済み）の中で、
+      // その子PS自身の`PassiveResolved`が同じ対象へ独立にSKILL_USE単位減算を
+      // かけている場合があるため（この親PSと子PSはどちらも同じownerの
+      // 「1回のスキル使用完了」であり、互いに独立してR-EFF-04と同じ規約で
+      // 減算する）——古いスナップショット値をそのまま設定すると、子PSが既に
+      // 適用した減算を上書きし、2回分の減算のうち1回を消してしまう
+      // （PR #238再々レビュー[P1]）。対象インスタンスが連鎖解決中に既に
+      // 除去されていた場合は`reapplySkillUseDurationDecrement`が無視する。
+      const skillUseDurationDecrement = reapplySkillUseDurationDecrement(
+        this.units,
+        skillUseDurationTargets,
       );
-      // PR #238再々レビュー[P1]対応中に判明した派生ケース: `terminalEvent`
-      // 自身のPS連鎖（上でyield済み）の中で、その子PS自身の`PassiveResolved`が
-      // 同じ対象へ独立にSKILL_USE単位減算をかけ、スナップショット時点でまだ
-      // 生きていたインスタンスを既に失効・除去している場合がある（この親PSと
-      // 子PSはどちらも同じownerの「1回のスキル使用完了」であり、互いに独立して
-      // R-EFF-04と同じ規約で減算するため）。連鎖解決後のunitsに実際にまだ
-      // 存在する対象だけへ絞り込む。
-      const stillPresentChanges = skillUseDurationDecrement.changes.filter((change) =>
-        this.units
-          .find((unit) => unit.battleUnitId === change.battleUnitId)
-          ?.appliedEffects.some((effect) => effect.effectInstanceId === change.effectInstanceId),
-      );
-      if (stillPresentChanges.length > 0) {
-        this.units = applyEffectDurationChanges(this.units, stillPresentChanges);
+      if (skillUseDurationDecrement.changes.length > 0) {
+        this.units = skillUseDurationDecrement.units;
         const reducedEventsStart = this.context.recorder.getEvents().length;
         lastEventId = emitEffectDurationReducedEvents(
           {
@@ -1505,14 +1512,14 @@ export class PassiveActivationRuntime {
             rootEventId: this.context.rootEventId,
           },
           this.units,
-          stillPresentChanges,
+          skillUseDurationDecrement.changes,
           terminalEvent.eventId,
         );
         for (const event of this.context.recorder.getEvents().slice(reducedEventsStart)) {
           yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(event) };
         }
 
-        const skillUseExpirySeeds: ExpirationSeed[] = stillPresentChanges
+        const skillUseExpirySeeds: ExpirationSeed[] = skillUseDurationDecrement.changes
           .filter((change) => change.after === 0)
           .map((change) => ({
             battleUnitId: change.battleUnitId,
