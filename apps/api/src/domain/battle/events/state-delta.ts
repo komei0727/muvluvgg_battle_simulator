@@ -1,5 +1,5 @@
 import type { BattleStatus } from "../model/battle-status.js";
-import type { AppliedEffect } from "../model/applied-effect.js";
+import type { AppliedEffect, EffectImmunityState } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
@@ -71,6 +71,13 @@ export interface EffectSnapshot {
   readonly magnitude: number;
   /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の効果だけが持つ。 */
   readonly statusKind?: StatusKind;
+  /**
+   * M7-001B（Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`由来の効果だけが持つ。
+   * `blockedCount`（新規付与を実際に拒否した回数）は`EffectApplicationRejected`の
+   * stateDelta・独立Reducer復元のためだけに保持する内部専用フィールド
+   * （`10_API設計.md`のEffectStateResponseは公開しない、`consumptionRemaining`と同じ扱い）。
+   */
+  readonly immunity?: EffectImmunityState;
   readonly duration?: {
     readonly unit: "ACTION" | "TURN" | "SKILL_USE";
     readonly remaining: number;
@@ -113,6 +120,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     isEffective,
     magnitude: effect.magnitude,
     ...(effect.statusKind !== undefined ? { statusKind: effect.statusKind } : {}),
+    ...(effect.immunity !== undefined ? { immunity: effect.immunity } : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
       ? { consumptionRemaining: effect.duration.consumptionRemaining }

@@ -151,6 +151,13 @@ export interface ApplyStatusPayload {
 export interface EffectImmunityPayload {
   readonly categories: readonly EffectImmunityCategory[];
   readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
+  /**
+   * M7-001B（Issue #243、`EFFECT_IMMUNITY_STATUS_GRANULARITY`、R-EFF-03、
+   * `CAP_SPECIFIC_IMMUNITY`）: `categories`が`STATUS`を含む場合だけ指定できる、
+   * 対象を特定の状態異常種別（気絶のみ等）へ絞り込む値。省略時は従来どおり
+   * `STATUS`カテゴリ全体（状態異常すべて）を対象にする。
+   */
+  readonly statusKinds?: readonly StatusKind[];
   readonly duration: DurationDefinition;
   readonly maxBlocks: number | null;
 }

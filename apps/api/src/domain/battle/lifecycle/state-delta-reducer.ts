@@ -70,6 +70,25 @@ function sameCounters(
 }
 
 /**
+ * `sameCounters`と同じ理由（複合値は呼び出しごとに新しいオブジェクトとして
+ * 構築されるため参照同一性では判定できない）の`EffectImmunityState`版
+ * （M7-001B、Issue #243、R-EFF-03）。
+ */
+function sameImmunityState(a: EffectSnapshot["immunity"], b: EffectSnapshot["immunity"]): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.categories.length === b.categories.length &&
+    a.categories.every((category, i) => category === b.categories[i]) &&
+    a.maxBlocks === b.maxBlocks &&
+    a.blockedCount === b.blockedCount &&
+    JSON.stringify(a.statusKinds) === JSON.stringify(b.statusKinds) &&
+    JSON.stringify(a.effectActionDefinitionIds) === JSON.stringify(b.effectActionDefinitionIds)
+  );
+}
+
+/**
  * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
  * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
  * 単位の構造比較を行う。
@@ -95,7 +114,8 @@ export function sameEffectSnapshot(
     a.consumptionRemaining === b.consumptionRemaining &&
     a.appliedTurnNumber === b.appliedTurnNumber &&
     a.appliedActionId === b.appliedActionId &&
-    sameCounters(a.counters, b.counters)
+    sameCounters(a.counters, b.counters) &&
+    sameImmunityState(a.immunity, b.immunity)
   );
 }
 

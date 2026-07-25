@@ -380,10 +380,11 @@
     "kind": "EFFECT_IMMUNITY",
     "payload": {
       "categories": ["STATUS"],
+      "statusKinds": ["STUN"],
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
       "maxBlocks": null
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SPECIFIC_IMMUNITY"],
     "metadata": { "tags": [] }
   },
   {
@@ -2428,10 +2429,11 @@
     "kind": "EFFECT_IMMUNITY",
     "payload": {
       "categories": ["STATUS"],
+      "statusKinds": ["STUN"],
       "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 3 } },
       "maxBlocks": null
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SPECIFIC_IMMUNITY"],
     "metadata": { "tags": [] }
   },
   {
@@ -3602,7 +3604,7 @@
       },
       "probability": 1
     },
-    "requiredCapabilities": ["CAP_SPECIFIC_IMMUNITY"],
+    "requiredCapabilities": ["CAP_STATUS_EFFECT_KIND"],
     "metadata": { "tags": [] }
   },
   {
@@ -3664,7 +3666,7 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "SKILL_USE", "count": 4 } },
       "probability": 1
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STATUS_EFFECT_KIND"],
     "metadata": { "tags": [] }
   },
   {

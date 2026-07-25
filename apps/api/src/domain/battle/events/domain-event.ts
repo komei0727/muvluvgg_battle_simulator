@@ -486,6 +486,22 @@ export interface BattleDomainEventPayloadMap {
     readonly snapshot?: Readonly<Record<string, number>>;
   };
   /**
+   * `08_ドメインイベント.md`「EffectApplicationRejected payload」（M7-001B、
+   * Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`由来の有効な免疫が対象カテゴリの
+   * 新規付与を拒否した直後に発行する。実際に`AppliedEffect`は作られない
+   * （`EffectApplied`は発行しない）ため、この事実自体を記録する専用イベント。
+   * `statusKind`は拒否対象が`APPLY_STATUS`由来の場合だけ持つ（`EffectApplied`と
+   * 同じ規約）。
+   */
+  readonly EffectApplicationRejected: {
+    readonly battleUnitId: BattleUnitId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly blockingEffectInstanceId: EffectInstanceId;
+    readonly reason: EffectApplicationRejectionReason;
+    readonly statusKind?: StatusKind;
+  };
+  /**
    * `08_ドメインイベント.md`「EffectiveEffectChanged」: R-EFF-05の重複なし効果で
    * 採用対象が変わった時に、`EffectKindKey`ごとに発行する。`before`/`after`は
    * 採用中のインスタンスID（グループに1件も無ければ`undefined`）。同時に複数の
@@ -675,6 +691,14 @@ export type MarkerRemovalReason =
  * `EffectExpired`（`EffectExpirationReason`）が表し、この型には含めない。
  */
 export type EffectRemovalReason = "REMOVED" | "LINKED_GROUP_CASCADE";
+
+/**
+ * `07_戦闘ルール詳細.md` R-EFF-03（M7-001B、Issue #243）: `EffectApplicationRejected`
+ * の拒否理由。現時点では`EFFECT_IMMUNITY`による免疫拒否だけを表す
+ * `IMMUNITY`のみだが、`EffectRemovalReason`/`EffectExpirationReason`と同じ
+ * 閉じたunionとして今後の拒否理由追加に備える。
+ */
+export type EffectApplicationRejectionReason = "IMMUNITY";
 
 /**
  * `08_ドメインイベント.md`「EffectActionCompleted payload」。M6時点では

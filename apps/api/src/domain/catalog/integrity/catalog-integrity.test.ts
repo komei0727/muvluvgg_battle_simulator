@@ -68,6 +68,27 @@ function removeEffectsAction(
   );
 }
 
+/** M7-001B（Issue #243、EFFECT_IMMUNITY_STATUS_GRANULARITY、R-EFF-03）。 */
+function statusScopedImmunityAction(
+  id: string,
+  requiredCapabilities: readonly string[] = [],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "EFFECT_IMMUNITY",
+      payload: {
+        categories: ["STATUS"],
+        statusKinds: ["STUN"],
+        duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
+        maxBlocks: null,
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function removeEffectsCategoryAction(
   id: string,
   categories: readonly ("BUFF" | "DEBUFF" | "STATUS" | "DAMAGE_MOD" | "SHIELD" | "SUBUNIT")[],
@@ -1124,6 +1145,41 @@ describe("buildCatalogIndex", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("UT-CAT-IDX-076 (M7-001B, Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): rejects an EFFECT_IMMUNITY with statusKinds missing the required CAP_SPECIFIC_IMMUNITY declaration", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      effectActions: [...defs.effectActions, statusScopedImmunityAction("ACT_STUN_IMMUNITY", [])],
+    };
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_STUN_IMMUNITY",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-077 (M7-001B, Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): accepts an EFFECT_IMMUNITY with statusKinds that declares CAP_SPECIFIC_IMMUNITY", () => {
+    const defs = baseDefinitions();
+    const withCapability: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        statusScopedImmunityAction("ACT_STUN_IMMUNITY", ["CAP_SPECIFIC_IMMUNITY"]),
+      ],
+      capabilities: [capability("CAP_SPECIFIC_IMMUNITY")],
+    };
+
+    const index = buildCatalogIndex(withCapability);
+
+    expect(index.effectActions.get("ACT_STUN_IMMUNITY" as never)).toBeDefined();
   });
 
   it("UT-CAT-IDX-017: rejects a COOLDOWN_MANIPULATION payload.targetSkillDefinitionId referencing a missing SkillDefinition (Issue #129)", () => {

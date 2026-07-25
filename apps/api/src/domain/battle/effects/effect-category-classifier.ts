@@ -32,6 +32,13 @@ const STATUS_AILMENT_KINDS: ReadonlySet<StatusKind> = new Set<StatusKind>([
  * `APPLY_SHIELD`・`APPLY_SUBUNIT`が実ライフサイクルへ配線された時点でも正しく
  * 分類できるよう、定義kindから決まる固有カテゴリ（`DAMAGE_MOD`/`SHIELD`/
  * `SUBUNIT`）も併せて返す。
+ *
+ * M7-001B（Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`の付与拒否判定
+ * （`effect-immunity-service.ts`）も、まだ`AppliedEffect`として存在しない
+ * 「これから付与しようとしている効果」の候補カテゴリを求めるためにこの関数を
+ * 再利用する — `APPLY_MARKER`はCatalog付与前の候補としてしか呼ばれない
+ * （`MarkerState`は`AppliedEffect`ではないため、既存効果の解除判定
+ * `effect-removal-service.ts`側からは`APPLY_MARKER`のdefinitionが渡ることはない）。
  */
 export function effectCategoriesOf(
   effect: Pick<AppliedEffect, "magnitude" | "statusKind">,
@@ -53,6 +60,8 @@ export function effectCategoriesOf(
       return new Set<EffectImmunityCategory>(["SHIELD"]);
     case "APPLY_SUBUNIT":
       return new Set<EffectImmunityCategory>(["SUBUNIT"]);
+    case "APPLY_MARKER":
+      return new Set<EffectImmunityCategory>(["MARKER"]);
     default:
       // APPLY_STAT_MOD等の継続ステータス補正は符号付きmagnitudeで判定する。
       return new Set<EffectImmunityCategory>([polarity]);

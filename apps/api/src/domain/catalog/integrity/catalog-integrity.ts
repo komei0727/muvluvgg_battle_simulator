@@ -1272,6 +1272,24 @@ function validateEffectAction(
       });
     }
   }
+  // M7-001B（Issue #243、EFFECT_IMMUNITY_STATUS_GRANULARITY）: `statusKinds`は
+  // `CAP_SPECIFIC_IMMUNITY`（個別状態異常無効）そのものの機能なので、使用時は
+  // `CAP_REMOVE_EFFECTS`と同じ「宣言漏れ自体を拒否する」パターンで宣言を必須に
+  // する。`statusKinds`を使わない（STATUSカテゴリ全体を対象にする）既存の
+  // `EFFECT_IMMUNITY`はこの新しいCapabilityを要求しない。
+  if (effectAction.kind === "EFFECT_IMMUNITY") {
+    if (
+      effectAction.payload.statusKinds !== undefined &&
+      !effectAction.requiredCapabilities.some((id) => id === "CAP_SPECIFIC_IMMUNITY")
+    ) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message:
+          'EFFECT_IMMUNITY with "statusKinds" must declare "CAP_SPECIFIC_IMMUNITY" in requiredCapabilities',
+      });
+    }
+  }
   // Issue #129: COOLDOWN_MANIPULATIONの対象スキル存在チェック。所有者一致は
   // `checkCooldownManipulationOwnership`（Unit視点でのみ判定可能）が担う。
   if (effectAction.kind === "COOLDOWN_MANIPULATION") {

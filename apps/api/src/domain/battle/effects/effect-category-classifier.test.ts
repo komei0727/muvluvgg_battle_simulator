@@ -118,4 +118,22 @@ describe("effectCategoriesOf", () => {
     );
     expect(new Set(categories)).toEqual(new Set(["DAMAGE_MOD", "BUFF"]));
   });
+
+  it("UT-R-EFF-03-001 (M7-001B, Issue #243): classifies APPLY_MARKER as MARKER, for EFFECT_IMMUNITY block-candidate classification", () => {
+    const markerDefinition = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARK",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_TEST",
+          stack: { policy: "ADD", max: null },
+          duration: { dispellable: true },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    const categories = effectCategoriesOf(effect({ magnitude: 0 }), markerDefinition);
+    expect([...categories]).toEqual(["MARKER"]);
+  });
 });

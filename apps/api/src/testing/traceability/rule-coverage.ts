@@ -1208,7 +1208,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`catalog-integrity.ts`）で選択時に`SimulationPreflightValidator`が
   // `UNSUPPORTED_RULE`として拒否する経路までは本Issueで配線した
   // （`UT-PREFLIGHT-012`）が、実際の解除ロジック自体はIssue #242のスコープ。
-  // 状態異常種別限定免疫（R-EFF-03、`CAP_SPECIFIC_IMMUNITY`）はIssue #243のスコープ。
+  // 状態異常種別限定免疫（R-EFF-03、`CAP_SPECIFIC_IMMUNITY`）はM7-001B（Issue #243）で完了した。
   {
     ruleId: "R-EFF-02",
     testCaseIds: [
@@ -1234,7 +1234,35 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
-  { ruleId: "R-EFF-03", testCaseIds: [], kinds: [] },
+  // R-EFF-03: M7-001B（Issue #243、EFFECT_IMMUNITY_STATUS_GRANULARITY）。
+  // `EFFECT_IMMUNITY`の`statusKinds`によるSTATUSカテゴリの状態異常種別限定
+  // （`effect-category-classifier.ts`のMARKER分類追加＋`effect-immunity-service.ts`の
+  // `findBlockingImmunity`/`rejectEffectApplication`）と、実ライフサイクル配線
+  // （`effect-action-group-resolver.ts`のEFFECT_IMMUNITY branch（免疫登録）、
+  // APPLY_STAT_MOD/APPLY_STATUS/APPLY_MARKER branchでの付与拒否・
+  // `EffectApplicationRejected`・R-EFF-07 STATUS_BLOCKED消費による免疫自身の失効）。
+  {
+    ruleId: "R-EFF-03",
+    testCaseIds: [
+      "UT-R-EFF-03-001",
+      "UT-R-EFF-03-002",
+      "UT-R-EFF-03-003",
+      "UT-R-EFF-03-004",
+      "UT-R-EFF-03-005",
+      "UT-R-EFF-03-006",
+      "UT-R-EFF-03-007",
+      "UT-R-EFF-03-008",
+      "UT-R-EFF-03-009",
+      "UT-R-EFF-03-010",
+      "UT-R-EFF-03-011",
+      "UT-R-EFF-03-012",
+      "UT-R-EFF-03-013",
+      "UT-R-EFF-03-014",
+      "UT-R-EFF-03-015",
+      "UT-R-EFF-03-016",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // R-EFF-04: EFF-003（Issue #159）。行動単位期間の減算・失効
   // （`applied-effect-duration.ts`のowner解決、`duration-expiry-service.ts`の
   // cascade・CombatStat再計算、`action-completion.ts`への実ライフサイクル

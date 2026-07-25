@@ -111,7 +111,13 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   ],
   APPLY_SHIELD: ["formula", "duration"],
   REMOVE_EFFECTS: ["categories", "effectActionDefinitionIds", "maxRemovals"],
-  EFFECT_IMMUNITY: ["categories", "effectActionDefinitionIds", "duration", "maxBlocks"],
+  EFFECT_IMMUNITY: [
+    "categories",
+    "effectActionDefinitionIds",
+    "statusKinds",
+    "duration",
+    "maxBlocks",
+  ],
   APPLY_MARKER: ["markerId", "stack", "duration"],
   REMOVE_MARKER: ["markerId", "count"],
   APPLY_DEATH_SURVIVAL: ["trigger", "survivalHp", "healAfterSurvival", "duration"],
@@ -642,6 +648,7 @@ function createPayload(
       const result: {
         categories: readonly EffectImmunityCategory[];
         effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
+        statusKinds?: readonly (typeof STATUS_KINDS)[number][];
         duration: DurationDefinition;
         maxBlocks: number | null;
       } = {
@@ -649,6 +656,24 @@ function createPayload(
         duration: createDurationField(payload, path),
         maxBlocks: maxBlocksRaw,
       };
+      // M7-001B（Issue #243、`EFFECT_IMMUNITY_STATUS_GRANULARITY`、R-EFF-03）:
+      // `statusKinds`は`categories`が`STATUS`を含む場合だけ意味を持つ。
+      // `effectActionDefinitionIds`（SPECIFIC_EFFECT専用）と同じ理由で、
+      // 無関係な場合に指定すると黙って無視されてしまうため拒否する。
+      const statusKindsRaw = payload["statusKinds"] as readonly string[] | undefined;
+      if (statusKindsRaw !== undefined) {
+        if (!typedCategories.includes("STATUS")) {
+          throw new DomainValidationError(
+            `${path}.statusKinds`,
+            'must not be set when "categories" does not include "STATUS" (it would otherwise be silently ignored)',
+          );
+        }
+        assertNonEmptyArray(statusKindsRaw, `${path}.statusKinds`);
+        for (const [i, statusKind] of statusKindsRaw.entries()) {
+          assertEnumValue(statusKind, STATUS_KINDS, `${path}.statusKinds[${i}]`);
+        }
+        result.statusKinds = statusKindsRaw as readonly (typeof STATUS_KINDS)[number][];
+      }
       if (typedCategories.includes("SPECIFIC_EFFECT")) {
         const ids = payload["effectActionDefinitionIds"] as readonly string[] | undefined;
         assertNonEmptyArray(ids ?? [], `${path}.effectActionDefinitionIds`);

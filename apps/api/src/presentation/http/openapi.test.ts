@@ -868,6 +868,7 @@ describe("OpenAPI document", () => {
       RuntimeCounterChanged: true,
       RuntimeCounterReset: true,
       EffectApplied: true,
+      EffectApplicationRejected: true,
       EffectiveEffectChanged: true,
       CombatStatChanged: true,
       EffectDurationReduced: true,

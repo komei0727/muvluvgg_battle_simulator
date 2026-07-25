@@ -35,7 +35,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_SPECIFIC_IMMUNITY"],
+    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_STATUS_EFFECT_KIND"],
     "metadata": { "displayName": "大儲けだー！", "tags": [] }
   },
   {

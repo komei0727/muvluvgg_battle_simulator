@@ -3671,4 +3671,381 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       DomainValidationError,
     );
   });
+
+  // --- M7-001B (Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): EFFECT_IMMUNITY (R-EFF-03) real lifecycle wiring ---
+
+  function immunityAction(
+    id: string,
+    payload: Extract<EffectActionDefinition, { kind: "EFFECT_IMMUNITY" }>["payload"],
+  ): EffectActionDefinition {
+    return {
+      kind: "EFFECT_IMMUNITY",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload,
+    };
+  }
+
+  function immunityEffectOn(
+    holder: BattleUnit,
+    instanceId: string,
+    definitionId: EffectActionDefinition["effectActionDefinitionId"],
+    immunity: NonNullable<AppliedEffect["immunity"]>,
+  ): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId(instanceId),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      sourceId: holder.battleUnitId,
+      targetId: holder.battleUnitId,
+      magnitude: 0,
+      immunity,
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 0,
+    };
+  }
+
+  it("UT-R-EFF-03-011 (real lifecycle wiring): an EFFECT_IMMUNITY ACTION step grants an immunity-bearing AppliedEffect through the real Catalog -> EffectSequence -> AppliedEffect -> event pipeline", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const immunity = immunityAction("ACT_STUN_IMMUNITY", {
+      categories: ["STATUS"],
+      statusKinds: ["STUN"],
+      duration: {
+        timeLimit: { unit: "ACTION", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      maxBlocks: null,
+    });
+    const effectActions = new Map([[immunity.effectActionDefinitionId, immunity]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, actor.battleUnitId, immunity.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectApplied",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+    expectCompleted(result, 1);
+
+    const grantedTarget = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(grantedTarget.appliedEffects).toHaveLength(1);
+    expect(grantedTarget.appliedEffects[0]!.immunity).toEqual({
+      categories: ["STATUS"],
+      statusKinds: ["STUN"],
+      maxBlocks: null,
+      blockedCount: 0,
+    });
+
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("APPLIED");
+  });
+
+  it("UT-R-EFF-03-012: an APPLY_STAT_MOD DEBUFF is rejected by a pre-existing DEBUFF-category immunity, emitting EffectApplicationRejected (resultKind REJECTED) instead of EffectApplied", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const debuff: EffectActionDefinition = {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATK_DOWN"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: -10 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "TURN", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const immunityDefId = createEffectActionDefinitionId("ACT_DEBUFF_IMMUNITY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        immunityEffectOn(unit("ENEMY", "ENEMY"), "existing-immunity", immunityDefId, {
+          categories: ["DEBUFF"],
+          maxBlocks: null,
+          blockedCount: 0,
+        }),
+      ],
+    });
+    const effectActions = new Map([[debuff.effectActionDefinitionId, debuff]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, debuff.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectApplicationRejected",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+    expectCompleted(result, 1);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]!.immunity?.blockedCount).toBe(1);
+
+    const rejected = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectApplicationRejected") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectApplicationRejected" }
+    >;
+    expect(rejected.payload).toMatchObject({
+      battleUnitId: enemy.battleUnitId,
+      effectActionDefinitionId: debuff.effectActionDefinitionId,
+      sourceUnitId: actor.battleUnitId,
+      blockingEffectInstanceId: createEffectInstanceId("existing-immunity"),
+      reason: "IMMUNITY",
+    });
+
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("REJECTED");
+  });
+
+  it("UT-R-EFF-03-013 (EFFECT_IMMUNITY_STATUS_GRANULARITY): a STATUS immunity scoped to statusKinds STUN rejects an APPLY_STATUS(STUN) grant before reaching the STEALTH-only resolver guard", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const stun: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const immunityDefId = createEffectActionDefinitionId("ACT_STUN_IMMUNITY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        immunityEffectOn(unit("ENEMY", "ENEMY"), "existing-immunity", immunityDefId, {
+          categories: ["STATUS"],
+          statusKinds: ["STUN"],
+          maxBlocks: null,
+          blockedCount: 0,
+        }),
+      ],
+    });
+    const effectActions = new Map([[stun.effectActionDefinitionId, stun]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, stun.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).not.toThrow();
+
+    const rejected = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectApplicationRejected") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectApplicationRejected" }
+    >;
+    expect(rejected.payload).toMatchObject({
+      battleUnitId: enemy.battleUnitId,
+      statusKind: "STUN",
+      reason: "IMMUNITY",
+    });
+    const target = enemy;
+    expect(target.appliedEffects.some((e) => e.statusKind === "STUN")).toBe(false);
+  });
+
+  it("UT-R-EFF-03-014 (EFFECT_IMMUNITY_STATUS_GRANULARITY): a STATUS immunity scoped to statusKinds FREEZE does NOT block a STUN attempt, which still throws via the pre-existing STEALTH-only resolver guard", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const stun: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const immunityDefId = createEffectActionDefinitionId("ACT_FREEZE_IMMUNITY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        immunityEffectOn(unit("ENEMY", "ENEMY"), "existing-immunity", immunityDefId, {
+          categories: ["STATUS"],
+          statusKinds: ["FREEZE"],
+          maxBlocks: null,
+          blockedCount: 0,
+        }),
+      ],
+    });
+    const effectActions = new Map([[stun.effectActionDefinitionId, stun]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, stun.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-R-EFF-03-015: a MARKER-category immunity rejects an APPLY_MARKER grant", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const markerId = createMarkerId("MARKER_TEST");
+    const mark = markerAction("ACT_MARK", markerId);
+    const immunityDefId = createEffectActionDefinitionId("ACT_MARKER_IMMUNITY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        immunityEffectOn(unit("ENEMY", "ENEMY"), "existing-immunity", immunityDefId, {
+          categories: ["MARKER"],
+          maxBlocks: null,
+          blockedCount: 0,
+        }),
+      ],
+    });
+    const effectActions = new Map([[mark.effectActionDefinitionId, mark]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, mark.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.markerStates).toHaveLength(0);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectApplicationRejected")).toBe(
+      true,
+    );
+    expect(recorder.getEvents().some((e) => e.eventType === "MarkerApplied")).toBe(false);
+  });
+
+  it("UT-R-EFF-03-016 (maxBlocks + STATUS_BLOCKED self-consumption, production shape ACT_SENKA_CHRISTMAS_PS1_STUN_IMMUNITY): a STATUS immunity with maxBlocks=1 and duration.consumption STATUS_BLOCKED blocks a STUN attempt exactly once, then consumes/expires itself so a second attempt reaches the AppliedEffect", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const stun: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const immunityDefId = createEffectActionDefinitionId("ACT_STATUS_IMMUNITY_LIMITED");
+    let enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("existing-immunity"),
+          effectActionDefinitionId: immunityDefId,
+          kindKey: effectKindKeyFromDefinitionId(immunityDefId),
+          duplicate: true,
+          sourceId: createBattleUnitId("ENEMY"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          immunity: { categories: ["STATUS"], maxBlocks: 1, blockedCount: 0 },
+          duration: {
+            definition: {
+              dispellable: true,
+              linkedEffectGroupId: null,
+              consumption: { kind: "STATUS_BLOCKED", maxCount: 1 },
+            },
+            consumptionRemaining: 1,
+          },
+          appliedTurnNumber: 0,
+        },
+      ],
+    });
+    const effectActions = new Map([[stun.effectActionDefinitionId, stun]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const firstAttemptPlan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, stun.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const firstResult = applyEffectActionGroups(firstAttemptPlan, [actor, enemy], context);
+    const emittedFirst = recorder.getEvents().map((e) => e.eventType);
+    expect(emittedFirst).toContain("EffectApplicationRejected");
+    expect(emittedFirst).toContain("EffectConsumptionChanged");
+    expect(emittedFirst).toContain("EffectExpired");
+
+    enemy = firstResult.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    // The immunity itself is now gone (consumed to 0 -> expired).
+    expect(enemy.appliedEffects).toHaveLength(0);
+
+    const secondAttemptPlan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, stun.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+    // The immunity is gone, so the STUN attempt now falls through to the
+    // pre-existing STEALTH-only resolver guard (STUN itself still has no
+    // runtime effect implementation, tracked separately from R-EFF-03).
+    expect(() => applyEffectActionGroups(secondAttemptPlan, [actor, enemy], context)).toThrow(
+      DomainValidationError,
+    );
+  });
 });
