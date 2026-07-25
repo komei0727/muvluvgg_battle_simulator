@@ -20,11 +20,14 @@ import { createUnitDefinitionId } from "../domain/catalog/definitions/catalog-id
  * Unitになる。`selectable`は「現在の実装Capabilityで戦闘事前検証を通過できる」という
  * API契約なので、選択可能と公開したUnitは実際に戦闘を開始・完走できなければならない。
  *
- * `UNIT_KEI_JACKKNIFE`は基本HP33623×編成補正が非整数（例: FRONT配置で40347.6）に
- * なるため、`calculateStartingCombatStats`が`maximumHp`を整数へ切り捨てないと
- * `createBattleUnit`（ゲージ最大値の`assertInteger`）で例外になり、`selectable: true`
- * なのに最小の実戦闘POSTが422で失敗していた。既存のE2E smoke testはID順で先頭の
- * `UNIT_CI_SMOKE_TEST`を選ぶためこの回帰を検出しない。
+ * `UNIT_KEI_JACKKNIFE`は`maximumHp`が非整数になる（PS1 `ACT_KEI_JACKKNIFE_PS1_MAXHP_UP`の
+ * +20% `MAXIMUM_HP`比率補正で33623→40347.6。編成補正で端数が生じる場合も同様）。
+ * `combatStats.maximumHp`はR-NUM-01/R-STA-01に従い全精度で保持する契約（後続の
+ * R-STA-04再計算の基準）だが、HPゲージ最大値は整数でなければならない
+ * （`createHitPoint`→`assertInteger`）。`createBattleUnit`/`applyDamageAction`の
+ * ゲージ境界で最大値をR-NUM-02整数化しないと、`selectable: true`なのに最小の実戦闘
+ * POSTが422で失敗する。既存のE2E smoke testはID順で先頭の`UNIT_CI_SMOKE_TEST`を
+ * 選ぶためこの回帰を検出しない。
  *
  * ここでは実`catalog/`から、GET一覧APIが`UNIT_KEI_JACKKNIFE`を`selectable`と
  * 報告することを確認したうえで、そのUnitを味方・敵に据えた実戦闘を`SimulateBattleUseCase`
@@ -76,7 +79,7 @@ describe("production Catalog: UNIT_KEI_JACKKNIFE selectable-unit battle completi
     expect(kei!.selectable).toBe(true);
   });
 
-  it("IT-CAP-BRANCH-REPEAT-PROD-006: a real battle with the selectable UNIT_KEI_JACKKNIFE builds integer combat stats and runs to a decided outcome (no 422 hitPoint.max regression)", () => {
+  it("IT-CAP-BRANCH-REPEAT-PROD-006: a real battle with the selectable UNIT_KEI_JACKKNIFE integerizes the HP gauge from its full-precision maximumHp and runs to a decided outcome (no 422 hitPoint.max regression)", () => {
     const battleCatalog = loadCatalogFromDirectory(CATALOG_DIR);
     const catalogRevision = battleCatalog.catalogRevision;
     const useCase = new SimulateBattleUseCase({
