@@ -109,6 +109,30 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
     expect(result.changedStats).toContainEqual({ stat: "ATTACK", before: 100, after: 120 });
   });
 
+  it("UT-R-STA-04-021: a RATIO MAXIMUM_HP APPLY_STAT_MOD truncates the recalculated gauge max toward zero (integer gauge contract, R-NUM-02) while other stats keep full precision", () => {
+    // `ACT_KEI_JACKKNIFE_PS1_MAXHP_UP`（+20% MAXIMUM_HP）相当。基本HP33623×1.2=
+    // 40347.6 は HP ゲージ最大値（`createHitPoint`→`assertInteger`）として整数で
+    // なければならないため0方向へ切り捨てる。これがないと選択可能な実Unitが実戦闘
+    // 開始時に例外になる（Issue #173 レビュー[P1]）。
+    const def = statModDefinition("ACT_MAXHP_UP", "MAXIMUM_HP", "RATIO");
+    const fractionalBase: CombatStats = { ...BASE_COMBAT_STATS, maximumHp: 33623 };
+    const target = unit({
+      combatStats: fractionalBase,
+      baseCombatStats: fractionalBase,
+      appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.2)],
+    });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    expect(result.combatStats.maximumHp).toBe(40347);
+    expect(Number.isInteger(result.combatStats.maximumHp)).toBe(true);
+    expect(result.changedStats).toContainEqual({
+      stat: "MAXIMUM_HP",
+      before: 33623,
+      after: 40347,
+    });
+  });
+
   it("UT-R-STA-04-012: multiple stackable RATIO effects on the same stat sum together (R-STA-02)", () => {
     const def = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
     const target = unit({

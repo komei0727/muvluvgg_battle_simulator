@@ -97,13 +97,21 @@ export function computeCombatStats(
     const field = STAT_FIELD[stat];
     const bucket = byStat.get(stat);
     const before = unit.combatStats[field];
-    const after = calculateCombatStat({
+    const rawAfter = calculateCombatStat({
       baseValue: unit.baseCombatStats[field],
       formationBonus: ZERO_PERCENTAGE,
       aptitudePenalty: ZERO_PERCENTAGE,
       ratioEffects: bucket?.ratio ?? [],
       fixedCorrection: combineEffects(bucket?.fixed ?? []),
     });
+    // maximumHp は HP ゲージの最大値であり整数でなければならない（値オブジェクト
+    // 契約 `createHitPoint`→`assertInteger(max)`）。R-STA-04 の再計算でも
+    // MAXIMUM_HP の比率補正（例: `ACT_KEI_JACKKNIFE_PS1_MAXHP_UP` +20%）で
+    // 非整数になり得るため、R-NUM-02（ゲージは小数部分を切り捨てる）と同じ方針で
+    // 0方向へ切り捨てる（`calculateStartingCombatStats` の開始時整数化と対）。
+    // attack/defense/各rateはゲージ最大値ではなく R-NUM-04 が最終適用直前でのみ
+    // 切り捨てる中間値のため、全精度のまま保持する。
+    const after = stat === "MAXIMUM_HP" ? Math.trunc(rawAfter) : rawAfter;
     nextCombatStats[field] = after;
     if (before !== after) {
       changedStats.push({ stat, before, after });

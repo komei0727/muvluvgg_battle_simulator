@@ -81,6 +81,26 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
     expect(result.actionSpeed).toBeCloseTo(50);
   });
 
+  it("UT-R-STA-01-013: a fractional formation-adjusted maximumHp is truncated toward zero (gauge max must be an integer, R-NUM-02) while attack keeps full precision (R-NUM-04)", () => {
+    // UNIT_KEI_JACKKNIFE の実値: maximumHp 33623 × (1 + 0.2) = 40347.6 → 40347、
+    // attack 17679 × 1.2 = 21214.8 は最終ダメージ計算まで全精度で持ち越す。
+    const result = calculateStartingCombatStats({
+      baseStats: { ...BASE_STATS, maximumHp: 33623, attack: 17679 },
+      positionAptitudes: ["FRONT"],
+      row: "FRONT",
+      formationBonus: {
+        attackBonus: createPercentage(0.2),
+        hpBonus: createPercentage(0.2),
+        defenseBonus: createPercentage(0),
+        criticalRateBonus: createPercentage(0),
+      },
+    });
+
+    expect(result.maximumHp).toBe(40347);
+    expect(Number.isInteger(result.maximumHp)).toBe(true);
+    expect(result.attack).toBeCloseTo(21214.8);
+  });
+
   it("UT-R-ATR-02-004: affinityBonus is copied through as-is from baseStats, unaffected by formation/aptitude", () => {
     const result = calculateStartingCombatStats({
       baseStats: BASE_STATS,

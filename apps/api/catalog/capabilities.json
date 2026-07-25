@@ -303,14 +303,16 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-003",
-    "description": "EffectStepの`BRANCH`（条件分岐）・`REPEAT`（反復）と直前結果（`LAST_RESULT` Condition、`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` TargetReference）を実resolverでJIT解決する（R-SKL-07/08、Issue #173）。`BRANCH`は`condition`をstep-wideスコープで評価し（`resolveBranchStep`→`evaluateEffectStepCondition`）trueなら`thenSteps`・falseなら`elseSteps`を定義順に解決する。`REPEAT`は指定回数`steps`を繰り返し、途中で使用者が戦闘不能になれば残りを中断する。直前結果は同じ解決スコープ内で実際に確定した`EffectAction`結果だけ（MISS/付与拒否/対象なし/対象0件SKIPPEDを含む）を`LastResultState`へ記録する。production代表`SKL_KEI_JACKKNIFE_AS2`（`TARGET_HAS_MARKER`条件のthen/else両枝が純DAMAGE）・`SKL_SENKA_SCHEMER_EX`（`IS_ALIVE`条件、先行stepの副作用を反映したstate評価・空else）を実ライフサイクル（`EffectStepStarting`→`DamageApplied`→StateDelta→独立Reducer復元）まで検証する（`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）。`REPEAT`と直前結果はランタイム実装済み・domain単体テスト（`UT-R-SKL-07`/`UT-R-SKL-08`、`rule-coverage.ts`）済みだが、これらを使うproduction Skill定義が現時点で1件も存在しない（`catalog-src/`全走査）ため、production代表は`BRANCH`のみとする。",
+    "description": "EffectStepの`BRANCH`（条件分岐）・`REPEAT`（反復）と直前結果（`LAST_RESULT` Condition、`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` TargetReference）を実resolverでJIT解決する（R-SKL-07/08、Issue #173）。`BRANCH`は`condition`をstep-wideスコープで評価し（`resolveBranchStep`→`evaluateEffectStepCondition`）trueなら`thenSteps`・falseなら`elseSteps`を定義順に解決する。`REPEAT`は指定回数`steps`を繰り返し、途中で使用者が戦闘不能になれば残りを中断する。直前結果は同じ解決スコープ内で実際に確定した`EffectAction`結果だけ（MISS/付与拒否/対象なし/対象0件SKIPPEDを含む）を`LastResultState`へ記録する。production代表`SKL_KEI_JACKKNIFE_AS2`（`TARGET_HAS_MARKER`条件のthen/else両枝が純DAMAGE）・`SKL_SENKA_SCHEMER_EX`（`IS_ALIVE`条件、先行stepの副作用を反映したstate評価・空else）を実ライフサイクル（`EffectStepStarting`→`DamageApplied`→StateDelta→独立Reducer復元）まで検証する（`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）。`REPEAT`と直前結果はランタイム実装済み・domain単体テスト（`UT-R-SKL-07`/`UT-R-SKL-08`、`rule-coverage.ts`）済みだが、これらを使うproduction Skill定義が現時点で1件も存在しない（`catalog-src/`全走査）ため、production代表は`BRANCH`のみとする。本Capabilityの`IMPLEMENTED`化により`UNIT_KEI_JACKKNIFE`が初の`selectable`な実production Unitになるため、GET一覧APIの`selectable`公開と実戦闘の完走を`IT-CAP-BRANCH-REPEAT-PROD-005〜006`で検証する（PS1の`MAXIMUM_HP`比率補正で非整数化するゲージ最大値をR-NUM-02で整数化: `calculateStartingCombatStats`/`computeCombatStats`。合成Unit`UNIT_CI_SMOKE_TEST`の削除は`REL-002`管理のまま）。",
     "verification": {
       "productionDefinitionIds": ["SKL_KEI_JACKKNIFE_AS2", "SKL_SENKA_SCHEMER_EX"],
       "testCaseIds": [
         "IT-CAP-BRANCH-REPEAT-PROD-001",
         "IT-CAP-BRANCH-REPEAT-PROD-002",
         "IT-CAP-BRANCH-REPEAT-PROD-003",
-        "IT-CAP-BRANCH-REPEAT-PROD-004"
+        "IT-CAP-BRANCH-REPEAT-PROD-004",
+        "IT-CAP-BRANCH-REPEAT-PROD-005",
+        "IT-CAP-BRANCH-REPEAT-PROD-006"
       ]
     }
   },
