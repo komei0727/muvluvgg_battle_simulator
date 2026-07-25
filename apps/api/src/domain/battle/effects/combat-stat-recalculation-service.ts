@@ -97,21 +97,19 @@ export function computeCombatStats(
     const field = STAT_FIELD[stat];
     const bucket = byStat.get(stat);
     const before = unit.combatStats[field];
-    const rawAfter = calculateCombatStat({
+    // R-NUM-01/R-STA-01/R-STA-04: maximumHp を含む全ステータスは途中で丸めず
+    // 全精度で保持する。基準は `baseCombatStats`（未丸めの編成補正値）であり、
+    // ここで MAXIMUM_HP の比率補正を丸めた値へ重ねると二重丸め誤差になる
+    // （例: 編成補正で 40347.6 → さらに +20% は 48417.12 = trunc 48417 が正、
+    // 開始時に 40347 へ丸めてから ×1.2 すると 48416 になり1ずれる。PR #239
+    // 再レビュー[P2]）。ゲージ最大値としての整数化はゲージへ渡す境界で行う。
+    const after = calculateCombatStat({
       baseValue: unit.baseCombatStats[field],
       formationBonus: ZERO_PERCENTAGE,
       aptitudePenalty: ZERO_PERCENTAGE,
       ratioEffects: bucket?.ratio ?? [],
       fixedCorrection: combineEffects(bucket?.fixed ?? []),
     });
-    // maximumHp は HP ゲージの最大値であり整数でなければならない（値オブジェクト
-    // 契約 `createHitPoint`→`assertInteger(max)`）。R-STA-04 の再計算でも
-    // MAXIMUM_HP の比率補正（例: `ACT_KEI_JACKKNIFE_PS1_MAXHP_UP` +20%）で
-    // 非整数になり得るため、R-NUM-02（ゲージは小数部分を切り捨てる）と同じ方針で
-    // 0方向へ切り捨てる（`calculateStartingCombatStats` の開始時整数化と対）。
-    // attack/defense/各rateはゲージ最大値ではなく R-NUM-04 が最終適用直前でのみ
-    // 切り捨てる中間値のため、全精度のまま保持する。
-    const after = stat === "MAXIMUM_HP" ? Math.trunc(rawAfter) : rawAfter;
     nextCombatStats[field] = after;
     if (before !== after) {
       changedStats.push({ stat, before, after });

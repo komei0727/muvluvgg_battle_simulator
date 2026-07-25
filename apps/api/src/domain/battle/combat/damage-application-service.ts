@@ -16,7 +16,7 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { resolveHit } from "./hit-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
-import { createHitPoint } from "../model/resource-gauge.js";
+import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
 import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -496,7 +496,9 @@ export function applyDamageAction(
     const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
     const updatedTarget: BattleUnit = {
       ...targetAfterTiming,
-      currentHp: createHitPoint(hpAfter, targetAfterTiming.combatStats.maximumHp),
+      // R-NUM-02: `combatStats.maximumHp`は全精度（R-STA-01/R-NUM-01）で保持されるため、
+      // HPゲージへ渡す境界で最大値を0方向へ切り捨てて整数化する。
+      currentHp: createHitPoint(hpAfter, truncateFraction(targetAfterTiming.combatStats.maximumHp)),
     };
     working.set(targetAfterTiming.battleUnitId, updatedTarget);
     // R-SKL-08（レビュー再指摘[P1]、PR #214）: `context.lastDamageResults`

@@ -11,6 +11,7 @@ import {
   createExtraGauge,
   createHitPoint,
   createPassivePoint,
+  truncateFraction,
 } from "./resource-gauge.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -99,7 +100,13 @@ export function createBattleUnit(
     globalCoordinate: member.globalCoordinate,
     combatStats: member.combatStats,
     baseCombatStats: member.combatStats,
-    currentHp: createHitPoint(member.combatStats.maximumHp, member.combatStats.maximumHp),
+    // R-NUM-02: HP ゲージの最大値は整数でなければならない。`combatStats.maximumHp`
+    // は R-STA-01/R-NUM-01 に従い全精度で保持される（比率補正の再計算基準）ため、
+    // ゲージへ渡す境界でだけ0方向へ切り捨てる。開始HPは最大値と同じ整数。
+    currentHp: createHitPoint(
+      truncateFraction(member.combatStats.maximumHp),
+      truncateFraction(member.combatStats.maximumHp),
+    ),
     currentAp: createActionPoint(0, limits.maximumAp),
     currentPp: createPassivePoint(0, limits.maximumPp),
     currentExtraGauge: createExtraGauge(0, limits.maximumExtraGauge),

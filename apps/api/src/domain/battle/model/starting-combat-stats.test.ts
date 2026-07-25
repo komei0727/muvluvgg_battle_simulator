@@ -81,9 +81,11 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
     expect(result.actionSpeed).toBeCloseTo(50);
   });
 
-  it("UT-R-STA-01-013: a fractional formation-adjusted maximumHp is truncated toward zero (gauge max must be an integer, R-NUM-02) while attack keeps full precision (R-NUM-04)", () => {
-    // UNIT_KEI_JACKKNIFE の実値: maximumHp 33623 × (1 + 0.2) = 40347.6 → 40347、
-    // attack 17679 × 1.2 = 21214.8 は最終ダメージ計算まで全精度で持ち越す。
+  it("UT-R-STA-01-013: a fractional formation-adjusted maximumHp is kept at full precision (R-NUM-01/R-STA-01, no mid-way rounding) — the HP gauge max is integerized later, at the gauge boundary", () => {
+    // maximumHp 33623 × (1 + 0.2) = 40347.6 は丸めず保持する。ここで丸めると
+    // 後続の R-STA-04 再計算（比率補正）が丸め済みの基準に重なり二重丸めになる
+    // （PR #239 再レビュー[P2]）。整数化は `createBattleUnit`/`applyDamageAction`
+    // のゲージ境界で行う。attack 17679 × 1.2 = 21214.8 も同様に全精度。
     const result = calculateStartingCombatStats({
       baseStats: { ...BASE_STATS, maximumHp: 33623, attack: 17679 },
       positionAptitudes: ["FRONT"],
@@ -96,8 +98,7 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
       },
     });
 
-    expect(result.maximumHp).toBe(40347);
-    expect(Number.isInteger(result.maximumHp)).toBe(true);
+    expect(result.maximumHp).toBeCloseTo(40347.6);
     expect(result.attack).toBeCloseTo(21214.8);
   });
 

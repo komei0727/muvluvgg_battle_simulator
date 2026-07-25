@@ -109,13 +109,14 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
     expect(result.changedStats).toContainEqual({ stat: "ATTACK", before: 100, after: 120 });
   });
 
-  it("UT-R-STA-04-021: a RATIO MAXIMUM_HP APPLY_STAT_MOD truncates the recalculated gauge max toward zero (integer gauge contract, R-NUM-02) while other stats keep full precision", () => {
-    // `ACT_KEI_JACKKNIFE_PS1_MAXHP_UP`（+20% MAXIMUM_HP）相当。基本HP33623×1.2=
-    // 40347.6 は HP ゲージ最大値（`createHitPoint`→`assertInteger`）として整数で
-    // なければならないため0方向へ切り捨てる。これがないと選択可能な実Unitが実戦闘
-    // 開始時に例外になる（Issue #173 レビュー[P1]）。
+  it("UT-R-STA-04-021: a MAXIMUM_HP RATIO buff recalculates from the unrounded formation-adjusted base (R-NUM-01/R-STA-01) — no double-rounding, and the integer gauge max is derived from the full-precision value", () => {
+    // 連鎖: 編成補正で端数が生じた maximumHp（33623 × 1.2 = 40347.6）を基準に、
+    // さらに戦闘中 +20% MAXIMUM_HP 比率補正を重ねる（`ACT_KEI_JACKKNIFE_PS1_MAXHP_UP`
+    // 相当）。正: trunc(33623 × 1.2 × 1.2) = trunc(48417.12) = 48417。
+    // 開始時に丸めると trunc(40347 × 1.2) = 48416 となり1ずれる（PR #239 再レビュー[P2]）。
+    // computeCombatStats は全精度（48417.12）を保持し、整数化はゲージ境界で行う。
     const def = statModDefinition("ACT_MAXHP_UP", "MAXIMUM_HP", "RATIO");
-    const fractionalBase: CombatStats = { ...BASE_COMBAT_STATS, maximumHp: 33623 };
+    const fractionalBase: CombatStats = { ...BASE_COMBAT_STATS, maximumHp: 40347.6 };
     const target = unit({
       combatStats: fractionalBase,
       baseCombatStats: fractionalBase,
@@ -124,13 +125,9 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
 
     const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
 
-    expect(result.combatStats.maximumHp).toBe(40347);
-    expect(Number.isInteger(result.combatStats.maximumHp)).toBe(true);
-    expect(result.changedStats).toContainEqual({
-      stat: "MAXIMUM_HP",
-      before: 33623,
-      after: 40347,
-    });
+    expect(result.combatStats.maximumHp).toBeCloseTo(48417.12);
+    // ゲージ最大値（0方向切り捨て）は48417 — 二重丸めの48416ではない。
+    expect(Math.trunc(result.combatStats.maximumHp)).toBe(48417);
   });
 
   it("UT-R-STA-04-012: multiple stackable RATIO effects on the same stat sum together (R-STA-02)", () => {
