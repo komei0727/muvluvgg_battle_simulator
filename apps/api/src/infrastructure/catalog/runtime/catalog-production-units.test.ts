@@ -85,7 +85,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // unit unselectable only by accident; completing that capability would
     // otherwise have made it newly `selectable` while its APPLY_STATUS kinds
     // beyond STEALTH are still unimplemented (E2E-GOLDEN regression).
-    expect(catalog.catalogRevision).toBe("2026-07-26.1");
+    // Bumped again by M7-001C (Issue #244): the remaining REMOVE_BUFF_CATEGORY
+    // rows (UNIT_NOEL_RUMBLE PS2, UNIT_SHOUKA_SCHEMER EX/AS3, UNIT_SENKA_CHRISTMAS
+    // PS2) convert to REMOVE_EFFECTS(categories:["BUFF"]); none of these units are
+    // among the 10 promoted here, so `unitCount`/violation expectations are unaffected.
+    expect(catalog.catalogRevision).toBe("2026-07-26.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

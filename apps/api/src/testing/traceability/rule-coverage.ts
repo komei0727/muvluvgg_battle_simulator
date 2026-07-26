@@ -1209,6 +1209,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UNSUPPORTED_RULE`として拒否する経路までは本Issueで配線した
   // （`UT-PREFLIGHT-012`）が、実際の解除ロジック自体はIssue #242のスコープ。
   // 状態異常種別限定免疫（R-EFF-03、`CAP_SPECIFIC_IMMUNITY`）はM7-001B（Issue #243）で完了した。
+  // M7-001C（Issue #244）: 残りのREMOVE_BUFF_CATEGORY対象（Noel PS2・Shouka EX/AS3・
+  // Senka PS2）をcategories:["BUFF"]へ変換し、`IT-REMOVE-EFFECTS-PROD-004/005`で検証した。
+  // Tarisa PS1の条件付きREMOVE_MARKER（与ダメージ<=10で3つ解除）は、トリガーイベント
+  // payloadをresolution.stepsで参照する手段が未実装のため対象外（M7-010、Issue #177）。
   {
     ruleId: "R-EFF-02",
     testCaseIds: [
@@ -1231,6 +1235,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-REMOVE-EFFECTS-PROD-001",
       "IT-REMOVE-EFFECTS-PROD-002",
       "IT-REMOVE-EFFECTS-PROD-003",
+      "IT-REMOVE-EFFECTS-PROD-004",
+      "IT-REMOVE-EFFECTS-PROD-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

@@ -127,14 +127,12 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_MARK",
-    "kind": "APPLY_MARKER",
+    "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
     "payload": {
-      "markerId": "MARKER_SENKA_CHRISTMAS_TARGETED",
-      "stack": { "policy": "REPLACE", "max": 1 },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "categories": ["BUFF"]
     },
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   }
 ]

@@ -70,7 +70,6 @@ function newContext() {
 describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
   it.each([
     { unitId: "UNIT_DOROTHEA_PIONEER", effectActionId: "ACT_DOROTHEA_PIONEER_AS1_MARKER" },
-    { unitId: "UNIT_SENKA_CHRISTMAS", effectActionId: "ACT_SENKA_CHRISTMAS_PS2_MARK" },
     { unitId: "UNIT_CHIZURU_DOMESTIC", effectActionId: "ACT_CHIZURU_DOMESTIC_PS3_MARKER" },
     { unitId: "UNIT_STELLA_STATUE", effectActionId: "ACT_STELLA_STATUE_EX_MARKER" },
     { unitId: "UNIT_KARINA_DOWNER", effectActionId: "ACT_KARINA_DOWNER_PS1_MARK_ATTACKER" },

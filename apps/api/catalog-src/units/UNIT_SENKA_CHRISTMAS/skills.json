@@ -162,13 +162,13 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_MARK" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "はらぐろさくしー", "tags": [] },
     "triggers": [
       {

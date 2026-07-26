@@ -72,12 +72,13 @@ function newContext() {
   };
 }
 
-/** Grants `count` distinct debuff instances (magnitude<0) of `definitionId` onto `holder`. */
-function withDebuffs(
+/** Grants `count` distinct effect instances of `definitionId` onto `holder`, with the given magnitude sign (negative = DEBUFF, non-negative = BUFF per R-EFF-05). */
+function withEffects(
   context: ReturnType<typeof newContext>["context"],
   holder: BattleUnit,
   definitionId: EffectActionDefinition["effectActionDefinitionId"],
   count: number,
+  magnitude: number,
 ): { units: readonly BattleUnit[]; lastEventId: typeof context.rootEventId } {
   let units: readonly BattleUnit[] = [holder];
   let lastEventId = context.rootEventId;
@@ -90,7 +91,7 @@ function withDebuffs(
         sourceId: holder.battleUnitId,
         targetId: holder.battleUnitId,
         duplicate: true,
-        magnitude: -0.1,
+        magnitude,
         durationDefinition: { dispellable: true, linkedEffectGroupId: null },
       },
       lastEventId,
@@ -99,6 +100,16 @@ function withDebuffs(
     lastEventId = grant.lastEventId;
   }
   return { units, lastEventId };
+}
+
+/** Grants `count` distinct debuff instances (magnitude<0) of `definitionId` onto `holder`. */
+function withDebuffs(
+  context: ReturnType<typeof newContext>["context"],
+  holder: BattleUnit,
+  definitionId: EffectActionDefinition["effectActionDefinitionId"],
+  count: number,
+): { units: readonly BattleUnit[]; lastEventId: typeof context.rootEventId } {
+  return withEffects(context, holder, definitionId, count, -0.1);
 }
 
 describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
@@ -158,6 +169,120 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       expect(result.removedCount).toBe(limit);
       const holder = result.units.find((u) => u.battleUnitId === owner.battleUnitId)!;
       expect(holder.appliedEffects).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    {
+      unitId: "UNIT_SHOUKA_SCHEMER",
+      effectActionId: "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF",
+      limit: 3,
+    },
+    {
+      unitId: "UNIT_SHOUKA_SCHEMER",
+      effectActionId: "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF",
+      limit: 1,
+    },
+  ])(
+    "IT-REMOVE-EFFECTS-PROD-004: $effectActionId ($unitId) removes only maxRemovals buffs (M7-001C, REMOVE_BUFF_CATEGORY)",
+    ({ unitId, effectActionId, limit }) => {
+      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+      const snapshot = catalog.loadSnapshot([unitId as never], []);
+      const effectAction = snapshot.effectActions.get(effectActionId as never);
+      expect(effectAction?.kind).toBe("REMOVE_EFFECTS");
+      if (effectAction?.kind !== "REMOVE_EFFECTS") {
+        return;
+      }
+      expect([...effectAction.payload.categories]).toEqual(["BUFF"]);
+      expect(effectAction.payload.maxRemovals).toBe(limit);
+      expect(effectAction.requiredCapabilities).toContain("CAP_REMOVE_EFFECTS");
+
+      const owner = actorFor(unitId, "B_1:unit:1");
+      const { context } = newContext();
+      // Grant one extra buff beyond the limit to prove the cap holds.
+      const buffDefId = "ACT_TEST_BUFF" as EffectActionDefinition["effectActionDefinitionId"];
+      const seeded = withEffects(context, owner, buffDefId, limit + 1, 0.1);
+      const buffDef: EffectActionDefinition = {
+        kind: "APPLY_STAT_MOD",
+        effectActionDefinitionId: buffDefId,
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          stat: "ATTACK",
+          valueType: "RATIO",
+          formula: { kind: "CONSTANT", value: 0.1 },
+          stacking: { mode: "STACKABLE" },
+          duration: { dispellable: true, linkedEffectGroupId: null },
+        },
+      };
+
+      const result = removeEffects(
+        context,
+        seeded.units,
+        owner.battleUnitId,
+        {
+          categories: effectAction.payload.categories,
+          ...(effectAction.payload.maxRemovals !== undefined
+            ? { maxRemovals: effectAction.payload.maxRemovals }
+            : {}),
+        },
+        new Map([[buffDefId, buffDef]]),
+        seeded.lastEventId,
+      );
+
+      expect(result.removedCount).toBe(limit);
+      const holder = result.units.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(holder.appliedEffects).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    { unitId: "UNIT_NOEL_RUMBLE", effectActionId: "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF" },
+    { unitId: "UNIT_SENKA_CHRISTMAS", effectActionId: "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF" },
+  ])(
+    "IT-REMOVE-EFFECTS-PROD-005: $effectActionId ($unitId) clears all BUFFs, unbounded (M7-001C, REMOVE_BUFF_CATEGORY)",
+    ({ unitId, effectActionId }) => {
+      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+      const snapshot = catalog.loadSnapshot([unitId as never], []);
+      const effectAction = snapshot.effectActions.get(effectActionId as never);
+      expect(effectAction?.kind).toBe("REMOVE_EFFECTS");
+      if (effectAction?.kind !== "REMOVE_EFFECTS") {
+        return;
+      }
+      expect([...effectAction.payload.categories]).toEqual(["BUFF"]);
+      expect(effectAction.payload.maxRemovals).toBeUndefined();
+      expect(effectAction.requiredCapabilities).toContain("CAP_REMOVE_EFFECTS");
+
+      const owner = actorFor(unitId, "B_1:unit:1");
+      const { context } = newContext();
+      const buffDefId = "ACT_TEST_BUFF" as EffectActionDefinition["effectActionDefinitionId"];
+      const seeded = withEffects(context, owner, buffDefId, 4, 0.1);
+      const buffDef: EffectActionDefinition = {
+        kind: "APPLY_STAT_MOD",
+        effectActionDefinitionId: buffDefId,
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          stat: "ATTACK",
+          valueType: "RATIO",
+          formula: { kind: "CONSTANT", value: 0.1 },
+          stacking: { mode: "STACKABLE" },
+          duration: { dispellable: true, linkedEffectGroupId: null },
+        },
+      };
+
+      const result = removeEffects(
+        context,
+        seeded.units,
+        owner.battleUnitId,
+        { categories: effectAction.payload.categories },
+        new Map([[buffDefId, buffDef]]),
+        seeded.lastEventId,
+      );
+
+      expect(result.removedCount).toBe(4);
+      const holder = result.units.find((u) => u.battleUnitId === owner.battleUnitId)!;
+      expect(holder.appliedEffects).toHaveLength(0);
     },
   );
 
