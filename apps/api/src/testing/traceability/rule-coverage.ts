@@ -295,6 +295,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ORD-01-003",
       "UT-R-ORD-01-004",
       "UT-R-ORD-01-005",
+      "UT-R-ORD-01-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

@@ -80,6 +80,15 @@ function chooseWaitResource(actor: BattleUnit): "AP" | "EX_GAUGE" {
  * `units`から判定し、そのPS/Memory連鎖を解決してから次を判定し直す——
  * 除去不要な状態に落ち着くまで繰り返す。`remaining`は毎回ちょうど1件ずつ
  * 減るため、無限ループにはならない。
+ *
+ * PRレビュー[P2]再々々指摘: `finalizeResolutionScope()`自体が
+ * `resetScope: RESOLUTION_SCOPE`のcounter破棄・`RuntimeCounterReset`発行と
+ * その候補解決を行うため、ここでも`remaining`の生死・適格性が変わりうる。
+ * 終了済みのruntimeは再利用できない（`finalizeResolutionScope`は1回しか
+ * 意味を持たない終端操作）ため、外側のループで「1件ずつ除去→
+ * finalizeResolutionScope→最新状態で再評価」を、新たな除去対象が無くなる
+ * まで繰り返す。新たな除去対象が見つかった回だけ、新しい`resolutionScopeId`と
+ * 独立した`PassiveActivationRuntime`を発行する。
  */
 function removeIneligibleAndDefeatedReservations(
   remaining: readonly ActionReservation[],
@@ -99,45 +108,57 @@ function removeIneligibleAndDefeatedReservations(
   let currentRemaining = remaining;
   let working = units;
   let lastEventId = parentEventId;
-  let passiveRuntime: PassiveActivationRuntime | undefined;
-  const resolutionScopeId = recorder.nextResolutionScopeId();
 
   for (;;) {
-    const next = currentRemaining.find((entry) => {
-      const unit = requireUnit(working, entry.battleUnitId);
-      return isDefeated(unit) || !isQueueEligible(unit);
-    });
-    if (next === undefined) {
+    let passiveRuntime: PassiveActivationRuntime | undefined;
+    const resolutionScopeId = recorder.nextResolutionScopeId();
+
+    for (;;) {
+      const next = currentRemaining.find((entry) => {
+        const unit = requireUnit(working, entry.battleUnitId);
+        return isDefeated(unit) || !isQueueEligible(unit);
+      });
+      if (next === undefined) {
+        break;
+      }
+      const reason: ActionReservationRemovalReason = isDefeated(
+        requireUnit(working, next.battleUnitId),
+      )
+        ? "DEFEATED"
+        : "INELIGIBLE";
+      passiveRuntime ??= new PassiveActivationRuntime(
+        { definitions, random, recorder, turnNumber, cycleNumber, resolutionScopeId, rootEventId },
+        working,
+      );
+      const event = recorder.record({
+        eventType: "ActionReservationRemoved",
+        category: "FACT",
+        turnNumber,
+        cycleNumber,
+        resolutionScopeId,
+        parentEventId: lastEventId,
+        rootEventId,
+        sourceUnitId: next.battleUnitId,
+        payload: { battleUnitId: next.battleUnitId, reason },
+      });
+      lastEventId = event.eventId;
+      working = passiveRuntime.onFactEvent(event, working);
+      currentRemaining = currentRemaining.filter(
+        (entry) => entry.battleUnitId !== next.battleUnitId,
+      );
+    }
+
+    if (passiveRuntime === undefined) {
+      // この回は除去対象が最初から無かった——直前の
+      // `finalizeResolutionScope`後の再評価も含め、これ以上除去すべき
+      // ものは残っていない。
       break;
     }
-    const reason: ActionReservationRemovalReason = isDefeated(
-      requireUnit(working, next.battleUnitId),
-    )
-      ? "DEFEATED"
-      : "INELIGIBLE";
-    passiveRuntime ??= new PassiveActivationRuntime(
-      { definitions, random, recorder, turnNumber, cycleNumber, resolutionScopeId, rootEventId },
-      working,
-    );
-    const event = recorder.record({
-      eventType: "ActionReservationRemoved",
-      category: "FACT",
-      turnNumber,
-      cycleNumber,
-      resolutionScopeId,
-      parentEventId: lastEventId,
-      rootEventId,
-      sourceUnitId: next.battleUnitId,
-      payload: { battleUnitId: next.battleUnitId, reason },
-    });
-    lastEventId = event.eventId;
-    working = passiveRuntime.onFactEvent(event, working);
-    currentRemaining = currentRemaining.filter((entry) => entry.battleUnitId !== next.battleUnitId);
+    working = passiveRuntime.finalizeResolutionScope();
+    // ループの先頭に戻り、finalizeResolutionScope自身のPS/Memory連鎖後の
+    // 最新`working`で`currentRemaining`を再評価する。
   }
 
-  if (passiveRuntime !== undefined) {
-    working = passiveRuntime.finalizeResolutionScope();
-  }
   return { remaining: currentRemaining, units: working, lastEventId };
 }
 
