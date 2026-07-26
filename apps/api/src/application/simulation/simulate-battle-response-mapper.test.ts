@@ -9,7 +9,8 @@ import {
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
+import { createMarkerInstanceId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
+import type { EffectSnapshot } from "../../domain/battle/events/state-delta.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const ALLY_ID = createBattleUnitId("ally:1");
@@ -363,6 +364,112 @@ describe("toBattleSimulationResponseBody", () => {
           },
         },
       ],
+    });
+  });
+
+  it("API-RESP-013B (M7-001B review fix, Issue #243): maps a StateTransition's effects delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined), so an EFFECT_IMMUNITY (or any AppliedEffect) grant that persists to battle end is visible in stateTransitions, not just finalState", () => {
+    const effectInstanceId = createEffectInstanceId("battle-1:effect:1");
+    const granted: EffectSnapshot = {
+      effectInstanceId,
+      effectDefinitionId: "ACT_TEST_IMMUNITY",
+      sourceUnitId: ENEMY_ID,
+      kindKey: "ACT_TEST_IMMUNITY",
+      duplicate: true,
+      isEffective: true,
+      magnitude: 0,
+      appliedTurnNumber: 1,
+    };
+    const updatedAfter: EffectSnapshot = {
+      ...granted,
+      immunity: { categories: ["STATUS"], maxBlocks: null, blockedCount: 1 },
+    };
+
+    const body = toBattleSimulationResponseBody(
+      baseResult({
+        stateTransitions: [
+          {
+            causedBySequence: 1,
+            stateVersionBefore: 0,
+            stateVersionAfter: 1,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  effects: { [effectInstanceId]: { before: undefined, after: granted } },
+                },
+              },
+            },
+          },
+          {
+            causedBySequence: 2,
+            stateVersionBefore: 1,
+            stateVersionAfter: 2,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  effects: { [effectInstanceId]: { before: granted, after: updatedAfter } },
+                },
+              },
+            },
+          },
+          {
+            causedBySequence: 3,
+            stateVersionBefore: 2,
+            stateVersionAfter: 3,
+            stateDelta: {
+              units: {
+                [ALLY_ID]: {
+                  effects: { [effectInstanceId]: { before: updatedAfter, after: undefined } },
+                },
+              },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(body.stateTransitions[0]!.delta.units!["ally:1"]!.effects).toEqual({
+      added: [
+        {
+          effectInstanceId: "battle-1:effect:1",
+          effectDefinitionId: "ACT_TEST_IMMUNITY",
+          sourceUnitId: "enemy:1",
+          category: "BUFF",
+          effectKindKey: "ACT_TEST_IMMUNITY",
+          stackMode: "STACKABLE",
+          isEffective: true,
+          value: { magnitude: 0 },
+          appliedTurnNumber: 1,
+        },
+      ],
+      updated: [],
+      removed: [],
+    });
+    const grantedResponseBody = {
+      effectInstanceId: "battle-1:effect:1",
+      effectDefinitionId: "ACT_TEST_IMMUNITY",
+      sourceUnitId: "enemy:1",
+      category: "BUFF",
+      effectKindKey: "ACT_TEST_IMMUNITY",
+      stackMode: "STACKABLE",
+      isEffective: true,
+      value: { magnitude: 0 },
+      appliedTurnNumber: 1,
+    };
+    // `immunity` (blockedCount etc.) is not part of the public EffectStateResponse
+    // contract (internal-only, same treatment as consumptionRemaining), so the
+    // "updated" before/after look identical here even though the domain-level
+    // blockedCount changed.
+    expect(body.stateTransitions[1]!.delta.units!["ally:1"]!.effects).toEqual({
+      added: [],
+      updated: [
+        { id: "battle-1:effect:1", before: grantedResponseBody, after: grantedResponseBody },
+      ],
+      removed: [],
+    });
+    expect(body.stateTransitions[2]!.delta.units!["ally:1"]!.effects).toEqual({
+      added: [],
+      updated: [],
+      removed: [{ id: "battle-1:effect:1", before: grantedResponseBody }],
     });
   });
 

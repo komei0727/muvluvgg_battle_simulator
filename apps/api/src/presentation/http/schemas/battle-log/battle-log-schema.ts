@@ -1135,6 +1135,46 @@ const STAT_KIND_ENUM = [
   "ACTION_SPEED",
 ] as const;
 
+const STATUS_KIND_ENUM = [
+  "STUN",
+  "FREEZE",
+  "BLIND",
+  "STEALTH",
+  "EVASION",
+  "DAMAGE_IMMUNITY",
+  "CRITICAL_GUARANTEE",
+  "CRITICAL_PREVENTION",
+  "GUARANTEED_HIT",
+  "HIT_EVASION",
+] as const;
+
+const EFFECT_APPLICATION_REJECTION_REASON_ENUM = ["IMMUNITY"] as const;
+
+/**
+ * `EffectApplicationRejected`（R-EFF-03、M7-001B、Issue #243）。`EFFECT_IMMUNITY`
+ * 由来の有効な免疫が対象カテゴリの新規付与を拒否した直後に発行する。
+ * `statusKind`は拒否対象が`APPLY_STATUS`由来の場合だけ持つ。
+ */
+const effectApplicationRejectedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "battleUnitId",
+    "effectActionDefinitionId",
+    "sourceUnitId",
+    "blockingEffectInstanceId",
+    "reason",
+  ],
+  properties: {
+    battleUnitId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    blockingEffectInstanceId: { type: "string" },
+    reason: { type: "string", enum: EFFECT_APPLICATION_REJECTION_REASON_ENUM },
+    statusKind: { type: "string", enum: STATUS_KIND_ENUM },
+  },
+} as const;
+
 /** `EffectiveEffectChanged`（R-EFF-05）。`before`/`after`はグループに1件も採用中のインスタンスが無い場合だけ省略する。 */
 const effectiveEffectChangedDetailsSchema = {
   type: "object",
@@ -1400,6 +1440,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
   EFFECT_APPLIED: effectAppliedDetailsSchema,
+  EFFECT_APPLICATION_REJECTED: effectApplicationRejectedDetailsSchema,
   EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
   COMBAT_STAT_CHANGED: combatStatChangedDetailsSchema,
   EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,

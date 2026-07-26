@@ -1,6 +1,9 @@
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectImmunityCategory } from "../../catalog/definitions/catalog-enums.js";
-import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
+import {
+  STATUS_AILMENT_KINDS,
+  type StatusKind,
+} from "../../catalog/definitions/effect-action-payload.js";
 import type { AppliedEffect } from "../model/applied-effect.js";
 
 /**
@@ -8,12 +11,12 @@ import type { AppliedEffect } from "../model/applied-effect.js";
  * `APPLY_STATUS`のうち、解除・無効判定で`STATUS`カテゴリの対象になる本来の
  * 状態異常（気絶・凍結・暗闇）。それ以外の`APPLY_STATUS`（STEALTH・EVASION・
  * DAMAGE_IMMUNITY等）は対象自身にとって有利なため、`BUFF`として扱う。
+ * `effect-action-payload.ts`の`STATUS_AILMENT_KINDS`を正本とする（PR #245
+ * 再レビュー[P2]: `EFFECT_IMMUNITY.statusKinds`のCatalog factory検証も同じ
+ * 値集合で絞り込む必要があり、domain/catalogはdomain/battleへ依存できない
+ * ため、catalog側を正本にしてここが再利用する）。
  */
-const STATUS_AILMENT_KINDS: ReadonlySet<StatusKind> = new Set<StatusKind>([
-  "STUN",
-  "FREEZE",
-  "BLIND",
-]);
+const STATUS_AILMENT_KIND_SET: ReadonlySet<StatusKind> = new Set<StatusKind>(STATUS_AILMENT_KINDS);
 
 /**
  * R-EFF-02 #2「バフ、デバフ、状態異常、シールドなど一致する効果を抽出する」:
@@ -32,6 +35,13 @@ const STATUS_AILMENT_KINDS: ReadonlySet<StatusKind> = new Set<StatusKind>([
  * `APPLY_SHIELD`・`APPLY_SUBUNIT`が実ライフサイクルへ配線された時点でも正しく
  * 分類できるよう、定義kindから決まる固有カテゴリ（`DAMAGE_MOD`/`SHIELD`/
  * `SUBUNIT`）も併せて返す。
+ *
+ * M7-001B（Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`の付与拒否判定
+ * （`effect-immunity-service.ts`）も、まだ`AppliedEffect`として存在しない
+ * 「これから付与しようとしている効果」の候補カテゴリを求めるためにこの関数を
+ * 再利用する — `APPLY_MARKER`はCatalog付与前の候補としてしか呼ばれない
+ * （`MarkerState`は`AppliedEffect`ではないため、既存効果の解除判定
+ * `effect-removal-service.ts`側からは`APPLY_MARKER`のdefinitionが渡ることはない）。
  */
 export function effectCategoriesOf(
   effect: Pick<AppliedEffect, "magnitude" | "statusKind">,
@@ -41,7 +51,7 @@ export function effectCategoriesOf(
 
   switch (definition.kind) {
     case "APPLY_STATUS": {
-      if (effect.statusKind !== undefined && STATUS_AILMENT_KINDS.has(effect.statusKind)) {
+      if (effect.statusKind !== undefined && STATUS_AILMENT_KIND_SET.has(effect.statusKind)) {
         return new Set<EffectImmunityCategory>(["STATUS", "DEBUFF"]);
       }
       // STEALTH等、対象に有利な状態は状態異常ではなくバフとして扱う。
@@ -53,6 +63,8 @@ export function effectCategoriesOf(
       return new Set<EffectImmunityCategory>(["SHIELD"]);
     case "APPLY_SUBUNIT":
       return new Set<EffectImmunityCategory>(["SUBUNIT"]);
+    case "APPLY_MARKER":
+      return new Set<EffectImmunityCategory>(["MARKER"]);
     default:
       // APPLY_STAT_MOD等の継続ステータス補正は符号付きmagnitudeで判定する。
       return new Set<EffectImmunityCategory>([polarity]);

@@ -75,7 +75,17 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by Issue #225's unrelated catalog-src change (SKL_TATIANA_SAGE_EX).
     // Bumped again by TGT-002 (Issue #169): filter/order runtime evaluation lands,
     // resolving the 18 approximated catalog-src rows across 14 units that needed it.
-    expect(catalog.catalogRevision).toBe("2026-07-25.1");
+    // Bumped again by M7-001B (Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY):
+    // `EFFECT_IMMUNITY.statusKinds` lands, resolving the UNIT_AOI_GUARDIAN/
+    // UNIT_HIIRO_LONEWOLF approximated STUN-immunity rows to their precise form
+    // and flipping `CAP_SPECIFIC_IMMUNITY` to IMPLEMENTED. The new
+    // `CAP_STATUS_EFFECT_KIND` capability (still PLANNED) now gates
+    // UNIT_LAYLA_ENTREPRENEUR's APPLY_STATUS(DAMAGE_IMMUNITY/GUARANTEED_HIT)
+    // rows — previously mistagged with `CAP_SPECIFIC_IMMUNITY`, which kept the
+    // unit unselectable only by accident; completing that capability would
+    // otherwise have made it newly `selectable` while its APPLY_STATUS kinds
+    // beyond STEALTH are still unimplemented (E2E-GOLDEN regression).
+    expect(catalog.catalogRevision).toBe("2026-07-26.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

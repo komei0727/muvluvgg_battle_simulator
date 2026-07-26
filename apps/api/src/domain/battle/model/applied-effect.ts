@@ -2,9 +2,26 @@ import type { Brand } from "../../shared/brand.js";
 import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { EffectImmunityCategory } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 import type { RuntimeCounterMap } from "./runtime-counter-state.js";
+
+/**
+ * M7-001B（Issue #243、R-EFF-03、`EFFECT_IMMUNITY`由来の`AppliedEffect`だけが持つ）:
+ * `EFFECT_IMMUNITY`のCatalog payloadをそのまま保持する（`categories`/`statusKinds`/
+ * `effectActionDefinitionIds`/`maxBlocks`）ことに加え、実行時に変化する`blockedCount`
+ * （このインスタンスが実際に新規付与を拒否した回数）を持つ。`maxBlocks`が`null`で
+ * なければ、`blockedCount`がそれ以上になった時点でこのインスタンスは新規付与を
+ * 拒否しなくなる（`duration`自体の失効・解除とは独立、`effect-immunity-service.ts`）。
+ */
+export interface EffectImmunityState {
+  readonly categories: readonly EffectImmunityCategory[];
+  readonly statusKinds?: readonly StatusKind[];
+  readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
+  readonly maxBlocks: number | null;
+  readonly blockedCount: number;
+}
 
 /**
  * `07_戦闘ルール詳細.md` R-STA-03: 重複なし効果を同種としてグループ化する鍵
@@ -124,6 +141,8 @@ export interface AppliedEffect {
    * 対応するQ項目が決定されるまで導入しない（PR #236再レビュー[P1]）。
    */
   readonly statusKind?: StatusKind;
+  /** M7-001B（Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`由来の付与だけが持つ。 */
+  readonly immunity?: EffectImmunityState;
   readonly duration: EffectDurationState;
   /** 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。 */
   readonly snapshot?: Readonly<Record<string, number>>;

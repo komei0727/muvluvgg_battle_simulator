@@ -21,7 +21,7 @@
       },
       "probability": 1
     },
-    "requiredCapabilities": ["CAP_SPECIFIC_IMMUNITY"],
+    "requiredCapabilities": ["CAP_STATUS_EFFECT_KIND"],
     "metadata": { "tags": [] }
   },
   {
@@ -83,7 +83,7 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "SKILL_USE", "count": 4 } },
       "probability": 1
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_STATUS_EFFECT_KIND"],
     "metadata": { "tags": [] }
   },
   {

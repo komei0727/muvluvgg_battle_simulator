@@ -8,6 +8,10 @@ import { grantEffect } from "../effects/effect-grant-service.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { removeMarkers, reduceMarkerStack } from "../effects/marker-removal-service.js";
 import { removeEffects } from "../effects/effect-removal-service.js";
+import {
+  findBlockingImmunity,
+  rejectEffectApplication,
+} from "../effects/effect-immunity-service.js";
 import { recalculateCombatStats } from "../effects/combat-stat-recalculation-service.js";
 import {
   emitEffectConsumptionChangedEvents,
@@ -595,62 +599,102 @@ function* resolveOneEffectActionApplication(
         ? { triggerTarget: requireUnit(box.units, triggerTargetUnitId) }
         : {}),
     });
-    const beforeGrantUnits = box.units;
-    const grantResult = grantEffect(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        rootEventId: context.rootEventId,
-      },
-      box.units,
-      {
-        effectActionDefinitionId: application.effectActionDefinitionId,
-        sourceId: context.actorId,
-        targetId: application.targetBattleUnitId,
-        duplicate: true,
-        magnitude,
-        durationDefinition: effectAction.payload.duration,
-      },
-      starting.eventId,
+    // R-EFF-03（M7-001B、Issue #243）: 対象が有効な`EFFECT_IMMUNITY`（BUFF/DEBUFF
+    // カテゴリ）を保持している場合、この新規付与を拒否し`EffectApplicationRejected`
+    // を発行する（`EffectApplied`/CombatStat再計算は行わない）。
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
     );
-    box.units = grantResult.units;
-    const recalculation = recalculateCombatStats(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        rootEventId: context.rootEventId,
-      },
-      beforeGrantUnits,
-      box.units,
-      application.targetBattleUnitId,
-      context.definitions.effectActions,
-      grantResult.lastEventId,
-      "EFFECT_APPLIED",
-    );
-    box.units = recalculation.units;
-    // `grantEffect`/`recalculateCombatStats`は`applyDamageAction`/
-    // `applyCooldownManipulationAction`と異なりヒット単位のPS連鎖フックを
-    // 持たないため、記録した`EffectApplied`/`EffectiveEffectChanged`/
-    // `CombatStatChanged`をここで`onFactEventForPassiveChain`へ転送する
-    // （AS/EX経路のみ。PS自身のEffectSequence解決経路では`innerEvents`が
-    // 同じ役割を果たす）。
-    if (context.onFactEventForPassiveChain !== undefined) {
-      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
-        box.units = context.onFactEventForPassiveChain(event, box.units);
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
       }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const beforeGrantUnits = box.units;
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      const recalculation = recalculateCombatStats(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        beforeGrantUnits,
+        box.units,
+        application.targetBattleUnitId,
+        context.definitions.effectActions,
+        grantResult.lastEventId,
+        "EFFECT_APPLIED",
+      );
+      box.units = recalculation.units;
+      // `grantEffect`/`recalculateCombatStats`は`applyDamageAction`/
+      // `applyCooldownManipulationAction`と異なりヒット単位のPS連鎖フックを
+      // 持たないため、記録した`EffectApplied`/`EffectiveEffectChanged`/
+      // `CombatStatChanged`をここで`onFactEventForPassiveChain`へ転送する
+      // （AS/EX経路のみ。PS自身のEffectSequence解決経路では`innerEvents`が
+      // 同じ役割を果たす）。
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = recalculation.lastEventId;
+      resultKind = "APPLIED";
     }
-    resolvedCount = application.hits.length;
-    interruptedCount = 0;
-    effectLastEventId = recalculation.lastEventId;
-    resultKind = "APPLIED";
   } else if (effectAction.kind === "APPLY_STATUS") {
     // TGT-004フェーズ3再レビュー[P1]（Issue #167、R-ACTN-03）: `AppliedEffect.
     // statusKind`を付与するresolverだが、本Issueのスコープ（R-TGT-08
@@ -664,84 +708,181 @@ function* resolveOneEffectActionApplication(
     // 効果はない」というsilent partial implementationへ退行する
     // （PR #238再レビュー[P1]で指摘）。そのため`status`自体で許可リストを取り、
     // `STEALTH`以外は無条件で拒否する。
-    if (effectAction.payload.status !== "STEALTH") {
-      throw new DomainValidationError(
-        "effectActionDefinitionId",
-        `APPLY_STATUS status "${effectAction.payload.status}" is not yet supported by this resolver (only "STEALTH" is, R-TGT-08 scope; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
-      );
-    }
-    // Stealthを含む現行production定義は`stacking`相当の設定を持たないため
-    // （`ApplyStatusPayload`自体に`stacking`フィールドが無い）、`APPLY_STAT_MOD`と
-    // 同じ理由でduplicate: trueに固定する（Q-EFF-10「重複あり・重複なしの
-    // どちらも、効果インスタンスと効果期間を個別に保持する」）。
-    const grantResult = grantEffect(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        rootEventId: context.rootEventId,
-      },
-      box.units,
+    //
+    // R-EFF-03（M7-001B、Issue #243）: 免疫拒否は「未対応status種別」の拒否より
+    // 優先する — 対象が有効な免疫を持つなら、そのstatus種別がまだ実効処理を
+    // 持つかどうかに関係なく`EffectApplicationRejected`が正しい結果になる。
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
       {
         effectActionDefinitionId: application.effectActionDefinitionId,
-        sourceId: context.actorId,
-        targetId: application.targetBattleUnitId,
-        duplicate: true,
         magnitude: 0,
         statusKind: effectAction.payload.status,
-        durationDefinition: effectAction.payload.duration,
       },
-      starting.eventId,
+      effectAction,
     );
-    box.units = grantResult.units;
-    if (context.onFactEventForPassiveChain !== undefined) {
-      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
-        box.units = context.onFactEventForPassiveChain(event, box.units);
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+          statusKind: effectAction.payload.status,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      // R-EFF-07「STATUS_BLOCKED は、効果ownerへの状態付与が無効化された時点で
+      // 消費する」: 状態付与（APPLY_STATUS）が免疫でブロックされた場合だけ、
+      // 対象が保持するSTATUS_BLOCKED消費条件付き効果を消費する
+      // （`duration-expiry-service.ts`と同じ「消費0で即時失効」規約）。
+      const { consumeEffectDuration } = buildConsumeEffectDurationHooks(context);
+      const consumption = consumeEffectDuration(
+        application.targetBattleUnitId,
+        "STATUS_BLOCKED",
+        box.units,
+        rejection.lastEventId,
+      );
+      box.units = consumption.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
       }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = consumption.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      if (effectAction.payload.status !== "STEALTH") {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_STATUS status "${effectAction.payload.status}" is not yet supported by this resolver (only "STEALTH" is, R-TGT-08 scope; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
+        );
+      }
+      // Stealthを含む現行production定義は`stacking`相当の設定を持たないため
+      // （`ApplyStatusPayload`自体に`stacking`フィールドが無い）、`APPLY_STAT_MOD`と
+      // 同じ理由でduplicate: trueに固定する（Q-EFF-10「重複あり・重複なしの
+      // どちらも、効果インスタンスと効果期間を個別に保持する」）。
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude: 0,
+          statusKind: effectAction.payload.status,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
     }
-    resolvedCount = application.hits.length;
-    interruptedCount = 0;
-    effectLastEventId = grantResult.lastEventId;
-    resultKind = "APPLIED";
   } else if (effectAction.kind === "APPLY_MARKER") {
-    // R-EFF-10: ADD/KEEP_EXISTING/REFRESH/REPLACEのスタック方針を対象1件・
-    // Marker1件単位で適用する（`marker-apply-service.ts`）。`APPLY_MARKER`は
-    // `APPLY_STAT_MOD`と異なりFormulaを持たない — スタック量は常に1（ADDは
-    // 既存スタックへの+1、REPLACE/新規付与は常にスタック1から始まる）。
-    const applyResult = applyMarker(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        rootEventId: context.rootEventId,
-      },
-      box.units,
-      {
-        markerId: effectAction.payload.markerId,
-        sourceId: context.actorId,
-        targetId: application.targetBattleUnitId,
-        stackPolicy: effectAction.payload.stack.policy,
-        stackMax: effectAction.payload.stack.max,
-        durationDefinition: effectAction.payload.duration,
-      },
-      starting.eventId,
+    // R-EFF-03（M7-001B、Issue #243）: 対象が有効な`EFFECT_IMMUNITY`（MARKER
+    // カテゴリ）を保持している場合、この新規付与を拒否する。
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude: 0 },
+      effectAction,
     );
-    box.units = applyResult.units;
-    if (context.onFactEventForPassiveChain !== undefined) {
-      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
-        box.units = context.onFactEventForPassiveChain(event, box.units);
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
       }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      // R-EFF-10: ADD/KEEP_EXISTING/REFRESH/REPLACEのスタック方針を対象1件・
+      // Marker1件単位で適用する（`marker-apply-service.ts`）。`APPLY_MARKER`は
+      // `APPLY_STAT_MOD`と異なりFormulaを持たない — スタック量は常に1（ADDは
+      // 既存スタックへの+1、REPLACE/新規付与は常にスタック1から始まる）。
+      const applyResult = applyMarker(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          markerId: effectAction.payload.markerId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          stackPolicy: effectAction.payload.stack.policy,
+          stackMax: effectAction.payload.stack.max,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = applyResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = applyResult.lastEventId;
+      resultKind = "APPLIED";
     }
-    resolvedCount = application.hits.length;
-    interruptedCount = 0;
-    effectLastEventId = applyResult.lastEventId;
-    resultKind = "APPLIED";
   } else if (effectAction.kind === "REMOVE_MARKER") {
     // R-EFF-10「Marker の解除は既存の REMOVE_MARKER（markerId 指定）を使う」
     // （`14_Catalog定義スキーマ.md`）: 対象が指定Markerを所持していない場合は
@@ -854,10 +995,100 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
     effectLastEventId = removal.lastEventId;
     resultKind = removal.removedCount > 0 ? "APPLIED" : "SKIPPED";
+  } else if (effectAction.kind === "EFFECT_IMMUNITY") {
+    // R-EFF-03（M7-001B、Issue #243、PR #245レビュー[P2]修正）: 免疫効果自身の
+    // 付与も「新規付与」であり免疫の対象になり得る — Catalogは`SPECIFIC_EFFECT`
+    // の`effectActionDefinitionIds`で他の`EFFECT_IMMUNITY`定義IDを指定できるため
+    // （例: 「免疫封印」で対象の特定免疫効果自体の再付与を防ぐ）、他のkindと
+    // 同じく`findBlockingImmunity`を通す。
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude: 0 },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      // R-EFF-03（M7-001B、Issue #243）: 免疫効果自体を`AppliedEffect`として付与
+      // する（`categories`/`statusKinds`（`EFFECT_IMMUNITY_STATUS_GRANULARITY`）/
+      // `effectActionDefinitionIds`/`maxBlocks`をそのまま保持し、実行時カウンタ
+      // `blockedCount`は0から始める）。`stacking`相当の設定を持たないため、
+      // `APPLY_STAT_MOD`/`APPLY_STATUS`と同じ理由でduplicate: trueに固定する。
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude: 0,
+          durationDefinition: effectAction.payload.duration,
+          immunity: {
+            categories: effectAction.payload.categories,
+            ...(effectAction.payload.statusKinds !== undefined
+              ? { statusKinds: effectAction.payload.statusKinds }
+              : {}),
+            ...(effectAction.payload.effectActionDefinitionIds !== undefined
+              ? { effectActionDefinitionIds: effectAction.payload.effectActionDefinitionIds }
+              : {}),
+            maxBlocks: effectAction.payload.maxBlocks,
+            blockedCount: 0,
+          },
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

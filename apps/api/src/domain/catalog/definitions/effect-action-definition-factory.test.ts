@@ -786,6 +786,123 @@ describe("EffectActionDefinition", () => {
     }
   });
 
+  it("UT-CAT-ACT-070: maps EFFECT_IMMUNITY with categories STATUS and no statusKinds (whole-category immunity)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_IMMUNITY_STATUS",
+        kind: "EFFECT_IMMUNITY",
+        payload: {
+          categories: ["STATUS"],
+          duration: { timeLimit: { unit: "ACTION", count: 1 } },
+          maxBlocks: null,
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("EFFECT_IMMUNITY");
+    if (result.kind === "EFFECT_IMMUNITY") {
+      expect(result.payload.statusKinds).toBeUndefined();
+    }
+  });
+
+  it("UT-CAT-ACT-071: maps EFFECT_IMMUNITY with categories STATUS and statusKinds scoped to STUN (R-EFF-03 granularity)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_IMMUNITY_STUN",
+        kind: "EFFECT_IMMUNITY",
+        payload: {
+          categories: ["STATUS"],
+          statusKinds: ["STUN"],
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+          maxBlocks: null,
+        },
+        requiredCapabilities: ["CAP_SPECIFIC_IMMUNITY"],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("EFFECT_IMMUNITY");
+    if (result.kind === "EFFECT_IMMUNITY") {
+      expect(result.payload.statusKinds).toEqual(["STUN"]);
+    }
+  });
+
+  it("UT-CAT-ACT-072: rejects EFFECT_IMMUNITY statusKinds when categories does not include STATUS (would be silently ignored)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_1",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["DEBUFF"],
+            statusKinds: ["STUN"],
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            maxBlocks: null,
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-073: rejects EFFECT_IMMUNITY with an empty statusKinds array", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_1",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["STATUS"],
+            statusKinds: [],
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            maxBlocks: null,
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-074: rejects EFFECT_IMMUNITY statusKinds containing an invalid StatusKind value", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_1",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["STATUS"],
+            statusKinds: ["NOT_A_STATUS_KIND"],
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            maxBlocks: null,
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-075 (PR #245 re-review [P2] fix): rejects EFFECT_IMMUNITY statusKinds containing a StatusKind that is schema-valid but not a status ailment (R-STS-01 only classifies STUN/FREEZE/BLIND as STATUS at runtime — anything else, e.g. STEALTH, would silently never block)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_1",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["STATUS"],
+            statusKinds: ["STEALTH"],
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            maxBlocks: null,
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-035: rejects DAMAGE with an invalid hitCount", () => {
     expect(() =>
       createEffectActionDefinition(

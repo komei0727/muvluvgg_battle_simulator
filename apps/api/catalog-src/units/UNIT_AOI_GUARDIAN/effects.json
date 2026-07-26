@@ -31,10 +31,11 @@
     "kind": "EFFECT_IMMUNITY",
     "payload": {
       "categories": ["STATUS"],
+      "statusKinds": ["STUN"],
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
       "maxBlocks": null
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SPECIFIC_IMMUNITY"],
     "metadata": { "tags": [] }
   },
   {
