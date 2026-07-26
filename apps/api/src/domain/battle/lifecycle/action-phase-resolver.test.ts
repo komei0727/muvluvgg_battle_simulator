@@ -2524,16 +2524,20 @@ describe("resolveActionPhase", () => {
     for (const event of removedEvents) {
       expect(event.payload).toMatchObject({ reason: "INELIGIBLE" });
     }
-    // PRレビュー[P2]是正（Issue #180）: Dの除去は、無関係な旧いBの除去
-    // イベントではなく、Dを実際にSTUNさせた原因である`RuntimeCounterReset`
-    // （`finalizeResolutionScope`が発行・解決した終端イベント）を親に持つ——
-    // `removeIneligibleAndDefeatedReservations`が`finalizeResolutionScope`の
-    // 明示的な`lastEventId`を次の除去イベントの`parentEventId`へ引き継ぐことを
-    // 因果関係として確認する。
+    // PRレビュー[P2]是正の再指摘（Issue #180）: Dの除去は、無関係な旧いBの
+    // 除去イベントを親に持たない。また`RuntimeCounterReset`自身がPSを発動させ
+    // （D自身へのSTUN付与とそれに伴う`ChargeCancelled`まで連鎖する）ため、
+    // その連鎖より前の`RuntimeCounterReset`自身でもなく、連鎖まで含めた実際の
+    // 終端イベント——すなわちDの除去イベントの直前に記録されたイベント——を
+    // 親に持つ。この「直前に記録されたイベントと一致する」という不変条件は、
+    // `finalizeResolutionScope`が返す`lastEventId`がPS連鎖の終端まで正しく
+    // 反映していない限り成立しない。
     const bRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyB.battleUnitId)!;
     const dRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyD.battleUnitId)!;
     const resetEvent = events.find((e) => e.eventType === "RuntimeCounterReset")!;
-    expect(dRemovedEvent.parentEventId).toBe(resetEvent.eventId);
+    const dRemovedIndex = events.indexOf(dRemovedEvent);
+    expect(dRemovedEvent.parentEventId).toBe(events[dRemovedIndex - 1]!.eventId);
+    expect(dRemovedEvent.parentEventId).not.toBe(resetEvent.eventId);
     expect(dRemovedEvent.parentEventId).not.toBe(bRemovedEvent.eventId);
     // D never executed: no wrongful STUNNED-branch WAIT that would have
     // drained its non-full (3 of 10) EX gauge (R-STS-02/Q-BTL-06 only allow
@@ -2544,6 +2548,201 @@ describe("resolveActionPhase", () => {
     const dResult = result.allyUnits.find((u) => u.battleUnitId === allyD.battleUnitId)!;
     expect(dResult.currentExtraGauge).toBe(3);
     expect(dResult.charge).toBeUndefined();
+  });
+
+  it("UT-R-ORD-04-002 (PRレビュー[P2]是正の再指摘、Issue #180): when a removal's own finalizeResolutionScope() has nothing to reset (the common case — no resetScope: RESOLUTION_SCOPE counters involved), the causal cursor for a later ActionQueueReordered in the same cycle is the removal event itself, not rolled back to an earlier root event", () => {
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_04_002");
+    const stunActionId = createEffectActionDefinitionId("ACT_STUN_ORD_04_002");
+    const speedBuffActionId = createEffectActionDefinitionId("ACT_SPEED_BUFF_ORD_04_002");
+
+    // No PS/counterUpdates anywhere in this fixture — finalizeResolutionScope()
+    // always finds nothing to reset (the overwhelmingly common production
+    // case), so its lastEventId must be undefined and must not roll the
+    // causal cursor back.
+    const highHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "GTE", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const lowHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "LT", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const speedBuffAction = statModEffectAction(
+      speedBuffActionId.toString(),
+      "ACTION_SPEED",
+      "FIXED",
+      50,
+    );
+    // A single AS both stuns allyRemoved (high HP ratio) — making its
+    // reservation INELIGIBLE — and buffs allySpeedTarget's (low HP ratio)
+    // actionSpeed, which is what causes a later ActionQueueReordered.
+    const stunAndBuffSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_STUN_AND_BUFF_ORD_04_002"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_REMOVED"), selector: highHpSelector },
+          { targetBindingId: createTargetBindingId("TGT_SPEED"), selector: lowHpSelector },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_REMOVED") },
+            actions: [{ effectActionDefinitionId: stunActionId }],
+          },
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_SPEED") },
+            actions: [{ effectActionDefinitionId: speedBuffActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_STUN_AND_BUFF_ORD_04_002", tags: [] },
+    };
+
+    const stunnerAlly = unit("ALLY_STUNNER", "ALLY", {
+      unitDefinitionId: "UNIT_ALLY_STUNNER_ORD_04_002",
+      actionSpeed: 20,
+      limits: { maximumAp: 1 },
+    });
+    // High HP ratio (1.0); becomes INELIGIBLE once stunned (its unimpeded
+    // pending charge is cancelled).
+    const allyRemoved = {
+      ...unit("ALLY_REMOVED", "ALLY", {
+        actionSpeed: 10,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+        currentHp: 100,
+      }),
+      charge: {
+        skill: chargeSkill("ACT_REMOVED_UNUSED_ORD_04_002"),
+        startedActionId: createActionId("B_TEST:action:1"),
+      },
+    };
+    // Low HP ratio (0.5); remains eligible via AP, but its actionSpeed
+    // changes — the only remaining reservation once allyRemoved is removed.
+    const allySpeedTarget = unit("ALLY_SPEED_TARGET", "ALLY", {
+      actionSpeed: 5,
+      limits: { maximumAp: 1 },
+      currentHp: 50,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[stunnerUnitDefinitionId, [stunAndBuffSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [stunActionId, stunAction],
+        [speedBuffActionId, speedBuffAction],
+      ]),
+      unitDefinitions: new DefaultUnitDefinitionMap([
+        [
+          stunnerUnitDefinitionId,
+          {
+            unitDefinitionId: stunnerUnitDefinitionId,
+            attribute: "AGGRESSIVE",
+            unitType: "PHYSICAL",
+            role: "PHYSICAL_ATTACKER",
+            positionAptitudes: ["FRONT", "BACK"],
+            baseStats: {
+              maximumHp: 100,
+              attack: 10,
+              defense: 10,
+              criticalRate: 0,
+              criticalDamageBonus: 0.5,
+              affinityBonus: 0,
+              actionSpeed: 20,
+              maximumAp: 1,
+              maximumPp: 3,
+            },
+            extraGaugeMaximum: 10,
+            activeSkillDefinitionIds: [],
+            passiveSkillDefinitionIds: [],
+            extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+            requiredCapabilities: [],
+            metadata: {
+              displayName: "AllyStunnerAndBuffer",
+              characterName: "AllyStunnerAndBuffer",
+              characterId: "CHAR_ALLY_STUNNER_AND_BUFFER",
+              affiliations: [],
+              tags: [],
+            },
+          },
+        ],
+      ]),
+      skillDefinitions: new Map(),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [stunnerAlly, allyRemoved, allySpeedTarget],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "RuntimeCounterReset")).toBe(false);
+    const removedEvent = events.find(
+      (e) =>
+        e.eventType === "ActionReservationRemoved" && e.sourceUnitId === allyRemoved.battleUnitId,
+    )!;
+    const reordered = events.find((e) => e.eventType === "ActionQueueReordered")!;
+    expect(reordered.parentEventId).toBe(removedEvent.eventId);
+    expect(reordered.parentEventId).not.toBe(ctx.turnRootEventId);
+    expect(reordered.parentEventId).not.toBe(ctx.turnScopeParentEventId);
   });
 
   it("UT-R-ACT-01-005 (R-ACT-01 branch order): a stunned unit that (defensively) still carries a pending charge takes the STUN branch first — WAITs without releasing the charge while stunned remains active", () => {

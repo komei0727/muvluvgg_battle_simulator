@@ -164,11 +164,17 @@ function removeIneligibleAndDefeatedReservations(
     }
     const finalized = passiveRuntime.finalizeResolutionScope();
     working = finalized.units;
-    lastEventId = finalized.lastEventId;
+    // PRレビュー[P2]是正の再指摘: 何も破棄・発行しなかった場合
+    // （`finalized.lastEventId === undefined`）は、この因果カーソルを
+    // 無関係な値で巻き戻さず、直前の`ActionReservationRemoved`のままにする。
+    if (finalized.lastEventId !== undefined) {
+      lastEventId = finalized.lastEventId;
+    }
     // ループの先頭に戻り、finalizeResolutionScope自身のPS/Memory連鎖後の
     // 最新`working`で`currentRemaining`を再評価する。新しい除去スコープを
     // 開始する場合、その最初の`ActionReservationRemoved.parentEventId`は
-    // この`lastEventId`（終了処理自身の終端イベント）を引き継ぐ。
+    // この`lastEventId`（何か発行していれば終了処理自身の終端イベント、
+    // 何も発行していなければ直前の除去イベントのまま）を引き継ぐ。
   }
 
   return { remaining: currentRemaining, units: working, lastEventId };

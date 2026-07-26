@@ -329,7 +329,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-ORD-04",
-    testCaseIds: ["UT-ACTION-QUEUE-009", "UT-ACTION-QUEUE-010", "UT-R-ORD-04-001"],
+    testCaseIds: [
+      "UT-ACTION-QUEUE-009",
+      "UT-ACTION-QUEUE-010",
+      "UT-R-ORD-04-001",
+      "UT-R-ORD-04-002",
+    ],
     kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
   },
 
@@ -1671,6 +1676,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-11-023",
       "UT-R-EFF-11-024",
       "UT-R-EFF-11-025",
+      "UT-R-EFF-11-027",
       "IT-CAP-SKILL-RUNTIME-003",
       "IT-CAP-SKILL-RUNTIME-004",
     ],
