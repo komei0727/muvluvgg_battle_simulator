@@ -89,7 +89,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // rows (UNIT_NOEL_RUMBLE PS2, UNIT_SHOUKA_SCHEMER EX/AS3, UNIT_SENKA_CHRISTMAS
     // PS2) convert to REMOVE_EFFECTS(categories:["BUFF"]); none of these units are
     // among the 10 promoted here, so `unitCount`/violation expectations are unaffected.
-    expect(catalog.catalogRevision).toBe("2026-07-26.2");
+    // Bumped again by the same PR's re-review fix: CAP_REMOVE_EFFECTS's
+    // verification.testCaseIds gained IT-REMOVE-EFFECTS-PROD-006/007.
+    expect(catalog.catalogRevision).toBe("2026-07-26.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
