@@ -43,6 +43,21 @@ export const STATUS_KINDS = [
  */
 export type StatusKind = (typeof STATUS_KINDS)[number];
 
+/**
+ * R-STS-01「状態異常はデバフの一種とする」: `STATUS_KINDS`のうち、実行時に
+ * `STATUS`カテゴリ（`effect-category-classifier.ts`のR-EFF-02/03分類、
+ * R-EFF-09の失効・免疫判定）の対象になる本来の状態異常（気絶・凍結・暗闇）。
+ * `STEALTH`/`EVASION`/`DAMAGE_IMMUNITY`等の残りは対象自身にとって有利なため
+ * `BUFF`として扱われ、`STATUS`カテゴリには含まれない。`EFFECT_IMMUNITY.
+ * statusKinds`（M7-001B、Issue #243、`EFFECT_IMMUNITY_STATUS_GRANULARITY`）が
+ * `categories: ["STATUS"]`と組み合わせて指定できる値をこの部分集合へ制限する
+ * （PR #245再レビュー[P2]: `STEALTH`等を指定すると、実行時の`STATUS`分類に
+ * 一切一致せず免疫が黙って無効になっていた）。domain/catalogはdomain/battleへ
+ * 依存できないため、この値集合はここを正本とし、`effect-category-classifier.ts`
+ * 側がここから再利用する。
+ */
+export const STATUS_AILMENT_KINDS = ["STUN", "FREEZE", "BLIND"] as const;
+
 /** `APPLY_REFLECT`のtiming値。現時点では単一値のみ定義されている。 */
 export const REFLECT_TIMINGS = ["AFTER_DAMAGE_APPLIED"] as const;
 

@@ -29,6 +29,7 @@ import {
   COOLDOWN_MANIPULATION_OPERATIONS,
   REFLECT_TIMINGS,
   RESOURCE_CAPACITY_OPERATIONS,
+  STATUS_AILMENT_KINDS,
   STATUS_KINDS,
   type DamageThreshold,
 } from "./effect-action-payload.js";
@@ -660,6 +661,10 @@ function createPayload(
       // `statusKinds`は`categories`が`STATUS`を含む場合だけ意味を持つ。
       // `effectActionDefinitionIds`（SPECIFIC_EFFECT専用）と同じ理由で、
       // 無関係な場合に指定すると黙って無視されてしまうため拒否する。
+      // PR #245再レビュー[P2]: 値は`STATUS_KINDS`全体ではなく`STATUS_AILMENT_KINDS`
+      // （気絶・凍結・暗闇）へ限定する — `effect-category-classifier.ts`が実行時に
+      // `STATUS`カテゴリへ分類するのはこの部分集合だけで、`STEALTH`等を指定すると
+      // 実行時のカテゴリ一致に一切到達せず免疫が黙って無効になっていた。
       const statusKindsRaw = payload["statusKinds"] as readonly string[] | undefined;
       if (statusKindsRaw !== undefined) {
         if (!typedCategories.includes("STATUS")) {
@@ -670,7 +675,7 @@ function createPayload(
         }
         assertNonEmptyArray(statusKindsRaw, `${path}.statusKinds`);
         for (const [i, statusKind] of statusKindsRaw.entries()) {
-          assertEnumValue(statusKind, STATUS_KINDS, `${path}.statusKinds[${i}]`);
+          assertEnumValue(statusKind, STATUS_AILMENT_KINDS, `${path}.statusKinds[${i}]`);
         }
         result.statusKinds = statusKindsRaw as readonly (typeof STATUS_KINDS)[number][];
       }
