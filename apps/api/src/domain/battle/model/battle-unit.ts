@@ -151,6 +151,30 @@ export function isDefeated(unit: BattleUnit): boolean {
 }
 
 /**
+ * R-STS-01「状態異常はデバフの一種とする」共通の問い合わせ: `unit`が指定した
+ * `StatusKind`のAppliedEffectを現在保持しているか（`duration-expiry-service.ts`
+ * が失効済みインスタンスを`appliedEffects`から既に除去しているため、存在＝
+ * 有効）。`target-selection-policy.ts`のステルス判定（R-TGT-08）と同じ
+ * 「`statusKind`で直接scanする」パターン。
+ */
+export function activeStatusEffect(
+  unit: BattleUnit,
+  statusKind: AppliedEffect["statusKind"],
+): AppliedEffect | undefined {
+  return unit.appliedEffects.find((effect) => effect.statusKind === statusKind);
+}
+
+/** R-STS-02: 気絶中かどうか（R-ACT-01 #1「気絶中：待機。チャージ中ならチャージをキャンセルする」）。 */
+export function isStunned(unit: BattleUnit): boolean {
+  return activeStatusEffect(unit, "STUN") !== undefined;
+}
+
+/** R-STS-03: 凍結中かどうか（R-ACT-01 #2「凍結中：待機。チャージを維持する」）。 */
+export function isFrozen(unit: BattleUnit): boolean {
+  return activeStatusEffect(unit, "FREEZE") !== undefined;
+}
+
+/**
  * `lifecycle/action-resolution-shared.ts`の`requireUnit`と同じ実装。
  * `domain/battle/effects`は`domain/battle/lifecycle`に依存できない
  * （モジュール境界、eslint.config.mjs）ため、`model`側に複製を持つ。

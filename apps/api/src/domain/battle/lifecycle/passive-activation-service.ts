@@ -1033,8 +1033,35 @@ export class PassiveActivationRuntime {
    * 済みGuard（`R-PS-07`）を通らないため、既存のPassiveChainLimitsもこの
    * ループ自体を止めない。反復回数の上限を設け、超過時は黙って打ち切る代わりに
    * 決定的なエラーとして検出する。
+   *
+   * PRレビュー[P2](Issue #180 PRレビュー[P2]再々々指摘の是正、Issue #251で
+   * 横断整備予定): 呼び出し側（`removeIneligibleAndDefeatedReservations`）が
+   * この終了処理自身の発行・解決した最後の`DomainEventId`を、後続イベントの
+   * `parentEventId`として正しく引き継げるよう、`units`に加えて明示的に返す。
+   * `recorder.getEvents()`の末尾を呼び出し側が推測する方式は採らない。
+   *
+   * PRレビュー[P2]是正の再指摘: 何も破棄しなかった場合（対象12行のように
+   * `resetScope`を宣言しない場合が常時これに該当）、この呼び出し自身は何も
+   * 発行していない——呼び出し前から呼び出し側が保持していた因果カーソル
+   * （例: 直前の`ActionReservationRemoved`）を、無関係な`rootEventId`で
+   * 上書きしてはならない。そのため`lastEventId`は「何も発行しなかった」を
+   * 表せる`undefined`を返し、何か発行した場合だけ実際のイベントIDを返す。
+   * 呼び出し側は`undefined`のときは自分の既存カーソルをそのまま使う。
+   *
+   * また、`RuntimeCounterReset`自身がPS/Memory候補を発動させた場合、
+   * `onFactEvent()`はその候補連鎖（付随する効果適用など）まで解決するため、
+   * 実際の終端イベントは`RuntimeCounterReset`自身より後になりうる。
+   * `onFactEvent()`の戻り値は`units`のみで終端イベントIDを持ち帰らないため、
+   * このメソッド自身が`this.context.recorder`（唯一の真実源）の末尾を直後に
+   * 読み、連鎖まで含めた実際の最後のイベントを`lastEventId`として採用する
+   * （これは実装の詳細としてこのメソッド自身が行うのであって、呼び出し側が
+   * 推測しているわけではない）。
    */
-  finalizeResolutionScope(): readonly BattleUnit[] {
+  finalizeResolutionScope(): {
+    readonly units: readonly BattleUnit[];
+    readonly lastEventId: DomainEventId | undefined;
+  } {
+    let lastEventId: DomainEventId | undefined = undefined;
     let round = 0;
     while (true) {
       const targets = collectResolutionScopeResets({
@@ -1043,7 +1070,7 @@ export class PassiveActivationRuntime {
         skillDefinitions: this.context.definitions.skillDefinitions,
       });
       if (targets.length === 0) {
-        return this.units;
+        return { units: this.units, lastEventId };
       }
       round += 1;
       if (round > MAX_RESOLUTION_SCOPE_RESET_ROUNDS) {
@@ -1113,6 +1140,12 @@ export class PassiveActivationRuntime {
           },
         });
         this.units = this.onFactEvent(recorded, this.units);
+        // `recorded`自身のPS/Memory候補解決（`onFactEvent`が同期的に完了させる）
+        // まで含めた実際の終端イベントを採用する。候補が何も発動しなければ
+        // `recorder`の末尾は`recorded`自身のままなので、単純に「発動しなかった
+        // 場合は`recorded.eventId`」にも一致する。
+        const recordedEvents = this.context.recorder.getEvents();
+        lastEventId = recordedEvents[recordedEvents.length - 1]?.eventId ?? recorded.eventId;
       }
     }
   }

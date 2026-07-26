@@ -2432,7 +2432,18 @@
     "activationCondition": {
       "kind": "AND",
       "conditions": [
-        { "kind": "ALIVE_UNIT_COUNT", "side": "ALLY", "excludeSelf": true, "op": "GT", "value": 0 },
+        {
+          "kind": "TARGET_SET_COUNT",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW_HP_ALLIES" },
+          "op": "GTE",
+          "value": 1
+        },
+        {
+          "kind": "TARGET_SET_COUNT",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
+          "op": "GTE",
+          "value": 1
+        },
         {
           "kind": "TARGET_STATE",
           "target": { "kind": "SELF" },
@@ -2448,6 +2459,24 @@
         {
           "targetBindingId": "TGT_LOWEST_ALLY",
           "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+        },
+        {
+          "targetBindingId": "TGT_LOW_HP_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "HP_RATIO", "op": "LT", "value": 0.7 }]
+          }
+        },
+        {
+          "targetBindingId": "TGT_OTHER_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -7678,6 +7707,12 @@
     "skillDefinitionId": "SKL_LYDIA_GENIUS_AS1",
     "skillType": "AS",
     "cost": { "resource": "AP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_SET_COUNT",
+      "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMNS" },
+      "op": "GTE",
+      "value": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -7714,7 +7749,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER", "CAP_DAMAGE_MOD"],
+    "requiredCapabilities": [
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_DAMAGE_MOD",
+      "CAP_ACTION_ACTIVATION_CONDITION"
+    ],
     "metadata": { "displayName": "ジャマしちゃ、めっ……だよ？", "tags": [] }
   },
   {

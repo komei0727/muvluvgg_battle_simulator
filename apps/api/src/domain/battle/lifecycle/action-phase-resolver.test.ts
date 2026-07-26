@@ -9,11 +9,15 @@ import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 import { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import { reduceStateDeltas } from "./state-delta-reducer.js";
 import { createActionPoint, createExtraGauge, createHitPoint } from "../model/resource-gauge.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
@@ -77,6 +81,41 @@ function unit(
       overrides.currentHp ?? member.combatStats.maximumHp,
       member.combatStats.maximumHp,
     ),
+  };
+}
+
+/**
+ * R-STS-01/02/03: a minimal STUN/FREEZE `AppliedEffect` fixture for
+ * resolver-level tests. `holderId` must be the owning unit's own
+ * `battleUnitId` (`timeLimit.owner` defaults to `EFFECT_TARGET`, resolved via
+ * `targetId` — R-EFF-04's own-action-end decrement only fires when this
+ * matches the acting unit).
+ */
+function statusEffect(
+  statusKind: "STUN" | "FREEZE",
+  instanceId: string,
+  remaining: number,
+  holderId: BattleUnit["battleUnitId"],
+): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId(`ACT_${statusKind}`);
+  return {
+    effectInstanceId: createEffectInstanceId(instanceId),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: holderId,
+    targetId: holderId,
+    magnitude: 0,
+    statusKind,
+    duration: {
+      definition: {
+        timeLimit: { unit: "ACTION", count: remaining },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      timeLimitRemaining: remaining,
+    },
+    appliedTurnNumber: 1,
   };
 }
 
@@ -1326,6 +1365,1425 @@ describe("resolveActionPhase", () => {
     expect(closingCompleting.stateVersionBefore).toBeGreaterThanOrEqual(
       damageApplied.stateVersionAfter,
     );
+  });
+
+  it("UT-R-ACT-01-001 (R-ACT-01 #1, R-STS-02): a stunned unit WAITs instead of using an otherwise-usable AS", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_STUNNED");
+    const skill = attackSkill("ACT_STUNNED_HIT");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { unitDefinitionId: "UNIT_STUNNED" }),
+      appliedEffects: [statusEffect("STUN", "stun-1", 1, createBattleUnitId("ALLY_1"))],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const effectAction = damageEffectAction("ACT_STUNNED_HIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.enemyUnits[0]!.currentHp).toBe(enemy.currentHp);
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited?.payload).toMatchObject({ waitReason: "STUNNED" });
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "SkillUseStarting")).toBe(false);
+  });
+
+  it("UT-R-ACT-01-002 (R-STS-02): a stunned unit with AP 0 and a full EX gauge WAITs consuming the EX gauge fully, not AP", () => {
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 10,
+      }),
+      appliedEffects: [statusEffect("STUN", "stun-1", 1, createBattleUnitId("ALLY_1"))],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      NO_SKILLS,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(0);
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited?.payload).toMatchObject({
+      waitReason: "STUNNED",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 10,
+    });
+  });
+
+  it("UT-R-ACT-01-003 (R-ACT-01 #2, R-STS-03 consequence): a frozen unit with no pending charge WAITs instead of using an otherwise-usable AS", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_FROZEN");
+    const skill = attackSkill("ACT_FROZEN_HIT");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { unitDefinitionId: "UNIT_FROZEN" }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const effectAction = damageEffectAction("ACT_FROZEN_HIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.enemyUnits[0]!.currentHp).toBe(enemy.currentHp);
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited?.payload).toMatchObject({ waitReason: "FROZEN" });
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ChargeHeldByFreeze")).toBe(false);
+  });
+
+  it("UT-R-ACT-01-004 (R-ACT-01 #2, R-SKL-05 '凍結中はチャージを維持し'): a frozen unit with a pending charge WAITs (recording ChargeHeldByFreeze) instead of releasing it while frozen remains active, then releases it once freeze naturally expires", () => {
+    const chargedSkill = chargeSkill("ACT_RELEASE_HIT");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 } }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_RELEASE_HIT");
+    const definitions = definitionsOf(
+      new Map(),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // FREEZE's ACTION-unit remaining count is 1: it expires after this one
+    // frozen WAIT, so the charge is released naturally on the next cycle
+    // (R-SKL-05 「解除後の次の行動機会に発動する」) — the final state has no
+    // charge left, but it must not have been released *while still frozen*.
+    expect(result.allyUnits[0]!.charge).toBeUndefined();
+    const events = ctx.recorder.getEvents();
+    const held = events.find((e) => e.eventType === "ChargeHeldByFreeze") as Extract<
+      BattleDomainEvent,
+      { eventType: "ChargeHeldByFreeze" }
+    >;
+    expect(held).toBeDefined();
+    expect(held.payload).toMatchObject({
+      actorUnitId: ally.battleUnitId,
+      skillDefinitionId: chargedSkill.skillDefinitionId,
+      startedActionId,
+      freezeEffectInstanceId: ally.appliedEffects[0]!.effectInstanceId,
+    });
+    const released = events.find((e) => e.eventType === "ChargeReleased")!;
+    expect(released.sequence).toBeGreaterThan(held.sequence);
+    const waited = events.find(
+      (e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId,
+    )!;
+    expect(waited.payload).toMatchObject({ waitReason: "FROZEN" });
+    expect(waited.sequence).toBeLessThan(released.sequence);
+
+    // PRレビュー[P2]: `ChargeHeldByFreeze`は`ActionWaited`の直接の子として、
+    // 同じ行動の`ActionCompleting`より前（`PassiveActivationRuntime`の連鎖
+    // 経路上）に記録される——完了後に切り離して記録するのではない。
+    expect(held.parentEventId).toBe(waited.eventId);
+    const actionCompletingForWait = events.find(
+      (e) =>
+        e.eventType === "ActionCompleting" &&
+        e.sourceUnitId === ally.battleUnitId &&
+        e.sequence > waited.sequence &&
+        e.sequence < released.sequence,
+    )!;
+    expect(actionCompletingForWait).toBeDefined();
+    expect(held.sequence).toBeLessThan(actionCompletingForWait.sequence);
+  });
+
+  it("UT-R-ACT-01-004B (PRレビュー[P2]): if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
+    // The frozen unit itself can't hold a reacting PS here (R-STS-03: a frozen
+    // owner can't newly activate PS either, `OWNER_FROZEN` in
+    // reconfirm-passive-candidate.ts) — a separate, unfrozen ally's PS reacts
+    // to the frozen unit's own ActionWaited instead, targeting it via
+    // EXCLUDE_RESOLVED_UNIT(SELF) (the only other ally on the field).
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_STUN_FROZEN_ALLY_ON_WAIT");
+    const stunActionId = createEffectActionDefinitionId("ACT_STUN_FROZEN_ALLY_ON_WAIT");
+    const chargedSkill = chargeSkill("ACT_WOULD_HAVE_HELD");
+    const startedActionId = createActionId("B_TEST:action:1");
+
+    const frozenAlly = {
+      ...unit("ALLY_FROZEN", "ALLY", { limits: { maximumAp: 1 } }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 5, createBattleUnitId("ALLY_FROZEN"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER",
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionWaited",
+          category: "FACT",
+          sourceSelector: "ALLY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_FROZEN_ALLY"),
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: 1,
+              filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_FROZEN_ALLY") },
+            actions: [{ effectActionDefinitionId: stunActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_STUN_FROZEN_ALLY_ON_WAIT", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        stunnerUnitDefinitionId,
+        {
+          unitDefinitionId: stunnerUnitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 10,
+            maximumAp: 0,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "AllyStunner",
+            characterName: "AllyStunner",
+            characterId: "CHAR_ALLY_STUNNER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([[stunActionId, stunAction]]),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [frozenAlly, stunnerAlly],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // The ally's PS (triggered by the frozen unit's own ActionWaited) applied
+    // STUN before the onWaitEstablished hook ran, cancelling the charge — so
+    // no ChargeHeldByFreeze is recorded, and the charge stays cleared.
+    const frozenResult = result.allyUnits.find((u) => u.battleUnitId === frozenAlly.battleUnitId)!;
+    expect(frozenResult.charge).toBeUndefined();
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "ChargeHeldByFreeze")).toBe(false);
+    expect(events.some((e) => e.eventType === "ChargeCancelled")).toBe(true);
+  });
+
+  it("UT-R-ORD-01-001 (R-ORD-01 '凍結などで阻害されていないチャージ効果が発動待ち', PRレビュー[P1]): a frozen unit with AP 0 and a non-full EX gauge is NOT queued despite a pending charge — freeze impedes the charge, so it doesn't count toward R-ORD-01 eligibility", () => {
+    const chargedSkill = chargeSkill("ACT_HELD_HIT");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      NO_SKILLS,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // Neither unit is queue-eligible (ally: AP 0, EX not full, and its charge
+    // is impeded by freeze; enemy: AP 0, EX not full, no charge) — the phase
+    // drains immediately without ever creating a queue.
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ActionQueueCreated")).toBe(false);
+    expect(result.allyUnits[0]!.charge).toEqual({ skill: chargedSkill, startedActionId });
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(3);
+  });
+
+  it("UT-R-ORD-01-002 (R-ORD-01 counterpart): once freeze clears, the same AP-0/non-full-EX unit becomes queue-eligible again via its pending charge alone and releases it", () => {
+    const chargedSkill = chargeSkill("ACT_HELD_HIT_2");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_HELD_HIT_2");
+    const definitions = definitionsOf(
+      new Map(),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ActionQueueCreated")).toBe(true);
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ChargeReleased")).toBe(true);
+    expect(result.allyUnits[0]!.charge).toBeUndefined();
+  });
+
+  it("UT-R-ORD-01-003 (R-ORD-01, PRレビュー[P1]再指摘): a reservation queued via its charge alone is removed (INELIGIBLE) and never executes if a preceding same-cycle action cancels that charge (via STUN)", () => {
+    const stunActionIdString = "ACT_STUN_ALLY_ORD";
+    const chargedSkill = chargeSkill("ACT_WOULD_BE_SKIPPED");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ALLY_OTHER_SELECTOR: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const stunSkill = attackSkill(stunActionIdString, 1, ALLY_OTHER_SELECTOR);
+    const stunActionId = createEffectActionDefinitionId(stunActionIdString);
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+
+    // Acts first in the cycle (higher actionSpeed): stuns the other ally.
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER_ORD",
+        actionSpeed: 20,
+        limits: { maximumAp: 1 },
+      }),
+    };
+    // Queue-eligible via its pending charge alone (AP 0, EX not full); acts
+    // second in the cycle (lower actionSpeed) — by then, the stunner's action
+    // has already cancelled this charge, so R-ORD-01 no longer holds.
+    const chargingAlly = {
+      ...unit("ALLY_CHARGING", "ALLY", {
+        actionSpeed: 5,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD"), [stunSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([[stunActionId, stunAction]]),
+      unitDefinitions: new DefaultUnitDefinitionMap(),
+      skillDefinitions: new Map(),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [stunnerAlly, chargingAlly],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    // Both were queued for cycle 1 (stunner via AP, charging via its then-unimpeded charge).
+    const firstQueue = events.find((e) => e.eventType === "ActionQueueCreated") as Extract<
+      BattleDomainEvent,
+      { eventType: "ActionQueueCreated" }
+    >;
+    expect(
+      firstQueue?.payload.reservations.some(
+        (entry) => entry.battleUnitId === chargingAlly.battleUnitId,
+      ),
+    ).toBe(true);
+    // The charging unit's reservation was removed as INELIGIBLE, never executed:
+    // no ActionStarted/ActionWaited/ChargeReleased for it, and its EX gauge
+    // (3, not full) was never consumed by a wrongful STUNNED-branch WAIT.
+    const removed = events.find(
+      (e) =>
+        e.eventType === "ActionReservationRemoved" && e.sourceUnitId === chargingAlly.battleUnitId,
+    );
+    expect(removed?.payload).toMatchObject({
+      battleUnitId: chargingAlly.battleUnitId,
+      reason: "INELIGIBLE",
+    });
+    expect(
+      events.some(
+        (e) => e.eventType === "ActionStarted" && e.sourceUnitId === chargingAlly.battleUnitId,
+      ),
+    ).toBe(false);
+    expect(events.some((e) => e.eventType === "ChargeReleased")).toBe(false);
+    const chargingResult = result.allyUnits.find(
+      (u) => u.battleUnitId === chargingAlly.battleUnitId,
+    )!;
+    expect(chargingResult.currentExtraGauge).toBe(3);
+    expect(chargingResult.charge).toBeUndefined();
+  });
+
+  it("UT-R-ORD-01-004 (PRレビュー[P2]再指摘): an ActionReservationRemoved(reason INELIGIBLE) is itself a real PS/Memory trigger — an ally's PS reacting to it activates, with triggerEventId pointing at that same removal event", () => {
+    const stunActionIdString = "ACT_STUN_ALLY_ORD_2";
+    const chargedSkill = chargeSkill("ACT_WOULD_BE_SKIPPED_2");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_2");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_RESERVATION_REMOVED");
+    const ALLY_OTHER_SELECTOR: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const stunSkill = attackSkill(stunActionIdString, 1, ALLY_OTHER_SELECTOR);
+    const stunActionId = createEffectActionDefinitionId(stunActionIdString);
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const buffAction = statModEffectAction("ACT_PS_ON_REMOVAL_BUFF", "ATTACK", "FIXED", 5);
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionReservationRemoved",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: buffAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_RESERVATION_REMOVED", tags: [] },
+    };
+
+    // Acts first in the cycle (higher actionSpeed): stuns the other ally, and
+    // separately holds a PS that reacts to ActionReservationRemoved.
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER_ORD_2",
+        actionSpeed: 20,
+        limits: { maximumAp: 1, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const chargingAlly = {
+      ...unit("ALLY_CHARGING", "ALLY", {
+        actionSpeed: 5,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        stunnerUnitDefinitionId,
+        {
+          unitDefinitionId: stunnerUnitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 20,
+            maximumAp: 1,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "AllyStunnerWithPS",
+            characterName: "AllyStunnerWithPS",
+            characterId: "CHAR_ALLY_STUNNER_WITH_PS",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[stunnerUnitDefinitionId, [stunSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [stunActionId, stunAction],
+        [buffAction.effectActionDefinitionId, buffAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [stunnerAlly, chargingAlly],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const removed = events.find(
+      (e) =>
+        e.eventType === "ActionReservationRemoved" && e.sourceUnitId === chargingAlly.battleUnitId,
+    )!;
+    const activated = events.find(
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === stunnerAlly.battleUnitId,
+    ) as Extract<BattleDomainEvent, { eventType: "PassiveActivated" }>;
+    expect(activated).toBeDefined();
+    expect(activated.payload).toMatchObject({
+      skillDefinitionId: passiveSkillDefinitionId,
+      triggerEventId: removed.eventId,
+    });
+  });
+
+  it("UT-R-ORD-01-005 (PRレビュー[P2]再々指摘): re-evaluates remaining reservations after each removal's own PS/Memory chain — a unit newly stunned by that reaction is also removed instead of executing on a stale precomputed list", () => {
+    const startedActionIdB = createActionId("B_TEST:action:1");
+    const startedActionIdD = createActionId("B_TEST:action:2");
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_5");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_STUN_D_ON_REMOVAL");
+    const stunBActionId = createEffectActionDefinitionId("ACT_STUN_B_ORD_5");
+    const stunDActionId = createEffectActionDefinitionId("ACT_STUN_D_ORD_5");
+
+    // B and D are otherwise identical (AP 0, EX not full, an unimpeded
+    // pending charge) except for HP ratio, used only so each skill's
+    // selector can deterministically pick one and not the other (all units
+    // in this fixture share the same board position).
+    const highHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "GTE", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const lowHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "LT", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    // Stuns B (high HP ratio) only — D is untouched by this action.
+    const stunBSkill = attackSkill(stunBActionId.toString(), 1, highHpSelector);
+    const stunBAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunBActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    // Reacts to ActionReservationRemoved by stunning D (low HP ratio) —
+    // this is what newly makes D ineligible (cancels D's charge), *after*
+    // B's own removal has already been decided and recorded.
+    const stunDAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunDActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionReservationRemoved",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_D"), selector: lowHpSelector },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_D") },
+            actions: [{ effectActionDefinitionId: stunDActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_STUN_D_ON_REMOVAL", tags: [] },
+    };
+
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER_ORD_5",
+        actionSpeed: 20,
+        limits: { maximumAp: 1, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    // B: high HP ratio (1.0); stunned directly by the stunner's own action.
+    const allyB = {
+      ...unit("ALLY_B", "ALLY", {
+        actionSpeed: 10,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+        currentHp: 100,
+      }),
+      charge: { skill: chargeSkill("ACT_B_UNUSED"), startedActionId: startedActionIdB },
+    };
+    // D: low HP ratio (0.5); still eligible (unimpeded charge) when the
+    // cycle's queue is built, only stunned reactively once B is removed.
+    const allyD = {
+      ...unit("ALLY_D", "ALLY", {
+        actionSpeed: 5,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+        currentHp: 50,
+      }),
+      charge: { skill: chargeSkill("ACT_D_UNUSED"), startedActionId: startedActionIdD },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[stunnerUnitDefinitionId, [stunBSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [stunBActionId, stunBAction],
+        [stunDActionId, stunDAction],
+      ]),
+      unitDefinitions: new DefaultUnitDefinitionMap([
+        [
+          stunnerUnitDefinitionId,
+          {
+            unitDefinitionId: stunnerUnitDefinitionId,
+            attribute: "AGGRESSIVE",
+            unitType: "PHYSICAL",
+            role: "PHYSICAL_ATTACKER",
+            positionAptitudes: ["FRONT", "BACK"],
+            baseStats: {
+              maximumHp: 100,
+              attack: 10,
+              defense: 10,
+              criticalRate: 0,
+              criticalDamageBonus: 0.5,
+              affinityBonus: 0,
+              actionSpeed: 20,
+              maximumAp: 1,
+              maximumPp: 3,
+            },
+            extraGaugeMaximum: 10,
+            activeSkillDefinitionIds: [],
+            passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+            extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+            requiredCapabilities: [],
+            metadata: {
+              displayName: "AllyStunnerChain",
+              characterName: "AllyStunnerChain",
+              characterId: "CHAR_ALLY_STUNNER_CHAIN",
+              affiliations: [],
+              tags: [],
+            },
+          },
+        ],
+      ]),
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [stunnerAlly, allyB, allyD],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const removedEvents = events.filter((e) => e.eventType === "ActionReservationRemoved");
+    // Both B (stunned directly) and D (stunned reactively, only after B's
+    // removal was already decided) are removed as INELIGIBLE — D is caught
+    // by re-evaluating `remaining` after B's removal chain, not by a stale
+    // precomputed list from before that chain ran.
+    expect(removedEvents.map((e) => e.sourceUnitId).sort()).toEqual(
+      [allyB.battleUnitId, allyD.battleUnitId].sort(),
+    );
+    for (const event of removedEvents) {
+      expect(event.payload).toMatchObject({ reason: "INELIGIBLE" });
+    }
+    // D never executed: no wrongful STUNNED-branch WAIT that would have
+    // drained its non-full (3 of 10) EX gauge (R-STS-02/Q-BTL-06 only allow
+    // full-gauge consumption).
+    expect(
+      events.some((e) => e.eventType === "ActionStarted" && e.sourceUnitId === allyD.battleUnitId),
+    ).toBe(false);
+    const dResult = result.allyUnits.find((u) => u.battleUnitId === allyD.battleUnitId)!;
+    expect(dResult.currentExtraGauge).toBe(3);
+    expect(dResult.charge).toBeUndefined();
+  });
+
+  it("UT-R-ORD-01-006 (PRレビュー[P2]再々々指摘): re-evaluates remaining reservations after finalizeResolutionScope's own RuntimeCounterReset chain, not just after each removal's immediate PS chain", () => {
+    const startedActionIdB = createActionId("B_TEST:action:1");
+    const startedActionIdD = createActionId("B_TEST:action:2");
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_6");
+    const counterSkillDefinitionId = createSkillDefinitionId("SKL_PS_COUNTER_ON_REMOVAL_ORD_6");
+    const stunOnResetSkillDefinitionId = createSkillDefinitionId("SKL_PS_STUN_D_ON_RESET_ORD_6");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_REMOVAL_TRACKER_ORD_6");
+    const stunBActionId = createEffectActionDefinitionId("ACT_STUN_B_ORD_6");
+    const stunDActionId = createEffectActionDefinitionId("ACT_STUN_D_ORD_6");
+
+    // Same B/D setup as UT-R-ORD-01-005: both otherwise-identical except HP
+    // ratio (used only to let selectors deterministically pick one and not
+    // the other), both AP 0 / EX not full / an unimpeded pending charge.
+    const highHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "GTE", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const lowHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "LT", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    // Stuns B (high HP ratio) only — D is untouched by this action.
+    const stunBSkill = attackSkill(stunBActionId.toString(), 1, highHpSelector);
+    const stunBAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunBActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    // This PS never activates on its own (no triggers) — it exists purely to
+    // register a SKILL_RUNTIME counter that increments whenever any
+    // ActionReservationRemoved fires, and discards (emitting
+    // RuntimeCounterReset) only once `finalizeResolutionScope()` runs.
+    const counterSkill: SkillDefinition = {
+      skillDefinitionId: counterSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "ActionReservationRemoved",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+            condition: { kind: "TRUE" },
+          },
+          amount: 1,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_COUNTER_ON_REMOVAL_ORD_6", tags: [] },
+    };
+    // Reacts to RuntimeCounterReset (only emitted by finalizeResolutionScope
+    // discarding the counter above) by stunning D (low HP ratio) — this is
+    // what newly makes D ineligible, and only after the inner removal loop
+    // has already settled on "no more direct candidates" for B alone.
+    const stunDAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunDActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const stunOnResetSkill: SkillDefinition = {
+      skillDefinitionId: stunOnResetSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "RuntimeCounterReset",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_D"), selector: lowHpSelector },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_D") },
+            actions: [{ effectActionDefinitionId: stunDActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_STUN_D_ON_RESET_ORD_6", tags: [] },
+    };
+
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER_ORD_6",
+        actionSpeed: 20,
+        limits: { maximumAp: 1, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    // B: high HP ratio (1.0); stunned directly by the stunner's own action.
+    const allyB = {
+      ...unit("ALLY_B", "ALLY", {
+        actionSpeed: 10,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+        currentHp: 100,
+      }),
+      charge: { skill: chargeSkill("ACT_B_UNUSED_ORD_6"), startedActionId: startedActionIdB },
+    };
+    // D: low HP ratio (0.5); still eligible (unimpeded charge) when the
+    // cycle's queue is built and when B's own removal chain settles, only
+    // stunned once finalizeResolutionScope's RuntimeCounterReset chain runs.
+    const allyD = {
+      ...unit("ALLY_D", "ALLY", {
+        actionSpeed: 5,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+        currentHp: 50,
+      }),
+      charge: { skill: chargeSkill("ACT_D_UNUSED_ORD_6"), startedActionId: startedActionIdD },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[stunnerUnitDefinitionId, [stunBSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [stunBActionId, stunBAction],
+        [stunDActionId, stunDAction],
+      ]),
+      unitDefinitions: new DefaultUnitDefinitionMap([
+        [
+          stunnerUnitDefinitionId,
+          {
+            unitDefinitionId: stunnerUnitDefinitionId,
+            attribute: "AGGRESSIVE",
+            unitType: "PHYSICAL",
+            role: "PHYSICAL_ATTACKER",
+            positionAptitudes: ["FRONT", "BACK"],
+            baseStats: {
+              maximumHp: 100,
+              attack: 10,
+              defense: 10,
+              criticalRate: 0,
+              criticalDamageBonus: 0.5,
+              affinityBonus: 0,
+              actionSpeed: 20,
+              maximumAp: 1,
+              maximumPp: 3,
+            },
+            extraGaugeMaximum: 10,
+            activeSkillDefinitionIds: [],
+            passiveSkillDefinitionIds: [counterSkillDefinitionId, stunOnResetSkillDefinitionId],
+            extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+            requiredCapabilities: [],
+            metadata: {
+              displayName: "AllyStunnerResetChain",
+              characterName: "AllyStunnerResetChain",
+              characterId: "CHAR_ALLY_STUNNER_RESET_CHAIN",
+              affiliations: [],
+              tags: [],
+            },
+          },
+        ],
+      ]),
+      skillDefinitions: new Map([
+        [counterSkillDefinitionId, counterSkill],
+        [stunOnResetSkillDefinitionId, stunOnResetSkill],
+      ]),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [stunnerAlly, allyB, allyD],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "RuntimeCounterReset")).toBe(true);
+    const removedEvents = events.filter((e) => e.eventType === "ActionReservationRemoved");
+    // Both B (stunned directly) and D (stunned only once
+    // finalizeResolutionScope's own RuntimeCounterReset chain runs, strictly
+    // after the inner removal loop already found no more direct candidates
+    // from B's removal alone) are removed as INELIGIBLE.
+    expect(removedEvents.map((e) => e.sourceUnitId).sort()).toEqual(
+      [allyB.battleUnitId, allyD.battleUnitId].sort(),
+    );
+    for (const event of removedEvents) {
+      expect(event.payload).toMatchObject({ reason: "INELIGIBLE" });
+    }
+    // PRレビュー[P2]是正の再指摘（Issue #180）: Dの除去は、無関係な旧いBの
+    // 除去イベントを親に持たない。また`RuntimeCounterReset`自身がPSを発動させ
+    // （D自身へのSTUN付与とそれに伴う`ChargeCancelled`まで連鎖する）ため、
+    // その連鎖より前の`RuntimeCounterReset`自身でもなく、連鎖まで含めた実際の
+    // 終端イベント——すなわちDの除去イベントの直前に記録されたイベント——を
+    // 親に持つ。この「直前に記録されたイベントと一致する」という不変条件は、
+    // `finalizeResolutionScope`が返す`lastEventId`がPS連鎖の終端まで正しく
+    // 反映していない限り成立しない。
+    const bRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyB.battleUnitId)!;
+    const dRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyD.battleUnitId)!;
+    const resetEvent = events.find((e) => e.eventType === "RuntimeCounterReset")!;
+    const dRemovedIndex = events.indexOf(dRemovedEvent);
+    expect(dRemovedEvent.parentEventId).toBe(events[dRemovedIndex - 1]!.eventId);
+    expect(dRemovedEvent.parentEventId).not.toBe(resetEvent.eventId);
+    expect(dRemovedEvent.parentEventId).not.toBe(bRemovedEvent.eventId);
+    // D never executed: no wrongful STUNNED-branch WAIT that would have
+    // drained its non-full (3 of 10) EX gauge (R-STS-02/Q-BTL-06 only allow
+    // full-gauge consumption).
+    expect(
+      events.some((e) => e.eventType === "ActionStarted" && e.sourceUnitId === allyD.battleUnitId),
+    ).toBe(false);
+    const dResult = result.allyUnits.find((u) => u.battleUnitId === allyD.battleUnitId)!;
+    expect(dResult.currentExtraGauge).toBe(3);
+    expect(dResult.charge).toBeUndefined();
+  });
+
+  it("UT-R-ORD-04-002 (PRレビュー[P2]是正の再指摘、Issue #180): when a removal's own finalizeResolutionScope() has nothing to reset (the common case — no resetScope: RESOLUTION_SCOPE counters involved), the causal cursor for a later ActionQueueReordered in the same cycle is the removal event itself, not rolled back to an earlier root event", () => {
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_04_002");
+    const stunActionId = createEffectActionDefinitionId("ACT_STUN_ORD_04_002");
+    const speedBuffActionId = createEffectActionDefinitionId("ACT_SPEED_BUFF_ORD_04_002");
+
+    // No PS/counterUpdates anywhere in this fixture — finalizeResolutionScope()
+    // always finds nothing to reset (the overwhelmingly common production
+    // case), so its lastEventId must be undefined and must not roll the
+    // causal cursor back.
+    const highHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "GTE", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const lowHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "LT", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const speedBuffAction = statModEffectAction(
+      speedBuffActionId.toString(),
+      "ACTION_SPEED",
+      "FIXED",
+      50,
+    );
+    // A single AS both stuns allyRemoved (high HP ratio) — making its
+    // reservation INELIGIBLE — and buffs allySpeedTarget's (low HP ratio)
+    // actionSpeed, which is what causes a later ActionQueueReordered.
+    const stunAndBuffSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_STUN_AND_BUFF_ORD_04_002"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_REMOVED"), selector: highHpSelector },
+          { targetBindingId: createTargetBindingId("TGT_SPEED"), selector: lowHpSelector },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_REMOVED") },
+            actions: [{ effectActionDefinitionId: stunActionId }],
+          },
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_SPEED") },
+            actions: [{ effectActionDefinitionId: speedBuffActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_STUN_AND_BUFF_ORD_04_002", tags: [] },
+    };
+
+    const stunnerAlly = unit("ALLY_STUNNER", "ALLY", {
+      unitDefinitionId: "UNIT_ALLY_STUNNER_ORD_04_002",
+      actionSpeed: 20,
+      limits: { maximumAp: 1 },
+    });
+    // High HP ratio (1.0); becomes INELIGIBLE once stunned (its unimpeded
+    // pending charge is cancelled).
+    const allyRemoved = {
+      ...unit("ALLY_REMOVED", "ALLY", {
+        actionSpeed: 10,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+        currentHp: 100,
+      }),
+      charge: {
+        skill: chargeSkill("ACT_REMOVED_UNUSED_ORD_04_002"),
+        startedActionId: createActionId("B_TEST:action:1"),
+      },
+    };
+    // Low HP ratio (0.5); remains eligible via AP, but its actionSpeed
+    // changes — the only remaining reservation once allyRemoved is removed.
+    const allySpeedTarget = unit("ALLY_SPEED_TARGET", "ALLY", {
+      actionSpeed: 5,
+      limits: { maximumAp: 1 },
+      currentHp: 50,
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[stunnerUnitDefinitionId, [stunAndBuffSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [stunActionId, stunAction],
+        [speedBuffActionId, speedBuffAction],
+      ]),
+      unitDefinitions: new DefaultUnitDefinitionMap([
+        [
+          stunnerUnitDefinitionId,
+          {
+            unitDefinitionId: stunnerUnitDefinitionId,
+            attribute: "AGGRESSIVE",
+            unitType: "PHYSICAL",
+            role: "PHYSICAL_ATTACKER",
+            positionAptitudes: ["FRONT", "BACK"],
+            baseStats: {
+              maximumHp: 100,
+              attack: 10,
+              defense: 10,
+              criticalRate: 0,
+              criticalDamageBonus: 0.5,
+              affinityBonus: 0,
+              actionSpeed: 20,
+              maximumAp: 1,
+              maximumPp: 3,
+            },
+            extraGaugeMaximum: 10,
+            activeSkillDefinitionIds: [],
+            passiveSkillDefinitionIds: [],
+            extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+            requiredCapabilities: [],
+            metadata: {
+              displayName: "AllyStunnerAndBuffer",
+              characterName: "AllyStunnerAndBuffer",
+              characterId: "CHAR_ALLY_STUNNER_AND_BUFFER",
+              affiliations: [],
+              tags: [],
+            },
+          },
+        ],
+      ]),
+      skillDefinitions: new Map(),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [stunnerAlly, allyRemoved, allySpeedTarget],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "RuntimeCounterReset")).toBe(false);
+    const removedEvent = events.find(
+      (e) =>
+        e.eventType === "ActionReservationRemoved" && e.sourceUnitId === allyRemoved.battleUnitId,
+    )!;
+    const reordered = events.find((e) => e.eventType === "ActionQueueReordered")!;
+    expect(reordered.parentEventId).toBe(removedEvent.eventId);
+    expect(reordered.parentEventId).not.toBe(ctx.turnRootEventId);
+    expect(reordered.parentEventId).not.toBe(ctx.turnScopeParentEventId);
+  });
+
+  it("UT-R-ACT-01-005 (R-ACT-01 branch order): a stunned unit that (defensively) still carries a pending charge takes the STUN branch first — WAITs without releasing the charge while stunned remains active", () => {
+    const chargedSkill = chargeSkill("ACT_RELEASE_HIT_2");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 } }),
+      appliedEffects: [statusEffect("STUN", "stun-1", 1, createBattleUnitId("ALLY_1"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_RELEASE_HIT_2");
+    const definitions = definitionsOf(
+      new Map(),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const waited = events.find(
+      (e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId,
+    )!;
+    expect(waited.payload).toMatchObject({ waitReason: "STUNNED" });
+    // STUN's 1-remaining ACTION-unit duration expires after this WAIT, so the
+    // charge (untouched while stunned) releases on the following cycle —
+    // it must not have released while the STUN branch was still active.
+    const released = events.find((e) => e.eventType === "ChargeReleased")!;
+    expect(released).toBeDefined();
+    expect(waited.sequence).toBeLessThan(released.sequence);
   });
 
   it("UT-ACTION-PHASE-013 (R-SKL-05): charge start sets the original skill's cooldown, scoped to the charge-start action; the release action (a later action for this actor) then decrements it like any other own-action-end", () => {

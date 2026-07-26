@@ -2,10 +2,29 @@
   {
     "capabilityId": "CAP_ACTION_ACTIVATION_CONDITION",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-003",
-    "description": "AS / EXのactivationConditionを行動選択で評価する",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "AS / EXのactivationConditionを行動選択で評価する（`action-selection-policy.ts`のisUsable/isExUsableが`evaluateEffectStepCondition`を再利用し、TargetBinding解決後の最新対象集合に対しTARGET_SET_COUNT/TARGET_STATE/TARGET_HAS_MARKERを評価する。SELF/BINDINGのTargetReferenceだけを解決し、条件不成立時は定義順の次候補または待機へ進む、Issue #180）。",
+    "verification": {
+      "productionDefinitionIds": [
+        "SKL_ELENA_MOODMAKER_AS1",
+        "SKL_LYDIA_GENIUS_AS1",
+        "SKL_LILY_HERO_AS1",
+        "SKL_MAO_COMMITTEE_AS1",
+        "SKL_TATIANA_SAGE_AS2"
+      ],
+      "testCaseIds": [
+        "UT-R-ACT-02-009",
+        "UT-R-ACT-02-010",
+        "UT-R-ACT-02-011",
+        "UT-R-ACT-02-012",
+        "IT-CAP-ACTION-ACTIVATION-CONDITION-001",
+        "IT-CAP-ACTION-ACTIVATION-CONDITION-002",
+        "IT-CAP-ACTION-ACTIVATION-CONDITION-003",
+        "IT-CAP-ACTION-ACTIVATION-CONDITION-004",
+        "IT-CAP-ACTION-ACTIVATION-CONDITION-005"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_PASSIVE_ACTIVATION_CONDITION",

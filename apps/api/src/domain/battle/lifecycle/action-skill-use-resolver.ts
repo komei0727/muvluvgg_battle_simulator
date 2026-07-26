@@ -497,7 +497,7 @@ export function resolveSkillUse(
   // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
   // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
   // `passiveRuntime`を同期済みのため、追加の同期は不要。
-  const finalUnits = passiveRuntime.finalizeResolutionScope();
+  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope();
 
   return {
     units: finalUnits,

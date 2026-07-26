@@ -100,7 +100,16 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by the same PR's second re-review fix: verification.testCaseIds
     // gained IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001/002 (real
     // PassiveActivationRuntime/buildEffectStepPerTargetFilter wiring proof).
-    expect(catalog.catalogRevision).toBe("2026-07-26.6");
+    // Bumped again by Issue #180 (M7-003, CAP_ACTION_ACTIVATION_CONDITION):
+    // AS/EX activationCondition evaluation lands in `action-selection-policy.ts`
+    // (isUsable/isExUsable no longer throw on a non-TRUE kind). SKL_ELENA_MOODMAKER_AS1's
+    // activationCondition is corrected from an unevaluable ALIVE_UNIT_COUNT
+    // approximation to real TARGET_SET_COUNT/TARGET_STATE clauses (two new
+    // targetBindings, TGT_LOW_HP_ALLIES/TGT_OTHER_ALLIES); SKL_LYDIA_GENIUS_AS1
+    // gains a TARGET_SET_COUNT activationCondition against its existing TGT_COLUMNS
+    // binding. Neither of the two promoted units here (Elena/Lydia aren't among
+    // the 10) is affected, so `unitCount`/violation expectations are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-26.7");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

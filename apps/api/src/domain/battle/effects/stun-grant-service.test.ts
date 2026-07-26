@@ -1,0 +1,182 @@
+import { describe, expect, it } from "vitest";
+import { grantStunStatus } from "./stun-grant-service.js";
+import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import type { BattlePartyMember } from "../model/battle-party.js";
+import { EventRecorder } from "../events/event-recorder.js";
+import { createActionId, type createDomainEventId } from "../../shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import {
+  createEffectActionDefinitionId,
+  createUnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import type { FormationPosition } from "../model/formation-input.js";
+import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
+
+const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
+
+function unit(id: string): BattleUnit {
+  const position: FormationPosition = { column: "LEFT", row: "FRONT" };
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(id),
+    unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate("ALLY", position),
+    combatStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+    },
+  };
+  return createBattleUnit(member, "ALLY", LIMITS);
+}
+
+function seedRecorder(): {
+  recorder: EventRecorder;
+  rootEventId: ReturnType<typeof createDomainEventId>;
+} {
+  const recorder = new EventRecorder(createBattleId("B_1"));
+  const seed = recorder.record({
+    eventType: "TurnStarted",
+    category: "FACT",
+    turnNumber: 1,
+    cycleNumber: 0,
+    resolutionScopeId: recorder.nextResolutionScopeId(),
+    payload: { turnNumber: 1 },
+  });
+  return { recorder, rootEventId: seed.eventId };
+}
+
+const STUN_ACTION_ID = createEffectActionDefinitionId("ACT_STUN");
+
+function stunDuration(count: number): DurationDefinition {
+  return { timeLimit: { unit: "ACTION", count }, dispellable: true, linkedEffectGroupId: null };
+}
+
+describe("grantStunStatus (R-STS-02)", () => {
+  it("UT-R-STS-02-001: grants a new STUN AppliedEffect when the target has none yet", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantStunStatus(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        effectActionDefinitionId: STUN_ACTION_ID,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STUN",
+        durationDefinition: stunDuration(1),
+      },
+      rootEventId,
+    );
+
+    const grantedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(grantedTarget.appliedEffects).toHaveLength(1);
+    expect(grantedTarget.appliedEffects[0]).toMatchObject({
+      statusKind: "STUN",
+      duration: { timeLimitRemaining: 1 },
+    });
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectApplied")).toBe(true);
+    expect(recorder.getEvents().some((e) => e.eventType === "StunDurationChanged")).toBe(false);
+  });
+
+  it("UT-R-STS-02-002: re-grant with a longer remaining count replaces the same instance's duration and records StunDurationChanged", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      actionId: createActionId("B_1:action:1"),
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+    const request = (durationCount: number) => ({
+      effectActionDefinitionId: STUN_ACTION_ID,
+      sourceId: source.battleUnitId,
+      targetId: target.battleUnitId,
+      duplicate: true,
+      magnitude: 0,
+      statusKind: "STUN" as const,
+      durationDefinition: stunDuration(durationCount),
+    });
+
+    const first = grantStunStatus(context, [source, target], request(1), rootEventId);
+    const firstTarget = first.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    const firstInstanceId = firstTarget.appliedEffects[0]!.effectInstanceId;
+
+    const second = grantStunStatus(context, first.units, request(3), first.lastEventId);
+    const secondTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+
+    expect(secondTarget.appliedEffects).toHaveLength(1);
+    expect(secondTarget.appliedEffects[0]!.effectInstanceId).toBe(firstInstanceId);
+    expect(secondTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(3);
+
+    const changed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "StunDurationChanged") as Extract<
+      BattleDomainEvent,
+      { eventType: "StunDurationChanged" }
+    >;
+    expect(changed).toBeDefined();
+    expect(changed.payload).toMatchObject({
+      effectInstanceId: firstInstanceId,
+      battleUnitId: target.battleUnitId,
+      remainingBefore: 1,
+      remainingAfter: 3,
+      reason: "REGRANT_EXTENDED",
+    });
+  });
+
+  it("UT-R-STS-02-003: re-grant with a shorter or equal remaining count keeps the existing instance unchanged and records no event", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      actionId: createActionId("B_1:action:1"),
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+    const request = (durationCount: number) => ({
+      effectActionDefinitionId: STUN_ACTION_ID,
+      sourceId: source.battleUnitId,
+      targetId: target.battleUnitId,
+      duplicate: true,
+      magnitude: 0,
+      statusKind: "STUN" as const,
+      durationDefinition: stunDuration(durationCount),
+    });
+
+    const first = grantStunStatus(context, [source, target], request(3), rootEventId);
+    const eventCountAfterFirst = recorder.getEvents().length;
+
+    const second = grantStunStatus(context, first.units, request(3), first.lastEventId);
+    const secondTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+
+    expect(secondTarget.appliedEffects).toHaveLength(1);
+    expect(secondTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(3);
+    expect(recorder.getEvents()).toHaveLength(eventCountAfterFirst);
+    expect(second.lastEventId).toBe(first.lastEventId);
+  });
+});

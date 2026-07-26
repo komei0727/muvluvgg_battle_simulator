@@ -11,10 +11,38 @@ import { recordActionCompletion } from "./action-completion.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
-import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
+import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import type { BattleUnit } from "../model/battle-unit.js";
+import type { BattleUnitId } from "../../shared/ids.js";
+
+/**
+ * R-SKL-05（凍結中のチャージ維持、Issue #180 PRレビュー[P2]）: `ActionWaited`の
+ * PS/Memory連鎖が解決した直後（`ActionCompleting`より前）の、待機確定時点の状態を
+ * 渡す。この時点でのみ「維持した」事実を確定できる——連鎖中にチャージが変化し
+ * 得るため、呼び出し前に捕まえた`actor`スナップショットではなく、ここで渡す
+ * `units`から都度再解決しなければならない。フックは自身のイベントを`recorder`
+ * で記録し、返した場合は`resolveWait`が`PassiveActivationRuntime`へ転送して
+ * PS/Memory候補を解決してから`ActionCompleting`へ進む（`ActionWaited`と同じ
+ * 「確定事実として連鎖の起点になり得る」FACTイベント）。
+ */
+export interface WaitEstablishedContext {
+  readonly recorder: EventRecorder;
+  readonly turnNumber: number;
+  readonly cycleNumber: number;
+  readonly actionId: ActionId;
+  readonly resolutionScopeId: ResolutionScopeId;
+  readonly rootEventId: DomainEventId;
+  readonly parentEventId: DomainEventId;
+  readonly actorId: BattleUnitId;
+  readonly units: readonly BattleUnit[];
+}
+
+export type WaitEstablishedHook = (
+  context: WaitEstablishedContext,
+) => BattleDomainEvent | undefined;
 
 /**
  * `06_戦闘状態遷移.md`「待機」: `通常の待機`（AP1消費、R-ACT-03によりEXゲージも
@@ -34,6 +62,7 @@ export function resolveWait(
   cycleNumber: number,
   actionId: ActionId,
   actionScope: ResolutionScopeId,
+  onWaitEstablished?: WaitEstablishedHook,
 ): ActionResolutionResult {
   const actorId = actor.battleUnitId;
   const consumedAmount = consumedResource === "AP" ? 1 : actor.currentExtraGauge;
@@ -158,6 +187,27 @@ export function resolveWait(
   );
   working = passiveRuntime.onFactEvent(actionWaited, working);
 
+  // R-SKL-05（Issue #180 PRレビュー[P2]）: `ActionWaited`自身のPS/Memory連鎖が
+  // 解決した後、`ActionCompleting`より前のこの時点で待機確定時イベント（例:
+  // `ChargeHeldByFreeze`）を記録する。連鎖中の状態変化を反映した`working`から
+  // 判定させるため、呼び出し前の`actor`スナップショットは渡さない。
+  let completionTriggerEventId = actionWaited.eventId;
+  const establishedEvent = onWaitEstablished?.({
+    recorder,
+    turnNumber,
+    cycleNumber,
+    actionId,
+    resolutionScopeId: actionScope,
+    rootEventId: actionStarted.eventId,
+    parentEventId: actionWaited.eventId,
+    actorId,
+    units: working,
+  });
+  if (establishedEvent !== undefined) {
+    working = passiveRuntime.onFactEvent(establishedEvent, working);
+    completionTriggerEventId = establishedEvent.eventId;
+  }
+
   const completion = recordActionCompletion(
     recorder,
     {
@@ -172,10 +222,10 @@ export function resolveWait(
         passiveRuntime.onFactEvent(event, unitsForChain),
     },
     "WAIT",
-    actionWaited.eventId,
+    completionTriggerEventId,
     working,
   );
-  const finalUnits = passiveRuntime.finalizeResolutionScope();
+  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope();
 
   return {
     units: finalUnits,

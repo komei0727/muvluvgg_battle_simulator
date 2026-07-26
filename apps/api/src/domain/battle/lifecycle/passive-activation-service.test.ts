@@ -1513,13 +1513,17 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [skill.skillDefinitionId]: { RUNTIME_COUNTER_SCOPED: { value: 1, carry: 0 } },
     });
 
-    const finalUnits = runtime.finalizeResolutionScope();
+    const { units: finalUnits, lastEventId } = runtime.finalizeResolutionScope();
     const ownerAfterFinalize = finalUnits.find((u) => u.battleUnitId === owner.battleUnitId);
     expect(ownerAfterFinalize?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
 
     const reset = recorder.getEvents().find((e) => e.eventType === "RuntimeCounterReset")!;
     expect(reset).toBeDefined();
     expect(reset.parentEventId).toBe(turnStarted.eventId);
+    // PRレビュー[P2]是正（Issue #180）: 呼び出し側が`recorder.getEvents()`の
+    // 末尾を推測しなくても、この終了処理が発行した最後のイベントを明示的に
+    // 得られる。
+    expect(lastEventId).toBe(reset.eventId);
     expect(reset.payload).toMatchObject({
       ownerUnitId: owner.battleUnitId,
       scope: "SKILL_RUNTIME",
@@ -1569,6 +1573,54 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       .getEvents()
       .filter((e) => e.eventType === "RuntimeCounterReset").length;
     expect(resetEventsAfter).toBe(resetEventsBefore);
+  });
+
+  it("UT-R-EFF-11-027 (PRレビュー[P2]是正の再指摘、Issue #180): finalizeResolutionScope returns lastEventId: undefined when there is nothing to reset — the overwhelmingly common case, since most skills declare no resetScope: RESOLUTION_SCOPE counters — so callers can tell 'nothing happened' apart from 'something happened' instead of receiving a rootEventId that could wrongly roll back their own causal cursor", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_NO_RESET_OWNER");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_NO_RESET"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_NO_RESET", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])]]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    runtime.onFactEvent(turnStarted, [owner]);
+    const { lastEventId } = runtime.finalizeResolutionScope();
+
+    expect(recorder.getEvents().some((e) => e.eventType === "RuntimeCounterReset")).toBe(false);
+    expect(lastEventId).toBeUndefined();
   });
 
   it("UT-R-EFF-11-003 (review re-fix [P1]): a resetScope counter whose own counterUpdates re-triggers on the RuntimeCounterReset it causes makes finalizeResolutionScope throw a deterministic error instead of looping forever", () => {

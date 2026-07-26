@@ -14,7 +14,11 @@ import { resolveSkillOrder, type EffectSequencePlan } from "../skill/skill-resol
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
+import {
+  createActionId,
+  createEffectInstanceId,
+  createMarkerInstanceId,
+} from "../../shared/event-ids.js";
 import type {
   SkillDefinition,
   SkillResolutionDefinition,
@@ -838,7 +842,7 @@ describe("applyEffectActionGroups", () => {
     );
   });
 
-  it("UT-R-EFF-01-051 (TGT-004フェーズ3再レビュー[P1]、Issue #167): a non-STEALTH APPLY_STATUS payload with NO extra fields (e.g. production ACT_CHIZURU_DOMESTIC_AS1_STUN's exact shape: just status+duration) still throws instead of silently granting a no-op status effect", () => {
+  it("UT-R-EFF-01-051 (Issue #180, M7-003, R-STS-02): a STUN APPLY_STATUS payload with NO extra fields (e.g. production ACT_CHIZURU_DOMESTIC_AS1_STUN's exact shape: just status+duration) grants the status", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const status: EffectActionDefinition = {
@@ -865,12 +869,208 @@ describe("applyEffectActionGroups", () => {
       resolvedBindings: new Map(),
     };
 
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({ statusKind: "STUN" });
+  });
+
+  it("UT-R-EFF-01-052 (Issue #180, M7-003): a still-unimplemented non-STEALTH/STUN APPLY_STATUS status (e.g. BLIND, R-STS-04 scope) still throws instead of silently granting a no-op status effect", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const status: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_BLIND_NO_EXTRA_FIELDS"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "BLIND",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[status.effectActionDefinitionId, status]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, status.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
     expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
       DomainValidationError,
     );
-    const target = enemy;
-    const untouched = target.appliedEffects;
+    const untouched = enemy.appliedEffects;
     expect(untouched).toHaveLength(0);
+  });
+
+  it("UT-R-STS-02-004 (R-SKL-05/R-STS-02, Issue #180): granting STUN to a unit with a pending charge cancels it and records ChargeCancelled", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const chargedSkill = skillOf({ kind: "IMMEDIATE", targetBindings: [], steps: [] });
+    const startedActionId = createActionId("B_TEST:action:1");
+    const enemy = unit("ENEMY", "ENEMY", {
+      charge: { skill: chargedSkill, startedActionId },
+    });
+    const stun: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[stun.effectActionDefinitionId, stun]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, stun.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.charge).toBeUndefined();
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({ statusKind: "STUN" });
+
+    const cancelled = recorder
+      .getEvents()
+      .find((e) => e.eventType === "ChargeCancelled") as Extract<
+      BattleDomainEvent,
+      { eventType: "ChargeCancelled" }
+    >;
+    expect(cancelled).toBeDefined();
+    expect(cancelled.payload).toMatchObject({
+      actorUnitId: enemy.battleUnitId,
+      skillDefinitionId: chargedSkill.skillDefinitionId,
+      startedActionId,
+      reason: "STUN",
+    });
+  });
+
+  it("UT-R-STS-02-005 (R-STS-02, Issue #180): granting STUN to a unit without a pending charge records no ChargeCancelled", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const stun: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[stun.effectActionDefinitionId, stun]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, stun.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    expect(recorder.getEvents().some((e) => e.eventType === "ChargeCancelled")).toBe(false);
+  });
+
+  it("UT-R-STS-01-001 (R-STS-01 '状態異常はデバフの一種とする'): a real, production-granted STUN AppliedEffect is removed by a REMOVE_EFFECTS(categories: DEBUFF) ACTION step", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const stunDefId = createEffectActionDefinitionId("ACT_STUN");
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("stun-1"),
+          effectActionDefinitionId: stunDefId,
+          kindKey: effectKindKeyFromDefinitionId(stunDefId),
+          duplicate: true,
+          sourceId: createBattleUnitId("SOURCE"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "STUN",
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION", count: 1 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 1,
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const stunDef: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunDefId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const remove: EffectActionDefinition = {
+      kind: "REMOVE_EFFECTS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_CLEANSE_DEBUFF"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: { categories: ["DEBUFF"] },
+    };
+    const effectActions = new Map<
+      ReturnType<typeof createEffectActionDefinitionId>,
+      EffectActionDefinition
+    >([
+      [stunDef.effectActionDefinitionId, stunDef],
+      [remove.effectActionDefinitionId, remove],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(0);
+    const removed = recorder.getEvents().find((e) => e.eventType === "EffectRemoved") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectRemoved" }
+    >;
+    expect(removed.payload).toMatchObject({
+      effectInstanceId: createEffectInstanceId("stun-1"),
+      battleUnitId: enemy.battleUnitId,
+      reason: "REMOVED",
+    });
   });
 
   it("UT-R-NUM-04-027 (real lifecycle wiring): an APPLY_STAT_MOD formula can use any FormulaKind now that the general FormulaEvaluator is wired in, not just CONSTANT", () => {
@@ -3961,7 +4161,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(target.appliedEffects.some((e) => e.statusKind === "STUN")).toBe(false);
   });
 
-  it("UT-R-EFF-03-014 (EFFECT_IMMUNITY_STATUS_GRANULARITY): a STATUS immunity scoped to statusKinds FREEZE does NOT block a STUN attempt, which still throws via the pre-existing STEALTH-only resolver guard", () => {
+  it("UT-R-EFF-03-014 (EFFECT_IMMUNITY_STATUS_GRANULARITY): a STATUS immunity scoped to statusKinds FREEZE does NOT block a STUN attempt, which grants normally", () => {
     const actor = unit("ACTOR", "ALLY");
     const stun: EffectActionDefinition = {
       kind: "APPLY_STATUS",
@@ -3998,8 +4198,15 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       resolvedBindings: new Map(),
     };
 
-    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
-      DomainValidationError,
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    // The pre-existing FREEZE-only immunity instance stays untouched, plus the newly granted STUN.
+    expect(target.appliedEffects).toHaveLength(2);
+    expect(target.appliedEffects.some((effect) => effect.statusKind === "STUN")).toBe(true);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectApplied")).toBe(true);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectApplicationRejected")).toBe(
+      false,
     );
   });
 
@@ -4037,7 +4244,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(recorder.getEvents().some((e) => e.eventType === "MarkerApplied")).toBe(false);
   });
 
-  it("UT-R-EFF-03-016 (maxBlocks + STATUS_BLOCKED self-consumption, production shape ACT_SENKA_CHRISTMAS_PS1_STUN_IMMUNITY): a STATUS immunity with maxBlocks=1 and duration.consumption STATUS_BLOCKED blocks a STUN attempt exactly once, then consumes/expires itself so a second attempt reaches the AppliedEffect", () => {
+  it("UT-R-EFF-03-016 (maxBlocks + STATUS_BLOCKED self-consumption, production shape ACT_SENKA_CHRISTMAS_PS1_STUN_IMMUNITY): a STATUS immunity with maxBlocks=1 and duration.consumption STATUS_BLOCKED blocks a STUN attempt exactly once, then consumes/expires itself so a second attempt grants the STUN", () => {
     const actor = unit("ACTOR", "ALLY");
     const stun: EffectActionDefinition = {
       kind: "APPLY_STATUS",
@@ -4103,11 +4310,10 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       targetUnitIds: [enemy.battleUnitId],
       resolvedBindings: new Map(),
     };
-    // The immunity is gone, so the STUN attempt now falls through to the
-    // pre-existing STEALTH-only resolver guard (STUN itself still has no
-    // runtime effect implementation, tracked separately from R-EFF-03).
-    expect(() => applyEffectActionGroups(secondAttemptPlan, [actor, enemy], context)).toThrow(
-      DomainValidationError,
-    );
+    // The immunity is gone, so the second STUN attempt grants normally.
+    const secondResult = applyEffectActionGroups(secondAttemptPlan, [actor, enemy], context);
+    const secondTarget = secondResult.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(secondTarget.appliedEffects).toHaveLength(1);
+    expect(secondTarget.appliedEffects[0]).toMatchObject({ statusKind: "STUN" });
   });
 });

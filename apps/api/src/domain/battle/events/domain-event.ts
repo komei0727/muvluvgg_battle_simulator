@@ -90,8 +90,13 @@ export interface ActionReservationEntry {
 
 export type EffectiveActionType = "AS" | "EX" | "WAIT" | "CHARGE_RELEASE";
 
-/** `06_戦闘状態遷移.md`「戦闘不能者の除去」: M5時点で予約を除去する原因はこれだけ。 */
-export type ActionReservationRemovalReason = "DEFEATED";
+/**
+ * `06_戦闘状態遷移.md`「戦闘不能者の除去」/「R-ORD-01適格性の喪失」。`INELIGIBLE`
+ * （Issue #180 PRレビュー[P1]再指摘）: キュー生成後、実行前に先行ユニットの行動
+ * （気絶付与によるチャージキャンセル、凍結付与によるチャージ阻害など）で
+ * R-ORD-01の全条件を失った予約を除去する。
+ */
+export type ActionReservationRemovalReason = "DEFEATED" | "INELIGIBLE";
 
 export interface TargetBindingSelection {
   readonly targetBindingId: string;
@@ -336,6 +341,20 @@ export interface BattleDomainEventPayloadMap {
     readonly chargeStartActionId: ActionId;
     readonly releaseActionId: ActionId;
   };
+  /** R-SKL-05/R-STS-02: 気絶付与時、発動待ちのチャージを維持せずキャンセルした後（`08_ドメインイベント.md`「チャージイベント」）。 */
+  readonly ChargeCancelled: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly startedActionId: ActionId;
+    readonly reason: "STUN";
+  };
+  /** R-SKL-05/R-STS-03: 凍結中の行動機会でチャージを維持したまま待機した後（発動を延期）。 */
+  readonly ChargeHeldByFreeze: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly startedActionId: ActionId;
+    readonly freezeEffectInstanceId: EffectInstanceId;
+  };
   readonly TurnCompleting: { readonly turnNumber: number };
   readonly TurnCompleted: { readonly turnNumber: number };
   readonly BattleCompleted: {
@@ -528,6 +547,21 @@ export interface BattleDomainEventPayloadMap {
     readonly unit: Extract<DurationTimeUnit, "ACTION" | "TURN" | "SKILL_USE">;
     readonly before: number;
     readonly after: number;
+  };
+  /**
+   * R-STS-02「再付与時は残り回数が長い方を一つだけ残す」: 気絶の既存
+   * `AppliedEffect`インスタンスへ、より長い残り回数を持つ再付与が到達した場合に
+   * 発行する（同一インスタンスを新しい残り回数へ差し替える。`EffectDurationReduced`
+   * が表す自然減算とは逆方向・別契機のため独立したイベント種別を持つ）。既存の
+   * 残り回数が新しい付与以上の場合は何も変更せず、イベントも発行しない
+   * （`MarkerApplied`のKEEP_EXISTING方針と同じ「変化が無ければ発行しない」規約）。
+   */
+  readonly StunDurationChanged: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly battleUnitId: BattleUnitId;
+    readonly remainingBefore: number;
+    readonly remainingAfter: number;
+    readonly reason: "REGRANT_EXTENDED";
   };
   /**
    * `08_ドメインイベント.md`「効果イベント」EffectConsumptionChanged。R-EFF-07:

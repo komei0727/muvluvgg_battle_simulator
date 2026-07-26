@@ -113,7 +113,7 @@ export function startBattle(battle: Battle, random: RandomSource, recorder: Even
     [...battle.allyUnits, ...battle.enemyUnits],
   );
   passiveRuntime.onFactEvent(battleStarted, [...battle.allyUnits, ...battle.enemyUnits]);
-  const afterPassives = passiveRuntime.finalizeResolutionScope();
+  const { units: afterPassives } = passiveRuntime.finalizeResolutionScope();
   const allyUnits = afterPassives.filter((unit) => unit.side === "ALLY");
   const enemyUnits = afterPassives.filter((unit) => unit.side === "ENEMY");
 
@@ -334,7 +334,7 @@ export function advanceBattle(
   passiveRuntime.onFactEvent(turnStarted, [...recoveredAllyUnits, ...recoveredEnemyUnits]);
   // レビュー指摘[P2]: このトップレベルイベント専用の解決スコープが終わるたびに、
   // `resetScope: "RESOLUTION_SCOPE"`のcounterを破棄・`RuntimeCounterReset`発行する。
-  const afterPassives = passiveRuntime.finalizeResolutionScope();
+  const { units: afterPassives } = passiveRuntime.finalizeResolutionScope();
   const allyUnits = afterPassives.filter((unit) => unit.side === "ALLY");
   const enemyUnits = afterPassives.filter((unit) => unit.side === "ENEMY");
   const started: Battle = { ...battle, turnState, allyUnits, enemyUnits };
@@ -401,7 +401,7 @@ export function advanceBattle(
     ...actionPhase.allyUnits,
     ...actionPhase.enemyUnits,
   ]);
-  const afterTurnEndPassives = turnEndPassiveRuntime.finalizeResolutionScope();
+  const { units: afterTurnEndPassives } = turnEndPassiveRuntime.finalizeResolutionScope();
   const allyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter((unit) => unit.side === "ALLY");
   const enemyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter(
     (unit) => unit.side === "ENEMY",
