@@ -2,10 +2,12 @@ import { requireUnit, type ActionResolutionResult } from "./action-resolution-sh
 import { resolveWait } from "./action-wait-resolver.js";
 import { resolveSkillUse } from "./action-skill-use-resolver.js";
 import { resolveChargeStart, resolveChargeRelease } from "./action-charge-resolver.js";
+import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import {
   createActionQueue,
   isQueueEligible,
   reorderRemainingQueue,
+  type ActionReservation,
   type ReservedActionKind,
 } from "../action/action-queue.js";
 import { isExUsable, selectAsCandidate } from "../action/action-selection-policy.js";
@@ -20,6 +22,7 @@ import {
 } from "../model/battle-unit.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { ActionReservationRemovalReason } from "../events/domain-event.js";
 import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -52,6 +55,56 @@ function splitBySide(units: readonly BattleUnit[]): {
  */
 function chooseWaitResource(actor: BattleUnit): "AP" | "EX_GAUGE" {
   return actor.currentAp >= 1 ? "AP" : "EX_GAUGE";
+}
+
+/**
+ * `ActionReservationRemoved`はCatalog上・設計書上（`catalog-event-types.ts`、
+ * `08_ドメインイベント.md`）トリガー可能なFACTイベントであり、他のFACTイベント
+ * と同じくPS/Memory連鎖の契機になり得る（Issue #180 PRレビュー[P2]再指摘）。
+ * このため`battle.ts`の`startBattle`（`BattleStarted`）と同じ形——新しい
+ * `resolutionScopeId`（PS発動済み集合・候補スタックをこの除去群専用に区切る）
+ * を発行し、独立した`PassiveActivationRuntime`で各`ActionReservationRemoved`
+ * を`onFactEvent`へ渡してから`finalizeResolutionScope`する——で処理する。
+ * `rootEventId`は除去群を引き起こした行動（`resolveOneAction`が返す
+ * `resolution.rootEventId`）を維持し、監査上の因果は「この行動が引き起こした」
+ * まま保つ。`parentEventId`は呼び出し側が渡す直近のイベントIDを起点に、
+ * 除去ごとに更新して返す。
+ */
+function removeReservations(
+  entries: readonly ActionReservation[],
+  reason: ActionReservationRemovalReason,
+  units: readonly BattleUnit[],
+  definitions: BattleDefinitions,
+  random: RandomSource,
+  recorder: EventRecorder,
+  turnNumber: number,
+  cycleNumber: number,
+  parentEventId: DomainEventId,
+  rootEventId: DomainEventId,
+): { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId } {
+  const resolutionScopeId = recorder.nextResolutionScopeId();
+  const passiveRuntime = new PassiveActivationRuntime(
+    { definitions, random, recorder, turnNumber, cycleNumber, resolutionScopeId, rootEventId },
+    units,
+  );
+  let working = units;
+  let lastEventId = parentEventId;
+  for (const removed of entries) {
+    const event = recorder.record({
+      eventType: "ActionReservationRemoved",
+      category: "FACT",
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId,
+      sourceUnitId: removed.battleUnitId,
+      payload: { battleUnitId: removed.battleUnitId, reason },
+    });
+    lastEventId = event.eventId;
+    working = passiveRuntime.onFactEvent(event, working);
+  }
+  return { units: passiveRuntime.finalizeResolutionScope(), lastEventId };
 }
 
 /**
@@ -379,23 +432,26 @@ export function resolveActionPhase(
       );
       units = resolution.units;
 
+      let causeEventId = resolution.completedEventId;
+
       const newlyDefeated = remaining.filter((entry) =>
         isDefeated(requireUnit(units, entry.battleUnitId)),
       );
       if (newlyDefeated.length > 0) {
-        for (const removed of newlyDefeated) {
-          recorder.record({
-            eventType: "ActionReservationRemoved",
-            category: "FACT",
-            turnNumber,
-            cycleNumber,
-            resolutionScopeId: resolution.actionScope,
-            parentEventId: resolution.completedEventId,
-            rootEventId: resolution.rootEventId,
-            sourceUnitId: removed.battleUnitId,
-            payload: { battleUnitId: removed.battleUnitId, reason: "DEFEATED" },
-          });
-        }
+        const removal = removeReservations(
+          newlyDefeated,
+          "DEFEATED",
+          units,
+          definitions,
+          random,
+          recorder,
+          turnNumber,
+          cycleNumber,
+          causeEventId,
+          resolution.rootEventId,
+        );
+        units = removal.units;
+        causeEventId = removal.lastEventId;
         const removedIds = new Set(newlyDefeated.map((entry) => entry.battleUnitId));
         remaining = remaining.filter((entry) => !removedIds.has(entry.battleUnitId));
       }
@@ -406,24 +462,27 @@ export function resolveActionPhase(
       // 予約を実行する前に再検証し、適格性を失った予約は実行せず除去する——
       // 放置すると、例えば気絶分岐の`chooseWaitResource`がAP0・EX非満タンの
       // まま`EX_GAUGE`を選び、R-STS-02/Q-BTL-06が認めない部分消費のWAITに
-      // なってしまう。
+      // なってしまう。戦闘不能除去自身のPS/Memory連鎖が新たな適格性喪失を
+      // 引き起こす可能性があるため、必ず戦闘不能除去の後（更新済みの`units`）
+      // で判定する。
       const newlyIneligible = remaining.filter(
         (entry) => !isQueueEligible(requireUnit(units, entry.battleUnitId)),
       );
       if (newlyIneligible.length > 0) {
-        for (const removed of newlyIneligible) {
-          recorder.record({
-            eventType: "ActionReservationRemoved",
-            category: "FACT",
-            turnNumber,
-            cycleNumber,
-            resolutionScopeId: resolution.actionScope,
-            parentEventId: resolution.completedEventId,
-            rootEventId: resolution.rootEventId,
-            sourceUnitId: removed.battleUnitId,
-            payload: { battleUnitId: removed.battleUnitId, reason: "INELIGIBLE" },
-          });
-        }
+        const removal = removeReservations(
+          newlyIneligible,
+          "INELIGIBLE",
+          units,
+          definitions,
+          random,
+          recorder,
+          turnNumber,
+          cycleNumber,
+          causeEventId,
+          resolution.rootEventId,
+        );
+        units = removal.units;
+        causeEventId = removal.lastEventId;
         const removedIds = new Set(newlyIneligible.map((entry) => entry.battleUnitId));
         remaining = remaining.filter((entry) => !removedIds.has(entry.battleUnitId));
       }
@@ -453,7 +512,7 @@ export function resolveActionPhase(
             turnNumber,
             cycleNumber,
             resolutionScopeId: resolution.actionScope,
-            parentEventId: resolution.completedEventId,
+            parentEventId: causeEventId,
             rootEventId: resolution.rootEventId,
             payload: { before, after },
           });

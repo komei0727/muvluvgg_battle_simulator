@@ -1877,6 +1877,172 @@ describe("resolveActionPhase", () => {
     expect(chargingResult.charge).toBeUndefined();
   });
 
+  it("UT-R-ORD-01-004 (PRレビュー[P2]再指摘): an ActionReservationRemoved(reason INELIGIBLE) is itself a real PS/Memory trigger — an ally's PS reacting to it activates, with triggerEventId pointing at that same removal event", () => {
+    const stunActionIdString = "ACT_STUN_ALLY_ORD_2";
+    const chargedSkill = chargeSkill("ACT_WOULD_BE_SKIPPED_2");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_2");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_RESERVATION_REMOVED");
+    const ALLY_OTHER_SELECTOR: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const stunSkill = attackSkill(stunActionIdString, 1, ALLY_OTHER_SELECTOR);
+    const stunActionId = createEffectActionDefinitionId(stunActionIdString);
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const buffAction = statModEffectAction("ACT_PS_ON_REMOVAL_BUFF", "ATTACK", "FIXED", 5);
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionReservationRemoved",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: buffAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_RESERVATION_REMOVED", tags: [] },
+    };
+
+    // Acts first in the cycle (higher actionSpeed): stuns the other ally, and
+    // separately holds a PS that reacts to ActionReservationRemoved.
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER_ORD_2",
+        actionSpeed: 20,
+        limits: { maximumAp: 1, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const chargingAlly = {
+      ...unit("ALLY_CHARGING", "ALLY", {
+        actionSpeed: 5,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        stunnerUnitDefinitionId,
+        {
+          unitDefinitionId: stunnerUnitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 20,
+            maximumAp: 1,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "AllyStunnerWithPS",
+            characterName: "AllyStunnerWithPS",
+            characterId: "CHAR_ALLY_STUNNER_WITH_PS",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[stunnerUnitDefinitionId, [stunSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [stunActionId, stunAction],
+        [buffAction.effectActionDefinitionId, buffAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [stunnerAlly, chargingAlly],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const removed = events.find(
+      (e) =>
+        e.eventType === "ActionReservationRemoved" && e.sourceUnitId === chargingAlly.battleUnitId,
+    )!;
+    const activated = events.find(
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === stunnerAlly.battleUnitId,
+    ) as Extract<BattleDomainEvent, { eventType: "PassiveActivated" }>;
+    expect(activated).toBeDefined();
+    expect(activated.payload).toMatchObject({
+      skillDefinitionId: passiveSkillDefinitionId,
+      triggerEventId: removed.eventId,
+    });
+  });
+
   it("UT-R-ACT-01-005 (R-ACT-01 branch order): a stunned unit that (defensively) still carries a pending charge takes the STUN branch first — WAITs without releasing the charge while stunned remains active", () => {
     const chargedSkill = chargeSkill("ACT_RELEASE_HIT_2");
     const startedActionId = createActionId("B_TEST:action:1");
