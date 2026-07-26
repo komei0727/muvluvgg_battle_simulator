@@ -67,12 +67,22 @@ function chooseWaitResource(actor: BattleUnit): "AP" | "EX_GAUGE" {
  * を`onFactEvent`へ渡してから`finalizeResolutionScope`する——で処理する。
  * `rootEventId`は除去群を引き起こした行動（`resolveOneAction`が返す
  * `resolution.rootEventId`）を維持し、監査上の因果は「この行動が引き起こした」
- * まま保つ。`parentEventId`は呼び出し側が渡す直近のイベントIDを起点に、
- * 除去ごとに更新して返す。
+ * まま保つ。
+ *
+ * PRレビュー[P2]再々指摘: 除去対象を一括で事前計算してから順に処理すると、
+ * ある除去のPS/Memory連鎖が他の予約の適格性・生死を変えても反映されない
+ * （例: Bの除去PSがCの凍結を解除し適格性を戻してもCは事前リストに残ったまま
+ * 誤って除去される。逆にBの除去PSがDの適格性を奪ってもDは事前リストに無く
+ * 実行されてしまう。Bの除去PSがDを戦闘不能にした場合、除去理由も本来の
+ * `DEFEATED`ではなく事前計算時点の`INELIGIBLE`のまま記録されてしまう）。
+ * そのため`remaining`全体を対象に、除去対象と理由（戦闘不能なら`DEFEATED`、
+ * それ以外でR-ORD-01を満たさなくなっていれば`INELIGIBLE`）を1件ずつ最新の
+ * `units`から判定し、そのPS/Memory連鎖を解決してから次を判定し直す——
+ * 除去不要な状態に落ち着くまで繰り返す。`remaining`は毎回ちょうど1件ずつ
+ * 減るため、無限ループにはならない。
  */
-function removeReservations(
-  entries: readonly ActionReservation[],
-  reason: ActionReservationRemovalReason,
+function removeIneligibleAndDefeatedReservations(
+  remaining: readonly ActionReservation[],
   units: readonly BattleUnit[],
   definitions: BattleDefinitions,
   random: RandomSource,
@@ -81,15 +91,34 @@ function removeReservations(
   cycleNumber: number,
   parentEventId: DomainEventId,
   rootEventId: DomainEventId,
-): { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId } {
-  const resolutionScopeId = recorder.nextResolutionScopeId();
-  const passiveRuntime = new PassiveActivationRuntime(
-    { definitions, random, recorder, turnNumber, cycleNumber, resolutionScopeId, rootEventId },
-    units,
-  );
+): {
+  readonly remaining: readonly ActionReservation[];
+  readonly units: readonly BattleUnit[];
+  readonly lastEventId: DomainEventId;
+} {
+  let currentRemaining = remaining;
   let working = units;
   let lastEventId = parentEventId;
-  for (const removed of entries) {
+  let passiveRuntime: PassiveActivationRuntime | undefined;
+  const resolutionScopeId = recorder.nextResolutionScopeId();
+
+  for (;;) {
+    const next = currentRemaining.find((entry) => {
+      const unit = requireUnit(working, entry.battleUnitId);
+      return isDefeated(unit) || !isQueueEligible(unit);
+    });
+    if (next === undefined) {
+      break;
+    }
+    const reason: ActionReservationRemovalReason = isDefeated(
+      requireUnit(working, next.battleUnitId),
+    )
+      ? "DEFEATED"
+      : "INELIGIBLE";
+    passiveRuntime ??= new PassiveActivationRuntime(
+      { definitions, random, recorder, turnNumber, cycleNumber, resolutionScopeId, rootEventId },
+      working,
+    );
     const event = recorder.record({
       eventType: "ActionReservationRemoved",
       category: "FACT",
@@ -98,13 +127,18 @@ function removeReservations(
       resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId,
-      sourceUnitId: removed.battleUnitId,
-      payload: { battleUnitId: removed.battleUnitId, reason },
+      sourceUnitId: next.battleUnitId,
+      payload: { battleUnitId: next.battleUnitId, reason },
     });
     lastEventId = event.eventId;
     working = passiveRuntime.onFactEvent(event, working);
+    currentRemaining = currentRemaining.filter((entry) => entry.battleUnitId !== next.battleUnitId);
   }
-  return { units: passiveRuntime.finalizeResolutionScope(), lastEventId };
+
+  if (passiveRuntime !== undefined) {
+    working = passiveRuntime.finalizeResolutionScope();
+  }
+  return { remaining: currentRemaining, units: working, lastEventId };
 }
 
 /**
@@ -432,60 +466,25 @@ export function resolveActionPhase(
       );
       units = resolution.units;
 
-      let causeEventId = resolution.completedEventId;
-
-      const newlyDefeated = remaining.filter((entry) =>
-        isDefeated(requireUnit(units, entry.battleUnitId)),
+      // 戦闘不能者の除去（`06_戦闘状態遷移.md`）とR-ORD-01適格性の喪失
+      // （Issue #180 PRレビュー[P1]再指摘）を、除去対象と理由が安定するまで
+      // 1件ずつ再評価しながら処理する（PRレビュー[P2]再々指摘: ある除去のPS/
+      // Memory連鎖が他の予約の適格性・生死を変え得るため、事前に一括計算した
+      // リストをそのまま使うと反映されない）。
+      const removal = removeIneligibleAndDefeatedReservations(
+        remaining,
+        units,
+        definitions,
+        random,
+        recorder,
+        turnNumber,
+        cycleNumber,
+        resolution.completedEventId,
+        resolution.rootEventId,
       );
-      if (newlyDefeated.length > 0) {
-        const removal = removeReservations(
-          newlyDefeated,
-          "DEFEATED",
-          units,
-          definitions,
-          random,
-          recorder,
-          turnNumber,
-          cycleNumber,
-          causeEventId,
-          resolution.rootEventId,
-        );
-        units = removal.units;
-        causeEventId = removal.lastEventId;
-        const removedIds = new Set(newlyDefeated.map((entry) => entry.battleUnitId));
-        remaining = remaining.filter((entry) => !removedIds.has(entry.battleUnitId));
-      }
-
-      // R-ORD-01（Issue #180 PRレビュー[P1]再指摘）: 先行ユニットの行動（気絶付与
-      // によるチャージキャンセル、凍結付与によるチャージ阻害など）で、キュー
-      // 生成時点では適格だった予約がR-ORD-01の全条件を失うことがある。次の
-      // 予約を実行する前に再検証し、適格性を失った予約は実行せず除去する——
-      // 放置すると、例えば気絶分岐の`chooseWaitResource`がAP0・EX非満タンの
-      // まま`EX_GAUGE`を選び、R-STS-02/Q-BTL-06が認めない部分消費のWAITに
-      // なってしまう。戦闘不能除去自身のPS/Memory連鎖が新たな適格性喪失を
-      // 引き起こす可能性があるため、必ず戦闘不能除去の後（更新済みの`units`）
-      // で判定する。
-      const newlyIneligible = remaining.filter(
-        (entry) => !isQueueEligible(requireUnit(units, entry.battleUnitId)),
-      );
-      if (newlyIneligible.length > 0) {
-        const removal = removeReservations(
-          newlyIneligible,
-          "INELIGIBLE",
-          units,
-          definitions,
-          random,
-          recorder,
-          turnNumber,
-          cycleNumber,
-          causeEventId,
-          resolution.rootEventId,
-        );
-        units = removal.units;
-        causeEventId = removal.lastEventId;
-        const removedIds = new Set(newlyIneligible.map((entry) => entry.battleUnitId));
-        remaining = remaining.filter((entry) => !removedIds.has(entry.battleUnitId));
-      }
+      remaining = removal.remaining;
+      units = removal.units;
+      const causeEventId = removal.lastEventId;
 
       // R-ORD-04: 現在の1行動(とPS/Memory連鎖)完了・戦闘不能者除去の後、未行動者の
       // 行動速度が実際に変わっていた場合だけ並べ直す。予約種別(AS/EX)は
