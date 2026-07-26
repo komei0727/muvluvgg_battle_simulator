@@ -90,8 +90,13 @@ export interface ActionReservationEntry {
 
 export type EffectiveActionType = "AS" | "EX" | "WAIT" | "CHARGE_RELEASE";
 
-/** `06_戦闘状態遷移.md`「戦闘不能者の除去」: M5時点で予約を除去する原因はこれだけ。 */
-export type ActionReservationRemovalReason = "DEFEATED";
+/**
+ * `06_戦闘状態遷移.md`「戦闘不能者の除去」/「R-ORD-01適格性の喪失」。`INELIGIBLE`
+ * （Issue #180 PRレビュー[P1]再指摘）: キュー生成後、実行前に先行ユニットの行動
+ * （気絶付与によるチャージキャンセル、凍結付与によるチャージ阻害など）で
+ * R-ORD-01の全条件を失った予約を除去する。
+ */
+export type ActionReservationRemovalReason = "DEFEATED" | "INELIGIBLE";
 
 export interface TargetBindingSelection {
   readonly targetBindingId: string;

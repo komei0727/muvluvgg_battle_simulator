@@ -128,7 +128,7 @@ const actionReservationRemovedDetailsSchema = {
   required: ["battleUnitId", "reason"],
   properties: {
     battleUnitId: { type: "string" },
-    reason: { type: "string", enum: ["DEFEATED"] },
+    reason: { type: "string", enum: ["DEFEATED", "INELIGIBLE"] },
   },
 } as const;
 

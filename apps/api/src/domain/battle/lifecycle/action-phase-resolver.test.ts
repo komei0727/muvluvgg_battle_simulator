@@ -1770,6 +1770,113 @@ describe("resolveActionPhase", () => {
     expect(result.allyUnits[0]!.charge).toBeUndefined();
   });
 
+  it("UT-R-ORD-01-003 (R-ORD-01, PRレビュー[P1]再指摘): a reservation queued via its charge alone is removed (INELIGIBLE) and never executes if a preceding same-cycle action cancels that charge (via STUN)", () => {
+    const stunActionIdString = "ACT_STUN_ALLY_ORD";
+    const chargedSkill = chargeSkill("ACT_WOULD_BE_SKIPPED");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ALLY_OTHER_SELECTOR: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const stunSkill = attackSkill(stunActionIdString, 1, ALLY_OTHER_SELECTOR);
+    const stunActionId = createEffectActionDefinitionId(stunActionIdString);
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+
+    // Acts first in the cycle (higher actionSpeed): stuns the other ally.
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER_ORD",
+        actionSpeed: 20,
+        limits: { maximumAp: 1 },
+      }),
+    };
+    // Queue-eligible via its pending charge alone (AP 0, EX not full); acts
+    // second in the cycle (lower actionSpeed) — by then, the stunner's action
+    // has already cancelled this charge, so R-ORD-01 no longer holds.
+    const chargingAlly = {
+      ...unit("ALLY_CHARGING", "ALLY", {
+        actionSpeed: 5,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD"), [stunSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([[stunActionId, stunAction]]),
+      unitDefinitions: new DefaultUnitDefinitionMap(),
+      skillDefinitions: new Map(),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [stunnerAlly, chargingAlly],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    // Both were queued for cycle 1 (stunner via AP, charging via its then-unimpeded charge).
+    const firstQueue = events.find((e) => e.eventType === "ActionQueueCreated") as Extract<
+      BattleDomainEvent,
+      { eventType: "ActionQueueCreated" }
+    >;
+    expect(
+      firstQueue?.payload.reservations.some(
+        (entry) => entry.battleUnitId === chargingAlly.battleUnitId,
+      ),
+    ).toBe(true);
+    // The charging unit's reservation was removed as INELIGIBLE, never executed:
+    // no ActionStarted/ActionWaited/ChargeReleased for it, and its EX gauge
+    // (3, not full) was never consumed by a wrongful STUNNED-branch WAIT.
+    const removed = events.find(
+      (e) =>
+        e.eventType === "ActionReservationRemoved" && e.sourceUnitId === chargingAlly.battleUnitId,
+    );
+    expect(removed?.payload).toMatchObject({
+      battleUnitId: chargingAlly.battleUnitId,
+      reason: "INELIGIBLE",
+    });
+    expect(
+      events.some(
+        (e) => e.eventType === "ActionStarted" && e.sourceUnitId === chargingAlly.battleUnitId,
+      ),
+    ).toBe(false);
+    expect(events.some((e) => e.eventType === "ChargeReleased")).toBe(false);
+    const chargingResult = result.allyUnits.find(
+      (u) => u.battleUnitId === chargingAlly.battleUnitId,
+    )!;
+    expect(chargingResult.currentExtraGauge).toBe(3);
+    expect(chargingResult.charge).toBeUndefined();
+  });
+
   it("UT-R-ACT-01-005 (R-ACT-01 branch order): a stunned unit that (defensively) still carries a pending charge takes the STUN branch first — WAITs without releasing the charge while stunned remains active", () => {
     const chargedSkill = chargeSkill("ACT_RELEASE_HIT_2");
     const startedActionId = createActionId("B_TEST:action:1");

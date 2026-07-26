@@ -4,6 +4,7 @@ import { resolveSkillUse } from "./action-skill-use-resolver.js";
 import { resolveChargeStart, resolveChargeRelease } from "./action-charge-resolver.js";
 import {
   createActionQueue,
+  isQueueEligible,
   reorderRemainingQueue,
   type ReservedActionKind,
 } from "../action/action-queue.js";
@@ -396,6 +397,34 @@ export function resolveActionPhase(
           });
         }
         const removedIds = new Set(newlyDefeated.map((entry) => entry.battleUnitId));
+        remaining = remaining.filter((entry) => !removedIds.has(entry.battleUnitId));
+      }
+
+      // R-ORD-01（Issue #180 PRレビュー[P1]再指摘）: 先行ユニットの行動（気絶付与
+      // によるチャージキャンセル、凍結付与によるチャージ阻害など）で、キュー
+      // 生成時点では適格だった予約がR-ORD-01の全条件を失うことがある。次の
+      // 予約を実行する前に再検証し、適格性を失った予約は実行せず除去する——
+      // 放置すると、例えば気絶分岐の`chooseWaitResource`がAP0・EX非満タンの
+      // まま`EX_GAUGE`を選び、R-STS-02/Q-BTL-06が認めない部分消費のWAITに
+      // なってしまう。
+      const newlyIneligible = remaining.filter(
+        (entry) => !isQueueEligible(requireUnit(units, entry.battleUnitId)),
+      );
+      if (newlyIneligible.length > 0) {
+        for (const removed of newlyIneligible) {
+          recorder.record({
+            eventType: "ActionReservationRemoved",
+            category: "FACT",
+            turnNumber,
+            cycleNumber,
+            resolutionScopeId: resolution.actionScope,
+            parentEventId: resolution.completedEventId,
+            rootEventId: resolution.rootEventId,
+            sourceUnitId: removed.battleUnitId,
+            payload: { battleUnitId: removed.battleUnitId, reason: "INELIGIBLE" },
+          });
+        }
+        const removedIds = new Set(newlyIneligible.map((entry) => entry.battleUnitId));
         remaining = remaining.filter((entry) => !removedIds.has(entry.battleUnitId));
       }
 

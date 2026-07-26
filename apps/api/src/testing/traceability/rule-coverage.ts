@@ -288,7 +288,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ORD: 行動順
   {
     ruleId: "R-ORD-01",
-    testCaseIds: ["UT-ACTION-QUEUE-007", "UT-R-ORD-01-001", "UT-R-ORD-01-002"],
+    testCaseIds: ["UT-ACTION-QUEUE-007", "UT-R-ORD-01-001", "UT-R-ORD-01-002", "UT-R-ORD-01-003"],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
   {
