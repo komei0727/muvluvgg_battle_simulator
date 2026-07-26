@@ -1033,8 +1033,21 @@ export class PassiveActivationRuntime {
    * 済みGuard（`R-PS-07`）を通らないため、既存のPassiveChainLimitsもこの
    * ループ自体を止めない。反復回数の上限を設け、超過時は黙って打ち切る代わりに
    * 決定的なエラーとして検出する。
+   *
+   * PRレビュー[P2](Issue #180 PRレビュー[P2]再々々指摘の是正、Issue #251で
+   * 横断整備予定): 呼び出し側（`removeIneligibleAndDefeatedReservations`）が
+   * この終了処理自身の発行・解決した最後の`DomainEventId`を、後続イベントの
+   * `parentEventId`として正しく引き継げるよう、`units`に加えて明示的に返す。
+   * `recorder.getEvents()`の末尾を呼び出し側が推測する方式は採らない。
+   * 何も破棄しなかった場合（対象12行のように`resetScope`を宣言しない場合が
+   * 常時これに該当）は、この呼び出し自身は何も発行していないため
+   * `this.context.rootEventId`（このスコープの起点イベント）をそのまま返す。
    */
-  finalizeResolutionScope(): readonly BattleUnit[] {
+  finalizeResolutionScope(): {
+    readonly units: readonly BattleUnit[];
+    readonly lastEventId: DomainEventId;
+  } {
+    let lastEventId = this.context.rootEventId;
     let round = 0;
     while (true) {
       const targets = collectResolutionScopeResets({
@@ -1043,7 +1056,7 @@ export class PassiveActivationRuntime {
         skillDefinitions: this.context.definitions.skillDefinitions,
       });
       if (targets.length === 0) {
-        return this.units;
+        return { units: this.units, lastEventId };
       }
       round += 1;
       if (round > MAX_RESOLUTION_SCOPE_RESET_ROUNDS) {
@@ -1112,6 +1125,7 @@ export class PassiveActivationRuntime {
             },
           },
         });
+        lastEventId = recorded.eventId;
         this.units = this.onFactEvent(recorded, this.units);
       }
     }

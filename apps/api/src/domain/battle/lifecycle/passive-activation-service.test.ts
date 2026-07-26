@@ -1513,13 +1513,17 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [skill.skillDefinitionId]: { RUNTIME_COUNTER_SCOPED: { value: 1, carry: 0 } },
     });
 
-    const finalUnits = runtime.finalizeResolutionScope();
+    const { units: finalUnits, lastEventId } = runtime.finalizeResolutionScope();
     const ownerAfterFinalize = finalUnits.find((u) => u.battleUnitId === owner.battleUnitId);
     expect(ownerAfterFinalize?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
 
     const reset = recorder.getEvents().find((e) => e.eventType === "RuntimeCounterReset")!;
     expect(reset).toBeDefined();
     expect(reset.parentEventId).toBe(turnStarted.eventId);
+    // PRレビュー[P2]是正（Issue #180）: 呼び出し側が`recorder.getEvents()`の
+    // 末尾を推測しなくても、この終了処理が発行した最後のイベントを明示的に
+    // 得られる。
+    expect(lastEventId).toBe(reset.eventId);
     expect(reset.payload).toMatchObject({
       ownerUnitId: owner.battleUnitId,
       scope: "SKILL_RUNTIME",

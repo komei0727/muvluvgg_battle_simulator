@@ -89,6 +89,14 @@ function chooseWaitResource(actor: BattleUnit): "AP" | "EX_GAUGE" {
  * finalizeResolutionScope→最新状態で再評価」を、新たな除去対象が無くなる
  * まで繰り返す。新たな除去対象が見つかった回だけ、新しい`resolutionScopeId`と
  * 独立した`PassiveActivationRuntime`を発行する。
+ *
+ * PRレビュー[P2]是正（Issue #180、横断整備は#251）: `finalizeResolutionScope()`が
+ * 発行・解決した最後の`DomainEventId`を`lastEventId`として明示的に受け取り
+ * （`recorder.getEvents()`の末尾を推測しない）、新しい除去スコープを開始する
+ * 場合はその値を次の`ActionReservationRemoved.parentEventId`へ引き継ぐ。
+ * これにより、`RuntimeCounterReset`のPS/Memory連鎖が原因で新たに不適格になった
+ * 予約の除去イベントは、無関係な旧い除去イベントではなく、真の原因である
+ * 終了処理の終端イベントを親に持つ。
  */
 function removeIneligibleAndDefeatedReservations(
   remaining: readonly ActionReservation[],
@@ -154,9 +162,13 @@ function removeIneligibleAndDefeatedReservations(
       // ものは残っていない。
       break;
     }
-    working = passiveRuntime.finalizeResolutionScope();
+    const finalized = passiveRuntime.finalizeResolutionScope();
+    working = finalized.units;
+    lastEventId = finalized.lastEventId;
     // ループの先頭に戻り、finalizeResolutionScope自身のPS/Memory連鎖後の
-    // 最新`working`で`currentRemaining`を再評価する。
+    // 最新`working`で`currentRemaining`を再評価する。新しい除去スコープを
+    // 開始する場合、その最初の`ActionReservationRemoved.parentEventId`は
+    // この`lastEventId`（終了処理自身の終端イベント）を引き継ぐ。
   }
 
   return { remaining: currentRemaining, units: working, lastEventId };

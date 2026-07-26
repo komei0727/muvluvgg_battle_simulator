@@ -225,7 +225,7 @@ export function resolveWait(
     completionTriggerEventId,
     working,
   );
-  const finalUnits = passiveRuntime.finalizeResolutionScope();
+  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope();
 
   return {
     units: finalUnits,

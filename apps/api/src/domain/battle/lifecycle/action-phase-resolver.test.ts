@@ -2524,6 +2524,17 @@ describe("resolveActionPhase", () => {
     for (const event of removedEvents) {
       expect(event.payload).toMatchObject({ reason: "INELIGIBLE" });
     }
+    // PRレビュー[P2]是正（Issue #180）: Dの除去は、無関係な旧いBの除去
+    // イベントではなく、Dを実際にSTUNさせた原因である`RuntimeCounterReset`
+    // （`finalizeResolutionScope`が発行・解決した終端イベント）を親に持つ——
+    // `removeIneligibleAndDefeatedReservations`が`finalizeResolutionScope`の
+    // 明示的な`lastEventId`を次の除去イベントの`parentEventId`へ引き継ぐことを
+    // 因果関係として確認する。
+    const bRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyB.battleUnitId)!;
+    const dRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyD.battleUnitId)!;
+    const resetEvent = events.find((e) => e.eventType === "RuntimeCounterReset")!;
+    expect(dRemovedEvent.parentEventId).toBe(resetEvent.eventId);
+    expect(dRemovedEvent.parentEventId).not.toBe(bRemovedEvent.eventId);
     // D never executed: no wrongful STUNNED-branch WAIT that would have
     // drained its non-full (3 of 10) EX gauge (R-STS-02/Q-BTL-06 only allow
     // full-gauge consumption).
