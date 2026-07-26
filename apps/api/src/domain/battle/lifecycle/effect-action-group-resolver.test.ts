@@ -995,6 +995,84 @@ describe("applyEffectActionGroups", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "ChargeCancelled")).toBe(false);
   });
 
+  it("UT-R-STS-01-001 (R-STS-01 '状態異常はデバフの一種とする'): a real, production-granted STUN AppliedEffect is removed by a REMOVE_EFFECTS(categories: DEBUFF) ACTION step", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const stunDefId = createEffectActionDefinitionId("ACT_STUN");
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("stun-1"),
+          effectActionDefinitionId: stunDefId,
+          kindKey: effectKindKeyFromDefinitionId(stunDefId),
+          duplicate: true,
+          sourceId: createBattleUnitId("SOURCE"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "STUN",
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION", count: 1 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 1,
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const stunDef: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunDefId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const remove: EffectActionDefinition = {
+      kind: "REMOVE_EFFECTS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_CLEANSE_DEBUFF"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: { categories: ["DEBUFF"] },
+    };
+    const effectActions = new Map<
+      ReturnType<typeof createEffectActionDefinitionId>,
+      EffectActionDefinition
+    >([
+      [stunDef.effectActionDefinitionId, stunDef],
+      [remove.effectActionDefinitionId, remove],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(0);
+    const removed = recorder.getEvents().find((e) => e.eventType === "EffectRemoved") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectRemoved" }
+    >;
+    expect(removed.payload).toMatchObject({
+      effectInstanceId: createEffectInstanceId("stun-1"),
+      battleUnitId: enemy.battleUnitId,
+      reason: "REMOVED",
+    });
+  });
+
   it("UT-R-NUM-04-027 (real lifecycle wiring): an APPLY_STAT_MOD formula can use any FormulaKind now that the general FormulaEvaluator is wired in, not just CONSTANT", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
