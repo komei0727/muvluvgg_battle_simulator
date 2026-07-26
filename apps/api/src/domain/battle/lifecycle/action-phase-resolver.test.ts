@@ -1524,22 +1524,229 @@ describe("resolveActionPhase", () => {
     )!;
     expect(waited.payload).toMatchObject({ waitReason: "FROZEN" });
     expect(waited.sequence).toBeLessThan(released.sequence);
+
+    // PRレビュー[P2]: `ChargeHeldByFreeze`は`ActionWaited`の直接の子として、
+    // 同じ行動の`ActionCompleting`より前（`PassiveActivationRuntime`の連鎖
+    // 経路上）に記録される——完了後に切り離して記録するのではない。
+    expect(held.parentEventId).toBe(waited.eventId);
+    const actionCompletingForWait = events.find(
+      (e) =>
+        e.eventType === "ActionCompleting" &&
+        e.sourceUnitId === ally.battleUnitId &&
+        e.sequence > waited.sequence &&
+        e.sequence < released.sequence,
+    )!;
+    expect(actionCompletingForWait).toBeDefined();
+    expect(held.sequence).toBeLessThan(actionCompletingForWait.sequence);
   });
 
-  it("UT-R-ORD-01-001 (R-ORD-01 '凍結などで阻害されていないチャージ効果が発動待ち'): a frozen unit with AP 0 is still queued via its pending charge alone (not skipped), consuming its full EX gauge to WAIT while frozen", () => {
+  it("UT-R-ACT-01-004B (PRレビュー[P2]): if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
+    // The frozen unit itself can't hold a reacting PS here (R-STS-03: a frozen
+    // owner can't newly activate PS either, `OWNER_FROZEN` in
+    // reconfirm-passive-candidate.ts) — a separate, unfrozen ally's PS reacts
+    // to the frozen unit's own ActionWaited instead, targeting it via
+    // EXCLUDE_RESOLVED_UNIT(SELF) (the only other ally on the field).
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_STUN_FROZEN_ALLY_ON_WAIT");
+    const stunActionId = createEffectActionDefinitionId("ACT_STUN_FROZEN_ALLY_ON_WAIT");
+    const chargedSkill = chargeSkill("ACT_WOULD_HAVE_HELD");
+    const startedActionId = createActionId("B_TEST:action:1");
+
+    const frozenAlly = {
+      ...unit("ALLY_FROZEN", "ALLY", { limits: { maximumAp: 1 } }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 5, createBattleUnitId("ALLY_FROZEN"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER",
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+
+    const stunAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionWaited",
+          category: "FACT",
+          sourceSelector: "ALLY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_FROZEN_ALLY"),
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: 1,
+              filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_FROZEN_ALLY") },
+            actions: [{ effectActionDefinitionId: stunActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_STUN_FROZEN_ALLY_ON_WAIT", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        stunnerUnitDefinitionId,
+        {
+          unitDefinitionId: stunnerUnitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0,
+            actionSpeed: 10,
+            maximumAp: 0,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "AllyStunner",
+            characterName: "AllyStunner",
+            characterId: "CHAR_ALLY_STUNNER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([[stunActionId, stunAction]]),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [frozenAlly, stunnerAlly],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // The ally's PS (triggered by the frozen unit's own ActionWaited) applied
+    // STUN before the onWaitEstablished hook ran, cancelling the charge — so
+    // no ChargeHeldByFreeze is recorded, and the charge stays cleared.
+    const frozenResult = result.allyUnits.find((u) => u.battleUnitId === frozenAlly.battleUnitId)!;
+    expect(frozenResult.charge).toBeUndefined();
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "ChargeHeldByFreeze")).toBe(false);
+    expect(events.some((e) => e.eventType === "ChargeCancelled")).toBe(true);
+  });
+
+  it("UT-R-ORD-01-001 (R-ORD-01 '凍結などで阻害されていないチャージ効果が発動待ち', PRレビュー[P1]): a frozen unit with AP 0 and a non-full EX gauge is NOT queued despite a pending charge — freeze impedes the charge, so it doesn't count toward R-ORD-01 eligibility", () => {
     const chargedSkill = chargeSkill("ACT_HELD_HIT");
     const startedActionId = createActionId("B_TEST:action:1");
     const ally = {
       ...unit("ALLY_1", "ALLY", {
         limits: { maximumAp: 1, maximumExtraGauge: 10 },
         currentAp: 0,
-        currentExtraGauge: 10,
+        currentExtraGauge: 3,
       }),
       appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
       charge: { skill: chargedSkill, startedActionId },
     };
     const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
-    const effectAction = damageEffectAction("ACT_HELD_HIT");
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      NO_SKILLS,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // Neither unit is queue-eligible (ally: AP 0, EX not full, and its charge
+    // is impeded by freeze; enemy: AP 0, EX not full, no charge) — the phase
+    // drains immediately without ever creating a queue.
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ActionQueueCreated")).toBe(false);
+    expect(result.allyUnits[0]!.charge).toEqual({ skill: chargedSkill, startedActionId });
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(3);
+  });
+
+  it("UT-R-ORD-01-002 (R-ORD-01 counterpart): once freeze clears, the same AP-0/non-full-EX unit becomes queue-eligible again via its pending charge alone and releases it", () => {
+    const chargedSkill = chargeSkill("ACT_HELD_HIT_2");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_HELD_HIT_2");
     const definitions = definitionsOf(
       new Map(),
       new Map([[effectAction.effectActionDefinitionId, effectAction]]),
@@ -1547,7 +1754,7 @@ describe("resolveActionPhase", () => {
     const random = new SequenceRandomSource([]);
     const ctx = actionPhaseContext();
 
-    resolveActionPhase(
+    const result = resolveActionPhase(
       [ally],
       [enemy],
       definitions,
@@ -1558,21 +1765,9 @@ describe("resolveActionPhase", () => {
       ctx.turnScopeParentEventId,
     );
 
-    // Eligible for the first cycle via the pending charge alone (R-ORD-01):
-    // AP is 0 and EX is not full, so nothing but `charge !== undefined` puts
-    // it in that cycle's queue.
-    const firstQueue = ctx.recorder.getEvents().find((e) => e.eventType === "ActionQueueCreated");
-    expect(firstQueue?.payload).toMatchObject({
-      reservations: [expect.objectContaining({ battleUnitId: ally.battleUnitId })],
-    });
-    const waited = ctx.recorder
-      .getEvents()
-      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
-    expect(waited?.payload).toMatchObject({
-      waitReason: "FROZEN",
-      consumedResource: "EX_GAUGE",
-      consumedAmount: 10,
-    });
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ActionQueueCreated")).toBe(true);
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ChargeReleased")).toBe(true);
+    expect(result.allyUnits[0]!.charge).toBeUndefined();
   });
 
   it("UT-R-ACT-01-005 (R-ACT-01 branch order): a stunned unit that (defensively) still carries a pending charge takes the STUN branch first — WAITs without releasing the charge while stunned remains active", () => {

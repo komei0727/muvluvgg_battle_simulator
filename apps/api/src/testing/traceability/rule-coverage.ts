@@ -288,8 +288,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ORD: 行動順
   {
     ruleId: "R-ORD-01",
-    testCaseIds: ["UT-ACTION-QUEUE-007", "UT-R-ORD-01-001"],
-    kinds: ["POSITIVE", "BOUNDARY"],
+    testCaseIds: ["UT-ACTION-QUEUE-007", "UT-R-ORD-01-001", "UT-R-ORD-01-002"],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
   {
     ruleId: "R-ORD-02",
@@ -334,6 +334,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACT-01-002",
       "UT-R-ACT-01-003",
       "UT-R-ACT-01-004",
+      "UT-R-ACT-01-004B",
       "UT-R-ACT-01-005",
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
@@ -608,6 +609,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-ACTION-PHASE-013",
       "UT-ACTION-PHASE-014",
       "UT-R-ACT-01-004",
+      "UT-R-ACT-01-004B",
       "UT-R-STS-02-004",
       "UT-RESULT-ASSEMBLER-009",
       "UT-SKILL-RESOLUTION-SERVICE-008",

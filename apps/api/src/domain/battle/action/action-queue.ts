@@ -1,5 +1,5 @@
 import { sortByActionOrder } from "./action-order-policy.js";
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, isFrozen, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 export type ReservedActionKind = "AS" | "EX";
@@ -15,10 +15,14 @@ export interface ActionQueue {
 }
 
 /**
- * R-ORD-01（部分実装）: APが1以上、EXゲージが満タン、または発動待ちのチャージ
- * 効果を持つユニットをキュー生成対象とする。凍結などによる発動阻害はStunned/
- * Frozenが未実装（M7）のため、チャージを持つユニットは常に阻害されていない
- * ものとして扱う（`06_戦闘状態遷移.md`「キュー生成対象」）。
+ * R-ORD-01: APが1以上、EXゲージが満タン、または「凍結などで阻害されていない」
+ * 発動待ちのチャージ効果を持つユニットをキュー生成対象とする（`06_戦闘状態遷移.md`
+ * 「キュー生成対象」）。気絶は付与時にチャージをキャンセルする（R-STS-02、
+ * `stun-grant-service.ts`）ため、この関数へ到達する時点でチャージを持つ気絶
+ * ユニットは存在しない——チャージを「阻害」し得るのは凍結だけ（Issue #180
+ * PRレビュー[P1]）。凍結中のユニットはAP/EXだけでは適格でも、チャージ由来の
+ * 適格性は持たない（R-ACT-01 #2で待機するだけであり、チャージ発動の機会には
+ * ならない）。
  */
 function isQueueEligible(unit: BattleUnit): boolean {
   if (isDefeated(unit)) {
@@ -27,7 +31,7 @@ function isQueueEligible(unit: BattleUnit): boolean {
   return (
     unit.currentAp >= 1 ||
     unit.currentExtraGauge >= unit.maximumExtraGauge ||
-    unit.charge !== undefined
+    (unit.charge !== undefined && !isFrozen(unit))
   );
 }
 

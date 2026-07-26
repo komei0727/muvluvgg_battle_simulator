@@ -103,9 +103,13 @@ function resolveOneAction(
   }
 
   // R-ACT-01 #2/R-SKL-05: 凍結中は待機し、発動待ちのチャージがあれば維持
-  // する（キャンセルしない、解除後の次の行動機会に発動）。
+  // する（キャンセルしない、解除後の次の行動機会に発動）。`ChargeHeldByFreeze`は
+  // `ActionWaited`自身のPS/Memory連鎖が解決した後・`ActionCompleting`より前の
+  // 時点（`onWaitEstablished`フック）で、その時点の最新`units`から判定して
+  // 記録する（Issue #180 PRレビュー[P2]）——呼び出し前の`actor`スナップショット
+  // を参照すると、連鎖中にチャージが変化した場合を見逃す。
   if (isFrozen(actor)) {
-    const waitResult = resolveWait(
+    return resolveWait(
       actor,
       reservedActionType,
       "FROZEN",
@@ -118,30 +122,32 @@ function resolveOneAction(
       cycleNumber,
       actionId,
       actionScope,
-    );
-    if (actor.charge === undefined) {
-      return waitResult;
-    }
-    const freezeEffect = activeStatusEffect(actor, "FREEZE")!;
-    const held = recorder.record({
-      eventType: "ChargeHeldByFreeze",
-      category: "FACT",
-      turnNumber,
-      cycleNumber,
-      actionId,
-      resolutionScopeId: waitResult.actionScope,
-      parentEventId: waitResult.completedEventId,
-      rootEventId: waitResult.rootEventId,
-      sourceUnitId: actor.battleUnitId,
-      targetUnitIds: [actor.battleUnitId],
-      payload: {
-        actorUnitId: actor.battleUnitId,
-        skillDefinitionId: actor.charge.skill.skillDefinitionId,
-        startedActionId: actor.charge.startedActionId,
-        freezeEffectInstanceId: freezeEffect.effectInstanceId,
+      (context) => {
+        const currentActor = requireUnit(context.units, context.actorId);
+        const freezeEffect = activeStatusEffect(currentActor, "FREEZE");
+        if (currentActor.charge === undefined || freezeEffect === undefined) {
+          return undefined;
+        }
+        return context.recorder.record({
+          eventType: "ChargeHeldByFreeze",
+          category: "FACT",
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          parentEventId: context.parentEventId,
+          rootEventId: context.rootEventId,
+          sourceUnitId: context.actorId,
+          targetUnitIds: [context.actorId],
+          payload: {
+            actorUnitId: context.actorId,
+            skillDefinitionId: currentActor.charge.skill.skillDefinitionId,
+            startedActionId: currentActor.charge.startedActionId,
+            freezeEffectInstanceId: freezeEffect.effectInstanceId,
+          },
+        });
       },
-    });
-    return { ...waitResult, completedEventId: held.eventId };
+    );
   }
 
   // R-ACT-01 #3: 発動待ちのチャージ効果は予約されたAS/EXより優先して発動する。
