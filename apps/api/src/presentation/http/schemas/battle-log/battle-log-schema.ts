@@ -574,6 +574,32 @@ const chargeReleasedDetailsSchema = {
   },
 } as const;
 
+/** `ChargeCancelled`（R-SKL-05/R-STS-02、Issue #180）。気絶付与時にチャージをキャンセルした後に発行する。 */
+const chargeCancelledDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "startedActionId", "reason"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    startedActionId: { type: "string" },
+    reason: { type: "string", enum: ["STUN"] },
+  },
+} as const;
+
+/** `ChargeHeldByFreeze`（R-SKL-05/R-STS-03、Issue #180）。凍結中の行動機会でチャージを維持したまま待機した後に発行する。 */
+const chargeHeldByFreezeDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actorUnitId", "skillDefinitionId", "startedActionId", "freezeEffectInstanceId"],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    startedActionId: { type: "string" },
+    freezeEffectInstanceId: { type: "string" },
+  },
+} as const;
+
 const actionOrderEntryDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1222,6 +1248,20 @@ export const effectDurationReducedDetailsSchema = {
   },
 } as const;
 
+/** `StunDurationChanged`（R-STS-02、Issue #180）。気絶の既存インスタンスへ、より長い残り回数の再付与が到達し差し替えた時に発行する。 */
+const stunDurationChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectInstanceId", "battleUnitId", "remainingBefore", "remainingAfter", "reason"],
+  properties: {
+    effectInstanceId: { type: "string" },
+    battleUnitId: { type: "string" },
+    remainingBefore: { type: "integer", minimum: 0 },
+    remainingAfter: { type: "integer", minimum: 0 },
+    reason: { type: "string", enum: ["REGRANT_EXTENDED"] },
+  },
+} as const;
+
 /** `EffectConsumptionChanged`（R-EFF-07、EFF-003）。消費条件の成立ごとに消費残り回数の変化を発行する。 */
 const effectConsumptionChangedDetailsSchema = {
   type: "object",
@@ -1426,6 +1466,8 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   COOLDOWN_COMPLETED: cooldownCompletedDetailsSchema,
   CHARGE_STARTED: chargeStartedDetailsSchema,
   CHARGE_RELEASED: chargeReleasedDetailsSchema,
+  CHARGE_CANCELLED: chargeCancelledDetailsSchema,
+  CHARGE_HELD_BY_FREEZE: chargeHeldByFreezeDetailsSchema,
   TURN_COMPLETING: turnNumberOnlyDetailsSchema,
   TURN_COMPLETED: turnNumberOnlyDetailsSchema,
   BATTLE_COMPLETED: battleCompletedDetailsSchema,
@@ -1444,6 +1486,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
   COMBAT_STAT_CHANGED: combatStatChangedDetailsSchema,
   EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,
+  STUN_DURATION_CHANGED: stunDurationChangedDetailsSchema,
   EFFECT_CONSUMPTION_CHANGED: effectConsumptionChangedDetailsSchema,
   EFFECT_EXPIRED: effectExpiredDetailsSchema,
   EFFECT_REMOVED: effectRemovedDetailsSchema,

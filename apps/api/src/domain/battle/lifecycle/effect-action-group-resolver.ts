@@ -5,6 +5,7 @@ import {
   type DamageEventContext,
 } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
+import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { removeMarkers, reduceMarkerStack } from "../effects/marker-removal-service.js";
 import { removeEffects } from "../effects/effect-removal-service.js";
@@ -705,17 +706,19 @@ function* resolveOneEffectActionApplication(
     }
   } else if (effectAction.kind === "APPLY_STATUS") {
     // TGT-004フェーズ3再レビュー[P1]（Issue #167、R-ACTN-03）: `AppliedEffect.
-    // statusKind`を付与するresolverだが、本Issueのスコープ（R-TGT-08
-    // 「ステルス」）が要求する無条件付与を実際に持つのは`status: "STEALTH"`
-    // だけ。他のstatus種別（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY等、
-    // R-STS-01〜04）は行動不能化・ダメージ無効化といった実効処理が別途必要で、
-    // それらは未実装のまま。`probability`/`appliesTo`/`damageThreshold`等の
-    // 追加fieldの有無だけで判定すると、`ACT_CHIZURU_DOMESTIC_AS1_STUN`のように
-    // 追加fieldを持たないSTUN定義が実効なしのままgrantEffectまで進んでしまい、
-    // 「未対応として明確に失敗する」から「EffectAppliedとして成功するが実際の
+    // statusKind`を付与するresolverだが、無条件付与を実際に持つのは
+    // `status: "STEALTH"`（R-TGT-08）と`status: "STUN"`（R-STS-01/02、Issue #180
+    // M7-003、`probability`は`undefined`または`1`のみ受理——production定義は
+    // いずれもこの形）だけ。他のstatus種別（FREEZE/BLIND/EVASION/
+    // DAMAGE_IMMUNITY等、R-STS-03/04）は行動不能化・ダメージ無効化といった
+    // 実効処理が別途必要で、それらは未実装のまま。`probability`/`appliesTo`/
+    // `damageThreshold`等の追加fieldの有無だけで判定すると、
+    // `ACT_CHIZURU_DOMESTIC_AS1_STUN`のように追加fieldを持たないSTUN定義が
+    // 実効なしのままgrantEffectまで進んでしまい、「未対応として明確に失敗する」
+    // から「EffectAppliedとして成功するが実際の
     // 効果はない」というsilent partial implementationへ退行する
     // （PR #238再レビュー[P1]で指摘）。そのため`status`自体で許可リストを取り、
-    // `STEALTH`以外は無条件で拒否する。
+    // `STEALTH`/`STUN`以外は無条件で拒否する。
     //
     // R-EFF-03（M7-001B、Issue #243）: 免疫拒否は「未対応status種別」の拒否より
     // 優先する — 対象が有効な免疫を持つなら、そのstatus種別がまだ実効処理を
@@ -773,47 +776,116 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = consumption.lastEventId;
       resultKind = "REJECTED";
     } else {
-      if (effectAction.payload.status !== "STEALTH") {
+      const status = effectAction.payload.status;
+      if (status !== "STEALTH" && status !== "STUN") {
         throw new DomainValidationError(
           "effectActionDefinitionId",
-          `APPLY_STATUS status "${effectAction.payload.status}" is not yet supported by this resolver (only "STEALTH" is, R-TGT-08 scope; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
+          `APPLY_STATUS status "${status}" is not yet supported by this resolver (only "STEALTH"/"STUN" are; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
         );
       }
-      // Stealthを含む現行production定義は`stacking`相当の設定を持たないため
+      if (
+        status === "STUN" &&
+        (effectAction.payload.appliesTo !== undefined ||
+          effectAction.payload.damageThreshold !== undefined ||
+          effectAction.payload.damageAmplificationOnBreak !== undefined ||
+          (effectAction.payload.probability !== undefined && effectAction.payload.probability < 1))
+      ) {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_STATUS status "STUN" with appliesTo/damageThreshold/damageAmplificationOnBreak or probability < 1 is not yet supported (R-STS-03/04 scope; production STUN definitions only use an omitted or 1 probability)`,
+        );
+      }
+      // Stealth/Stunを含む現行production定義は`stacking`相当の設定を持たないため
       // （`ApplyStatusPayload`自体に`stacking`フィールドが無い）、`APPLY_STAT_MOD`と
       // 同じ理由でduplicate: trueに固定する（Q-EFF-10「重複あり・重複なしの
-      // どちらも、効果インスタンスと効果期間を個別に保持する」）。
-      const grantResult = grantEffect(
-        {
-          recorder: context.recorder,
-          turnNumber: context.turnNumber,
-          cycleNumber: context.cycleNumber,
-          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-          skillUseId: context.skillUseId,
-          resolutionScopeId: context.actionScope,
-          rootEventId: context.rootEventId,
-        },
-        box.units,
-        {
-          effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
-          targetId: application.targetBattleUnitId,
-          duplicate: true,
-          magnitude: 0,
-          statusKind: effectAction.payload.status,
-          durationDefinition: effectAction.payload.duration,
-        },
-        starting.eventId,
-      );
+      // どちらも、効果インスタンスと効果期間を個別に保持する」）。R-STS-02の
+      // 再付与規則（残り回数が長い方を一つだけ残す）を持つSTUNだけ
+      // `grantStunStatus`（`stun-grant-service.ts`）へ分岐する。
+      const grantContext = {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      };
+      const grantRequest = {
+        effectActionDefinitionId: application.effectActionDefinitionId,
+        sourceId: context.actorId,
+        targetId: application.targetBattleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: status,
+        durationDefinition: effectAction.payload.duration,
+      };
+      const grantResult =
+        status === "STUN"
+          ? grantStunStatus(grantContext, box.units, grantRequest, starting.eventId)
+          : grantEffect(grantContext, box.units, grantRequest, starting.eventId);
       box.units = grantResult.units;
       if (context.onFactEventForPassiveChain !== undefined) {
         for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
           box.units = context.onFactEventForPassiveChain(event, box.units);
         }
       }
+      let lastEventId = grantResult.lastEventId;
+      // R-STS-02/R-SKL-05「付与時にチャージをキャンセルする」: STUN付与が
+      // 実際に成立した（新規付与、またはより長い残り回数への差し替え）対象が
+      // 発動待ちのチャージを持つ場合、その場でキャンセルする。既存STUNが
+      // 新しい付与以上の残り回数で維持された場合（`grantStunStatus`が
+      // `existing`をそのまま返す、実質no-op）はチャージへ触れない。
+      if (status === "STUN") {
+        const stunnedTarget = requireUnit(box.units, application.targetBattleUnitId);
+        if (stunnedTarget.charge !== undefined) {
+          const cancelled = context.recorder.record({
+            eventType: "ChargeCancelled",
+            category: "FACT",
+            turnNumber: context.turnNumber,
+            cycleNumber: context.cycleNumber,
+            ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+            skillUseId: context.skillUseId,
+            resolutionScopeId: context.actionScope,
+            parentEventId: lastEventId,
+            rootEventId: context.rootEventId,
+            sourceUnitId: stunnedTarget.battleUnitId,
+            targetUnitIds: [stunnedTarget.battleUnitId],
+            payload: {
+              actorUnitId: stunnedTarget.battleUnitId,
+              skillDefinitionId: stunnedTarget.charge.skill.skillDefinitionId,
+              startedActionId: stunnedTarget.charge.startedActionId,
+              reason: "STUN",
+            },
+            stateDelta: {
+              units: {
+                [stunnedTarget.battleUnitId]: {
+                  charge: {
+                    before: {
+                      skillDefinitionId: stunnedTarget.charge.skill.skillDefinitionId,
+                      startedActionId: stunnedTarget.charge.startedActionId,
+                    },
+                    after: undefined,
+                  },
+                },
+              },
+            },
+          });
+          box.units = box.units.map((unit) => {
+            if (unit.battleUnitId !== stunnedTarget.battleUnitId) {
+              return unit;
+            }
+            const { charge: _charge, ...withoutCharge } = unit;
+            return withoutCharge;
+          });
+          lastEventId = cancelled.eventId;
+          if (context.onFactEventForPassiveChain !== undefined) {
+            box.units = context.onFactEventForPassiveChain(cancelled, box.units);
+          }
+        }
+      }
       resolvedCount = application.hits.length;
       interruptedCount = 0;
-      effectLastEventId = grantResult.lastEventId;
+      effectLastEventId = lastEventId;
       resultKind = "APPLIED";
     }
   } else if (effectAction.kind === "APPLY_MARKER") {
