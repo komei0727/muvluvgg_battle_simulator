@@ -6042,6 +6042,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["BUFF"] },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
@@ -7067,14 +7074,10 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_MARK",
-    "kind": "APPLY_MARKER",
-    "payload": {
-      "markerId": "MARKER_SENKA_CHRISTMAS_TARGETED",
-      "stack": { "policy": "REPLACE", "max": 1 },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
-    },
-    "requiredCapabilities": ["CAP_MARKER"],
+    "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["BUFF"] },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
   {
@@ -7460,6 +7463,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["BUFF"], "maxRemovals": 3 },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_IMMUNITY",
     "kind": "EFFECT_IMMUNITY",
     "payload": {
@@ -7521,6 +7531,13 @@
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.248 } },
     "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["BUFF"], "maxRemovals": 1 },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
   {

@@ -36,6 +36,9 @@
           "actions": [
             {
               "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF"
             }
           ]
         },
@@ -58,7 +61,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "displayName": "チェックメイト",
       "tags": []
@@ -192,6 +195,9 @@
           "actions": [
             {
               "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF"
             }
           ]
         }
@@ -202,7 +208,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "displayName": "インクリメントアタック",
       "tags": []

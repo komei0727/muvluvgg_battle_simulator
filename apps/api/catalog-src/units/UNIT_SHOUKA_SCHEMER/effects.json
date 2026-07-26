@@ -15,6 +15,18 @@
     }
   },
   {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["BUFF"],
+      "maxRemovals": 3
+    },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
     "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_IMMUNITY",
     "kind": "EFFECT_IMMUNITY",
     "payload": {
@@ -137,6 +149,18 @@
       }
     },
     "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["BUFF"],
+      "maxRemovals": 1
+    },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }

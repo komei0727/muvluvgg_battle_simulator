@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 70
+      "incompleteConversionRows": 66
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -70,6 +70,7 @@
     { "taskId": "M7-001A", "issue": 242, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-001B", "issue": 243, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-001C", "issue": 244, "phase": 2, "milestone": "M7" },
+    { "taskId": "M7-001D", "issue": 247, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-002", "issue": 185, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-003", "issue": 180, "phase": 2, "milestone": "M7" },
     { "taskId": "M7-004", "issue": 183, "phase": 2, "milestone": "M7" },
@@ -130,7 +131,6 @@
       "rowCount": 1,
       "taskId": "RES-004-STATUS-CONDITION"
     },
-    { "milestone": "M7", "theme": "REMOVE_BUFF_CATEGORY", "rowCount": 4, "taskId": "M7-001C" },
     {
       "milestone": "M7",
       "theme": "TARGET_STATE_QUERY_BUFF_DEBUFF",
@@ -141,9 +141,9 @@
     { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
     {
       "milestone": "M7",
-      "theme": "REMOVE_EFFECTS_COUNT_LIMIT",
+      "theme": "TRIGGER_PAYLOAD_IN_RESOLUTION",
       "rowCount": 1,
-      "taskId": "M7-001C"
+      "taskId": "M7-001D"
     },
     { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "M7-010" },
     {

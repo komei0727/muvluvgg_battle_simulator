@@ -10622,13 +10622,16 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_NOEL_RUMBLE_PS2_HEAL" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF" },
+            { "effectActionDefinitionId": "ACT_NOEL_RUMBLE_PS2_HEAL" }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_HEAL"],
     "metadata": { "displayName": "ターンリスタート", "tags": [] },
     "triggers": [
       {
@@ -12339,13 +12342,13 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_MARK" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "はらぐろさくしー", "tags": [] },
     "triggers": [
       {
@@ -12991,7 +12994,10 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_DAMAGE" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF" }
+          ]
         },
         {
           "kind": "ACTION",
@@ -13002,7 +13008,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "displayName": "チェックメイト", "tags": [] }
   },
   {
@@ -13075,13 +13081,16 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF" }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "displayName": "インクリメントアタック", "tags": [] }
   },
   {

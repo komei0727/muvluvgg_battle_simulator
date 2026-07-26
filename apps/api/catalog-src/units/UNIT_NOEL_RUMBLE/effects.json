@@ -155,5 +155,16 @@
     "metadata": {
       "tags": []
     }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["BUFF"]
+    },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "metadata": {
+      "tags": []
+    }
   }
 ]

@@ -270,6 +270,9 @@
           },
           "actions": [
             {
+              "effectActionDefinitionId": "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF"
+            },
+            {
               "effectActionDefinitionId": "ACT_NOEL_RUMBLE_PS2_HEAL"
             }
           ]
@@ -281,7 +284,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_HEAL"],
     "metadata": {
       "displayName": "ターンリスタート",
       "tags": []
