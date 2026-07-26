@@ -3763,6 +3763,68 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(completed.payload.resultKind).toBe("APPLIED");
   });
 
+  it("UT-R-EFF-03-018 (PR #245 review [P2] fix): a pre-existing SPECIFIC_EFFECT immunity targeting an EFFECT_IMMUNITY definition rejects granting that immunity instead of always succeeding", () => {
+    const immunity = immunityAction("ACT_STUN_IMMUNITY", {
+      categories: ["STATUS"],
+      statusKinds: ["STUN"],
+      duration: {
+        timeLimit: { unit: "ACTION", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      maxBlocks: null,
+    });
+    const blockerDefId = createEffectActionDefinitionId("ACT_ANTI_IMMUNITY_SEAL");
+    const actor = unit("ACTOR", "ALLY", {
+      appliedEffects: [
+        immunityEffectOn(unit("ACTOR", "ALLY"), "existing-seal", blockerDefId, {
+          categories: ["SPECIFIC_EFFECT"],
+          effectActionDefinitionIds: [immunity.effectActionDefinitionId],
+          maxBlocks: null,
+          blockedCount: 0,
+        }),
+      ],
+    });
+    const effectActions = new Map([[immunity.effectActionDefinitionId, immunity]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, actor.battleUnitId, immunity.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectApplicationRejected",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+
+    const target = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    // Only the pre-existing seal remains; the new STUN immunity was never granted.
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]!.effectActionDefinitionId).toBe(blockerDefId);
+    expect(target.appliedEffects[0]!.immunity?.blockedCount).toBe(1);
+
+    const completed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("REJECTED");
+  });
+
   it("UT-R-EFF-03-012: an APPLY_STAT_MOD DEBUFF is rejected by a pre-existing DEBUFF-category immunity, emitting EffectApplicationRejected (resultKind REJECTED) instead of EffectApplied", () => {
     const actor = unit("ACTOR", "ALLY");
     const debuff: EffectActionDefinition = {

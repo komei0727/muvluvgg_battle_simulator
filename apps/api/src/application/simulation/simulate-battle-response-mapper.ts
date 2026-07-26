@@ -367,6 +367,45 @@ function toMarkerEntityCollectionDeltaResponseBody(
 }
 
 /**
+ * `10_API設計.md`「UnitStateDeltaResponse.effects」(`EntityCollectionDelta`、
+ * R-EFF-01、PRレビュー[P1] fix、Issue #243): `state-delta.ts`の`UnitStateDelta.
+ * effects`（`EffectInstanceId`をキーとする`ValueChange<EffectSnapshot | undefined>`）
+ * を、`toMarkerEntityCollectionDeltaResponseBody`と同じ`added`/`updated`/`removed`
+ * 変換へ写す。`markers`と同じくcooldownsのような数値sentinelを使わず、
+ * `before`/`after`自体のundefinedがこの意味を持つ（`before: undefined`は新規付与
+ * `EffectApplied`、`after: undefined`は失効・解除、両方存在する場合は
+ * `blockedCount`変化等の更新）。この変換が欠けていると、`APPLY_STAT_MOD`/
+ * `APPLY_STATUS`/`EFFECT_IMMUNITY`等が付与する`AppliedEffect`が戦闘終了まで
+ * 残る場合、`finalState.effects`には存在する一方で公開`stateTransitions`側の
+ * 付与差分が空のままになり、`10_API設計.md`「差分の適用」の
+ * `initialState + stateTransitions = finalState`契約を満たせない。
+ */
+function toEffectEntityCollectionDeltaResponseBody(
+  effects: UnitStateDelta["effects"],
+): EntityCollectionDeltaResponseBody | undefined {
+  if (effects === undefined) {
+    return undefined;
+  }
+  const added: unknown[] = [];
+  const updated: { id: string; before: unknown; after: unknown }[] = [];
+  const removed: { id: string; before: unknown }[] = [];
+  for (const [effectInstanceId, change] of Object.entries(effects)) {
+    if (change.before === undefined) {
+      added.push(toEffectStateResponseBody(change.after!));
+    } else if (change.after === undefined) {
+      removed.push({ id: effectInstanceId, before: toEffectStateResponseBody(change.before) });
+    } else {
+      updated.push({
+        id: effectInstanceId,
+        before: toEffectStateResponseBody(change.before),
+        after: toEffectStateResponseBody(change.after),
+      });
+    }
+  }
+  return { added, updated, removed };
+}
+
+/**
  * `08_ドメインイベント.md`のフラットな`hp`/`ap`/`pp`/`extraGauge`を、
  * `10_API設計.md`「UnitStateDeltaResponse」の`hp`/`resources.{ap,pp,extraGauge}`
  * 形へ組み替える。`hp`が0を跨ぐ変化を伴う場合は、Domainが明示的には記録しない
@@ -391,6 +430,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
       : undefined;
   const cooldowns = toCooldownEntityCollectionDeltaResponseBody(delta.cooldowns);
   const markers = toMarkerEntityCollectionDeltaResponseBody(delta.markers);
+  const effects = toEffectEntityCollectionDeltaResponseBody(delta.effects);
   const charge = toChargeValueChangeResponseBody(delta.charge);
 
   return {
@@ -399,6 +439,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
     ...(combatStatus !== undefined ? { combatStatus } : {}),
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(markers !== undefined ? { markers } : {}),
+    ...(effects !== undefined ? { effects } : {}),
     ...(charge !== undefined ? { charge } : {}),
   };
 }

@@ -29,17 +29,23 @@ export interface ImmunityBlockCandidate {
 }
 
 /**
- * `category`単独が候補をブロックするかどうかを判定する。`STATUS`かつ
- * `immunity.statusKinds`が指定されている場合だけ、候補の`statusKind`が
- * その一覧に含まれるかで絞り込む（`EFFECT_IMMUNITY_STATUS_GRANULARITY`）。
- * それ以外のカテゴリ一致は常にブロックする（従来の粒度）。
+ * `category`単独が候補をブロックするかどうかを判定する。`immunity.statusKinds`
+ * が指定されている場合（`categories`が`STATUS`を含むことが前提、Catalog
+ * factoryが強制する）、候補が状態異常（`isStatusAilment`、R-STS-01により
+ * `STATUS`と`DEBUFF`の両方に分類される）であれば、一致したカテゴリが`STATUS`
+ * 自身か`DEBUFF`かに関わらず`statusKinds`一覧で絞り込む — `DEBUFF`側の一致を
+ * 経由した迂回を防ぐ（PR #245レビュー[P2]指摘）。候補が状態異常でない
+ * （通常のstat debuff等）場合は`DEBUFF`が無条件でブロックする（従来の粒度）。
  */
 function categoryBlocks(
   category: EffectImmunityCategory,
   immunity: EffectImmunityState,
   candidate: ImmunityBlockCandidate,
+  candidateIsStatusAilment: boolean,
 ): boolean {
-  if (category === "STATUS" && immunity.statusKinds !== undefined) {
+  const isAilmentClassifiedCategory =
+    category === "STATUS" || (category === "DEBUFF" && candidateIsStatusAilment);
+  if (isAilmentClassifiedCategory && immunity.statusKinds !== undefined) {
     return (
       candidate.statusKind !== undefined && immunity.statusKinds.includes(candidate.statusKind)
     );
@@ -60,6 +66,7 @@ export function findBlockingImmunity(
   definition: EffectActionDefinition,
 ): AppliedEffect | undefined {
   const categories = effectCategoriesOf(candidate, definition);
+  const candidateIsStatusAilment = categories.has("STATUS");
   return target.appliedEffects.find((effect) => {
     const immunity = effect.immunity;
     if (immunity === undefined) {
@@ -78,7 +85,7 @@ export function findBlockingImmunity(
       (category) =>
         category !== "SPECIFIC_EFFECT" &&
         categories.has(category) &&
-        categoryBlocks(category, immunity, candidate),
+        categoryBlocks(category, immunity, candidate, candidateIsStatusAilment),
     );
   });
 }

@@ -996,57 +996,95 @@ function* resolveOneEffectActionApplication(
     effectLastEventId = removal.lastEventId;
     resultKind = removal.removedCount > 0 ? "APPLIED" : "SKIPPED";
   } else if (effectAction.kind === "EFFECT_IMMUNITY") {
-    // R-EFF-03（M7-001B、Issue #243）: 免疫効果自体を`AppliedEffect`として付与
-    // する（`categories`/`statusKinds`（`EFFECT_IMMUNITY_STATUS_GRANULARITY`）/
-    // `effectActionDefinitionIds`/`maxBlocks`をそのまま保持し、実行時カウンタ
-    // `blockedCount`は0から始める）。`stacking`相当の設定を持たないため、
-    // `APPLY_STAT_MOD`/`APPLY_STATUS`と同じ理由でduplicate: trueに固定する。
-    // この付与自体が拒否される（＝二重に免疫を貫通する）ケースは現行スキーマに
-    // 存在しない — 免疫は「新規付与」を拒否するが、免疫自身の付与は対象カテゴリ
-    // に一致しない限りブロックされ得ない（一致し得る特殊ケースはSPECIFIC_EFFECT
-    // だけだが、production Catalogに現状そのような組み合わせは無い）。
-    const grantResult = grantEffect(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        rootEventId: context.rootEventId,
-      },
-      box.units,
-      {
-        effectActionDefinitionId: application.effectActionDefinitionId,
-        sourceId: context.actorId,
-        targetId: application.targetBattleUnitId,
-        duplicate: true,
-        magnitude: 0,
-        durationDefinition: effectAction.payload.duration,
-        immunity: {
-          categories: effectAction.payload.categories,
-          ...(effectAction.payload.statusKinds !== undefined
-            ? { statusKinds: effectAction.payload.statusKinds }
-            : {}),
-          ...(effectAction.payload.effectActionDefinitionIds !== undefined
-            ? { effectActionDefinitionIds: effectAction.payload.effectActionDefinitionIds }
-            : {}),
-          maxBlocks: effectAction.payload.maxBlocks,
-          blockedCount: 0,
-        },
-      },
-      starting.eventId,
+    // R-EFF-03（M7-001B、Issue #243、PR #245レビュー[P2]修正）: 免疫効果自身の
+    // 付与も「新規付与」であり免疫の対象になり得る — Catalogは`SPECIFIC_EFFECT`
+    // の`effectActionDefinitionIds`で他の`EFFECT_IMMUNITY`定義IDを指定できるため
+    // （例: 「免疫封印」で対象の特定免疫効果自体の再付与を防ぐ）、他のkindと
+    // 同じく`findBlockingImmunity`を通す。
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude: 0 },
+      effectAction,
     );
-    box.units = grantResult.units;
-    if (context.onFactEventForPassiveChain !== undefined) {
-      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
-        box.units = context.onFactEventForPassiveChain(event, box.units);
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
       }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      // R-EFF-03（M7-001B、Issue #243）: 免疫効果自体を`AppliedEffect`として付与
+      // する（`categories`/`statusKinds`（`EFFECT_IMMUNITY_STATUS_GRANULARITY`）/
+      // `effectActionDefinitionIds`/`maxBlocks`をそのまま保持し、実行時カウンタ
+      // `blockedCount`は0から始める）。`stacking`相当の設定を持たないため、
+      // `APPLY_STAT_MOD`/`APPLY_STATUS`と同じ理由でduplicate: trueに固定する。
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude: 0,
+          durationDefinition: effectAction.payload.duration,
+          immunity: {
+            categories: effectAction.payload.categories,
+            ...(effectAction.payload.statusKinds !== undefined
+              ? { statusKinds: effectAction.payload.statusKinds }
+              : {}),
+            ...(effectAction.payload.effectActionDefinitionIds !== undefined
+              ? { effectActionDefinitionIds: effectAction.payload.effectActionDefinitionIds }
+              : {}),
+            maxBlocks: effectAction.payload.maxBlocks,
+            blockedCount: 0,
+          },
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
     }
-    resolvedCount = application.hits.length;
-    interruptedCount = 0;
-    effectLastEventId = grantResult.lastEventId;
-    resultKind = "APPLIED";
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",

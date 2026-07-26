@@ -139,6 +139,53 @@ describe("findBlockingImmunity", () => {
     expect(notBlockedFreeze).toBeUndefined();
   });
 
+  it("UT-R-EFF-03-017 (PR #245 review [P2] fix): statusKinds scoping cannot be bypassed via the DEBUFF category a status ailment also carries (R-STS-01)", () => {
+    // categories includes both STATUS (scoped to FREEZE) and DEBUFF (unscoped
+    // on its own). STUN is classified as {STATUS, DEBUFF} per R-STS-01, so
+    // without gating DEBUFF too when the candidate is a status ailment, STUN
+    // would slip through via the DEBUFF entry even though statusKinds excludes it.
+    const immunity = immunityEffect("imm-mixed", {
+      categories: ["STATUS", "DEBUFF"],
+      statusKinds: ["FREEZE"],
+    });
+    const target = holderWith([immunity]);
+
+    const stunNotBlocked = findBlockingImmunity(
+      target,
+      {
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+        magnitude: 0,
+        statusKind: "STUN",
+      },
+      stunAction("ACT_STUN"),
+    );
+    expect(stunNotBlocked).toBeUndefined();
+
+    const freezeBlocked = findBlockingImmunity(
+      target,
+      {
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+        magnitude: 0,
+        statusKind: "FREEZE",
+      },
+      {
+        ...stunAction("ACT_FREEZE"),
+        payload: { ...stunAction("ACT_FREEZE").payload, status: "FREEZE" },
+      } as EffectActionDefinition,
+    );
+    expect(freezeBlocked?.effectInstanceId).toBe(immunity.effectInstanceId);
+
+    // A plain (non-ailment) DEBUFF stat-mod is still blocked unconditionally
+    // by the unscoped DEBUFF category — statusKinds only narrows ailment
+    // candidates, not ordinary debuffs.
+    const plainDebuffBlocked = findBlockingImmunity(
+      target,
+      { effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATK_DOWN"), magnitude: -10 },
+      debuffAction("ACT_ATK_DOWN"),
+    );
+    expect(plainDebuffBlocked?.effectInstanceId).toBe(immunity.effectInstanceId);
+  });
+
   it("UT-R-EFF-03-005: a STATUS immunity with no statusKinds blocks every status ailment (whole-category, backward compatible)", () => {
     const immunity = immunityEffect("imm-status", { categories: ["STATUS"] });
     const target = holderWith([immunity]);
