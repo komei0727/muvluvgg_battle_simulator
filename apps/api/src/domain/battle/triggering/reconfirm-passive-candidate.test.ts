@@ -15,6 +15,10 @@ import type { Side } from "../../shared/side.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import { startCooldown } from "../model/cooldown-state.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { createEffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const POSITION = { column: "LEFT", row: "FRONT" } as const;
@@ -37,6 +41,30 @@ function owner(side: Side, overrides: Partial<BattleUnit> = {}): BattleUnit {
     },
   };
   return { ...createBattleUnit(member, side, LIMITS), currentPp: 3, ...overrides };
+}
+
+/** R-STS-01/02/03: a minimal STUN/FREEZE `AppliedEffect` fixture. */
+function statusEffectOf(statusKind: "STUN" | "FREEZE", holderId: BattleUnitId): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId(`ACT_${statusKind}`);
+  return {
+    effectInstanceId: createEffectInstanceId(`${statusKind}-1`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: holderId,
+    targetId: holderId,
+    magnitude: 0,
+    statusKind,
+    duration: {
+      definition: {
+        timeLimit: { unit: "ACTION", count: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      timeLimitRemaining: 1,
+    },
+    appliedTurnNumber: 1,
+  };
 }
 
 interface SkillOverrides {
@@ -114,6 +142,26 @@ describe("reconfirmPassiveCandidate", () => {
     expect(
       reconfirmPassiveCandidate(candidate, unit, READY_EVENT, createEmptyPassiveActivationGuard()),
     ).toEqual({ ok: false, reason: "OWNER_CHARGING" });
+  });
+
+  it("UT-R-STS-02-006 (R-STS-02 'AS、PS、EXスキルを新たに使用できない'): a stunned owner discards the candidate with reason OWNER_STUNNED", () => {
+    const unit = owner("ALLY", {
+      appliedEffects: [statusEffectOf("STUN", createBattleUnitId("OWNER"))],
+    });
+    const candidate = candidateOf(unit, skillOf());
+    expect(
+      reconfirmPassiveCandidate(candidate, unit, READY_EVENT, createEmptyPassiveActivationGuard()),
+    ).toEqual({ ok: false, reason: "OWNER_STUNNED" });
+  });
+
+  it("UT-R-STS-03-001-CONSEQUENCE (R-STS-03 'AS、PS、EXスキルを使用できない'): a frozen owner discards the candidate with reason OWNER_FROZEN", () => {
+    const unit = owner("ALLY", {
+      appliedEffects: [statusEffectOf("FREEZE", createBattleUnitId("OWNER"))],
+    });
+    const candidate = candidateOf(unit, skillOf());
+    expect(
+      reconfirmPassiveCandidate(candidate, unit, READY_EVENT, createEmptyPassiveActivationGuard()),
+    ).toEqual({ ok: false, reason: "OWNER_FROZEN" });
   });
 
   it("UT-R-PS-04-004: insufficient PP discards the candidate with reason INSUFFICIENT_PP", () => {
