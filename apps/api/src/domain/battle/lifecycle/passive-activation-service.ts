@@ -30,6 +30,7 @@ import { toEffectSnapshot } from "../events/state-delta.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
+import type { ResolutionResult } from "./resolution-result.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
   ActionId,
@@ -903,6 +904,22 @@ export class PassiveActivationRuntime {
     }
     this.guard = result.activationGuard;
     return this.units;
+  }
+
+  /**
+   * `onFactEvent`と同じ解決を行い、この呼び出し自身が発行・解決した反応連鎖まで
+   * 含めた実際の終端`DomainEventId`を`ResolutionResult`として明示的に返す
+   * （`finalizeResolutionScope`と同じ`recorder`末尾読み取りパターン、Issue #251）。
+   * `parentEventId`を次のイベントへ引き継ぐ必要がある呼び出し側（除去群の
+   * fixed-point解決など）専用のエントリーポイント。`onFactEvent`の既存の
+   * 呼び出し側の大多数は終端イベントIDを必要としないため、そちらは変更せず
+   * そのまま使い続けてよい。
+   */
+  onFactEventWithResult(event: BattleDomainEvent, units: readonly BattleUnit[]): ResolutionResult {
+    const resultUnits = this.onFactEvent(event, units);
+    const recordedEvents = this.context.recorder.getEvents();
+    const last = recordedEvents[recordedEvents.length - 1];
+    return { units: resultUnits, lastEventId: last?.eventId ?? event.eventId };
   }
 
   /**

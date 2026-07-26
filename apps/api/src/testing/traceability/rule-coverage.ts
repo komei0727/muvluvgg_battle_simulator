@@ -296,8 +296,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ORD-01-004",
       "UT-R-ORD-01-005",
       "UT-R-ORD-01-006",
+      "UT-R-ORD-01-007",
+      "SCN-BTL-023",
     ],
-    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
   {
     ruleId: "R-ORD-02",

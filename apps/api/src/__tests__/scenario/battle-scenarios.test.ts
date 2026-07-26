@@ -3,9 +3,13 @@ import { ApplicationError } from "../../application/contracts/application-error.
 import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
   createCapabilityId,
+  createEffectActionDefinitionId,
   createSkillDefinitionId,
+  createTargetBindingId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
+import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import { CatalogBuilder } from "../../testing/scenario/catalog-builder.js";
 import {
@@ -344,5 +348,181 @@ describe("battle scenarios (harness)", () => {
     // +1 from the PS's own activation, then +1 per subsequent mandatory WAIT
     // in the defender's own action phase (maximumAp 3, no active skill, R-ACT-03).
     expect(finalState.units[defenderUnitId]!.extraGauge).toBe(4);
+  });
+
+  it("SCN-BTL-023 (Issue #251 acceptance): a same-cycle DEFEATED reservation removal, whose own PS reaction chain further changes state, still satisfies the full-battle invariants (parent/root determinism, independent StateDelta reapplication) enforced end-to-end by the public use case", () => {
+    const skillId = "SKL_KILL_NEAREST";
+    const effectActionId = "ACT_KILL_NEAREST";
+    const passiveSkillId = "SKL_PS_ON_RESERVATION_REMOVED";
+    const nearestEnemy: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ENEMY",
+      count: 1,
+      filters: [],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const killSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId(skillId),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_1"), selector: nearestEnemy },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "Kill nearest", tags: [] },
+    };
+    // Issue #251: reacts to ActionReservationRemoved (the DEFEATED removal of
+    // the doomed enemy, decided and recorded by the dedicated
+    // action-reservation-removal-resolver before the doomed unit's own turn
+    // is ever reached) — its own PP/EX ResourceChanged changes are exactly
+    // the kind of reaction-chain StateDelta whose independent reapplication
+    // `assembleSimulationResult` verifies unconditionally for every battle.
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId(passiveSkillId),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionReservationRemoved",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: passiveSkillId, tags: [] },
+    };
+    const catalog = new CatalogBuilder()
+      .withUnit(
+        unitDefinition("UNIT_ATK", {
+          baseStats: { maximumAp: 1, attack: 999, actionSpeed: 20, maximumPp: 3 },
+          extraGaugeMaximum: 10,
+          activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+          passiveSkillDefinitionIds: [createSkillDefinitionId(passiveSkillId)],
+        }),
+        unitDefinition("UNIT_DOOMED", {
+          baseStats: { maximumHp: 10, defense: 0, actionSpeed: 10 },
+        }),
+        unitDefinition("UNIT_SURVIVOR", { baseStats: { actionSpeed: 5 } }),
+      )
+      .withSkill(killSkill, passiveSkill)
+      .withEffectAction(damageEffectAction(effectActionId, 1, "PREVENTED"))
+      .build();
+
+    const result = runScenario({
+      catalog,
+      command: battleCommand({
+        allyFormation: { slots: [formationSlot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+        enemyFormation: {
+          slots: [formationSlot("UNIT_DOOMED", 0), formationSlot("UNIT_SURVIVOR", 1)],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 1,
+      }),
+      randomValues: [],
+      battleIds: ["B_1"],
+    });
+
+    const { events, stateTransitions, initialState, finalState } = result;
+    const doomedUnitId = createBattleUnitId("enemy:1");
+
+    // The doomed enemy is defeated before its own reservation is reached and
+    // never acts — the reservation-removal fixed-point resolver discarded it
+    // outright, DEFEATED, rather than letting it execute a stale reservation.
+    expect(
+      events.some(
+        (e) =>
+          e.type === "ACTION_STARTED" &&
+          (e.details as { actorUnitId: string }).actorUnitId === doomedUnitId,
+      ),
+    ).toBe(false);
+    const removed = events.find(
+      (e) =>
+        e.type === "ACTION_RESERVATION_REMOVED" &&
+        (e.details as { battleUnitId: string }).battleUnitId === doomedUnitId,
+    )!;
+    expect(removed.details).toMatchObject({ reason: "DEFEATED" });
+    // The attacker's PS, triggered by that removal, activates within the
+    // same battle — proving ActionReservationRemoved reaches PS/Memory
+    // candidate resolution end-to-end (not just at the internal-API level
+    // the UT-R-ORD-01-* suite already covers).
+    const passiveActivated = events.find((e) => e.type === "PASSIVE_ACTIVATED")!;
+    expect(passiveActivated.details).toMatchObject({
+      skillDefinitionId: createSkillDefinitionId(passiveSkillId),
+    });
+    expect(passiveActivated.sequence).toBeGreaterThan(removed.sequence);
+
+    // Parent/root determinism (10_API設計.md BattleLogEventResponse), same
+    // invariant SCN-BTL-001 checks generally — verified here specifically
+    // across a chain that includes ActionReservationRemoved and its own PS
+    // reaction (Issue #251's causal-cursor contract).
+    const bySequence = new Map(events.map((e) => [e.sequence, e]));
+    for (const event of events) {
+      if (event.parentSequence === undefined) {
+        expect(event.rootSequence).toBe(event.sequence);
+        continue;
+      }
+      const parent = bySequence.get(event.parentSequence);
+      expect(parent).toBeDefined();
+      expect(event.sequence).toBeGreaterThan(event.parentSequence);
+      expect(event.rootSequence).toBe(parent!.rootSequence);
+    }
+    // The PS activation's ancestor chain traces back to the removal that
+    // triggered it (walking parentSequence, since PassiveActivated's direct
+    // parent may be an intermediate step of its own activation rather than
+    // the trigger event itself).
+    let ancestor = passiveActivated;
+    while (ancestor.parentSequence !== undefined && ancestor.sequence !== removed.sequence) {
+      ancestor = bySequence.get(ancestor.parentSequence)!;
+    }
+    expect(ancestor.sequence).toBe(removed.sequence);
+
+    // Independent StateDelta Reducer restores finalState from
+    // initialState + stateTransitions — `assembleSimulationResult` already
+    // enforces this unconditionally (throwing INTERNAL_INVARIANT_VIOLATION
+    // otherwise), so merely completing without throwing already proves it
+    // for this removal-heavy path; re-asserted directly here per
+    // `12_テスト戦略.md`「独立した差分Reducer」.
+    const restored = reduceStateDeltas(
+      initialState,
+      stateTransitions.map((t) => t.stateDelta),
+    );
+    expect(restored).toEqual(finalState);
   });
 });

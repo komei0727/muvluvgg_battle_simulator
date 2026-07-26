@@ -2265,6 +2265,226 @@ describe("resolveActionPhase", () => {
     const dResult = result.allyUnits.find((u) => u.battleUnitId === allyD.battleUnitId)!;
     expect(dResult.currentExtraGauge).toBe(3);
     expect(dResult.charge).toBeUndefined();
+    // Issue #251: D's removal parentEventId must reflect the true terminus
+    // of B's removal reaction chain (the last event recorded before D's own
+    // removal — here, the stunner PS's PassiveResolved), not B's bare
+    // ActionReservationRemoved event id. Both removals share one
+    // resolutionScopeId (no finalizeResolutionScope boundary between them),
+    // so this is a within-scope causal-cursor check, distinct from
+    // UT-R-ORD-01-006's cross-scope one.
+    const bRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyB.battleUnitId)!;
+    const dRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyD.battleUnitId)!;
+    const dRemovedIndex = events.indexOf(dRemovedEvent);
+    expect(dRemovedEvent.parentEventId).toBe(events[dRemovedIndex - 1]!.eventId);
+    expect(dRemovedEvent.parentEventId).not.toBe(bRemovedEvent.eventId);
+  });
+
+  it("UT-R-ORD-01-007 (Issue #251): a removal's own reaction chain can incapacitate (not just make ineligible) another reservation — the second removal is recorded DEFEATED, with the correct reason re-derived from the post-chain state rather than reused from the stale pre-chain evaluation", () => {
+    const startedActionIdB = createActionId("B_TEST:action:1");
+    const startedActionIdD = createActionId("B_TEST:action:2");
+    const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_7");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_KILL_D_ON_REMOVAL");
+    const stunBActionId = createEffectActionDefinitionId("ACT_STUN_B_ORD_7");
+    const killDActionId = createEffectActionDefinitionId("ACT_KILL_D_ORD_7");
+
+    const highHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "GTE", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    const lowHpSelector: TargetSelectorDefinition = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      filters: [
+        { kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } },
+        { kind: "HP_RATIO", op: "LT", value: 0.9 },
+      ],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    };
+    // Stuns B (high HP ratio) only — D is untouched by this action.
+    const stunBSkill = attackSkill(stunBActionId.toString(), 1, highHpSelector);
+    const stunBAction: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: stunBActionId,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "STUN",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    // Reacts to ActionReservationRemoved by DAMAGE-ing D (low HP ratio) for
+    // more than D's remaining HP — D is incapacitated by the reaction chain
+    // itself, not merely made R-ORD-01-ineligible.
+    const killDAction = damageEffectAction(killDActionId.toString());
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "ActionReservationRemoved",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_D"), selector: lowHpSelector },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_D") },
+            actions: [{ effectActionDefinitionId: killDActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_KILL_D_ON_REMOVAL", tags: [] },
+    };
+
+    const stunnerAlly = {
+      ...unit("ALLY_STUNNER", "ALLY", {
+        unitDefinitionId: "UNIT_ALLY_STUNNER_ORD_7",
+        actionSpeed: 20,
+        attack: 30,
+        limits: { maximumAp: 1, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    // B: high HP ratio (1.0); stunned directly by the stunner's own action —
+    // removed INELIGIBLE.
+    const allyB = {
+      ...unit("ALLY_B", "ALLY", {
+        actionSpeed: 10,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+        currentHp: 100,
+      }),
+      charge: { skill: chargeSkill("ACT_B_UNUSED_ORD_7"), startedActionId: startedActionIdB },
+    };
+    // D: low HP ratio and low absolute HP (10), so the PS reaction's DAMAGE
+    // (attack 30 - defense 10 = 20 damage) kills it outright rather than
+    // merely canceling its charge.
+    const allyD = {
+      ...unit("ALLY_D", "ALLY", {
+        actionSpeed: 5,
+        defense: 10,
+        maximumHp: 100,
+        currentHp: 10,
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 3,
+      }),
+      charge: { skill: chargeSkill("ACT_D_UNUSED_ORD_7"), startedActionId: startedActionIdD },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([[stunnerUnitDefinitionId, [stunBSkill]]]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [stunBActionId, stunBAction],
+        [killDActionId, killDAction],
+      ]),
+      unitDefinitions: new DefaultUnitDefinitionMap([
+        [
+          stunnerUnitDefinitionId,
+          {
+            unitDefinitionId: stunnerUnitDefinitionId,
+            attribute: "AGGRESSIVE",
+            unitType: "PHYSICAL",
+            role: "PHYSICAL_ATTACKER",
+            positionAptitudes: ["FRONT", "BACK"],
+            baseStats: {
+              maximumHp: 100,
+              attack: 30,
+              defense: 10,
+              criticalRate: 0,
+              criticalDamageBonus: 0.5,
+              affinityBonus: 0,
+              actionSpeed: 20,
+              maximumAp: 1,
+              maximumPp: 3,
+            },
+            extraGaugeMaximum: 10,
+            activeSkillDefinitionIds: [],
+            passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+            extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+            requiredCapabilities: [],
+            metadata: {
+              displayName: "AllyStunnerKillChain",
+              characterName: "AllyStunnerKillChain",
+              characterId: "CHAR_ALLY_STUNNER_KILL_CHAIN",
+              affiliations: [],
+              tags: [],
+            },
+          },
+        ],
+      ]),
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [stunnerAlly, allyB, allyD],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const removedEvents = events.filter((e) => e.eventType === "ActionReservationRemoved");
+    expect(removedEvents.map((e) => e.sourceUnitId).sort()).toEqual(
+      [allyB.battleUnitId, allyD.battleUnitId].sort(),
+    );
+    const bRemoved = removedEvents.find((e) => e.sourceUnitId === allyB.battleUnitId)!;
+    const dRemoved = removedEvents.find((e) => e.sourceUnitId === allyD.battleUnitId)!;
+    expect(bRemoved.payload).toMatchObject({ reason: "INELIGIBLE" });
+    // D's removal reason is re-derived from the post-reaction-chain state
+    // (defeated), not carried over from any earlier INELIGIBLE evaluation.
+    expect(dRemoved.payload).toMatchObject({ reason: "DEFEATED" });
+    expect(
+      events.some((e) => e.eventType === "ActionStarted" && e.sourceUnitId === allyD.battleUnitId),
+    ).toBe(false);
+    const dResult = [...result.allyUnits, ...result.enemyUnits].find(
+      (u) => u.battleUnitId === allyD.battleUnitId,
+    )!;
+    expect(dResult.currentHp).toBe(0);
   });
 
   it("UT-R-ORD-01-006 (PRレビュー[P2]再々々指摘): re-evaluates remaining reservations after finalizeResolutionScope's own RuntimeCounterReset chain, not just after each removal's immediate PS chain", () => {
@@ -2548,6 +2768,17 @@ describe("resolveActionPhase", () => {
     const dResult = result.allyUnits.find((u) => u.battleUnitId === allyD.battleUnitId)!;
     expect(dResult.currentExtraGauge).toBe(3);
     expect(dResult.charge).toBeUndefined();
+    // Issue #251 (resolutionScopeId/rootEventId境界の明示テスト): Dの除去は
+    // finalizeResolutionScope()が開いた新しい除去スコープに属するため、Bの
+    // 除去とは異なるresolutionScopeIdを持つ（終了済みのruntimeは再利用しない）。
+    // 一方rootEventIdは、この除去群全体を引き起こした行動のまま、B・D双方の
+    // 除去イベントおよびその間の反応連鎖イベント全てで変わらない
+    // （`08_ドメインイベント.md`「rootEventId」: 除去群を引き起こした行動を維持）。
+    expect(dRemovedEvent.resolutionScopeId).not.toBe(bRemovedEvent.resolutionScopeId);
+    const removalGroupEvents = events.slice(events.indexOf(bRemovedEvent));
+    const rootEventIds = new Set(removalGroupEvents.map((e) => e.rootEventId));
+    expect(rootEventIds.size).toBe(1);
+    expect(bRemovedEvent.rootEventId).toBe(dRemovedEvent.rootEventId);
   });
 
   it("UT-R-ORD-04-002 (PRレビュー[P2]是正の再指摘、Issue #180): when a removal's own finalizeResolutionScope() has nothing to reset (the common case — no resetScope: RESOLUTION_SCOPE counters involved), the causal cursor for a later ActionQueueReordered in the same cycle is the removal event itself, not rolled back to an earlier root event", () => {
