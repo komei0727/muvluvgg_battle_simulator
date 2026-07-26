@@ -8,6 +8,7 @@ import {
   type ReservedActionKind,
 } from "../action/action-queue.js";
 import { isExUsable, selectAsCandidate } from "../action/action-selection-policy.js";
+import { evaluateActivationCondition } from "./activation-condition-evaluator.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import {
   activeStatusEffect,
@@ -169,7 +170,9 @@ function resolveOneAction(
     }
     // R-ACT-01 #5 / Q-BTL-06: 対象候補がなければEXは使用不能とし、EXゲージ全量を
     // 消費して待機する。
-    if (!isExUsable(exSkill, actor, units, definitions.unitDefinitions)) {
+    if (
+      !isExUsable(exSkill, actor, units, definitions.unitDefinitions, evaluateActivationCondition)
+    ) {
       return resolveWait(
         actor,
         reservedActionType,
@@ -218,7 +221,13 @@ function resolveOneAction(
   }
 
   const activeSkills = definitions.activeSkillsByUnit.get(actor.unitDefinitionId) ?? [];
-  const selection = selectAsCandidate(activeSkills, actor, units, definitions.unitDefinitions);
+  const selection = selectAsCandidate(
+    activeSkills,
+    actor,
+    units,
+    definitions.unitDefinitions,
+    evaluateActivationCondition,
+  );
 
   if (selection.kind === "WAIT") {
     return resolveWait(

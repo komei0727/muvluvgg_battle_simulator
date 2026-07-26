@@ -1,4 +1,8 @@
-import { grantEffect, type GrantEffectContext, type GrantEffectRequest } from "./effect-grant-service.js";
+import {
+  grantEffect,
+  type GrantEffectContext,
+  type GrantEffectRequest,
+} from "./effect-grant-service.js";
 import { buildInitialDurationState, type AppliedEffect } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";

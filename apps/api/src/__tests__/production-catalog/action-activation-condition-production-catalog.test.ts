@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { selectAsCandidate } from "../../domain/battle/action/action-selection-policy.js";
+import { evaluateActivationCondition } from "../../domain/battle/lifecycle/activation-condition-evaluator.js";
 import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
 import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
@@ -90,7 +91,13 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
       ],
     });
 
-    const actor = unitOf("ACTOR", unitId, "ALLY", { column: "LEFT", row: "BACK" }, { currentAp: 3, currentHp: 100 });
+    const actor = unitOf(
+      "ACTOR",
+      unitId,
+      "ALLY",
+      { column: "LEFT", row: "BACK" },
+      { currentAp: 3, currentHp: 100 },
+    );
     const enemy = unitOf("ENEMY_1", "UNIT_TEST_ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
 
     // All three conditions hold: a wounded ally exists, she isn't alone, and her own HP is fine.
@@ -102,8 +109,17 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
       { currentHp: 50 },
     );
     expect(
-      selectAsCandidate([skill], actor, [actor, woundedAlly, enemy], snapshot.units),
-    ).toEqual({ kind: "SKILL", skill });
+      selectAsCandidate(
+        [skill],
+        actor,
+        [actor, woundedAlly, enemy],
+        snapshot.units,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
+      kind: "SKILL",
+      skill,
+    });
 
     // No ally below 70% HP: the SET_THRESHOLD gate fails.
     const healthyAlly = unitOf(
@@ -114,18 +130,40 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
       { currentHp: 100 },
     );
     expect(
-      selectAsCandidate([skill], actor, [actor, healthyAlly, enemy], snapshot.units),
-    ).toEqual({ kind: "WAIT" });
+      selectAsCandidate(
+        [skill],
+        actor,
+        [actor, healthyAlly, enemy],
+        snapshot.units,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
+      kind: "WAIT",
+    });
 
     // No living ally besides herself.
-    expect(selectAsCandidate([skill], actor, [actor, enemy], snapshot.units)).toEqual({
+    expect(
+      selectAsCandidate(
+        [skill],
+        actor,
+        [actor, enemy],
+        snapshot.units,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
       kind: "WAIT",
     });
 
     // Her own HP is below 40%.
     const lowSelfHp = { ...actor, currentHp: 30 };
     expect(
-      selectAsCandidate([skill], lowSelfHp, [lowSelfHp, woundedAlly, enemy], snapshot.units),
+      selectAsCandidate(
+        [skill],
+        lowSelfHp,
+        [lowSelfHp, woundedAlly, enemy],
+        snapshot.units,
+        evaluateActivationCondition,
+      ),
     ).toEqual({ kind: "WAIT" });
   });
 
@@ -142,12 +180,26 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
       value: 1,
     });
 
-    const actor = unitOf("ACTOR", unitId, "ALLY", { column: "CENTER", row: "BACK" }, { currentAp: 3 });
+    const actor = unitOf(
+      "ACTOR",
+      unitId,
+      "ALLY",
+      { column: "CENTER", row: "BACK" },
+      { currentAp: 3 },
+    );
     const rightEnemy = unitOf("ENEMY_RIGHT", "UNIT_TEST_ENEMY", "ENEMY", {
       column: "RIGHT",
       row: "FRONT",
     });
-    expect(selectAsCandidate([skill], actor, [actor, rightEnemy], snapshot.units)).toEqual({
+    expect(
+      selectAsCandidate(
+        [skill],
+        actor,
+        [actor, rightEnemy],
+        snapshot.units,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
       kind: "SKILL",
       skill,
     });
@@ -156,7 +208,15 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
       column: "CENTER",
       row: "FRONT",
     });
-    expect(selectAsCandidate([skill], actor, [actor, centerOnlyEnemy], snapshot.units)).toEqual({
+    expect(
+      selectAsCandidate(
+        [skill],
+        actor,
+        [actor, centerOnlyEnemy],
+        snapshot.units,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
       kind: "WAIT",
     });
   });
@@ -181,24 +241,50 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
       row: "FRONT",
     });
 
-    const healthyActor = unitOf("ACTOR", unitId, "ALLY", { column: "LEFT", row: "BACK" }, {
-      currentAp: 3,
-      currentHp: 50,
-    });
+    const healthyActor = unitOf(
+      "ACTOR",
+      unitId,
+      "ALLY",
+      { column: "LEFT", row: "BACK" },
+      {
+        currentAp: 3,
+        currentHp: 50,
+      },
+    );
     expect(
-      selectAsCandidate([skill], healthyActor, [healthyActor, baseEnemy, adjacentEnemy]),
+      selectAsCandidate(
+        [skill],
+        healthyActor,
+        [healthyActor, baseEnemy, adjacentEnemy],
+        undefined,
+        evaluateActivationCondition,
+      ),
     ).toEqual({
       kind: "SKILL",
       skill,
     });
 
-    const lowHpActor = unitOf("ACTOR", unitId, "ALLY", { column: "LEFT", row: "BACK" }, {
-      currentAp: 3,
-      currentHp: 15,
-    });
+    const lowHpActor = unitOf(
+      "ACTOR",
+      unitId,
+      "ALLY",
+      { column: "LEFT", row: "BACK" },
+      {
+        currentAp: 3,
+        currentHp: 15,
+      },
+    );
     expect(
-      selectAsCandidate([skill], lowHpActor, [lowHpActor, baseEnemy, adjacentEnemy]),
-    ).toEqual({ kind: "WAIT" });
+      selectAsCandidate(
+        [skill],
+        lowHpActor,
+        [lowHpActor, baseEnemy, adjacentEnemy],
+        undefined,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
+      kind: "WAIT",
+    });
   });
 
   it("IT-CAP-ACTION-ACTIVATION-CONDITION-004: SKL_MAO_COMMITTEE_AS1's real TARGET_STATE activationCondition selects the skill only when her own HP ratio is at least 60%", () => {
@@ -212,19 +298,48 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
     const enemy = unitOf("ENEMY_1", "UNIT_TEST_ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
     const ally = unitOf("ALLY_1", "UNIT_TEST_ALLY", "ALLY", { column: "RIGHT", row: "FRONT" });
 
-    const highHpActor = unitOf("ACTOR", unitId, "ALLY", { column: "LEFT", row: "BACK" }, {
-      currentAp: 3,
-      currentHp: 70,
-    });
+    const highHpActor = unitOf(
+      "ACTOR",
+      unitId,
+      "ALLY",
+      { column: "LEFT", row: "BACK" },
+      {
+        currentAp: 3,
+        currentHp: 70,
+      },
+    );
     expect(
-      selectAsCandidate([skill], highHpActor, [highHpActor, ally, enemy]),
-    ).toEqual({ kind: "SKILL", skill });
-
-    const lowHpActor = unitOf("ACTOR", unitId, "ALLY", { column: "LEFT", row: "BACK" }, {
-      currentAp: 3,
-      currentHp: 50,
+      selectAsCandidate(
+        [skill],
+        highHpActor,
+        [highHpActor, ally, enemy],
+        undefined,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
+      kind: "SKILL",
+      skill,
     });
-    expect(selectAsCandidate([skill], lowHpActor, [lowHpActor, ally, enemy])).toEqual({
+
+    const lowHpActor = unitOf(
+      "ACTOR",
+      unitId,
+      "ALLY",
+      { column: "LEFT", row: "BACK" },
+      {
+        currentAp: 3,
+        currentHp: 50,
+      },
+    );
+    expect(
+      selectAsCandidate(
+        [skill],
+        lowHpActor,
+        [lowHpActor, ally, enemy],
+        undefined,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
       kind: "WAIT",
     });
   });
@@ -242,14 +357,33 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
     });
 
     const enemy = unitOf("ENEMY_1", "UNIT_TEST_ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
-    const actor = unitOf("ACTOR", unitId, "ALLY", { column: "LEFT", row: "BACK" }, { currentAp: 3 });
-    expect(selectAsCandidate([skill], actor, [actor, enemy])).toEqual({ kind: "SKILL", skill });
+    const actor = unitOf(
+      "ACTOR",
+      unitId,
+      "ALLY",
+      { column: "LEFT", row: "BACK" },
+      { currentAp: 3 },
+    );
+    expect(
+      selectAsCandidate([skill], actor, [actor, enemy], undefined, evaluateActivationCondition),
+    ).toEqual({
+      kind: "SKILL",
+      skill,
+    });
 
     const markedActor = {
       ...actor,
       markerStates: [markerOf(actor, "MARKER_TATIANA_SAGE_PRUDENCE")],
     };
-    expect(selectAsCandidate([skill], markedActor, [markedActor, enemy])).toEqual({
+    expect(
+      selectAsCandidate(
+        [skill],
+        markedActor,
+        [markedActor, enemy],
+        undefined,
+        evaluateActivationCondition,
+      ),
+    ).toEqual({
       kind: "WAIT",
     });
   });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { isCoolingDown, isExUsable, selectAsCandidate } from "./action-selection-policy.js";
+// Test-only: exercises the real ActivationConditionEvaluator (domain/battle/lifecycle) the same
+// way action-phase-resolver.ts injects it in production. domain/battle/action itself must not
+// depend on domain/battle/lifecycle (module boundary, eslint.config.mjs); test files are exempt.
+import { evaluateActivationCondition } from "../lifecycle/activation-condition-evaluator.js";
 import {
   createBattleUnit,
   type BattleUnit,
@@ -158,7 +162,12 @@ describe("selectAsCandidate", () => {
   });
 
   it("UT-R-ACT-02-009 (CAP_ACTION_ACTIVATION_CONDITION, Issue #180): skips an AS whose SELF TARGET_STATE activationCondition is unmet and selects the next candidate", () => {
-    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3, currentHp: 15 });
+    const actor = unit(
+      "ACTOR",
+      "ALLY",
+      { column: "LEFT", row: "FRONT" },
+      { currentAp: 3, currentHp: 15 },
+    );
     const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
     // Mirrors SKL_LILY_HERO_AS1's production shape: NOT(SELF HP_RATIO < 0.2).
     const requiresHighHp = asSkill("SKL_REQUIRES_HIGH_HP", 1, {
@@ -175,13 +184,24 @@ describe("selectAsCandidate", () => {
     });
     const fallback = asSkill("SKL_FALLBACK", 1);
 
-    const result = selectAsCandidate([requiresHighHp, fallback], actor, [actor, enemy]);
+    const result = selectAsCandidate(
+      [requiresHighHp, fallback],
+      actor,
+      [actor, enemy],
+      undefined,
+      evaluateActivationCondition,
+    );
 
     expect(result).toEqual({ kind: "SKILL", skill: fallback });
   });
 
   it("UT-R-ACT-02-010 (CAP_ACTION_ACTIVATION_CONDITION, Issue #180): selects an AS whose SELF TARGET_STATE activationCondition is met", () => {
-    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3, currentHp: 100 });
+    const actor = unit(
+      "ACTOR",
+      "ALLY",
+      { column: "LEFT", row: "FRONT" },
+      { currentAp: 3, currentHp: 100 },
+    );
     const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
     const requiresHighHp = asSkill("SKL_REQUIRES_HIGH_HP", 1, {
       activationCondition: {
@@ -196,7 +216,13 @@ describe("selectAsCandidate", () => {
       },
     });
 
-    const result = selectAsCandidate([requiresHighHp], actor, [actor, enemy]);
+    const result = selectAsCandidate(
+      [requiresHighHp],
+      actor,
+      [actor, enemy],
+      undefined,
+      evaluateActivationCondition,
+    );
 
     expect(result).toEqual({ kind: "SKILL", skill: requiresHighHp });
   });
@@ -204,7 +230,12 @@ describe("selectAsCandidate", () => {
   it("UT-R-ACT-02-011 (CAP_ACTION_ACTIVATION_CONDITION, Issue #180, TARGET_SET_COUNT): skips an AS whose BINDING TARGET_SET_COUNT activationCondition resolves to 0 living units and selects the next candidate", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
     // No allies below 0.7 HP ratio exist (mirrors SKL_ELENA_MOODMAKER_AS1's gate).
-    const healthyAlly = unit("ALLY_1", "ALLY", { column: "RIGHT", row: "FRONT" }, { currentHp: 100 });
+    const healthyAlly = unit(
+      "ALLY_1",
+      "ALLY",
+      { column: "RIGHT", row: "FRONT" },
+      { currentHp: 100 },
+    );
     const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
     const lowHpAllySelector: TargetSelectorDefinition = {
       kind: "SELECT",
@@ -231,14 +262,25 @@ describe("selectAsCandidate", () => {
     });
     const fallback = asSkill("SKL_FALLBACK", 1);
 
-    const result = selectAsCandidate([gated, fallback], actor, [actor, healthyAlly, enemy]);
+    const result = selectAsCandidate(
+      [gated, fallback],
+      actor,
+      [actor, healthyAlly, enemy],
+      undefined,
+      evaluateActivationCondition,
+    );
 
     expect(result).toEqual({ kind: "SKILL", skill: fallback });
   });
 
   it("UT-R-ACT-02-012 (CAP_ACTION_ACTIVATION_CONDITION, Issue #180, TARGET_SET_COUNT): selects an AS whose BINDING TARGET_SET_COUNT activationCondition resolves to >=1 living units", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
-    const woundedAlly = unit("ALLY_1", "ALLY", { column: "RIGHT", row: "FRONT" }, { currentHp: 20 });
+    const woundedAlly = unit(
+      "ALLY_1",
+      "ALLY",
+      { column: "RIGHT", row: "FRONT" },
+      { currentHp: 20 },
+    );
     const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
     const lowHpAllySelector: TargetSelectorDefinition = {
       kind: "SELECT",
@@ -264,7 +306,13 @@ describe("selectAsCandidate", () => {
       },
     });
 
-    const result = selectAsCandidate([gated], actor, [actor, woundedAlly, enemy]);
+    const result = selectAsCandidate(
+      [gated],
+      actor,
+      [actor, woundedAlly, enemy],
+      undefined,
+      evaluateActivationCondition,
+    );
 
     expect(result).toEqual({ kind: "SKILL", skill: gated });
   });

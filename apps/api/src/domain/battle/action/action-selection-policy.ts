@@ -1,6 +1,5 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
-import { evaluateEffectStepCondition } from "../skill/effect-step-condition-evaluator.js";
 import type {
   SkillDefinitionId,
   TargetBindingId,
@@ -9,7 +8,6 @@ import type {
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
-import type { TargetReference } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 export type ActionSelectionResult =
@@ -20,6 +18,37 @@ interface TargetBindingResolution {
   readonly bindings: ReadonlyMap<TargetBindingId, readonly BattleUnit[]>;
   readonly allResolvable: boolean;
 }
+
+/**
+ * R-ACT-02「発動条件を満たす」（CAP_ACTION_ACTIVATION_CONDITION、Issue #180）:
+ * `activationCondition`を、行動選択時にTargetBinding/Area/TargetFilterで
+ * 絞り込んだ最新の生存対象集合（`resolvedBindings`）に対して評価する関数の型。
+ * `domain/battle/action`は`domain/battle/skill`へ依存できない（モジュール境界、
+ * eslint.config.mjs — actionとskillは並列でどちらも他方へ依存できない）ため、
+ * 実際の評価器（`evaluateEffectStepCondition`を再利用する実装）は依存可能な層
+ * （`domain/battle/lifecycle`）が持ち、ここへ注入する。
+ */
+export type ActivationConditionEvaluator = (
+  condition: ConditionDefinition,
+  actor: BattleUnit,
+  resolvedBindings: ReadonlyMap<TargetBindingId, readonly BattleUnit[]>,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+) => boolean;
+
+/**
+ * 評価器が注入されない呼び出し（実装済み層が渡さない旧来の呼び出し、または
+ * テスト）向けの既定動作: `TRUE`だけを受理し、それ以外はCatalog-authoring
+ * errorとして明確な例外を投げる（Issue #180以前の挙動そのまま）。
+ */
+const defaultActivationConditionEvaluator: ActivationConditionEvaluator = (condition) => {
+  if (condition.kind === "TRUE") {
+    return true;
+  }
+  throw new DomainValidationError(
+    "skill.activationCondition",
+    `kind "${condition.kind}" is not supported without an injected ActivationConditionEvaluator (CAP_ACTION_ACTIVATION_CONDITION, domain/battle/lifecycle supplies the real evaluator)`,
+  );
+};
 
 /**
  * R-TGT-01 #4: 各targetBindingが1体以上の候補を持つかどうかで判定する。
@@ -64,51 +93,6 @@ export function hasResolvableTargets(
 }
 
 /**
- * R-ACT-02「発動条件を満たす」（CAP_ACTION_ACTIVATION_CONDITION、Issue #180）:
- * AS/EXの`activationCondition`を、行動選択時にTargetBinding/Area/TargetFilterで
- * 絞り込んだ最新の生存対象集合に対して評価する。`evaluateEffectStepCondition`
- * （ACTION stepの`stepCondition`/BRANCHの`condition`と共通の評価器）をそのまま
- * 再利用し、`TargetReference`は`SELF`（使用者自身）と`BINDING`（この呼び出し
- * より前に解決済みのtargetBindings）だけを解決する — AS/EX選択はPS/Memoryの
- * ようなトリガーイベントや直前結果を持たないため、`TRIGGER_SOURCE`/
- * `TRIGGER_TARGET`/`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`はCatalog-authoring
- * errorとして明確な例外を投げる。
- */
-function evaluateActivationCondition(
-  condition: ConditionDefinition,
-  actor: BattleUnit,
-  resolvedBindings: ReadonlyMap<TargetBindingId, readonly BattleUnit[]>,
-  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
-): boolean {
-  const resolveTargetSet = (reference: TargetReference): readonly BattleUnit[] => {
-    if (reference.kind === "SELF") {
-      return [actor];
-    }
-    if (reference.kind === "BINDING" && reference.targetBindingId !== undefined) {
-      const units = resolvedBindings.get(reference.targetBindingId);
-      if (units === undefined) {
-        throw new DomainValidationError(
-          "skill.activationCondition",
-          `references an unresolved TargetBindingId "${reference.targetBindingId}"`,
-        );
-      }
-      return units;
-    }
-    throw new DomainValidationError(
-      "skill.activationCondition",
-      `TargetReference kind "${reference.kind}" is not supported by AS/EX activationCondition evaluation (no triggering event or prior action exists at action-selection time)`,
-    );
-  };
-  return evaluateEffectStepCondition(
-    condition,
-    undefined,
-    undefined,
-    resolveTargetSet,
-    unitDefinitions,
-  );
-}
-
-/**
  * R-ACT-02「クールタイムが0」: 指定スキルの残数が1以上（COOLING）かどうかを
  * 判定する。未登録（READY/未使用）のスキルは残数0として扱う。M6のPS発動直前
  * 再確認（`06_戦闘状態遷移.md`）でも同じ判定を再利用できるよう、
@@ -130,6 +114,7 @@ function isUsable(
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  evaluateActivationCondition: ActivationConditionEvaluator = defaultActivationConditionEvaluator,
 ): boolean {
   if (isCoolingDown(actor, skill.skillDefinitionId)) {
     return false;
@@ -158,9 +143,10 @@ export function selectAsCandidate(
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  evaluateActivationCondition?: ActivationConditionEvaluator,
 ): ActionSelectionResult {
   for (const skill of activeSkills) {
-    if (isUsable(skill, actor, allUnits, unitDefinitions)) {
+    if (isUsable(skill, actor, allUnits, unitDefinitions, evaluateActivationCondition)) {
       return { kind: "SKILL", skill };
     }
   }
@@ -178,6 +164,7 @@ export function isExUsable(
   actor: BattleUnit,
   allUnits: readonly BattleUnit[],
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  evaluateActivationCondition: ActivationConditionEvaluator = defaultActivationConditionEvaluator,
 ): boolean {
   const resolution = resolveAllTargetBindings(exSkill, actor, allUnits, unitDefinitions);
   if (!resolution.allResolvable) {

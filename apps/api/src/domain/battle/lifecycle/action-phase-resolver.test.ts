@@ -1398,9 +1398,7 @@ describe("resolveActionPhase", () => {
       .getEvents()
       .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
     expect(waited?.payload).toMatchObject({ waitReason: "STUNNED" });
-    expect(
-      ctx.recorder.getEvents().some((e) => e.eventType === "SkillUseStarting"),
-    ).toBe(false);
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "SkillUseStarting")).toBe(false);
   });
 
   it("UT-R-ACT-01-002 (R-STS-02): a stunned unit with AP 0 and a full EX gauge WAITs consuming the EX gauge fully, not AP", () => {
@@ -1471,9 +1469,7 @@ describe("resolveActionPhase", () => {
       .getEvents()
       .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
     expect(waited?.payload).toMatchObject({ waitReason: "FROZEN" });
-    expect(
-      ctx.recorder.getEvents().some((e) => e.eventType === "ChargeHeldByFreeze"),
-    ).toBe(false);
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "ChargeHeldByFreeze")).toBe(false);
   });
 
   it("UT-R-ACT-01-004 (R-ACT-01 #2, R-SKL-05 '凍結中はチャージを維持し'): a frozen unit with a pending charge WAITs (recording ChargeHeldByFreeze) instead of releasing it while frozen remains active, then releases it once freeze naturally expires", () => {
