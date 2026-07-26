@@ -674,7 +674,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 対応するCapability要求は`UT-CAT-IDX-078`/`079`で検証した。トリガーイベントを
   // 持たないAS/EX active skillでの誤用（PRレビュー[P2]指摘: preflightを通過し
   // 実行時に初めて例外になっていた）は`EVENT_PAYLOAD_REQUIRES_PS_SKILL`として
-  // Catalog構築時に拒否し、`UT-CAT-IDX-080`で検証した。`UNIT_TARISA_
+  // Catalog構築時に拒否し、`UT-CAT-IDX-080`で検証した。PRレビュー[P2]再指摘:
+  // `UT-R-SKL-06-055`は`evaluateEffectStepCondition`へ`triggerEventPayload`を
+  // 直接渡しており、`buildEffectStepPerTargetFilter`の実配線を検証できて
+  // いなかったため、`PassiveActivationRuntime.onFactEvent`から実`DamageApplied`
+  // イベントで駆動し、payloadの変化だけで`targetCondition`の対象集合が変わる
+  // ことを`IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001`/`002`で検証した。`UNIT_TARISA_
   // TROUBLEMAKER`の`SKL_TARISA_TROUBLEMAKER_PS1`（「与えたダメージが10以下だった
   // 場合、『負けん気』を3つ解除する」）を実production Catalogに対し
   // `IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001`〜`003`で近似なしへ変換した。
@@ -736,6 +741,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-IDX-078",
       "UT-CAT-IDX-079",
       "UT-CAT-IDX-080",
+      "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001",
+      "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-002",
       "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001",
       "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-002",
       "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-003",

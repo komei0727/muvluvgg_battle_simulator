@@ -661,7 +661,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001D",
-    "description": "resolution.steps（ACTION.stepCondition・ACTION.targetCondition・BRANCH.condition）からEVENT_PAYLOADを評価し、PS発動を引き起こしたトリガーイベント自身のpayloadを参照できるようにする（R-SKL-06、Issue #247）。triggers[].conditionが参照するEVENT_PAYLOAD（trigger-condition-evaluator.ts）とは独立に、発動後のresolution.steps側の一部stepだけを条件付けられる。PassiveActivationRuntime（passive-activation-service.ts）が候補検出に使ったイベントのpayloadをTriggerContext.triggerEventPayload経由でEffectActionGroupContextへ伝搬し、effect-action-group-resolver.tsの3呼び出し箇所（resolveBranchStep・resolveRawStepの2経路）とbuildEffectStepPerTargetFilter（targetCondition、skill-resolution-service.ts）からeffect-step-condition-evaluator.tsのEVENT_PAYLOAD caseへ渡す。EVENT_PAYLOADを含むstepConditionはLAST_RESULT/TARGET_SET_COUNTと同じ理由でplanning時点では確定せずDeferredStepPlanへ回す（skill-resolution-service.tsのisEagerActionStep）。targetConditionはTARGET_STATE/TARGET_HAS_MARKERとのAND併用を想定しEVENT_PAYLOADを受理する（TARGET_CONDITION_KINDS、PRレビュー[P2]でstepConditionのみから拡張）。skillTypeがAS/EX（トリガーイベントを持たない）の場合はtriggerEventPayloadが常にundefinedになり実行時に例外となるため、Catalog構築時点でEVENT_PAYLOAD_REQUIRES_PS_SKILL違反として拒否する（PRレビュー[P2]、UT-CAT-IDX-080）。UNIT_TARISA_TROUBLEMAKERのSKL_TARISA_TROUBLEMAKER_PS1（「与えたダメージが10以下だった場合、『負けん気』を3つ解除する」）を近似なしへ変換した。",
+    "description": "resolution.steps（ACTION.stepCondition・ACTION.targetCondition・BRANCH.condition）からEVENT_PAYLOADを評価し、PS発動を引き起こしたトリガーイベント自身のpayloadを参照できるようにする（R-SKL-06、Issue #247）。triggers[].conditionが参照するEVENT_PAYLOAD（trigger-condition-evaluator.ts）とは独立に、発動後のresolution.steps側の一部stepだけを条件付けられる。PassiveActivationRuntime（passive-activation-service.ts）が候補検出に使ったイベントのpayloadをTriggerContext.triggerEventPayload経由でEffectActionGroupContextへ伝搬し、effect-action-group-resolver.tsの3呼び出し箇所（resolveBranchStep・resolveRawStepの2経路）とbuildEffectStepPerTargetFilter（targetCondition、skill-resolution-service.ts）からeffect-step-condition-evaluator.tsのEVENT_PAYLOAD caseへ渡す。EVENT_PAYLOADを含むstepConditionはLAST_RESULT/TARGET_SET_COUNTと同じ理由でplanning時点では確定せずDeferredStepPlanへ回す（skill-resolution-service.tsのisEagerActionStep）。targetConditionはTARGET_STATE/TARGET_HAS_MARKERとのAND併用を想定しEVENT_PAYLOADを受理する（TARGET_CONDITION_KINDS、PRレビュー[P2]でstepConditionのみから拡張）。skillTypeがAS/EX（トリガーイベントを持たない）の場合はtriggerEventPayloadが常にundefinedになり実行時に例外となるため、Catalog構築時点でEVENT_PAYLOAD_REQUIRES_PS_SKILL違反として拒否する（PRレビュー[P2]、UT-CAT-IDX-080）。buildEffectStepPerTargetFilterの実配線は、evaluateEffectStepConditionへ直接値を渡すだけでは検出できない退行があったため（PRレビュー[P2]再指摘）、PassiveActivationRuntime.onFactEventを実DamageAppliedイベントで駆動し、payloadの変化だけでtargetConditionの対象集合が変わることをIT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001/002で検証した。UNIT_TARISA_TROUBLEMAKERのSKL_TARISA_TROUBLEMAKER_PS1（「与えたダメージが10以下だった場合、『負けん気』を3つ解除する」）を近似なしへ変換した。",
     "verification": {
       "productionDefinitionIds": ["SKL_TARISA_TROUBLEMAKER_PS1"],
       "testCaseIds": [
@@ -672,6 +672,8 @@
         "UT-CAT-IDX-078",
         "UT-CAT-IDX-079",
         "UT-CAT-IDX-080",
+        "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001",
+        "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-002",
         "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001",
         "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-002",
         "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-003"
