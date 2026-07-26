@@ -9,7 +9,13 @@ import {
 } from "../action/action-queue.js";
 import { isExUsable, selectAsCandidate } from "../action/action-selection-policy.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import {
+  activeStatusEffect,
+  isDefeated,
+  isFrozen,
+  isStunned,
+  type BattleUnit,
+} from "../model/battle-unit.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
@@ -35,13 +41,29 @@ function splitBySide(units: readonly BattleUnit[]): {
 }
 
 /**
- * `06_戦闘状態遷移.md` のDECIDING〜COMPLETINGの基本形。R-ACT-01の優先順のうち
- * 気絶・凍結(M7)を除いた「発動待ちのチャージ効果があれば予約より優先して発動する
- * ／EX予約ならEXスキルを使用する／AS予約なら使用可能なASを選ぶ／なければ待機
- * する」を実装する。R-ACT-03の一部（AS/EXのコスト消費、通常の待機によるAP1消費、
+ * R-ACT-01/R-ACT-03: 気絶・凍結によるWAITの消費リソースは、通常のWAIT
+ * （AP1消費、Q-BTL-06と同じ選択規則）と同じ「APがあれば消費し、無ければ
+ * EXゲージ全量を消費する」二択に従う（R-STS-02「APがあれば待機でAPを1消費
+ * する。AP 0・EX満タンならEXゲージを全量消費して待機する」）。R-ORD-01が
+ * 保証する行動可能条件（AP1以上／EXゲージ満タン／チャージ発動待ち）のうち
+ * 前二者のどちらかを満たす前提で、AP優先の二択だけを判定すればよい。
+ */
+function chooseWaitResource(actor: BattleUnit): "AP" | "EX_GAUGE" {
+  return actor.currentAp >= 1 ? "AP" : "EX_GAUGE";
+}
+
+/**
+ * `06_戦闘状態遷移.md` のDECIDING〜COMPLETINGの基本形。R-ACT-01の優先順「気絶中：
+ * 待機（チャージは付与時に既にキャンセル済み、`stun-grant-service.ts`）／凍結中：
+ * 待機・チャージを維持（発動待ちのチャージがあれば`ChargeHeldByFreeze`を記録）／
+ * 発動待ちのチャージ効果があれば予約より優先して発動する／EX予約ならEXスキルを
+ * 使用する／AS予約なら使用可能なASを選ぶ／なければ待機する」を実装する。
+ * R-ACT-02「気絶、凍結などによって使用を禁止されていない」はこの優先順自体が
+ * 気絶・凍結中は`selectAsCandidate`/`isExUsable`へ到達させないことで構造的に
+ * 満たす。R-ACT-03の一部（AS/EXのコスト消費、通常の待機によるAP1消費、
  * `Q-BTL-06`のEXゲージ全量消費による待機、チャージ開始・発動の無消費）だけを
- * 実装する。EXゲージ増加(R-ACT-04)、気絶・凍結(M7)、PS/Memory連鎖(M6)はこの関数の
- * 対象外。`ActionStarted`が自身の解決スコープを開き（`08_ドメインイベント.md`
+ * 実装する。EXゲージ増加(R-ACT-04)、PS/Memory連鎖(M6)はこの関数の対象外。
+ * `ActionStarted`が自身の解決スコープを開き（`08_ドメインイベント.md`
  * 「resolutionScopeId」はActionIdと対応する）、`ActionCompleted`までの全イベント
  * がそのrootEventIdを共有する。
  */
@@ -59,8 +81,69 @@ function resolveOneAction(
   const actionId = recorder.nextActionId();
   const actionScope = recorder.nextResolutionScopeId();
 
-  // R-ACT-01 #3（気絶・凍結による阻害はM7）: 発動待ちのチャージ効果は予約
-  // されたAS/EXより優先して発動する。
+  // R-ACT-01 #1: 気絶中は待機する。チャージのキャンセルはSTUN付与時点
+  // （`effect-action-group-resolver.ts`のAPPLY_STATUS/STUN分岐）で既に完了して
+  // いるため、ここへ到達した時点で`actor.charge`は常にundefinedのはず。
+  if (isStunned(actor)) {
+    return resolveWait(
+      actor,
+      reservedActionType,
+      "STUNNED",
+      chooseWaitResource(actor),
+      units,
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      actionScope,
+    );
+  }
+
+  // R-ACT-01 #2/R-SKL-05: 凍結中は待機し、発動待ちのチャージがあれば維持
+  // する（キャンセルしない、解除後の次の行動機会に発動）。
+  if (isFrozen(actor)) {
+    const waitResult = resolveWait(
+      actor,
+      reservedActionType,
+      "FROZEN",
+      chooseWaitResource(actor),
+      units,
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      actionScope,
+    );
+    if (actor.charge === undefined) {
+      return waitResult;
+    }
+    const freezeEffect = activeStatusEffect(actor, "FREEZE")!;
+    const held = recorder.record({
+      eventType: "ChargeHeldByFreeze",
+      category: "FACT",
+      turnNumber,
+      cycleNumber,
+      actionId,
+      resolutionScopeId: waitResult.actionScope,
+      parentEventId: waitResult.completedEventId,
+      rootEventId: waitResult.rootEventId,
+      sourceUnitId: actor.battleUnitId,
+      targetUnitIds: [actor.battleUnitId],
+      payload: {
+        actorUnitId: actor.battleUnitId,
+        skillDefinitionId: actor.charge.skill.skillDefinitionId,
+        startedActionId: actor.charge.startedActionId,
+        freezeEffectInstanceId: freezeEffect.effectInstanceId,
+      },
+    });
+    return { ...waitResult, completedEventId: held.eventId };
+  }
+
+  // R-ACT-01 #3: 発動待ちのチャージ効果は予約されたAS/EXより優先して発動する。
   if (actor.charge !== undefined) {
     return resolveChargeRelease(
       actor,

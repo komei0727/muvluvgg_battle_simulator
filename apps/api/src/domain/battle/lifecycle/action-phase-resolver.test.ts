@@ -9,9 +9,12 @@ import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 import { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import { reduceStateDeltas } from "./state-delta-reducer.js";
 import { createActionPoint, createExtraGauge, createHitPoint } from "../model/resource-gauge.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -77,6 +80,41 @@ function unit(
       overrides.currentHp ?? member.combatStats.maximumHp,
       member.combatStats.maximumHp,
     ),
+  };
+}
+
+/**
+ * R-STS-01/02/03: a minimal STUN/FREEZE `AppliedEffect` fixture for
+ * resolver-level tests. `holderId` must be the owning unit's own
+ * `battleUnitId` (`timeLimit.owner` defaults to `EFFECT_TARGET`, resolved via
+ * `targetId` — R-EFF-04's own-action-end decrement only fires when this
+ * matches the acting unit).
+ */
+function statusEffect(
+  statusKind: "STUN" | "FREEZE",
+  instanceId: string,
+  remaining: number,
+  holderId: BattleUnit["battleUnitId"],
+): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId(`ACT_${statusKind}`);
+  return {
+    effectInstanceId: createEffectInstanceId(instanceId),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: holderId,
+    targetId: holderId,
+    magnitude: 0,
+    statusKind,
+    duration: {
+      definition: {
+        timeLimit: { unit: "ACTION", count: remaining },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      timeLimitRemaining: remaining,
+    },
+    appliedTurnNumber: 1,
   };
 }
 
@@ -1326,6 +1364,260 @@ describe("resolveActionPhase", () => {
     expect(closingCompleting.stateVersionBefore).toBeGreaterThanOrEqual(
       damageApplied.stateVersionAfter,
     );
+  });
+
+  it("UT-R-ACT-01-001 (R-ACT-01 #1, R-STS-02): a stunned unit WAITs instead of using an otherwise-usable AS", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_STUNNED");
+    const skill = attackSkill("ACT_STUNNED_HIT");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { unitDefinitionId: "UNIT_STUNNED" }),
+      appliedEffects: [statusEffect("STUN", "stun-1", 1, createBattleUnitId("ALLY_1"))],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const effectAction = damageEffectAction("ACT_STUNNED_HIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.enemyUnits[0]!.currentHp).toBe(enemy.currentHp);
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited?.payload).toMatchObject({ waitReason: "STUNNED" });
+    expect(
+      ctx.recorder.getEvents().some((e) => e.eventType === "SkillUseStarting"),
+    ).toBe(false);
+  });
+
+  it("UT-R-ACT-01-002 (R-STS-02): a stunned unit with AP 0 and a full EX gauge WAITs consuming the EX gauge fully, not AP", () => {
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 10,
+      }),
+      appliedEffects: [statusEffect("STUN", "stun-1", 1, createBattleUnitId("ALLY_1"))],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      NO_SKILLS,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(0);
+    expect(result.allyUnits[0]!.currentAp).toBe(0);
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited?.payload).toMatchObject({
+      waitReason: "STUNNED",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 10,
+    });
+  });
+
+  it("UT-R-ACT-01-003 (R-ACT-01 #2, R-STS-03 consequence): a frozen unit with no pending charge WAITs instead of using an otherwise-usable AS", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_FROZEN");
+    const skill = attackSkill("ACT_FROZEN_HIT");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { unitDefinitionId: "UNIT_FROZEN" }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY");
+    const effectAction = damageEffectAction("ACT_FROZEN_HIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [skill]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.enemyUnits[0]!.currentHp).toBe(enemy.currentHp);
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited?.payload).toMatchObject({ waitReason: "FROZEN" });
+    expect(
+      ctx.recorder.getEvents().some((e) => e.eventType === "ChargeHeldByFreeze"),
+    ).toBe(false);
+  });
+
+  it("UT-R-ACT-01-004 (R-ACT-01 #2, R-SKL-05 '凍結中はチャージを維持し'): a frozen unit with a pending charge WAITs (recording ChargeHeldByFreeze) instead of releasing it while frozen remains active, then releases it once freeze naturally expires", () => {
+    const chargedSkill = chargeSkill("ACT_RELEASE_HIT");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 } }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_RELEASE_HIT");
+    const definitions = definitionsOf(
+      new Map(),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // FREEZE's ACTION-unit remaining count is 1: it expires after this one
+    // frozen WAIT, so the charge is released naturally on the next cycle
+    // (R-SKL-05 「解除後の次の行動機会に発動する」) — the final state has no
+    // charge left, but it must not have been released *while still frozen*.
+    expect(result.allyUnits[0]!.charge).toBeUndefined();
+    const events = ctx.recorder.getEvents();
+    const held = events.find((e) => e.eventType === "ChargeHeldByFreeze") as Extract<
+      BattleDomainEvent,
+      { eventType: "ChargeHeldByFreeze" }
+    >;
+    expect(held).toBeDefined();
+    expect(held.payload).toMatchObject({
+      actorUnitId: ally.battleUnitId,
+      skillDefinitionId: chargedSkill.skillDefinitionId,
+      startedActionId,
+      freezeEffectInstanceId: ally.appliedEffects[0]!.effectInstanceId,
+    });
+    const released = events.find((e) => e.eventType === "ChargeReleased")!;
+    expect(released.sequence).toBeGreaterThan(held.sequence);
+    const waited = events.find(
+      (e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId,
+    )!;
+    expect(waited.payload).toMatchObject({ waitReason: "FROZEN" });
+    expect(waited.sequence).toBeLessThan(released.sequence);
+  });
+
+  it("UT-R-ORD-01-001 (R-ORD-01 '凍結などで阻害されていないチャージ効果が発動待ち'): a frozen unit with AP 0 is still queued via its pending charge alone (not skipped), consuming its full EX gauge to WAIT while frozen", () => {
+    const chargedSkill = chargeSkill("ACT_HELD_HIT");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 0,
+        currentExtraGauge: 10,
+      }),
+      appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_HELD_HIT");
+    const definitions = definitionsOf(
+      new Map(),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // Eligible for the first cycle via the pending charge alone (R-ORD-01):
+    // AP is 0 and EX is not full, so nothing but `charge !== undefined` puts
+    // it in that cycle's queue.
+    const firstQueue = ctx.recorder.getEvents().find((e) => e.eventType === "ActionQueueCreated");
+    expect(firstQueue?.payload).toMatchObject({
+      reservations: [expect.objectContaining({ battleUnitId: ally.battleUnitId })],
+    });
+    const waited = ctx.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId);
+    expect(waited?.payload).toMatchObject({
+      waitReason: "FROZEN",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 10,
+    });
+  });
+
+  it("UT-R-ACT-01-005 (R-ACT-01 branch order): a stunned unit that (defensively) still carries a pending charge takes the STUN branch first — WAITs without releasing the charge while stunned remains active", () => {
+    const chargedSkill = chargeSkill("ACT_RELEASE_HIT_2");
+    const startedActionId = createActionId("B_TEST:action:1");
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 } }),
+      appliedEffects: [statusEffect("STUN", "stun-1", 1, createBattleUnitId("ALLY_1"))],
+      charge: { skill: chargedSkill, startedActionId },
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { maximumHp: 1000 });
+    const effectAction = damageEffectAction("ACT_RELEASE_HIT_2");
+    const definitions = definitionsOf(
+      new Map(),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+    const random = new SequenceRandomSource([]);
+    const ctx = actionPhaseContext();
+
+    resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const waited = events.find(
+      (e) => e.eventType === "ActionWaited" && e.sourceUnitId === ally.battleUnitId,
+    )!;
+    expect(waited.payload).toMatchObject({ waitReason: "STUNNED" });
+    // STUN's 1-remaining ACTION-unit duration expires after this WAIT, so the
+    // charge (untouched while stunned) releases on the following cycle —
+    // it must not have released while the STUN branch was still active.
+    const released = events.find((e) => e.eventType === "ChargeReleased")!;
+    expect(released).toBeDefined();
+    expect(waited.sequence).toBeLessThan(released.sequence);
   });
 
   it("UT-ACTION-PHASE-013 (R-SKL-05): charge start sets the original skill's cooldown, scoped to the charge-start action; the release action (a later action for this actor) then decrements it like any other own-action-end", () => {
