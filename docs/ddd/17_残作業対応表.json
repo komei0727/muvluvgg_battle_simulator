@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 65
+      "incompleteConversionRows": 64
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 39,
-      "implemented": 17
+      "implemented": 18
     }
   },
   "tasks": [
@@ -138,7 +138,7 @@
       "rowCount": 5,
       "taskId": "M7-001E"
     },
-    { "milestone": "M7", "theme": "HP_DIRECT_COST", "rowCount": 4, "taskId": "M7-002" },
+    { "milestone": "M7", "theme": "HP_DIRECT_COST", "rowCount": 5, "taskId": "M7-002" },
     { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
     { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "M7-010" },
     {
@@ -161,12 +161,6 @@
       "theme": "ON_ATTACK_BONUS_DAMAGE_BUFF",
       "rowCount": 1,
       "taskId": "M7-004"
-    },
-    {
-      "milestone": "M7",
-      "theme": "SET_THRESHOLD_ACTIVATION_CONDITION",
-      "rowCount": 2,
-      "taskId": "M7-003"
     },
     { "milestone": "M7", "theme": "STACK_LIMIT_ON_STAT_MOD", "rowCount": 1, "taskId": "EFF-002" },
     {
