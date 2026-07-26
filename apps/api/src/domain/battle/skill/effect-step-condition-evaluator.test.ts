@@ -691,5 +691,51 @@ describe("evaluateEffectStepCondition", () => {
         }),
       ).toBe(true);
     });
+
+    it("UT-R-SKL-06-055 (PRレビュー[P2], Issue #249): evaluates inside a per-target EffectStepTargetContext too (targetCondition scope) — the same triggerEventPayload applies uniformly to every candidate, combined with a per-target TARGET_STATE via AND", () => {
+      const enemyAlive = unit("ENEMY_A", "UNIT_A");
+      const enemyDead = unit("ENEMY_B", "UNIT_B", { currentHp: 0 });
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "TARGET_STATE", target: STEP_TARGET, field: "IS_ALIVE", op: "EQ", value: true },
+          { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "LTE", value: 10 },
+        ],
+      };
+      const ctxFor = (current: BattleUnit): EffectStepTargetContext => ({
+        stepTarget: STEP_TARGET,
+        current,
+        resolveOtherReference: () => [],
+        unitDefinitions: new Map(),
+      });
+
+      expect(
+        evaluateEffectStepCondition(
+          condition,
+          undefined,
+          ctxFor(enemyAlive),
+          undefined,
+          undefined,
+          { calculatedDamage: 5 },
+        ),
+      ).toBe(true);
+      // Same alive target, but the triggering event's damage exceeds the threshold.
+      expect(
+        evaluateEffectStepCondition(
+          condition,
+          undefined,
+          ctxFor(enemyAlive),
+          undefined,
+          undefined,
+          { calculatedDamage: 11 },
+        ),
+      ).toBe(false);
+      // Damage within threshold, but this particular target is already dead.
+      expect(
+        evaluateEffectStepCondition(condition, undefined, ctxFor(enemyDead), undefined, undefined, {
+          calculatedDamage: 5,
+        }),
+      ).toBe(false);
+    });
   });
 });

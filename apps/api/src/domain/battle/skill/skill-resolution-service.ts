@@ -380,6 +380,8 @@ export function buildEffectStepPerTargetFilter(
         unitDefinitions,
       },
       resolveTargetSet,
+      unitDefinitions,
+      triggerContext?.triggerEventPayload,
     );
 }
 

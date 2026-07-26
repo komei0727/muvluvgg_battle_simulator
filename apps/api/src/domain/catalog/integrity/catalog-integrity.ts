@@ -55,6 +55,7 @@ export const VIOLATION_RULES = [
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
+  "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -402,13 +403,16 @@ function conditionContainsEventPayload(condition: ConditionDefinition): boolean 
 
 /**
  * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: `stepsContainSetCondition`
- * と同じ形。ACTIONの`EVENT_PAYLOAD`は`stepCondition`にしか置けない（`targetCondition`は
- * `TRUE`/`AND`/`OR`/`NOT`/`TARGET_STATE`/`TARGET_HAS_MARKER`のみへスキーマ上制限される、
- * `condition-definition.ts`の`TARGET_CONDITION_KINDS`）。
+ * と同じ形。ACTIONの`EVENT_PAYLOAD`は`stepCondition`・`targetCondition`のどちらにも
+ * 置ける（`condition-definition.ts`の`TARGET_CONDITION_KINDS`が許可する）ため、両方を見る。
  */
 function stepsContainEventPayloadCondition(steps: readonly EffectStepDefinition[]): boolean {
   for (const step of steps) {
-    if (step.kind === "ACTION" && conditionContainsEventPayload(step.stepCondition)) {
+    if (
+      step.kind === "ACTION" &&
+      (conditionContainsEventPayload(step.stepCondition) ||
+        conditionContainsEventPayload(step.targetCondition))
+    ) {
       return true;
     }
     if (step.kind === "BRANCH" && conditionContainsEventPayload(step.condition)) {
@@ -985,6 +989,26 @@ function validateRuntimeCapabilityDeclarations(
       rule: "MISSING_REQUIRED_CAPABILITY",
       message:
         'runtime-owned trigger event or TRIGGER_SOURCE/TRIGGER_TARGET reference must declare "CAP_TRIGGER_CONTEXT" in requiredCapabilities',
+    });
+  }
+  if (
+    (skillType === "AS" || skillType === "EX") &&
+    sequences.some((sequence) =>
+      sequenceRequiresCapability(sequence, "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"),
+    )
+  ) {
+    // CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D、PRレビュー[P2]）:
+    // `EVENT_PAYLOAD`はPS発動を引き起こしたトリガーイベントのpayloadだけを
+    // 参照できる（`PassiveActivationRuntime`が`EffectActionGroupContext.
+    // triggerEventPayload`へ供給する）。AS/EX active skillの解決
+    // （`action-skill-use-resolver.ts`の`resolveSkillUse`）はこのフィールドを
+    // 一切populateしないため、schemaは受理してしまってもCatalogロード時点で
+    // 明確に拒否する — 実行時まで待つと`evaluateEffectStepCondition`が
+    // `DomainValidationError`を投げ、行動選択後に解決が途中で失敗してしまう。
+    violations.push({
+      targetId,
+      rule: "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
+      message: `EVENT_PAYLOAD condition requires a PS Skill (the triggering event's payload only exists during a passive activation) — "${targetId}" is skillType "${skillType}"`,
     });
   }
   for (const [capabilityId, reason] of [

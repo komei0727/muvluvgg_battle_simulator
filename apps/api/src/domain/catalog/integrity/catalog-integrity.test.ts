@@ -223,11 +223,12 @@ function setConditionActionSkill(
 function eventPayloadActionSkill(
   id: string,
   requiredCapabilities: readonly string[],
+  skillType: "AS" | "EX" = "AS",
 ): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
+    skillType,
+    cost: skillType === "AS" ? { resource: "AP", amount: 1 } : { resource: "EX_GAUGE", amount: 7 },
     resolution: {
       kind: "IMMEDIATE",
       steps: [
@@ -239,10 +240,45 @@ function eventPayloadActionSkill(
         },
       ],
     },
-    cooldown: { unit: "ACTION", count: 1 },
+    cooldown: { unit: "ACTION", count: skillType === "AS" ? 1 : 0 },
     traits: {},
     requiredCapabilities,
-    metadata: { displayName: "Event-payload-condition AS" },
+    metadata: { displayName: `Event-payload-condition ${skillType}` },
+  });
+}
+
+/** CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: `stepCondition`にEVENT_PAYLOADを含むPSスキル（唯一の合法なskillType）。 */
+function eventPayloadPassiveSkill(
+  id: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [
+      {
+        eventType: "DamageApplied",
+        category: "FACT",
+        sourceSelector: "SELF",
+        targetSelector: "ENEMY",
+      },
+    ],
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "LTE", value: 10 },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Event-payload-condition PS" },
   });
 }
 
@@ -2431,13 +2467,15 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/must declare "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"/);
   });
 
-  it("UT-CAT-IDX-079 (Issue #247 M7-001D): accepts EffectStep EVENT_PAYLOAD stepCondition once both CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are declared", () => {
+  it("UT-CAT-IDX-079 (Issue #247 M7-001D): accepts EffectStep EVENT_PAYLOAD stepCondition on a PS skill once both CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are declared", () => {
     const defs = baseDefinitions();
     expect(() =>
       buildCatalogIndex({
         ...defs,
+        units: [unit("UNIT_001", { active: ["SKL_AS1"], passive: ["SKL_PS1"] })],
         skills: [
-          eventPayloadActionSkill("SKL_AS1", [
+          asSkill("SKL_AS1", "ACT_DAMAGE_1"),
+          eventPayloadPassiveSkill("SKL_PS1", [
             "CAP_EFFECT_STEP_CONDITION",
             "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION",
           ]),
@@ -2450,6 +2488,30 @@ describe("buildCatalogIndex", () => {
       }),
     ).not.toThrow();
   });
+
+  it.each([{ skillType: "AS" as const }, { skillType: "EX" as const }])(
+    "UT-CAT-IDX-080 (Issue #247 M7-001D, PRレビュー[P2]): rejects EffectStep EVENT_PAYLOAD stepCondition on a $skillType skill even when CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are both declared — the triggering event's payload only exists during a PS activation",
+    ({ skillType }) => {
+      const defs = baseDefinitions();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            eventPayloadActionSkill(
+              "SKL_ACTIVE1",
+              ["CAP_EFFECT_STEP_CONDITION", "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"],
+              skillType,
+            ),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: [
+            capability("CAP_EFFECT_STEP_CONDITION"),
+            capability("CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"),
+          ],
+        }),
+      ).toThrowError(/EVENT_PAYLOAD condition requires a PS Skill/);
+    },
+  );
 
   it("UT-CAT-IDX-063（Issue #230 RES-004-CONDITION-SCOPE）: accepts an ACTION step combining a non-TRUE stepCondition (TARGET_SET_COUNT) with a non-TRUE targetCondition (own-target TARGET_STATE) once both CAP_EFFECT_STEP_CONDITION and CAP_EFFECT_STEP_SET_CONDITION are declared — the exact combination MIXED_STEP_TARGET_SET_CONDITION used to reject outright before the schema split", () => {
     const defs = baseDefinitions();

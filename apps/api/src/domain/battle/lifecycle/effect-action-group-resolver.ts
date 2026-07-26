@@ -1754,6 +1754,9 @@ function* resolveRawStep(
             ...(context.triggerTargetUnitIds !== undefined
               ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
               : {}),
+            ...(context.triggerEventPayload !== undefined
+              ? { triggerEventPayload: context.triggerEventPayload }
+              : {}),
           };
           const lastResultTargets = lastResultTargetsContext(lastResultState, box.units);
           const resolveTargetSet = buildTargetSetResolver(

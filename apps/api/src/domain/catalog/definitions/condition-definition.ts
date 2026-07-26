@@ -101,6 +101,11 @@ export const STEP_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set(
  * `SKIPPED` LastResultになる、R-SKL-08）に許可するkind。`TARGET_SET_COUNT`
  * （集合全体で1回だけ評価する）や`LAST_RESULT`等のstep全体スコープの
  * kindは、意味的に「対象ごと」に評価できないため`stepCondition`専用とする。
+ * `EVENT_PAYLOAD`（CAP_TRIGGER_PAYLOAD_IN_RESOLUTION、Issue #247 M7-001D）は
+ * 値自体は対象によらず一定（トリガーイベントのpayload）だが、
+ * `TARGET_STATE`/`TARGET_HAS_MARKER`とANDで組み合わせて「対象がXである、
+ * かつトリガーイベントのpayloadがYである」という対象ごとのfilterを
+ * 表現できるようにするため、ここでも許可する。
  */
 export const TARGET_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set([
   "TRUE",
@@ -109,6 +114,7 @@ export const TARGET_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set([
   "NOT",
   "TARGET_STATE",
   "TARGET_HAS_MARKER",
+  "EVENT_PAYLOAD",
 ]);
 
 /**

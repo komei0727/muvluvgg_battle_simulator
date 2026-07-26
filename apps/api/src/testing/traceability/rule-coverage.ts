@@ -664,12 +664,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `selectorGuaranteesAtMostOneUnit`（fallback連鎖を再帰的に検査）で修正し、
   // `UT-CAT-IDX-069`/`070`で検証した。
   // CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（M7-001D、Issue #247）: `stepCondition`/
-  // `BRANCH.condition`からEVENT_PAYLOADを評価できるようにし、PS発動を引き起こした
-  // トリガーイベント自身のpayloadを参照して、発動後の一部stepだけを条件付けられる
-  // ようにした（`evaluateEffectStepCondition`のEVENT_PAYLOAD case、`UT-R-SKL-06-052`
-  // 〜`054`）。EVENT_PAYLOADを含むstepConditionはLAST_RESULT/TARGET_SET_COUNTと同じ
+  // `targetCondition`/`BRANCH.condition`（Issueが明示する3スコープ全て、PRレビュー
+  // [P2]でtargetConditionを追加）からEVENT_PAYLOADを評価できるようにし、PS発動を
+  // 引き起こしたトリガーイベント自身のpayloadを参照して、発動後の一部stepだけを
+  // 条件付けられるようにした（`evaluateEffectStepCondition`のEVENT_PAYLOAD case、
+  // `UT-R-SKL-06-052`〜`055`。`055`はtargetCondition scope、TARGET_STATEとのAND
+  // 併用）。EVENT_PAYLOADを含むstepConditionはLAST_RESULT/TARGET_SET_COUNTと同じ
   // 理由でplanning時点では確定せずDeferredStepPlanへ回す（`isEagerActionStep`）。
-  // 対応するCapability要求は`UT-CAT-IDX-078`/`079`で検証した。`UNIT_TARISA_
+  // 対応するCapability要求は`UT-CAT-IDX-078`/`079`で検証した。トリガーイベントを
+  // 持たないAS/EX active skillでの誤用（PRレビュー[P2]指摘: preflightを通過し
+  // 実行時に初めて例外になっていた）は`EVENT_PAYLOAD_REQUIRES_PS_SKILL`として
+  // Catalog構築時に拒否し、`UT-CAT-IDX-080`で検証した。`UNIT_TARISA_
   // TROUBLEMAKER`の`SKL_TARISA_TROUBLEMAKER_PS1`（「与えたダメージが10以下だった
   // 場合、『負けん気』を3つ解除する」）を実production Catalogに対し
   // `IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001`〜`003`で近似なしへ変換した。
@@ -727,8 +732,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-052",
       "UT-R-SKL-06-053",
       "UT-R-SKL-06-054",
+      "UT-R-SKL-06-055",
       "UT-CAT-IDX-078",
       "UT-CAT-IDX-079",
+      "UT-CAT-IDX-080",
       "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001",
       "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-002",
       "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-003",
