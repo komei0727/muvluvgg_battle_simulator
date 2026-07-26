@@ -8366,6 +8366,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT", "count": 3 },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.696 } },

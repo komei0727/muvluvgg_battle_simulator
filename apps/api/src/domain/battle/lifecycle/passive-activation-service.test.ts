@@ -132,6 +132,7 @@ function passiveSkillOf(
     ppCost?: number;
     cooldown?: SkillDefinition["cooldown"];
     resolution?: SkillDefinition["resolution"];
+    triggers?: SkillDefinition["triggers"];
   } = {},
 ): SkillDefinition {
   return {
@@ -139,7 +140,7 @@ function passiveSkillOf(
     skillType: "PS",
     cost: { resource: "PP", amount: overrides.ppCost ?? 2 },
     activationCondition: { kind: "TRUE" },
-    triggers: [
+    triggers: overrides.triggers ?? [
       {
         eventType: "TurnStarted",
         category: "FACT",
@@ -4440,5 +4441,139 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       // its child duration events'), not the reverse.
       expect(events.indexOf(completionActivated!)).toBeLessThan(events.indexOf(expiryActivated!));
     });
+  });
+});
+
+describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, Issue #247 M7-001D, PRレビュー[P2] re-review)", () => {
+  /**
+   * PRレビュー[P2]再指摘: UT-R-SKL-06-055は`evaluateEffectStepCondition`へ
+   * `triggerEventPayload`を直接渡しており、`buildEffectStepPerTargetFilter`
+   * （`skill-resolution-service.ts`）→`evaluateEffectStepCondition`の実配線を
+   * 経由していないため、この配線を削除しても成功してしまう。この
+   * テストは実際に`PassiveActivationRuntime.onFactEvent`から入り、実
+   * `DamageApplied`イベントのpayloadを変えるだけで、`targetCondition`
+   * （`TARGET_STATE`とのAND）が選び出す対象集合が変わることを証明する。
+   */
+  function setup(calculatedDamage: number) {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const markAction = statusEffectAction("ACT_TEST_MARK", 1);
+    const enemyBindingId = createTargetBindingId("TGT_ALL_ENEMIES");
+    const skill = passiveSkillOf("SKL_PAYLOAD_FILTER", {
+      ppCost: 1,
+      triggers: [
+        {
+          eventType: "DamageApplied",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: true,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "TARGET_STATE",
+                  target: { kind: "BINDING", targetBindingId: enemyBindingId },
+                  field: "IS_ALIVE",
+                  op: "EQ",
+                  value: true,
+                },
+                { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "LTE", value: 10 },
+              ],
+            },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: markAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+    });
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3 });
+    const enemyAlive = unit("ENEMY_ALIVE", "ENEMY", {
+      unitDefinitionId: enemyUnitDefinitionId,
+      currentHp: 100,
+      maximumHp: 100,
+    });
+    const enemyDead = unit("ENEMY_DEAD", "ENEMY", {
+      unitDefinitionId: enemyUnitDefinitionId,
+      currentHp: 0,
+      maximumHp: 100,
+    });
+    const definitions = definitionsOf(
+      new Map([
+        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([[skill.skillDefinitionId, skill]]),
+      new Map([[markAction.effectActionDefinitionId, markAction]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const damageApplied = recorder.record({
+      eventType: "DamageApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: owner.battleUnitId,
+      targetUnitIds: [enemyAlive.battleUnitId],
+      payload: {
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_UNRELATED_ATTACK"),
+        hitIndex: 1,
+        targetUnitId: enemyAlive.battleUnitId,
+        calculatedDamage,
+        hitPointDamage: calculatedDamage,
+        hpBefore: 100,
+        hpAfter: 100 - calculatedDamage,
+        defeated: false,
+      },
+    });
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, damageApplied, createActionId("B_1:action:1")),
+      [owner, enemyAlive, enemyDead],
+    );
+    const updatedUnits = runtime.onFactEvent(damageApplied, [owner, enemyAlive, enemyDead]);
+    return { updatedUnits, enemyAlive, enemyDead, markAction };
+  }
+
+  it("IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001: calculatedDamage<=10 — targetCondition (TARGET_STATE AND EVENT_PAYLOAD) admits the alive enemy and still excludes the already-defeated one", () => {
+    const { updatedUnits, enemyAlive, enemyDead, markAction } = setup(5);
+    const alive = updatedUnits.find((u) => u.battleUnitId === enemyAlive.battleUnitId)!;
+    const dead = updatedUnits.find((u) => u.battleUnitId === enemyDead.battleUnitId)!;
+    expect(
+      alive.appliedEffects.some(
+        (effect) => effect.effectActionDefinitionId === markAction.effectActionDefinitionId,
+      ),
+    ).toBe(true);
+    expect(dead.appliedEffects).toHaveLength(0);
+  });
+
+  it("IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-002: calculatedDamage>10 — the SAME alive enemy that passed TARGET_STATE is filtered out purely because the triggering event's payload changed, proving buildEffectStepPerTargetFilter actually threads triggerEventPayload through", () => {
+    const { updatedUnits, enemyAlive, markAction } = setup(11);
+    const alive = updatedUnits.find((u) => u.battleUnitId === enemyAlive.battleUnitId)!;
+    expect(
+      alive.appliedEffects.some(
+        (effect) => effect.effectActionDefinitionId === markAction.effectActionDefinitionId,
+      ),
+    ).toBe(false);
   });
 });

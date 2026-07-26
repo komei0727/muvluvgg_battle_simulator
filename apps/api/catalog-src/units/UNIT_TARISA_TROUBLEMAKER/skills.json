@@ -241,6 +241,23 @@
               "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP"
             }
           ]
+        },
+        {
+          "kind": "ACTION",
+          "stepCondition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "calculatedDamage",
+            "op": "LTE",
+            "value": 10
+          },
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER"
+            }
+          ]
         }
       ]
     },
@@ -249,7 +266,11 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"
+    ],
     "metadata": {
       "displayName": "徹底的にやってやろうじゃん！",
       "tags": []

@@ -643,4 +643,99 @@ describe("evaluateEffectStepCondition", () => {
       ).toBe(true);
     });
   });
+
+  describe("EVENT_PAYLOAD (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, Issue #247 M7-001D)", () => {
+    it("UT-R-SKL-06-052: compares a field of the triggering event's payload passed by the caller", () => {
+      const condition: ConditionDefinition = {
+        kind: "EVENT_PAYLOAD",
+        field: "calculatedDamage",
+        op: "LTE",
+        value: 10,
+      };
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, undefined, undefined, {
+          calculatedDamage: 10,
+        }),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, undefined, undefined, {
+          calculatedDamage: 11,
+        }),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-053: without a triggerEventPayload throws (Catalog-authoring error: no triggering event in this scope, e.g. an AS/EX active skill)", () => {
+      const condition: ConditionDefinition = {
+        kind: "EVENT_PAYLOAD",
+        field: "calculatedDamage",
+        op: "LTE",
+        value: 10,
+      };
+      expect(() => evaluateEffectStepCondition(condition)).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-054: recurses through AND/OR/NOT and threads triggerEventPayload down", () => {
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "LTE", value: 10 },
+          {
+            kind: "NOT",
+            condition: { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "GT", value: 20 },
+          },
+        ],
+      };
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, undefined, undefined, {
+          calculatedDamage: 5,
+        }),
+      ).toBe(true);
+    });
+
+    it("UT-R-SKL-06-055 (PRレビュー[P2], Issue #249): evaluates inside a per-target EffectStepTargetContext too (targetCondition scope) — the same triggerEventPayload applies uniformly to every candidate, combined with a per-target TARGET_STATE via AND", () => {
+      const enemyAlive = unit("ENEMY_A", "UNIT_A");
+      const enemyDead = unit("ENEMY_B", "UNIT_B", { currentHp: 0 });
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "TARGET_STATE", target: STEP_TARGET, field: "IS_ALIVE", op: "EQ", value: true },
+          { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "LTE", value: 10 },
+        ],
+      };
+      const ctxFor = (current: BattleUnit): EffectStepTargetContext => ({
+        stepTarget: STEP_TARGET,
+        current,
+        resolveOtherReference: () => [],
+        unitDefinitions: new Map(),
+      });
+
+      expect(
+        evaluateEffectStepCondition(
+          condition,
+          undefined,
+          ctxFor(enemyAlive),
+          undefined,
+          undefined,
+          { calculatedDamage: 5 },
+        ),
+      ).toBe(true);
+      // Same alive target, but the triggering event's damage exceeds the threshold.
+      expect(
+        evaluateEffectStepCondition(
+          condition,
+          undefined,
+          ctxFor(enemyAlive),
+          undefined,
+          undefined,
+          { calculatedDamage: 11 },
+        ),
+      ).toBe(false);
+      // Damage within threshold, but this particular target is already dead.
+      expect(
+        evaluateEffectStepCondition(condition, undefined, ctxFor(enemyDead), undefined, undefined, {
+          calculatedDamage: 5,
+        }),
+      ).toBe(false);
+    });
+  });
 });
