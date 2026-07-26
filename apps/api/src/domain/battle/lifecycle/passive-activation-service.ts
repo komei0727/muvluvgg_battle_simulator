@@ -1299,9 +1299,14 @@ export class PassiveActivationRuntime {
     // combatStatsを変更した後も、実際に参照する各時点（`resolveReference`の
     // JIT解決、Formula評価、DAMAGE解決）で最新の`box.units`/`working`から
     // 都度引き直させるため。
+    // CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: この同じ原因
+    // イベントの`payload`も、`resolution.steps`側の`EVENT_PAYLOAD`条件が
+    // 参照できるよう素通しする（`triggers[].condition`が参照する
+    // `EVENT_PAYLOAD`とは独立に、発動後の一部stepだけを条件付けられる）。
     const triggerContext: TriggerContext = {
       ...(event.sourceUnitId !== undefined ? { triggerSourceUnitId: event.sourceUnitId } : {}),
       ...(event.targetUnitIds !== undefined ? { triggerTargetUnitIds: event.targetUnitIds } : {}),
+      triggerEventPayload: event.payload,
     };
 
     // R-PS-05 #5: EffectSequenceをR-SKL-01〜08に従って解決する。

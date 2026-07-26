@@ -91,7 +91,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // among the 10 promoted here, so `unitCount`/violation expectations are unaffected.
     // Bumped again by the same PR's re-review fix: CAP_REMOVE_EFFECTS's
     // verification.testCaseIds gained IT-REMOVE-EFFECTS-PROD-006/007.
-    expect(catalog.catalogRevision).toBe("2026-07-26.3");
+    // Bumped again by M7-001D (Issue #247): new CAP_TRIGGER_PAYLOAD_IN_RESOLUTION
+    // capability and UNIT_TARISA_TROUBLEMAKER's SKL_TARISA_TROUBLEMAKER_PS1
+    // conversion; Tarisa is not among the 10 units promoted here either.
+    expect(catalog.catalogRevision).toBe("2026-07-26.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

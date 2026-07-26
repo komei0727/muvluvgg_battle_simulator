@@ -241,5 +241,17 @@
     "metadata": {
       "tags": []
     }
+  },
+  {
+    "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER",
+    "kind": "REMOVE_MARKER",
+    "payload": {
+      "markerId": "MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT",
+      "count": 3
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
   }
 ]

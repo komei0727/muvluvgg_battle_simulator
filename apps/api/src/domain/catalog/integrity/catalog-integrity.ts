@@ -210,7 +210,8 @@ type RuntimeStructuralCapabilityId =
   | "CAP_TARGET_FILTER_ORDER"
   | "CAP_TARGET_DERIVED_AREA"
   | "CAP_TARGET_BINDING_FALLBACK"
-  | "CAP_TRIGGER_CONTEXT";
+  | "CAP_TRIGGER_CONTEXT"
+  | "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION";
 
 function selectorTreeSome(
   selector: TargetSelectorDefinition,
@@ -373,6 +374,58 @@ function stepsContainSetCondition(steps: readonly EffectStepDefinition[]): boole
         return true;
       }
     } else if (step.kind === "REPEAT" && stepsContainSetCondition(step.steps)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: `condition`のどこかに
+ * `EVENT_PAYLOAD`が含まれるか（AND/OR/NOTを再帰的に見る）。`domain/catalog`は
+ * `domain/battle`へ依存できない（module境界）ため、`skill-resolution-service.ts`の
+ * `conditionReferencesEventPayload`とは意図的な重複。
+ */
+function conditionContainsEventPayload(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "EVENT_PAYLOAD":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionContainsEventPayload(c));
+    case "NOT":
+      return conditionContainsEventPayload(condition.condition);
+    default:
+      return false;
+  }
+}
+
+/**
+ * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: `stepsContainSetCondition`
+ * と同じ形。ACTIONの`EVENT_PAYLOAD`は`stepCondition`にしか置けない（`targetCondition`は
+ * `TRUE`/`AND`/`OR`/`NOT`/`TARGET_STATE`/`TARGET_HAS_MARKER`のみへスキーマ上制限される、
+ * `condition-definition.ts`の`TARGET_CONDITION_KINDS`）。
+ */
+function stepsContainEventPayloadCondition(steps: readonly EffectStepDefinition[]): boolean {
+  for (const step of steps) {
+    if (step.kind === "ACTION" && conditionContainsEventPayload(step.stepCondition)) {
+      return true;
+    }
+    if (step.kind === "BRANCH" && conditionContainsEventPayload(step.condition)) {
+      return true;
+    }
+    if (step.kind === "BRANCH") {
+      if (
+        stepsContainEventPayloadCondition(step.thenSteps) ||
+        stepsContainEventPayloadCondition(step.elseSteps)
+      ) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsContainEventPayloadCondition(branch.steps))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsContainEventPayloadCondition(step.steps)) {
       return true;
     }
   }
@@ -844,6 +897,8 @@ function sequenceRequiresCapability(
       return stepsContainNonTrueCondition(sequence.steps);
     case "CAP_EFFECT_STEP_SET_CONDITION":
       return stepsContainSetCondition(sequence.steps);
+    case "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION":
+      return stepsContainEventPayloadCondition(sequence.steps);
     case "CAP_TRIGGER_CONTEXT":
       return (
         sequence.targetBindings.some(({ selector }) =>
@@ -938,6 +993,7 @@ function validateRuntimeCapabilityDeclarations(
     ["CAP_TARGET_BINDING_FALLBACK", "Target selector fallback"],
     ["CAP_EFFECT_STEP_CONDITION", "EffectStep non-TRUE condition"],
     ["CAP_EFFECT_STEP_SET_CONDITION", "EffectStep TARGET_SET_COUNT condition"],
+    ["CAP_TRIGGER_PAYLOAD_IN_RESOLUTION", "EffectStep EVENT_PAYLOAD condition"],
   ] as const) {
     if (sequences.some((sequence) => sequenceRequiresCapability(sequence, capabilityId))) {
       requireRuntimeCapability(targetId, requiredCapabilities, capabilityId, reason, violations);

@@ -219,6 +219,33 @@ function setConditionActionSkill(
   });
 }
 
+/** CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: `stepCondition`にEVENT_PAYLOADを含むACTION step。 */
+function eventPayloadActionSkill(
+  id: string,
+  requiredCapabilities: readonly string[],
+): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "LTE", value: 10 },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Event-payload-condition AS" },
+  });
+}
+
 function randomBranchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -2382,6 +2409,43 @@ describe("buildCatalogIndex", () => {
         capabilities: [
           capability("CAP_EFFECT_STEP_CONDITION"),
           capability("CAP_EFFECT_STEP_SET_CONDITION"),
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-078 (Issue #247 M7-001D): rejects EffectStep EVENT_PAYLOAD stepCondition without CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, even when CAP_EFFECT_STEP_CONDITION is already declared", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          eventPayloadActionSkill("SKL_AS1", ["CAP_EFFECT_STEP_CONDITION"]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [
+          capability("CAP_EFFECT_STEP_CONDITION"),
+          capability("CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"),
+        ],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"/);
+  });
+
+  it("UT-CAT-IDX-079 (Issue #247 M7-001D): accepts EffectStep EVENT_PAYLOAD stepCondition once both CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are declared", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [
+          eventPayloadActionSkill("SKL_AS1", [
+            "CAP_EFFECT_STEP_CONDITION",
+            "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION",
+          ]),
+          exSkill("SKL_EX1", 7),
+        ],
+        capabilities: [
+          capability("CAP_EFFECT_STEP_CONDITION"),
+          capability("CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"),
         ],
       }),
     ).not.toThrow();

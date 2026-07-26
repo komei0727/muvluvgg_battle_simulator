@@ -41,6 +41,14 @@ const EMPTY_RESOLVED_BINDINGS: ResolvedTargetBindings = new Map();
 export interface TriggerContext {
   readonly triggerSourceUnitId?: BattleUnitId;
   readonly triggerTargetUnitIds?: readonly BattleUnitId[];
+  /**
+   * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: 候補検出に使った
+   * トリガーイベント自身の`payload`。`resolution.steps`側の`EVENT_PAYLOAD`
+   * 条件（`effect-step-condition-evaluator.ts`）がこれを参照できるよう、
+   * `passive-activation-service.ts`が候補検出へ使ったイベントの`payload`を
+   * そのまま伝搬する。
+   */
+  readonly triggerEventPayload?: Readonly<Record<string, unknown>>;
 }
 
 /**

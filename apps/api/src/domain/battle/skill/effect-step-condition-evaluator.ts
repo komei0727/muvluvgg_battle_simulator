@@ -154,13 +154,25 @@ export type TargetSetResolver = (reference: TargetReference) => readonly BattleU
  * ケース（`targetCondition`が非TRUE）でだけ`targetContext`を組み立てて渡す）。
  * `targetContext`が無い呼び出し（例: `BRANCH`のcondition評価、ACTIONの
  * `stepCondition`評価）でこの2 kindに到達した場合は明確な例外を投げ、
- * `EVENT_PAYLOAD`/`RUNTIME_COUNTER`/`TURN_NUMBER`/`ALIVE_UNIT_COUNT`/
- * `POSITION_RELATION`/`RESOLUTION_PHASE`は引き続き未対応とする
- * （`triggering/trigger-condition-evaluator.ts`と同じ隔離方針、これらはPS
- * 発動条件の評価器が担う）。`resolveTargetSet`は`TARGET_SET_COUNT`
- * （CAP_EFFECT_STEP_SET_CONDITION、Issue #227）を評価する場合だけ必要で、
- * `targetContext`とは独立に渡す — BRANCHの`condition`や、ACTIONの
- * `stepCondition`のどちらからも使えるようにする。
+ * `RUNTIME_COUNTER`/`TURN_NUMBER`/`ALIVE_UNIT_COUNT`/`POSITION_RELATION`/
+ * `RESOLUTION_PHASE`は引き続き未対応とする（`triggering/trigger-condition-
+ * evaluator.ts`と同じ隔離方針、これらはPS発動条件の評価器が担う）。
+ * `resolveTargetSet`は`TARGET_SET_COUNT`（CAP_EFFECT_STEP_SET_CONDITION、
+ * Issue #227）を評価する場合だけ必要で、`targetContext`とは独立に渡す —
+ * BRANCHの`condition`や、ACTIONの`stepCondition`のどちらからも使えるようにする。
+ *
+ * `triggerEventPayload`（CAP_TRIGGER_PAYLOAD_IN_RESOLUTION、Issue #247
+ * M7-001D）は`EVENT_PAYLOAD`を評価する場合だけ必要 — PS発動を引き起こした
+ * トリガーイベント自身のpayload（呼び出し側の`effect-action-group-
+ * resolver.ts`が`EffectActionGroupContext.triggerEventPayload`から渡す、
+ * `passive-activation-service.ts`が実際に候補検出へ使ったイベントの
+ * `payload`をそのまま`TriggerContext`経由で伝搬する）。これによりトリガーの
+ * `condition`（`triggers[].condition`、`trigger-condition-evaluator.ts`が
+ * 別途評価）とは独立に、発動後の`resolution.steps`側でも同じイベントの
+ * payloadを参照して、活動の一部stepだけを条件付けられる。`triggerEventPayload`
+ * が`undefined`のまま`EVENT_PAYLOAD`条件へ到達するのはCatalog-authoring
+ * errorとして明確な例外を投げる（例: トリガーイベントを持たないAS/EX
+ * active skillでの誤用）。
  */
 const EMPTY_UNIT_DEFINITIONS: ReadonlyMap<UnitDefinitionId, UnitDefinition> = new Map();
 
@@ -170,6 +182,7 @@ export function evaluateEffectStepCondition(
   targetContext?: EffectStepTargetContext,
   resolveTargetSet?: TargetSetResolver,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  triggerEventPayload?: Readonly<Record<string, unknown>>,
 ): boolean {
   switch (condition.kind) {
     case "TRUE":
@@ -182,6 +195,7 @@ export function evaluateEffectStepCondition(
           targetContext,
           resolveTargetSet,
           unitDefinitions,
+          triggerEventPayload,
         ),
       );
     case "OR":
@@ -192,6 +206,7 @@ export function evaluateEffectStepCondition(
           targetContext,
           resolveTargetSet,
           unitDefinitions,
+          triggerEventPayload,
         ),
       );
     case "NOT":
@@ -201,6 +216,7 @@ export function evaluateEffectStepCondition(
         targetContext,
         resolveTargetSet,
         unitDefinitions,
+        triggerEventPayload,
       );
     case "LAST_RESULT": {
       if (lastResult === undefined) {
@@ -316,10 +332,23 @@ export function evaluateEffectStepCondition(
       ).length;
       return compareWithOperator(aliveCount, condition.op, condition.value);
     }
+    case "EVENT_PAYLOAD": {
+      if (triggerEventPayload === undefined) {
+        throw new DomainValidationError(
+          "step.condition",
+          'kind "EVENT_PAYLOAD" requires the triggering event\'s payload (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, Issue #247): only available when this resolution was reached via a PS activation whose trigger event payload the caller threads through (Catalog-authoring error otherwise, e.g. an AS/EX active skill with no triggering event)',
+        );
+      }
+      return compareWithOperator(
+        triggerEventPayload[condition.field],
+        condition.op,
+        condition.value,
+      );
+    }
     default:
       throw new DomainValidationError(
         "step.condition",
-        `kind "${condition.kind}" is not supported by this basic ACTION step condition evaluator (EVENT_PAYLOAD/RUNTIME_COUNTER/TURN_NUMBER/ALIVE_UNIT_COUNT/POSITION_RELATION/RESOLUTION_PHASE are PS trigger/activation scope)`,
+        `kind "${condition.kind}" is not supported by this basic ACTION step condition evaluator (RUNTIME_COUNTER/TURN_NUMBER/ALIVE_UNIT_COUNT/POSITION_RELATION/RESOLUTION_PHASE are PS trigger/activation scope)`,
       );
   }
 }

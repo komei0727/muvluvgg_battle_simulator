@@ -118,6 +118,14 @@ export interface EffectActionGroupContext {
    */
   readonly triggerSourceUnitId?: BattleUnitId;
   readonly triggerTargetUnitIds?: readonly BattleUnitId[];
+  /**
+   * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: このPSを発動
+   * させた原因イベント自身の`payload`。`ACTION.stepCondition`/`BRANCH.condition`
+   * の`EVENT_PAYLOAD`（`evaluateEffectStepCondition`）だけが参照する。
+   * `triggerSourceUnitId`/`triggerTargetUnitIds`と同じ理由でAS/EX使用や
+   * 行動外トップレベルイベントからの解決では`undefined`のまま素通しする。
+   */
+  readonly triggerEventPayload?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -1482,6 +1490,7 @@ function* resolveBranchStep(
         undefined,
         resolveTargetSet,
         context.definitions.unitDefinitions,
+        context.triggerEventPayload,
       );
       const chosenSteps = satisfied ? definition.thenSteps : definition.elseSteps;
       return yield* resolveStepDefinitionList(
@@ -1759,6 +1768,8 @@ function* resolveRawStep(
             lastResultState.current,
             undefined,
             resolveTargetSet,
+            undefined,
+            context.triggerEventPayload,
           );
           if (!satisfied) {
             return { satisfied: false, applications: [] };
@@ -1812,7 +1823,14 @@ function* resolveRawStep(
           ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
           : {}),
       };
-      const satisfied = evaluateEffectStepCondition(step.stepCondition, lastResultState.current);
+      const satisfied = evaluateEffectStepCondition(
+        step.stepCondition,
+        lastResultState.current,
+        undefined,
+        undefined,
+        undefined,
+        context.triggerEventPayload,
+      );
       const applications = satisfied
         ? resolveActionStepApplications(
             step,

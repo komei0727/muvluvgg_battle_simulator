@@ -399,11 +399,36 @@ function conditionReferencesLastResult(condition: ConditionDefinition): boolean 
 }
 
 /**
+ * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: conditionのどこかに
+ * `EVENT_PAYLOAD`が含まれるかどうか（AND/OR/NOTを再帰的に見る）。トリガー
+ * イベントのpayloadはこの関数の呼び出し元（`resolveEffectSequence`の
+ * planning-time評価ループ）に渡っていないため、`LAST_RESULT`/`TARGET_SET_COUNT`
+ * と同じ理由でDeferredへ回す必要がある。
+ */
+function conditionReferencesEventPayload(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "EVENT_PAYLOAD":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionReferencesEventPayload(c));
+    case "NOT":
+      return conditionReferencesEventPayload(condition.condition);
+    default:
+      return false;
+  }
+}
+
+/**
  * Issue #217設計方針A: この`ACTION`stepが、対象・conditionを今すぐ（`targetBindings`
  * 評価直後の時点で）確定できるかどうか。`LAST_RESULT`/`LAST_ACTION_TARGETS`/
  * `LAST_DAMAGED_TARGETS`は、実際に解決がその位置まで進んではじめて値を持つ
  * ため、これらを参照する`ACTION`は`BRANCH`/`RANDOM_BRANCH`/`REPEAT`と同様に
- * `DeferredStepPlan`へ回す。
+ * `DeferredStepPlan`へ回す。`EVENT_PAYLOAD`（CAP_TRIGGER_PAYLOAD_IN_RESOLUTION、
+ * Issue #247 M7-001D）も同じ理由でDeferredへ回す — トリガーイベントのpayloadは
+ * この関数のplanning-time評価ループには渡っておらず、実行が`effect-action-
+ * group-resolver.ts`の`resolveRawStep`まで進んだ時点でだけ`context.
+ * triggerEventPayload`から参照できる。
  */
 function isEagerActionStep(
   step: EffectStepDefinition,
@@ -411,6 +436,7 @@ function isEagerActionStep(
   return (
     step.kind === "ACTION" &&
     !conditionReferencesLastResult(step.stepCondition) &&
+    !conditionReferencesEventPayload(step.stepCondition) &&
     step.target.kind !== "LAST_ACTION_TARGETS" &&
     step.target.kind !== "LAST_DAMAGED_TARGETS" &&
     // CAP_EFFECT_STEP_CONDITION_SCOPE（Issue #230、旧CAP_EFFECT_STEP_CONDITION

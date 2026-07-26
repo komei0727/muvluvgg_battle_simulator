@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 66
+      "incompleteConversionRows": 65
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 26
     },
     "capabilities": {
-      "total": 38,
-      "implemented": 16
+      "total": 39,
+      "implemented": 17
     }
   },
   "tasks": [
@@ -139,12 +139,6 @@
     },
     { "milestone": "M7", "theme": "HP_DIRECT_COST", "rowCount": 4, "taskId": "M7-002" },
     { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
-    {
-      "milestone": "M7",
-      "theme": "TRIGGER_PAYLOAD_IN_RESOLUTION",
-      "rowCount": 1,
-      "taskId": "M7-001D"
-    },
     { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "M7-010" },
     {
       "milestone": "M7",

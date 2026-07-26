@@ -643,4 +643,53 @@ describe("evaluateEffectStepCondition", () => {
       ).toBe(true);
     });
   });
+
+  describe("EVENT_PAYLOAD (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, Issue #247 M7-001D)", () => {
+    it("UT-R-SKL-06-052: compares a field of the triggering event's payload passed by the caller", () => {
+      const condition: ConditionDefinition = {
+        kind: "EVENT_PAYLOAD",
+        field: "calculatedDamage",
+        op: "LTE",
+        value: 10,
+      };
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, undefined, undefined, {
+          calculatedDamage: 10,
+        }),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, undefined, undefined, {
+          calculatedDamage: 11,
+        }),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-053: without a triggerEventPayload throws (Catalog-authoring error: no triggering event in this scope, e.g. an AS/EX active skill)", () => {
+      const condition: ConditionDefinition = {
+        kind: "EVENT_PAYLOAD",
+        field: "calculatedDamage",
+        op: "LTE",
+        value: 10,
+      };
+      expect(() => evaluateEffectStepCondition(condition)).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-054: recurses through AND/OR/NOT and threads triggerEventPayload down", () => {
+      const condition: ConditionDefinition = {
+        kind: "AND",
+        conditions: [
+          { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "LTE", value: 10 },
+          {
+            kind: "NOT",
+            condition: { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "GT", value: 20 },
+          },
+        ],
+      };
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, undefined, undefined, {
+          calculatedDamage: 5,
+        }),
+      ).toBe(true);
+    });
+  });
 });
