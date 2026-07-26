@@ -286,7 +286,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // ORD: 行動順
-  { ruleId: "R-ORD-01", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-ORD-01",
+    testCaseIds: ["UT-ACTION-QUEUE-007", "UT-R-ORD-01-001"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
   {
     ruleId: "R-ORD-02",
     testCaseIds: [
@@ -322,8 +326,42 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // ACT: 行動
-  { ruleId: "R-ACT-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-ACT-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-ACT-01",
+    testCaseIds: [
+      "UT-ACTION-PHASE-005",
+      "UT-R-ACT-01-001",
+      "UT-R-ACT-01-002",
+      "UT-R-ACT-01-003",
+      "UT-R-ACT-01-004",
+      "UT-R-ACT-01-005",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-ACT-02",
+    testCaseIds: [
+      "UT-R-ACT-02-001",
+      "UT-R-ACT-02-002",
+      "UT-R-ACT-02-003",
+      "UT-R-ACT-02-004",
+      "UT-R-ACT-02-005",
+      "UT-R-ACT-02-006",
+      "UT-R-ACT-02-007",
+      "UT-R-ACT-02-008",
+      "UT-R-ACT-02-009",
+      "UT-R-ACT-02-010",
+      "UT-R-ACT-02-011",
+      "UT-R-ACT-02-012",
+      "IT-CAP-ACTION-ACTIVATION-CONDITION-001",
+      "IT-CAP-ACTION-ACTIVATION-CONDITION-002",
+      "IT-CAP-ACTION-ACTIVATION-CONDITION-003",
+      "IT-CAP-ACTION-ACTIVATION-CONDITION-004",
+      "IT-CAP-ACTION-ACTIVATION-CONDITION-005",
+      "SCN-BTL-006",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
   // R-ACT-03: Issue #34がAS/待機のEX増加（消費量と同量、超過切り捨て）と、
   // PSのPP消費+EX増加を実装した。AS・PS・EXのコスト下限自体は
   // UT-CAT-SKL-019/020/021・UT-INFRA-SCHEMA-011が別途検証する。
@@ -563,7 +601,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
   },
-  { ruleId: "R-SKL-05", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-SKL-05",
+    testCaseIds: [
+      "UT-ACTION-PHASE-012",
+      "UT-ACTION-PHASE-013",
+      "UT-ACTION-PHASE-014",
+      "UT-R-ACT-01-004",
+      "UT-R-STS-02-004",
+      "UT-RESULT-ASSEMBLER-009",
+      "UT-SKILL-RESOLUTION-SERVICE-008",
+      "UT-STATE-REDUCER-017",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
   // R-SKL-06: ACTION stepの条件評価（`evaluateEffectStepCondition`、
   // `UT-R-SKL-06-001`〜005）、対象・action定義順解決とtargetUnitIds集約
   // （`resolveEffectSequence`、`UT-R-SKL-06-006`/007）、step/action単位の
@@ -1186,8 +1237,33 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-DOT-04", testCaseIds: [], kinds: [] },
 
   // STS: 状態異常
-  { ruleId: "R-STS-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-STS-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-STS-01",
+    testCaseIds: [
+      "UT-CAT-ACT-075",
+      "UT-R-EFF-02-004",
+      "UT-R-EFF-02-013",
+      "UT-R-EFF-03-017",
+      "UT-R-STS-01-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-STS-02",
+    testCaseIds: [
+      "UT-R-ACT-01-001",
+      "UT-R-ACT-01-002",
+      "UT-R-EFF-01-046",
+      "UT-R-EFF-01-051",
+      "UT-R-STS-02-001",
+      "UT-R-STS-02-002",
+      "UT-R-STS-02-003",
+      "UT-R-STS-02-004",
+      "UT-R-STS-02-005",
+      "UT-R-STS-02-006",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
   { ruleId: "R-STS-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-STS-04", testCaseIds: [], kinds: [] },
 
