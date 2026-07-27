@@ -59,8 +59,8 @@ import type {
 import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
 import {
   evaluateFormula,
-  lastDamageResultsFor,
-  type LastDamageResultRegistry,
+  damageResultsFor,
+  type DamageResultRegistry,
 } from "../skill/formula-evaluator.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -110,7 +110,7 @@ export interface EffectActionGroupContext {
    * PS連鎖もこの同じインスタンスを使い回す。未指定ならこのFormulaを持つ
    * EffectActionは`FormulaEvaluator`が明確な例外で拒否する。
    */
-  readonly lastDamageResults?: LastDamageResultRegistry;
+  readonly damageResults?: DamageResultRegistry;
   /**
    * CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因イベントの
    * 発生源・対象の`BattleUnitId`。`TargetReference.kind: TRIGGER_SOURCE`/
@@ -491,7 +491,7 @@ function* resolveOneEffectActionApplication(
   // 種別を問わず適用しない。DAMAGEはこの分岐を経由せず`applyDamageAction`へ
   // そのまま進む — 同関数がヒット単位（対象が解決の途中で戦闘不能になる場合を
   // 含む）で`includeDefeated`（下で`context.includeDefeated`として引き渡す）を
-  // 同じ契約に沿って判定し、`lastDamageResults`への0記録もそちら側の責務のため
+  // 同じ契約に沿って判定し、`damageResults`への0記録もそちら側の責務のため
   // ここでは対象としない（二重処理防止）。
   if (
     effectAction.kind !== "DAMAGE" &&
@@ -566,9 +566,7 @@ function* resolveOneEffectActionApplication(
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
-        ...(context.lastDamageResults !== undefined
-          ? { lastDamageResults: context.lastDamageResults }
-          : {}),
+        ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
         ...(context.triggerSourceUnitId !== undefined
           ? { triggerSourceUnitId: context.triggerSourceUnitId }
           : {}),
@@ -668,10 +666,10 @@ function* resolveOneEffectActionApplication(
     // SKILL_SOURCE参照のみを使うため、`bindings`を要求するFormulaは
     // `FormulaEvaluator`が明確な例外で拒否する。`lastResults`（R-SKL-08、
     // レビュー再指摘[P1] PR #214）は
-    // `context.lastDamageResults`（呼び出し側が1解決スコープごとに新規生成する
+    // `context.damageResults`（呼び出し側が1解決スコープごとに新規生成する
     // 共有registry、`damage-application-service.ts`と同じもの）から使用者自身の
-    // 直前DAMAGE結果だけを取り出す（`SUM_*`は現時点で参照するproduction定義が
-    // ないため未配線のまま、RES-002/RES-003、Issue #174/#173）。
+    // 直前DAMAGE結果と、`context.skillUseId`が識別するEffectSequence解決の
+    // 累計DAMAGE結果（`SUM_*`、G-10／RES-003A、Issue #257）を取り出す。
     // PRレビュー指摘[P2]: `triggerSourceUnitId`/`triggerTargetUnitIds`はIDの
     // ままここまで運び、評価するこの瞬間の`box.units`から引き直す — PS開始時に
     // 一度だけ解決した`BattleUnit`を保持すると、先行するEffectActionや子PS連鎖
@@ -682,7 +680,7 @@ function* resolveOneEffectActionApplication(
       skillSource: actor,
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
       ...(context.triggerSourceUnitId !== undefined
         ? { triggerSource: requireUnit(box.units, context.triggerSourceUnitId) }
         : {}),
@@ -1295,7 +1293,7 @@ function* resolveOneEffectActionApplication(
       skillSource: actor,
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
     });
     const blockingImmunity = findBlockingImmunity(
       requireUnit(box.units, application.targetBattleUnitId),
@@ -1379,7 +1377,7 @@ function* resolveOneEffectActionApplication(
       skillSource: actor,
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
     });
     const blockingImmunity = findBlockingImmunity(
       requireUnit(box.units, application.targetBattleUnitId),
@@ -1468,9 +1466,7 @@ function* resolveOneEffectActionApplication(
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
         sourceUnitId: context.actorId,
-        ...(context.lastDamageResults !== undefined
-          ? { lastDamageResults: context.lastDamageResults }
-          : {}),
+        ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
@@ -1501,9 +1497,7 @@ function* resolveOneEffectActionApplication(
         parentEventId: starting.eventId,
         sourceUnitId: context.actorId,
         effectActions: context.definitions.effectActions,
-        ...(context.lastDamageResults !== undefined
-          ? { lastDamageResults: context.lastDamageResults }
-          : {}),
+        ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
@@ -1536,7 +1530,7 @@ function* resolveOneEffectActionApplication(
       skillSource: actor,
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
     });
     const blockingImmunity = findBlockingImmunity(
       requireUnit(box.units, application.targetBattleUnitId),

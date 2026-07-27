@@ -54,7 +54,6 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_MARKER_LINKED_GROUP",
   "UNSUPPORTED_MARKER_DURATION",
   "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
-  "UNSUPPORTED_SUM_DAMAGE_RESULT",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
@@ -1429,26 +1428,22 @@ function validateEffectAction(
       });
     }
   }
-  // PRレビュー指摘[P1]（PR #256、Issue #184）: `SUM_DAMAGE_DEALT`/
-  // `SUM_DAMAGE_RECEIVED`（EffectSequence実行中の累計）はどの経路からも
-  // `FormulaEvaluationContext.lastResults`へ配線されておらず（`formula-evaluator.ts`の
-  // `lastDamageResultsFor`は`LAST_DAMAGE_*`だけを渡す）、評価に到達すると
-  // `DomainValidationError`になる。M7-005で`CAP_HEAL`が`IMPLEMENTED`になったことで
-  // 「Catalog契約上は安全に見えるのに実行時に落ちる」production定義
-  // （`ACT_CHIZURU_DOMESTIC_EX_HEAL`等のHEAL 9件）が初めて到達可能になったため、
-  // `MODIFY_RESOURCE`の`DISTRIBUTE`と同じ「宣言漏れ自体を拒否する」パターンで、
-  // 未実装専用の`CAP_SUM_DAMAGE_RESULT`（`PLANNED`）を必須宣言させる。宣言した
-  // 定義を持つUnitは`selectable: false`となり、実行経路へ到達しない。
-  // 累計の集計スコープ（EffectSequence単位か解決スコープ単位か）自体が未確定の
-  // 設計事項であり、RES-002（Issue #174）/RES-003（Issue #173）がどちらも
-  // クローズ済みのため、専用のfollow-up Task`RES-003A`（Issue #257）が引き継ぐ。
+  // RES-003A（Issue #257、G-10）: `SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
+  // （EffectSequence実行中の累計）は`formula-evaluator.ts`の`DamageResultRegistry`
+  // へ`SkillUseId`（=1回のEffectSequence解決）単位で配線済みで、
+  // `CAP_SUM_DAMAGE_RESULT`は`IMPLEMENTED`になった。PR #256が「未配線の隔離」の
+  // ために設けた`UNSUPPORTED_SUM_DAMAGE_RESULT`は役目を終えたので除去したが、
+  // 宣言そのものは`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`
+  // （同じく`IMPLEMENTED`）と同じ「宣言漏れ自体を拒否する」パターンで引き続き
+  // 必須にする — Capability registryの`verification.productionDefinitionIds`が
+  // 指す10件と、実際に`SUM_*`を参照する定義集合を一致させ続けるため。
   if (formulasOf(effectAction).some(referencesSumDamageResult)) {
     if (!effectAction.requiredCapabilities.some((id) => id === "CAP_SUM_DAMAGE_RESULT")) {
       violations.push({
         targetId: effectAction.effectActionDefinitionId,
-        rule: "UNSUPPORTED_SUM_DAMAGE_RESULT",
+        rule: "MISSING_REQUIRED_CAPABILITY",
         message:
-          'a FormulaDefinition referencing "SUM_DAMAGE_DEALT"/"SUM_DAMAGE_RECEIVED" must declare "CAP_SUM_DAMAGE_RESULT" in requiredCapabilities (accumulation is not wired into FormulaEvaluationContext yet)',
+          'a FormulaDefinition referencing "SUM_DAMAGE_DEALT"/"SUM_DAMAGE_RECEIVED" must declare "CAP_SUM_DAMAGE_RESULT" in requiredCapabilities',
       });
     }
   }

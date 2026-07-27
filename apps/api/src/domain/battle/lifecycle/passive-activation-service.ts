@@ -13,7 +13,7 @@ import {
   type EffectActionGroupContext,
   type UnitsBox,
 } from "./effect-action-group-resolver.js";
-import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
+import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
 import {
   emitEffectDurationReducedEvents,
@@ -242,7 +242,7 @@ export class PassiveActivationRuntime {
    * 構築する、この行動自身のEffectSequence用`EffectActionGroupContext`）の
    * 両方が同じインスタンスを共有する。
    */
-  private readonly lastDamageResults: LastDamageResultRegistry = new Map();
+  private readonly damageResults: DamageResultRegistry = new Map();
 
   constructor(context: PassiveActivationRuntimeContext, initialUnits: readonly BattleUnit[]) {
     this.context = context;
@@ -251,8 +251,8 @@ export class PassiveActivationRuntime {
   }
 
   /** `action-skill-use-resolver.ts`/`action-charge-resolver.ts`が自身のEffectSequenceへも同じregistryを渡すための公開アクセサ。 */
-  get lastDamageResultsRegistry(): LastDamageResultRegistry {
-    return this.lastDamageResults;
+  get damageResultsRegistry(): DamageResultRegistry {
+    return this.damageResults;
   }
 
   get currentUnits(): readonly BattleUnit[] {
@@ -1394,7 +1394,7 @@ export class PassiveActivationRuntime {
       rootEventId: this.context.rootEventId,
       parentEventId: lastEventId,
       skillDefinitionId: skill.skillDefinitionId,
-      lastDamageResults: this.lastDamageResults,
+      damageResults: this.damageResults,
       ...triggerContext,
     };
     // EFF-006/Issue #212: このPS自身のEffectSequence解決を開始する前に登録する

@@ -3,9 +3,9 @@ import type { AppliedEffect } from "../model/applied-effect.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical } from "./critical-policy.js";
 import {
-  lastDamageResultsFor,
-  recordLastDamageResult,
-  type LastDamageResultRegistry,
+  damageResultsFor,
+  recordDamageResult,
+  type DamageResultRegistry,
 } from "../skill/formula-evaluator.js";
 import type {
   DomainEventId,
@@ -123,7 +123,7 @@ export interface DamageEventContext {
    * 共有registry。未指定なら`LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`を要求する
    * Formulaは`FormulaEvaluator`が明確な例外で拒否する。
    */
-  readonly lastDamageResults?: LastDamageResultRegistry;
+  readonly damageResults?: DamageResultRegistry;
   /**
    * R-ACTN-01 #2（レビュー再指摘[P2]、PR #215）: このヒット列を解決した対象が
    * `TargetSelectorDefinition.includeDefeated: true`で選択された場合`true`。
@@ -373,11 +373,12 @@ export function* applyDamageActionSteps(
       // DAMAGE結果を透けて見せ続けないよう0として記録する（例外にはしない —
       // MISS等は有効な定義のもとで通常発生し得る実行時の結果であり、R-NUM-04が
       // 拒否対象とするCatalog定義エラーではないため）。
-      recordLastDamageResult(
-        context.lastDamageResults,
+      recordDamageResult(
+        context.damageResults,
         currentAttacker.battleUnitId,
         target.battleUnitId,
         0,
+        context.skillUseId,
       );
       continue;
     }
@@ -449,11 +450,12 @@ export function* applyDamageActionSteps(
       outcomes.push(skip(hit));
       // R-SKL-08: TIMING処理後に対象が戦闘不能になった場合も、この不成立結果を
       // 0として直前結果に記録する（上の対象不在チェックと同じ理由）。
-      recordLastDamageResult(
-        context.lastDamageResults,
+      recordDamageResult(
+        context.damageResults,
         attackerAfterTiming.battleUnitId,
         targetAfterTiming.battleUnitId,
         0,
+        context.skillUseId,
       );
       continue;
     }
@@ -491,13 +493,14 @@ export function* applyDamageActionSteps(
       notifyNewEvents(context, working, evasionEventsStart);
       // R-SKL-08: MISSも結果種別を持つ直前結果として記録する（R-SKL-08本文）。
       // 有効な定義のもとで通常発生し得る実行時の結果であり、後続Formulaの
-      // 参照を例外終了させてはならないため0として記録する（`recordLastDamageResult`
+      // 参照を例外終了させてはならないため0として記録する（`recordDamageResult`
       // のコメント参照）。
-      recordLastDamageResult(
-        context.lastDamageResults,
+      recordDamageResult(
+        context.damageResults,
         attackerAfterTiming.battleUnitId,
         targetAfterTiming.battleUnitId,
         0,
+        context.skillUseId,
       );
       continue;
     }
@@ -555,11 +558,11 @@ export function* applyDamageActionSteps(
     // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
     // R-TGT-10と同じ規約）から配線する。`bindings`はこの呼び出し元では
     // 引き続き用意できない。`lastResults`（R-SKL-08、レビュー再指摘[P1]
-    // PR #214）は`context.lastDamageResults`（呼び出し側が1解決スコープ
-    // ごとに新規生成する共有registry）から、この攻撃者自身の直前DAMAGE結果
-    // だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
-    // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
-    // Issue #174/#173） — 現時点で参照するproduction定義がないため。
+    // PR #214）は`context.damageResults`（呼び出し側が1解決スコープ
+    // ごとに新規生成する共有registry）から、この攻撃者自身の直前DAMAGE結果と、
+    // `context.skillUseId`が識別するEffectSequence解決の累計DAMAGE結果
+    // （`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`、G-10／RES-003A、Issue #257）
+    // を取り出す。
     // PRレビュー指摘[P2]: IDから`working`（このヒット時点の最新状態、
     // 先行するヒットやPS連鎖による変更を反映済み）へ都度引き直す。R-DMG-02の
     // `damageThreshold`（`resolveDamageImmunity`）も同じcontextを再利用する
@@ -569,9 +572,10 @@ export function* applyDamageActionSteps(
       skillSource: attackerAfterTiming,
       target: targetAfterTiming,
       allUnits: Array.from(working.values()),
-      lastResults: lastDamageResultsFor(
-        context.lastDamageResults,
+      lastResults: damageResultsFor(
+        context.damageResults,
         attackerAfterTiming.battleUnitId,
+        context.skillUseId,
       ),
       ...(context.triggerSourceUnitId !== undefined
         ? {
@@ -747,16 +751,21 @@ export function* applyDamageActionSteps(
       currentHp: createHitPoint(hpAfter, truncateFraction(targetBeforeHp.combatStats.maximumHp)),
     };
     working.set(targetAfterTiming.battleUnitId, updatedTarget);
-    // R-SKL-08（レビュー再指摘[P1]、PR #214）: `context.lastDamageResults`
+    // R-SKL-08（レビュー再指摘[P1]、PR #214）: `context.damageResults`
     // （呼び出し側が1解決スコープごとに新規生成する共有registry）へ直接
     // 記録する。`BattleUnit`の永続フィールドではないため、StateDelta・
     // 独立Reducer復元の対象にはならない（スコープ終了と同時に破棄される
     // 実行コンテキストであり、監査対象の永続状態ではないため）。
-    recordLastDamageResult(
-      context.lastDamageResults,
+    // G-10／RES-003A（Issue #257）: 同じ呼び出しで`SUM_DAMAGE_DEALT`/
+    // `SUM_DAMAGE_RECEIVED`の累計にも加算する。`context.skillUseId`はこの
+    // DAMAGEが属するEffectSequence解決を一意に識別するため、そのまま集計キーに
+    // 使える（同じ行動中でもPS連鎖は別の`SkillUseId`を持つ）。
+    recordDamageResult(
+      context.damageResults,
       attackerAfterTiming.battleUnitId,
       targetAfterTiming.battleUnitId,
       damageResult.finalDamage,
+      context.skillUseId,
     );
 
     // `08_ドメインイベント.md`「HitPointReduced」(RES-005、Issue #172): HPを
