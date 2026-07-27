@@ -285,4 +285,16 @@ describe("increaseExGauge with a RESOURCE_GAIN_MOD rate (M7-002, Issue #185)", (
     expect(result.after).toBe(2);
     expect(result.baseDelta).toBe(4);
   });
+
+  it("UT-R-ACT-04-014 (PRレビュー[P1] PR #254): a composed rate below -100% (e.g. three stacked -50% RESOURCE_GAIN_MOD debuffs, R-FRM-03 same-UnitDefinition multi-deployment) floors the gain at 0 instead of driving the gauge negative", () => {
+    const actor: BattleUnit = { ...unit("ACTOR"), currentExtraGauge: 0, maximumExtraGauge: 20 };
+
+    const result = increaseExGauge([actor], actor.battleUnitId, 4, -1.5);
+
+    expect(result.before).toBe(0);
+    expect(result.after).toBe(0);
+    expect(result.baseDelta).toBe(4);
+    expect(result.requestedAmount).toBe(0);
+    expect(result.discardedAmount).toBe(0);
+  });
 });

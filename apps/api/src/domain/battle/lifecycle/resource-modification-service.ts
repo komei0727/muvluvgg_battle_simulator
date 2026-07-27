@@ -167,7 +167,11 @@ export function applyModifyResourceAction(
     // 指定しても、`createHitPoint`等の値オブジェクト不変条件違反で例外にせず、
     // 静かに実際の可動域内へ丸める。
     const min = Math.max(authoredMin, 0);
-    const maxBound = Math.min(authoredMax, currentMax);
+    // PRレビュー指摘[P2]（PR #254）: minとmaxBoundを個別に[0, currentMax]と交差させる
+    // だけでは、例えば`bounds: {min: 0, max: -1}`のように交差後もmaxBound < minという
+    // 空区間になりうる（min=0のまま、maxBound=-1）。maxBoundをさらにminで底上げし、
+    // 交差後の区間が常に空でないことを保証する。
+    const maxBound = Math.max(min, Math.min(authoredMax, currentMax));
     const after = truncateFraction(Math.min(maxBound, Math.max(min, rawValue)));
 
     resolvedCount += 1;

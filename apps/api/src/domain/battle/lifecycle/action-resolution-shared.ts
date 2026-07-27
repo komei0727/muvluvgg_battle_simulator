@@ -125,7 +125,12 @@ export function increaseExGauge(
   resourceGainRate = 0,
 ): ExGaugeIncreaseApplication {
   const actor = requireUnit(units, actorId);
-  const rawRequestedAmount = amount * (1 + resourceGainRate);
+  // PRレビュー指摘[P1]（PR #254）: RESOURCE_GAIN_MODはSTACKABLEで、`composeResourceGainRate`が
+  // 保持中の全インスタンスを合算するため、負のrateが複数重なると合成後の`resourceGainRate`が
+  // -100%を下回りうる（R-FRM-03で同一UnitDefinitionの複数編成が許容されるためproduction到達可能）。
+  // このAPI自体は「EXゲージ増加」（R-ACT-03）であり、Modifierは増加量を0まで減衰させられるが、
+  // 既存ゲージを減少させる経路ではないため、合成後の要求量を0で floor する。
+  const rawRequestedAmount = Math.max(0, amount * (1 + resourceGainRate));
   const result = increaseExtraGaugeWithOverflow(
     actor.currentExtraGauge,
     rawRequestedAmount,

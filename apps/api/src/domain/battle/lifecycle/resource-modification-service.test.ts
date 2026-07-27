@@ -328,6 +328,41 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(100);
   });
 
+  it("UT-R-ACTN-02-011 (PRレビュー[P2] PR #254): an author-supplied bounds range that is empty after intersection with [0, currentMax] (e.g. bounds: {min: 0, max: -1}) still clamps to a valid value instead of throwing", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST_EMPTY_BOUNDS", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: -5 },
+      bounds: { min: 0, max: -1 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(0);
+  });
+
   it("UT-R-ACTN-02-006: operation DISTRIBUTE is not yet supported and throws a clear DomainValidationError", () => {
     const actor = unit("ACTOR", "ALLY");
     const action = modifyResourceAction("ACT_EX_DISTRIBUTE", {
