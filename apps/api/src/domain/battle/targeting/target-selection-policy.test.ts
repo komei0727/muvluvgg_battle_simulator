@@ -1448,6 +1448,33 @@ describe("resolveTargets", () => {
       ]);
     });
 
+    it("UT-R-BON-LOWEST-ATTACK-001 (M7-004, Issue #183, mirrors SKL_ELENA_MOODMAKER_EX's original 'lowest attack ally' selection): LOWEST_ATTACK orders by combatStats.attack ascending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const weak = unit(
+        "WEAK",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, attack: 5 } },
+      );
+      const strong = unit(
+        "STRONG",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, attack: 50 } },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["LOWEST_ATTACK"] }),
+        actor,
+        [actor, weak, strong],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("WEAK"),
+        createBattleUnitId("STRONG"),
+      ]);
+    });
+
     it("UT-TGT-002-014: LOWEST_MAX_HP/HIGHEST_MAX_HP order by combatStats.maximumHp", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const small = unit(

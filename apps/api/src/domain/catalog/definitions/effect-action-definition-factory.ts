@@ -127,6 +127,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
   APPLY_SUBUNIT: ["durability", "additionalDamage"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
+  APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
 };
 
 const DAMAGE_CRITICAL_ALLOWED_KEYS = ["mode"] as const;
@@ -890,6 +891,15 @@ function createPayload(
         payload: {
           targetSkillDefinitionId,
           operation,
+        },
+      };
+    }
+    case "APPLY_ATTACK_DAMAGE_BONUS": {
+      return {
+        kind: "APPLY_ATTACK_DAMAGE_BONUS",
+        payload: {
+          formula: createFormulaField(payload, "formula", path),
+          duration: createDurationField(payload, path),
         },
       };
     }

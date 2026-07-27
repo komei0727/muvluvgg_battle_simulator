@@ -447,7 +447,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     expect(updatedEnemy.currentHp).toBeLessThan(enemy.currentHp);
   });
 
-  it('IT-CAP-TRIGGER-CONTEXT-PROD-002 (RES-005, Issue #172): SKL_SUIRAN_CHAOS_PS1 is detected and activates through the real UnitBeingAttacked event, then fails on the separately-unimplemented APPLY_STATUS status "EVASION" (Issue #183, CAP_HIT_COUNT_EVASION; only "STEALTH" is resolver-supported) — not on TRIGGER_TARGET resolution, proving RES-005\'s part of this row is fixed', () => {
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-002 (RES-005/Issue #172, M7-004/Issue #183, CAP_HIT_COUNT_EVASION): SKL_SUIRAN_CHAOS_PS1 is detected and activates through the real UnitBeingAttacked event, and now genuinely grants an EVASION AppliedEffect to the TRIGGER_TARGET (the attacked ally), through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
 
@@ -542,19 +542,16 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       [suiran, attackedAlly, enemyAttacker],
     );
 
-    // TGT-004フェーズ3（Issue #167）でAPPLY_STATUSのresolverが実装されたが、
-    // PR #238再レビュー[P1]の指摘どおりR-TGT-08が要求する`status: "STEALTH"`
-    // だけを許可する（他のstatus種別は行動不能化・ダメージ無効化等の実効処理が
-    // 未実装のため、追加fieldの有無に関わらず拒否する）。`ACT_SUIRAN_CHAOS_PS1_
-    // EVASION`は`status: "EVASION"`（Issue #183、CAP_HIT_COUNT_EVASIONスコープ）
-    // のため、依然として明確な未対応エラーで失敗する。
-    expect(() =>
-      runtime.onFactEvent(unitBeingAttacked, [suiran, attackedAlly, enemyAttacker]),
-    ).toThrowError(/APPLY_STATUS status "EVASION" is not yet supported/);
+    // M7-004（Issue #183、CAP_HIT_COUNT_EVASION）でAPPLY_STATUS(EVASION)の実効
+    // resolverが実装され、`ACT_SUIRAN_CHAOS_PS1_EVASION`（probability: 1,
+    // appliesTo: DAMAGE, duration: ACTION 1 + consumption INCOMING_HIT 1）が
+    // TRIGGER_TARGET（攻撃された味方自身）へ実際にAppliedEffectを付与する。
+    const { units: updatedUnits } = runtime.onFactEvent(unitBeingAttacked, [
+      suiran,
+      attackedAlly,
+      enemyAttacker,
+    ]);
 
-    // Candidate detection + activation genuinely started (PP was consumed) —
-    // the throw comes from the unimplemented probability/appliesTo fields, not
-    // from a TRIGGER_TARGET resolution failure or a missed candidate.
     const passiveActivated = recorder
       .getEvents()
       .find(
@@ -563,6 +560,18 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
           (e.payload as { skillDefinitionId: string }).skillDefinitionId === SUIRAN_PS1_ID,
       );
     expect(passiveActivated).toBeDefined();
+
+    const updatedAlly = updatedUnits.find((u) => u.battleUnitId === attackedAlly.battleUnitId)!;
+    expect(updatedAlly.appliedEffects).toHaveLength(1);
+    expect(updatedAlly.appliedEffects[0]).toMatchObject({
+      statusKind: "EVASION",
+      sourceId: suiran.battleUnitId,
+      targetId: attackedAlly.battleUnitId,
+      statusDetails: {
+        probability: 1,
+        appliesTo: { incomingActionKinds: ["DAMAGE"] },
+      },
+    });
   });
 
   it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172; PR #220 review finding [P2]): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the REAL HitPointReduced event applyDamageAction emits for a genuine enemy attack, then fails on the separately-unimplemented HEAL kind (Issue #184) — not on TRIGGER_TARGET resolution", () => {

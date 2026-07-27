@@ -241,6 +241,42 @@ export interface BattleDomainEventPayloadMap {
     readonly hitIndex: number;
     readonly targetUnitId: BattleUnitId;
   };
+  /**
+   * `08_ドメインイベント.md`「命中・会心イベント」「EvasionActivated」: R-HIT-02の
+   * 特別な回避効果が成功した後（`UnitBeingAttacked`と`HitConfirmed`の間、hit
+   * 判定に相当する位置）に発行する。MISSと同じくこのヒットには`HitConfirmed`
+   * 以降のイベントを発行しない。
+   */
+  readonly EvasionActivated: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly effectInstanceId: EffectInstanceId;
+    readonly hitIndex: number;
+    readonly targetUnitId: BattleUnitId;
+  };
+  /**
+   * `08_ドメインイベント.md`「命中・会心イベント」「BlindnessCheckResolved」:
+   * R-HIT-03「使用者に付与された暗闇を付与順に取得し、各暗闇の指定確率で
+   * MISS判定を行う」の、暗闇1件ごとの判定結果。スキル使用ごとに1回、
+   * `resolveEffectSequencePlan`の先頭で全ての暗闇を判定し切ってから
+   * step解決へ進む（`SkillUseId`単位、ヒット単位ではない）。
+   */
+  readonly BlindnessCheckResolved: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly effectInstanceId: EffectInstanceId;
+    readonly probability: number;
+    readonly missed: boolean;
+  };
+  /**
+   * `08_ドメインイベント.md`「スキルイベント」「SkillMissed」: R-HIT-03「いずれか
+   * 一つの暗闇でMISSになった場合、そのスキル全体をMISSとして扱う」の結果、
+   * このスキル使用の`EffectSequence`を一切解決しなかったことを表す。MISSを
+   * 契機とするPS/Memoryは、対応するtrigger定義があればこのFACTイベントを
+   * 契機に発動候補になれる。
+   */
+  readonly SkillMissed: {
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly missedByEffectInstanceIds: readonly EffectInstanceId[];
+  };
   readonly CriticalCheckResolved: {
     readonly mode: CriticalMode;
     /** 元会心率（クランプ前）。 */
@@ -562,6 +598,19 @@ export interface BattleDomainEventPayloadMap {
     readonly remainingBefore: number;
     readonly remainingAfter: number;
     readonly reason: "REGRANT_EXTENDED";
+  };
+  /**
+   * R-STS-03（M7-004、Issue #183）「新たな攻撃スキルによるダメージで解除する」:
+   * 対象の凍結中に、その対象へのDAMAGE EffectActionのヒットが確定した直後
+   * （`DamageCalculated`の後、`HitPointReduced`の前）に発行する。継続ダメージ・
+   * デバフのみのスキルでは`applyDamageAction`自体を経由しないため、構造的に
+   * この解除契機の対象外（R-STS-03「継続ダメージやデバフだけのスキルでは
+   * 解除しない」）。`triggeringDamage`は増幅適用後の最終ダメージ。
+   */
+  readonly FreezeRemoved: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly battleUnitId: BattleUnitId;
+    readonly triggeringDamage: number;
   };
   /**
    * `08_ドメインイベント.md`「効果イベント」EffectConsumptionChanged。R-EFF-07:

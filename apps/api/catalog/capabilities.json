@@ -1,5 +1,21 @@
 [
   {
+    "capabilityId": "CAP_ATTACK_DAMAGE_BONUS",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M7-004",
+    "description": "ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`（対象の攻撃を起点に追加ダメージを発生させる汎用バフ）を実装した。`formula`は付与時点で一度だけ評価し（`APPLY_STAT_MOD`と同じ「付与時snapshot」規約）、結果を`AppliedEffect.magnitude`（`isAttackDamageBonus: true`）として保持する。`damage-application-service.ts`が保持者自身のDAMAGE EffectActionのヒットごとに、凍結解除時のダメージ増幅（R-STS-03）適用後・DAMAGE_IMMUNITY（R-DMG-02）判定前の値へ加算する（複数付与時は全て合算、免疫の無効化はこの合算後の値へも及ぶ）。production例: `SKL_ELENA_MOODMAKER_EX`の`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`（「攻撃力×15%のダメージを追加するバフ」）。",
+    "verification": {
+      "productionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"],
+      "testCaseIds": [
+        "UT-R-BON-ATTACK-DMG-001",
+        "UT-R-BON-ATTACK-DMG-002",
+        "UT-R-BON-ATTACK-DMG-003",
+        "UT-R-BON-ATTACK-DMG-004"
+      ]
+    }
+  },
+  {
     "capabilityId": "CAP_ACTION_ACTIVATION_CONDITION",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
@@ -230,7 +246,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-004",
-    "description": "Nヒット回避",
+    "description": "Nヒット回避。M7-004（Issue #183、R-HIT-02）はstatus: \"EVASION\"の実効resolver（hit-policy.tsのresolveEvasion、effect-action-group-resolver.tsのAPPLY_STATUS分岐）を実装し、SKL_SUIRAN_CHAOS_PS1等のEVASION行は解決できるようになった。ただしこのCapabilityを要求する行にはstatus: \"HIT_EVASION\"（UNIT_FLUTE_VAMPIRE、R-*未定義のため本Issueのスコープ外）も含まれ、その実効処理は未実装のままのため、Capability全体としては引き続きPLANNEDのまま（全requiredCapabilities行が解決できて初めてIMPLEMENTEDにできる）。",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
@@ -474,7 +490,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-004",
-    "description": "APPLY_STATUSの`status`がSTEALTH以外（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASION）の場合の実効処理（R-STS-01〜04等）。resolver（effect-action-group-resolver.ts）は現状`status`自体の許可リストでSTEALTH以外を無条件拒否しており（TGT-004フェーズ3再レビュー[P1]）、この拒否はCapability経由ではなくハードコードされている。M7-001B（Issue #243）はUNIT_LAYLA_ENTREPRENEURのEX/PS1がこのCapability未実装のまま`selectable`となり golden battle が失敗するのを防ぐため、この2行にだけ宣言した（既存の他ユニット行への遡及的な宣言はM7-004本体のスコープとする）。",
+    "description": "APPLY_STATUSの`status`がSTEALTH以外（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASION）の場合の実効処理（R-STS-01〜04等）。resolver（effect-action-group-resolver.ts）は現状`status`自体の許可リストでSTEALTH以外を無条件拒否しており（TGT-004フェーズ3再レビュー[P1]）、この拒否はCapability経由ではなくハードコードされている。M7-001B（Issue #243）はUNIT_LAYLA_ENTREPRENEURのEX/PS1がこのCapability未実装のまま`selectable`となり golden battle が失敗するのを防ぐため、この2行にだけ宣言した（既存の他ユニット行への遡及的な宣言はM7-004本体のスコープとする）。M7-004（Issue #183）はFREEZE（R-STS-03、`freeze-grant-service.ts`＋凍結解除時のダメージ増幅）・BLIND（R-STS-04/R-HIT-03、暗闇の定義順MISS判定）・EVASION（R-HIT-02、特別な回避効果）・DAMAGE_IMMUNITY（R-DMG-02、ダメージ無効効果）の許可リスト追加と実効処理を実装した。残るCRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASIONは対応するR-*ルール定義がdocs/ddd/07_戦闘ルール詳細.mdに存在せず本Issueのスコープ外のため、このCapability自体は引き続きPLANNEDのまま（例: UNIT_LAYLA_ENTREPRENEURのGUARANTEED_HIT行はまだ未対応）。",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
@@ -556,14 +572,15 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "TGT-002",
-    "description": "Target filter・order・除外選択（Issue #169）。`TargetSelectorDefinition.filters`（POSITION_ROW/POSITION_COLUMN/POSITION_SLOT/UNIT_TYPE/ROLE/ATTRIBUTE/AFFILIATION/CHARACTER/HAS_MARKER（`countCondition`によるMarker所持数しきい値、TARGET_FILTER_MARKER_COUNT_THRESHOLD）/HP_RATIO/AND/OR/NOT）と、新設した`EXCLUDE_RESOLVED_UNIT`（TARGET_EXCLUDE_RESOLVED_UNIT: `reference`（SELF/BINDING）が指す解決済みユニットを除外）・`MARKER_IN_AREA`（TARGET_FILTER_MARKER_BY_AREA: 候補自身を基準にした`area`内のMarker所在を判定。`area`は`ADJACENT_ORTHOGONAL`/`DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`/`SAME_ROW_AS_BASE`/`SAME_COLUMN_AS_BASE`の5 kindのみCatalogロード時点で許可し、`SINGLE`/`ALL`/`ROW`/`COLUMN`は拒否する。所在判定は戦闘不能ユニットを除外する）を実装する。`EXCLUDE_RESOLVED_UNIT.reference`はSELF/BINDING以外の`kind`をCatalogロード時点で拒否する（PR #233レビュー）。`order`はDEFAULT/FARTHEST/FRONT_ROW/BACK_ROW（TGT-001）に加え、NEAREST・LEFT_TO_RIGHT・LOWEST_HP_RATIO・HIGHEST_HP_RATIO・HIGHEST_ATTACK・LOWEST_MAX_HP・新設HIGHEST_MAX_HP・HIGHEST_EX_GAUGE_RATIO・新設FASTEST（TARGET_ORDER_STAT_LOWEST_OR_SPEED）・新設SELF_LOWEST_PRIORITY（自身以外優先、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）と、パラメータ付きオブジェクト形式の新設`MARKER_COUNT`（markerId+direction、TARGET_ORDER_MARKER_COUNT）・`UNIT_TYPE_PRIORITY`（unitType、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）を実装する。`UNIT_TYPE`/`ROLE`/`AFFILIATION`/`CHARACTER`フィルタと`UNIT_TYPE_PRIORITY`順は静的Catalogデータ（`UnitDefinition`）の参照が要るため、`resolveTargets`以降の呼び出し連鎖へ`unitDefinitions`を新たに通す。",
+    "description": "Target filter・order・除外選択（Issue #169）。`TargetSelectorDefinition.filters`（POSITION_ROW/POSITION_COLUMN/POSITION_SLOT/UNIT_TYPE/ROLE/ATTRIBUTE/AFFILIATION/CHARACTER/HAS_MARKER（`countCondition`によるMarker所持数しきい値、TARGET_FILTER_MARKER_COUNT_THRESHOLD）/HP_RATIO/AND/OR/NOT）と、新設した`EXCLUDE_RESOLVED_UNIT`（TARGET_EXCLUDE_RESOLVED_UNIT: `reference`（SELF/BINDING）が指す解決済みユニットを除外）・`MARKER_IN_AREA`（TARGET_FILTER_MARKER_BY_AREA: 候補自身を基準にした`area`内のMarker所在を判定。`area`は`ADJACENT_ORTHOGONAL`/`DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`/`SAME_ROW_AS_BASE`/`SAME_COLUMN_AS_BASE`の5 kindのみCatalogロード時点で許可し、`SINGLE`/`ALL`/`ROW`/`COLUMN`は拒否する。所在判定は戦闘不能ユニットを除外する）を実装する。`EXCLUDE_RESOLVED_UNIT.reference`はSELF/BINDING以外の`kind`をCatalogロード時点で拒否する（PR #233レビュー）。`order`はDEFAULT/FARTHEST/FRONT_ROW/BACK_ROW（TGT-001）に加え、NEAREST・LEFT_TO_RIGHT・LOWEST_HP_RATIO・HIGHEST_HP_RATIO・HIGHEST_ATTACK・LOWEST_MAX_HP・新設HIGHEST_MAX_HP・HIGHEST_EX_GAUGE_RATIO・新設FASTEST（TARGET_ORDER_STAT_LOWEST_OR_SPEED）・新設SELF_LOWEST_PRIORITY（自身以外優先、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）と、パラメータ付きオブジェクト形式の新設`MARKER_COUNT`（markerId+direction、TARGET_ORDER_MARKER_COUNT）・`UNIT_TYPE_PRIORITY`（unitType、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）を実装する。`UNIT_TYPE`/`ROLE`/`AFFILIATION`/`CHARACTER`フィルタと`UNIT_TYPE_PRIORITY`順は静的Catalogデータ（`UnitDefinition`）の参照が要るため、`resolveTargets`以降の呼び出し連鎖へ`unitDefinitions`を新たに通す。M7-004（Issue #183）は`LOWEST_ATTACK`（`HIGHEST_ATTACK`の昇順版、`SKL_ELENA_MOODMAKER_EX`の「最も攻撃力が低い味方単体」選定）を追加した。",
     "verification": {
       "productionDefinitionIds": [
         "SKL_LYDIA_GENIUS_EX",
         "SKL_CLARA_SANTA_AS2",
         "SKL_DOROTHEA_PIONEER_AS1",
         "SKL_MIHIME_SNIPER_AS1",
-        "SKL_SHIRANA_SORA_AS1"
+        "SKL_SHIRANA_SORA_AS1",
+        "SKL_ELENA_MOODMAKER_EX"
       ],
       "testCaseIds": [
         "UT-TGT-002-001",
@@ -576,7 +593,8 @@
         "IT-CAP-TARGET-FILTER-ORDER-PROD-003",
         "IT-CAP-TARGET-FILTER-ORDER-PROD-004",
         "IT-CAP-TARGET-FILTER-ORDER-PROD-005",
-        "IT-CAP-TARGET-FILTER-ORDER-PROD-006"
+        "IT-CAP-TARGET-FILTER-ORDER-PROD-006",
+        "UT-R-BON-LOWEST-ATTACK-001"
       ]
     }
   },

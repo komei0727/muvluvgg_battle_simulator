@@ -6,6 +6,7 @@ import {
 } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
 import { grantStunStatus } from "../effects/stun-grant-service.js";
+import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { removeMarkers, reduceMarkerStack } from "../effects/marker-removal-service.js";
 import { removeEffects } from "../effects/effect-removal-service.js";
@@ -59,6 +60,7 @@ import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import { resolveDarkness } from "../combat/hit-policy.js";
 
 /**
  * `resolveSkillOrder`/`resolveChargeReleaseOrder`が計画した`EffectSequencePlan`を
@@ -777,10 +779,17 @@ function* resolveOneEffectActionApplication(
       resultKind = "REJECTED";
     } else {
       const status = effectAction.payload.status;
-      if (status !== "STEALTH" && status !== "STUN") {
+      if (
+        status !== "STEALTH" &&
+        status !== "STUN" &&
+        status !== "EVASION" &&
+        status !== "BLIND" &&
+        status !== "DAMAGE_IMMUNITY" &&
+        status !== "FREEZE"
+      ) {
         throw new DomainValidationError(
           "effectActionDefinitionId",
-          `APPLY_STATUS status "${status}" is not yet supported by this resolver (only "STEALTH"/"STUN" are; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
+          `APPLY_STATUS status "${status}" is not yet supported by this resolver (only "STEALTH"/"STUN"/"EVASION"/"BLIND"/"DAMAGE_IMMUNITY"/"FREEZE" are; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
         );
       }
       if (
@@ -810,6 +819,29 @@ function* resolveOneEffectActionApplication(
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
       };
+      // R-HIT-02（M7-004、Issue #183）: EVASIONは判定時（`hit-policy.ts`の
+      // `resolveEvasion`）に`probability`/`appliesTo`を参照するため、Catalog
+      // payloadの残りfieldを`AppliedEffect.statusDetails`として保持する。
+      const statusDetails =
+        effectAction.payload.probability !== undefined ||
+        effectAction.payload.appliesTo !== undefined ||
+        effectAction.payload.damageAmplificationOnBreak !== undefined ||
+        effectAction.payload.damageThreshold !== undefined
+          ? {
+              ...(effectAction.payload.probability !== undefined
+                ? { probability: effectAction.payload.probability }
+                : {}),
+              ...(effectAction.payload.appliesTo !== undefined
+                ? { appliesTo: effectAction.payload.appliesTo }
+                : {}),
+              ...(effectAction.payload.damageAmplificationOnBreak !== undefined
+                ? { damageAmplificationOnBreak: effectAction.payload.damageAmplificationOnBreak }
+                : {}),
+              ...(effectAction.payload.damageThreshold !== undefined
+                ? { damageThreshold: effectAction.payload.damageThreshold }
+                : {}),
+            }
+          : undefined;
       const grantRequest = {
         effectActionDefinitionId: application.effectActionDefinitionId,
         sourceId: context.actorId,
@@ -817,12 +849,15 @@ function* resolveOneEffectActionApplication(
         duplicate: true,
         magnitude: 0,
         statusKind: status,
+        ...(statusDetails !== undefined ? { statusDetails } : {}),
         durationDefinition: effectAction.payload.duration,
       };
       const grantResult =
         status === "STUN"
           ? grantStunStatus(grantContext, box.units, grantRequest, starting.eventId)
-          : grantEffect(grantContext, box.units, grantRequest, starting.eventId);
+          : status === "FREEZE"
+            ? grantFreezeStatus(grantContext, box.units, grantRequest, starting.eventId)
+            : grantEffect(grantContext, box.units, grantRequest, starting.eventId);
       box.units = grantResult.units;
       if (context.onFactEventForPassiveChain !== undefined) {
         for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
@@ -1165,10 +1200,96 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_ATTACK_DAMAGE_BONUS") {
+    // ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183、production例:
+    // SKL_ELENA_MOODMAKER_EXの「攻撃時に攻撃力×15%のダメージを追加するバフ」）:
+    // `APPLY_STAT_MOD`と同じ評価規約で`formula`を付与時点に一度だけ評価し、結果を
+    // `magnitude`（`AppliedEffect.isAttackDamageBonus: true`）として保持する。
+    // 動的な毎ヒット再評価ではなく付与時snapshot — `damage-application-
+    // service.ts`はCatalogを引けないため、判定に必要な値はすべて付与時点で
+    // `AppliedEffect`自身へ焼き込む（`resolveDamageImmunity`/`resolveDarkness`と
+    // 同じ理由）。CombatStatsを変更しないため`combat-stat-recalculation-
+    // service.ts`は呼ばない。
+    const actor = requireUnit(box.units, context.actorId);
+    const magnitude = evaluateFormula(effectAction.payload.formula, {
+      skillSource: actor,
+      target: requireUnit(box.units, application.targetBattleUnitId),
+      allUnits: box.units,
+      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+    });
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          isAttackDamageBonus: true,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
@@ -2049,6 +2170,76 @@ export function* resolveEffectSequencePlan(
   };
   let lastEventId = context.parentEventId;
   let resolvedCount = 0;
+
+  // R-HIT-03/R-STS-04（M7-004、Issue #183）: スキル使用ごとに1回、使用者
+  // （`context.actorId`、AS/EXの実行者・PSの所有者どちらも同じ`SkillUseId`単位）
+  // に付与された暗闇を判定する。命中判定より前、対象選択・step解決より前で
+  // 一括判定する — いずれか一つでもMISSになれば、このEffectSequence全体の
+  // step解決を一切開始しない（「MISSの場合、対象へのダメージと効果を適用
+  // しない」、DAMAGE以外のEffectActionも含む）。必中を持つスキルにも適用する
+  // （`accuracyMode`を一切参照しない — 呼び出し元のACTION step条件によらず
+  // 一律に適用する）。
+  const darkness = resolveDarkness(requireUnit(box.units, context.actorId), context.random);
+  if (darkness.checks.length > 0) {
+    const innerEventsStart = context.recorder.getEvents().length;
+    for (const check of darkness.checks) {
+      const blindnessCheckResolved = context.recorder.record({
+        eventType: "BlindnessCheckResolved",
+        category: "FACT",
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        parentEventId: lastEventId,
+        rootEventId: context.rootEventId,
+        sourceUnitId: context.actorId,
+        payload: {
+          effectActionDefinitionId: check.effectActionDefinitionId,
+          effectInstanceId: check.effectInstanceId,
+          probability: check.probability,
+          missed: check.missed,
+        },
+      });
+      lastEventId = blindnessCheckResolved.eventId;
+    }
+    if (darkness.missed) {
+      const skillMissed = context.recorder.record({
+        eventType: "SkillMissed",
+        category: "FACT",
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        parentEventId: lastEventId,
+        rootEventId: context.rootEventId,
+        sourceUnitId: context.actorId,
+        payload: {
+          skillDefinitionId: context.skillDefinitionId,
+          missedByEffectInstanceIds: darkness.checks
+            .filter((check) => check.missed)
+            .map((check) => check.effectInstanceId),
+        },
+      });
+      lastEventId = skillMissed.eventId;
+    }
+    // PR #237再レビュー[P1]と同じ理由（`onFactEventForPassiveChain`未指定 =
+    // PS自身のEffectSequenceが`yield*`委譲されている経路）:
+    // `BlindnessCheckResolved`/`SkillMissed`もFACTイベントとしてPS/Memory即時
+    // 連鎖の契機になり得るため、同じ二分岐でdriverへ委ねる。
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+    } else {
+      const innerEvents = context.recorder.getEvents().slice(innerEventsStart);
+      yield { kind: "EFFECT_RESOLVED", events: innerEvents };
+    }
+    if (darkness.missed) {
+      return { units: box.units, outcome: { status: "COMPLETED", resolvedEffectCount: 0 } };
+    }
+  }
 
   // R-TGT-08「ステルス」（TGT-004、Issue #167）: targetBindings解決時に第一優先
   // 対象として選ばれ候補順の末尾へ移動されたStealth所持者（`AppliedEffect.

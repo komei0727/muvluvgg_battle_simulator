@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 109,
-      "completed": 74,
-      "remaining": 35
+      "completed": 79,
+      "remaining": 30
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 64
+      "incompleteConversionRows": 63
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 26
     },
     "capabilities": {
-      "total": 39,
-      "implemented": 18
+      "total": 40,
+      "implemented": 19
     }
   },
   "tasks": [
@@ -109,10 +109,6 @@
       "taskId": "M7-006",
       "ruleIds": ["R-MEM-01", "R-MEM-02", "R-MEM-03", "R-MEM-04"]
     },
-    {
-      "taskId": "M7-004",
-      "ruleIds": ["R-HIT-02", "R-HIT-03", "R-DMG-02", "R-STS-03", "R-STS-04"]
-    },
     { "taskId": "M7-005", "ruleIds": ["R-HEAL-01", "R-HEAL-02", "R-HEAL-03"] },
     { "taskId": "DMG-001", "ruleIds": ["R-SKL-03", "R-ACTN-02", "R-DMG-05"] },
     { "taskId": "DMG-006", "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"] },
@@ -153,24 +149,12 @@
       "taskId": "EFF-003"
     },
     { "milestone": "M7", "theme": "HEAL_DISTRIBUTE", "rowCount": 1, "taskId": "M7-005" },
-    {
-      "milestone": "M7",
-      "theme": "ON_ATTACK_BONUS_DAMAGE_BUFF",
-      "rowCount": 1,
-      "taskId": "M7-004"
-    },
     { "milestone": "M7", "theme": "STACK_LIMIT_ON_STAT_MOD", "rowCount": 1, "taskId": "EFF-002" },
-    {
-      "milestone": "M7",
-      "theme": "APPLY_STATUS_KIND_UNIMPLEMENTED",
-      "rowCount": 1,
-      "taskId": "M7-004"
-    },
     { "milestone": "M7", "theme": "HEAL_KIND_UNIMPLEMENTED", "rowCount": 1, "taskId": "M7-005" },
     {
       "milestone": "M8",
       "theme": "DAMAGE_MOD_KIND_UNIMPLEMENTED",
-      "rowCount": 1,
+      "rowCount": 2,
       "taskId": "DMG-002"
     },
     { "milestone": "M8", "theme": "HP_RATIO_SCALE_FORMULA", "rowCount": 7, "taskId": "DMG-002" },

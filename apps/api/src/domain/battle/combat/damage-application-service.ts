@@ -1,4 +1,4 @@
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { activeStatusEffect, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical } from "./critical-policy.js";
 import {
@@ -14,7 +14,9 @@ import type {
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
-import { resolveHit } from "./hit-policy.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
+import { resolveEvasion } from "./hit-policy.js";
+import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
@@ -345,8 +347,32 @@ export function applyDamageAction(
       continue;
     }
 
-    if (!resolveHit()) {
+    // R-HIT-02: 対象の有効な回避効果を判定する（暗闇/R-HIT-03は
+    // `resolveEffectSequencePlan`のスキル使用単位ゲートで既に判定済み — MISSに
+    // なるスキルはこのDAMAGE EffectAction自体に到達しない）。
+    const evasion = resolveEvasion(targetAfterTiming, damageAction.payload.accuracy.mode, random);
+    if (evasion.evaded) {
       outcomes.push(skip(hit));
+      const evasionActivated = context.recorder.record({
+        eventType: "EvasionActivated",
+        category: "FACT",
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.resolutionScopeId,
+        parentEventId: context.parentEventId,
+        rootEventId: context.rootEventId,
+        sourceUnitId: attacker.battleUnitId,
+        targetUnitIds: [hit.targetBattleUnitId],
+        payload: {
+          effectActionDefinitionId: evasion.evadedByEffectActionDefinitionId!,
+          effectInstanceId: evasion.evadedByEffectInstanceId!,
+          hitIndex: hit.hitIndex,
+          targetUnitId: hit.targetBattleUnitId,
+        },
+      });
+      lastEventId = evasionActivated.eventId;
       // R-SKL-08: MISSも結果種別を持つ直前結果として記録する（R-SKL-08本文）。
       // 有効な定義のもとで通常発生し得る実行時の結果であり、後続Formulaの
       // 参照を例外終了させてはならないため0として記録する（`recordLastDamageResult`
@@ -408,7 +434,49 @@ export function applyDamageAction(
     });
 
     const defenseIgnoreRate = damageAction.payload.piercing.defenseIgnoreRate;
-    const damageResult = calculateDamage({
+    // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
+    // `context.triggerSourceUnitId`/`triggerTargetUnitIds`（`TRIGGER_TARGET`は
+    // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
+    // R-TGT-10と同じ規約）から配線する。`bindings`はこの呼び出し元では
+    // 引き続き用意できない。`lastResults`（R-SKL-08、レビュー再指摘[P1]
+    // PR #214）は`context.lastDamageResults`（呼び出し側が1解決スコープ
+    // ごとに新規生成する共有registry）から、この攻撃者自身の直前DAMAGE結果
+    // だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
+    // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
+    // Issue #174/#173） — 現時点で参照するproduction定義がないため。
+    // PRレビュー指摘[P2]: IDから`working`（このヒット時点の最新状態、
+    // 先行するヒットやPS連鎖による変更を反映済み）へ都度引き直す。R-DMG-02の
+    // `damageThreshold`（`resolveDamageImmunity`）も同じcontextを再利用する
+    // （`CURRENT_HP_RATIO(source: TARGET)`は対象=`targetAfterTiming`自身の
+    // 現在HPを参照する）。
+    const formulaContext = {
+      skillSource: attackerAfterTiming,
+      target: targetAfterTiming,
+      allUnits: Array.from(working.values()),
+      lastResults: lastDamageResultsFor(
+        context.lastDamageResults,
+        attackerAfterTiming.battleUnitId,
+      ),
+      ...(context.triggerSourceUnitId !== undefined
+        ? {
+            triggerSource: findUnit(
+              working,
+              context.triggerSourceUnitId,
+              "context.triggerSourceUnitId",
+            ),
+          }
+        : {}),
+      ...(context.triggerTargetUnitIds?.[0] !== undefined
+        ? {
+            triggerTarget: findUnit(
+              working,
+              context.triggerTargetUnitIds[0],
+              "context.triggerTargetUnitIds[0]",
+            ),
+          }
+        : {}),
+    };
+    const rawDamageResult = calculateDamage({
       attackerAttack: attackerAfterTiming.combatStats.attack,
       attackerAttribute: attackerAfterTiming.attribute,
       attackerAffinityBonus: attackerAfterTiming.combatStats.affinityBonus,
@@ -418,46 +486,44 @@ export function applyDamageAction(
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
-      // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
-      // `context.triggerSourceUnitId`/`triggerTargetUnitIds`（`TRIGGER_TARGET`は
-      // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
-      // R-TGT-10と同じ規約）から配線する。`bindings`はこの呼び出し元では
-      // 引き続き用意できない。`lastResults`（R-SKL-08、レビュー再指摘[P1]
-      // PR #214）は`context.lastDamageResults`（呼び出し側が1解決スコープ
-      // ごとに新規生成する共有registry）から、この攻撃者自身の直前DAMAGE結果
-      // だけを取り出す。`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
-      // （EffectSequence実行中の累計）は未配線のまま（RES-002/RES-003、
-      // Issue #174/#173） — 現時点で参照するproduction定義がないため。
-      // PRレビュー指摘[P2]: IDから`working`（このヒット時点の最新状態、
-      // 先行するヒットやPS連鎖による変更を反映済み）へ都度引き直す。
-      formulaContext: {
-        skillSource: attackerAfterTiming,
-        target: targetAfterTiming,
-        allUnits: Array.from(working.values()),
-        lastResults: lastDamageResultsFor(
-          context.lastDamageResults,
-          attackerAfterTiming.battleUnitId,
-        ),
-        ...(context.triggerSourceUnitId !== undefined
-          ? {
-              triggerSource: findUnit(
-                working,
-                context.triggerSourceUnitId,
-                "context.triggerSourceUnitId",
-              ),
-            }
-          : {}),
-        ...(context.triggerTargetUnitIds?.[0] !== undefined
-          ? {
-              triggerTarget: findUnit(
-                working,
-                context.triggerTargetUnitIds[0],
-                "context.triggerTargetUnitIds[0]",
-              ),
-            }
-          : {}),
-      },
+      formulaContext,
     });
+    // R-STS-03「新たな攻撃スキルによるダメージで解除する」「解除契機となった
+    // ダメージを凍結効果定義の増幅率だけ増加させる（既定値+50%）」: 対象が
+    // 凍結中なら、この確定済みヒット（DAMAGE EffectAction、継続ダメージ・
+    // デバフのみのスキルは`applyDamageAction`自体を経由しないため構造的に
+    // 対象外）の最終ダメージへ増幅を適用し、凍結を解除する。DAMAGE_IMMUNITY
+    // の判定は増幅後の値を「incoming raw damage」として使う（大きく増幅された
+    // 一撃の方が閾値を超えやすい、という自然な重なり）。
+    const frozenEffect = activeStatusEffect(targetAfterTiming, "FREEZE");
+    const amplifiedFinalDamage =
+      frozenEffect !== undefined
+        ? Math.floor(
+            rawDamageResult.finalDamage *
+              (frozenEffect.statusDetails?.damageAmplificationOnBreak ?? 1.5),
+          )
+        : rawDamageResult.finalDamage;
+    // ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: 攻撃者自身が保持する
+    // `APPLY_ATTACK_DAMAGE_BONUS`由来の`AppliedEffect`（`isAttackDamageBonus:
+    // true`）を合算し、このヒットのダメージへ加算する。複数付与されていれば
+    // 独立したバフとして全て加算する（`magnitude`は付与時点で評価済みのFormula
+    // 結果、`APPLY_STAT_MOD`と同じ「付与時snapshot」規約）。
+    const attackDamageBonus = attackerAfterTiming.appliedEffects
+      .filter((effect) => effect.isAttackDamageBonus === true)
+      .reduce((sum, effect) => sum + effect.magnitude, 0);
+    const rawDamageWithBonus = Math.floor(amplifiedFinalDamage + attackDamageBonus);
+    // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: `calculateDamage`
+    // 自身は`AppliedEffect`を知らない純粋な数値計算のため、ここで対象の
+    // 有効なDAMAGE_IMMUNITYを判定し、成立すれば`finalDamage`を1へ上書きする。
+    // `preTruncationDamage`は無効化前の値のまま監査用に保持する。
+    const damageImmunity = resolveDamageImmunity(
+      targetAfterTiming,
+      rawDamageWithBonus,
+      formulaContext,
+    );
+    const damageResult = damageImmunity.nullified
+      ? { ...rawDamageResult, finalDamage: 1 }
+      : { ...rawDamageResult, finalDamage: rawDamageWithBonus };
 
     const damageCalculated = context.recorder.record({
       eventType: "DamageCalculated",
@@ -490,12 +556,59 @@ export function applyDamageAction(
       },
     });
 
+    // R-STS-03: このヒットが凍結を解除する契機になった場合、`DamageCalculated`
+    // （増幅済みの`finalDamage`を確定済み）の直後に`FreezeRemoved`を発行し、
+    // `AppliedEffect`を除去する。`duplicate: true`固定（`freeze-grant-service.ts`）
+    // のためR-EFF-05の最強選択対象にならず、`isEffective`は常にtrue。
+    let freezeRemoved: BattleDomainEvent | undefined;
+    let lastEventIdBeforeHp = damageCalculated.eventId;
+    if (frozenEffect !== undefined) {
+      freezeRemoved = context.recorder.record({
+        eventType: "FreezeRemoved",
+        category: "FACT",
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.resolutionScopeId,
+        parentEventId: damageCalculated.eventId,
+        rootEventId: context.rootEventId,
+        sourceUnitId: attacker.battleUnitId,
+        targetUnitIds: [hit.targetBattleUnitId],
+        payload: {
+          effectInstanceId: frozenEffect.effectInstanceId,
+          battleUnitId: hit.targetBattleUnitId,
+          triggeringDamage: damageResult.finalDamage,
+        },
+        stateDelta: {
+          units: {
+            [targetAfterTiming.battleUnitId]: {
+              effects: {
+                [frozenEffect.effectInstanceId]: {
+                  before: toEffectSnapshot(frozenEffect, true),
+                  after: undefined,
+                },
+              },
+            },
+          },
+        },
+      });
+      lastEventIdBeforeHp = freezeRemoved.eventId;
+      working.set(targetAfterTiming.battleUnitId, {
+        ...targetAfterTiming,
+        appliedEffects: targetAfterTiming.appliedEffects.filter(
+          (effect) => effect.effectInstanceId !== frozenEffect.effectInstanceId,
+        ),
+      });
+    }
+
     // `targetAfterTiming`取得後、ここまでは`recorder.record`のみでPS連鎖の
-    // 介在がないため、HPも`targetAfterTiming`からそのまま起点にできる。
+    // 介在がないため、HPも`targetAfterTiming`（凍結解除分は`working`側で
+    // 別途反映済み）からそのまま起点にできる。
     const hpBefore = targetAfterTiming.currentHp;
     const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
     const updatedTarget: BattleUnit = {
-      ...targetAfterTiming,
+      ...(working.get(targetAfterTiming.battleUnitId) ?? targetAfterTiming),
       // R-NUM-02: `combatStats.maximumHp`は全精度（R-STA-01/R-NUM-01）で保持されるため、
       // HPゲージへ渡す境界で最大値を0方向へ切り捨てて整数化する。
       currentHp: createHitPoint(hpAfter, truncateFraction(targetAfterTiming.combatStats.maximumHp)),
@@ -525,7 +638,7 @@ export function applyDamageAction(
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
-      parentEventId: damageCalculated.eventId,
+      parentEventId: lastEventIdBeforeHp,
       rootEventId: context.rootEventId,
       sourceUnitId: attacker.battleUnitId,
       targetUnitIds: [hit.targetBattleUnitId],
@@ -580,7 +693,11 @@ export function applyDamageAction(
     // 再発行してしまう。実際にこのヒットでHPが0へ遷移した場合
     // （`targetAfterTiming`が生存していた場合）だけ発行する。
     lastEventId = damageApplied.eventId;
-    const factEvents: BattleDomainEvent[] = [hitPointReduced, damageApplied];
+    const factEvents: BattleDomainEvent[] = [
+      ...(freezeRemoved !== undefined ? [freezeRemoved] : []),
+      hitPointReduced,
+      damageApplied,
+    ];
     if (!isDefeated(targetAfterTiming) && isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",

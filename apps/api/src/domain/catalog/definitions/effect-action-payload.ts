@@ -127,6 +127,21 @@ export interface ApplyHealingModPayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: 対象の攻撃を起点に追加
+ * ダメージを発生させる汎用バフ（`docs/ddd/16_不完全変換対応予定方針.md`が
+ * 追跡していた欠落EffectAction、production例: `SKL_ELENA_MOODMAKER_EX`の
+ * 「攻撃時に攻撃力×15%のダメージを追加するバフ」）。`formula`は付与時点で
+ * 評価し、結果を`AppliedEffect.attackDamageBonus.magnitude`として保持する
+ * （`APPLY_STAT_MOD`と同じ評価規約 — 動的な毎ヒット再評価ではなく付与時snapshot）。
+ * `damage-application-service.ts`が保持者自身のDAMAGE EffectActionのヒットごとに
+ * 加算する。
+ */
+export interface ApplyAttackDamageBonusPayload {
+  readonly formula: FormulaDefinition;
+  readonly duration: DurationDefinition;
+}
+
 export interface ModifyResourcePayload {
   readonly resource: ResourceKind;
   readonly operation: ResourceModifyOperation;

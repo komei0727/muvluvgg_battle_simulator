@@ -3,6 +3,7 @@ import {
   effectKindKeyFromDefinitionId,
   type AppliedEffect,
   type EffectImmunityState,
+  type StatusEffectDetails,
 } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -37,8 +38,12 @@ export interface GrantEffectRequest {
   readonly magnitude: number;
   /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ。 */
   readonly statusKind?: StatusKind;
+  /** M7-004（Issue #183）: `statusKind`がEVASION/BLIND/FREEZE/DAMAGE_IMMUNITYの場合だけ持つ。 */
+  readonly statusDetails?: StatusEffectDetails;
   /** M7-001B（Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`由来の付与だけが持つ。 */
   readonly immunity?: EffectImmunityState;
+  /** M7-004（ON_ATTACK_BONUS_DAMAGE_BUFF、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`由来の付与だけが持つ。 */
+  readonly isAttackDamageBonus?: true;
   readonly durationDefinition: DurationDefinition;
   readonly snapshot?: Readonly<Record<string, number>>;
 }
@@ -74,7 +79,11 @@ export function grantEffect(
     targetId: request.targetId,
     magnitude: request.magnitude,
     ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
+    ...(request.statusDetails !== undefined ? { statusDetails: request.statusDetails } : {}),
     ...(request.immunity !== undefined ? { immunity: request.immunity } : {}),
+    ...(request.isAttackDamageBonus !== undefined
+      ? { isAttackDamageBonus: request.isAttackDamageBonus }
+      : {}),
     duration: buildInitialDurationState(request.durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,

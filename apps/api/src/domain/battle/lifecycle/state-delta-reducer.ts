@@ -89,6 +89,25 @@ function sameImmunityState(a: EffectSnapshot["immunity"], b: EffectSnapshot["imm
 }
 
 /**
+ * `sameCounters`/`sameImmunityState`と同じ理由の`StatusEffectDetails`版
+ * （M7-004、Issue #183）。
+ */
+function sameStatusDetails(
+  a: EffectSnapshot["statusDetails"],
+  b: EffectSnapshot["statusDetails"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.probability === b.probability &&
+    a.damageAmplificationOnBreak === b.damageAmplificationOnBreak &&
+    JSON.stringify(a.appliesTo) === JSON.stringify(b.appliesTo) &&
+    JSON.stringify(a.damageThreshold) === JSON.stringify(b.damageThreshold)
+  );
+}
+
+/**
  * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
  * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
  * 単位の構造比較を行う。
@@ -115,7 +134,9 @@ export function sameEffectSnapshot(
     a.appliedTurnNumber === b.appliedTurnNumber &&
     a.appliedActionId === b.appliedActionId &&
     sameCounters(a.counters, b.counters) &&
-    sameImmunityState(a.immunity, b.immunity)
+    sameImmunityState(a.immunity, b.immunity) &&
+    sameStatusDetails(a.statusDetails, b.statusDetails) &&
+    a.isAttackDamageBonus === b.isAttackDamageBonus
   );
 }
 
