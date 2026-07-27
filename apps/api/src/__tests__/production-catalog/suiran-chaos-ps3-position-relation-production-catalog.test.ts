@@ -395,7 +395,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       [suiran, attacker, enemy],
     );
 
-    const updatedUnits = runtime.onFactEvent(skillUseStarting, [suiran, attacker, enemy]);
+    const updatedUnits = runtime.onFactEvent(skillUseStarting, [suiran, attacker, enemy]).units;
 
     const events = recorder.getEvents();
     const passiveActivated = events.find(

@@ -185,7 +185,7 @@ export function resolveWait(
     },
     working,
   );
-  working = passiveRuntime.onFactEvent(actionWaited, working);
+  working = passiveRuntime.onFactEvent(actionWaited, working).units;
 
   // R-SKL-05（Issue #180 PRレビュー[P2]）: `ActionWaited`自身のPS/Memory連鎖が
   // 解決した後、`ActionCompleting`より前のこの時点で待機確定時イベント（例:
@@ -204,7 +204,7 @@ export function resolveWait(
     units: working,
   });
   if (establishedEvent !== undefined) {
-    working = passiveRuntime.onFactEvent(establishedEvent, working);
+    working = passiveRuntime.onFactEvent(establishedEvent, working).units;
     completionTriggerEventId = establishedEvent.eventId;
   }
 
@@ -219,13 +219,13 @@ export function resolveWait(
       actorId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (event, unitsForChain) =>
-        passiveRuntime.onFactEvent(event, unitsForChain),
+        passiveRuntime.onFactEvent(event, unitsForChain).units,
     },
     "WAIT",
     completionTriggerEventId,
     working,
   );
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope();
+  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
   return {
     units: finalUnits,

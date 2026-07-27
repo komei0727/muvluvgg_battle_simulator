@@ -274,7 +274,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner],
     );
 
-    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
     const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
     expect(updatedOwner.currentPp).toBe(1);
@@ -344,7 +344,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner],
     );
 
-    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
     expect(updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentExtraGauge).toBe(
       10,
@@ -391,7 +391,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       contextOf(excludedRecorder, definitions, excludedTurnStarted, undefined, "TURN_START"),
       [owner],
     );
-    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]);
+    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]).units;
     expect(excludedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(3);
     expect(excludedRecorder.getEvents().map((e) => e.eventType)).toEqual(["TurnStarted"]);
 
@@ -401,7 +401,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       contextOf(includedRecorder, definitions, includedTurnStarted, createActionId("B_2:action:1")),
       [owner],
     );
-    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner]);
+    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner]).units;
     expect(includedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
@@ -443,7 +443,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       contextOf(recorder, definitions, battleStarted, undefined, "BATTLE_START"),
       [owner],
     );
-    const units = runtime.onFactEvent(battleStarted, [owner]);
+    const units = runtime.onFactEvent(battleStarted, [owner]).units;
     expect(units.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(0);
     expect(recorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
@@ -466,7 +466,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       contextOf(excludedRecorder, definitions, excludedTurnStarted, undefined, undefined, 1),
       [owner],
     );
-    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]);
+    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]).units;
     expect(excludedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
     expect(excludedRecorder.getEvents().map((e) => e.eventType)).not.toContain("PassiveActivated");
 
@@ -476,7 +476,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       contextOf(includedRecorder, definitions, includedTurnStarted, undefined, undefined, 2),
       [owner],
     );
-    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner]);
+    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner]).units;
     expect(includedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(0);
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
@@ -510,7 +510,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       contextOf(excludedRecorder, definitions, excludedTurnStarted),
       [owner],
     );
-    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]);
+    const excludedUnits = excludedRuntime.onFactEvent(excludedTurnStarted, [owner]).units;
     expect(excludedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
     expect(excludedRecorder.getEvents().map((e) => e.eventType)).not.toContain("PassiveActivated");
 
@@ -520,7 +520,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       contextOf(includedRecorder, definitions, includedTurnStarted),
       [owner, ally],
     );
-    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner, ally]);
+    const includedUnits = includedRuntime.onFactEvent(includedTurnStarted, [owner, ally]).units;
     expect(includedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(0);
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
@@ -644,7 +644,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner, enemy],
     );
 
-    const updatedUnits = runtime.onFactEvent(turnStarted, [owner, enemy]);
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner, enemy]).units;
 
     expect(updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentHp).toBe(0);
     expect(updatedUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!.currentHp).toBe(100);
@@ -733,7 +733,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
 
     let updatedUnits: readonly BattleUnit[] = [];
     expect(() => {
-      updatedUnits = runtime.onFactEvent(turnStarted, [owner, enemy]);
+      updatedUnits = runtime.onFactEvent(turnStarted, [owner, enemy]).units;
     }).not.toThrow();
 
     const updatedEnemy = updatedUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
@@ -760,7 +760,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
 
     let updatedUnits: readonly BattleUnit[] = [];
     expect(() => {
-      updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+      updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
     }).not.toThrow();
 
     const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
@@ -801,7 +801,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner],
     );
 
-    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
     expect(updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!.currentPp).toBe(1);
     expect(recorder.getEvents().some((e) => e.eventType === "PassiveActivated")).toBe(false);
@@ -1252,7 +1252,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     }
 
     const crit1 = recordCrit();
-    let units = runtime.onFactEvent(crit1, [owner]);
+    let units = runtime.onFactEvent(crit1, [owner]).units;
     expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
       [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { value: 1, carry: 0 } },
     });
@@ -1283,7 +1283,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
 
     const crit2 = recordCrit();
-    units = runtime.onFactEvent(crit2, units);
+    units = runtime.onFactEvent(crit2, units).units;
     expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
       [skill.skillDefinitionId]: { RUNTIME_COUNTER_CRIT: { value: 2, carry: 0 } },
     });
@@ -1507,13 +1507,13 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner],
     );
 
-    const afterEvent = runtime.onFactEvent(turnStarted, [owner]);
+    const afterEvent = runtime.onFactEvent(turnStarted, [owner]).units;
     const ownerAfterEvent = afterEvent.find((u) => u.battleUnitId === owner.battleUnitId);
     expect(ownerAfterEvent?.skillCounters).toEqual({
       [skill.skillDefinitionId]: { RUNTIME_COUNTER_SCOPED: { value: 1, carry: 0 } },
     });
 
-    const { units: finalUnits, lastEventId } = runtime.finalizeResolutionScope();
+    const { units: finalUnits, lastEventId } = runtime.finalizeResolutionScope(turnStarted.eventId);
     const ownerAfterFinalize = finalUnits.find((u) => u.battleUnitId === owner.battleUnitId);
     expect(ownerAfterFinalize?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
 
@@ -1568,14 +1568,14 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     const resetEventsBefore = recorder
       .getEvents()
       .filter((e) => e.eventType === "RuntimeCounterReset").length;
-    runtime.finalizeResolutionScope();
+    runtime.finalizeResolutionScope(turnStarted.eventId);
     const resetEventsAfter = recorder
       .getEvents()
       .filter((e) => e.eventType === "RuntimeCounterReset").length;
     expect(resetEventsAfter).toBe(resetEventsBefore);
   });
 
-  it("UT-R-EFF-11-027 (PRレビュー[P2]是正の再指摘、Issue #180): finalizeResolutionScope returns lastEventId: undefined when there is nothing to reset — the overwhelmingly common case, since most skills declare no resetScope: RESOLUTION_SCOPE counters — so callers can tell 'nothing happened' apart from 'something happened' instead of receiving a rootEventId that could wrongly roll back their own causal cursor", () => {
+  it("UT-R-EFF-11-027 (PRレビュー[P2]是正の再指摘、Issue #180・#251): finalizeResolutionScope returns the caller's own cursor unchanged when there is nothing to reset — the overwhelmingly common case, since most skills declare no resetScope: RESOLUTION_SCOPE counters — so callers can tell 'nothing happened' apart from 'something happened' instead of receiving a rootEventId that could wrongly roll back their own causal cursor", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_NO_RESET_OWNER");
     const skill: SkillDefinition = {
       skillDefinitionId: createSkillDefinitionId("SKL_PS_NO_RESET"),
@@ -1617,10 +1617,10 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     );
 
     runtime.onFactEvent(turnStarted, [owner]);
-    const { lastEventId } = runtime.finalizeResolutionScope();
+    const { lastEventId } = runtime.finalizeResolutionScope(turnStarted.eventId);
 
     expect(recorder.getEvents().some((e) => e.eventType === "RuntimeCounterReset")).toBe(false);
-    expect(lastEventId).toBeUndefined();
+    expect(lastEventId).toBe(turnStarted.eventId);
   });
 
   it("UT-R-EFF-11-003 (review re-fix [P1]): a resetScope counter whose own counterUpdates re-triggers on the RuntimeCounterReset it causes makes finalizeResolutionScope throw a deterministic error instead of looping forever", () => {
@@ -1697,7 +1697,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     );
     runtime.onFactEvent(turnStarted, [owner]);
 
-    expect(() => runtime.finalizeResolutionScope()).toThrow(
+    expect(() => runtime.finalizeResolutionScope(turnStarted.eventId)).toThrow(
       /exceeded .* discard\/emit\/resolve rounds/,
     );
   });
@@ -1863,7 +1863,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     // Resolution-scope end: the counter's public value (1) is discarded.
     // carry is already 0 at this point, so no skillCounterCarry delta is
     // expected from the reset itself (only skillCounters).
-    runtime.finalizeResolutionScope();
+    runtime.finalizeResolutionScope(turnStarted.eventId);
     replayNewEventDeltasIntoSnapshot();
     const finalOwner = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
     expect(finalOwner.skillCounters?.[skill.skillDefinitionId]).toEqual({});
@@ -2170,7 +2170,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner],
     );
 
-    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
     const counterChangedEvents = recorder
       .getEvents()
@@ -2405,7 +2405,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner],
     );
 
-    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
     const counterBChanges = recorder
       .getEvents()
@@ -2553,7 +2553,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       [owner],
     );
 
-    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+    const updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
     const counterAChanges = recorder
       .getEvents()
@@ -2642,7 +2642,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         ownerWithEffect,
       ]);
 
-      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]);
+      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]).units;
 
       const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
       expect(updatedOwner.appliedEffects).toHaveLength(0);
@@ -2698,7 +2698,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         holderWithEffect,
       ]);
 
-      const updatedUnits = runtime.onFactEvent(unitDefeated, [holderWithEffect]);
+      const updatedUnits = runtime.onFactEvent(unitDefeated, [holderWithEffect]).units;
 
       const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
       expect(updatedHolder.appliedEffects).toHaveLength(0);
@@ -2728,7 +2728,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         ownerWithEffect,
       ]);
 
-      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]);
+      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]).units;
 
       const updatedOwner = updatedUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
       expect(updatedOwner.appliedEffects).toHaveLength(1);
@@ -2766,7 +2766,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         ownerWithEffect,
       ]);
 
-      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]);
+      const updatedUnits = runtime.onFactEvent(turnStarted, [ownerWithEffect]).units;
 
       // `PassiveActivated`自体は`activatePassiveCandidate`（PS連鎖の内部）が直接
       // yieldするイベントで、`onFactEvent`を経由しない。この効果はその
@@ -2879,7 +2879,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       );
 
       const hit1 = hitEvent(recorder, turnStarted, enemy);
-      const units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]);
+      const units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]).units;
 
       const updatedHolder = units.find((u) => u.battleUnitId === holder.battleUnitId)!;
       expect(updatedHolder.appliedEffects).toHaveLength(1);
@@ -2930,13 +2930,13 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       );
 
       const hit1 = hitEvent(recorder, turnStarted, enemy);
-      let units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]);
+      let units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]).units;
       expect(
         units.find((u) => u.battleUnitId === holder.battleUnitId)?.appliedEffects,
       ).toHaveLength(1);
 
       const hit2 = hitEvent(recorder, turnStarted, enemy);
-      units = runtime.onFactEvent(hit2, units);
+      units = runtime.onFactEvent(hit2, units).units;
 
       const updatedHolder = units.find((u) => u.battleUnitId === holder.battleUnitId)!;
       expect(updatedHolder.appliedEffects).toHaveLength(0);
@@ -2966,7 +2966,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       );
 
       const hit1 = hitEvent(recorder, turnStarted, enemy);
-      const units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]);
+      const units = runtime.onFactEvent(hit1, [enemy, holderWithEffect]).units;
       const updatedHolder = units.find((u) => u.battleUnitId === holder.battleUnitId)!;
 
       const initialSnapshot: BattleStateSnapshot = {
@@ -3068,7 +3068,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         [attacker, holderWithEffect],
       );
 
-      const units = runtime.onFactEvent(turnStarted, [attacker, holderWithEffect]);
+      const units = runtime.onFactEvent(turnStarted, [attacker, holderWithEffect]).units;
 
       const events = recorder.getEvents();
       expect(events.some((e) => e.eventType === "DamageApplied")).toBe(true);
@@ -3430,7 +3430,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       );
 
       const completed = actionCompletedEvent(recorder, turnStarted, actor, skillUseId);
-      const units = runtime.onFactEvent(completed, [actor]);
+      const units = runtime.onFactEvent(completed, [actor]).units;
 
       const updatedActor = units.find((u) => u.battleUnitId === actor.battleUnitId)!;
       expect(updatedActor.effectSequenceCounters).toEqual({
@@ -3724,7 +3724,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         [owner],
       );
 
-      const finalUnits = runtime.onFactEvent(turnStarted, [owner]);
+      const finalUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
       const counterChanges = recorder
         .getEvents()
@@ -3904,7 +3904,11 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         holder,
       ]);
 
-      const updatedUnits = runtime.onFactEvent(turnStarted, [parentOwner, watcherOwner, holder]);
+      const updatedUnits = runtime.onFactEvent(turnStarted, [
+        parentOwner,
+        watcherOwner,
+        holder,
+      ]).units;
 
       const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
       expect(updatedHolder.appliedEffects).toHaveLength(0);
@@ -4132,7 +4136,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         cascadeWatcherOwner,
         consumptionWatcherOwner,
         holder,
-      ]);
+      ]).units;
 
       const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
       expect(updatedHolder.appliedEffects).toHaveLength(0);
@@ -4232,7 +4236,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         contextOf(recorder, definitions, turnStarted1),
         [owner],
       );
-      const unitsAfterFirst = runtime1.onFactEvent(turnStarted1, [owner]);
+      const unitsAfterFirst = runtime1.onFactEvent(turnStarted1, [owner]).units;
       const ownerAfterFirst = unitsAfterFirst.find((u) => u.battleUnitId === owner.battleUnitId)!;
       expect(ownerAfterFirst.appliedEffects).toHaveLength(1);
       const firstInstance = ownerAfterFirst.appliedEffects[0]!;
@@ -4245,7 +4249,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         [ownerAfterFirst],
       );
       const eventsBeforeSecond = recorder.getEvents().length;
-      const unitsAfterSecond = runtime2.onFactEvent(turnStarted2, [ownerAfterFirst]);
+      const unitsAfterSecond = runtime2.onFactEvent(turnStarted2, [ownerAfterFirst]).units;
       const ownerAfterSecond = unitsAfterSecond.find((u) => u.battleUnitId === owner.battleUnitId)!;
 
       // The first instance was decremented (1 -> 0) and expired by the SECOND
@@ -4329,7 +4333,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
         owner,
       ]);
-      const updatedUnits = runtime.onFactEvent(turnStarted, [owner]);
+      const updatedUnits = runtime.onFactEvent(turnStarted, [owner]).units;
 
       expect(recorder.getEvents().some((e) => e.eventType === "PassiveInterrupted")).toBe(true);
       expect(recorder.getEvents().some((e) => e.eventType === "PassiveResolved")).toBe(false);
@@ -4494,6 +4498,45 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(events.indexOf(completionActivated!)).toBeLessThan(events.indexOf(expiryActivated!));
     });
   });
+
+  describe("lastEventId (Issue #251, レビュー再指摘[P2])", () => {
+    it("UT-R-PS-05-030: returns the target event's own id, not an unrelated later event the caller had already pre-recorded before this call, when this call itself triggers no new reaction", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_LAST_EVENT_ID");
+      const owner = unit("OWNER", "ALLY", { unitDefinitionId });
+      const definitions = definitionsOf(
+        new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [])]]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [owner],
+      );
+
+      // Simulates callers (e.g. action-completion.ts's duration/marker
+      // update path) that record several events in a batch up front, then
+      // route each through onFactEvent one at a time — an unrelated later
+      // event already sits in the recorder before onFactEvent(turnStarted,
+      // ...) is even called. Naively reading recorder.getEvents()'s bare
+      // tail would return this event instead of turnStarted's own id.
+      const unrelatedLaterEvent = recorder.record({
+        eventType: "TurnStarted",
+        category: "FACT",
+        turnNumber: 2,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        payload: { turnNumber: 2 },
+      });
+
+      // No PS/counterUpdates are registered for TurnStarted here, so this
+      // call adds nothing new to the recorder.
+      const resolved = runtime.onFactEvent(turnStarted, [owner]);
+
+      expect(resolved.lastEventId).toBe(turnStarted.eventId);
+      expect(resolved.lastEventId).not.toBe(unrelatedLaterEvent.eventId);
+    });
+  });
 });
 
 describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, Issue #247 M7-001D, PRレビュー[P2] re-review)", () => {
@@ -4603,7 +4646,7 @@ describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTIO
       contextOf(recorder, definitions, damageApplied, createActionId("B_1:action:1")),
       [owner, enemyAlive, enemyDead],
     );
-    const updatedUnits = runtime.onFactEvent(damageApplied, [owner, enemyAlive, enemyDead]);
+    const updatedUnits = runtime.onFactEvent(damageApplied, [owner, enemyAlive, enemyDead]).units;
     return { updatedUnits, enemyAlive, enemyDead, markAction };
   }
 

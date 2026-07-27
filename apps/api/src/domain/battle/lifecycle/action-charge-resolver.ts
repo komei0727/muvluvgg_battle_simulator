@@ -136,7 +136,7 @@ export function resolveChargeStart(
     },
     working,
   );
-  working = passiveRuntime.onFactEvent(chargeStarted, working);
+  working = passiveRuntime.onFactEvent(chargeStarted, working).units;
 
   const completion = recordActionCompletion(
     recorder,
@@ -149,13 +149,13 @@ export function resolveChargeStart(
       actorId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (event, unitsForChain) =>
-        passiveRuntime.onFactEvent(event, unitsForChain),
+        passiveRuntime.onFactEvent(event, unitsForChain).units,
     },
     effectiveActionType,
     chargeStarted.eventId,
     working,
   );
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope();
+  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
   return {
     units: finalUnits,
@@ -305,7 +305,7 @@ export function resolveChargeRelease(
   // （実効果解決）より前に`passiveRuntime.onFactEvent`へ渡し、`beginEffectSequenceResolution`
   // で登録済みのEFFECT_SEQUENCEスコープcounterUpdatesとPS/Memory候補の両方へ
   // 届けるとともに、`working`を最新化する。
-  working = passiveRuntime.onFactEvent(chargeReleased, working);
+  working = passiveRuntime.onFactEvent(chargeReleased, working).units;
 
   applyEffectActionGroups(plan, working, {
     definitions,
@@ -321,7 +321,7 @@ export function resolveChargeRelease(
     parentEventId: chargeReleased.eventId,
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, unitsForChain) =>
-      passiveRuntime.onFactEvent(event, unitsForChain),
+      passiveRuntime.onFactEvent(event, unitsForChain).units,
     // R-SKL-08（レビュー再指摘[P1]、PR #214）: `action-skill-use-resolver.ts`と
     // 同じ理由で、この行動専用の`passiveRuntime`が持つregistryをチャージ解放
     // 自身のEffectSequenceにも使い回す。
@@ -363,7 +363,7 @@ export function resolveChargeRelease(
       // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に
       // 解決されるようにする。
       onFactEventForPassiveChain: (event, unitsForChain) =>
-        passiveRuntime.onFactEvent(event, unitsForChain),
+        passiveRuntime.onFactEvent(event, unitsForChain).units,
     },
     "CHARGE_RELEASE",
     chargeReleased.eventId,
@@ -388,7 +388,7 @@ export function resolveChargeRelease(
   // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
   // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
   // `passiveRuntime`を同期済みのため、追加の同期は不要。
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope();
+  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
   return {
     units: finalUnits,

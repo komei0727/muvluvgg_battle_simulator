@@ -391,7 +391,7 @@ describe("production Catalog SKL_SENKA_CHRISTMAS_PS2 wiring (M7-001C, Issue #244
       damageResult.units,
     );
 
-    const updatedUnits = runtime.onFactEvent(criticalCheckResolved, damageResult.units);
+    const updatedUnits = runtime.onFactEvent(criticalCheckResolved, damageResult.units).units;
 
     const passiveActivated = recorder
       .getEvents()
