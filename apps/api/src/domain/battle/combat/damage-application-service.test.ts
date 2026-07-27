@@ -1268,6 +1268,36 @@ describe("applyDamageAction", () => {
     expect(result.hits[0]!.damage).toBe(20);
   });
 
+  it("UT-R-HIT-02-012 (レビュー指摘[P1], Issue #183): EvasionActivated reaches onFactEventForPassiveChain, so a PS/Memory triggered by it is not silently skipped", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+    const seenEventTypes: string[] = [];
+    const contextWithHook: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) => {
+        seenEventTypes.push(event.eventType);
+        return units;
+      },
+    };
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      contextWithHook,
+    );
+
+    expect(seenEventTypes).toContain("EvasionActivated");
+  });
+
   it("UT-R-DMG-02-008 (R-DMG-02, Issue #183): an unconditional DAMAGE_IMMUNITY effect nullifies a hit's damage to exactly 1, still confirming the hit (HitConfirmed/DamageApplied still fire)", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
@@ -1338,7 +1368,7 @@ describe("applyDamageAction", () => {
 
   it("UT-R-STS-03-005 (R-STS-03, Issue #183): a DAMAGE hit against a frozen target amplifies this hit's damage by damageAmplificationOnBreak, clears FREEZE, and records FreezeRemoved between DamageCalculated and HitPointReduced", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
-    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 1.5 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
     const target = {
       ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
       appliedEffects: [freeze],
@@ -1400,9 +1430,43 @@ describe("applyDamageAction", () => {
     expect(result.hits[0]!.damage).toBe(30);
   });
 
+  it("UT-R-STS-03-012 (Q-DMG-01 'ダメージ計算の途中では丸めず、最終結果で切り捨てる'): freeze amplification is applied to the unrounded pre-truncation damage and floored exactly once, not floored again after calculateDamage's own floor", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 }),
+      appliedEffects: [freeze],
+    };
+    const random = new SequenceRandomSource([]);
+    // Base damage 20 (attack 30 - defense 10) * actionDamageMultiplier 1.045
+    // (from a 4.5% damageModifier) = 20.9 pre-truncation.
+    const fractionalDamageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      ...damageAction("PREVENTED"),
+      payload: {
+        ...damageAction("PREVENTED").payload,
+        damageModifiers: [{ kind: "CONSTANT", value: 0.045 }],
+      },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      fractionalDamageAction,
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    // Correct (single final floor): 20.9 * 1.5 = 31.35 -> floor -> 31.
+    // The bug this guards against: flooring 20.9 -> 20 first, then *1.5 -> 30
+    // -> floor -> 30 (a full point of damage silently lost to Q-DMG-01
+    // non-compliant intermediate rounding).
+    expect(result.hits[0]!.damage).toBe(31);
+  });
+
   it("UT-R-STS-03-007 (R-STS-03 interacts with R-DMG-02): freeze still clears even when DAMAGE_IMMUNITY nullifies the (already amplified) triggering damage down to 1", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
-    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 1.5 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
     const target = {
       ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
@@ -1436,7 +1500,7 @@ describe("applyDamageAction", () => {
 
   it("UT-R-STS-03-008 (R-STS-03 'MISSでは解除しない'): an evaded hit against a frozen target does not amplify damage or clear FREEZE", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
-    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 1.5 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
     const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
     const target = {
       ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
@@ -1458,6 +1522,56 @@ describe("applyDamageAction", () => {
     const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(updatedTarget.appliedEffects.some((e) => e.statusKind === "FREEZE")).toBe(true);
     expect(context.recorder.getEvents().some((e) => e.eventType === "FreezeRemoved")).toBe(false);
+  });
+
+  it("UT-R-STS-03-013 (レビュー指摘[P2], Issue #183): FreezeRemoved reaches onFactEventForPassiveChain before HP is applied, so a PS reacting to it sees pre-damage HP as the baseline", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [freeze],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+    // Simulate a PS that heals the target by 5 HP the instant FreezeRemoved
+    // fires (before this hit's HP reduction is computed).
+    const seenEventTypes: string[] = [];
+    const contextWithHeal: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) => {
+        seenEventTypes.push(event.eventType);
+        return event.eventType === "FreezeRemoved"
+          ? units.map((u) =>
+              u.battleUnitId === target.battleUnitId ? { ...u, currentHp: u.currentHp + 5 } : u,
+            )
+          : units;
+      },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      contextWithHeal,
+    );
+
+    // FreezeRemoved must reach the hook strictly before DamageApplied/
+    // HitPointReduced, so a reacting PS's HP change becomes the baseline the
+    // hit's own damage is subtracted from.
+    expect(seenEventTypes.indexOf("FreezeRemoved")).toBeLessThan(
+      seenEventTypes.indexOf("HitPointReduced"),
+    );
+    // Base damage 20 (attack 30 - defense 10) * 1.5 amplification = 30.
+    // Baseline must be the healed HP (100 + 5 = 105), not the stale
+    // pre-heal snapshot (100): 105 - 30 = 75.
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.currentHp).toBe(75);
+    const damageApplied = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageApplied")!;
+    expect(damageApplied.payload).toMatchObject({ hpBefore: 105, hpAfter: 75 });
   });
 
   it("UT-R-BON-ATTACK-DMG-002 (ON_ATTACK_BONUS_DAMAGE_BUFF, Issue #183, mirrors SKL_ELENA_MOODMAKER_EX): a DAMAGE hit from an attacker holding an isAttackDamageBonus AppliedEffect adds the buff's magnitude on top of the calculated damage", () => {

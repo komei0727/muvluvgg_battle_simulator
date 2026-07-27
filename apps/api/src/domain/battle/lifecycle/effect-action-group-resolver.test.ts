@@ -1043,6 +1043,93 @@ describe("applyEffectActionGroups", () => {
     });
   });
 
+  it("UT-R-STS-03-014 (レビュー指摘[P2], Issue #183, full stack): a DAMAGE ACTION step against a frozen target wired with a linked-group sibling cascades the sibling away through the real effect-action-group-resolver.ts -> damage-application-service.ts -> removeFreezeEffect injection", () => {
+    const actor = unit("ACTOR", "ALLY", {
+      combatStats: { ...unit("A", "ALLY").combatStats, attack: 30 },
+    });
+    const statMod = statModAction("ACT_LINK");
+    const freezeEffectId = createEffectInstanceId("freeze-1");
+    const siblingEffectId = createEffectInstanceId("sibling-1");
+    // `unit()`'s baseline attack is 20; simulate the sibling's +20% ATTACK
+    // already contributing (as `grantEffect`/`recalculateCombatStats` would
+    // have left it: 20 * 1.2 = 24) so its cascade removal produces a
+    // detectable `before !== after` change.
+    const enemy = unit("ENEMY", "ENEMY", {
+      combatStats: { ...unit("E", "ENEMY").combatStats, defense: 10, attack: 24 },
+      appliedEffects: [
+        {
+          effectInstanceId: freezeEffectId,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+          duplicate: true,
+          sourceId: createBattleUnitId("ACTOR"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "FREEZE",
+          statusDetails: { damageAmplificationOnBreak: 0.5 },
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+        {
+          effectInstanceId: siblingEffectId,
+          effectActionDefinitionId: statMod.effectActionDefinitionId,
+          kindKey: effectKindKeyFromDefinitionId(statMod.effectActionDefinitionId),
+          duplicate: true,
+          sourceId: createBattleUnitId("ENEMY"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0.2,
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const dmg = damageAction("ACT_ATTACK");
+    const effectActions = new Map([
+      [dmg.effectActionDefinitionId, dmg],
+      [statMod.effectActionDefinitionId, statMod],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, dmg.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const updatedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(updatedEnemy.appliedEffects).toHaveLength(0);
+    // The linked stat mod's +20% ATTACK is gone once cascaded away (back to
+    // the 20 baseline).
+    expect(updatedEnemy.combatStats.attack).toBe(20);
+
+    const events = recorder.getEvents();
+    const cascadeExpired = events.find(
+      (ev) => ev.eventType === "EffectExpired" && ev.payload.effectInstanceId === siblingEffectId,
+    );
+    const freezeRemoved = events.find((ev) => ev.eventType === "FreezeRemoved");
+    const combatStatChanged = events.find((ev) => ev.eventType === "CombatStatChanged");
+    expect(cascadeExpired).toBeDefined();
+    expect(cascadeExpired!.payload).toMatchObject({
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(freezeRemoved).toBeDefined();
+    // Base damage 30 - 10 = 20, amplified by the freeze's +50% = 30.
+    expect(freezeRemoved!.payload).toMatchObject({
+      effectInstanceId: freezeEffectId,
+      triggeringDamage: 30,
+    });
+    expect(combatStatChanged).toBeDefined();
+    expect(events.indexOf(cascadeExpired!)).toBeLessThan(events.indexOf(freezeRemoved!));
+  });
+
   it("UT-R-HIT-02-011 (R-HIT-02, Issue #183, CAP_HIT_COUNT_EVASION): an APPLY_STATUS(EVASION) ACTION step grants a statusKind EVASION AppliedEffect carrying statusDetails.probability/appliesTo through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");

@@ -7,6 +7,7 @@ import {
 import { grantEffect } from "../effects/effect-grant-service.js";
 import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
+import { removeFreezeEffect } from "../effects/freeze-removal-service.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { removeMarkers, reduceMarkerStack } from "../effects/marker-removal-service.js";
 import { removeEffects } from "../effects/effect-removal-service.js";
@@ -516,6 +517,34 @@ function* resolveOneEffectActionApplication(
         consumeEffectDuration,
         finalizeConsumedEffectDurations,
         includeDefeated: application.includeDefeated,
+        // R-STS-03＋R-EFF-09（レビュー指摘[P2]）: `combat/`は`effects/`へ依存
+        // できないため、凍結解除のlinkedEffectGroupカスケード（`duration-
+        // expiry-service.ts`と同じ`collectLinkedGroupCascade`）とCombatStat
+        // 再計算をここから注入する。
+        removeFreezeEffect: (
+          targetUnitId,
+          freezeEffectInstanceId,
+          triggeringDamage,
+          units,
+          parentEventId,
+        ) =>
+          removeFreezeEffect(
+            {
+              recorder: context.recorder,
+              turnNumber: context.turnNumber,
+              cycleNumber: context.cycleNumber,
+              ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+              skillUseId: context.skillUseId,
+              resolutionScopeId: context.actionScope,
+              rootEventId: context.rootEventId,
+            },
+            units,
+            targetUnitId,
+            freezeEffectInstanceId,
+            triggeringDamage,
+            context.definitions.effectActions,
+            parentEventId,
+          ),
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
