@@ -573,6 +573,15 @@ function* resolveOneEffectActionApplication(
     // そのまま`yield`し、`driveActivation`の共有stateへ正しく参加させる —
     // ここで消費した分だけ`innerEventsStart`を前進させ、下の`innerEvents`
     // 捕捉との二重処理を防ぐ。
+    // レビュー再々々指摘[P2]（Issue #183）: `damageStep.value.events`
+    // （カスケード自身のイベントだけ）ではなく`context.recorder.getEvents().
+    // slice(innerEventsStart)`を`yield`する — カスケードが始まる前に記録済みの
+    // `HitConfirmed`/`CriticalCheckResolved`/`DamageCalculated`（他の分岐と同じ
+    // 「先行FACTイベントも同じEFFECT_RESOLVEDへ含める」慣例、darkness/stealth
+    // ブロックと同じ形）も、この最初のyieldで一緒に即時連鎖へ届ける。これが
+    // 無いと、これらのイベントは`damageStep.value.events`にも下の`innerEvents`
+    // （`innerEventsStart`を前進済みのため）にも含まれず、対応するPS/Memory/
+    // RuntimeCounterが発動しなくなる。
     let damageStep = damageGen.next();
     while (!damageStep.done) {
       // このカスケードステップの`units`を`box.units`へ反映してから`yield`する
@@ -580,7 +589,10 @@ function* resolveOneEffectActionApplication(
       // sync-out）。これにより、この`yield`を処理する`driveActivation`側の
       // 子PS候補検出・発動がこの時点の正しい中間状態を参照できる。
       box.units = damageStep.value.units;
-      yield { kind: "EFFECT_RESOLVED", events: damageStep.value.events };
+      yield {
+        kind: "EFFECT_RESOLVED",
+        events: context.recorder.getEvents().slice(innerEventsStart),
+      };
       innerEventsStart = context.recorder.getEvents().length;
       // 子PS連鎖（あれば）が`box.units`を書き換えている可能性があるため、
       // 一時停止していたgeneratorを再開する前に取り込む（sync-in）。

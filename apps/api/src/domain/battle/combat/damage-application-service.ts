@@ -823,13 +823,19 @@ export function* applyDamageActionSteps(
     // true`（レビュー再々指摘[P2]、PR #215）では既に戦闘不能な対象へもヒットが
     // 続くため、`updatedTarget`だけを見ると「HPが0になった直後」
     // （`08_ドメインイベント.md`）ではないヒットでも`UnitDefeated`を毎回
-    // 再発行してしまう。実際にこのヒットでHPが0へ遷移した場合
-    // （`targetAfterTiming`が生存していた場合）だけ発行する。
+    // 再発行してしまう。実際にこのヒットでHPが0へ遷移した場合だけ発行する —
+    // レビュー再々々指摘[P2]（Issue #183）: 判定基準は`targetAfterTiming`
+    // （凍結解除カスケード開始前のスナップショット）ではなく`targetBeforeHp`
+    // （カスケードの`FreezeRemoved`/`EffectExpired`に反応した子PSがこのヒットの
+    // HP計算前に対象を戦闘不能にしていれば、既にそれを反映した最新状態）を
+    // 使う。`targetAfterTiming`のままだと、子PSが既に対象を戦闘不能にした
+    // ケースでHP 0→0の遷移にもかかわらず`UnitDefeated`を再発行してしまう
+    // （子PS自身のDAMAGE解決が既に1回発行済み）。
     lastEventId = damageApplied.eventId;
     // `FreezeRemoved`（と、あればそのカスケード）はこのヒットのHP適用より前に
     // 既に`notifyNewEvents`で連鎖通知済みのため、ここでは含めない。
     const factEvents: BattleDomainEvent[] = [hitPointReduced, damageApplied];
-    if (!isDefeated(targetAfterTiming) && isDefeated(updatedTarget)) {
+    if (!isDefeated(targetBeforeHp) && isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",
