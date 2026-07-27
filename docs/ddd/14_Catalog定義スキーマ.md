@@ -971,12 +971,12 @@ payload:
 | `resource` | enum               | `AP` / `PP` / `EX_GAUGE` / `HP`。`HP`はM7-002（Issue #185、HP_DIRECT_COST）で追加し、防御力・会心などの通常ダメージ処理を経由せずHPを直接増減する                                                        |
 | `bounds`   | object（optional） | `min`/`max`はCatalog作成者が任意の有限値を指定できるが、実行側は常に対象リソースの実際の可動域`0..currentMax`と交差させてから適用する（範囲外や空区間の指定でも実行時例外にはならず、静かにclampされる） |
 
-| operation    | 意味                                                                                                                                                                                                                                             |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ADD`        | 現在値へ加算。減算は負値                                                                                                                                                                                                                         |
-| `SET`        | 指定値にする                                                                                                                                                                                                                                     |
-| `SET_TO_MAX` | 最大値にする                                                                                                                                                                                                                                     |
-| `DISTRIBUTE` | 対象間で分配。**未実装**（対象間分配ロジックが未設計、Issue #185→#255へ切り出し）。使用する場合は`requiredCapabilities`へ`CAP_RESOURCE_DISTRIBUTE`（`PLANNED`）の宣言を必須とし、Catalogロード時点で宣言漏れを拒否する（`catalog-integrity.ts`） |
+| operation    | 意味                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADD`        | 現在値へ加算。減算は負値                                                                                                                                                                                                                                                                                                                                                                                    |
+| `SET`        | 指定値にする                                                                                                                                                                                                                                                                                                                                                                                                |
+| `SET_TO_MAX` | 最大値にする                                                                                                                                                                                                                                                                                                                                                                                                |
+| `DISTRIBUTE` | 対象間で分配。**未実装**（対象間分配ロジックが未設計。Issue #185のスコープには元々含まれておらず、専用の追跡Issueは未作成 — `CAP_RESOURCE_CAPACITY_MOD`が#255を得る前と同じく、production skillが実際に必要とする時点でIssueを作成する運用）。使用する場合は`requiredCapabilities`へ`CAP_RESOURCE_DISTRIBUTE`（`PLANNED`）の宣言を必須とし、Catalogロード時点で宣言漏れを拒否する（`catalog-integrity.ts`） |
 
 ### MODIFY_RESOURCE_CAPACITY
 
@@ -997,12 +997,12 @@ payload:
     dispellable: false
 ```
 
-| フィールド  | 型                 | 制約                                                                                 |
-| ----------- | ------------------ | ------------------------------------------------------------------------------------ |
-| `resource`  | enum               | `AP` / `PP` / `EX_GAUGE`                                                             |
-| `operation` | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない |
-| `formula`   | FormulaDefinition  | 変更量                                                                               |
-| `duration`  | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す     |
+| フィールド  | 型                 | 制約                                                                                                                                                                        |
+| ----------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resource`  | enum               | `AP` / `PP` / `EX_GAUGE` / `HP`。Mapperは`MODIFY_RESOURCE`と同じ共通`ResourceKind`（`HP`含む）を受理する（後続Issue #255でのEngine実装スコープはこの4種すべてを対象にする） |
+| `operation` | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない                                                                                        |
+| `formula`   | FormulaDefinition  | 変更量                                                                                                                                                                      |
+| `duration`  | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す                                                                                            |
 
 ### APPLY_RESOURCE_GAIN_MOD
 
@@ -2163,7 +2163,7 @@ Issue #41（代表10ユニットのv2 Catalog変換パイロット）で、当�
 | G-10 | 同一EffectSequence内のDAMAGE結果合算参照                              | `FormulaDefinition` の `sourceResult: SUM_DAMAGE_DEALT` / `SUM_DAMAGE_RECEIVED`                                                                                                                                                                                                                                                | `CAP_FORMULA`（既存を再利用）                                                                                                                          |
 | G-05 | リソース「獲得量」自体を増減させるModifier（実装: M7-002/Issue #185） | `EffectActionDefinition.kind: APPLY_RESOURCE_GAIN_MOD`。`resource`は当初計画の`AP`/`PP`/`EX_GAUGE`から`EX_GAUGE`固定へ絞った（合成経路がEXゲージ増加だけを対象にするため、AP/PP/HPを受理しても機能しない「無効な定義」になってしまうことをレビューで指摘され修正）。`UNIT_MAIA_SALON`/`UNIT_KARINA_DOWNER`を実データ再変換済み | `CAP_RESOURCE_GAIN_MOD`（新規、`IMPLEMENTED`）                                                                                                         |
 
-いずれも `requiredCapabilities` は現時点で `PLANNED`（`capabilities.json`）のままとし、Mapper/schemaレベルでの受理と、対応するBattle Engineの実行（HP/リソース状態遷移、イベント発行）を分離している。これは既存の `CAP_HEAL` / `CAP_MARKER` などと同じ方針であり、Engine側の実装は各Task（DoTはDMG-008／Issue #189、ShieldはDMG-004／Issue #194、SubUnitへのDamage適用はDMG-005／Issue #190、効果解除・無効化・CombatStat再計算はM7-001／Issue #181）で追跡する。
+G-05（`CAP_RESOURCE_GAIN_MOD`）を除く上記G-01〜G-04・G-06・G-08〜G-10は、`requiredCapabilities` が現時点で `PLANNED`（`capabilities.json`）のままとし、Mapper/schemaレベルでの受理と、対応するBattle Engineの実行（HP/リソース状態遷移、イベント発行）を分離している。これは既存の `CAP_HEAL` / `CAP_MARKER` などと同じ方針であり、Engine側の実装は各Task（DoTはDMG-008／Issue #189、ShieldはDMG-004／Issue #194、SubUnitへのDamage適用はDMG-005／Issue #190、効果解除・無効化・CombatStat再計算はM7-001／Issue #181）で追跡する。G-05はM7-002（Issue #185）でMapper・Battle Engine実行の両方を実装し、`requiredCapabilities: CAP_RESOURCE_GAIN_MOD` は `IMPLEMENTED` である。
 
 `MODIFY_RESOURCE` は一回限りの加減算のままとし、`APPLY_RESOURCE_GAIN_MOD` とは別kindとして扱う（「Duration付与時に確定した符号付き量を加算する」既存の`APPLY_DAMAGE_MOD`/`APPLY_HEALING_MOD`と同じモデルへ揃え、将来の獲得イベントへ事後的にフックする新モデルは導入しない）。フィールド名・丸め規則・複数Modifier合成順は、M7-002（Issue #185）で`resource: EX_GAUGE`固定の契約として確定・実装済み（上記「実装したもの」表のG-05、および[APPLY_RESOURCE_GAIN_MOD](#apply_resource_gain_mod)参照）。
 
