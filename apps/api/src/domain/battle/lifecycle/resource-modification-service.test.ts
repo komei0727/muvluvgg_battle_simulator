@@ -1,0 +1,468 @@
+import { describe, expect, it } from "vitest";
+import { applyModifyResourceAction } from "./resource-modification-service.js";
+import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import type { BattlePartyMember } from "../model/battle-party.js";
+import { EventRecorder } from "../events/event-recorder.js";
+import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import {
+  createEffectActionDefinitionId,
+  createUnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { FormationPosition } from "../model/formation-input.js";
+import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import type { Side } from "../../shared/side.js";
+import { DomainValidationError } from "../../shared/errors.js";
+
+function unit(
+  id: string,
+  side: Side,
+  overrides: { currentHp?: number; maximumHp?: number } = {},
+): BattleUnit {
+  const position: FormationPosition = { column: "LEFT", row: "FRONT" };
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(id),
+    unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate(side, position),
+    combatStats: {
+      maximumHp: overrides.maximumHp ?? 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+    },
+  };
+  const built = createBattleUnit(member, side, {
+    maximumAp: 3,
+    maximumPp: 3,
+    maximumExtraGauge: 10,
+  });
+  return { ...built, currentHp: overrides.currentHp ?? built.currentHp };
+}
+
+function modifyResourceAction(
+  id: string,
+  payload: Extract<EffectActionDefinition, { kind: "MODIFY_RESOURCE" }>["payload"],
+): Extract<EffectActionDefinition, { kind: "MODIFY_RESOURCE" }> {
+  return {
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    kind: "MODIFY_RESOURCE",
+    payload,
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+  };
+}
+
+function seedRecorder(): {
+  recorder: EventRecorder;
+  rootEventId: ReturnType<EventRecorder["record"]>["eventId"];
+} {
+  const recorder = new EventRecorder(createBattleId("B_1"));
+  const seed = recorder.record({
+    eventType: "TurnStarted",
+    category: "FACT",
+    turnNumber: 1,
+    cycleNumber: 0,
+    resolutionScopeId: recorder.nextResolutionScopeId(),
+    payload: { turnNumber: 1 },
+  });
+  return { recorder, rootEventId: seed.eventId };
+}
+
+describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
+  it("UT-R-ACTN-02-001 (HP_DIRECT_COST): MODIFY_RESOURCE(resource: HP, ADD, MAX_HP_RATIO -10%) reduces current HP by 10% of max, emitting ResourceChanged(resource: HP, reason: EFFECT_ACTION)", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 100, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: -0.1 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updated.currentHp).toBe(90);
+
+    const resourceChanged = recorder.getEvents().find((e) => e.eventType === "ResourceChanged")!;
+    expect(resourceChanged.payload).toMatchObject({
+      battleUnitId: actor.battleUnitId,
+      resource: "HP",
+      before: 100,
+      after: 90,
+      delta: -10,
+      baseDelta: -10,
+      reason: "EFFECT_ACTION",
+    });
+  });
+
+  it("UT-R-ACTN-02-002: a HP cost that would go below 0 clamps to 0 (default bounds 0..currentMax)", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 5, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST_BIG", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: -0.6 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updated.currentHp).toBe(0);
+  });
+
+  it("UT-R-ACTN-02-003: HP reaching 0 via MODIFY_RESOURCE emits UnitDefeated", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST_LETHAL", {
+      resource: "HP",
+      operation: "SET",
+      formula: { kind: "CONSTANT", value: 0 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(recorder.getEvents().some((e) => e.eventType === "UnitDefeated")).toBe(true);
+  });
+
+  it("UT-R-ACTN-02-004: SET_TO_MAX ignores the (placeholder) formula and sets the resource to its current max", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_FULL", {
+      resource: "HP",
+      operation: "SET_TO_MAX",
+      formula: { kind: "CONSTANT", value: 0 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(100);
+  });
+
+  it("UT-R-ACTN-02-005: an explicit bounds.min overrides the default 0 floor", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST_FLOORED", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: -50 },
+      bounds: { min: 1, max: "CURRENT_MAX" },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(1);
+  });
+
+  it("UT-R-ACTN-02-009: an author-supplied negative bounds.min is still intersected with the hard floor of 0", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST_OVERSHOOT", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: -50 },
+      bounds: { min: -999, max: "CURRENT_MAX" },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(0);
+  });
+
+  it("UT-R-ACTN-02-010: an author-supplied bounds.max exceeding the resource's current max is still intersected with currentMax", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_GAIN_OVERSHOOT", {
+      resource: "HP",
+      operation: "SET",
+      formula: { kind: "CONSTANT", value: 500 },
+      bounds: { min: 0, max: 500 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(100);
+  });
+
+  it("UT-R-ACTN-02-011 (PRレビュー[P2] PR #254): an author-supplied bounds range that is empty after intersection with [0, currentMax] (e.g. bounds: {min: 0, max: -1}) still clamps to a valid value instead of throwing", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST_EMPTY_BOUNDS", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: -5 },
+      bounds: { min: 0, max: -1 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(0);
+  });
+
+  it("UT-R-ACTN-02-014 (PRレビュー[P2] PR #254、3rd round): an author-supplied bounds.min exceeding currentMax (e.g. bounds: {min: 999, max: CURRENT_MAX} on a 100-max HP) still clamps to currentMax instead of throwing", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_MIN_OVERSHOOT", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: -5 },
+      bounds: { min: 999, max: "CURRENT_MAX" },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(100);
+  });
+
+  it("UT-R-ACTN-02-006: operation DISTRIBUTE is not yet supported and throws a clear DomainValidationError", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const action = modifyResourceAction("ACT_EX_DISTRIBUTE", {
+      resource: "EX_GAUGE",
+      operation: "DISTRIBUTE",
+      formula: { kind: "CONSTANT", value: 10 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    expect(() =>
+      applyModifyResourceAction(
+        [
+          {
+            targetBattleUnitId: actor.battleUnitId,
+            effectActionDefinitionId: action.effectActionDefinitionId,
+            hitIndex: 0,
+          },
+        ],
+        actor,
+        action,
+        [actor],
+        {
+          recorder,
+          turnNumber: 1,
+          cycleNumber: 0,
+          resolutionScopeId: recorder.nextResolutionScopeId(),
+          rootEventId,
+          parentEventId: rootEventId,
+          sourceUnitId: actor.battleUnitId,
+        },
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-ACTN-02-007: a zero-delta change (already at the target value) does not emit ResourceChanged", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 100, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_FULL_NOOP", {
+      resource: "HP",
+      operation: "SET_TO_MAX",
+      formula: { kind: "CONSTANT", value: 0 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(recorder.getEvents().some((e) => e.eventType === "ResourceChanged")).toBe(false);
+  });
+});

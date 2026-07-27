@@ -355,6 +355,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       .find((e) => e.eventType === "ExtraGaugeOverflowDiscarded")!;
     expect(overflow.payload).toEqual({
       battleUnitId: owner.battleUnitId,
+      baseDelta: 3,
       requestedAmount: 3,
       actualAmount: 2,
       discardedAmount: 1,

@@ -18,7 +18,8 @@ export type ComparisonOperator = "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ" | "I
 
 export type SkillType = "AS" | "PS" | "EX";
 
-export type ResourceKind = "AP" | "PP" | "EX_GAUGE";
+/** M7-002（Issue #185）: `MODIFY_RESOURCE`は`HP`も対象にできる（HP_DIRECT_COST、防御力・会心を経由しない直接消費）。`SkillDefinition.cost.resource`はAP/PP/EX_GAUGEのみ（`skill-definition.ts`が独自に狭い`RESOURCE_KINDS`で検証する）。 */
+export type ResourceKind = "AP" | "PP" | "EX_GAUGE" | "HP";
 
 export type DurationTimeUnit = "ACTION" | "TURN" | "BATTLE" | "HIT" | "SKILL_USE";
 

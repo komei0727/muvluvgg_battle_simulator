@@ -1,4 +1,5 @@
 import {
+  composeResourceGainRate,
   consumeAp,
   consumeExGaugeFully,
   increaseExGauge,
@@ -91,7 +92,14 @@ export function resolveSkillUse(
   const actorAfterCost = requireUnit(working, actorId);
 
   const exGain =
-    effectiveActionType === "AS" ? increaseExGauge(working, actorId, skill.cost.amount) : undefined;
+    effectiveActionType === "AS"
+      ? increaseExGauge(
+          working,
+          actorId,
+          skill.cost.amount,
+          composeResourceGainRate(actorAfterCost, "EX_GAUGE", definitions.effectActions),
+        )
+      : undefined;
   if (exGain !== undefined) {
     working = exGain.units;
   }
@@ -149,6 +157,7 @@ export function resolveSkillUse(
           "EX_GAUGE",
           actor.currentExtraGauge,
           actorAfterCost.currentExtraGauge,
+          actorAfterCost.currentExtraGauge - actor.currentExtraGauge,
           "SKILL_COST",
           actionStarted.eventId,
           actionStarted.eventId,
@@ -159,6 +168,7 @@ export function resolveSkillUse(
           "AP",
           actor.currentAp,
           actorAfterCost.currentAp,
+          actorAfterCost.currentAp - actor.currentAp,
           "SKILL_COST",
           actionStarted.eventId,
           actionStarted.eventId,
@@ -170,6 +180,7 @@ export function resolveSkillUse(
       "EX_GAUGE",
       exGain.before,
       exGain.after,
+      exGain.baseDelta,
       "EX_GAIN",
       lastEventId,
       actionStarted.eventId,
@@ -177,6 +188,7 @@ export function resolveSkillUse(
     lastEventId = recordExtraGaugeOverflowDiscardedIfAny(
       resourceChangeContext,
       actorId,
+      exGain.baseDelta,
       exGain.requestedAmount,
       exGain.after - exGain.before,
       exGain.discardedAmount,

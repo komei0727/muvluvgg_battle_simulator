@@ -125,7 +125,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`) — Elena is not among the 10
     // promoted units (still blocked separately by `CAP_DAMAGE_MOD`/DMG-002),
     // so `unitCount`/violation expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-27.2");
+    // Bumped again by M7-002 (Issue #185): `CAP_RESOURCE_MUTATION` (MODIFY_RESOURCE,
+    // now including `resource: HP` for HP_DIRECT_COST) flipped to IMPLEMENTED, and
+    // the new `CAP_RESOURCE_GAIN_MOD` (APPLY_RESOURCE_GAIN_MOD) was added as
+    // IMPLEMENTED. `MODIFY_RESOURCE_CAPACITY`'s `CAP_RESOURCE_CAPACITY_MOD` stays
+    // PLANNED (no production Catalog definition references it; see its updated
+    // description). None of the 10 promoted units here references any of these
+    // three Capabilities, so `unitCount`/violation expectations are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-27.6");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -1,5 +1,6 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
+import { applyModifyResourceAction } from "./resource-modification-service.js";
 import {
   applyDamageActionSteps,
   type DamageEventContext,
@@ -1355,10 +1356,125 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_RESOURCE_GAIN_MOD") {
+    // G-05（`14_Catalog定義スキーマ.md`、M7-002/Issue #185）: `APPLY_STAT_MOD`と
+    // 同じ評価規約で`rateDelta`を付与時点に一度だけ評価し、結果を符号付き倍率
+    // として`magnitude`へ保持する。EXゲージ増加量への実際の適用は
+    // `action-resolution-shared.ts`の`increaseExGauge`呼び出し側
+    // （`resource-gain-mod-composition.ts`が対象の有効なAppliedEffectを合成）が
+    // 行うため、ここではCombatStatsと同様の再計算は不要
+    // （`APPLY_ATTACK_DAMAGE_BONUS`と同じ理由）。
+    const actor = requireUnit(box.units, context.actorId);
+    const magnitude = evaluateFormula(effectAction.payload.rateDelta, {
+      skillSource: actor,
+      target: requireUnit(box.units, application.targetBattleUnitId),
+      allUnits: box.units,
+      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+    });
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
+  } else if (effectAction.kind === "MODIFY_RESOURCE") {
+    // R-ACTN-02＋M7-002（Issue #185、HP_DIRECT_COST）: AP/PP/EX_GAUGEの一回限りの
+    // 加減算に加え、`resource: HP`で防御力・会心などの通常ダメージ処理を経由せず
+    // HPを直接増減する（`UNIT_SUIRAN_CASINO`等の自己コスト）。
+    const modifyResult = applyModifyResourceAction(
+      application.hits,
+      requireUnit(box.units, context.actorId),
+      effectAction,
+      box.units,
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+        parentEventId: starting.eventId,
+        sourceUnitId: context.actorId,
+        ...(context.lastDamageResults !== undefined
+          ? { lastDamageResults: context.lastDamageResults }
+          : {}),
+        ...(context.onFactEventForPassiveChain !== undefined
+          ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+          : {}),
+      },
+    );
+    box.units = modifyResult.units;
+    resolvedCount = modifyResult.resolvedCount;
+    interruptedCount = 0;
+    effectLastEventId = modifyResult.lastEventId;
+    resultKind = modifyResult.changed ? "APPLIED" : "SKIPPED";
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

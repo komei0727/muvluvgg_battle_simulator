@@ -194,6 +194,10 @@
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
         }
       ],
       "steps": [
@@ -201,12 +205,22 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_DEBUFF" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_EX_GAIN_UP" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_FORMULA",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_RESOURCE_GAIN_MOD"
+    ],
     "metadata": { "displayName": "包囲かんりょ～", "tags": [] },
     "triggers": [
       {

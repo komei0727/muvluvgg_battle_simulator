@@ -674,6 +674,26 @@ function statModAction(
   );
 }
 
+function modifyResourceDistributeAction(
+  id: string,
+  requiredCapabilities: readonly string[] = ["CAP_RESOURCE_MUTATION", "CAP_RESOURCE_DISTRIBUTE"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "MODIFY_RESOURCE",
+      payload: {
+        resource: "EX_GAUGE",
+        operation: "DISTRIBUTE",
+        formula: { kind: "CONSTANT", value: 8 },
+        bounds: { min: 0, max: "CURRENT_MAX" },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function markerAction(
   id: string,
   linkedEffectGroupId: string | null = null,
@@ -1375,6 +1395,47 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_STAT_MOD",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-ACTN-02-012 (PRレビュー[P2] PR #254): accepts a MODIFY_RESOURCE(operation: DISTRIBUTE) that declares the required CAP_RESOURCE_DISTRIBUTE capability", () => {
+    const defs = baseDefinitions();
+    const withDistribute: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DISTRIBUTE")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, modifyResourceDistributeAction("ACT_DISTRIBUTE")],
+      capabilities: [capability("CAP_RESOURCE_MUTATION"), capability("CAP_RESOURCE_DISTRIBUTE")],
+    };
+
+    const index = buildCatalogIndex(withDistribute);
+
+    expect(index.effectActions.get("ACT_DISTRIBUTE" as never)).toBeDefined();
+  });
+
+  it("UT-R-ACTN-02-013 (PRレビュー[P2] PR #254): rejects a MODIFY_RESOURCE(operation: DISTRIBUTE) missing the required CAP_RESOURCE_DISTRIBUTE capability, so the unsupported operation is caught at Catalog load time rather than only inside battle resolution", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DISTRIBUTE")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        modifyResourceDistributeAction("ACT_DISTRIBUTE", ["CAP_RESOURCE_MUTATION"]),
+      ],
+      capabilities: [capability("CAP_RESOURCE_MUTATION"), capability("CAP_RESOURCE_DISTRIBUTE")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_DISTRIBUTE",
         ),
       ).toBe(true);
     }

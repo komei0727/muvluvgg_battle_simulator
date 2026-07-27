@@ -966,12 +966,17 @@ payload:
     max: CURRENT_MAX
 ```
 
-| operation    | 意味                     |
-| ------------ | ------------------------ |
-| `ADD`        | 現在値へ加算。減算は負値 |
-| `SET`        | 指定値にする             |
-| `SET_TO_MAX` | 最大値にする             |
-| `DISTRIBUTE` | 対象間で分配             |
+| フィールド | 型                 | 制約                                                                                                                                                                                                     |
+| ---------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resource` | enum               | `AP` / `PP` / `EX_GAUGE` / `HP`。`HP`はM7-002（Issue #185、HP_DIRECT_COST）で追加し、防御力・会心などの通常ダメージ処理を経由せずHPを直接増減する                                                        |
+| `bounds`   | object（optional） | `min`/`max`はCatalog作成者が任意の有限値を指定できるが、実行側は常に対象リソースの実際の可動域`0..currentMax`と交差させてから適用する（範囲外や空区間の指定でも実行時例外にはならず、静かにclampされる） |
+
+| operation    | 意味                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADD`        | 現在値へ加算。減算は負値                                                                                                                                                                                                                                                                                                                                                                                    |
+| `SET`        | 指定値にする                                                                                                                                                                                                                                                                                                                                                                                                |
+| `SET_TO_MAX` | 最大値にする                                                                                                                                                                                                                                                                                                                                                                                                |
+| `DISTRIBUTE` | 対象間で分配。**未実装**（対象間分配ロジックが未設計。Issue #185のスコープには元々含まれておらず、専用の追跡Issueは未作成 — `CAP_RESOURCE_CAPACITY_MOD`が#255を得る前と同じく、production skillが実際に必要とする時点でIssueを作成する運用）。使用する場合は`requiredCapabilities`へ`CAP_RESOURCE_DISTRIBUTE`（`PLANNED`）の宣言を必須とし、Catalogロード時点で宣言漏れを拒否する（`catalog-integrity.ts`） |
 
 ### MODIFY_RESOURCE_CAPACITY
 
@@ -992,12 +997,38 @@ payload:
     dispellable: false
 ```
 
-| フィールド  | 型                 | 制約                                                                                 |
-| ----------- | ------------------ | ------------------------------------------------------------------------------------ |
-| `resource`  | enum               | `AP` / `PP` / `EX_GAUGE`                                                             |
-| `operation` | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない |
-| `formula`   | FormulaDefinition  | 変更量                                                                               |
-| `duration`  | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す     |
+| フィールド  | 型                 | 制約                                                                                                                                                                        |
+| ----------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resource`  | enum               | `AP` / `PP` / `EX_GAUGE` / `HP`。Mapperは`MODIFY_RESOURCE`と同じ共通`ResourceKind`（`HP`含む）を受理する（後続Issue #255でのEngine実装スコープはこの4種すべてを対象にする） |
+| `operation` | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない                                                                                        |
+| `formula`   | FormulaDefinition  | 変更量                                                                                                                                                                      |
+| `duration`  | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す                                                                                            |
+
+### APPLY_RESOURCE_GAIN_MOD
+
+G-05（Issue #44、実装: M7-002/Issue #185）。リソース「獲得量」自体（R-ACT-03のAP/PP消費起因のEXゲージ増加）を一定期間割合で増減させる継続効果。`APPLY_STAT_MOD`と同じ評価規約で`rateDelta`を付与時点に一度だけ評価し、結果を符号付き倍率として`AppliedEffect.magnitude`へ保持する。
+
+```yaml
+kind: APPLY_RESOURCE_GAIN_MOD
+payload:
+  resource: EX_GAUGE
+  rateDelta:
+    kind: CONSTANT
+    value: -0.5
+  stacking:
+    mode: STACKABLE
+  duration:
+    dispellable: true
+```
+
+| フィールド  | 型                 | 制約                                                                                                                                                                                         |
+| ----------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resource`  | enum               | `EX_GAUGE`固定。合成経路（`composeResourceGainRate`／`increaseExGauge`呼び出し側）がEXゲージ増加だけを対象にするため、AP/PP/HPは受理しない（獲得イベント自体が存在せず合成先を持たないため） |
+| `rateDelta` | FormulaDefinition  | 符号付き倍率（例: `+0.5`＝+50%）。付与時点で一度だけ評価する                                                                                                                                 |
+| `stacking`  | object             | `STACKABLE`のみ許可。保持している全インスタンスの`rateDelta`を合算する（重複なしグループの最強選択は不要）                                                                                   |
+| `duration`  | DurationDefinition | —                                                                                                                                                                                            |
+
+`MODIFY_RESOURCE`の一回限りの加減算には適用しない。合成後の倍率は下限を持たない（`-50%`のModifierを3個以上重ねると`-150%`のように`-100%`を下回りうる。R-FRM-03は同一UnitDefinitionの複数編成を許可するためproduction Catalogでも到達可能）が、`increaseExGauge`（`action-resolution-shared.ts`）は`amount * (1 + rate)`の結果を0で floor してから適用するため、既存のEXゲージを減少させることはない（獲得量が0になるだけ）。
 
 ### APPLY_STATUS
 
@@ -2120,26 +2151,21 @@ Issue #41（代表10ユニットのv2 Catalog変換パイロット）で、当�
 
 ### 実装したもの（Mapper拡張済み、fixtureで実データ再変換済み）
 
-| #    | 内容                                     | 追加したschema要素                                                              | Capability                                                                                                                                             |
-| ---- | ---------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| G-01 | 回復量増減の被付与                       | `EffectActionDefinition.kind: APPLY_HEALING_MOD`                                | `CAP_HEAL`（既存を再利用）                                                                                                                             |
-| G-02 | 継続ダメージ(DoT)                        | `EffectActionDefinition.kind: APPLY_CONTINUOUS_DAMAGE`                          | `CAP_CONTINUOUS_DAMAGE`（新規）                                                                                                                        |
-| G-03 | 生存ユニット数を直接比較する条件         | `ConditionDefinition.kind: ALIVE_UNIT_COUNT`                                    | AS/EXの`activationCondition`では`CAP_ACTION_ACTIVATION_CONDITION`、PSでは`CAP_PASSIVE_ACTIVATION_CONDITION`、EffectStepでは`CAP_EFFECT_STEP_CONDITION` |
-| G-04 | 効果解除                                 | `EffectActionDefinition.kind: REMOVE_EFFECTS`                                   | `CAP_REMOVE_EFFECTS`（新規）                                                                                                                           |
-| G-06 | `DAMAGE_IMMUNITY`のダメージ量しきい値    | `APPLY_STATUS.payload.damageThreshold`（既存kindへのフィールド追加）            | なし（`APPLY_STATUS`の既存Capability方針を継承。`status !== DAMAGE_IMMUNITY`ではMapperが拒否する）                                                     |
-| G-08 | シールド付与                             | `EffectActionDefinition.kind: APPLY_SHIELD`                                     | `CAP_SHIELD`（新規）                                                                                                                                   |
-| G-09 | 最大リソース上限変更                     | `EffectActionDefinition.kind: MODIFY_RESOURCE_CAPACITY`                         | `CAP_RESOURCE_CAPACITY_MOD`（既存を再利用）                                                                                                            |
-| G-10 | 同一EffectSequence内のDAMAGE結果合算参照 | `FormulaDefinition` の `sourceResult: SUM_DAMAGE_DEALT` / `SUM_DAMAGE_RECEIVED` | `CAP_FORMULA`（既存を再利用）                                                                                                                          |
+| #    | 内容                                                                  | 追加したschema要素                                                                                                                                                                                                                                                                                                             | Capability                                                                                                                                                                      |
+| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G-01 | 回復量増減の被付与                                                    | `EffectActionDefinition.kind: APPLY_HEALING_MOD`                                                                                                                                                                                                                                                                               | `CAP_HEAL`（既存を再利用、`PLANNED`）                                                                                                                                           |
+| G-02 | 継続ダメージ(DoT)                                                     | `EffectActionDefinition.kind: APPLY_CONTINUOUS_DAMAGE`                                                                                                                                                                                                                                                                         | `CAP_CONTINUOUS_DAMAGE`（新規、`PLANNED`）                                                                                                                                      |
+| G-03 | 生存ユニット数を直接比較する条件                                      | `ConditionDefinition.kind: ALIVE_UNIT_COUNT`                                                                                                                                                                                                                                                                                   | AS/EXの`activationCondition`では`CAP_ACTION_ACTIVATION_CONDITION`、PSでは`CAP_PASSIVE_ACTIVATION_CONDITION`、EffectStepでは`CAP_EFFECT_STEP_CONDITION`（いずれも`IMPLEMENTED`） |
+| G-04 | 効果解除                                                              | `EffectActionDefinition.kind: REMOVE_EFFECTS`                                                                                                                                                                                                                                                                                  | `CAP_REMOVE_EFFECTS`（新規、`IMPLEMENTED`）                                                                                                                                     |
+| G-06 | `DAMAGE_IMMUNITY`のダメージ量しきい値                                 | `APPLY_STATUS.payload.damageThreshold`（既存kindへのフィールド追加）                                                                                                                                                                                                                                                           | なし（`APPLY_STATUS`の既存Capability方針を継承。`status !== DAMAGE_IMMUNITY`ではMapperが拒否する）                                                                              |
+| G-08 | シールド付与                                                          | `EffectActionDefinition.kind: APPLY_SHIELD`                                                                                                                                                                                                                                                                                    | `CAP_SHIELD`（新規、`PLANNED`）                                                                                                                                                 |
+| G-09 | 最大リソース上限変更                                                  | `EffectActionDefinition.kind: MODIFY_RESOURCE_CAPACITY`                                                                                                                                                                                                                                                                        | `CAP_RESOURCE_CAPACITY_MOD`（既存を再利用、`PLANNED`。Issue #255）                                                                                                              |
+| G-10 | 同一EffectSequence内のDAMAGE結果合算参照                              | `FormulaDefinition` の `sourceResult: SUM_DAMAGE_DEALT` / `SUM_DAMAGE_RECEIVED`                                                                                                                                                                                                                                                | `CAP_FORMULA`（既存を再利用、`IMPLEMENTED`）                                                                                                                                    |
+| G-05 | リソース「獲得量」自体を増減させるModifier（実装: M7-002/Issue #185） | `EffectActionDefinition.kind: APPLY_RESOURCE_GAIN_MOD`。`resource`は当初計画の`AP`/`PP`/`EX_GAUGE`から`EX_GAUGE`固定へ絞った（合成経路がEXゲージ増加だけを対象にするため、AP/PP/HPを受理しても機能しない「無効な定義」になってしまうことをレビューで指摘され修正）。`UNIT_MAIA_SALON`/`UNIT_KARINA_DOWNER`を実データ再変換済み | `CAP_RESOURCE_GAIN_MOD`（新規、`IMPLEMENTED`）                                                                                                                                  |
 
-いずれも `requiredCapabilities` は現時点で `PLANNED`（`capabilities.json`）のままとし、Mapper/schemaレベルでの受理と、対応するBattle Engineの実行（HP/リソース状態遷移、イベント発行）を分離している。これは既存の `CAP_HEAL` / `CAP_MARKER` などと同じ方針であり、Engine側の実装は各Task（DoTはDMG-008／Issue #189、ShieldはDMG-004／Issue #194、SubUnitへのDamage適用はDMG-005／Issue #190、効果解除・無効化・CombatStat再計算はM7-001／Issue #181）で追跡する。
+上表の`runtimeStatus`（`IMPLEMENTED`/`PLANNED`）は`apps/api/catalog-src/capabilities.json`が正本であり、本書のこの一覧は執筆時点のスナップショットに過ぎない。`PLANNED`のCapabilityはMapper/schemaレベルでの受理と、対応するBattle Engineの実行（HP/リソース状態遷移、イベント発行）を分離する既存の`CAP_MARKER`などと同じ方針を取り、Engine側の実装は各Task（DoTはDMG-008／Issue #189、ShieldはDMG-004／Issue #194、SubUnitへのDamage適用はDMG-005／Issue #190、効果解除・無効化・CombatStat再計算はM7-001／Issue #181、MODIFY_RESOURCE_CAPACITYはIssue #255）で追跡する。
 
-### M7実装予定のもの（schema契約を確定、Mapper未実装）
-
-| #    | 内容                                       | 追加するschema要素                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Capability                      |
-| ---- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| G-05 | リソース「獲得量」自体を増減させるModifier | `EffectActionDefinition.kind: APPLY_RESOURCE_GAIN_MOD`。payload: `resource`（`AP`/`PP`/`EX_GAUGE`）、`rateDelta`（符号付き倍率、例: `+0.5`＝+50%）。`duration: DurationDefinition`、`stacking`（既存`APPLY_STAT_MOD`と同じ`STACKABLE`のみ許可）を持つ。M7の`AppliedEffect`として付与し、対象の`ResourceChanged`確定前に有効な`rateDelta`を合算して基礎量へ適用する（[06\_戦闘状態遷移.md](./06_戦闘状態遷移.md)「`RESOURCE_CONSUMING`：リソース消費」、[07\_戦闘ルール詳細.md](./07_戦闘ルール詳細.md)の`R-ACT-04`参照）。 | `CAP_RESOURCE_GAIN_MOD`（新規） |
-
-`MODIFY_RESOURCE` は一回限りの加減算のままとし、`APPLY_RESOURCE_GAIN_MOD` とは別kindとして扱う（「Duration付与時に確定した符号付き量を加算する」既存の`APPLY_DAMAGE_MOD`/`APPLY_HEALING_MOD`と同じモデルへ揃え、将来の獲得イベントへ事後的にフックする新モデルは導入しない）。フィールド名・丸め規則・複数Modifier合成順の最終確定と、Mapper/Domain実装はM7-002（Issue #185）で行う。`requiredCapabilities` はMapper実装まで`PLANNED`のままとする。
+`MODIFY_RESOURCE` は一回限りの加減算のままとし、`APPLY_RESOURCE_GAIN_MOD` とは別kindとして扱う（「Duration付与時に確定した符号付き量を加算する」既存の`APPLY_DAMAGE_MOD`/`APPLY_HEALING_MOD`と同じモデルへ揃え、将来の獲得イベントへ事後的にフックする新モデルは導入しない）。フィールド名・丸め規則・複数Modifier合成順は、M7-002（Issue #185）で`resource: EX_GAUGE`固定の契約として確定・実装済み（上記「実装したもの」表のG-05、および[APPLY_RESOURCE_GAIN_MOD](#apply_resource_gain_mod)参照）。
 
 ### 見送ったもの（設計課題を明記し、実装を見送り）
 
@@ -2147,7 +2173,7 @@ Issue #41（代表10ユニットのv2 Catalog変換パイロット）で、当�
 | ---- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | G-07 | `APPLY_DAMAGE_MOD` の動的な相対比較条件 | 「対象HP割合が自身より低い敵にのみ与ダメージ+10%」は、`APPLY_DAMAGE_MOD` が付与時（skill使用時）に1回だけ評価される現行モデルに対し、以後発生する個々の`DAMAGE`解決のたびに、その時点の対象で条件を再評価する必要がある。単に `condition: ConditionDefinition` フィールドを追加するだけでは、条件内の `TargetReference` が「このDamageModifierが今まさに適用されようとしている対象」を指す手段（既存の `TargetReference` kindはBINDING/SELF/TRIGGER_SOURCE/TRIGGER_TARGET/LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETSのみで、この用途を持たない）がなく、新しいTargetReference kindとDamage pipeline側の評価フックの両方の設計を要する。防御貫通はDMG-001（Issue #195）、複数hitはDMG-002（Issue #192）でDamage pipelineを完成させ、per-hit評価の設計が固まってから着手する。 |
 
-G-05（カリナPS2 包囲かんりょ～）該当箇所はM7-002（Issue #185）でschema契約どおりに実装する。G-07（コトハPS2 起死回生）該当箇所は、Issue #41時点のfixtureのまま近似表現（該当効果を省略）を維持する。
+G-05（カリナPS2 包囲かんりょ～）該当箇所はM7-002（Issue #185）で実装済み。G-07（コトハPS2 起死回生）該当箇所は、Issue #41時点のfixtureのまま近似表現（該当効果を省略）を維持する。
 
 ## Issue #46実装で見つかった追加課題
 

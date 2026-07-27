@@ -422,7 +422,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-002",
-    "description": "最大APなどの上限変更",
+    "description": "最大APなどの上限変更（MODIFY_RESOURCE_CAPACITY）。M7-002（Issue #185）はこのCapabilityの実装を見送った — 現行のCatalog変換行のどれからも参照されておらず（`productionDefinitionIds`が空のまま）、実装するとCombatStat（`APPLY_STAT_MOD`）と同等の継続効果再計算システム（重複ポリシー・失効時の現在値clamp等）を新規に丸ごと設計することになるため、production skillが実際に必要とする時点で別Issueとして着手する（`APPLY_DAMAGE_LINK`等と同じ運用）。",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []
@@ -431,12 +431,66 @@
   {
     "capabilityId": "CAP_RESOURCE_MUTATION",
     "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M7-002",
+    "description": "AP / PP / EX / HP操作（MODIFY_RESOURCE）。M7-002（Issue #185）がADD/SET/SET_TO_MAXの3操作を`effect-action-group-resolver.ts`（`resource-modification-service.ts`）へ実配線した（`operation: DISTRIBUTE`は対象間分配ロジックが未設計のため引き続き未実装、production使用は`UNIT_SUIRAN_CHAOS`の1件のみで本Issueのスコープ外）。HP_DIRECT_COST（`resource: HP`、防御力・会心などの通常ダメージ処理を経由しない直接消費）を新設し、`UNIT_SUIRAN_CASINO`/`UNIT_LILY_HERO`/`UNIT_OLGA_VETERAN`/`UNIT_MAO_COMMITTEE`の自己コストを近似なしへ変換した。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_SUIRAN_CASINO_AS2_HP_COST",
+        "ACT_LILY_HERO_AS1_HP_COST",
+        "ACT_OLGA_VETERAN_PS2_HP_COST",
+        "ACT_MAO_COMMITTEE_AS1_HP_COST"
+      ],
+      "testCaseIds": [
+        "UT-R-ACTN-02-001",
+        "UT-R-ACTN-02-002",
+        "UT-R-ACTN-02-003",
+        "UT-R-ACTN-02-004",
+        "UT-R-ACTN-02-005",
+        "UT-R-ACTN-02-006",
+        "UT-R-ACTN-02-007",
+        "UT-R-ACTN-02-008",
+        "UT-R-ACTN-02-009",
+        "UT-R-ACTN-02-010",
+        "UT-R-ACTN-02-011",
+        "UT-R-ACTN-02-014",
+        "UT-R-ACT-04-005"
+      ]
+    }
+  },
+  {
+    "capabilityId": "CAP_RESOURCE_DISTRIBUTE",
+    "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-002",
-    "description": "AP / PP / EX 操作",
+    "description": "MODIFY_RESOURCEのoperation: DISTRIBUTE（対象間のリソース分配）。M7-002（Issue #185）は`CAP_RESOURCE_MUTATION`でADD/SET/SET_TO_MAXのみを実装し、DISTRIBUTEは複数対象への分配ロジックが未設計のため見送った（production使用は`UNIT_SUIRAN_CHAOS`の`ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE`の1件のみ）。`resource-modification-service.ts`はDISTRIBUTE指定時に`DomainValidationError`を投げる実行時backstopを持つが、PRレビュー指摘（PR #254）を受け、`CAP_RESOURCE_MUTATION`のIMPLEMENTED状態がDISTRIBUTEまで安全であるかのように誤読されないよう、DISTRIBUTE使用箇所には本CapabilityをrequiredCapabilitiesへ明示宣言させる（`catalog-integrity.ts`のMISSING_REQUIRED_CAPABILITY検証）。実装するときは別Issueとして着手する。",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []
+    }
+  },
+  {
+    "capabilityId": "CAP_RESOURCE_GAIN_MOD",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M7-002",
+    "description": "G-05（`14_Catalog定義スキーマ.md`、M7-002/Issue #185で新設）: 一定期間、対象のリソース獲得量自体（R-ACT-03のAP/PP消費起因のEXゲージ増加）を割合で増減させる継続効果（`APPLY_RESOURCE_GAIN_MOD`）。`APPLY_STAT_MOD`と同じ評価規約で`rateDelta`を付与時点に一度だけ評価し、`AppliedEffect.magnitude`として保持する。stackingはSTACKABLEのみのため保持している全インスタンスの`rateDelta`を合算し、`amount * (1 + rate)`を`increaseExGauge`（`action-resolution-shared.ts`）呼び出し側4箇所（AS使用・待機・PS発動・チャージ発動には該当効果なし）へ適用してから最終的に1回だけ切り捨てる（R-NUM-02）。`ResourceChanged.baseDelta`（Modifier適用前・capacity適用前の基礎量）を新設し、`delta`との差分を追跡できるようにした。`UNIT_MAIA_SALON`（EXゲージ獲得-50%デバフ）・`UNIT_KARINA_DOWNER`（EXゲージ獲得+50%バフ）を近似なしへ変換した。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN",
+        "ACT_KARINA_DOWNER_PS2_EX_GAIN_UP"
+      ],
+      "testCaseIds": [
+        "UT-R-ACT-04-006",
+        "UT-R-ACT-04-007",
+        "UT-R-ACT-04-008",
+        "UT-R-ACT-04-009",
+        "UT-R-ACT-04-010",
+        "UT-R-ACT-04-011",
+        "UT-R-ACT-04-012",
+        "UT-R-ACT-04-013",
+        "UT-R-ACT-04-014"
+      ]
     }
   },
   {

@@ -2924,6 +2924,18 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_EX_GAIN_UP",
+    "kind": "APPLY_RESOURCE_GAIN_MOD",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "rateDelta": { "kind": "CONSTANT", "value": 0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_GAIN_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
@@ -3742,6 +3754,18 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LILY_HERO_AS1_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": -0.1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -4606,6 +4630,18 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN",
+    "kind": "APPLY_RESOURCE_GAIN_MOD",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "rateDelta": { "kind": "CONSTANT", "value": -0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_RESOURCE_GAIN_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MAIA_SALON_PS1_HEAL",
     "kind": "HEAL",
     "payload": {
@@ -4709,6 +4745,22 @@
       "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
     },
     "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.25
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -6203,6 +6255,22 @@
       }
     },
     "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.6
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -8038,6 +8106,18 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": -0.1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
@@ -8130,7 +8210,7 @@
       "formula": { "kind": "CONSTANT", "value": 8 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_RESOURCE_DISTRIBUTE"],
     "metadata": { "tags": [] }
   },
   {

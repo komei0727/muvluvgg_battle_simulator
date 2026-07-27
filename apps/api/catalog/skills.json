@@ -5062,6 +5062,10 @@
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
         }
       ],
       "steps": [
@@ -5069,12 +5073,22 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_DEBUFF" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_EX_GAIN_UP" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_FORMULA",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_RESOURCE_GAIN_MOD"
+    ],
     "metadata": { "displayName": "包囲かんりょ～", "tags": [] },
     "triggers": [
       {
@@ -6698,6 +6712,11 @@
       "steps": [
         {
           "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LILY_HERO_AS1_HP_COST" }]
+        },
+        {
+          "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_LILY_HERO_AS1_DAMAGE_HPCOST" },
@@ -6730,7 +6749,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_FORMULA",
       "CAP_TARGET_FILTER_ORDER",
-      "CAP_ACTION_ACTIVATION_CONDITION"
+      "CAP_ACTION_ACTIVATION_CONDITION",
+      "CAP_RESOURCE_MUTATION"
     ],
     "metadata": { "displayName": "アイム・ア・ヒーロー", "tags": [] }
   },
@@ -8187,14 +8207,15 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN" }
+            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN" },
+            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN" }
           ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_RESOURCE_GAIN_MOD"],
     "metadata": { "displayName": "優雅なるロンド", "tags": [] }
   },
   {
@@ -8413,6 +8434,11 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_SHIELD_ALLY" },
           "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_SHIELD" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_HP_COST" }]
         }
       ]
     },
@@ -8422,7 +8448,9 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_SHIELD",
       "CAP_ACTION_ACTIVATION_CONDITION",
-      "CAP_TARGET_FILTER_ORDER"
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_FORMULA",
+      "CAP_RESOURCE_MUTATION"
     ],
     "metadata": { "displayName": "風紀を守る一撃", "tags": [] }
   },
@@ -10902,6 +10930,11 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_HP_COST" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
           "actions": [
             { "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT" },
             { "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT" },
@@ -10917,7 +10950,12 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
+    "requiredCapabilities": [
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_DEATH_SURVIVAL",
+      "CAP_FORMULA",
+      "CAP_RESOURCE_MUTATION"
+    ],
     "metadata": { "displayName": "ヴォルコワの血脈A", "tags": [] },
     "triggers": [
       {
@@ -13975,6 +14013,11 @@
             }
           ],
           "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_HP_COST" }]
         }
       ]
     },

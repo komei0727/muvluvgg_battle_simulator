@@ -359,6 +359,17 @@
           },
           "actions": [
             {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_HP_COST"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
               "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT"
             },
             {
@@ -387,7 +398,12 @@
       "count": 99
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DEATH_SURVIVAL"],
+    "requiredCapabilities": [
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_DEATH_SURVIVAL",
+      "CAP_FORMULA",
+      "CAP_RESOURCE_MUTATION"
+    ],
     "metadata": {
       "displayName": "ヴォルコワの血脈A",
       "tags": []

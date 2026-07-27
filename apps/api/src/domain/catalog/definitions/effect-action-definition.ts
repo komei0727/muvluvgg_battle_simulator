@@ -9,6 +9,7 @@ import type {
   ApplyHealingModPayload,
   ApplyMarkerPayload,
   ApplyReflectPayload,
+  ApplyResourceGainModPayload,
   ApplyShieldPayload,
   ApplyStatModPayload,
   ApplyStatusPayload,
@@ -55,6 +56,7 @@ export const EFFECT_ACTION_KINDS = [
   "APPLY_SUBUNIT",
   "COOLDOWN_MANIPULATION",
   "APPLY_ATTACK_DAMAGE_BONUS",
+  "APPLY_RESOURCE_GAIN_MOD",
 ] as const;
 export type EffectActionKind = (typeof EFFECT_ACTION_KINDS)[number];
 
@@ -83,7 +85,8 @@ export type EffectActionPayload =
   | {
       readonly kind: "APPLY_ATTACK_DAMAGE_BONUS";
       readonly payload: ApplyAttackDamageBonusPayload;
-    };
+    }
+  | { readonly kind: "APPLY_RESOURCE_GAIN_MOD"; readonly payload: ApplyResourceGainModPayload };
 
 export type EffectActionDefinition = EffectActionPayload & {
   readonly effectActionDefinitionId: EffectActionDefinitionId;

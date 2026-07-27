@@ -179,6 +179,8 @@ const targetsSelectedDetailsSchema = {
 } as const;
 
 const RESOURCE_KIND_ENUM = ["AP", "PP", "EX_GAUGE"] as const;
+/** M7-002（Issue #185）: `MODIFY_RESOURCE(resource: HP)`（HP_DIRECT_COST）は`ResourceChanged.resource`に`HP`を持ちうる。スキルコスト（`costResource`）はAP/PP/EX_GAUGEのみのまま。 */
+const RESOURCE_CHANGE_KIND_ENUM = ["AP", "PP", "EX_GAUGE", "HP"] as const;
 
 const skillUseStartingDetailsSchema = {
   type: "object",
@@ -670,13 +672,23 @@ const RESOURCE_CHANGE_REASON_ENUM = [
 const resourceChangedDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["battleUnitId", "resource", "before", "after", "delta", "reason", "causeEventId"],
+  required: [
+    "battleUnitId",
+    "resource",
+    "before",
+    "after",
+    "delta",
+    "baseDelta",
+    "reason",
+    "causeEventId",
+  ],
   properties: {
     battleUnitId: { type: "string" },
-    resource: { type: "string", enum: RESOURCE_KIND_ENUM },
+    resource: { type: "string", enum: RESOURCE_CHANGE_KIND_ENUM },
     before: { type: "integer", minimum: 0 },
     after: { type: "integer", minimum: 0 },
     delta: { type: "integer" },
+    baseDelta: { type: "integer" },
     reason: { type: "string", enum: RESOURCE_CHANGE_REASON_ENUM },
     causeEventId: { type: "string" },
   },
@@ -711,9 +723,10 @@ const extraGaugeIncreasedDetailsSchema = {
 const extraGaugeOverflowDiscardedDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["battleUnitId", "requestedAmount", "actualAmount", "discardedAmount"],
+  required: ["battleUnitId", "baseDelta", "requestedAmount", "actualAmount", "discardedAmount"],
   properties: {
     battleUnitId: { type: "string" },
+    baseDelta: { type: "integer", minimum: 0 },
     requestedAmount: { type: "integer", minimum: 0 },
     actualAmount: { type: "integer", minimum: 0 },
     discardedAmount: { type: "integer", minimum: 0 },

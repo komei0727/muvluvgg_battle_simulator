@@ -57,6 +57,11 @@
       "steps": [
         {
           "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LILY_HERO_AS1_HP_COST" }]
+        },
+        {
+          "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_LILY_HERO_AS1_DAMAGE_HPCOST" },
@@ -89,7 +94,8 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_FORMULA",
       "CAP_TARGET_FILTER_ORDER",
-      "CAP_ACTION_ACTIVATION_CONDITION"
+      "CAP_ACTION_ACTIVATION_CONDITION",
+      "CAP_RESOURCE_MUTATION"
     ],
     "metadata": { "displayName": "アイム・ア・ヒーロー", "tags": [] }
   },

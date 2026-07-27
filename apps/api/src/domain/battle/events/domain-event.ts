@@ -404,7 +404,14 @@ export interface BattleDomainEventPayloadMap {
     readonly resource: ResourceKind;
     readonly before: number;
     readonly after: number;
+    /** Modifier適用後・capacity適用後の最終変化量（`after - before`と一致する）。 */
     readonly delta: number;
+    /**
+     * M7-002（Issue #185、R-ACT-04）: Modifier適用前・capacity適用前の基礎量。
+     * 有効なリソース獲得量Modifier（`RESOURCE_GAIN_MOD`）が存在せず、かつ
+     * capacity打ち止めも発生しない場合に限り`delta`と一致する。
+     */
+    readonly baseDelta: number;
     readonly reason: ResourceChangeReason;
     readonly causeEventId: DomainEventId;
   };
@@ -427,7 +434,11 @@ export interface BattleDomainEventPayloadMap {
   /** R-ACT-03: EX最大値超過分を破棄した時（DIAGNOSTIC、`catalog-event-types.ts`の`DIAGNOSTIC_ONLY_EVENT_TYPES`）。 */
   readonly ExtraGaugeOverflowDiscarded: {
     readonly battleUnitId: BattleUnitId;
+    /** M7-002（Issue #185）: Modifier適用前・capacity適用前の基礎量。 */
+    readonly baseDelta: number;
+    /** Modifier適用後・capacity適用前の要求増加量（Modifier不在なら`baseDelta`と同値）。 */
     readonly requestedAmount: number;
+    /** 実際に反映された増加量（`delta`と同値。0を含む）。 */
     readonly actualAmount: number;
     readonly discardedAmount: number;
   };
