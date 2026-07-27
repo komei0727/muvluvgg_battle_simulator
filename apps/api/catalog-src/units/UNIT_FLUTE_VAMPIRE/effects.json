@@ -20,7 +20,7 @@
       "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.6 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": { "tags": [] }
   },
   {

@@ -40,7 +40,7 @@
       "unconverted": 26
     },
     "capabilities": {
-      "total": 42,
+      "total": 43,
       "implemented": 23
     }
   },
@@ -57,6 +57,7 @@
     { "taskId": "RES-001", "issue": 175, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-002", "issue": 174, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-003", "issue": 173, "phase": 1, "milestone": "M7" },
+    { "taskId": "RES-003A", "issue": 257, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-004", "issue": 171, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-004-STATUS-CONDITION", "issue": 224, "phase": 1, "milestone": "M7" },
     { "taskId": "RES-004-TATIANA-EX", "issue": 225, "phase": 1, "milestone": "M7" },

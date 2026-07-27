@@ -1731,16 +1731,38 @@ function* resolveActionApplications(
   };
 
   // HEAL_DISTRIBUTE（M7-005、Issue #184）: `HEAL`の`payload.distribution: "EVEN"`は
-  // 「総回復量を対象数で等分する」ため、各applicationの解決に入る前にこのstepで
-  // 同じEffectActionが適用される対象数を数える。applicationは対象1体につき1件の
-  // ため件数がそのまま分配数になる（対象0件のstepはここへ到達しない）。
+  // 「総回復量を対象数で等分する」ため、同じEffectActionが適用される対象数を
+  // 分母にする。applicationは対象1体につき1件のため件数がそのまま分配数になる。
+  //
+  // PRレビュー指摘[P2]（PR #256）: 事前計画されたapplication件数をそのまま使うと、
+  // `EffectStepStarting`起点のPS連鎖で戦闘不能になった対象（`resolveOneEffect
+  // ApplicationApplication`が`SKIPPED`にする、`applyHealAction`も回復しない）まで
+  // 分母に残り、生存対象へ配られる総量が「実際に適用される対象数で等分した値」
+  // より少なくなる。そのため分母は事前に固定せず、そのEffectActionの最初の
+  // applicationを解決する直前に、その時点の`box.units`から実際に適用される対象
+  // （戦闘不能でない、または`includeDefeated`が明示されている）だけを数えて確定
+  // する。一度確定した分母はそのEffectActionの残りのapplicationでも再利用する
+  // — 分配は「1つの総量を分け合う」意味であり、application ごとに分母が変わると
+  // 合計が総量と一致しなくなるため。
   const shareCountByDefinitionId = new Map<EffectActionDefinitionId, number>();
-  for (const application of applications) {
-    shareCountByDefinitionId.set(
-      application.effectActionDefinitionId,
-      (shareCountByDefinitionId.get(application.effectActionDefinitionId) ?? 0) + 1,
-    );
-  }
+  const resolveShareCount = (definitionId: EffectActionDefinitionId): number => {
+    const cached = shareCountByDefinitionId.get(definitionId);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const count = applications.filter(
+      (candidate) =>
+        candidate.effectActionDefinitionId === definitionId &&
+        (candidate.includeDefeated ||
+          !isDefeated(requireUnit(box.units, candidate.targetBattleUnitId))),
+    ).length;
+    // 呼び出し元は「今まさに適用しようとしている application」の解決直前にだけ
+    // これを呼ぶため、その対象自身が数に含まれ`count >= 1`が成り立つ。0での
+    // 除算を構造的に防ぐため、それでも0になった場合は1へ丸める。
+    const shareCount = Math.max(1, count);
+    shareCountByDefinitionId.set(definitionId, shareCount);
+    return shareCount;
+  };
 
   for (let index = 0; index < applications.length; index += 1) {
     const application = applications[index]!;
@@ -1761,7 +1783,7 @@ function* resolveActionApplications(
       box,
       context,
       lastEventId,
-      shareCountByDefinitionId.get(application.effectActionDefinitionId) ?? 1,
+      resolveShareCount(application.effectActionDefinitionId),
     );
     lastEventId = applied.lastEventId;
     resolvedCount += applied.resolvedCount;

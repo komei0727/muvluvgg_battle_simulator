@@ -4452,6 +4452,73 @@ describe("applyEffectActionGroups", () => {
     });
   });
 
+  describe("HEAL_DISTRIBUTE denominator (PRレビュー[P2] PR #256)", () => {
+    it("UT-R-HEAL-01-011 (BOUNDARY): a target that is already defeated when the distributing HEAL starts is excluded from the share count, so the surviving targets still receive the whole total", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 10 });
+      // This ally is defeated before the step resolves (the same state a PS
+      // chain triggered by EffectStepStarting would leave behind), so the HEAL
+      // never applies to it and it must not consume a share of the total.
+      const deadAlly = unit("ALLY_DEAD", "ALLY", { currentHp: 0 });
+      const heal: EffectActionDefinition = {
+        kind: "HEAL",
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL_SHARED"),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          formula: { kind: "SKILL_POWER", power: 3 },
+          overheal: "DISCARD",
+          distribution: "EVEN",
+        },
+      };
+      const effectActions = new Map([[heal.effectActionDefinitionId, heal]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const step = singleActionStep(0, true, actor.battleUnitId, heal.effectActionDefinitionId);
+      if (step.planKind !== "ACTION_PLAN") {
+        throw new Error("singleActionStep must produce an ACTION_PLAN");
+      }
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          {
+            ...step,
+            applications: [
+              ...step.applications,
+              {
+                targetBattleUnitId: deadAlly.battleUnitId,
+                effectActionDefinitionId: heal.effectActionDefinitionId,
+                includeDefeated: false,
+                hits: [
+                  {
+                    targetBattleUnitId: deadAlly.battleUnitId,
+                    effectActionDefinitionId: heal.effectActionDefinitionId,
+                    hitIndex: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        targetUnitIds: [actor.battleUnitId, deadAlly.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, deadAlly], context);
+
+      // attack 20 * power 3 = 60 total. Only one target actually receives the
+      // heal, so it gets the whole 60 — not 30 with the other half lost.
+      expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(70);
+      expect(result.units.find((u) => u.battleUnitId === deadAlly.battleUnitId)!.currentHp).toBe(0);
+      const healEvents = recorder.getEvents().filter((e) => e.eventType === "HealApplied");
+      expect(healEvents).toHaveLength(1);
+      expect(healEvents[0]!.payload).toMatchObject({
+        formulaResult: 60,
+        distributionShareCount: 1,
+        healAmount: 60,
+      });
+    });
+  });
+
   describe("APPLY_RESOURCE_GAIN_MOD (G-05, M7-002 Issue #185, RESOURCE_GAIN_MOD full-stack wiring)", () => {
     function resourceGainModAction(
       id: string,

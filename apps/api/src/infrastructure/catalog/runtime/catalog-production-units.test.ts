@@ -132,7 +132,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // PLANNED (no production Catalog definition references it; see its updated
     // description). None of the 10 promoted units here references any of these
     // three Capabilities, so `unitCount`/violation expectations are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-27.7");
+    expect(catalog.catalogRevision).toBe("2026-07-27.8");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

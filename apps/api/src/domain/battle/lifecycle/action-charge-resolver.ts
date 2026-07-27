@@ -71,6 +71,25 @@ export function resolveChargeStart(
     stateDelta: { units: { [actorId]: stateDeltaEntry } },
   });
 
+  // PRレビュー指摘[P2]（PR #256、Issue #184）: `PassiveActivationRuntime`の生成を
+  // R-HEAL-03の継続回復発火より前へ移し、`HealApplied`もAS/EX経路と同じFACT
+  // イベント連鎖へ流す。この時点の`working`はコスト消費を適用済みで、
+  // `ChargeStarted`より前に状態を変えるのは継続回復とクールタイム設定だけの
+  // ため、生成位置を早めても観測できる差はない。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
+
   // R-HEAL-03（M7-005、Issue #184）: チャージ開始も1つの行動であるため、保持者
   // 自身の`ActionStarted`を契機とする継続回復を行動本体より前に発火させる。
   const continuousHeal = fireContinuousHealsOnActionStart(
@@ -86,6 +105,7 @@ export function resolveChargeStart(
       effectActions: definitions.effectActions,
     },
     actionStarted.eventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
   );
   working = continuousHeal.units;
 
@@ -140,21 +160,8 @@ export function resolveChargeStart(
 
   // レビュー再々々レビュー[P2]: チャージ開始も`ChargeStarted`（例: Harriet PS2
   // 「ALLYがチャージ開始した時」）と`ActionCompleting`/Cooldown更新/
-  // `ActionCompleted`を発動タイミングとするPS/counter更新を持ちうるため、
-  // この行動専用の`PassiveActivationRuntime`を生成して接続する。
-  const passiveRuntime = new PassiveActivationRuntime(
-    {
-      definitions,
-      random,
-      recorder,
-      turnNumber,
-      cycleNumber,
-      resolutionScopeId: actionScope,
-      rootEventId: actionStarted.eventId,
-      actionId,
-    },
-    working,
-  );
+  // `ActionCompleted`を発動タイミングとするPS/counter更新を持ちうるため、上で
+  // 生成した`passiveRuntime`へ接続する。
   working = passiveRuntime.onFactEvent(chargeStarted, working).units;
 
   const completion = recordActionCompletion(
@@ -231,6 +238,26 @@ export function resolveChargeRelease(
     },
   });
 
+  // PR #142レビュー[P1]: AS/EX（`resolveSkillUse`）と同様、この行動専用の
+  // `PassiveActivationRuntime`を生成し、チャージ解放の効果解決から発行される
+  // イベントからもPS即時連鎖を解決できるようにする（従来欠落していた）。
+  // PRレビュー指摘[P2]（PR #256、Issue #184）: 生成をR-HEAL-03の継続回復発火より
+  // 前へ移し、`HealApplied`もAS/EX経路と同じFACTイベント連鎖へ流す。チャージ
+  // 発動はコストを消費しないため、この時点の`units`は呼び出し時点のままである。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    units,
+  );
+
   // R-HEAL-03（M7-005、Issue #184）: チャージ発動も1つの行動であるため、保持者
   // 自身の`ActionStarted`を契機とする継続回復を、対象選択・効果解決より前に
   // 発火させる。
@@ -247,6 +274,7 @@ export function resolveChargeRelease(
       effectActions: definitions.effectActions,
     },
     actionStarted.eventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
   );
   let working = continuousHeal.units;
   const plan = resolveChargeReleaseOrder(
@@ -259,23 +287,6 @@ export function resolveChargeRelease(
     definitions.unitDefinitions,
   );
   const targetUnitIds = plan.targetUnitIds;
-
-  // PR #142レビュー[P1]: AS/EX（`resolveSkillUse`）と同様、この行動専用の
-  // `PassiveActivationRuntime`を生成し、チャージ解放の効果解決から発行される
-  // イベントからもPS即時連鎖を解決できるようにする（従来欠落していた）。
-  const passiveRuntime = new PassiveActivationRuntime(
-    {
-      definitions,
-      random,
-      recorder,
-      turnNumber,
-      cycleNumber,
-      resolutionScopeId: actionScope,
-      rootEventId: actionStarted.eventId,
-      actionId,
-    },
-    working,
-  );
 
   const skillUseId = recorder.nextSkillUseId();
   // EFF-006/Issue #212: `resolveSkillUse`と同様、この解決が宣言する

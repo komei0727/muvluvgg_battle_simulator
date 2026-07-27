@@ -694,6 +694,36 @@ function modifyResourceDistributeAction(
   );
 }
 
+function sumDamageHealAction(
+  id: string,
+  requiredCapabilities: readonly string[] = ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "HEAL",
+      payload: {
+        // Nested under SUM/CLAMP so the walker's recursion is exercised too.
+        formula: {
+          kind: "CLAMP",
+          formula: {
+            kind: "SUM",
+            formulas: [
+              { kind: "CONSTANT", value: 1 },
+              { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.7 },
+            ],
+          },
+          min: 0,
+          max: 9999,
+        },
+        overheal: "DISCARD",
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function continuousHealAction(
   id: string,
   timing: { eventType: string; targetSelector: string } = {
@@ -1463,6 +1493,44 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_DISTRIBUTE",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-HEAL-01-009 (PRレビュー[P1] PR #256): accepts a HEAL referencing SUM_DAMAGE_DEALT when it declares the required CAP_SUM_DAMAGE_RESULT capability", () => {
+    const defs = baseDefinitions();
+    const withSum: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_SUM_HEAL")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, sumDamageHealAction("ACT_SUM_HEAL")],
+      capabilities: [capability("CAP_HEAL"), capability("CAP_SUM_DAMAGE_RESULT")],
+    };
+
+    const index = buildCatalogIndex(withSum);
+
+    expect(index.effectActions.get("ACT_SUM_HEAL" as never)).toBeDefined();
+  });
+
+  it("UT-R-HEAL-01-010 (PRレビュー[P1] PR #256, NEGATIVE): rejects a HEAL referencing SUM_DAMAGE_DEALT without CAP_SUM_DAMAGE_RESULT, so the unwired accumulation is caught at Catalog load time rather than as a runtime DomainValidationError", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_SUM_HEAL")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, sumDamageHealAction("ACT_SUM_HEAL", ["CAP_HEAL"])],
+      capabilities: [capability("CAP_HEAL"), capability("CAP_SUM_DAMAGE_RESULT")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNSUPPORTED_SUM_DAMAGE_RESULT" && v.targetId === "ACT_SUM_HEAL",
         ),
       ).toBe(true);
     }

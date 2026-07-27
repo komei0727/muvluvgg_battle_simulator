@@ -164,6 +164,27 @@ export function resolveWait(
     );
   }
 
+  // レビュー再々々レビュー[P2]: 待機も`ActionWaited`と`ActionCompleting`/
+  // Cooldown更新/`ActionCompleted`を発動タイミングとするPS/counter更新を
+  // 持ちうるため、この行動専用の`PassiveActivationRuntime`を生成して接続する。
+  // PRレビュー指摘[P2]（PR #256、Issue #184）: 生成をR-HEAL-03の継続回復発火より
+  // 前へ移し、`HealApplied`もAS/EX経路と同じFACTイベント連鎖へ流す。この時点の
+  // `working`はコスト消費・EXゲージ増加を適用済みで、`ActionWaited`より前に
+  // 状態を変えるのは継続回復だけのため、生成位置を早めても観測できる差はない。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
+
   // R-HEAL-03（M7-005、Issue #184）: 保持者自身の`ActionStarted`を契機とする
   // 継続回復を、行動本体（`ActionWaited`）より前に発火させる。
   const continuousHeal = fireContinuousHealsOnActionStart(
@@ -171,6 +192,7 @@ export function resolveWait(
     actorId,
     { ...resourceChangeContext, effectActions: definitions.effectActions },
     lastEventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
   );
   working = continuousHeal.units;
   lastEventId = continuousHeal.lastEventId;
@@ -193,22 +215,6 @@ export function resolveWait(
     },
   });
 
-  // レビュー再々々レビュー[P2]: 待機も`ActionWaited`と`ActionCompleting`/
-  // Cooldown更新/`ActionCompleted`を発動タイミングとするPS/counter更新を
-  // 持ちうるため、この行動専用の`PassiveActivationRuntime`を生成して接続する。
-  const passiveRuntime = new PassiveActivationRuntime(
-    {
-      definitions,
-      random,
-      recorder,
-      turnNumber,
-      cycleNumber,
-      resolutionScopeId: actionScope,
-      rootEventId: actionStarted.eventId,
-      actionId,
-    },
-    working,
-  );
   working = passiveRuntime.onFactEvent(actionWaited, working).units;
 
   // R-SKL-05（Issue #180 PRレビュー[P2]）: `ActionWaited`自身のPS/Memory連鎖が

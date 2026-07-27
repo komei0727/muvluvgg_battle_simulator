@@ -567,6 +567,14 @@
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
+    "capabilityId": "CAP_SUM_DAMAGE_RESULT",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-003A",
+    "description": "FormulaDefinitionのSUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED（EffectSequence実行中の累計ダメージ）参照。累計の集計スコープが未確定でFormulaEvaluationContextへ未配線（PR #256レビュー[P1]、Issue #257）",
+    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+  },
+  {
     "capabilityId": "CAP_STAT_MOD",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",

@@ -687,6 +687,143 @@ describe("resolveActionPhase", () => {
     expect(restored.units[ally.battleUnitId]!.hp).toBe(50);
   });
 
+  it("UT-R-HEAL-03-005 (PRレビュー[P2] PR #256): the HealApplied a continuous heal emits during a WAIT reaches the PS chain, so a PS triggered by HealApplied activates on the wait path too — not only on the AS/EX path", () => {
+    const hotDefId = createEffectActionDefinitionId("ACT_HOT");
+    const hotDef: EffectActionDefinition = {
+      effectActionDefinitionId: hotDefId,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    const hotEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("hot-1"),
+      effectActionDefinitionId: hotDefId,
+      kindKey: effectKindKeyFromDefinitionId(hotDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ALLY_1"),
+      targetId: createBattleUnitId("ALLY_1"),
+      magnitude: 0,
+      duration: {
+        definition: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+      },
+      appliedTurnNumber: 1,
+    };
+    // The healed unit waits (no usable AS), so its continuous heal fires on the
+    // WAIT path; a second ally holds a PS that triggers on HealApplied.
+    const healed = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 }, maximumHp: 100, currentHp: 40 }),
+      appliedEffects: [hotEffect],
+    };
+    const observerUnitDefinitionId = createUnitDefinitionId("UNIT_HEAL_OBSERVER");
+    const observer = {
+      ...unit("ALLY_2", "ALLY", {
+        unitDefinitionId: "UNIT_HEAL_OBSERVER",
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+
+    const buffActionId = createEffectActionDefinitionId("ACT_OBSERVER_SELF_BUFF");
+    const buffAction = statModEffectAction("ACT_OBSERVER_SELF_BUFF", "ATTACK", "FIXED", 5);
+    const observerPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_HEAL_APPLIED"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "HealApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: buffActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "OnHealApplied", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(observerUnitDefinitionId, {
+      ...unitDefinitions.get(observerUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [observerPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [hotDefId, hotDef],
+        [buffActionId, buffAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[observerPassive.skillDefinitionId, observerPassive]]),
+    };
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [healed, observer],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits.find((u) => u.battleUnitId === healed.battleUnitId)!.currentHp).toBe(
+      50,
+    );
+    const healApplied = ctx.recorder.getEvents().find((e) => e.eventType === "HealApplied")!;
+    const passiveActivated = ctx.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            observerPassive.skillDefinitionId,
+      );
+    expect(passiveActivated, "the PS must activate from the wait-path HealApplied").toBeDefined();
+    expect(passiveActivated!.payload).toMatchObject({ triggerEventId: healApplied.eventId });
+  });
+
   it("UT-ACTION-PHASE-002: a usable AS skill consumes its AP cost and applies DAMAGE to the target", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
