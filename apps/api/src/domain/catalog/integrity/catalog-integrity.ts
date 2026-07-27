@@ -13,6 +13,7 @@ import {
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { ConditionDefinition } from "../definitions/condition-definition.js";
 import type { DurationDefinition } from "../definitions/duration-definition.js";
+import type { FormulaDefinition } from "../definitions/formula-definition.js";
 import type {
   EffectActionReference,
   EffectSequence,
@@ -52,6 +53,8 @@ export const VIOLATION_RULES = [
   "MISSING_REQUIRED_CAPABILITY",
   "UNSUPPORTED_MARKER_LINKED_GROUP",
   "UNSUPPORTED_MARKER_DURATION",
+  "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
+  "UNSUPPORTED_SUM_DAMAGE_RESULT",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
@@ -1426,6 +1429,47 @@ function validateEffectAction(
       });
     }
   }
+  // PRレビュー指摘[P1]（PR #256、Issue #184）: `SUM_DAMAGE_DEALT`/
+  // `SUM_DAMAGE_RECEIVED`（EffectSequence実行中の累計）はどの経路からも
+  // `FormulaEvaluationContext.lastResults`へ配線されておらず（`formula-evaluator.ts`の
+  // `lastDamageResultsFor`は`LAST_DAMAGE_*`だけを渡す）、評価に到達すると
+  // `DomainValidationError`になる。M7-005で`CAP_HEAL`が`IMPLEMENTED`になったことで
+  // 「Catalog契約上は安全に見えるのに実行時に落ちる」production定義
+  // （`ACT_CHIZURU_DOMESTIC_EX_HEAL`等のHEAL 9件）が初めて到達可能になったため、
+  // `MODIFY_RESOURCE`の`DISTRIBUTE`と同じ「宣言漏れ自体を拒否する」パターンで、
+  // 未実装専用の`CAP_SUM_DAMAGE_RESULT`（`PLANNED`）を必須宣言させる。宣言した
+  // 定義を持つUnitは`selectable: false`となり、実行経路へ到達しない。
+  // 累計の集計スコープ（EffectSequence単位か解決スコープ単位か）自体が未確定の
+  // 設計事項であり、RES-002（Issue #174）/RES-003（Issue #173）がどちらも
+  // クローズ済みのため、専用のfollow-up Task`RES-003A`（Issue #257）が引き継ぐ。
+  if (formulasOf(effectAction).some(referencesSumDamageResult)) {
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_SUM_DAMAGE_RESULT")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_SUM_DAMAGE_RESULT",
+        message:
+          'a FormulaDefinition referencing "SUM_DAMAGE_DEALT"/"SUM_DAMAGE_RECEIVED" must declare "CAP_SUM_DAMAGE_RESULT" in requiredCapabilities (accumulation is not wired into FormulaEvaluationContext yet)',
+      });
+    }
+  }
+  // R-HEAL-03（M7-005、Issue #184）: `continuous-heal-service.ts`は
+  // `timing: {eventType: "ActionStarted", targetSelector: "EFFECT_OWNER"}`
+  // （production Catalogの継続回復13件がすべて使う唯一の組み合わせ）だけを
+  // 発火させる。`timing`はスキーマ上任意の文字列を取れるため、他の組み合わせを
+  // 指定した定義は`CAP_CONTINUOUS_HEAL`（IMPLEMENTED）を宣言していても
+  // 「`EffectApplied`として成功するが一度も回復しない」silent partial
+  // implementationになる。`APPLY_MARKER`の未対応Duration
+  // （`UNSUPPORTED_MARKER_DURATION`）と同じく、Catalogロード時点で拒否する。
+  if (effectAction.kind === "APPLY_CONTINUOUS_HEAL") {
+    const timing = effectAction.payload.timing;
+    if (timing.eventType !== "ActionStarted" || timing.targetSelector !== "EFFECT_OWNER") {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
+        message: `APPLY_CONTINUOUS_HEAL only implements timing {eventType: "ActionStarted", targetSelector: "EFFECT_OWNER"} (R-HEAL-03, M7-005), received {eventType: "${timing.eventType}", targetSelector: "${timing.targetSelector}"}`,
+      });
+    }
+  }
   // PR #210再レビュー[P2]: `marker-duration.ts`はACTION/TURN単位のDuration
   // 減算だけを実装する（`BATTLE`は本来減算不要のため対象外扱いで問題ない）。
   // `consumption`（消費条件）・`expiration`（特殊失効条件）・`HIT`/`SKILL_USE`
@@ -1499,6 +1543,69 @@ function validateEffectAction(
     capabilities,
     violations,
   );
+}
+
+/**
+ * PRレビュー指摘[P1]（PR #256、Issue #184）: `EffectActionDefinition`が持つ
+ * `FormulaDefinition`をkind横断で取り出す。`durationOf`/`linkedEffectGroupIdOf`と
+ * 同じ網羅的`switch`とし、新しいkindの追加時にこの関数の更新漏れをコンパイル
+ * エラーとして検出する。
+ */
+function formulasOf(effectAction: EffectActionDefinition): readonly FormulaDefinition[] {
+  switch (effectAction.kind) {
+    case "DAMAGE":
+      return [effectAction.payload.formula, ...effectAction.payload.damageModifiers];
+    case "HEAL":
+    case "APPLY_CONTINUOUS_HEAL":
+    case "APPLY_CONTINUOUS_DAMAGE":
+    case "APPLY_STAT_MOD":
+    case "APPLY_DAMAGE_MOD":
+    case "APPLY_HEALING_MOD":
+    case "MODIFY_RESOURCE_CAPACITY":
+    case "APPLY_SHIELD":
+    case "APPLY_ATTACK_DAMAGE_BONUS":
+    case "APPLY_REFLECT":
+      return [effectAction.payload.formula];
+    case "APPLY_RESOURCE_GAIN_MOD":
+      return [effectAction.payload.rateDelta];
+    case "MODIFY_RESOURCE":
+      return effectAction.payload.formula === undefined ? [] : [effectAction.payload.formula];
+    case "APPLY_STATUS":
+    case "REMOVE_EFFECTS":
+    case "EFFECT_IMMUNITY":
+    case "APPLY_MARKER":
+    case "REMOVE_MARKER":
+    case "APPLY_DEATH_SURVIVAL":
+    case "APPLY_TARGET_REDIRECT":
+    case "APPLY_COVER":
+    case "APPLY_SUBUNIT":
+    case "COOLDOWN_MANIPULATION":
+      return [];
+    default: {
+      const exhaustive: never = effectAction;
+      throw new Error(`unhandled EffectActionDefinition kind: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** `SUM`/`MIN`/`MAX`/`CLAMP`の入れ子を含めて`SUM_DAMAGE_*`参照を再帰的に探す。 */
+function referencesSumDamageResult(formula: FormulaDefinition): boolean {
+  switch (formula.kind) {
+    case "DAMAGE_DEALT_RATIO":
+    case "DAMAGE_RECEIVED_RATIO":
+      return (
+        formula.sourceResult === "SUM_DAMAGE_DEALT" ||
+        formula.sourceResult === "SUM_DAMAGE_RECEIVED"
+      );
+    case "SUM":
+    case "MIN":
+    case "MAX":
+      return formula.formulas.some(referencesSumDamageResult);
+    case "CLAMP":
+      return referencesSumDamageResult(formula.formula);
+    default:
+      return false;
+  }
 }
 
 /**

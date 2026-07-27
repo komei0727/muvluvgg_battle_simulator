@@ -17,7 +17,7 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": { "tags": [] }
   },
   {

@@ -31,7 +31,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 
-interface ActionCompletionContext {
+export interface ActionCompletionContext {
   readonly actionId: ActionId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;

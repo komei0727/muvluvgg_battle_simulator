@@ -116,12 +116,17 @@
   {
     "capabilityId": "CAP_CONTINUOUS_HEAL",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-005",
-    "description": "継続回復",
+    "description": "継続回復（timing: ActionStarted / EFFECT_OWNER のみ）",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": ["ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL"],
+      "testCaseIds": [
+        "IT-CAP-CONTINUOUS-HEAL-PROD-001",
+        "UT-R-HEAL-03-001",
+        "UT-R-HEAL-03-002",
+        "UT-R-HEAL-03-004"
+      ]
     }
   },
   {
@@ -266,12 +271,20 @@
   {
     "capabilityId": "CAP_HEAL",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-005",
-    "description": "即時回復EffectAction",
+    "description": "即時回復EffectActionと回復量Modifier（HEAL_DISTRIBUTEの均等分配を含む）",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": ["ACT_LUCIE_COMPANION_AS3_HEAL", "ACT_SUIRAN_CHAOS_PS2_HEAL"],
+      "testCaseIds": [
+        "IT-CAP-HEAL-PROD-001",
+        "IT-CAP-TRIGGER-CONTEXT-PROD-003",
+        "UT-R-HEAL-01-001",
+        "UT-R-HEAL-01-003",
+        "UT-R-HEAL-01-007",
+        "UT-R-HEAL-01-008",
+        "UT-R-HEAL-02-002"
+      ]
     }
   },
   {
@@ -599,6 +612,17 @@
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-004",
     "description": "APPLY_STATUSの`status`がSTEALTH以外（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASION）の場合の実効処理（R-STS-01〜04等）。resolver（effect-action-group-resolver.ts）は現状`status`自体の許可リストでSTEALTH以外を無条件拒否しており（TGT-004フェーズ3再レビュー[P1]）、この拒否はCapability経由ではなくハードコードされている。M7-001B（Issue #243）はUNIT_LAYLA_ENTREPRENEURのEX/PS1がこのCapability未実装のまま`selectable`となり golden battle が失敗するのを防ぐため、この2行にだけ宣言した（既存の他ユニット行への遡及的な宣言はM7-004本体のスコープとする）。M7-004（Issue #183）はFREEZE（R-STS-03、`freeze-grant-service.ts`＋凍結解除時のダメージ増幅）・BLIND（R-STS-04/R-HIT-03、暗闇の定義順MISS判定）・EVASION（R-HIT-02、特別な回避効果）・DAMAGE_IMMUNITY（R-DMG-02、ダメージ無効効果）の許可リスト追加と実効処理を実装した。残るCRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASIONは対応するR-*ルール定義がdocs/ddd/07_戦闘ルール詳細.mdに存在せず本Issueのスコープ外のため、このCapability自体は引き続きPLANNEDのまま（例: UNIT_LAYLA_ENTREPRENEURのGUARANTEED_HIT行はまだ未対応）。",
+    "verification": {
+      "productionDefinitionIds": [],
+      "testCaseIds": []
+    }
+  },
+  {
+    "capabilityId": "CAP_SUM_DAMAGE_RESULT",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "RES-003A",
+    "description": "FormulaDefinitionのSUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED（EffectSequence実行中の累計ダメージ）参照。累計の集計スコープが未確定でFormulaEvaluationContextへ未配線（PR #256レビュー[P1]、Issue #257）",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []

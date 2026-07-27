@@ -331,6 +331,37 @@ export interface BattleDomainEventPayloadMap {
     readonly hpAfter: number;
     readonly defeated: boolean;
   };
+  /**
+   * `08_ドメインイベント.md`「HealApplied payload」（M7-005、Issue #184、
+   * R-HEAL-01〜03）: HP回復を適用した直後に発行する`FACT`。HP変化のStateDeltaは
+   * このイベントが持つ（`HitPointReduced`と同じ規約 — 1つのHP変化を2つの
+   * イベントへ付けると独立Reducer復元が二重適用でエラーになる）。
+   * `sourceUnitId`はMemory由来の場合`sourceSide`へ置き換わる契約だが、Memory
+   * 効果解決（M7-006、Issue #186）自体が未実装のため現時点では常に
+   * `BattleUnitId`を持つ。
+   */
+  readonly HealApplied: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly sourceUnitId: BattleUnitId;
+    readonly targetUnitId: BattleUnitId;
+    /** R-HEAL-01 #1: Formula評価結果（`SKILL_POWER`は回復者の攻撃力×威力、整数化前・Modifier適用前）。 */
+    readonly formulaResult: number;
+    /**
+     * HEAL_DISTRIBUTE（M7-005、Issue #184）: `payload.distribution: "EVEN"`の
+     * 場合に総回復量を分配した対象数。分配しない場合は常に1。
+     */
+    readonly distributionShareCount: number;
+    /** R-HEAL-02: `1 + APPLY_HEALING_MODの符号付き割合合計`（0未満は0）。 */
+    readonly healingModifierMultiplier: number;
+    /** R-HEAL-01 #2/#3: 適用直前に切り捨て整数化し、0未満を0にした回復量。 */
+    readonly healAmount: number;
+    /** R-HEAL-01 #4: 最大HPを超えない範囲で実際に増加したHP量。 */
+    readonly appliedAmount: number;
+    /** R-HEAL-01「overheal: DISCARD」で破棄した最大HP超過分（`healAmount - appliedAmount`）。 */
+    readonly discardedAmount: number;
+    readonly hpBefore: number;
+    readonly hpAfter: number;
+  };
   readonly UnitDefeated: {
     readonly unitId: BattleUnitId;
     readonly causeEventId: DomainEventId;

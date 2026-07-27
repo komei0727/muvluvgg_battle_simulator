@@ -5,6 +5,10 @@ import {
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion, recordCooldownStart } from "./action-completion.js";
+import {
+  completeActionIfActorDefeatedAtStart,
+  fireContinuousHealsOnActionStart,
+} from "./continuous-heal-service.js";
 import { resolveBindingSelections } from "./action-skill-use-resolver.js";
 import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
@@ -17,6 +21,7 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnit } from "../model/battle-unit.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 
 /**
  * `06_戦闘状態遷移.md`「チャージ開始」: 元スキルのコストはRESOURCE_CONSUMINGで
@@ -70,18 +75,86 @@ export function resolveChargeStart(
     stateDelta: { units: { [actorId]: stateDeltaEntry } },
   });
 
+  // PRレビュー指摘[P2]（PR #256、Issue #184）: `PassiveActivationRuntime`の生成を
+  // R-HEAL-03の継続回復発火より前へ移し、`HealApplied`もAS/EX経路と同じFACT
+  // イベント連鎖へ流す。この時点の`working`はコスト消費を適用済みで、
+  // `ChargeStarted`より前に状態を変えるのは継続回復とクールタイム設定だけの
+  // ため、生成位置を早めても観測できる差はない。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
+
+  // R-HEAL-03（M7-005、Issue #184）: チャージ開始も1つの行動であるため、保持者
+  // 自身の`ActionStarted`を契機とする継続回復を行動本体より前に発火させる。
+  const continuousHeal = fireContinuousHealsOnActionStart(
+    working,
+    actorId,
+    {
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      effectActions: definitions.effectActions,
+    },
+    actionStarted.eventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+  );
+  working = continuousHeal.units;
+
+  // START_EVENT #4（`06_戦闘状態遷移.md`、再レビュー[P2] PR #256）: 継続回復と
+  // その`HealApplied`起点のPS連鎖で行動者が戦闘不能になった場合、本体を実行せず
+  // `COMPLETING`へ進む。
+  const interrupted = completeActionIfActorDefeatedAtStart(
+    working,
+    actorId,
+    recorder,
+    {
+      actionId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      turnNumber,
+      cycleNumber,
+      actorId,
+      effectActions: definitions.effectActions,
+      onFactEventForPassiveChain: (
+        event: BattleDomainEvent,
+        unitsForChain: readonly BattleUnit[],
+      ) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+    },
+    effectiveActionType,
+    continuousHeal.lastEventId,
+    actionScope,
+    actionStarted.eventId,
+    (completedEventId) => passiveRuntime.finalizeResolutionScope(completedEventId).units,
+  );
+  if (interrupted !== undefined) {
+    return interrupted;
+  }
+
   // R-SKL-05 #2: 元スキルへクールタイムを設定し、現在の行動IDを設定スコープとして記録する。
   const cooldownResult = recordCooldownStart(
     recorder,
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
-    actorAfterCost.cooldowns,
+    requireUnit(working, actorId).cooldowns,
     skill,
-    actionStarted.eventId,
+    continuousHeal.lastEventId,
     actionStarted.eventId,
   );
 
   const chargingUnit: BattleUnit = {
-    ...actorAfterCost,
+    ...requireUnit(working, actorId),
     cooldowns: cooldownResult.cooldowns,
     charge: { skill, startedActionId: actionId },
   };
@@ -121,21 +194,8 @@ export function resolveChargeStart(
 
   // レビュー再々々レビュー[P2]: チャージ開始も`ChargeStarted`（例: Harriet PS2
   // 「ALLYがチャージ開始した時」）と`ActionCompleting`/Cooldown更新/
-  // `ActionCompleted`を発動タイミングとするPS/counter更新を持ちうるため、
-  // この行動専用の`PassiveActivationRuntime`を生成して接続する。
-  const passiveRuntime = new PassiveActivationRuntime(
-    {
-      definitions,
-      random,
-      recorder,
-      turnNumber,
-      cycleNumber,
-      resolutionScopeId: actionScope,
-      rootEventId: actionStarted.eventId,
-      actionId,
-    },
-    working,
-  );
+  // `ActionCompleted`を発動タイミングとするPS/counter更新を持ちうるため、上で
+  // 生成した`passiveRuntime`へ接続する。
   working = passiveRuntime.onFactEvent(chargeStarted, working).units;
 
   const completion = recordActionCompletion(
@@ -212,19 +272,12 @@ export function resolveChargeRelease(
     },
   });
 
-  let working = units;
-  const plan = resolveChargeReleaseOrder(
-    skill,
-    actor,
-    working,
-    definitions.effectActions,
-    definitions.unitDefinitions,
-  );
-  const targetUnitIds = plan.targetUnitIds;
-
   // PR #142レビュー[P1]: AS/EX（`resolveSkillUse`）と同様、この行動専用の
   // `PassiveActivationRuntime`を生成し、チャージ解放の効果解決から発行される
   // イベントからもPS即時連鎖を解決できるようにする（従来欠落していた）。
+  // PRレビュー指摘[P2]（PR #256、Issue #184）: 生成をR-HEAL-03の継続回復発火より
+  // 前へ移し、`HealApplied`もAS/EX経路と同じFACTイベント連鎖へ流す。チャージ
+  // 発動はコストを消費しないため、この時点の`units`は呼び出し時点のままである。
   const passiveRuntime = new PassiveActivationRuntime(
     {
       definitions,
@@ -236,8 +289,69 @@ export function resolveChargeRelease(
       rootEventId: actionStarted.eventId,
       actionId,
     },
-    working,
+    units,
   );
+
+  // R-HEAL-03（M7-005、Issue #184）: チャージ発動も1つの行動であるため、保持者
+  // 自身の`ActionStarted`を契機とする継続回復を、対象選択・効果解決より前に
+  // 発火させる。
+  const continuousHeal = fireContinuousHealsOnActionStart(
+    units,
+    actorId,
+    {
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      effectActions: definitions.effectActions,
+    },
+    actionStarted.eventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+  );
+  let working = continuousHeal.units;
+
+  // START_EVENT #4（`06_戦闘状態遷移.md`、再レビュー[P2] PR #256）: 継続回復と
+  // その`HealApplied`起点のPS連鎖で行動者が戦闘不能になった場合、本体を実行せず
+  // `COMPLETING`へ進む。
+  const interrupted = completeActionIfActorDefeatedAtStart(
+    working,
+    actorId,
+    recorder,
+    {
+      actionId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      turnNumber,
+      cycleNumber,
+      actorId,
+      effectActions: definitions.effectActions,
+      onFactEventForPassiveChain: (
+        event: BattleDomainEvent,
+        unitsForChain: readonly BattleUnit[],
+      ) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+    },
+    "CHARGE_RELEASE",
+    continuousHeal.lastEventId,
+    actionScope,
+    actionStarted.eventId,
+    (completedEventId) => passiveRuntime.finalizeResolutionScope(completedEventId).units,
+  );
+  if (interrupted !== undefined) {
+    return interrupted;
+  }
+
+  const plan = resolveChargeReleaseOrder(
+    skill,
+    // 継続回復で使用者自身のHP・combatStatsが変わりうるため、対象選択はこの
+    // 時点の最新状態から行う。
+    requireUnit(working, actorId),
+    working,
+    definitions.effectActions,
+    definitions.unitDefinitions,
+  );
+  const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();
   // EFF-006/Issue #212: `resolveSkillUse`と同様、この解決が宣言する
@@ -258,7 +372,7 @@ export function resolveChargeRelease(
     actionId,
     skillUseId,
     resolutionScopeId: actionScope,
-    parentEventId: actionStarted.eventId,
+    parentEventId: continuousHeal.lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorId,
     targetUnitIds,

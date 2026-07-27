@@ -13,6 +13,7 @@ import type { BattleDomainEvent } from "../events/domain-event.js";
 import { reduceStateDeltas } from "./state-delta-reducer.js";
 import { createActionPoint, createExtraGauge, createHitPoint } from "../model/resource-gauge.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import {
@@ -169,13 +170,25 @@ function damageEffectAction(
   };
 }
 
-function healEffectAction(id: string): EffectActionDefinition {
+/**
+ * M7-005（Issue #184）で`HEAL`が実装されたため、「resolverが未対応kindを明確に
+ * 拒否する」回帰テスト（UT-ACTION-PHASE-004）の題材を`APPLY_SHIELD`
+ * （`CAP_SHIELD`は`PLANNED`、DMG-004/Issue #188）へ差し替える。
+ */
+function shieldEffectAction(id: string): EffectActionDefinition {
   return {
-    kind: "HEAL",
+    kind: "APPLY_SHIELD",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
     requiredCapabilities: [],
     metadata: { tags: [] },
-    payload: { formula: { kind: "CONSTANT", value: 10 }, overheal: "DISCARD" },
+    payload: {
+      formula: { kind: "CONSTANT", value: 10 },
+      duration: {
+        timeLimit: { unit: "ACTION", count: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
   };
 }
 
@@ -571,6 +584,386 @@ describe("resolveActionPhase", () => {
     });
   });
 
+  it("UT-R-HEAL-03-002 (M7-005 Issue #184, full stack): a held APPLY_CONTINUOUS_HEAL heals its owner at the owner's own ActionStarted, and the HealApplied StateDelta reconstructs the same HP through the independent Reducer", () => {
+    const hotDefId = createEffectActionDefinitionId("ACT_HOT");
+    const hotDef: EffectActionDefinition = {
+      effectActionDefinitionId: hotDefId,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    const hotEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("hot-1"),
+      effectActionDefinitionId: hotDefId,
+      kindKey: effectKindKeyFromDefinitionId(hotDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ALLY_1"),
+      targetId: createBattleUnitId("ALLY_1"),
+      magnitude: 0,
+      duration: {
+        definition: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+      },
+      appliedTurnNumber: 1,
+    };
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 }, maximumHp: 100, currentHp: 40 }),
+      appliedEffects: [hotEffect],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const random = new SequenceRandomSource([]);
+    const definitions = definitionsOf(new Map(), new Map([[hotDefId, hotDef]]));
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // The unit has no usable AS, so it waits — but the continuous heal still
+    // fires at its own ActionStarted (maximumHp 100 * 0.1 = 10).
+    expect(result.allyUnits[0]!.currentHp).toBe(50);
+
+    const healApplied = ctx.recorder
+      .getEvents()
+      .find(
+        (e): e is Extract<typeof e, { eventType: "HealApplied" }> => e.eventType === "HealApplied",
+      )!;
+    expect(healApplied.payload).toMatchObject({
+      effectActionDefinitionId: hotDefId,
+      targetUnitId: ally.battleUnitId,
+      healAmount: 10,
+      appliedAmount: 10,
+      hpBefore: 40,
+      hpAfter: 50,
+    });
+
+    const restored = reduceStateDeltas(
+      {
+        status: "RUNNING",
+        currentTurn: 1,
+        units: {
+          [ally.battleUnitId]: {
+            ap: 1,
+            pp: 3,
+            hp: 40,
+            extraGauge: 0,
+            combatStats: ally.combatStats,
+            effects: [toEffectSnapshot(hotEffect, true)],
+          },
+          [enemy.battleUnitId]: {
+            ap: 0,
+            pp: 3,
+            hp: 100,
+            extraGauge: 0,
+            combatStats: enemy.combatStats,
+          },
+        },
+      },
+      ctx.recorder
+        .getEvents()
+        .filter((e) => e.stateDelta !== undefined)
+        .map((e) => e.stateDelta!),
+    );
+    expect(restored.units[ally.battleUnitId]!.hp).toBe(50);
+  });
+
+  it("UT-R-HEAL-03-005 (PRレビュー[P2] PR #256): the HealApplied a continuous heal emits during a WAIT reaches the PS chain, so a PS triggered by HealApplied activates on the wait path too — not only on the AS/EX path", () => {
+    const hotDefId = createEffectActionDefinitionId("ACT_HOT");
+    const hotDef: EffectActionDefinition = {
+      effectActionDefinitionId: hotDefId,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    const hotEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("hot-1"),
+      effectActionDefinitionId: hotDefId,
+      kindKey: effectKindKeyFromDefinitionId(hotDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ALLY_1"),
+      targetId: createBattleUnitId("ALLY_1"),
+      magnitude: 0,
+      duration: {
+        definition: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+      },
+      appliedTurnNumber: 1,
+    };
+    // The healed unit waits (no usable AS), so its continuous heal fires on the
+    // WAIT path; a second ally holds a PS that triggers on HealApplied.
+    const healed = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 }, maximumHp: 100, currentHp: 40 }),
+      appliedEffects: [hotEffect],
+    };
+    const observerUnitDefinitionId = createUnitDefinitionId("UNIT_HEAL_OBSERVER");
+    const observer = {
+      ...unit("ALLY_2", "ALLY", {
+        unitDefinitionId: "UNIT_HEAL_OBSERVER",
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+
+    const buffActionId = createEffectActionDefinitionId("ACT_OBSERVER_SELF_BUFF");
+    const buffAction = statModEffectAction("ACT_OBSERVER_SELF_BUFF", "ATTACK", "FIXED", 5);
+    const observerPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_HEAL_APPLIED"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "HealApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: buffActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "OnHealApplied", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(observerUnitDefinitionId, {
+      ...unitDefinitions.get(observerUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [observerPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [hotDefId, hotDef],
+        [buffActionId, buffAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[observerPassive.skillDefinitionId, observerPassive]]),
+    };
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [healed, observer],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    expect(result.allyUnits.find((u) => u.battleUnitId === healed.battleUnitId)!.currentHp).toBe(
+      50,
+    );
+    const healApplied = ctx.recorder.getEvents().find((e) => e.eventType === "HealApplied")!;
+    const passiveActivated = ctx.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            observerPassive.skillDefinitionId,
+      );
+    expect(passiveActivated, "the PS must activate from the wait-path HealApplied").toBeDefined();
+    expect(passiveActivated!.payload).toMatchObject({ triggerEventId: healApplied.eventId });
+  });
+
+  it("UT-R-HEAL-03-006 (再レビュー[P2] PR #256, START_EVENT #4): when a PS chained off the start-of-action HealApplied defeats the actor, the action body is skipped and the action proceeds straight to COMPLETING", () => {
+    const hotDefId = createEffectActionDefinitionId("ACT_HOT");
+    const hotDef: EffectActionDefinition = {
+      effectActionDefinitionId: hotDefId,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    const hotEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("hot-1"),
+      effectActionDefinitionId: hotDefId,
+      kindKey: effectKindKeyFromDefinitionId(hotDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ALLY_1"),
+      targetId: createBattleUnitId("ALLY_1"),
+      magnitude: 0,
+      duration: {
+        definition: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+      },
+      appliedTurnNumber: 1,
+    };
+    // The acting ally holds the continuous heal and has no usable AS, so it
+    // would normally wait. An enemy PS triggered by HealApplied kills it first.
+    const healed = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 }, maximumHp: 100, currentHp: 40 }),
+      appliedEffects: [hotEffect],
+    };
+    const killerUnitDefinitionId = createUnitDefinitionId("UNIT_HEAL_PUNISHER");
+    const killer = {
+      ...unit("ENEMY_1", "ENEMY", {
+        unitDefinitionId: "UNIT_HEAL_PUNISHER",
+        attack: 10000,
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+
+    const killActionId = createEffectActionDefinitionId("ACT_PUNISH_HEAL");
+    const killAction = damageEffectAction("ACT_PUNISH_HEAL");
+    const killerPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_PUNISH_HEAL"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "HealApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_ENEMY"), selector: ENEMY_NEAREST },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ENEMY") },
+            actions: [{ effectActionDefinitionId: killActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "PunishHeal", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(killerUnitDefinitionId, {
+      ...unitDefinitions.get(killerUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [killerPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [hotDefId, hotDef],
+        [killActionId, killAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[killerPassive.skillDefinitionId, killerPassive]]),
+    };
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [healed],
+      [killer],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "HealApplied")).toBe(true);
+    expect(
+      events.some(
+        (e) => e.eventType === "UnitDefeated" && e.payload.unitId === healed.battleUnitId,
+      ),
+      "the chained PS must actually defeat the actor",
+    ).toBe(true);
+    // START_EVENT #4: the body (`ActionWaited`) must not run, but the action
+    // must still be completed rather than left dangling.
+    expect(
+      events.some((e) => e.eventType === "ActionWaited"),
+      "the action body must be skipped once the actor is defeated at start of action",
+    ).toBe(false);
+    expect(events.some((e) => e.eventType === "ActionCompleted")).toBe(true);
+  });
+
   it("UT-ACTION-PHASE-002: a usable AS skill consumes its AP cost and applies DAMAGE to the target", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
@@ -874,16 +1267,16 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-004: throws when a resolved plan targets a non-DAMAGE EffectAction (M6/M7 scope)", () => {
-    const unitDefinitionId = createUnitDefinitionId("UNIT_HEALER");
+  it("UT-ACTION-PHASE-004: throws when a resolved plan targets an EffectAction kind this resolver does not implement yet (APPLY_SHIELD, CAP_SHIELD PLANNED)", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SHIELDER");
     const ally = unit("ALLY_1", "ALLY", {
-      unitDefinitionId: "UNIT_HEALER",
+      unitDefinitionId: "UNIT_SHIELDER",
       limits: { maximumAp: 1 },
     });
     const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
-    const effectAction = healEffectAction("ACT_HEAL");
+    const effectAction = shieldEffectAction("ACT_SHIELD");
     const definitions = definitionsOf(
-      new Map([[unitDefinitionId, [attackSkill("ACT_HEAL", 1)]]]),
+      new Map([[unitDefinitionId, [attackSkill("ACT_SHIELD", 1)]]]),
       new Map([[effectAction.effectActionDefinitionId, effectAction]]),
     );
     const random = new SequenceRandomSource([]);

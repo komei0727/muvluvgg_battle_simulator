@@ -112,6 +112,32 @@ export function composeResourceGainRate(
 }
 
 /**
+ * R-HEAL-02（M7-005、Issue #184）: 対象が保持する有効な`APPLY_HEALING_MOD`のうち
+ * `direction`が一致するものだけの補正値（付与時点で評価済み、
+ * `AppliedEffect.magnitude`）を符号付き割合として合算する。`composeResourceGainRate`
+ * と同じく、stacking契約が`STACKABLE`のみのため`selectEffectiveInstances`の最強選択
+ * （R-EFF-05、重複なしグループ向け）は不要 — 保持している全インスタンスが常に有効。
+ * 呼び出し側（`heal-application-service.ts`）が回復者の`OUTGOING`と対象の`INCOMING`を
+ * 合算し、`1 + 合計`を倍率として（0未満は0に丸めて）適用する。
+ */
+export function composeHealingRate(
+  unit: BattleUnit,
+  direction: "OUTGOING" | "INCOMING",
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): number {
+  return unit.appliedEffects
+    .filter((effect) => {
+      const definition = effectActions.get(effect.effectActionDefinitionId);
+      return (
+        definition !== undefined &&
+        definition.kind === "APPLY_HEALING_MOD" &&
+        definition.payload.direction === direction
+      );
+    })
+    .reduce((sum, effect) => sum + effect.magnitude, 0);
+}
+
+/**
  * R-ACT-03: AS/PS/待機の消費量と同量だけEXゲージを増やす（超過分は打ち止め）。
  * M7-002（Issue #185）: `resourceGainRate`（対象ユニットに有効な`RESOURCE_GAIN_MOD`
  * の合成済み倍率、未指定なら0）を`amount`（基礎量）へ`amount * (1 + rate)`で

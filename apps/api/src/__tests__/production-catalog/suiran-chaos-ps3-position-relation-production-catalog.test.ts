@@ -574,7 +574,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     });
   });
 
-  it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172; PR #220 review finding [P2]): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the REAL HitPointReduced event applyDamageAction emits for a genuine enemy attack, then fails on the separately-unimplemented HEAL kind (Issue #184) — not on TRIGGER_TARGET resolution", () => {
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172; PR #220 review finding [P2]): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the REAL HitPointReduced event applyDamageAction emits for a genuine enemy attack, and its ACT_SUIRAN_CHAOS_PS2_HEAL now resolves end-to-end (M7-005, Issue #184)", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
 
@@ -714,9 +714,19 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       [suiran, updatedWoundedAlly, enemyAttacker],
     );
 
-    expect(() =>
-      runtime.onFactEvent(hitPointReduced, [suiran, updatedWoundedAlly, enemyAttacker]),
-    ).toThrowError(/EffectAction kind other than .* is not supported/);
+    // M7-005（Issue #184）でHEALが実装されたため、この連鎖は例外にならず最後まで
+    // 解決し、`ACT_SUIRAN_CHAOS_PS2_HEAL`が実際に対象を回復する
+    // （変換テーマ`HEAL_KIND_UNIMPLEMENTED`の解消、`15_Unit_Memory変換台帳.md`）。
+    const chained = runtime.onFactEvent(hitPointReduced, [
+      suiran,
+      updatedWoundedAlly,
+      enemyAttacker,
+    ]);
+    const healedAlly = chained.units.find(
+      (u) => u.battleUnitId === updatedWoundedAlly.battleUnitId,
+    )!;
+    expect(healedAlly.currentHp).toBeGreaterThan(updatedWoundedAlly.currentHp);
+    expect(recorder.getEvents().some((e) => e.eventType === "HealApplied")).toBe(true);
 
     const passiveActivated = recorder
       .getEvents()
@@ -848,12 +858,17 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       [suiran, updatedWoundedAlly, allyAttacker],
     );
 
-    // The candidate must still be detected and activation attempted (proving
-    // `sourceSelector: "ANY"` doesn't require an enemy source) — it fails on
-    // the same separately-unimplemented HEAL kind as the enemy-attack case.
-    expect(() =>
-      runtime.onFactEvent(hitPointReduced, [suiran, updatedWoundedAlly, allyAttacker]),
-    ).toThrowError(/EffectAction kind other than .* is not supported/);
+    // The candidate must still be detected and the PS resolve fully (proving
+    // `sourceSelector: "ANY"` doesn't require an enemy source) — since M7-005
+    // (Issue #184) the HEAL kind resolves instead of throwing.
+    const chained = runtime.onFactEvent(hitPointReduced, [
+      suiran,
+      updatedWoundedAlly,
+      allyAttacker,
+    ]);
+    expect(
+      chained.units.find((u) => u.battleUnitId === updatedWoundedAlly.battleUnitId)!.currentHp,
+    ).toBeGreaterThan(updatedWoundedAlly.currentHp);
 
     const passiveActivated = recorder
       .getEvents()

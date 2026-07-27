@@ -9,6 +9,10 @@ import {
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion } from "./action-completion.js";
+import {
+  completeActionIfActorDefeatedAtStart,
+  fireContinuousHealsOnActionStart,
+} from "./continuous-heal-service.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -163,6 +167,69 @@ export function resolveWait(
     );
   }
 
+  // レビュー再々々レビュー[P2]: 待機も`ActionWaited`と`ActionCompleting`/
+  // Cooldown更新/`ActionCompleted`を発動タイミングとするPS/counter更新を
+  // 持ちうるため、この行動専用の`PassiveActivationRuntime`を生成して接続する。
+  // PRレビュー指摘[P2]（PR #256、Issue #184）: 生成をR-HEAL-03の継続回復発火より
+  // 前へ移し、`HealApplied`もAS/EX経路と同じFACTイベント連鎖へ流す。この時点の
+  // `working`はコスト消費・EXゲージ増加を適用済みで、`ActionWaited`より前に
+  // 状態を変えるのは継続回復だけのため、生成位置を早めても観測できる差はない。
+  const passiveRuntime = new PassiveActivationRuntime(
+    {
+      definitions,
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      actionId,
+    },
+    working,
+  );
+
+  // R-HEAL-03（M7-005、Issue #184）: 保持者自身の`ActionStarted`を契機とする
+  // 継続回復を、行動本体（`ActionWaited`）より前に発火させる。
+  const continuousHeal = fireContinuousHealsOnActionStart(
+    working,
+    actorId,
+    { ...resourceChangeContext, effectActions: definitions.effectActions },
+    lastEventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+  );
+  working = continuousHeal.units;
+  lastEventId = continuousHeal.lastEventId;
+
+  // START_EVENT #4（`06_戦闘状態遷移.md`、再レビュー[P2] PR #256）: 継続回復と
+  // その`HealApplied`起点のPS連鎖で行動者が戦闘不能になった場合、本体を実行せず
+  // `COMPLETING`へ進む。
+  const interrupted = completeActionIfActorDefeatedAtStart(
+    working,
+    actorId,
+    recorder,
+    {
+      actionId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      turnNumber,
+      cycleNumber,
+      actorId,
+      effectActions: definitions.effectActions,
+      onFactEventForPassiveChain: (
+        event: BattleDomainEvent,
+        unitsForChain: readonly BattleUnit[],
+      ) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+    },
+    "WAIT",
+    continuousHeal.lastEventId,
+    actionScope,
+    actionStarted.eventId,
+    (completedEventId) => passiveRuntime.finalizeResolutionScope(completedEventId).units,
+  );
+  if (interrupted !== undefined) {
+    return interrupted;
+  }
+
   const actionWaited = recorder.record({
     eventType: "ActionWaited",
     category: "FACT",
@@ -181,22 +248,6 @@ export function resolveWait(
     },
   });
 
-  // レビュー再々々レビュー[P2]: 待機も`ActionWaited`と`ActionCompleting`/
-  // Cooldown更新/`ActionCompleted`を発動タイミングとするPS/counter更新を
-  // 持ちうるため、この行動専用の`PassiveActivationRuntime`を生成して接続する。
-  const passiveRuntime = new PassiveActivationRuntime(
-    {
-      definitions,
-      random,
-      recorder,
-      turnNumber,
-      cycleNumber,
-      resolutionScopeId: actionScope,
-      rootEventId: actionStarted.eventId,
-      actionId,
-    },
-    working,
-  );
   working = passiveRuntime.onFactEvent(actionWaited, working).units;
 
   // R-SKL-05（Issue #180 PRレビュー[P2]）: `ActionWaited`自身のPS/Memory連鎖が

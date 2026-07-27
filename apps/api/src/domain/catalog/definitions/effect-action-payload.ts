@@ -84,9 +84,18 @@ export interface DamagePayload {
   readonly link: { readonly enabled: boolean };
 }
 
+/**
+ * HEAL_DISTRIBUTE（M7-005、Issue #184）: `MODIFY_RESOURCE.operation: DISTRIBUTE`
+ * のHEAL版。`EVEN`はFormula評価結果（総回復量）を、同じEffectStep内でこの
+ * EffectActionが適用される対象数で等分する。省略時は`NONE`（対象ごとに評価結果
+ * 全量を回復する既定動作）。
+ */
+export type HealDistributionPolicy = "NONE" | "EVEN";
+
 export interface HealPayload {
   readonly formula: FormulaDefinition;
   readonly overheal: OverhealPolicy;
+  readonly distribution: HealDistributionPolicy;
 }
 
 export interface ApplyContinuousHealPayload {

@@ -694,6 +694,63 @@ function modifyResourceDistributeAction(
   );
 }
 
+function sumDamageHealAction(
+  id: string,
+  requiredCapabilities: readonly string[] = ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "HEAL",
+      payload: {
+        // Nested under SUM/CLAMP so the walker's recursion is exercised too.
+        formula: {
+          kind: "CLAMP",
+          formula: {
+            kind: "SUM",
+            formulas: [
+              { kind: "CONSTANT", value: 1 },
+              { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.7 },
+            ],
+          },
+          min: 0,
+          max: 9999,
+        },
+        overheal: "DISCARD",
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
+function continuousHealAction(
+  id: string,
+  timing: { eventType: string; targetSelector: string } = {
+    eventType: "ActionStarted",
+    targetSelector: "EFFECT_OWNER",
+  },
+  requiredCapabilities: readonly string[] = ["CAP_CONTINUOUS_HEAL"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function markerAction(
   id: string,
   linkedEffectGroupId: string | null = null,
@@ -1436,6 +1493,88 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_DISTRIBUTE",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-HEAL-01-009 (PRレビュー[P1] PR #256): accepts a HEAL referencing SUM_DAMAGE_DEALT when it declares the required CAP_SUM_DAMAGE_RESULT capability", () => {
+    const defs = baseDefinitions();
+    const withSum: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_SUM_HEAL")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, sumDamageHealAction("ACT_SUM_HEAL")],
+      capabilities: [capability("CAP_HEAL"), capability("CAP_SUM_DAMAGE_RESULT")],
+    };
+
+    const index = buildCatalogIndex(withSum);
+
+    expect(index.effectActions.get("ACT_SUM_HEAL" as never)).toBeDefined();
+  });
+
+  it("UT-R-HEAL-01-010 (PRレビュー[P1] PR #256, NEGATIVE): rejects a HEAL referencing SUM_DAMAGE_DEALT without CAP_SUM_DAMAGE_RESULT, so the unwired accumulation is caught at Catalog load time rather than as a runtime DomainValidationError", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_SUM_HEAL")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, sumDamageHealAction("ACT_SUM_HEAL", ["CAP_HEAL"])],
+      capabilities: [capability("CAP_HEAL"), capability("CAP_SUM_DAMAGE_RESULT")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNSUPPORTED_SUM_DAMAGE_RESULT" && v.targetId === "ACT_SUM_HEAL",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-HEAL-03-003 (M7-005 Issue #184): accepts an APPLY_CONTINUOUS_HEAL whose timing is the implemented ActionStarted/EFFECT_OWNER combination", () => {
+    const defs = baseDefinitions();
+    const withHot: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_HOT")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, continuousHealAction("ACT_HOT")],
+      capabilities: [capability("CAP_CONTINUOUS_HEAL")],
+    };
+
+    const index = buildCatalogIndex(withHot);
+
+    expect(index.effectActions.get("ACT_HOT" as never)).toBeDefined();
+  });
+
+  it("UT-R-HEAL-03-004 (M7-005 Issue #184, NEGATIVE): rejects an APPLY_CONTINUOUS_HEAL whose timing is not the implemented ActionStarted/EFFECT_OWNER combination, so an unfired continuous heal is caught at Catalog load time rather than silently never healing", () => {
+    const defs = baseDefinitions();
+    const withUnsupportedTiming: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_HOT")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        continuousHealAction("ACT_HOT", {
+          eventType: "TurnStarted",
+          targetSelector: "EFFECT_OWNER",
+        }),
+      ],
+      capabilities: [capability("CAP_CONTINUOUS_HEAL")],
+    };
+
+    try {
+      buildCatalogIndex(withUnsupportedTiming);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNSUPPORTED_CONTINUOUS_HEAL_TIMING" && v.targetId === "ACT_HOT",
         ),
       ).toBe(true);
     }
