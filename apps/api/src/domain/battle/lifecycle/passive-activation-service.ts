@@ -833,12 +833,22 @@ export class PassiveActivationRuntime {
    * `lastEventId`として明示的に返す（`finalizeResolutionScope`と同じ`recorder`
    * 末尾読み取りパターン）。カーソルを必要としない大多数の呼び出し側は
    * `.units`だけを取り出せばよい。
+   *
+   * レビュー指摘[P2]（Issue #251）: `recorder.getEvents()`の単純な末尾ではなく、
+   * この呼び出し自身が開始した時点からの差分だけを見る——呼び出し側が複数の
+   * イベントを先に一括で`record`してから1件ずつ`onFactEvent`へ渡す経路
+   * （`action-completion.ts`の期間/Marker更新など）では、対象`event`より後の
+   * 無関係な後続イベントが呼び出し前から既に`recorder`に存在し得るため、単純な
+   * 末尾は他エントリの終端イベントを誤って返してしまう。この呼び出し中に何も
+   * 追加されなければ（新規のPS/Memory連鎖・counter更新が無い、産業上最も
+   * 多いケース）、`event`自身を`lastEventId`として返す。
    */
   onFactEvent(
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
     counterUpdateDepth = 0,
   ): ResolutionResult {
+    const eventsStart = this.context.recorder.getEvents().length;
     this.units = units;
     const triggerEvent = this.toTriggerEvent(event);
 
@@ -910,7 +920,8 @@ export class PassiveActivationRuntime {
     }
     this.guard = result.activationGuard;
     const recordedEvents = this.context.recorder.getEvents();
-    const last = recordedEvents[recordedEvents.length - 1];
+    const last =
+      recordedEvents.length > eventsStart ? recordedEvents[recordedEvents.length - 1] : undefined;
     return { units: this.units, lastEventId: last?.eventId ?? event.eventId };
   }
 

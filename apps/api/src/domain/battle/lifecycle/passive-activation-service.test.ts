@@ -4498,6 +4498,45 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(events.indexOf(completionActivated!)).toBeLessThan(events.indexOf(expiryActivated!));
     });
   });
+
+  describe("lastEventId (Issue #251, レビュー再指摘[P2])", () => {
+    it("UT-R-PS-05-030: returns the target event's own id, not an unrelated later event the caller had already pre-recorded before this call, when this call itself triggers no new reaction", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_LAST_EVENT_ID");
+      const owner = unit("OWNER", "ALLY", { unitDefinitionId });
+      const definitions = definitionsOf(
+        new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [])]]),
+        new Map(),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [owner],
+      );
+
+      // Simulates callers (e.g. action-completion.ts's duration/marker
+      // update path) that record several events in a batch up front, then
+      // route each through onFactEvent one at a time — an unrelated later
+      // event already sits in the recorder before onFactEvent(turnStarted,
+      // ...) is even called. Naively reading recorder.getEvents()'s bare
+      // tail would return this event instead of turnStarted's own id.
+      const unrelatedLaterEvent = recorder.record({
+        eventType: "TurnStarted",
+        category: "FACT",
+        turnNumber: 2,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        payload: { turnNumber: 2 },
+      });
+
+      // No PS/counterUpdates are registered for TurnStarted here, so this
+      // call adds nothing new to the recorder.
+      const resolved = runtime.onFactEvent(turnStarted, [owner]);
+
+      expect(resolved.lastEventId).toBe(turnStarted.eventId);
+      expect(resolved.lastEventId).not.toBe(unrelatedLaterEvent.eventId);
+    });
+  });
 });
 
 describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, Issue #247 M7-001D, PRレビュー[P2] re-review)", () => {
