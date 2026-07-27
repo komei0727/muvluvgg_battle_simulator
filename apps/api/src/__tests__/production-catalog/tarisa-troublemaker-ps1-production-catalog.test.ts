@@ -326,7 +326,7 @@ describe("production Catalog SKL_TARISA_TROUBLEMAKER_PS1 (M7-001D, Issue #247, C
       },
       units,
     );
-    const updatedUnits = runtime.onFactEvent(damageApplied, units);
+    const updatedUnits = runtime.onFactEvent(damageApplied, units).units;
 
     const passiveActivated = setupResult.recorder
       .getEvents()
@@ -367,7 +367,7 @@ describe("production Catalog SKL_TARISA_TROUBLEMAKER_PS1 (M7-001D, Issue #247, C
       },
       units,
     );
-    const updatedUnits = runtime.onFactEvent(damageApplied, units);
+    const updatedUnits = runtime.onFactEvent(damageApplied, units).units;
 
     const finalTarisa = updatedUnits.find(
       (u) => u.battleUnitId === setupResult.tarisa.battleUnitId,
@@ -394,7 +394,7 @@ describe("production Catalog SKL_TARISA_TROUBLEMAKER_PS1 (M7-001D, Issue #247, C
       },
       units,
     );
-    const updatedUnits = runtime.onFactEvent(damageApplied, units);
+    const updatedUnits = runtime.onFactEvent(damageApplied, units).units;
 
     // Two `MarkerUpdated` events fire in this activation: the unconditional
     // grant's own +1 update (5 -> 6) and the conditional removal's -3 update

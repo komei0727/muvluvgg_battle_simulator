@@ -811,7 +811,7 @@ export class PassiveActivationRuntime {
    */
   finalizeEffectSequenceResolution(skillUseId: SkillUseId): readonly BattleUnit[] {
     for (const recorded of this.finalizeEffectSequenceResolutionSteps(skillUseId)) {
-      this.units = this.onFactEvent(recorded, this.units);
+      this.units = this.onFactEvent(recorded, this.units).units;
     }
     return this.units;
   }
@@ -827,12 +827,18 @@ export class PassiveActivationRuntime {
    * メソッド内で記録した発動をロストする（レビュー指摘[P1]、Issue #143）。
    * そのような文脈では代わりに`PassiveActivationStep`を`yield`し、進行中の
    * `driveActivation`が共有する`state`（guard/stack）へ正しく参加させること。
+   *
+   * 戻り値は`ResolutionResult`（Issue #251）——`units`に加え、この呼び出し
+   * 自身が発行・解決した反応連鎖まで含めた実際の終端`DomainEventId`を
+   * `lastEventId`として明示的に返す（`finalizeResolutionScope`と同じ`recorder`
+   * 末尾読み取りパターン）。カーソルを必要としない大多数の呼び出し側は
+   * `.units`だけを取り出せばよい。
    */
   onFactEvent(
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
     counterUpdateDepth = 0,
-  ): readonly BattleUnit[] {
+  ): ResolutionResult {
     this.units = units;
     const triggerEvent = this.toTriggerEvent(event);
 
@@ -843,7 +849,7 @@ export class PassiveActivationRuntime {
           `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
-      this.units = this.onFactEvent(recorded, this.units, nextDepth);
+      this.units = this.onFactEvent(recorded, this.units, nextDepth).units;
     }
 
     // EFF-005/Issue #162（PR #211レビュー[P1]）: `AppliedEffect`スコープの
@@ -862,7 +868,7 @@ export class PassiveActivationRuntime {
           `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a DurationDefinition.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
-      this.units = this.onFactEvent(recorded, this.units, nextDepth);
+      this.units = this.onFactEvent(recorded, this.units, nextDepth).units;
       return undefined;
     });
 
@@ -874,7 +880,7 @@ export class PassiveActivationRuntime {
           `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; an EffectSequence.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
-      this.units = this.onFactEvent(recorded, this.units, nextDepth);
+      this.units = this.onFactEvent(recorded, this.units, nextDepth).units;
       return undefined;
     });
 
@@ -903,23 +909,9 @@ export class PassiveActivationRuntime {
       );
     }
     this.guard = result.activationGuard;
-    return this.units;
-  }
-
-  /**
-   * `onFactEvent`と同じ解決を行い、この呼び出し自身が発行・解決した反応連鎖まで
-   * 含めた実際の終端`DomainEventId`を`ResolutionResult`として明示的に返す
-   * （`finalizeResolutionScope`と同じ`recorder`末尾読み取りパターン、Issue #251）。
-   * `parentEventId`を次のイベントへ引き継ぐ必要がある呼び出し側（除去群の
-   * fixed-point解決など）専用のエントリーポイント。`onFactEvent`の既存の
-   * 呼び出し側の大多数は終端イベントIDを必要としないため、そちらは変更せず
-   * そのまま使い続けてよい。
-   */
-  onFactEventWithResult(event: BattleDomainEvent, units: readonly BattleUnit[]): ResolutionResult {
-    const resultUnits = this.onFactEvent(event, units);
     const recordedEvents = this.context.recorder.getEvents();
     const last = recordedEvents[recordedEvents.length - 1];
-    return { units: resultUnits, lastEventId: last?.eventId ?? event.eventId };
+    return { units: this.units, lastEventId: last?.eventId ?? event.eventId };
   }
 
   /**
@@ -966,7 +958,7 @@ export class PassiveActivationRuntime {
     );
     let units = expiry.units;
     for (const newEvent of this.context.recorder.getEvents().slice(eventsStart)) {
-      units = this.onFactEvent(newEvent, units, depth);
+      units = this.onFactEvent(newEvent, units, depth).units;
     }
     return units;
   }
@@ -1051,34 +1043,22 @@ export class PassiveActivationRuntime {
    * ループ自体を止めない。反復回数の上限を設け、超過時は黙って打ち切る代わりに
    * 決定的なエラーとして検出する。
    *
-   * PRレビュー[P2](Issue #180 PRレビュー[P2]再々々指摘の是正、Issue #251で
-   * 横断整備予定): 呼び出し側（`removeIneligibleAndDefeatedReservations`）が
-   * この終了処理自身の発行・解決した最後の`DomainEventId`を、後続イベントの
-   * `parentEventId`として正しく引き継げるよう、`units`に加えて明示的に返す。
+   * Issue #251: 呼び出し側がこの解決スコープへ入る直前に保持していた因果
+   * カーソル（`cursor`）を引数で受け取り、戻り値は`onFactEvent`と同じ
+   * `ResolutionResult`（`units`と確定値の`lastEventId`）で統一する。
    * `recorder.getEvents()`の末尾を呼び出し側が推測する方式は採らない。
    *
-   * PRレビュー[P2]是正の再指摘: 何も破棄しなかった場合（対象12行のように
-   * `resetScope`を宣言しない場合が常時これに該当）、この呼び出し自身は何も
-   * 発行していない——呼び出し前から呼び出し側が保持していた因果カーソル
-   * （例: 直前の`ActionReservationRemoved`）を、無関係な`rootEventId`で
-   * 上書きしてはならない。そのため`lastEventId`は「何も発行しなかった」を
-   * 表せる`undefined`を返し、何か発行した場合だけ実際のイベントIDを返す。
-   * 呼び出し側は`undefined`のときは自分の既存カーソルをそのまま使う。
+   * 何も破棄しなかった場合（対象12行のように`resetScope`を宣言しない場合が
+   * 常時これに該当）、この呼び出し自身は何も発行していない——受け取った
+   * `cursor`をそのまま`lastEventId`として返し、呼び出し側が保持していた
+   * 因果カーソルを無関係な`rootEventId`で上書きしない。
    *
-   * また、`RuntimeCounterReset`自身がPS/Memory候補を発動させた場合、
-   * `onFactEvent()`はその候補連鎖（付随する効果適用など）まで解決するため、
-   * 実際の終端イベントは`RuntimeCounterReset`自身より後になりうる。
-   * `onFactEvent()`の戻り値は`units`のみで終端イベントIDを持ち帰らないため、
-   * このメソッド自身が`this.context.recorder`（唯一の真実源）の末尾を直後に
-   * 読み、連鎖まで含めた実際の最後のイベントを`lastEventId`として採用する
-   * （これは実装の詳細としてこのメソッド自身が行うのであって、呼び出し側が
-   * 推測しているわけではない）。
+   * 何か破棄・発行した場合は、`onFactEvent()`が返す`lastEventId`
+   * （`RuntimeCounterReset`自身がPS/Memory候補を発動させた場合はその候補連鎖・
+   * 付随する効果適用まで含めた実際の終端イベント）をそのまま採用する。
    */
-  finalizeResolutionScope(): {
-    readonly units: readonly BattleUnit[];
-    readonly lastEventId: DomainEventId | undefined;
-  } {
-    let lastEventId: DomainEventId | undefined = undefined;
+  finalizeResolutionScope(cursor: DomainEventId): ResolutionResult {
+    let lastEventId: DomainEventId = cursor;
     let round = 0;
     while (true) {
       const targets = collectResolutionScopeResets({
@@ -1156,13 +1136,9 @@ export class PassiveActivationRuntime {
             },
           },
         });
-        this.units = this.onFactEvent(recorded, this.units);
-        // `recorded`自身のPS/Memory候補解決（`onFactEvent`が同期的に完了させる）
-        // まで含めた実際の終端イベントを採用する。候補が何も発動しなければ
-        // `recorder`の末尾は`recorded`自身のままなので、単純に「発動しなかった
-        // 場合は`recorded.eventId`」にも一致する。
-        const recordedEvents = this.context.recorder.getEvents();
-        lastEventId = recordedEvents[recordedEvents.length - 1]?.eventId ?? recorded.eventId;
+        const resolved = this.onFactEvent(recorded, this.units);
+        this.units = resolved.units;
+        lastEventId = resolved.lastEventId;
       }
     }
   }

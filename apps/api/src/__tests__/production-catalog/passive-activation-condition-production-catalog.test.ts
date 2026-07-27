@@ -277,7 +277,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
       },
       [owner, ally],
     );
-    const afterActivation = runtime.onFactEvent(turnStarted, [owner, ally]);
+    const afterActivation = runtime.onFactEvent(turnStarted, [owner, ally]).units;
     const updatedOwner = afterActivation.find((u) => u.battleUnitId === owner.battleUnitId)!;
     const passiveActivated = recorder.getEvents().find((e) => e.eventType === "PassiveActivated");
     expect(passiveActivated?.payload).toMatchObject({

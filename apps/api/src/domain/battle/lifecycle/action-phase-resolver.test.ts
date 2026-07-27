@@ -2268,15 +2268,19 @@ describe("resolveActionPhase", () => {
     // Issue #251: D's removal parentEventId must reflect the true terminus
     // of B's removal reaction chain (the last event recorded before D's own
     // removal — here, the stunner PS's PassiveResolved), not B's bare
-    // ActionReservationRemoved event id. Both removals share one
-    // resolutionScopeId (no finalizeResolutionScope boundary between them),
-    // so this is a within-scope causal-cursor check, distinct from
-    // UT-R-ORD-01-006's cross-scope one.
+    // ActionReservationRemoved event id.
     const bRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyB.battleUnitId)!;
     const dRemovedEvent = removedEvents.find((e) => e.sourceUnitId === allyD.battleUnitId)!;
     const dRemovedIndex = events.indexOf(dRemovedEvent);
     expect(dRemovedEvent.parentEventId).toBe(events[dRemovedIndex - 1]!.eventId);
     expect(dRemovedEvent.parentEventId).not.toBe(bRemovedEvent.eventId);
+    // Issue #251 (レビュー指摘[P1]): 除去1件ごとに新しい`resolutionScopeId`と
+    // 独立した`PassiveActivationRuntime`を発行する——除去をまとめて1つの
+    // スコープで処理すると、R-PS-07「1解決スコープ1回」により、同じPSがBの
+    // 除去には反応できてもDの除去には（既にそのスコープで発動済みとして）
+    // 反応できなくなってしまう。
+    expect(dRemovedEvent.resolutionScopeId).not.toBe(bRemovedEvent.resolutionScopeId);
+    expect(bRemovedEvent.rootEventId).toBe(dRemovedEvent.rootEventId);
   });
 
   it("UT-R-ORD-01-007 (Issue #251): a removal's own reaction chain can incapacitate (not just make ineligible) another reservation — the second removal is recorded DEFEATED, with the correct reason re-derived from the post-chain state rather than reused from the stale pre-chain evaluation", () => {

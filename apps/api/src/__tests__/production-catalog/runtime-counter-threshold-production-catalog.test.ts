@@ -322,7 +322,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       [owner, enemy],
     );
 
-    const afterFirstActivation = runtime.onFactEvent(turnStarted, [owner, enemy]);
+    const afterFirstActivation = runtime.onFactEvent(turnStarted, [owner, enemy]).units;
     const updatedOwner = afterFirstActivation.find(
       (unit) => unit.battleUnitId === owner.battleUnitId,
     )!;
@@ -462,7 +462,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       ...unit,
       currentHp: unit.currentHp - hitPointDamage,
     }));
-    const finalUnits = runtime.onFactEvent(secondDamage, afterSecondDamage);
+    const finalUnits = runtime.onFactEvent(secondDamage, afterSecondDamage).units;
 
     const changes = recorder
       .getEvents()

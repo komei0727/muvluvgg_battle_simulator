@@ -253,7 +253,7 @@ export function resolveSkillUse(
       costAmount: skill.cost.amount,
     },
   });
-  working = passiveRuntime.onFactEvent(skillUseStarting, working);
+  working = passiveRuntime.onFactEvent(skillUseStarting, working).units;
 
   // R-SKL-04 #4: 使用したスキルへクールタイムを設定し、現在の行動IDを設定
   // スコープとして記録する（SkillUseStarting発行後、SkillUseStarted発行前）。
@@ -290,7 +290,7 @@ export function resolveSkillUse(
       costAmount: skill.cost.amount,
     },
   });
-  working = passiveRuntime.onFactEvent(skillUseStarted, working);
+  working = passiveRuntime.onFactEvent(skillUseStarted, working).units;
 
   const effectResult = applyEffectActionGroups(plan, working, {
     definitions,
@@ -305,7 +305,7 @@ export function resolveSkillUse(
     rootEventId: actionStarted.eventId,
     parentEventId: skillUseStarted.eventId,
     skillDefinitionId: skill.skillDefinitionId,
-    onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units),
+    onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units).units,
     // R-SKL-08（レビュー再指摘[P1]、PR #214）: `passiveRuntime`はこの行動専用に
     // 1つだけ生成されており（上のコメント参照）、その`lastDamageResultsRegistry`を
     // このAS/EX自身のEffectSequenceにも使い回すことで、この行動内で発生した
@@ -384,7 +384,7 @@ export function resolveSkillUse(
   // はこの減算契機に含めない（`decrementSkillUseEffectDurations`が明示する
   // 仕様固定）。
   const preCompletionChainWorking = working;
-  working = passiveRuntime.onFactEvent(skillUseCompleted, working);
+  working = passiveRuntime.onFactEvent(skillUseCompleted, working).units;
 
   if (skillUseCompleted.eventType === "SkillUseCompleted") {
     const skillUseDurationTargets = decrementSkillUseEffectDurations(
@@ -435,7 +435,7 @@ export function resolveSkillUse(
         skillUseCompleted.eventId,
       );
       for (const event of recorder.getEvents().slice(reducedEventsStart)) {
-        working = passiveRuntime.onFactEvent(event, working);
+        working = passiveRuntime.onFactEvent(event, working).units;
       }
 
       const skillUseExpirySeeds: ExpirationSeed[] = skillUseDurationDecrement.changes
@@ -464,7 +464,7 @@ export function resolveSkillUse(
         );
         working = skillUseExpiry.units;
         for (const event of recorder.getEvents().slice(expiryEventsStart)) {
-          working = passiveRuntime.onFactEvent(event, working);
+          working = passiveRuntime.onFactEvent(event, working).units;
         }
       }
     }
@@ -485,7 +485,7 @@ export function resolveSkillUse(
       // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に
       // 解決されるようにする。
       onFactEventForPassiveChain: (event, unitsForChain) =>
-        passiveRuntime.onFactEvent(event, unitsForChain),
+        passiveRuntime.onFactEvent(event, unitsForChain).units,
     },
     effectiveActionType,
     skillUseCompleted.eventId,
@@ -497,7 +497,7 @@ export function resolveSkillUse(
   // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
   // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
   // `passiveRuntime`を同期済みのため、追加の同期は不要。
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope();
+  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
   return {
     units: finalUnits,
