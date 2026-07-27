@@ -126,6 +126,11 @@
             }
           ],
           "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_HP_COST" }]
         }
       ]
     },

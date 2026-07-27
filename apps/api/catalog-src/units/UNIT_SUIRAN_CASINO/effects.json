@@ -49,6 +49,22 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.1
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {

@@ -1,4 +1,5 @@
 import {
+  composeResourceGainRate,
   consumePp,
   increaseExGauge,
   recordExtraGaugeOverflowDiscardedIfAny,
@@ -1185,6 +1186,7 @@ export class PassiveActivationRuntime {
       "PP",
       ownerBefore.currentPp,
       ownerAfterPp.currentPp,
+      ownerAfterPp.currentPp - ownerBefore.currentPp,
       "SKILL_COST",
       triggerEventId,
       triggerEventId,
@@ -1212,7 +1214,12 @@ export class PassiveActivationRuntime {
       lastEventId = consumed.eventId;
     }
 
-    const exGain = increaseExGauge(this.units, ownerId, skill.cost.amount);
+    const resourceGainRate = composeResourceGainRate(
+      requireUnit(this.units, ownerId),
+      "EX_GAUGE",
+      this.context.definitions.effectActions,
+    );
+    const exGain = increaseExGauge(this.units, ownerId, skill.cost.amount, resourceGainRate);
     this.units = exGain.units;
     lastEventId = recordResourceChangeIfAny(
       resourceCtx,
@@ -1220,6 +1227,7 @@ export class PassiveActivationRuntime {
       "EX_GAUGE",
       exGain.before,
       exGain.after,
+      exGain.baseDelta,
       "EX_GAIN",
       lastEventId,
       triggerEventId,
@@ -1249,6 +1257,7 @@ export class PassiveActivationRuntime {
     lastEventId = recordExtraGaugeOverflowDiscardedIfAny(
       resourceCtx,
       ownerId,
+      exGain.baseDelta,
       exGain.requestedAmount,
       exGain.after - exGain.before,
       exGain.discardedAmount,

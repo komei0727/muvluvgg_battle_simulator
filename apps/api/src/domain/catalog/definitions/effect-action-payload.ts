@@ -158,6 +158,21 @@ export interface ModifyResourceCapacityPayload {
 }
 
 /**
+ * G-05（`14_Catalog定義スキーマ.md`、M7-002/Issue #185）: 一定期間、対象の
+ * リソース「獲得量」自体（R-ACT-03のAP/PP消費起因のEXゲージ増加）を割合で
+ * 増減させる継続効果。`APPLY_STAT_MOD`と同じ評価規約で`rateDelta`を付与時点に
+ * 一度だけ評価し、結果を符号付き倍率（例: `+0.5`＝+50%）として
+ * `AppliedEffect.magnitude`へ保持する。`MODIFY_RESOURCE`の一回限りの加減算
+ * には適用しない。
+ */
+export interface ApplyResourceGainModPayload {
+  readonly resource: ResourceKind;
+  readonly rateDelta: FormulaDefinition;
+  readonly stacking: { readonly mode: "STACKABLE" };
+  readonly duration: DurationDefinition;
+}
+
+/**
  * G-06 (Issue #44): gates `DAMAGE_IMMUNITY` by the size of the incoming hit.
  * The immunity applies only when the incoming raw damage compares true
  * against `formula` via `op` (e.g. `op: GT` with a `CURRENT_HP_RATIO` formula

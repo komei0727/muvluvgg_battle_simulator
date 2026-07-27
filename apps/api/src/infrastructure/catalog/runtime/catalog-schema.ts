@@ -200,6 +200,7 @@ export const effectActionDefinitionSchema = {
         "APPLY_SUBUNIT",
         "COOLDOWN_MANIPULATION",
         "APPLY_ATTACK_DAMAGE_BONUS",
+        "APPLY_RESOURCE_GAIN_MOD",
       ],
     },
     payload: looseObject,

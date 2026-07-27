@@ -504,6 +504,73 @@ describe("resolveActionPhase", () => {
     expect(resourceChanged[1]!.payload).toMatchObject({ before: 3, after: 4, delta: 1 });
   });
 
+  it("UT-R-ACT-04-012 (G-05, M7-002 Issue #185, full stack): a held APPLY_RESOURCE_GAIN_MOD(EX_GAUGE, +100%) doubles a normal wait's EX gain, and ResourceChanged's baseDelta (the raw, pre-Modifier amount) differs from the final delta", () => {
+    const gainModDefId = createEffectActionDefinitionId("ACT_EX_GAIN_BUFF");
+    const gainModDef: EffectActionDefinition = {
+      effectActionDefinitionId: gainModDefId,
+      kind: "APPLY_RESOURCE_GAIN_MOD",
+      payload: {
+        resource: "EX_GAUGE",
+        rateDelta: { kind: "CONSTANT", value: 1.0 },
+        stacking: { mode: "STACKABLE" },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    const gainModEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("gain-mod-1"),
+      effectActionDefinitionId: gainModDefId,
+      kindKey: effectKindKeyFromDefinitionId(gainModDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ALLY_1"),
+      targetId: createBattleUnitId("ALLY_1"),
+      magnitude: 1.0,
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const ally = {
+      ...unit("ALLY_1", "ALLY", {
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentExtraGauge: 3,
+      }),
+      appliedEffects: [gainModEffect],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const random = new SequenceRandomSource([]);
+    const definitions = definitionsOf(new Map(), new Map([[gainModDefId, gainModDef]]));
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // Base EX gain (1, matching the AP consumed) doubled by the +100% rate to 2.
+    expect(result.allyUnits[0]!.currentExtraGauge).toBe(5);
+
+    const exResourceChanged = ctx.recorder
+      .getEvents()
+      .find(
+        (e): e is Extract<typeof e, { eventType: "ResourceChanged" }> =>
+          e.eventType === "ResourceChanged" &&
+          e.sourceUnitId === ally.battleUnitId &&
+          e.payload.resource === "EX_GAUGE",
+      )!;
+    expect(exResourceChanged.payload).toMatchObject({
+      before: 3,
+      after: 5,
+      delta: 2,
+      baseDelta: 1,
+    });
+  });
+
   it("UT-ACTION-PHASE-002: a usable AS skill consumes its AP cost and applies DAMAGE to the target", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
@@ -721,6 +788,7 @@ describe("resolveActionPhase", () => {
     )!;
     expect(overflowDiscarded.payload).toEqual({
       battleUnitId: ally.battleUnitId,
+      baseDelta: 3,
       requestedAmount: 3,
       actualAmount: 1,
       discardedAmount: 2,

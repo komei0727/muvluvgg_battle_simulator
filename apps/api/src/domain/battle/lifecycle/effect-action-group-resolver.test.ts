@@ -4119,6 +4119,107 @@ describe("applyEffectActionGroups", () => {
       ).toBe(false);
     });
   });
+
+  describe("MODIFY_RESOURCE (R-ACTN-02, M7-002 Issue #185, HP_DIRECT_COST full-stack wiring)", () => {
+    function modifyResourceAction(
+      id: string,
+      payload: Extract<EffectActionDefinition, { kind: "MODIFY_RESOURCE" }>["payload"],
+    ): EffectActionDefinition {
+      return {
+        kind: "MODIFY_RESOURCE",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload,
+      };
+    }
+
+    it("UT-R-ACTN-02-008 (full stack): a self-targeted MODIFY_RESOURCE(resource: HP, ADD, MAX_HP_RATIO -10%) reduces the actor's own HP through the real effect-action-group-resolver.ts wiring, recording ResourceChanged(reason: EFFECT_ACTION)", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 100 });
+      const cost = modifyResourceAction("ACT_HP_COST", {
+        resource: "HP",
+        operation: "ADD",
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: -0.1 },
+      });
+      const effectActions = new Map([[cost.effectActionDefinitionId, cost]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, cost.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updatedActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updatedActor.currentHp).toBe(90);
+
+      const resourceChanged = recorder.getEvents().find((e) => e.eventType === "ResourceChanged")!;
+      expect(resourceChanged.payload).toMatchObject({
+        battleUnitId: actor.battleUnitId,
+        resource: "HP",
+        before: 100,
+        after: 90,
+        delta: -10,
+        baseDelta: -10,
+        reason: "EFFECT_ACTION",
+      });
+      expect(resourceChanged.stateDelta).toEqual({
+        units: { [actor.battleUnitId]: { hp: { before: 100, after: 90 } } },
+      });
+    });
+  });
+
+  describe("APPLY_RESOURCE_GAIN_MOD (G-05, M7-002 Issue #185, RESOURCE_GAIN_MOD full-stack wiring)", () => {
+    function resourceGainModAction(
+      id: string,
+      payload: Extract<EffectActionDefinition, { kind: "APPLY_RESOURCE_GAIN_MOD" }>["payload"],
+    ): EffectActionDefinition {
+      return {
+        kind: "APPLY_RESOURCE_GAIN_MOD",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload,
+      };
+    }
+
+    it("UT-R-ACT-04-013 (full stack): a self-targeted APPLY_RESOURCE_GAIN_MOD(EX_GAUGE, +50%) grants an AppliedEffect with the evaluated rateDelta as magnitude, through the real effect-action-group-resolver.ts wiring", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const buff = resourceGainModAction("ACT_EX_GAIN_BUFF", {
+        resource: "EX_GAUGE",
+        rateDelta: { kind: "CONSTANT", value: 0.5 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      });
+      const effectActions = new Map([[buff.effectActionDefinitionId, buff]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, buff.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updatedActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updatedActor.appliedEffects).toHaveLength(1);
+      expect(updatedActor.appliedEffects[0]).toMatchObject({
+        effectActionDefinitionId: buff.effectActionDefinitionId,
+        magnitude: 0.5,
+        duplicate: true,
+      });
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectApplied")).toBe(true);
+    });
+  });
 });
 
 describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issue #167, Phase 2: AppliedEffect-based)", () => {

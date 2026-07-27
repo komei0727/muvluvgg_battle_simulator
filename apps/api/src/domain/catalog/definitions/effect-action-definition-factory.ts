@@ -55,7 +55,7 @@ import {
 const DAMAGE_TYPES = ["PHYSICAL", "EN"] as const;
 const CRITICAL_MODES = ["NORMAL", "GUARANTEED", "PREVENTED"] as const;
 const ACCURACY_MODES = ["NORMAL", "GUARANTEED"] as const;
-const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE"] as const;
+const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE", "HP"] as const;
 const RESOURCE_OPERATIONS = ["ADD", "SET", "SET_TO_MAX", "DISTRIBUTE"] as const;
 const STAT_KINDS = [
   "MAXIMUM_HP",
@@ -128,6 +128,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_SUBUNIT: ["durability", "additionalDamage"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
   APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
+  APPLY_RESOURCE_GAIN_MOD: ["resource", "rateDelta", "stacking", "duration"],
 };
 
 const DAMAGE_CRITICAL_ALLOWED_KEYS = ["mode"] as const;
@@ -899,6 +900,20 @@ function createPayload(
         kind: "APPLY_ATTACK_DAMAGE_BONUS",
         payload: {
           formula: createFormulaField(payload, "formula", path),
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "APPLY_RESOURCE_GAIN_MOD": {
+      const resource = requireField(payload["resource"] as string | undefined, `${path}.resource`);
+      assertEnumValue(resource, RESOURCE_KINDS, `${path}.resource`);
+      const stackingMode = requireStackingMode(payload, path);
+      return {
+        kind: "APPLY_RESOURCE_GAIN_MOD",
+        payload: {
+          resource,
+          rateDelta: createFormulaField(payload, "rateDelta", path),
+          stacking: { mode: stackingMode },
           duration: createDurationField(payload, path),
         },
       };

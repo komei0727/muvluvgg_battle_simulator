@@ -94,14 +94,15 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN" }
+            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN" },
+            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN" }
           ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_RESOURCE_GAIN_MOD"],
     "metadata": { "displayName": "優雅なるロンド", "tags": [] }
   },
   {

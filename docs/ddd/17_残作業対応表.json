@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 63
+      "incompleteConversionRows": 57
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 26
     },
     "capabilities": {
-      "total": 40,
-      "implemented": 19
+      "total": 41,
+      "implemented": 21
     }
   },
   "tasks": [
@@ -131,7 +131,6 @@
       "rowCount": 5,
       "taskId": "M7-001E"
     },
-    { "milestone": "M7", "theme": "HP_DIRECT_COST", "rowCount": 5, "taskId": "M7-002" },
     { "milestone": "M7", "theme": "LINKED_EFFECT_GROUP", "rowCount": 3, "taskId": "EFF-003" },
     { "milestone": "M7", "theme": "TRIGGER_EXCLUSION_TIMING", "rowCount": 3, "taskId": "M7-010" },
     {
@@ -140,8 +139,8 @@
       "rowCount": 2,
       "taskId": "M7-001A"
     },
-    { "milestone": "M7", "theme": "RESOURCE_GAIN_MOD", "rowCount": 2, "taskId": "M7-002" },
     { "milestone": "M7", "theme": "TRIGGER_PAYLOAD_FILTER", "rowCount": 2, "taskId": "M7-010" },
+    { "milestone": "M7", "theme": "HEALING_LINK", "rowCount": 1, "taskId": "M7-005-HEAL-LINK" },
     {
       "milestone": "M7",
       "theme": "DYNAMIC_DURATION_ON_REAPPLY",

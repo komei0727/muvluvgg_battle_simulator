@@ -1,4 +1,5 @@
 import {
+  composeResourceGainRate,
   consumeAp,
   consumeExGaugeFully,
   increaseExGauge,
@@ -73,7 +74,14 @@ export function resolveWait(
   const actorAfterCost = requireUnit(working, actorId);
 
   const exGain =
-    consumedResource === "AP" ? increaseExGauge(working, actorId, consumedAmount) : undefined;
+    consumedResource === "AP"
+      ? increaseExGauge(
+          working,
+          actorId,
+          consumedAmount,
+          composeResourceGainRate(actorAfterCost, "EX_GAUGE", definitions.effectActions),
+        )
+      : undefined;
   if (exGain !== undefined) {
     working = exGain.units;
   }
@@ -116,6 +124,7 @@ export function resolveWait(
           "AP",
           actor.currentAp,
           actorAfterCost.currentAp,
+          actorAfterCost.currentAp - actor.currentAp,
           "WAIT_COST",
           actionStarted.eventId,
           actionStarted.eventId,
@@ -126,6 +135,7 @@ export function resolveWait(
           "EX_GAUGE",
           actor.currentExtraGauge,
           actorAfterCost.currentExtraGauge,
+          actorAfterCost.currentExtraGauge - actor.currentExtraGauge,
           "WAIT_COST",
           actionStarted.eventId,
           actionStarted.eventId,
@@ -137,6 +147,7 @@ export function resolveWait(
       "EX_GAUGE",
       exGain.before,
       exGain.after,
+      exGain.baseDelta,
       "EX_GAIN",
       lastEventId,
       actionStarted.eventId,
@@ -144,6 +155,7 @@ export function resolveWait(
     lastEventId = recordExtraGaugeOverflowDiscardedIfAny(
       resourceChangeContext,
       actorId,
+      exGain.baseDelta,
       exGain.requestedAmount,
       exGain.after - exGain.before,
       exGain.discardedAmount,

@@ -68,6 +68,22 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.25
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
