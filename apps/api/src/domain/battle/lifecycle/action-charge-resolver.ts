@@ -5,6 +5,7 @@ import {
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion, recordCooldownStart } from "./action-completion.js";
+import { fireContinuousHealsOnActionStart } from "./continuous-heal-service.js";
 import { resolveBindingSelections } from "./action-skill-use-resolver.js";
 import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
@@ -70,18 +71,36 @@ export function resolveChargeStart(
     stateDelta: { units: { [actorId]: stateDeltaEntry } },
   });
 
+  // R-HEAL-03（M7-005、Issue #184）: チャージ開始も1つの行動であるため、保持者
+  // 自身の`ActionStarted`を契機とする継続回復を行動本体より前に発火させる。
+  const continuousHeal = fireContinuousHealsOnActionStart(
+    working,
+    actorId,
+    {
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      effectActions: definitions.effectActions,
+    },
+    actionStarted.eventId,
+  );
+  working = continuousHeal.units;
+
   // R-SKL-05 #2: 元スキルへクールタイムを設定し、現在の行動IDを設定スコープとして記録する。
   const cooldownResult = recordCooldownStart(
     recorder,
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
-    actorAfterCost.cooldowns,
+    requireUnit(working, actorId).cooldowns,
     skill,
-    actionStarted.eventId,
+    continuousHeal.lastEventId,
     actionStarted.eventId,
   );
 
   const chargingUnit: BattleUnit = {
-    ...actorAfterCost,
+    ...requireUnit(working, actorId),
     cooldowns: cooldownResult.cooldowns,
     charge: { skill, startedActionId: actionId },
   };
@@ -212,10 +231,29 @@ export function resolveChargeRelease(
     },
   });
 
-  let working = units;
+  // R-HEAL-03（M7-005、Issue #184）: チャージ発動も1つの行動であるため、保持者
+  // 自身の`ActionStarted`を契機とする継続回復を、対象選択・効果解決より前に
+  // 発火させる。
+  const continuousHeal = fireContinuousHealsOnActionStart(
+    units,
+    actorId,
+    {
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      effectActions: definitions.effectActions,
+    },
+    actionStarted.eventId,
+  );
+  let working = continuousHeal.units;
   const plan = resolveChargeReleaseOrder(
     skill,
-    actor,
+    // 継続回復で使用者自身のHP・combatStatsが変わりうるため、対象選択はこの
+    // 時点の最新状態から行う。
+    requireUnit(working, actorId),
     working,
     definitions.effectActions,
     definitions.unitDefinitions,
@@ -258,7 +296,7 @@ export function resolveChargeRelease(
     actionId,
     skillUseId,
     resolutionScopeId: actionScope,
-    parentEventId: actionStarted.eventId,
+    parentEventId: continuousHeal.lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorId,
     targetUnitIds,

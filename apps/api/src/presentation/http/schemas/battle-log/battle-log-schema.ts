@@ -518,6 +518,38 @@ const damageAppliedDetailsSchema = {
   },
 } as const;
 
+/** `HealApplied`（M7-005、Issue #184、R-HEAL-01〜03）。HP回復を適用した直後に発行する。 */
+const healAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectActionDefinitionId",
+    "sourceUnitId",
+    "targetUnitId",
+    "formulaResult",
+    "distributionShareCount",
+    "healingModifierMultiplier",
+    "healAmount",
+    "appliedAmount",
+    "discardedAmount",
+    "hpBefore",
+    "hpAfter",
+  ],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    sourceUnitId: { type: "string" },
+    targetUnitId: { type: "string" },
+    formulaResult: { type: "number" },
+    distributionShareCount: { type: "integer", minimum: 1 },
+    healingModifierMultiplier: { type: "number", minimum: 0 },
+    healAmount: { type: "integer", minimum: 0 },
+    appliedAmount: { type: "integer", minimum: 0 },
+    discardedAmount: { type: "integer", minimum: 0 },
+    hpBefore: { type: "integer", minimum: 0 },
+    hpAfter: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 const unitDefeatedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1524,6 +1556,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
+  HEAL_APPLIED: healAppliedDetailsSchema,
   UNIT_DEFEATED: unitDefeatedDetailsSchema,
   ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
   ACTION_COMPLETED: actorEffectiveActionDetailsSchema,

@@ -80,7 +80,8 @@
     "kind": "HEAL",
     "payload": {
       "formula": { "kind": "SKILL_POWER", "power": 0.65 },
-      "overheal": "DISCARD"
+      "overheal": "DISCARD",
+      "distribution": "EVEN"
     },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }

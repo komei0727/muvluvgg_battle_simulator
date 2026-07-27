@@ -9,6 +9,7 @@ import {
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion } from "./action-completion.js";
+import { fireContinuousHealsOnActionStart } from "./continuous-heal-service.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -162,6 +163,17 @@ export function resolveWait(
       lastEventId,
     );
   }
+
+  // R-HEAL-03（M7-005、Issue #184）: 保持者自身の`ActionStarted`を契機とする
+  // 継続回復を、行動本体（`ActionWaited`）より前に発火させる。
+  const continuousHeal = fireContinuousHealsOnActionStart(
+    working,
+    actorId,
+    { ...resourceChangeContext, effectActions: definitions.effectActions },
+    lastEventId,
+  );
+  working = continuousHeal.units;
+  lastEventId = continuousHeal.lastEventId;
 
   const actionWaited = recorder.record({
     eventType: "ActionWaited",

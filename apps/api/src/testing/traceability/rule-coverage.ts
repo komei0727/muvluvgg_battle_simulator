@@ -1266,9 +1266,37 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-DMG-05", testCaseIds: [], kinds: [] },
 
   // HEAL: 回復計算
-  { ruleId: "R-HEAL-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-HEAL-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-HEAL-03", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-HEAL-01",
+    testCaseIds: [
+      "UT-R-HEAL-01-001",
+      "UT-R-HEAL-01-002",
+      "UT-R-HEAL-01-003",
+      "UT-R-HEAL-01-004",
+      "UT-R-HEAL-01-005",
+      "UT-R-HEAL-01-006",
+      "UT-R-HEAL-01-007",
+      "UT-R-HEAL-01-008",
+      "IT-CAP-HEAL-PROD-001",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
+  {
+    ruleId: "R-HEAL-02",
+    testCaseIds: ["UT-R-HEAL-02-001", "UT-R-HEAL-02-002", "UT-R-HEAL-02-003"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-HEAL-03",
+    testCaseIds: [
+      "UT-R-HEAL-03-001",
+      "UT-R-HEAL-03-002",
+      "UT-R-HEAL-03-003",
+      "UT-R-HEAL-03-004",
+      "IT-CAP-CONTINUOUS-HEAL-PROD-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
 
   // SHD: シールド
   { ruleId: "R-SHD-01", testCaseIds: [], kinds: [] },

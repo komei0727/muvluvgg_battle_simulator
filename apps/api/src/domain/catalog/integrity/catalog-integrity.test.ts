@@ -694,6 +694,33 @@ function modifyResourceDistributeAction(
   );
 }
 
+function continuousHealAction(
+  id: string,
+  timing: { eventType: string; targetSelector: string } = {
+    eventType: "ActionStarted",
+    targetSelector: "EFFECT_OWNER",
+  },
+  requiredCapabilities: readonly string[] = ["CAP_CONTINUOUS_HEAL"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function markerAction(
   id: string,
   linkedEffectGroupId: string | null = null,
@@ -1436,6 +1463,50 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_DISTRIBUTE",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-HEAL-03-003 (M7-005 Issue #184): accepts an APPLY_CONTINUOUS_HEAL whose timing is the implemented ActionStarted/EFFECT_OWNER combination", () => {
+    const defs = baseDefinitions();
+    const withHot: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_HOT")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, continuousHealAction("ACT_HOT")],
+      capabilities: [capability("CAP_CONTINUOUS_HEAL")],
+    };
+
+    const index = buildCatalogIndex(withHot);
+
+    expect(index.effectActions.get("ACT_HOT" as never)).toBeDefined();
+  });
+
+  it("UT-R-HEAL-03-004 (M7-005 Issue #184, NEGATIVE): rejects an APPLY_CONTINUOUS_HEAL whose timing is not the implemented ActionStarted/EFFECT_OWNER combination, so an unfired continuous heal is caught at Catalog load time rather than silently never healing", () => {
+    const defs = baseDefinitions();
+    const withUnsupportedTiming: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_HOT")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        continuousHealAction("ACT_HOT", {
+          eventType: "TurnStarted",
+          targetSelector: "EFFECT_OWNER",
+        }),
+      ],
+      capabilities: [capability("CAP_CONTINUOUS_HEAL")],
+    };
+
+    try {
+      buildCatalogIndex(withUnsupportedTiming);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNSUPPORTED_CONTINUOUS_HEAL_TIMING" && v.targetId === "ACT_HOT",
         ),
       ).toBe(true);
     }

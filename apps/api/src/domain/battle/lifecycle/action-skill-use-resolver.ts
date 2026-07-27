@@ -9,6 +9,7 @@ import {
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
 import { recordActionCompletion, recordCooldownStart } from "./action-completion.js";
+import { fireContinuousHealsOnActionStart } from "./continuous-heal-service.js";
 import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
@@ -196,9 +197,26 @@ export function resolveSkillUse(
     );
   }
 
+  // R-HEAL-03（M7-005、Issue #184）: 保持者自身の`ActionStarted`を契機とする
+  // 継続回復を、スキル本体の解決（対象選択・EffectSequence）より前に発火させる。
+  const continuousHeal = fireContinuousHealsOnActionStart(
+    working,
+    actorId,
+    { ...resourceChangeContext, effectActions: definitions.effectActions },
+    lastEventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+  );
+  working = continuousHeal.units;
+  lastEventId = continuousHeal.lastEventId;
+
+  // 継続回復とそのPS連鎖で使用者自身のHP・combatStatsが変わりうるため、対象選択
+  // （`plan`）とその監査再解決（`TargetsSelected.bindings`）はどちらもこの時点の
+  // 最新状態から行う — 両者が同じ`BattleUnit`を見ないと、イベントpayloadが実際に
+  // 解決された対象と食い違いうる。
+  const actorBeforeTargeting = requireUnit(working, actorId);
   const plan = resolveSkillOrder(
     skill,
-    actorAfterExGain,
+    actorBeforeTargeting,
     working,
     definitions.effectActions,
     undefined,
@@ -236,7 +254,7 @@ export function resolveSkillUse(
         skill.resolution.kind === "IMMEDIATE"
           ? resolveBindingSelections(
               skill.resolution.targetBindings,
-              actorAfterCost,
+              actorBeforeTargeting,
               working,
               definitions.unitDefinitions,
             )

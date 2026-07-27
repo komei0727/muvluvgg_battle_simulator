@@ -116,12 +116,17 @@
   {
     "capabilityId": "CAP_CONTINUOUS_HEAL",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-005",
-    "description": "継続回復",
+    "description": "継続回復（timing: ActionStarted / EFFECT_OWNER のみ）",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": ["ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL"],
+      "testCaseIds": [
+        "IT-CAP-CONTINUOUS-HEAL-PROD-001",
+        "UT-R-HEAL-03-001",
+        "UT-R-HEAL-03-002",
+        "UT-R-HEAL-03-004"
+      ]
     }
   },
   {
@@ -266,12 +271,20 @@
   {
     "capabilityId": "CAP_HEAL",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-005",
-    "description": "即時回復EffectAction",
+    "description": "即時回復EffectActionと回復量Modifier（HEAL_DISTRIBUTEの均等分配を含む）",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": ["ACT_LUCIE_COMPANION_AS3_HEAL", "ACT_SUIRAN_CHAOS_PS2_HEAL"],
+      "testCaseIds": [
+        "IT-CAP-HEAL-PROD-001",
+        "IT-CAP-TRIGGER-CONTEXT-PROD-003",
+        "UT-R-HEAL-01-001",
+        "UT-R-HEAL-01-003",
+        "UT-R-HEAL-01-007",
+        "UT-R-HEAL-01-008",
+        "UT-R-HEAL-02-002"
+      ]
     }
   },
   {

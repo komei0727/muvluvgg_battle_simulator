@@ -1,6 +1,7 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import { applyModifyResourceAction } from "./resource-modification-service.js";
+import { applyHealAction } from "./heal-application-service.js";
 import {
   applyDamageActionSteps,
   type DamageEventContext,
@@ -51,7 +52,10 @@ import type {
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../events/domain-event.js";
-import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type {
+  EffectActionDefinitionId,
+  SkillDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
 import {
   evaluateFormula,
@@ -410,6 +414,12 @@ function* resolveOneEffectActionApplication(
   box: UnitsBox,
   context: EffectActionGroupContext,
   parentEventId: DomainEventId,
+  /**
+   * HEAL_DISTRIBUTE（M7-005、Issue #184）: 同じEffectStep内でこの
+   * `effectActionDefinitionId`が適用される対象数。`HEAL`の
+   * `payload.distribution: "EVEN"`だけがこれを使い、総回復量を等分する。
+   */
+  distributionShareCount = 1,
 ): Generator<EffectResolutionStep, OneApplicationResult, void> {
   const effectAction = context.definitions.effectActions.get(application.effectActionDefinitionId);
   if (effectAction === undefined) {
@@ -1471,10 +1481,135 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
     effectLastEventId = modifyResult.lastEventId;
     resultKind = modifyResult.changed ? "APPLIED" : "SKIPPED";
+  } else if (effectAction.kind === "HEAL") {
+    // R-HEAL-01（M7-005、Issue #184）: 即時回復。HEAL_DISTRIBUTEは
+    // `distributionShareCount`（同一EffectStep内でこのEffectActionが適用される
+    // 対象数、呼び出し元の`resolveActionApplications`が算出）で総量を等分する。
+    const healResult = applyHealAction(
+      application.hits,
+      requireUnit(box.units, context.actorId),
+      effectAction,
+      box.units,
+      {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+        parentEventId: starting.eventId,
+        sourceUnitId: context.actorId,
+        effectActions: context.definitions.effectActions,
+        ...(context.lastDamageResults !== undefined
+          ? { lastDamageResults: context.lastDamageResults }
+          : {}),
+        ...(context.onFactEventForPassiveChain !== undefined
+          ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+          : {}),
+      },
+      distributionShareCount,
+    );
+    box.units = healResult.units;
+    resolvedCount = healResult.resolvedCount;
+    interruptedCount = 0;
+    effectLastEventId = healResult.lastEventId;
+    resultKind = healResult.changed ? "APPLIED" : "SKIPPED";
+  } else if (
+    effectAction.kind === "APPLY_HEALING_MOD" ||
+    effectAction.kind === "APPLY_CONTINUOUS_HEAL"
+  ) {
+    // R-HEAL-02/R-HEAL-03（M7-005、Issue #184）: どちらも`AppliedEffect`として
+    // 保持する継続効果（R-ACTN-03）。`APPLY_STAT_MOD`と同じ評価規約で`formula`を
+    // 付与時点に一度だけ評価し、結果を`magnitude`へ保持する。
+    // - `APPLY_HEALING_MOD`: 符号付き割合の回復量補正。実際の適用は
+    //   `heal-application-service.ts`が`composeHealingRate`で合成する。
+    // - `APPLY_CONTINUOUS_HEAL`: 付与時点では回復せず、`timing.eventType`が
+    //   発生した時点で`continuous-heal-service.ts`がR-HEAL-01と同じ手順で
+    //   回復する。回復量Formulaは発火のたびに評価し直す必要がある
+    //   （`MAX_HP_RATIO`/`MISSING_HP_RATIO`が発火時点の対象HPを参照するため）
+    //   ので、ここで評価した`magnitude`は監査用の付与時snapshotに留める。
+    // CombatStatsには影響しないため再計算は不要（`APPLY_ATTACK_DAMAGE_BONUS`/
+    // `APPLY_RESOURCE_GAIN_MOD`と同じ理由）。
+    const actor = requireUnit(box.units, context.actorId);
+    const magnitude = evaluateFormula(effectAction.payload.formula, {
+      skillSource: actor,
+      target: requireUnit(box.units, application.targetBattleUnitId),
+      allUnits: box.units,
+      lastResults: lastDamageResultsFor(context.lastDamageResults, actor.battleUnitId),
+    });
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_CONTINUOUS_HEAL" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
@@ -1595,6 +1730,18 @@ function* resolveActionApplications(
     lastResultState.lastDamagedTargetUnitIds = stepDamagedTargetUnitIds;
   };
 
+  // HEAL_DISTRIBUTE（M7-005、Issue #184）: `HEAL`の`payload.distribution: "EVEN"`は
+  // 「総回復量を対象数で等分する」ため、各applicationの解決に入る前にこのstepで
+  // 同じEffectActionが適用される対象数を数える。applicationは対象1体につき1件の
+  // ため件数がそのまま分配数になる（対象0件のstepはここへ到達しない）。
+  const shareCountByDefinitionId = new Map<EffectActionDefinitionId, number>();
+  for (const application of applications) {
+    shareCountByDefinitionId.set(
+      application.effectActionDefinitionId,
+      (shareCountByDefinitionId.get(application.effectActionDefinitionId) ?? 0) + 1,
+    );
+  }
+
   for (let index = 0; index < applications.length; index += 1) {
     const application = applications[index]!;
     if (isDefeated(requireUnit(box.units, context.actorId))) {
@@ -1614,6 +1761,7 @@ function* resolveActionApplications(
       box,
       context,
       lastEventId,
+      shareCountByDefinitionId.get(application.effectActionDefinitionId) ?? 1,
     );
     lastEventId = applied.lastEventId;
     resolvedCount += applied.resolvedCount;

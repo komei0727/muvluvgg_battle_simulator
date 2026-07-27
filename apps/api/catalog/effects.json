@@ -4051,7 +4051,11 @@
   {
     "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL",
     "kind": "HEAL",
-    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.65 }, "overheal": "DISCARD" },
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.65 },
+      "overheal": "DISCARD",
+      "distribution": "EVEN"
+    },
     "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },

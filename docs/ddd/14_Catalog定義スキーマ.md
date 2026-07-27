@@ -812,10 +812,13 @@ payload:
   overheal: DISCARD
 ```
 
-| フィールド | 型                | 必須 | 制約                 |
-| ---------- | ----------------- | ---- | -------------------- |
-| `formula`  | FormulaDefinition | ✓    | 回復量               |
-| `overheal` | enum              | —    | `DISCARD` 固定で開始 |
+| フィールド     | 型                | 必須 | 制約                                                                                                                                                     |
+| -------------- | ----------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `formula`      | FormulaDefinition | ✓    | 回復量。`SKILL_POWER` は `回復者の攻撃力 × power`（R-HEAL-01 #1、防御力は差し引かない）                                                                  |
+| `overheal`     | enum              | —    | `DISCARD` 固定で開始                                                                                                                                     |
+| `distribution` | enum              | —    | `NONE`（既定、対象ごとに評価結果の全量を回復）／`EVEN`（評価結果を総回復量とみなし、同一EffectStep内でこのEffectActionが適用される対象数で等分）。M7-005 |
+
+`distribution: EVEN` は `MODIFY_RESOURCE.operation: DISTRIBUTE` の HEAL 版であり、「威力65分のHP回復量を均等に配分して回復する」（`SKL_LUCIE_COMPANION_AS3`）のような原文をそのまま表現するために M7-005（Issue #184）で追加した。`MODIFY_RESOURCE` の `DISTRIBUTE` と異なりこちらは実装済みのため、`CAP_HEAL`（`IMPLEMENTED`）以外の追加Capability宣言は要求しない。
 
 ### APPLY_CONTINUOUS_HEAL
 
@@ -836,6 +839,8 @@ payload:
       count: 2
     dispellable: true
 ```
+
+M7-005（Issue #184、R-HEAL-03）で実装したのは `timing: {eventType: ActionStarted, targetSelector: EFFECT_OWNER}`（保持者自身の行動開始時に保持者を回復する）だけであり、production Catalogの継続回復定義はすべてこの組み合わせを使う。それ以外の組み合わせは `CAP_CONTINUOUS_HEAL` が `IMPLEMENTED` でも一度も発火しないため、Catalogロード時点で `UNSUPPORTED_CONTINUOUS_HEAL_TIMING` として拒否する（`APPLY_MARKER` の未対応 `duration` と同じ扱い）。
 
 ### APPLY_CONTINUOUS_DAMAGE
 
@@ -2153,7 +2158,7 @@ Issue #41（代表10ユニットのv2 Catalog変換パイロット）で、当�
 
 | #    | 内容                                                                  | 追加したschema要素                                                                                                                                                                                                                                                                                                             | Capability                                                                                                                                                                      |
 | ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G-01 | 回復量増減の被付与                                                    | `EffectActionDefinition.kind: APPLY_HEALING_MOD`                                                                                                                                                                                                                                                                               | `CAP_HEAL`（既存を再利用、`PLANNED`）                                                                                                                                           |
+| G-01 | 回復量増減の被付与                                                    | `EffectActionDefinition.kind: APPLY_HEALING_MOD`                                                                                                                                                                                                                                                                               | `CAP_HEAL`（既存を再利用、`IMPLEMENTED` — M7-005/Issue #184で実装）                                                                                                             |
 | G-02 | 継続ダメージ(DoT)                                                     | `EffectActionDefinition.kind: APPLY_CONTINUOUS_DAMAGE`                                                                                                                                                                                                                                                                         | `CAP_CONTINUOUS_DAMAGE`（新規、`PLANNED`）                                                                                                                                      |
 | G-03 | 生存ユニット数を直接比較する条件                                      | `ConditionDefinition.kind: ALIVE_UNIT_COUNT`                                                                                                                                                                                                                                                                                   | AS/EXの`activationCondition`では`CAP_ACTION_ACTIVATION_CONDITION`、PSでは`CAP_PASSIVE_ACTIVATION_CONDITION`、EffectStepでは`CAP_EFFECT_STEP_CONDITION`（いずれも`IMPLEMENTED`） |
 | G-04 | 効果解除                                                              | `EffectActionDefinition.kind: REMOVE_EFFECTS`                                                                                                                                                                                                                                                                                  | `CAP_REMOVE_EFFECTS`（新規、`IMPLEMENTED`）                                                                                                                                     |

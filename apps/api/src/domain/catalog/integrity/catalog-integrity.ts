@@ -52,6 +52,7 @@ export const VIOLATION_RULES = [
   "MISSING_REQUIRED_CAPABILITY",
   "UNSUPPORTED_MARKER_LINKED_GROUP",
   "UNSUPPORTED_MARKER_DURATION",
+  "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
@@ -1423,6 +1424,24 @@ function validateEffectAction(
         rule: "MISSING_REQUIRED_CAPABILITY",
         message:
           'MODIFY_RESOURCE with operation "DISTRIBUTE" must declare "CAP_RESOURCE_DISTRIBUTE" in requiredCapabilities',
+      });
+    }
+  }
+  // R-HEAL-03（M7-005、Issue #184）: `continuous-heal-service.ts`は
+  // `timing: {eventType: "ActionStarted", targetSelector: "EFFECT_OWNER"}`
+  // （production Catalogの継続回復13件がすべて使う唯一の組み合わせ）だけを
+  // 発火させる。`timing`はスキーマ上任意の文字列を取れるため、他の組み合わせを
+  // 指定した定義は`CAP_CONTINUOUS_HEAL`（IMPLEMENTED）を宣言していても
+  // 「`EffectApplied`として成功するが一度も回復しない」silent partial
+  // implementationになる。`APPLY_MARKER`の未対応Duration
+  // （`UNSUPPORTED_MARKER_DURATION`）と同じく、Catalogロード時点で拒否する。
+  if (effectAction.kind === "APPLY_CONTINUOUS_HEAL") {
+    const timing = effectAction.payload.timing;
+    if (timing.eventType !== "ActionStarted" || timing.targetSelector !== "EFFECT_OWNER") {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
+        message: `APPLY_CONTINUOUS_HEAL only implements timing {eventType: "ActionStarted", targetSelector: "EFFECT_OWNER"} (R-HEAL-03, M7-005), received {eventType: "${timing.eventType}", targetSelector: "${timing.targetSelector}"}`,
       });
     }
   }

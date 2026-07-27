@@ -4172,6 +4172,286 @@ describe("applyEffectActionGroups", () => {
     });
   });
 
+  describe("HEAL / APPLY_HEALING_MOD / APPLY_CONTINUOUS_HEAL (R-HEAL-01〜03, M7-005 Issue #184)", () => {
+    function healAction(
+      id: string,
+      payload: Extract<EffectActionDefinition, { kind: "HEAL" }>["payload"],
+    ): EffectActionDefinition {
+      return {
+        kind: "HEAL",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload,
+      };
+    }
+
+    function healingModAction(
+      id: string,
+      payload: Extract<EffectActionDefinition, { kind: "APPLY_HEALING_MOD" }>["payload"],
+    ): EffectActionDefinition {
+      return {
+        kind: "APPLY_HEALING_MOD",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload,
+      };
+    }
+
+    function continuousHealAction(
+      id: string,
+      payload: Extract<EffectActionDefinition, { kind: "APPLY_CONTINUOUS_HEAL" }>["payload"],
+    ): EffectActionDefinition {
+      return {
+        kind: "APPLY_CONTINUOUS_HEAL",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload,
+      };
+    }
+
+    it("UT-R-HEAL-01-007 (full stack): a HEAL EffectAction raises the target's HP and emits HealApplied through the real effect-action-group-resolver.ts wiring", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 50 });
+      const heal = healAction("ACT_HEAL", {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.3 },
+        overheal: "DISCARD",
+        distribution: "NONE",
+      });
+      const effectActions = new Map([[heal.effectActionDefinitionId, heal]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, heal.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(80);
+      const healApplied = recorder.getEvents().find((e) => e.eventType === "HealApplied")!;
+      expect(healApplied.payload).toMatchObject({
+        effectActionDefinitionId: heal.effectActionDefinitionId,
+        targetUnitId: actor.battleUnitId,
+        healAmount: 30,
+        appliedAmount: 30,
+      });
+      expect(
+        recorder.getEvents().find((e) => e.eventType === "EffectActionCompleted")!.payload
+          .resultKind,
+      ).toBe("APPLIED");
+    });
+
+    it("UT-R-HEAL-02-001 (full stack): an APPLY_HEALING_MOD grants an AppliedEffect whose magnitude is the evaluated signed rate", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const mod = healingModAction("ACT_HEAL_UP", {
+        direction: "INCOMING",
+        formula: { kind: "CONSTANT", value: 0.15 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      });
+      const effectActions = new Map([[mod.effectActionDefinitionId, mod]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, mod.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updated.appliedEffects).toHaveLength(1);
+      expect(updated.appliedEffects[0]).toMatchObject({
+        effectActionDefinitionId: mod.effectActionDefinitionId,
+        magnitude: 0.15,
+        duplicate: true,
+      });
+    });
+
+    it("UT-R-HEAL-02-002 (full stack): the target's INCOMING healing modifiers scale the heal amount before truncation", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 10 });
+      const mod = healingModAction("ACT_HEAL_UP", {
+        direction: "INCOMING",
+        formula: { kind: "CONSTANT", value: 0.15 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      });
+      const heal = healAction("ACT_HEAL", {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.3 },
+        overheal: "DISCARD",
+        distribution: "NONE",
+      });
+      const effectActions = new Map([
+        [mod.effectActionDefinitionId, mod],
+        [heal.effectActionDefinitionId, heal],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, actor.battleUnitId, mod.effectActionDefinitionId),
+          singleActionStep(1, true, actor.battleUnitId, heal.effectActionDefinitionId),
+        ],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      // 30 * 1.15 = 34.5 -> truncated once, at application time, to 34
+      expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(44);
+      expect(
+        recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload,
+      ).toMatchObject({ healingModifierMultiplier: 1.15, healAmount: 34 });
+    });
+
+    it("UT-R-HEAL-02-003 (BOUNDARY): stacked negative healing modifiers below -100% clamp the multiplier at 0 instead of draining HP", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 10 });
+      const block = healingModAction("ACT_HEAL_BLOCK", {
+        direction: "INCOMING",
+        formula: { kind: "CONSTANT", value: -1 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      });
+      const heal = healAction("ACT_HEAL", {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.3 },
+        overheal: "DISCARD",
+        distribution: "NONE",
+      });
+      const effectActions = new Map([
+        [block.effectActionDefinitionId, block],
+        [heal.effectActionDefinitionId, heal],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, actor.battleUnitId, block.effectActionDefinitionId),
+          singleActionStep(1, true, actor.battleUnitId, block.effectActionDefinitionId),
+          singleActionStep(2, true, actor.battleUnitId, heal.effectActionDefinitionId),
+        ],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(10);
+      expect(
+        recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload,
+      ).toMatchObject({ healingModifierMultiplier: 0, healAmount: 0 });
+    });
+
+    it("UT-R-HEAL-03-001 (full stack): an APPLY_CONTINUOUS_HEAL grants an AppliedEffect that keeps its duration and is not applied immediately", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 50 });
+      const hot = continuousHealAction("ACT_HOT", {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      });
+      const effectActions = new Map([[hot.effectActionDefinitionId, hot]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, hot.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updated.currentHp).toBe(50);
+      expect(updated.appliedEffects).toHaveLength(1);
+      expect(updated.appliedEffects[0]).toMatchObject({
+        effectActionDefinitionId: hot.effectActionDefinitionId,
+        duplicate: true,
+      });
+      expect(updated.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
+      expect(recorder.getEvents().some((e) => e.eventType === "HealApplied")).toBe(false);
+    });
+
+    it("UT-R-HEAL-01-008 (HEAL_DISTRIBUTE): distribution EVEN splits one total heal amount across every target of the same EffectAction in the step", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 10 });
+      const ally = unit("ALLY_2", "ALLY", { currentHp: 10 });
+      const heal = healAction("ACT_HEAL_SHARED", {
+        formula: { kind: "SKILL_POWER", power: 3 },
+        overheal: "DISCARD",
+        distribution: "EVEN",
+      });
+      const effectActions = new Map([[heal.effectActionDefinitionId, heal]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const step = singleActionStep(0, true, actor.battleUnitId, heal.effectActionDefinitionId);
+      if (step.planKind !== "ACTION_PLAN") {
+        throw new Error("singleActionStep must produce an ACTION_PLAN");
+      }
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          {
+            ...step,
+            applications: [
+              ...step.applications,
+              {
+                targetBattleUnitId: ally.battleUnitId,
+                effectActionDefinitionId: heal.effectActionDefinitionId,
+                includeDefeated: false,
+                hits: [
+                  {
+                    targetBattleUnitId: ally.battleUnitId,
+                    effectActionDefinitionId: heal.effectActionDefinitionId,
+                    hitIndex: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        targetUnitIds: [actor.battleUnitId, ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, ally], context);
+
+      // attack 20 * power 3 = 60 total, split evenly across the 2 targets = 30 each
+      expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(40);
+      expect(result.units.find((u) => u.battleUnitId === ally.battleUnitId)!.currentHp).toBe(40);
+      const healEvents = recorder.getEvents().filter((e) => e.eventType === "HealApplied");
+      expect(healEvents).toHaveLength(2);
+      expect(healEvents[0]!.payload).toMatchObject({
+        formulaResult: 60,
+        distributionShareCount: 2,
+        healAmount: 30,
+      });
+    });
+  });
+
   describe("APPLY_RESOURCE_GAIN_MOD (G-05, M7-002 Issue #185, RESOURCE_GAIN_MOD full-stack wiring)", () => {
     function resourceGainModAction(
       id: string,

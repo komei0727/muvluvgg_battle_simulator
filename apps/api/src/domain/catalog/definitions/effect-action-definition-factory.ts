@@ -84,6 +84,8 @@ const EFFECT_IMMUNITY_CATEGORIES = [
 ] as const;
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
+/** HEAL_DISTRIBUTE（M7-005、Issue #184）。`MODIFY_RESOURCE.operation: DISTRIBUTE`のHEAL版。 */
+const HEAL_DISTRIBUTION_POLICIES = ["NONE", "EVEN"] as const;
 
 const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   DAMAGE: [
@@ -96,7 +98,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "damageModifiers",
     "link",
   ],
-  HEAL: ["formula", "overheal"],
+  HEAL: ["formula", "overheal", "distribution"],
   APPLY_CONTINUOUS_HEAL: ["formula", "timing", "duration"],
   APPLY_CONTINUOUS_DAMAGE: ["damageType", "formula", "timing", "duration"],
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
@@ -339,11 +341,16 @@ function createPayload(
     case "HEAL": {
       const overheal = (payload["overheal"] as string | undefined) ?? "DISCARD";
       assertEnumValue(overheal, OVERHEAL_POLICIES, `${path}.overheal`);
+      // HEAL_DISTRIBUTE（M7-005、Issue #184）: 省略時は既定の`NONE`（対象ごとに
+      // Formula評価結果全量を回復する、本fieldが存在しなかった時点の動作）。
+      const distribution = (payload["distribution"] as string | undefined) ?? "NONE";
+      assertEnumValue(distribution, HEAL_DISTRIBUTION_POLICIES, `${path}.distribution`);
       return {
         kind: "HEAL",
         payload: {
           formula: createFormulaField(payload, "formula", path),
           overheal,
+          distribution,
         },
       };
     }
