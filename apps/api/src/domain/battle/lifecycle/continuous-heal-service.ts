@@ -1,8 +1,14 @@
-import type { BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { applyOneHeal, type HealEventContext } from "./heal-application-service.js";
+import { recordActionCompletion, type ActionCompletionContext } from "./action-completion.js";
+import type {
+  ActionResolutionResult,
+  ResolvableEffectiveActionType,
+} from "./action-resolution-shared.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
+import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { DomainEventId } from "../../shared/event-ids.js";
+import type { DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 
 /**
  * R-HEAL-03（M7-005、Issue #184）が実装対象とする`APPLY_CONTINUOUS_HEAL`の
@@ -107,4 +113,50 @@ export function fireContinuousHealsOnActionStart(
   }
 
   return { units: working, lastEventId };
+}
+
+/**
+ * `06_戦闘状態遷移.md`「START_EVENT：行動開始時処理」#4（再レビュー[P2]、PR #256）:
+ * 「行動者が戦闘不能になった場合は、本体スキルを実行せず`COMPLETING`へ進む」。
+ * 同書のシナリオ#8「行動開始時の継続ダメージで行動者が戦闘不能になり、本体スキルを
+ * 実行しない」がこの契約の代表例である。
+ *
+ * M7-005（Issue #184）以前は行動開始時に解決される効果自体が存在しなかったため
+ * この分岐へ到達する経路がなかったが、R-HEAL-03の継続回復とその`HealApplied`起点の
+ * PS連鎖（#3）が行動者を戦闘不能にしうるようになったため、4つの行動経路すべてが
+ * 発火直後にこれを判定する必要がある。
+ *
+ * 戦闘不能でなければ`undefined`を返し、呼び出し側は通常どおり本体（EXECUTING）へ
+ * 進む。戦闘不能なら本体を実行せず`ActionCompleting`〜`ActionCompleted`だけを
+ * 記録した`ActionResolutionResult`を返す — 行動自体は「解決済み」として完了させ、
+ * 予約やキューへ宙ぶらりんのまま残さない。
+ */
+export function completeActionIfActorDefeatedAtStart(
+  units: readonly BattleUnit[],
+  actorId: BattleUnitId,
+  recorder: EventRecorder,
+  completionContext: ActionCompletionContext,
+  effectiveActionType: ResolvableEffectiveActionType,
+  triggeringEventId: DomainEventId,
+  actionScope: ResolutionScopeId,
+  rootEventId: DomainEventId,
+  finalizeResolutionScope: (completedEventId: DomainEventId) => readonly BattleUnit[],
+): ActionResolutionResult | undefined {
+  const actor = units.find((u) => u.battleUnitId === actorId);
+  if (actor === undefined || !isDefeated(actor)) {
+    return undefined;
+  }
+  const completion = recordActionCompletion(
+    recorder,
+    completionContext,
+    effectiveActionType,
+    triggeringEventId,
+    units,
+  );
+  return {
+    units: finalizeResolutionScope(completion.completedEventId),
+    actionScope,
+    rootEventId,
+    completedEventId: completion.completedEventId,
+  };
 }

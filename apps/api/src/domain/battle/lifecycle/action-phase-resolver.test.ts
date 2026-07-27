@@ -824,6 +824,146 @@ describe("resolveActionPhase", () => {
     expect(passiveActivated!.payload).toMatchObject({ triggerEventId: healApplied.eventId });
   });
 
+  it("UT-R-HEAL-03-006 (再レビュー[P2] PR #256, START_EVENT #4): when a PS chained off the start-of-action HealApplied defeats the actor, the action body is skipped and the action proceeds straight to COMPLETING", () => {
+    const hotDefId = createEffectActionDefinitionId("ACT_HOT");
+    const hotDef: EffectActionDefinition = {
+      effectActionDefinitionId: hotDefId,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    const hotEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("hot-1"),
+      effectActionDefinitionId: hotDefId,
+      kindKey: effectKindKeyFromDefinitionId(hotDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ALLY_1"),
+      targetId: createBattleUnitId("ALLY_1"),
+      magnitude: 0,
+      duration: {
+        definition: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+      },
+      appliedTurnNumber: 1,
+    };
+    // The acting ally holds the continuous heal and has no usable AS, so it
+    // would normally wait. An enemy PS triggered by HealApplied kills it first.
+    const healed = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 }, maximumHp: 100, currentHp: 40 }),
+      appliedEffects: [hotEffect],
+    };
+    const killerUnitDefinitionId = createUnitDefinitionId("UNIT_HEAL_PUNISHER");
+    const killer = {
+      ...unit("ENEMY_1", "ENEMY", {
+        unitDefinitionId: "UNIT_HEAL_PUNISHER",
+        attack: 10000,
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+
+    const killActionId = createEffectActionDefinitionId("ACT_PUNISH_HEAL");
+    const killAction = damageEffectAction("ACT_PUNISH_HEAL");
+    const killerPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_PUNISH_HEAL"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "HealApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_ENEMY"), selector: ENEMY_NEAREST },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ENEMY") },
+            actions: [{ effectActionDefinitionId: killActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "PunishHeal", tags: [] },
+    };
+
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(killerUnitDefinitionId, {
+      ...unitDefinitions.get(killerUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [killerPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [hotDefId, hotDef],
+        [killActionId, killAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[killerPassive.skillDefinitionId, killerPassive]]),
+    };
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [healed],
+      [killer],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "HealApplied")).toBe(true);
+    expect(
+      events.some(
+        (e) => e.eventType === "UnitDefeated" && e.payload.unitId === healed.battleUnitId,
+      ),
+      "the chained PS must actually defeat the actor",
+    ).toBe(true);
+    // START_EVENT #4: the body (`ActionWaited`) must not run, but the action
+    // must still be completed rather than left dangling.
+    expect(
+      events.some((e) => e.eventType === "ActionWaited"),
+      "the action body must be skipped once the actor is defeated at start of action",
+    ).toBe(false);
+    expect(events.some((e) => e.eventType === "ActionCompleted")).toBe(true);
+  });
+
   it("UT-ACTION-PHASE-002: a usable AS skill consumes its AP cost and applies DAMAGE to the target", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {

@@ -1750,11 +1750,15 @@ function* resolveActionApplications(
     if (cached !== undefined) {
       return cached;
     }
+    // 再レビュー指摘[P2]（PR #256）: `includeDefeated`は戦闘不能者を選択集合へ
+    // 含める指定だが、R-HEAL-01は蘇生規則を持たず`applyOneHeal`は戦闘不能の対象へ
+    // 一切回復しない（`undefined`を返し`HealApplied`も発行しない）。分配の分母は
+    // 「実際に回復を受け取る対象数」でなければならないため、`includeDefeated`の
+    // 有無にかかわらず戦闘不能者を除外する。
     const count = applications.filter(
       (candidate) =>
         candidate.effectActionDefinitionId === definitionId &&
-        (candidate.includeDefeated ||
-          !isDefeated(requireUnit(box.units, candidate.targetBattleUnitId))),
+        !isDefeated(requireUnit(box.units, candidate.targetBattleUnitId)),
     ).length;
     // 呼び出し元は「今まさに適用しようとしている application」の解決直前にだけ
     // これを呼ぶため、その対象自身が数に含まれ`count >= 1`が成り立つ。0での
