@@ -1,13 +1,13 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import {
-  applyDamageAction,
+  applyDamageActionSteps,
   type DamageEventContext,
 } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
 import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
-import { removeFreezeEffect } from "../effects/freeze-removal-service.js";
+import { removeFreezeEffectSteps } from "../effects/freeze-removal-service.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { removeMarkers, reduceMarkerStack } from "../effects/marker-removal-service.js";
 import { removeEffects } from "../effects/effect-removal-service.js";
@@ -468,7 +468,10 @@ function* resolveOneEffectActionApplication(
   // 解放（`onFactEventForPassiveChain`が指定されている経路）では、ヒット単位
   // フックが既にこれらを同期的に解決済みのため、二重処理を避けてここでは
   // 含めない。
-  const innerEventsStart = context.recorder.getEvents().length;
+  // レビュー再々指摘[P2]（Issue #183）: DAMAGEブランチが凍結カスケードの
+  // ステップを個別に`yield`した場合、この変数を前進させてそのイベントが
+  // 下の`innerEvents`へ二重に含まれないようにする（`let`）。
+  let innerEventsStart = context.recorder.getEvents().length;
 
   // R-ACTN-01 #2（RES-002、Issue #174、全Action種別の共通契約、レビュー指摘
   // [P2] PR #215）: 対象が既に戦闘不能であり、戦闘不能者を対象にできる明示指定
@@ -498,7 +501,7 @@ function* resolveOneEffectActionApplication(
       isDefeated(requireUnit(box.units, application.targetBattleUnitId));
     const { consumeEffectDuration, finalizeConsumedEffectDurations } =
       buildConsumeEffectDurationHooks(context);
-    const damageResult = applyDamageAction(
+    const damageGen = applyDamageActionSteps(
       currentActor,
       application.hits,
       effectAction,
@@ -521,6 +524,10 @@ function* resolveOneEffectActionApplication(
         // できないため、凍結解除のlinkedEffectGroupカスケード（`duration-
         // expiry-service.ts`と同じ`collectLinkedGroupCascade`）とCombatStat
         // 再計算をここから注入する。
+        // レビュー再々指摘[P2]（Issue #183）: `removeFreezeEffectSteps`
+        // （generator）をそのまま返す — `applyDamageActionSteps`が
+        // `context.onFactEventForPassiveChain`の有無に応じて同期駆動/`yield`の
+        // どちらでも正しく駆動できる。
         removeFreezeEffect: (
           targetUnitId,
           freezeEffectInstanceId,
@@ -528,7 +535,7 @@ function* resolveOneEffectActionApplication(
           units,
           parentEventId,
         ) =>
-          removeFreezeEffect(
+          removeFreezeEffectSteps(
             {
               recorder: context.recorder,
               turnNumber: context.turnNumber,
@@ -537,11 +544,6 @@ function* resolveOneEffectActionApplication(
               skillUseId: context.skillUseId,
               resolutionScopeId: context.actionScope,
               rootEventId: context.rootEventId,
-              // レビュー再指摘[P2]: カスケードの各ステップを記録直後に即時連鎖へ
-              // 通知させるため、ここから`onFactEventForPassiveChain`を引き継ぐ。
-              ...(context.onFactEventForPassiveChain !== undefined
-                ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
-                : {}),
             },
             units,
             targetUnitId,
@@ -564,6 +566,27 @@ function* resolveOneEffectActionApplication(
           : {}),
       },
     );
+    // レビュー再々指摘[P2]（Issue #183）: `applyDamageActionSteps`は凍結解除の
+    // linkedEffectGroupカスケードのステップだけを`yield`しうる
+    // （`context.onFactEventForPassiveChain`未指定 = PS自身のEffectSequence
+    // 解決の場合のみ）。そのステップをこの関数自身の`EFFECT_RESOLVED`として
+    // そのまま`yield`し、`driveActivation`の共有stateへ正しく参加させる —
+    // ここで消費した分だけ`innerEventsStart`を前進させ、下の`innerEvents`
+    // 捕捉との二重処理を防ぐ。
+    let damageStep = damageGen.next();
+    while (!damageStep.done) {
+      // このカスケードステップの`units`を`box.units`へ反映してから`yield`する
+      // （`passive-activation-service.ts`の`this.units = box.units`と同じ
+      // sync-out）。これにより、この`yield`を処理する`driveActivation`側の
+      // 子PS候補検出・発動がこの時点の正しい中間状態を参照できる。
+      box.units = damageStep.value.units;
+      yield { kind: "EFFECT_RESOLVED", events: damageStep.value.events };
+      innerEventsStart = context.recorder.getEvents().length;
+      // 子PS連鎖（あれば）が`box.units`を書き換えている可能性があるため、
+      // 一時停止していたgeneratorを再開する前に取り込む（sync-in）。
+      damageStep = damageGen.next(box.units);
+    }
+    const damageResult = damageStep.value;
     box.units = damageResult.units;
     resolvedCount = application.hits.length - damageResult.interruptedCount;
     interruptedCount = damageResult.interruptedCount;

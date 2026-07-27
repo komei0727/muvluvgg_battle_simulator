@@ -156,6 +156,15 @@ export interface DamageEventContext {
    * `FreezeRemoved`だけを発行する簡易版へfallbackする（カスケード・CombatStat
    * 再計算は行わない — 既存テストが`effects/`層のモックを用意しなくても
    * 動き続けるための最小動作）。
+   *
+   * PRレビュー再々指摘[P2]（Issue #183）: カスケードの各ステップを`yield`する
+   * generatorを返す — `context.onFactEventForPassiveChain`が指定されていれば
+   * （AS/EX・チャージ解放）`applyDamageActionSteps`がこのgeneratorを同期的に
+   * 駆動しステップごとに通知する。未指定（PS自身のEffectSequence解決）なら
+   * `applyDamageActionSteps`自身が`yield`し、呼び出し元
+   * （`resolveOneEffectActionApplication`）が`driveActivation`の共有stateへ
+   * 正しく参加させる。`.next()`へ渡す値は、そのyield中にPS連鎖が変化させた
+   * 最新の`units`（変化が無ければ渡さない）。
    */
   readonly removeFreezeEffect?: (
     targetUnitId: BattleUnitId,
@@ -163,7 +172,11 @@ export interface DamageEventContext {
     triggeringDamage: number,
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
-  ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
+  ) => Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >;
 }
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
@@ -241,14 +254,19 @@ function notifyNewEvents(
  * production経路（`effect-action-group-resolver.ts`）は常にこのhookを注入する
  * ため、この簡易版が実際に使われるのはhookを用意しない単体テストだけ。
  */
-function fallbackRemoveFreezeEffect(
+function* fallbackRemoveFreezeEffectSteps(
   context: DamageEventContext,
   units: readonly BattleUnit[],
   targetUnitId: BattleUnitId,
   freezeEffect: AppliedEffect,
   triggeringDamage: number,
   parentEventId: DomainEventId,
-): { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId } {
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+  readonly BattleUnit[] | undefined
+> {
+  const eventsStart = context.recorder.getEvents().length;
   const freezeRemoved = context.recorder.record({
     eventType: "FreezeRemoved",
     category: "FACT",
@@ -289,7 +307,11 @@ function fallbackRemoveFreezeEffect(
         }
       : unit,
   );
-  return { units: updatedUnits, lastEventId: freezeRemoved.eventId };
+  const injected = yield {
+    events: context.recorder.getEvents().slice(eventsStart),
+    units: updatedUnits,
+  };
+  return { units: injected ?? updatedUnits, lastEventId: freezeRemoved.eventId };
 }
 
 /**
@@ -306,15 +328,26 @@ function fallbackRemoveFreezeEffect(
  * 適用されたヒットごとに `HitConfirmed`→`CriticalCheckResolved`→`DamageCalculated`→
  * `DamageApplied`（→`UnitDefeated`）を発行する。スキップしたヒットは命中が確定して
  * いないためイベントを発行しない（`08_ドメインイベント.md`「HitConfirmed」）。
+ *
+ * PRレビュー再々指摘[P2]（Issue #183）: 凍結解除のlinkedEffectGroupカスケード
+ * だけは、`context.onFactEventForPassiveChain`未指定（PS自身のEffectSequence
+ * 解決）の場合に各カスケードステップを`yield`する（それ以外の内部イベントは
+ * 従来どおり`notifyNewEvents`/コールバックのみ — このgenerator化はカスケード
+ * ステップの即時解決契約のためだけの最小限の変更）。`applyDamageAction`
+ * （下の同期wrapper）が既存の全呼び出し元・テストと同じ振る舞いで駆動する。
  */
-export function applyDamageAction(
+export function* applyDamageActionSteps(
   attacker: BattleUnit,
   hits: readonly ResolvedEffectApplication[],
   damageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }>,
   units: readonly BattleUnit[],
   random: RandomSource,
   context: DamageEventContext,
-): ApplyDamageActionResult {
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  ApplyDamageActionResult,
+  readonly BattleUnit[] | undefined
+> {
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
   let interruptedCount = 0;
@@ -651,43 +684,54 @@ export function applyDamageAction(
     // `AppliedEffect`を直接filterする簡易版（カスケードなし）にfallbackする。
     // `duplicate: true`固定（`freeze-grant-service.ts`）のためR-EFF-05の最強
     // 選択対象にならず、`isEffective`は常にtrue。
+    //
+    // PRレビュー再々指摘[P2]（Issue #183）: いずれのgeneratorも、
+    // `context.onFactEventForPassiveChain`が指定されていれば（AS/EX・チャージ
+    // 解放）その場で同期的に駆動しステップごとに通知する — まとめて最後に
+    // 通知すると同じイベントが二重発火するため、ここでは通知しない。未指定
+    // （PS自身のEffectSequence解決）なら、このステップ自体を`yield`し、
+    // 呼び出し元（`resolveOneEffectActionApplication`）が`driveActivation`の
+    // 共有stateへ正しく参加させる。
     let lastEventIdBeforeHp = damageCalculated.eventId;
     if (frozenEffect !== undefined) {
-      if (context.removeFreezeEffect !== undefined) {
-        const removal = context.removeFreezeEffect(
-          targetAfterTiming.battleUnitId,
-          frozenEffect.effectInstanceId,
-          damageResult.finalDamage,
-          Array.from(working.values()),
-          lastEventIdBeforeHp,
-        );
-        for (const unit of removal.units) {
-          working.set(unit.battleUnitId, unit);
+      const removeGen =
+        context.removeFreezeEffect !== undefined
+          ? context.removeFreezeEffect(
+              targetAfterTiming.battleUnitId,
+              frozenEffect.effectInstanceId,
+              damageResult.finalDamage,
+              Array.from(working.values()),
+              lastEventIdBeforeHp,
+            )
+          : fallbackRemoveFreezeEffectSteps(
+              context,
+              Array.from(working.values()),
+              targetAfterTiming.battleUnitId,
+              frozenEffect,
+              damageResult.finalDamage,
+              lastEventIdBeforeHp,
+            );
+      let removeStep = removeGen.next();
+      while (!removeStep.done) {
+        let stepUnits = removeStep.value.units;
+        if (context.onFactEventForPassiveChain !== undefined) {
+          for (const event of removeStep.value.events) {
+            stepUnits = context.onFactEventForPassiveChain(event, stepUnits);
+          }
+          removeStep = removeGen.next(stepUnits);
+        } else {
+          const injected = yield {
+            events: removeStep.value.events,
+            units: removeStep.value.units,
+          };
+          removeStep = removeGen.next(injected);
         }
-        lastEventIdBeforeHp = removal.lastEventId;
-        // レビュー再指摘[P2]: linkedEffectGroupカスケードの各ステップ
-        // （`EffectExpired`/`FreezeRemoved`とその`CombatStatChanged`）は、
-        // `removeFreezeEffect`自身が（`lifecycle/`から引き継いだ
-        // `onFactEventForPassiveChain`で）記録直後に即時連鎖へ通知済み — ここで
-        // まとめて再通知すると同じイベントが二重発火してしまうため行わない。
-      } else {
-        // フォールバック版（カスケードなし、`FreezeRemoved`単体）は内部で
-        // 通知しないため、レビュー指摘[P2]どおりここでHP適用前に通知する。
-        const freezeEventsStart = context.recorder.getEvents().length;
-        const removal = fallbackRemoveFreezeEffect(
-          context,
-          Array.from(working.values()),
-          targetAfterTiming.battleUnitId,
-          frozenEffect,
-          damageResult.finalDamage,
-          lastEventIdBeforeHp,
-        );
-        for (const unit of removal.units) {
-          working.set(unit.battleUnitId, unit);
-        }
-        lastEventIdBeforeHp = removal.lastEventId;
-        notifyNewEvents(context, working, freezeEventsStart);
       }
+      const removal = removeStep.value;
+      for (const unit of removal.units) {
+        working.set(unit.battleUnitId, unit);
+      }
+      lastEventIdBeforeHp = removal.lastEventId;
     }
 
     // `targetAfterTiming`のスナップショット後にPS連鎖が介在し得るのは、上の
@@ -869,4 +913,28 @@ export function applyDamageAction(
     interruptedCount,
     lastEventId,
   };
+}
+
+/**
+ * `applyDamageActionSteps`（凍結解除カスケードのみ`yield`しうるgenerator）を
+ * 同期的に完了まで駆動する薄いwrapper。凍結カスケードが`yield`する場面は
+ * `context.onFactEventForPassiveChain`未指定（PS自身のEffectSequence解決）の
+ * 時だけであり、その経路では元々どのイベントにも通知先が無い（PR #142以来の
+ * 既存契約）ため、ここでは`yield`された値を単に読み捨てて`.next()`する —
+ * 全ての既存呼び出し元・テストと完全に同じ振る舞いを保つ。
+ */
+export function applyDamageAction(
+  attacker: BattleUnit,
+  hits: readonly ResolvedEffectApplication[],
+  damageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }>,
+  units: readonly BattleUnit[],
+  random: RandomSource,
+  context: DamageEventContext,
+): ApplyDamageActionResult {
+  const gen = applyDamageActionSteps(attacker, hits, damageAction, units, random, context);
+  let step = gen.next();
+  while (!step.done) {
+    step = gen.next();
+  }
+  return step.value;
 }
