@@ -57,6 +57,8 @@ const CRITICAL_MODES = ["NORMAL", "GUARANTEED", "PREVENTED"] as const;
 const ACCURACY_MODES = ["NORMAL", "GUARANTEED"] as const;
 const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE", "HP"] as const;
 const RESOURCE_OPERATIONS = ["ADD", "SET", "SET_TO_MAX", "DISTRIBUTE"] as const;
+/** PRレビュー指摘[P2]（Issue #185）: `APPLY_RESOURCE_GAIN_MOD`はEXゲージ増加（R-ACT-03）だけを合成対象にする。 */
+const RESOURCE_GAIN_MOD_RESOURCE_KINDS = ["EX_GAUGE"] as const;
 const STAT_KINDS = [
   "MAXIMUM_HP",
   "ATTACK",
@@ -905,8 +907,12 @@ function createPayload(
       };
     }
     case "APPLY_RESOURCE_GAIN_MOD": {
+      // PRレビュー指摘[P2]（Issue #185）: 合成経路（`composeResourceGainRate`）は
+      // EXゲージ増加だけを対象にするため、共有の`RESOURCE_KINDS`（AP/PP/EX_GAUGE/
+      // HP）ではなく`EX_GAUGE`単一値へ絞る — AP/PP/HP指定は検証を通過しても
+      // 何の獲得経路にも作用しない「無効な定義」になってしまうため。
       const resource = requireField(payload["resource"] as string | undefined, `${path}.resource`);
-      assertEnumValue(resource, RESOURCE_KINDS, `${path}.resource`);
+      assertEnumValue(resource, RESOURCE_GAIN_MOD_RESOURCE_KINDS, `${path}.resource`);
       const stackingMode = requireStackingMode(payload, path);
       return {
         kind: "APPLY_RESOURCE_GAIN_MOD",

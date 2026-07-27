@@ -157,11 +157,17 @@ export function applyModifyResourceAction(
             return action.payload.operation === "ADD" ? before + formulaResult : formulaResult;
           })();
 
-    const min = action.payload.bounds?.min ?? 0;
-    const maxBound =
+    const authoredMin = action.payload.bounds?.min ?? 0;
+    const authoredMax =
       action.payload.bounds === undefined || action.payload.bounds.max === "CURRENT_MAX"
         ? currentMax
         : action.payload.bounds.max;
+    // R-ACTN-02: Catalog上のboundsは常にリソースの実際の可動域[0, currentMax]と
+    // 交差させる — Catalog作者が範囲外の値（負のmin、currentMaxを超えるmax）を
+    // 指定しても、`createHitPoint`等の値オブジェクト不変条件違反で例外にせず、
+    // 静かに実際の可動域内へ丸める。
+    const min = Math.max(authoredMin, 0);
+    const maxBound = Math.min(authoredMax, currentMax);
     const after = truncateFraction(Math.min(maxBound, Math.max(min, rawValue)));
 
     resolvedCount += 1;

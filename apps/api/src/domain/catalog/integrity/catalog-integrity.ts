@@ -1408,6 +1408,24 @@ function validateEffectAction(
       });
     }
   }
+  // PRレビュー指摘[P2]（PR #254、Issue #185）: `CAP_RESOURCE_MUTATION`は
+  // ADD/SET/SET_TO_MAXを実装済みだが`operation: DISTRIBUTE`（対象間分配）は
+  // 未実装のまま`resource-modification-service.ts`が`DomainValidationError`を
+  // 投げる実行時backstopしか持たない。`CAP_RESOURCE_MUTATION`のIMPLEMENTED状態は
+  // Catalog契約上「安全に見える」ため、`COOLDOWN_MANIPULATION`/`APPLY_STAT_MOD`と
+  // 同じ「宣言漏れ自体を拒否する」パターンで、DISTRIBUTE使用時は未実装専用の
+  // `CAP_RESOURCE_DISTRIBUTE`（PLANNED）を必須宣言させ、Catalogロード時点で
+  // 明示的に検出できるようにする。
+  if (effectAction.kind === "MODIFY_RESOURCE" && effectAction.payload.operation === "DISTRIBUTE") {
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_RESOURCE_DISTRIBUTE")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message:
+          'MODIFY_RESOURCE with operation "DISTRIBUTE" must declare "CAP_RESOURCE_DISTRIBUTE" in requiredCapabilities',
+      });
+    }
+  }
   // PR #210再レビュー[P2]: `marker-duration.ts`はACTION/TURN単位のDuration
   // 減算だけを実装する（`BATTLE`は本来減算不要のため対象外扱いで問題ない）。
   // `consumption`（消費条件）・`expiration`（特殊失効条件）・`HIT`/`SKILL_USE`

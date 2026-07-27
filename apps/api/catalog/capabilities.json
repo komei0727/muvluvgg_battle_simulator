@@ -402,9 +402,19 @@
         "UT-R-ACTN-02-006",
         "UT-R-ACTN-02-007",
         "UT-R-ACTN-02-008",
+        "UT-R-ACTN-02-009",
+        "UT-R-ACTN-02-010",
         "UT-R-ACT-04-005"
       ]
     }
+  },
+  {
+    "capabilityId": "CAP_RESOURCE_DISTRIBUTE",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-002",
+    "description": "MODIFY_RESOURCEのoperation: DISTRIBUTE（対象間のリソース分配）。M7-002（Issue #185）は`CAP_RESOURCE_MUTATION`でADD/SET/SET_TO_MAXのみを実装し、DISTRIBUTEは複数対象への分配ロジックが未設計のため見送った（production使用は`UNIT_SUIRAN_CHAOS`の`ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE`の1件のみ）。`resource-modification-service.ts`はDISTRIBUTE指定時に`DomainValidationError`を投げる実行時backstopを持つが、PRレビュー指摘（PR #254）を受け、`CAP_RESOURCE_MUTATION`のIMPLEMENTED状態がDISTRIBUTEまで安全であるかのように誤読されないよう、DISTRIBUTE使用箇所には本CapabilityをrequiredCapabilitiesへ明示宣言させる（`catalog-integrity.ts`のMISSING_REQUIRED_CAPABILITY検証）。実装するときは別Issueとして着手する。",
+    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
     "capabilityId": "CAP_RESOURCE_GAIN_MOD",

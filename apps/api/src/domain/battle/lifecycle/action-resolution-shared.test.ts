@@ -46,16 +46,12 @@ function unit(id: string, appliedEffects: readonly AppliedEffect[] = []): Battle
   return { ...built, appliedEffects };
 }
 
-function resourceGainModAction(
-  id: string,
-  resource: "AP" | "PP" | "EX_GAUGE" | "HP",
-  rate: number,
-): EffectActionDefinition {
+function resourceGainModAction(id: string, rate: number): EffectActionDefinition {
   return {
     effectActionDefinitionId: createEffectActionDefinitionId(id),
     kind: "APPLY_RESOURCE_GAIN_MOD",
     payload: {
-      resource,
+      resource: "EX_GAUGE",
       rateDelta: { kind: "CONSTANT", value: rate },
       stacking: { mode: "STACKABLE" },
       duration: { dispellable: true, linkedEffectGroupId: null },
@@ -204,8 +200,8 @@ describe("recordExtraGaugeOverflowDiscardedIfAny (R-ACT-03/04, M7-002 Issue #185
 
 describe("composeResourceGainRate (G-05, M7-002 Issue #185, APPLY_RESOURCE_GAIN_MOD)", () => {
   it("UT-R-ACT-04-006: sums the magnitude of every held APPLY_RESOURCE_GAIN_MOD instance matching the resource (stacking is STACKABLE-only)", () => {
-    const buffDef = resourceGainModAction("ACT_EX_BUFF", "EX_GAUGE", 0.5);
-    const secondBuffDef = resourceGainModAction("ACT_EX_BUFF_2", "EX_GAUGE", 0.2);
+    const buffDef = resourceGainModAction("ACT_EX_BUFF", 0.5);
+    const secondBuffDef = resourceGainModAction("ACT_EX_BUFF_2", 0.2);
     const targetId = createBattleUnitId("ACTOR");
     const target = unit("ACTOR", [
       resourceGainModEffect("eff-1", targetId, buffDef.effectActionDefinitionId, 0.5),
@@ -219,17 +215,29 @@ describe("composeResourceGainRate (G-05, M7-002 Issue #185, APPLY_RESOURCE_GAIN_
     expect(composeResourceGainRate(target, "EX_GAUGE", effectActions)).toBeCloseTo(0.7);
   });
 
-  it("UT-R-ACT-04-007: ignores instances whose resource doesn't match, and non-APPLY_RESOURCE_GAIN_MOD effects", () => {
-    const exBuffDef = resourceGainModAction("ACT_EX_BUFF", "EX_GAUGE", 0.5);
-    const apBuffDef = resourceGainModAction("ACT_AP_BUFF", "AP", 0.9);
+  it("UT-R-ACT-04-007: ignores non-APPLY_RESOURCE_GAIN_MOD effects held alongside a real one (e.g. an unrelated APPLY_STAT_MOD)", () => {
+    const exBuffDef = resourceGainModAction("ACT_EX_BUFF", 0.5);
+    const statModDef: EffectActionDefinition = {
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATK_UP"),
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 10 },
+        stacking: { mode: "STACKABLE" },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
     const targetId = createBattleUnitId("ACTOR");
     const target = unit("ACTOR", [
       resourceGainModEffect("eff-1", targetId, exBuffDef.effectActionDefinitionId, 0.5),
-      resourceGainModEffect("eff-2", targetId, apBuffDef.effectActionDefinitionId, 0.9),
+      resourceGainModEffect("eff-2", targetId, statModDef.effectActionDefinitionId, 0.9),
     ]);
     const effectActions = new Map([
       [exBuffDef.effectActionDefinitionId, exBuffDef],
-      [apBuffDef.effectActionDefinitionId, apBuffDef],
+      [statModDef.effectActionDefinitionId, statModDef],
     ]);
 
     expect(composeResourceGainRate(target, "EX_GAUGE", effectActions)).toBeCloseTo(0.5);

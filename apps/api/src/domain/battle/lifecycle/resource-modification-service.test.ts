@@ -258,6 +258,76 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(1);
   });
 
+  it("UT-R-ACTN-02-009: an author-supplied negative bounds.min is still intersected with the hard floor of 0", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST_OVERSHOOT", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: -50 },
+      bounds: { min: -999, max: "CURRENT_MAX" },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(0);
+  });
+
+  it("UT-R-ACTN-02-010: an author-supplied bounds.max exceeding the resource's current max is still intersected with currentMax", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_GAIN_OVERSHOOT", {
+      resource: "HP",
+      operation: "SET",
+      formula: { kind: "CONSTANT", value: 500 },
+      bounds: { min: 0, max: 500 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetBattleUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(100);
+  });
+
   it("UT-R-ACTN-02-006: operation DISTRIBUTE is not yet supported and throws a clear DomainValidationError", () => {
     const actor = unit("ACTOR", "ALLY");
     const action = modifyResourceAction("ACT_EX_DISTRIBUTE", {
