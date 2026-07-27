@@ -4,6 +4,7 @@ import { selectEffectiveInstances } from "../model/effective-effect-selector.js"
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
@@ -23,6 +24,18 @@ export interface RemoveFreezeContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PRレビュー再指摘[P2]（Issue #183）: linkedEffectGroupカスケードの各ステップ
+   * （子の`EffectExpired`→その`CombatStatChanged`、…、最後に凍結自身の
+   * `FreezeRemoved`→その`CombatStatChanged`）を記録した直後にPS/Memoryの
+   * 即時連鎖へ通知する。呼び出し側がまとめて全カスケード終了後に通知すると、
+   * 最初の`EffectExpired`をtriggerにするPSが既に`FreezeRemoved`まで完了した
+   * 状態を見てしまい、発行順契約（`08_ドメインイベント.md`）に反する。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 export interface RemoveFreezeResult {
@@ -79,6 +92,7 @@ export function removeFreezeEffect(
       // Already removed earlier in this same cascade batch.
       continue;
     }
+    const stepEventsStart = context.recorder.getEvents().length;
     const target = requireUnit(working, holder.battleUnitId);
     const targetEffect = target.appliedEffects.find(
       (effect) => effect.effectInstanceId === effectInstanceId,
@@ -184,6 +198,16 @@ export function removeFreezeEffect(
     );
     working = recalculation.units;
     lastEventId = recalculation.lastEventId;
+
+    // PRレビュー再指摘[P2]: このカスケードステップの`EffectExpired`/`FreezeRemoved`
+    // とそれに続く`CombatStatChanged`を、次のステップへ進む前に即時連鎖へ
+    // 通知する — まとめて最後に通知すると、最初のステップをtriggerにするPSが
+    // 既に後続ステップまで完了した状態を見てしまう。
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(stepEventsStart)) {
+        working = context.onFactEventForPassiveChain(event, working);
+      }
+    }
   }
 
   return { units: working, lastEventId };

@@ -1130,6 +1130,82 @@ describe("applyEffectActionGroups", () => {
     expect(events.indexOf(cascadeExpired!)).toBeLessThan(events.indexOf(freezeRemoved!));
   });
 
+  it("UT-R-STS-03-016 (レビュー再指摘[P2], Issue #183, full stack): the cascaded sibling's EffectExpired reaches onFactEventForPassiveChain before FreezeRemoved is recorded at all, through the real removeFreezeEffect injection", () => {
+    const actor = unit("ACTOR", "ALLY", {
+      combatStats: { ...unit("A", "ALLY").combatStats, attack: 30 },
+    });
+    const statMod = statModAction("ACT_LINK");
+    const freezeEffectId = createEffectInstanceId("freeze-1");
+    const siblingEffectId = createEffectInstanceId("sibling-1");
+    const enemy = unit("ENEMY", "ENEMY", {
+      combatStats: { ...unit("E", "ENEMY").combatStats, defense: 10, attack: 24 },
+      appliedEffects: [
+        {
+          effectInstanceId: freezeEffectId,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+          duplicate: true,
+          sourceId: createBattleUnitId("ACTOR"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "FREEZE",
+          statusDetails: { damageAmplificationOnBreak: 0.5 },
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+        {
+          effectInstanceId: siblingEffectId,
+          effectActionDefinitionId: statMod.effectActionDefinitionId,
+          kindKey: effectKindKeyFromDefinitionId(statMod.effectActionDefinitionId),
+          duplicate: true,
+          sourceId: createBattleUnitId("ENEMY"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0.2,
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const dmg = damageAction("ACT_ATTACK");
+    const effectActions = new Map([
+      [dmg.effectActionDefinitionId, dmg],
+      [statMod.effectActionDefinitionId, statMod],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    // Observer simulating a PS reacting to each notified event: records
+    // whether FreezeRemoved is already present in the recorder at that
+    // moment, to prove the cascade's EffectExpired is resolved strictly
+    // before FreezeRemoved is even recorded (not just before HP applies).
+    const observations: { eventType: string; freezeRemovedAlreadyRecorded: boolean }[] = [];
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      observations.push({
+        eventType: event.eventType,
+        freezeRemovedAlreadyRecorded: recorder
+          .getEvents()
+          .some((ev) => ev.eventType === "FreezeRemoved" && ev.eventId !== event.eventId),
+      });
+      return units;
+    });
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, dmg.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const cascadeExpiredObservation = observations.find((o) => o.eventType === "EffectExpired");
+    expect(cascadeExpiredObservation).toBeDefined();
+    expect(cascadeExpiredObservation!.freezeRemovedAlreadyRecorded).toBe(false);
+    const freezeRemovedObservation = observations.find((o) => o.eventType === "FreezeRemoved");
+    expect(freezeRemovedObservation).toBeDefined();
+  });
+
   it("UT-R-HIT-02-011 (R-HIT-02, Issue #183, CAP_HIT_COUNT_EVASION): an APPLY_STATUS(EVASION) ACTION step grants a statusKind EVASION AppliedEffect carrying statusDetails.probability/appliesTo through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");

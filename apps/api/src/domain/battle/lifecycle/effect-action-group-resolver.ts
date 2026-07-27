@@ -537,6 +537,11 @@ function* resolveOneEffectActionApplication(
               skillUseId: context.skillUseId,
               resolutionScopeId: context.actionScope,
               rootEventId: context.rootEventId,
+              // レビュー再指摘[P2]: カスケードの各ステップを記録直後に即時連鎖へ
+              // 通知させるため、ここから`onFactEventForPassiveChain`を引き継ぐ。
+              ...(context.onFactEventForPassiveChain !== undefined
+                ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+                : {}),
             },
             units,
             targetUnitId,

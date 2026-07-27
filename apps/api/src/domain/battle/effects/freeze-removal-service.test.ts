@@ -213,6 +213,55 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
     expect(statChanged!.payload).toMatchObject({ stat: "ATTACK", reason: "EFFECT_EXPIRED" });
   });
 
+  it("UT-R-STS-03-015 (レビュー指摘[P2], Issue #183): notifies onFactEventForPassiveChain immediately after each cascade step, before the next step (or the freeze's own FreezeRemoved) is recorded", () => {
+    const statMod = statModDefinition("ACT_LINK");
+    const targetId = createBattleUnitId("target-1");
+    const freeze = freezeEffect("freeze-1", targetId, {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_A",
+    });
+    const sibling = statModEffect("sibling-1", targetId, statMod.effectActionDefinitionId, {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_A",
+    });
+    const baseTarget = unit("target-1", [freeze, sibling]);
+    const target = { ...baseTarget, combatStats: { ...baseTarget.combatStats, attack: 120 } };
+    const { recorder, rootEventId } = createRoot();
+
+    // Simulate a PS reacting to each event: it must observe the cascaded
+    // EffectExpired strictly before FreezeRemoved has been recorded at all.
+    const observations: { eventType: string; freezeRemovedAlreadyRecorded: boolean }[] = [];
+    removeFreezeEffect(
+      {
+        ...context(recorder, rootEventId),
+        onFactEventForPassiveChain: (event, units) => {
+          observations.push({
+            eventType: event.eventType,
+            freezeRemovedAlreadyRecorded: recorder
+              .getEvents()
+              .some((ev) => ev.eventType === "FreezeRemoved" && ev.eventId !== event.eventId),
+          });
+          return units;
+        },
+      },
+      [target],
+      target.battleUnitId,
+      freeze.effectInstanceId,
+      30,
+      new Map([[statMod.effectActionDefinitionId, statMod]]),
+      rootEventId,
+    );
+
+    const cascadeExpiredObservation = observations.find((o) => o.eventType === "EffectExpired");
+    expect(cascadeExpiredObservation).toBeDefined();
+    expect(cascadeExpiredObservation!.freezeRemovedAlreadyRecorded).toBe(false);
+    expect(observations.map((o) => o.eventType)).toEqual([
+      "EffectExpired",
+      "CombatStatChanged",
+      "FreezeRemoved",
+    ]);
+  });
+
   it("UT-R-STS-03-011: a CHILD-role freeze expiring alone does not cascade to a PARENT-role sibling (R-EFF-09 child-consumption exception)", () => {
     const statMod = statModDefinition("ACT_LINK");
     const targetId = createBattleUnitId("target-1");

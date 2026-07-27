@@ -653,34 +653,41 @@ export function applyDamageAction(
     // 選択対象にならず、`isEffective`は常にtrue。
     let lastEventIdBeforeHp = damageCalculated.eventId;
     if (frozenEffect !== undefined) {
-      const freezeEventsStart = context.recorder.getEvents().length;
-      const removal =
-        context.removeFreezeEffect !== undefined
-          ? context.removeFreezeEffect(
-              targetAfterTiming.battleUnitId,
-              frozenEffect.effectInstanceId,
-              damageResult.finalDamage,
-              Array.from(working.values()),
-              lastEventIdBeforeHp,
-            )
-          : fallbackRemoveFreezeEffect(
-              context,
-              Array.from(working.values()),
-              targetAfterTiming.battleUnitId,
-              frozenEffect,
-              damageResult.finalDamage,
-              lastEventIdBeforeHp,
-            );
-      for (const unit of removal.units) {
-        working.set(unit.battleUnitId, unit);
+      if (context.removeFreezeEffect !== undefined) {
+        const removal = context.removeFreezeEffect(
+          targetAfterTiming.battleUnitId,
+          frozenEffect.effectInstanceId,
+          damageResult.finalDamage,
+          Array.from(working.values()),
+          lastEventIdBeforeHp,
+        );
+        for (const unit of removal.units) {
+          working.set(unit.battleUnitId, unit);
+        }
+        lastEventIdBeforeHp = removal.lastEventId;
+        // レビュー再指摘[P2]: linkedEffectGroupカスケードの各ステップ
+        // （`EffectExpired`/`FreezeRemoved`とその`CombatStatChanged`）は、
+        // `removeFreezeEffect`自身が（`lifecycle/`から引き継いだ
+        // `onFactEventForPassiveChain`で）記録直後に即時連鎖へ通知済み — ここで
+        // まとめて再通知すると同じイベントが二重発火してしまうため行わない。
+      } else {
+        // フォールバック版（カスケードなし、`FreezeRemoved`単体）は内部で
+        // 通知しないため、レビュー指摘[P2]どおりここでHP適用前に通知する。
+        const freezeEventsStart = context.recorder.getEvents().length;
+        const removal = fallbackRemoveFreezeEffect(
+          context,
+          Array.from(working.values()),
+          targetAfterTiming.battleUnitId,
+          frozenEffect,
+          damageResult.finalDamage,
+          lastEventIdBeforeHp,
+        );
+        for (const unit of removal.units) {
+          working.set(unit.battleUnitId, unit);
+        }
+        lastEventIdBeforeHp = removal.lastEventId;
+        notifyNewEvents(context, working, freezeEventsStart);
       }
-      lastEventIdBeforeHp = removal.lastEventId;
-      // レビュー指摘[P2]: `FreezeRemoved`（と、あればカスケードした
-      // `EffectExpired`/`CombatStatChanged`）もFACTイベントとしてPS/Memoryの
-      // 即時連鎖の契機になり得るため、HP適用（この後の`hpBefore`起点）へ進む
-      // 前に通知する — `DamageApplied`確定後にまとめて通知すると、連鎖が既に
-      // 減算済みのHPを見てしまい発行順契約に反する。
-      notifyNewEvents(context, working, freezeEventsStart);
     }
 
     // `targetAfterTiming`のスナップショット後にPS連鎖が介在し得るのは、上の

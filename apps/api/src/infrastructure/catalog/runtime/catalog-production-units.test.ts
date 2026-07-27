@@ -422,4 +422,54 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       }
     },
   );
+
+  it.each([
+    // `raw/units/`の凍結解除ダメージ増幅フレーバーテキスト（例:
+    // 「その際の被ダメージが150%増加する」）は加算率であり、
+    // `damage-application-service.ts`は`1 + damageAmplificationOnBreak`を実効
+    // 倍率として計算する（レビュー再指摘[P1], Issue #183）。
+    {
+      unitId: "UNIT_KATE_PALADIN",
+      effectActionId: "ACT_KATE_PALADIN_EX_FREEZE",
+      expectedRate: 1.5,
+      expectedMultiplier: 2.5,
+    },
+    {
+      unitId: "UNIT_MIRIAM_MAGE",
+      effectActionId: "ACT_MIRIAM_MAGE_EX_FREEZE",
+      expectedRate: 1.0,
+      expectedMultiplier: 2.0,
+    },
+    {
+      unitId: "UNIT_MIRIAM_MAGE",
+      effectActionId: "ACT_MIRIAM_MAGE_AS2_FREEZE",
+      expectedRate: 1.0,
+      expectedMultiplier: 2.0,
+    },
+    {
+      unitId: "UNIT_NANAE_COMMANDER",
+      effectActionId: "ACT_NANAE_COMMANDER_EX_FREEZE",
+      expectedRate: 1.5,
+      expectedMultiplier: 2.5,
+    },
+    {
+      unitId: "UNIT_RAMI_NEWYEAR",
+      effectActionId: "ACT_RAMI_NEWYEAR_EX_FREEZE",
+      expectedRate: 1.0,
+      expectedMultiplier: 2.0,
+    },
+  ])(
+    "IT-CAT-PROD-012 (レビュー再指摘[P1], Issue #183): $effectActionId's damageAmplificationOnBreak ($expectedRate) is an additive rate producing an effective $expectedMultiplier x multiplier, matching the raw flavor text ($unitId)",
+    ({ unitId, effectActionId, expectedRate, expectedMultiplier }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const freeze = snapshot.effectActions.get(effectActionId as never);
+      expect(freeze?.kind).toBe("APPLY_STATUS");
+      if (freeze?.kind === "APPLY_STATUS") {
+        expect(freeze.payload.status).toBe("FREEZE");
+        expect(freeze.payload.damageAmplificationOnBreak).toBe(expectedRate);
+        expect(1 + (freeze.payload.damageAmplificationOnBreak ?? 0)).toBe(expectedMultiplier);
+      }
+    },
+  );
 });
