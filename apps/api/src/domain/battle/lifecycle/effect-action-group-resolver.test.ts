@@ -876,18 +876,19 @@ describe("applyEffectActionGroups", () => {
     expect(target.appliedEffects[0]).toMatchObject({ statusKind: "STUN" });
   });
 
-  it("UT-R-EFF-01-052 (Issue #180, M7-003): a still-unimplemented non-STEALTH/STUN APPLY_STATUS status (e.g. BLIND, R-STS-04 scope) still throws instead of silently granting a no-op status effect", () => {
+  it("UT-R-HIT-03-010 (R-HIT-03/R-STS-04, Issue #183, CAP_STATUS_EFFECT_KIND): an APPLY_STATUS(BLIND) ACTION step grants a statusKind BLIND AppliedEffect carrying statusDetails.probability through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const status: EffectActionDefinition = {
       kind: "APPLY_STATUS",
-      effectActionDefinitionId: createEffectActionDefinitionId("ACT_BLIND_NO_EXTRA_FIELDS"),
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_BLIND"),
       requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "BLIND",
+        probability: 0.55,
         duration: {
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "ACTION", count: 2 },
           dispellable: true,
           linkedEffectGroupId: null,
         },
@@ -903,11 +904,485 @@ describe("applyEffectActionGroups", () => {
       resolvedBindings: new Map(),
     };
 
-    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
-      DomainValidationError,
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "BLIND",
+      statusDetails: { probability: 0.55 },
+    });
+    expect(target.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
+  });
+
+  it("UT-R-DMG-02-010 (R-DMG-02, Issue #183, CAP_STATUS_EFFECT_KIND): an APPLY_STATUS(DAMAGE_IMMUNITY) ACTION step grants a statusKind DAMAGE_IMMUNITY AppliedEffect carrying statusDetails.damageThreshold through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const immunity: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_IMMUNITY"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "DAMAGE_IMMUNITY",
+        damageThreshold: {
+          op: "GT",
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
+        },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          consumption: { kind: "INCOMING_HIT", maxCount: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[immunity.effectActionDefinitionId, immunity]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, immunity.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "DAMAGE_IMMUNITY",
+      statusDetails: {
+        damageThreshold: {
+          op: "GT",
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
+        },
+      },
+    });
+  });
+
+  it("UT-R-STS-03-004 (R-STS-03, Issue #183, CAP_STATUS_EFFECT_KIND): an APPLY_STATUS(FREEZE) ACTION step grants a statusKind FREEZE AppliedEffect carrying statusDetails.damageAmplificationOnBreak through the real Catalog -> EffectSequence -> AppliedEffect pipeline, without cancelling a pending charge", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      charge: { skill: {}, startedActionId: {} } as unknown as NonNullable<BattleUnit["charge"]>,
+    });
+    const freeze: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "FREEZE",
+        damageAmplificationOnBreak: 1.5,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 3 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[freeze.effectActionDefinitionId, freeze]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, freeze.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "FREEZE",
+      statusDetails: { damageAmplificationOnBreak: 1.5 },
+    });
+    expect(target.charge).toBeDefined();
+    expect(recorder.getEvents().some((e) => e.eventType === "ChargeCancelled")).toBe(false);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-001 (ON_ATTACK_BONUS_DAMAGE_BUFF, Issue #183, mirrors SKL_ELENA_MOODMAKER_EX): an APPLY_ATTACK_DAMAGE_BONUS ACTION step evaluates its formula once at grant time (STAT_RATIO(TARGET, ATTACK, 0.15)) and stores the result as magnitude on an isAttackDamageBonus AppliedEffect", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY", {
+      combatStats: { ...unit("X", "ENEMY").combatStats, attack: 40 },
+    });
+    const bonus: EffectActionDefinition = {
+      kind: "APPLY_ATTACK_DAMAGE_BONUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK_DAMAGE_BONUS"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "STAT_RATIO", source: { kind: "TARGET" }, stat: "ATTACK", ratio: 0.15 },
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[bonus.effectActionDefinitionId, bonus]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, bonus.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      isAttackDamageBonus: true,
+      magnitude: 6, // 40 attack * 0.15
+    });
+  });
+
+  it("UT-R-STS-03-014 (レビュー指摘[P2], Issue #183, full stack): a DAMAGE ACTION step against a frozen target wired with a linked-group sibling cascades the sibling away through the real effect-action-group-resolver.ts -> damage-application-service.ts -> removeFreezeEffect injection", () => {
+    const actor = unit("ACTOR", "ALLY", {
+      combatStats: { ...unit("A", "ALLY").combatStats, attack: 30 },
+    });
+    const statMod = statModAction("ACT_LINK");
+    const freezeEffectId = createEffectInstanceId("freeze-1");
+    const siblingEffectId = createEffectInstanceId("sibling-1");
+    // `unit()`'s baseline attack is 20; simulate the sibling's +20% ATTACK
+    // already contributing (as `grantEffect`/`recalculateCombatStats` would
+    // have left it: 20 * 1.2 = 24) so its cascade removal produces a
+    // detectable `before !== after` change.
+    const enemy = unit("ENEMY", "ENEMY", {
+      combatStats: { ...unit("E", "ENEMY").combatStats, defense: 10, attack: 24 },
+      appliedEffects: [
+        {
+          effectInstanceId: freezeEffectId,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+          duplicate: true,
+          sourceId: createBattleUnitId("ACTOR"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "FREEZE",
+          statusDetails: { damageAmplificationOnBreak: 0.5 },
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+        {
+          effectInstanceId: siblingEffectId,
+          effectActionDefinitionId: statMod.effectActionDefinitionId,
+          kindKey: effectKindKeyFromDefinitionId(statMod.effectActionDefinitionId),
+          duplicate: true,
+          sourceId: createBattleUnitId("ENEMY"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0.2,
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const dmg = damageAction("ACT_ATTACK");
+    const effectActions = new Map([
+      [dmg.effectActionDefinitionId, dmg],
+      [statMod.effectActionDefinitionId, statMod],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, dmg.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const updatedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(updatedEnemy.appliedEffects).toHaveLength(0);
+    // The linked stat mod's +20% ATTACK is gone once cascaded away (back to
+    // the 20 baseline).
+    expect(updatedEnemy.combatStats.attack).toBe(20);
+
+    const events = recorder.getEvents();
+    const cascadeExpired = events.find(
+      (ev) => ev.eventType === "EffectExpired" && ev.payload.effectInstanceId === siblingEffectId,
     );
-    const untouched = enemy.appliedEffects;
-    expect(untouched).toHaveLength(0);
+    const freezeRemoved = events.find((ev) => ev.eventType === "FreezeRemoved");
+    const combatStatChanged = events.find((ev) => ev.eventType === "CombatStatChanged");
+    expect(cascadeExpired).toBeDefined();
+    expect(cascadeExpired!.payload).toMatchObject({
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(freezeRemoved).toBeDefined();
+    // Base damage 30 - 10 = 20, amplified by the freeze's +50% = 30.
+    expect(freezeRemoved!.payload).toMatchObject({
+      effectInstanceId: freezeEffectId,
+      triggeringDamage: 30,
+    });
+    expect(combatStatChanged).toBeDefined();
+    expect(events.indexOf(cascadeExpired!)).toBeLessThan(events.indexOf(freezeRemoved!));
+  });
+
+  it("UT-R-STS-03-016 (レビュー再指摘[P2], Issue #183, full stack): the cascaded sibling's EffectExpired reaches onFactEventForPassiveChain before FreezeRemoved is recorded at all, through the real removeFreezeEffect injection", () => {
+    const actor = unit("ACTOR", "ALLY", {
+      combatStats: { ...unit("A", "ALLY").combatStats, attack: 30 },
+    });
+    const statMod = statModAction("ACT_LINK");
+    const freezeEffectId = createEffectInstanceId("freeze-1");
+    const siblingEffectId = createEffectInstanceId("sibling-1");
+    const enemy = unit("ENEMY", "ENEMY", {
+      combatStats: { ...unit("E", "ENEMY").combatStats, defense: 10, attack: 24 },
+      appliedEffects: [
+        {
+          effectInstanceId: freezeEffectId,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+          duplicate: true,
+          sourceId: createBattleUnitId("ACTOR"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "FREEZE",
+          statusDetails: { damageAmplificationOnBreak: 0.5 },
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+        {
+          effectInstanceId: siblingEffectId,
+          effectActionDefinitionId: statMod.effectActionDefinitionId,
+          kindKey: effectKindKeyFromDefinitionId(statMod.effectActionDefinitionId),
+          duplicate: true,
+          sourceId: createBattleUnitId("ENEMY"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0.2,
+          duration: {
+            definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const dmg = damageAction("ACT_ATTACK");
+    const effectActions = new Map([
+      [dmg.effectActionDefinitionId, dmg],
+      [statMod.effectActionDefinitionId, statMod],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    // Observer simulating a PS reacting to each notified event: records
+    // whether FreezeRemoved is already present in the recorder at that
+    // moment, to prove the cascade's EffectExpired is resolved strictly
+    // before FreezeRemoved is even recorded (not just before HP applies).
+    const observations: { eventType: string; freezeRemovedAlreadyRecorded: boolean }[] = [];
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      observations.push({
+        eventType: event.eventType,
+        freezeRemovedAlreadyRecorded: recorder
+          .getEvents()
+          .some((ev) => ev.eventType === "FreezeRemoved" && ev.eventId !== event.eventId),
+      });
+      return units;
+    });
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, dmg.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const cascadeExpiredObservation = observations.find((o) => o.eventType === "EffectExpired");
+    expect(cascadeExpiredObservation).toBeDefined();
+    expect(cascadeExpiredObservation!.freezeRemovedAlreadyRecorded).toBe(false);
+    const freezeRemovedObservation = observations.find((o) => o.eventType === "FreezeRemoved");
+    expect(freezeRemovedObservation).toBeDefined();
+  });
+
+  it("UT-R-HIT-02-011 (R-HIT-02, Issue #183, CAP_HIT_COUNT_EVASION): an APPLY_STATUS(EVASION) ACTION step grants a statusKind EVASION AppliedEffect carrying statusDetails.probability/appliesTo through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const evasion: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_EVASION"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "EVASION",
+        probability: 0.6,
+        appliesTo: { incomingActionKinds: ["DAMAGE"] },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[evasion.effectActionDefinitionId, evasion]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, evasion.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "EVASION",
+      statusDetails: {
+        probability: 0.6,
+        appliesTo: { incomingActionKinds: ["DAMAGE"] },
+      },
+    });
+  });
+
+  it("UT-R-HIT-03-008 (R-HIT-03/R-STS-04, Issue #183): an actor whose own BLIND effect rolls MISS skips the entire EffectSequence — no ACTION step resolves, BlindnessCheckResolved and SkillMissed are recorded instead", () => {
+    const blindEffectId = createEffectInstanceId("blind-1");
+    const blindDefId = createEffectActionDefinitionId("ACT_BLIND");
+    const actor = unit("ACTOR", "ALLY", {
+      appliedEffects: [
+        {
+          effectInstanceId: blindEffectId,
+          effectActionDefinitionId: blindDefId,
+          kindKey: effectKindKeyFromDefinitionId(blindDefId),
+          duplicate: true,
+          sourceId: createBattleUnitId("SOURCE"),
+          targetId: createBattleUnitId("ACTOR"),
+          magnitude: 0,
+          statusKind: "BLIND",
+          statusDetails: { probability: 0.5 },
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION", count: 2 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 2,
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const enemy = unit("ENEMY", "ENEMY");
+    const statMod = statModAction("ACT_ATK_UP");
+    const effectActions = new Map([[statMod.effectActionDefinitionId, statMod]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context: EffectActionGroupContext = {
+      ...contextFor(actor, effectActions, recorder, rootEventId),
+      random: new SequenceRandomSource([0.1]),
+    };
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, statMod.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual(["BlindnessCheckResolved", "SkillMissed"]);
+    expect(result.outcome).toEqual({ status: "COMPLETED", resolvedEffectCount: 0 });
+    expect(
+      result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!.appliedEffects,
+    ).toHaveLength(0);
+
+    const blindnessCheckResolved = recorder
+      .getEvents()
+      .find((e) => e.eventType === "BlindnessCheckResolved")!;
+    expect(blindnessCheckResolved.payload).toEqual({
+      effectActionDefinitionId: blindDefId,
+      effectInstanceId: blindEffectId,
+      probability: 0.5,
+      missed: true,
+    });
+
+    const skillMissed = recorder.getEvents().find((e) => e.eventType === "SkillMissed")!;
+    expect(skillMissed.payload).toEqual({
+      skillDefinitionId: context.skillDefinitionId,
+      missedByEffectInstanceIds: [blindEffectId],
+    });
+  });
+
+  it("UT-R-HIT-03-009 (R-HIT-03/R-STS-04, Issue #183): an actor whose BLIND effect roll does NOT miss still records BlindnessCheckResolved, but the EffectSequence proceeds normally", () => {
+    const blindEffectId = createEffectInstanceId("blind-1");
+    const blindDefId = createEffectActionDefinitionId("ACT_BLIND");
+    const actor = unit("ACTOR", "ALLY", {
+      appliedEffects: [
+        {
+          effectInstanceId: blindEffectId,
+          effectActionDefinitionId: blindDefId,
+          kindKey: effectKindKeyFromDefinitionId(blindDefId),
+          duplicate: true,
+          sourceId: createBattleUnitId("SOURCE"),
+          targetId: createBattleUnitId("ACTOR"),
+          magnitude: 0,
+          statusKind: "BLIND",
+          statusDetails: { probability: 0.5 },
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION", count: 2 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 2,
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const enemy = unit("ENEMY", "ENEMY");
+    const statMod = statModAction("ACT_ATK_UP");
+    const effectActions = new Map([[statMod.effectActionDefinitionId, statMod]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context: EffectActionGroupContext = {
+      ...contextFor(actor, effectActions, recorder, rootEventId),
+      random: new SequenceRandomSource([0.9]),
+    };
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, statMod.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const before = recorder.getEvents().length;
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "BlindnessCheckResolved",
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectApplied",
+      "CombatStatChanged",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+    expectCompleted(result, 1);
+    expect(
+      result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!.appliedEffects,
+    ).toHaveLength(1);
   });
 
   it("UT-R-STS-02-004 (R-SKL-05/R-STS-02, Issue #180): granting STUN to a unit with a pending charge cancels it and records ChargeCancelled", () => {

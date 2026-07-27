@@ -7,7 +7,11 @@ import {
   type BattleUnit,
   type BattleUnitResourceLimits,
 } from "../model/battle-unit.js";
-import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+  type StatusEffectDetails,
+} from "../model/applied-effect.js";
 import { consumeEffectDurations } from "../model/applied-effect-duration.js";
 import {
   emitEffectConsumptionChangedEvents,
@@ -90,6 +94,83 @@ function damageAction(
       damageModifiers: [],
       link: { enabled: false },
     },
+  };
+}
+
+function immunityEffect(
+  id: string,
+  targetId: string,
+  details: StatusEffectDetails = {},
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_IMMUNITY"),
+    kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_IMMUNITY")),
+    duplicate: true,
+    sourceId: createBattleUnitId(targetId),
+    targetId: createBattleUnitId(targetId),
+    magnitude: 0,
+    statusKind: "DAMAGE_IMMUNITY",
+    statusDetails: details,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
+function attackDamageBonusEffect(id: string, holderId: string, magnitude: number): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK_DAMAGE_BONUS"),
+    kindKey: effectKindKeyFromDefinitionId(
+      createEffectActionDefinitionId("ACT_ATTACK_DAMAGE_BONUS"),
+    ),
+    duplicate: true,
+    sourceId: createBattleUnitId(holderId),
+    targetId: createBattleUnitId(holderId),
+    magnitude,
+    isAttackDamageBonus: true,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
+function freezeEffect(
+  id: string,
+  targetId: string,
+  details: StatusEffectDetails = {},
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+    kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+    duplicate: true,
+    sourceId: createBattleUnitId(targetId),
+    targetId: createBattleUnitId(targetId),
+    magnitude: 0,
+    statusKind: "FREEZE",
+    statusDetails: details,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
+function evasionEffect(
+  id: string,
+  targetId: string,
+  details: StatusEffectDetails = {},
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_EVASION"),
+    kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_EVASION")),
+    duplicate: true,
+    sourceId: createBattleUnitId(targetId),
+    targetId: createBattleUnitId(targetId),
+    magnitude: 0,
+    statusKind: "EVASION",
+    statusDetails: details,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
   };
 }
 
@@ -1112,5 +1193,448 @@ describe("applyDamageAction", () => {
     // baseDamage = LAST_DAMAGE_DEALT(0) * ratio(1) = 0; R-DMG-02's minimum-1
     // still applies since this is a DAMAGE-kind effect.
     expect(referencingResult.hits[0]!.damage).toBe(1);
+  });
+
+  it("UT-R-HIT-02-009 (R-HIT-02, Issue #183): a target with an active EVASION effect evades a DAMAGE hit, skipping DamageApplied and emitting EvasionActivated instead of HitConfirmed", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(result.hits).toEqual([
+      {
+        targetBattleUnitId: createBattleUnitId("TARGET"),
+        hitIndex: 1,
+        applied: false,
+        isCritical: false,
+        damage: 0,
+      },
+    ]);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.currentHp).toBe(100);
+
+    const eventTypes = context.recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes).toContain("EvasionActivated");
+    expect(eventTypes).not.toContain("HitConfirmed");
+    expect(eventTypes).not.toContain("DamageApplied");
+
+    const evasionActivated = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "EvasionActivated")!;
+    expect(evasionActivated.payload).toEqual({
+      effectActionDefinitionId: evasion.effectActionDefinitionId,
+      effectInstanceId: evasion.effectInstanceId,
+      hitIndex: 1,
+      targetUnitId: createBattleUnitId("TARGET"),
+    });
+  });
+
+  it("UT-R-HIT-02-010 (R-HIT-02 #2, Issue #183): a GUARANTEED-hit attack ignores the target's EVASION effect and applies damage normally", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const guaranteedAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      ...damageAction("PREVENTED"),
+      payload: { ...damageAction("PREVENTED").payload, accuracy: { mode: "GUARANTEED" } },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      guaranteedAction,
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    expect(result.hits[0]!.applied).toBe(true);
+    expect(result.hits[0]!.damage).toBe(20);
+  });
+
+  it("UT-R-HIT-02-012 (レビュー指摘[P1], Issue #183): EvasionActivated reaches onFactEventForPassiveChain, so a PS/Memory triggered by it is not silently skipped", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+    const seenEventTypes: string[] = [];
+    const contextWithHook: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) => {
+        seenEventTypes.push(event.eventType);
+        return units;
+      },
+    };
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      contextWithHook,
+    );
+
+    expect(seenEventTypes).toContain("EvasionActivated");
+  });
+
+  it("UT-R-DMG-02-008 (R-DMG-02, Issue #183): an unconditional DAMAGE_IMMUNITY effect nullifies a hit's damage to exactly 1, still confirming the hit (HitConfirmed/DamageApplied still fire)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const immunity = immunityEffect("eff-immunity", "TARGET", {});
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [immunity],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(result.hits[0]!.applied).toBe(true);
+    expect(result.hits[0]!.damage).toBe(1);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.currentHp).toBe(99);
+
+    const eventTypes = context.recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes).toContain("HitConfirmed");
+    expect(eventTypes).toContain("DamageApplied");
+
+    const damageCalculated = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageCalculated")!;
+    expect(damageCalculated.payload).toMatchObject({
+      // Base damage 20 (attack 30 - defense 10) would normally apply, but the
+      // nullification overrides just finalDamage — preTruncationDamage keeps
+      // auditing the pre-nullification value.
+      preTruncationDamage: 20,
+      finalDamage: 1,
+    });
+  });
+
+  it("UT-R-DMG-02-009 (R-DMG-02 damageThreshold, Issue #183): a DAMAGE_IMMUNITY gated by damageThreshold lets damage below the threshold through unmodified", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const immunity = immunityEffect("eff-immunity", "TARGET", {
+      damageThreshold: {
+        op: "GT",
+        formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.5 },
+      },
+    });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [immunity],
+    };
+    const random = new SequenceRandomSource([]);
+
+    // Base damage 20 (attack 30 - defense 10) does not exceed 50% of 100 HP
+    // (50), so the immunity does not trigger and full damage applies.
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    expect(result.hits[0]!.damage).toBe(20);
+  });
+
+  it("UT-R-STS-03-005 (R-STS-03, Issue #183): a DAMAGE hit against a frozen target amplifies this hit's damage by damageAmplificationOnBreak, clears FREEZE, and records FreezeRemoved between DamageCalculated and HitPointReduced", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [freeze],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    // Base damage 20 (attack 30 - defense 10) * 1.5 amplification = 30.
+    expect(result.hits[0]!.damage).toBe(30);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.currentHp).toBe(70);
+    expect(updatedTarget.appliedEffects).toHaveLength(0);
+
+    const eventTypes = context.recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes).toContain("FreezeRemoved");
+    const damageCalculatedIndex = eventTypes.indexOf("DamageCalculated");
+    const freezeRemovedIndex = eventTypes.indexOf("FreezeRemoved");
+    const hitPointReducedIndex = eventTypes.indexOf("HitPointReduced");
+    expect(damageCalculatedIndex).toBeLessThan(freezeRemovedIndex);
+    expect(freezeRemovedIndex).toBeLessThan(hitPointReducedIndex);
+
+    const freezeRemoved = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "FreezeRemoved")!;
+    expect(freezeRemoved.payload).toEqual({
+      effectInstanceId: freeze.effectInstanceId,
+      battleUnitId: target.battleUnitId,
+      triggeringDamage: 30,
+    });
+  });
+
+  it("UT-R-STS-03-006 (R-STS-03 default amplification +50%, Issue #183): a frozen target with no explicit damageAmplificationOnBreak amplifies by 1.5x", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", {});
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [freeze],
+    };
+    const random = new SequenceRandomSource([]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    expect(result.hits[0]!.damage).toBe(30);
+  });
+
+  it("UT-R-STS-03-012 (Q-DMG-01 'ダメージ計算の途中では丸めず、最終結果で切り捨てる'): freeze amplification is applied to the unrounded pre-truncation damage and floored exactly once, not floored again after calculateDamage's own floor", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 }),
+      appliedEffects: [freeze],
+    };
+    const random = new SequenceRandomSource([]);
+    // Base damage 20 (attack 30 - defense 10) * actionDamageMultiplier 1.045
+    // (from a 4.5% damageModifier) = 20.9 pre-truncation.
+    const fractionalDamageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      ...damageAction("PREVENTED"),
+      payload: {
+        ...damageAction("PREVENTED").payload,
+        damageModifiers: [{ kind: "CONSTANT", value: 0.045 }],
+      },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      fractionalDamageAction,
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    // Correct (single final floor): 20.9 * 1.5 = 31.35 -> floor -> 31.
+    // The bug this guards against: flooring 20.9 -> 20 first, then *1.5 -> 30
+    // -> floor -> 30 (a full point of damage silently lost to Q-DMG-01
+    // non-compliant intermediate rounding).
+    expect(result.hits[0]!.damage).toBe(31);
+  });
+
+  it("UT-R-STS-03-007 (R-STS-03 interacts with R-DMG-02): freeze still clears even when DAMAGE_IMMUNITY nullifies the (already amplified) triggering damage down to 1", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const immunity = immunityEffect("eff-immunity", "TARGET", {});
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [freeze, immunity],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(result.hits[0]!.damage).toBe(1);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    // FREEZE cleared, DAMAGE_IMMUNITY (unrelated effect) remains.
+    expect(updatedTarget.appliedEffects).toEqual([immunity]);
+    expect(context.recorder.getEvents().some((e) => e.eventType === "FreezeRemoved")).toBe(true);
+
+    const freezeRemoved = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "FreezeRemoved")!;
+    // triggeringDamage reflects the final (nullified) damage, not the
+    // pre-nullification amplified value.
+    expect(freezeRemoved.payload).toMatchObject({ triggeringDamage: 1 });
+  });
+
+  it("UT-R-STS-03-008 (R-STS-03 'MISSでは解除しない'): an evaded hit against a frozen target does not amplify damage or clear FREEZE", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [freeze, evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(result.hits[0]!.applied).toBe(false);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects.some((e) => e.statusKind === "FREEZE")).toBe(true);
+    expect(context.recorder.getEvents().some((e) => e.eventType === "FreezeRemoved")).toBe(false);
+  });
+
+  it("UT-R-STS-03-013 (レビュー指摘[P2], Issue #183): FreezeRemoved reaches onFactEventForPassiveChain before HP is applied, so a PS reacting to it sees pre-damage HP as the baseline", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [freeze],
+    };
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+    // Simulate a PS that heals the target by 5 HP the instant FreezeRemoved
+    // fires (before this hit's HP reduction is computed).
+    const seenEventTypes: string[] = [];
+    const contextWithHeal: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) => {
+        seenEventTypes.push(event.eventType);
+        return event.eventType === "FreezeRemoved"
+          ? units.map((u) =>
+              u.battleUnitId === target.battleUnitId ? { ...u, currentHp: u.currentHp + 5 } : u,
+            )
+          : units;
+      },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      contextWithHeal,
+    );
+
+    // FreezeRemoved must reach the hook strictly before DamageApplied/
+    // HitPointReduced, so a reacting PS's HP change becomes the baseline the
+    // hit's own damage is subtracted from.
+    expect(seenEventTypes.indexOf("FreezeRemoved")).toBeLessThan(
+      seenEventTypes.indexOf("HitPointReduced"),
+    );
+    // Base damage 20 (attack 30 - defense 10) * 1.5 amplification = 30.
+    // Baseline must be the healed HP (100 + 5 = 105), not the stale
+    // pre-heal snapshot (100): 105 - 30 = 75.
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.currentHp).toBe(75);
+    const damageApplied = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageApplied")!;
+    expect(damageApplied.payload).toMatchObject({ hpBefore: 105, hpAfter: 75 });
+  });
+
+  it("UT-R-BON-ATTACK-DMG-002 (ON_ATTACK_BONUS_DAMAGE_BUFF, Issue #183, mirrors SKL_ELENA_MOODMAKER_EX): a DAMAGE hit from an attacker holding an isAttackDamageBonus AppliedEffect adds the buff's magnitude on top of the calculated damage", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const random = new SequenceRandomSource([]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    // Base damage 20 (attack 30 - defense 10) + bonus 6 = 26.
+    expect(result.hits[0]!.damage).toBe(26);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-003 (ON_ATTACK_BONUS_DAMAGE_BUFF interacts with R-DMG-02): the bonus is still capped by the target's DAMAGE_IMMUNITY, same as any other damage source", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const immunity = immunityEffect("eff-immunity", "TARGET", {});
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [immunity],
+    };
+    const random = new SequenceRandomSource([]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    expect(result.hits[0]!.damage).toBe(1);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-004 (bonus does not affect an evaded hit): an evaded hit does not add the attacker's isAttackDamageBonus", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      damageEventContext(),
+    );
+
+    expect(result.hits[0]!.applied).toBe(false);
+    expect(result.hits[0]!.damage).toBe(0);
   });
 });

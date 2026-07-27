@@ -291,6 +291,10 @@ function compareHighestAttack(a: BattleUnit, b: BattleUnit): number {
   return b.combatStats.attack - a.combatStats.attack;
 }
 
+function compareLowestAttack(a: BattleUnit, b: BattleUnit): number {
+  return a.combatStats.attack - b.combatStats.attack;
+}
+
 function compareLowestMaxHp(a: BattleUnit, b: BattleUnit): number {
   return a.combatStats.maximumHp - b.combatStats.maximumHp;
 }
@@ -329,6 +333,7 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   LOWEST_HP_RATIO: () => compareLowestHpRatio,
   HIGHEST_HP_RATIO: () => compareHighestHpRatio,
   HIGHEST_ATTACK: () => compareHighestAttack,
+  LOWEST_ATTACK: () => compareLowestAttack,
   LOWEST_MAX_HP: () => compareLowestMaxHp,
   HIGHEST_MAX_HP: () => compareHighestMaxHp,
   HIGHEST_EX_GAUGE_RATIO: () => compareHighestExGaugeRatio,

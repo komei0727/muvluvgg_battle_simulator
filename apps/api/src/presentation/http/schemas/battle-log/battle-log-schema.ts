@@ -273,6 +273,7 @@ const EFFECT_ACTION_KIND_ENUM = [
   "APPLY_REFLECT",
   "APPLY_SUBUNIT",
   "COOLDOWN_MANIPULATION",
+  "APPLY_ATTACK_DAMAGE_BONUS",
 ] as const;
 const EFFECT_ACTION_RESULT_KIND_ENUM = [
   "APPLIED",
@@ -374,6 +375,43 @@ const hitConfirmedDetailsSchema = {
     effectActionDefinitionId: { type: "string" },
     hitIndex: { type: "integer", minimum: 0 },
     targetUnitId: { type: "string" },
+  },
+} as const;
+
+/** `EvasionActivated`（R-HIT-02、Issue #183）。特別な回避効果が成功した後、命中判定に相当する位置で発行する。 */
+const evasionActivatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectActionDefinitionId", "effectInstanceId", "hitIndex", "targetUnitId"],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    effectInstanceId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+  },
+} as const;
+
+/** `BlindnessCheckResolved`（R-HIT-03、Issue #183）。暗闇1件ごとのMISS判定結果。 */
+const blindnessCheckResolvedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectActionDefinitionId", "effectInstanceId", "probability", "missed"],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    effectInstanceId: { type: "string" },
+    probability: { type: "number" },
+    missed: { type: "boolean" },
+  },
+} as const;
+
+/** `SkillMissed`（R-HIT-03、Issue #183）。暗闇判定でスキル全体がMISSになった時。 */
+const skillMissedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "missedByEffectInstanceIds"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    missedByEffectInstanceIds: { type: "array", items: { type: "string" } },
   },
 } as const;
 
@@ -1262,6 +1300,18 @@ const stunDurationChangedDetailsSchema = {
   },
 } as const;
 
+/** `FreezeRemoved`（R-STS-03、Issue #183）。対象の凍結中にDAMAGE EffectActionのヒットが確定した直後、増幅済み最終ダメージとともに発行する。 */
+const freezeRemovedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectInstanceId", "battleUnitId", "triggeringDamage"],
+  properties: {
+    effectInstanceId: { type: "string" },
+    battleUnitId: { type: "string" },
+    triggeringDamage: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 /** `EffectConsumptionChanged`（R-EFF-07、EFF-003）。消費条件の成立ごとに消費残り回数の変化を発行する。 */
 const effectConsumptionChangedDetailsSchema = {
   type: "object",
@@ -1454,6 +1504,9 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_ACTION_COMPLETED: effectActionCompletedDetailsSchema,
   UNIT_BEING_ATTACKED: unitBeingAttackedDetailsSchema,
   HIT_CONFIRMED: hitConfirmedDetailsSchema,
+  EVASION_ACTIVATED: evasionActivatedDetailsSchema,
+  BLINDNESS_CHECK_RESOLVED: blindnessCheckResolvedDetailsSchema,
+  SKILL_MISSED: skillMissedDetailsSchema,
   CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
@@ -1487,6 +1540,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   COMBAT_STAT_CHANGED: combatStatChangedDetailsSchema,
   EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,
   STUN_DURATION_CHANGED: stunDurationChangedDetailsSchema,
+  FREEZE_REMOVED: freezeRemovedDetailsSchema,
   EFFECT_CONSUMPTION_CHANGED: effectConsumptionChangedDetailsSchema,
   EFFECT_EXPIRED: effectExpiredDetailsSchema,
   EFFECT_REMOVED: effectRemovedDetailsSchema,

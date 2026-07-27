@@ -1,5 +1,9 @@
 import type { BattleStatus } from "../model/battle-status.js";
-import type { AppliedEffect, EffectImmunityState } from "../model/applied-effect.js";
+import type {
+  AppliedEffect,
+  EffectImmunityState,
+  StatusEffectDetails,
+} from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
@@ -71,6 +75,8 @@ export interface EffectSnapshot {
   readonly magnitude: number;
   /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の効果だけが持つ。 */
   readonly statusKind?: StatusKind;
+  /** M7-004（Issue #183）: `statusKind`がEVASION/BLIND/FREEZE/DAMAGE_IMMUNITYの場合だけ持つ。 */
+  readonly statusDetails?: StatusEffectDetails;
   /**
    * M7-001B（Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`由来の効果だけが持つ。
    * `blockedCount`（新規付与を実際に拒否した回数）は`EffectApplicationRejected`の
@@ -78,6 +84,8 @@ export interface EffectSnapshot {
    * （`10_API設計.md`のEffectStateResponseは公開しない、`consumptionRemaining`と同じ扱い）。
    */
   readonly immunity?: EffectImmunityState;
+  /** M7-004（ON_ATTACK_BONUS_DAMAGE_BUFF、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`由来の効果だけが持つ。 */
+  readonly isAttackDamageBonus?: true;
   readonly duration?: {
     readonly unit: "ACTION" | "TURN" | "SKILL_USE";
     readonly remaining: number;
@@ -120,7 +128,11 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     isEffective,
     magnitude: effect.magnitude,
     ...(effect.statusKind !== undefined ? { statusKind: effect.statusKind } : {}),
+    ...(effect.statusDetails !== undefined ? { statusDetails: effect.statusDetails } : {}),
     ...(effect.immunity !== undefined ? { immunity: effect.immunity } : {}),
+    ...(effect.isAttackDamageBonus !== undefined
+      ? { isAttackDamageBonus: effect.isAttackDamageBonus }
+      : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
       ? { consumptionRemaining: effect.duration.consumptionRemaining }

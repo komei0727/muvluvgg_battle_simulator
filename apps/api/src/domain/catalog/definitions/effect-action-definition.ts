@@ -1,5 +1,6 @@
 import type { CapabilityId, EffectActionDefinitionId } from "./catalog-ids.js";
 import type {
+  ApplyAttackDamageBonusPayload,
   ApplyContinuousDamagePayload,
   ApplyContinuousHealPayload,
   ApplyCoverPayload,
@@ -53,6 +54,7 @@ export const EFFECT_ACTION_KINDS = [
   "APPLY_REFLECT",
   "APPLY_SUBUNIT",
   "COOLDOWN_MANIPULATION",
+  "APPLY_ATTACK_DAMAGE_BONUS",
 ] as const;
 export type EffectActionKind = (typeof EFFECT_ACTION_KINDS)[number];
 
@@ -77,7 +79,11 @@ export type EffectActionPayload =
   | { readonly kind: "APPLY_COVER"; readonly payload: ApplyCoverPayload }
   | { readonly kind: "APPLY_REFLECT"; readonly payload: ApplyReflectPayload }
   | { readonly kind: "APPLY_SUBUNIT"; readonly payload: ApplySubunitPayload }
-  | { readonly kind: "COOLDOWN_MANIPULATION"; readonly payload: CooldownManipulationPayload };
+  | { readonly kind: "COOLDOWN_MANIPULATION"; readonly payload: CooldownManipulationPayload }
+  | {
+      readonly kind: "APPLY_ATTACK_DAMAGE_BONUS";
+      readonly payload: ApplyAttackDamageBonusPayload;
+    };
 
 export type EffectActionDefinition = EffectActionPayload & {
   readonly effectActionDefinitionId: EffectActionDefinitionId;

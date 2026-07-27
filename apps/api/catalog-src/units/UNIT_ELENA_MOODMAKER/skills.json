@@ -24,7 +24,7 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": 1,
-            "order": ["DEFAULT"]
+            "order": ["LOWEST_ATTACK"]
           }
         }
       ],
@@ -56,6 +56,9 @@
             },
             {
               "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW"
+            },
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
             }
           ]
         }
@@ -66,7 +69,11 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_ATTACK_DAMAGE_BONUS"
+    ],
     "metadata": {
       "displayName": "あったかいの、どうぞ♪",
       "tags": []

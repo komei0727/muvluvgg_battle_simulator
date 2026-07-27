@@ -1059,6 +1059,450 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(childPassiveActivatedEvents).toHaveLength(1);
   });
 
+  it("レビュー再々指摘[P2]（Issue #183）: a PS's own DAMAGE action against a frozen target with a linked-group sibling resolves the cascade's EffectExpired (and a reacting child PS) before FreezeRemoved is recorded, not batched after the whole hit completes", () => {
+    const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_FREEZE");
+    const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_REACT");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_FROZEN");
+    const parentDamage = damageEffectAction("ACT_PARENT_FREEZE_DAMAGE");
+    const linkStatMod: EffectActionDefinition = {
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_LINK_SIBLING"),
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "RATIO",
+        formula: { kind: "CONSTANT", value: 0.2 },
+        stacking: { mode: "STACKABLE" },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    const enemyBindingId = createTargetBindingId("TGT_FROZEN_ENEMY");
+
+    const parentSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PARENT_FREEZE_DAMAGE"),
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: parentDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+    // 子PS: linkedEffectGroupカスケードで失効するsiblingの`EffectExpired`に
+    // 反応する。凍結解除カスケードが個別に`yield`されていれば、この
+    // `PassiveActivated`は`FreezeRemoved`より前に記録されるはず — まとめて
+    // 最後に処理されるとこの順序が逆転する（レビュー再々指摘[P2]の回帰）。
+    const childSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_CHILD_REACT_TO_EXPIRY"),
+      triggers: [
+        {
+          eventType: "EffectExpired",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+    };
+
+    const parentOwner = unit("PARENT", "ALLY", {
+      unitDefinitionId: parentUnitDefinitionId,
+      attack: 30,
+      currentPp: 3,
+    });
+    const childOwner = unit("CHILD", "ALLY", {
+      unitDefinitionId: childUnitDefinitionId,
+      currentPp: 3,
+    });
+    const freezeEffectId = createEffectInstanceId("freeze-1");
+    const siblingEffectId = createEffectInstanceId("sibling-1");
+    const enemyBase = unit("ENEMY", "ENEMY", {
+      unitDefinitionId: enemyUnitDefinitionId,
+      defense: 10,
+      currentHp: 100,
+      maximumHp: 100,
+    });
+    const linkedDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_A",
+    };
+    const enemy: BattleUnit = {
+      ...enemyBase,
+      // Simulate the sibling's +20% ATTACK already contributing to
+      // `combatStats` (as `grantEffect`/`recalculateCombatStats` would have
+      // left it: 10 * 1.2 = 12), so its cascade removal produces a
+      // detectable `before !== after` CombatStatChanged.
+      combatStats: { ...enemyBase.combatStats, attack: 12 },
+      appliedEffects: [
+        {
+          effectInstanceId: freezeEffectId,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+          duplicate: true,
+          sourceId: parentOwner.battleUnitId,
+          targetId: enemyBase.battleUnitId,
+          magnitude: 0,
+          statusKind: "FREEZE",
+          statusDetails: { damageAmplificationOnBreak: 0.5 },
+          duration: { definition: linkedDuration },
+          appliedTurnNumber: 1,
+        },
+        {
+          effectInstanceId: siblingEffectId,
+          effectActionDefinitionId: linkStatMod.effectActionDefinitionId,
+          kindKey: effectKindKeyFromDefinitionId(linkStatMod.effectActionDefinitionId),
+          duplicate: true,
+          sourceId: enemyBase.battleUnitId,
+          targetId: enemyBase.battleUnitId,
+          magnitude: 0.2,
+          duration: { definition: linkedDuration },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+
+    const definitions = definitionsOf(
+      new Map([
+        [
+          parentUnitDefinitionId,
+          unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+        ],
+        [
+          childUnitDefinitionId,
+          unitDefinitionOf(childUnitDefinitionId, [childSkill.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([
+        [parentSkill.skillDefinitionId, parentSkill],
+        [childSkill.skillDefinitionId, childSkill],
+      ]),
+      new Map([
+        [parentDamage.effectActionDefinitionId, parentDamage],
+        [linkStatMod.effectActionDefinitionId, linkStatMod],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [parentOwner, childOwner, enemy],
+    );
+
+    const result = runtime.onFactEvent(turnStarted, [parentOwner, childOwner, enemy]);
+
+    const updatedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(updatedEnemy.appliedEffects).toHaveLength(0);
+    expect(updatedEnemy.combatStats.attack).toBe(10);
+
+    const events = recorder.getEvents();
+    const cascadeExpired = events.find(
+      (e) => e.eventType === "EffectExpired" && e.payload.effectInstanceId === siblingEffectId,
+    );
+    const freezeRemoved = events.find((e) => e.eventType === "FreezeRemoved");
+    const childPassiveActivated = events.find(
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === childOwner.battleUnitId,
+    );
+    expect(cascadeExpired).toBeDefined();
+    expect(freezeRemoved).toBeDefined();
+    expect(childPassiveActivated).toBeDefined();
+    expect(events.indexOf(cascadeExpired!)).toBeLessThan(events.indexOf(freezeRemoved!));
+    // 中核となる回帰チェック: 子PSはEffectExpired（カスケードの子）に反応して
+    // 即座に発動する — FreezeRemoved（このヒットのDAMAGE解決の一部として
+    // まとめて後で処理されるのではなく）より前に。
+    expect(events.indexOf(childPassiveActivated!)).toBeLessThan(events.indexOf(freezeRemoved!));
+  });
+
+  it("レビュー再々々指摘[P2]（Issue #183）: PS-own DAMAGE against a frozen target still notifies the pre-cascade FACT events (HitConfirmed) — they are not silently dropped once the freeze-removal cascade starts yielding", () => {
+    const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_HITCONFIRMED");
+    const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_HITCONFIRMED");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_HITCONFIRMED");
+    const parentDamage = damageEffectAction("ACT_PARENT_HITCONFIRMED_DAMAGE");
+    const enemyBindingId = createTargetBindingId("TGT_HITCONFIRMED_ENEMY");
+
+    const parentSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PARENT_HITCONFIRMED"),
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: parentDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+    // 子PS: 凍結解除カスケードが始まる前（`DamageCalculated`より前）に記録
+    // 済みの`HitConfirmed`に反応する。この時点はまだ凍結除去のyieldループが
+    // 一度も回っていないため、`innerEventsStart`を不用意に進めてしまうと
+    // このイベントが取りこぼされ、この子PSが一切発動しなくなる
+    // （レビュー再々々指摘[P2]の回帰）。
+    const childSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_CHILD_HITCONFIRMED"),
+      triggers: [
+        {
+          eventType: "HitConfirmed",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+    };
+
+    const parentOwner = unit("PARENT", "ALLY", {
+      unitDefinitionId: parentUnitDefinitionId,
+      attack: 30,
+      currentPp: 3,
+    });
+    const childOwner = unit("CHILD", "ALLY", {
+      unitDefinitionId: childUnitDefinitionId,
+      currentPp: 3,
+    });
+    const freezeEffectId = createEffectInstanceId("freeze-1");
+    const enemy: BattleUnit = {
+      ...unit("ENEMY", "ENEMY", {
+        unitDefinitionId: enemyUnitDefinitionId,
+        defense: 10,
+        currentHp: 100,
+        maximumHp: 100,
+      }),
+      appliedEffects: [
+        {
+          effectInstanceId: freezeEffectId,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+          duplicate: true,
+          sourceId: parentOwner.battleUnitId,
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "FREEZE",
+          statusDetails: { damageAmplificationOnBreak: 0.5 },
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+
+    const definitions = definitionsOf(
+      new Map([
+        [
+          parentUnitDefinitionId,
+          unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+        ],
+        [
+          childUnitDefinitionId,
+          unitDefinitionOf(childUnitDefinitionId, [childSkill.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([
+        [parentSkill.skillDefinitionId, parentSkill],
+        [childSkill.skillDefinitionId, childSkill],
+      ]),
+      new Map([[parentDamage.effectActionDefinitionId, parentDamage]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [parentOwner, childOwner, enemy],
+    );
+
+    runtime.onFactEvent(turnStarted, [parentOwner, childOwner, enemy]);
+
+    const events = recorder.getEvents();
+    expect(events.some((e) => e.eventType === "HitConfirmed")).toBe(true);
+    const childPassiveActivated = events.find(
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === childOwner.battleUnitId,
+    );
+    expect(childPassiveActivated).toBeDefined();
+  });
+
+  it("レビュー再々々指摘[P2]（Issue #183）: a child PS reacting to FreezeRemoved that defeats the target before this hit's own HP application does not cause a duplicate UnitDefeated", () => {
+    const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_DEFEAT");
+    const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_DEFEAT");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_DEFEAT");
+    const parentDamage = damageEffectAction("ACT_PARENT_DEFEAT_DAMAGE");
+    const childDamage = damageEffectAction("ACT_CHILD_DEFEAT_DAMAGE");
+    const parentEnemyBindingId = createTargetBindingId("TGT_DEFEAT_ENEMY_PARENT");
+    const childEnemyBindingId = createTargetBindingId("TGT_DEFEAT_ENEMY_CHILD");
+
+    const parentSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PARENT_DEFEAT"),
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: parentEnemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: parentEnemyBindingId },
+            actions: [{ effectActionDefinitionId: parentDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+    // 子PS: `FreezeRemoved`（凍結解除カスケードの最後）に反応し、致死ダメージを
+    // 与えて対象を戦闘不能にする — 親自身のこのヒットのHP適用より前。
+    const childSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_CHILD_DEFEAT"),
+      triggers: [
+        {
+          eventType: "FreezeRemoved",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: childEnemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: childEnemyBindingId },
+            actions: [{ effectActionDefinitionId: childDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+
+    const parentOwner = unit("PARENT", "ALLY", {
+      unitDefinitionId: parentUnitDefinitionId,
+      attack: 15,
+      currentPp: 3,
+    });
+    const childOwner = unit("CHILD", "ALLY", {
+      unitDefinitionId: childUnitDefinitionId,
+      attack: 999,
+      currentPp: 3,
+    });
+    const freezeEffectId = createEffectInstanceId("freeze-1");
+    const enemy: BattleUnit = {
+      ...unit("ENEMY", "ENEMY", {
+        unitDefinitionId: enemyUnitDefinitionId,
+        defense: 0,
+        currentHp: 10,
+        maximumHp: 10,
+      }),
+      appliedEffects: [
+        {
+          effectInstanceId: freezeEffectId,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
+          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
+          duplicate: true,
+          sourceId: parentOwner.battleUnitId,
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          statusKind: "FREEZE",
+          statusDetails: { damageAmplificationOnBreak: 0.5 },
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+
+    const definitions = definitionsOf(
+      new Map([
+        [
+          parentUnitDefinitionId,
+          unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+        ],
+        [
+          childUnitDefinitionId,
+          unitDefinitionOf(childUnitDefinitionId, [childSkill.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([
+        [parentSkill.skillDefinitionId, parentSkill],
+        [childSkill.skillDefinitionId, childSkill],
+      ]),
+      new Map([
+        [parentDamage.effectActionDefinitionId, parentDamage],
+        [childDamage.effectActionDefinitionId, childDamage],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [parentOwner, childOwner, enemy],
+    );
+
+    const result = runtime.onFactEvent(turnStarted, [parentOwner, childOwner, enemy]);
+
+    const updatedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(updatedEnemy.currentHp).toBe(0);
+
+    const unitDefeatedEvents = recorder.getEvents().filter((e) => e.eventType === "UnitDefeated");
+    expect(unitDefeatedEvents).toHaveLength(1);
+  });
+
   it("PR #142再レビュー[P1]: a child PS triggered by CooldownReduced (a COOLDOWN_MANIPULATION action's own internal event) resolves before the parent's second EffectAction starts", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");

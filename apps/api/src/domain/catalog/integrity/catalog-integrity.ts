@@ -1505,6 +1505,7 @@ function durationOf(effectAction: EffectActionDefinition): DurationDefinition | 
     case "APPLY_COVER":
     case "APPLY_REFLECT":
     case "APPLY_MARKER":
+    case "APPLY_ATTACK_DAMAGE_BONUS":
       return effectAction.payload.duration;
     case "DAMAGE":
     case "HEAL":
@@ -1546,7 +1547,8 @@ function linkedEffectGroupIdOf(
     case "APPLY_DEATH_SURVIVAL":
     case "APPLY_TARGET_REDIRECT":
     case "APPLY_COVER":
-    case "APPLY_REFLECT": {
+    case "APPLY_REFLECT":
+    case "APPLY_ATTACK_DAMAGE_BONUS": {
       const groupId = effectAction.payload.duration.linkedEffectGroupId;
       return groupId === null ? undefined : { groupId, isMarker: false };
     }

@@ -1144,8 +1144,39 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-HIT-01-001", "UT-R-HIT-01-002"],
     kinds: ["POSITIVE"],
   },
-  { ruleId: "R-HIT-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-HIT-03", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-HIT-02",
+    testCaseIds: [
+      "UT-R-HIT-02-001",
+      "UT-R-HIT-02-002",
+      "UT-R-HIT-02-003",
+      "UT-R-HIT-02-004",
+      "UT-R-HIT-02-005",
+      "UT-R-HIT-02-006",
+      "UT-R-HIT-02-007",
+      "UT-R-HIT-02-008",
+      "UT-R-HIT-02-009",
+      "UT-R-HIT-02-010",
+      "UT-R-HIT-02-011",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-HIT-03",
+    testCaseIds: [
+      "UT-R-HIT-03-001",
+      "UT-R-HIT-03-002",
+      "UT-R-HIT-03-003",
+      "UT-R-HIT-03-004",
+      "UT-R-HIT-03-005",
+      "UT-R-HIT-03-006",
+      "UT-R-HIT-03-007",
+      "UT-R-HIT-03-008",
+      "UT-R-HIT-03-009",
+      "UT-R-HIT-03-010",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
 
   // CRT: 会心
   {
@@ -1214,12 +1245,22 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },
-  // R-DMG-02はダメージ計算の最終切り捨てと最低1ダメージ(damage-calculator.ts、
-  // UT-DAMAGE-CALCULATOR-001/002で検証)だけを#9で実装している。「ダメージ無効
-  // 効果がある場合も結果を1とする」は効果システム(M7)が無いため未実装であり、
-  // 13_実装計画.md「後続依存を持つルールは完了計上しない」に従い台帳上は
-  // 未完了のままとする。
-  { ruleId: "R-DMG-02", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-DMG-02",
+    testCaseIds: [
+      "UT-R-DMG-02-001",
+      "UT-R-DMG-02-002",
+      "UT-R-DMG-02-003",
+      "UT-R-DMG-02-004",
+      "UT-R-DMG-02-005",
+      "UT-R-DMG-02-006",
+      "UT-R-DMG-02-007",
+      "UT-R-DMG-02-008",
+      "UT-R-DMG-02-009",
+      "UT-R-DMG-02-010",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
   { ruleId: "R-DMG-03", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-04", testCaseIds: [], kinds: [] },
   { ruleId: "R-DMG-05", testCaseIds: [], kinds: [] },
@@ -1282,8 +1323,36 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
-  { ruleId: "R-STS-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-STS-04", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-STS-03",
+    testCaseIds: [
+      "UT-R-STS-03-001",
+      "UT-R-STS-03-002",
+      "UT-R-STS-03-003",
+      "UT-R-STS-03-004",
+      "UT-R-STS-03-005",
+      "UT-R-STS-03-006",
+      "UT-R-STS-03-007",
+      "UT-R-STS-03-008",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-STS-04",
+    testCaseIds: [
+      "UT-R-HIT-03-001",
+      "UT-R-HIT-03-002",
+      "UT-R-HIT-03-003",
+      "UT-R-HIT-03-004",
+      "UT-R-HIT-03-005",
+      "UT-R-HIT-03-006",
+      "UT-R-HIT-03-007",
+      "UT-R-HIT-03-008",
+      "UT-R-HIT-03-009",
+      "UT-R-HIT-03-010",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
 
   // EFF: 効果
   {

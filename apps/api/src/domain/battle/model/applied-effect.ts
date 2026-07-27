@@ -2,10 +2,32 @@ import type { Brand } from "../../shared/brand.js";
 import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
-import type { EffectImmunityCategory } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  ActionKind,
+  EffectImmunityCategory,
+} from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
-import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
+import type {
+  DamageThreshold,
+  StatusKind,
+} from "../../catalog/definitions/effect-action-payload.js";
 import type { RuntimeCounterMap } from "./runtime-counter-state.js";
+
+/**
+ * M7-004（Issue #183、R-HIT-02/03、R-STS-03/04、R-DMG-02）: `APPLY_STATUS`の
+ * `status`が`EVASION`/`BLIND`/`FREEZE`/`DAMAGE_IMMUNITY`の場合だけ持つ、Catalog
+ * `ApplyStatusPayload`の残りfield。付与時点だけでなく判定・消費時点
+ * （回避確率、暗闇確率、凍結解除時のダメージ増幅、ダメージ無効の`damageThreshold`
+ * ゲート）でも参照するため、`EffectImmunityState`と同じ理由で`AppliedEffect`
+ * インスタンス自身に保持する（Catalog定義への参照だけでは`effect-action-
+ * group-resolver.ts`より下位のcombat層から引けない）。
+ */
+export interface StatusEffectDetails {
+  readonly probability?: number;
+  readonly appliesTo?: { readonly incomingActionKinds: readonly ActionKind[] };
+  readonly damageAmplificationOnBreak?: number;
+  readonly damageThreshold?: DamageThreshold;
+}
 
 /**
  * M7-001B（Issue #243、R-EFF-03、`EFFECT_IMMUNITY`由来の`AppliedEffect`だけが持つ）:
@@ -141,8 +163,20 @@ export interface AppliedEffect {
    * 対応するQ項目が決定されるまで導入しない（PR #236再レビュー[P1]）。
    */
   readonly statusKind?: StatusKind;
+  /** M7-004（Issue #183）: `statusKind`がEVASION/BLIND/FREEZE/DAMAGE_IMMUNITYの場合だけ持つ。 */
+  readonly statusDetails?: StatusEffectDetails;
   /** M7-001B（Issue #243、R-EFF-03）: `EFFECT_IMMUNITY`由来の付与だけが持つ。 */
   readonly immunity?: EffectImmunityState;
+  /**
+   * M7-004（ON_ATTACK_BONUS_DAMAGE_BUFF、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`
+   * 由来の付与だけが`true`を持つkind判別子。`magnitude`（付与時点で評価済みの
+   * Formula結果、`APPLY_STAT_MOD`と同じ「付与時snapshot」規約）を、保持者自身の
+   * DAMAGE EffectActionのヒットごとに加算するボーナスダメージ量として扱う。
+   * `combat/damage-application-service.ts`はCatalogの`effectActions`マップを
+   * 引けない（`domain/battle/combat`のmodule境界）ため、`AppliedEffect`自身に
+   * kindを持たせて判別する（`statusKind`/`immunity`と同じ理由）。
+   */
+  readonly isAttackDamageBonus?: true;
   readonly duration: EffectDurationState;
   /** 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。 */
   readonly snapshot?: Readonly<Record<string, number>>;

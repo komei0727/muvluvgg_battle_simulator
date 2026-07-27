@@ -109,7 +109,23 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // gains a TARGET_SET_COUNT activationCondition against its existing TGT_COLUMNS
     // binding. Neither of the two promoted units here (Elena/Lydia aren't among
     // the 10) is affected, so `unitCount`/violation expectations are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-26.7");
+    // Bumped again by M7-004 (Issue #183): `capabilities.json`'s `CAP_HIT_COUNT_
+    // EVASION`/`CAP_STATUS_EFFECT_KIND` descriptions were updated to record that
+    // EVASION(R-HIT-02)/BLIND(R-HIT-03/R-STS-04)/FREEZE(R-STS-03)/DAMAGE_IMMUNITY
+    // (R-DMG-02) now have real resolver support; both Capabilities stay PLANNED
+    // (HIT_EVASION/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT remain
+    // unimplemented and undocumented by any R-* rule). Neither of the 10 promoted
+    // units here references these two Capabilities, so `unitCount`/violation
+    // expectations are unchanged.
+    // Bumped again by the same PR: new `CAP_ATTACK_DAMAGE_BONUS` (IMPLEMENTED,
+    // ON_ATTACK_BONUS_DAMAGE_BUFF) and a new `LOWEST_ATTACK` `TargetOrderKey`
+    // value on `CAP_TARGET_FILTER_ORDER` (already IMPLEMENTED). Both back
+    // `SKL_ELENA_MOODMAKER_EX`'s de-approximated "lowest attack ally"
+    // selection and its new attack-triggered bonus-damage buff
+    // (`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`) — Elena is not among the 10
+    // promoted units (still blocked separately by `CAP_DAMAGE_MOD`/DMG-002),
+    // so `unitCount`/violation expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-27.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -403,6 +419,56 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expect(phases).toEqual(["BATTLE_START", "TURN_END", "TURN_START"]);
       for (const c of phaseConditions) {
         expect(c.negate).toBe(true);
+      }
+    },
+  );
+
+  it.each([
+    // `raw/units/`の凍結解除ダメージ増幅フレーバーテキスト（例:
+    // 「その際の被ダメージが150%増加する」）は加算率であり、
+    // `damage-application-service.ts`は`1 + damageAmplificationOnBreak`を実効
+    // 倍率として計算する（レビュー再指摘[P1], Issue #183）。
+    {
+      unitId: "UNIT_KATE_PALADIN",
+      effectActionId: "ACT_KATE_PALADIN_EX_FREEZE",
+      expectedRate: 1.5,
+      expectedMultiplier: 2.5,
+    },
+    {
+      unitId: "UNIT_MIRIAM_MAGE",
+      effectActionId: "ACT_MIRIAM_MAGE_EX_FREEZE",
+      expectedRate: 1.0,
+      expectedMultiplier: 2.0,
+    },
+    {
+      unitId: "UNIT_MIRIAM_MAGE",
+      effectActionId: "ACT_MIRIAM_MAGE_AS2_FREEZE",
+      expectedRate: 1.0,
+      expectedMultiplier: 2.0,
+    },
+    {
+      unitId: "UNIT_NANAE_COMMANDER",
+      effectActionId: "ACT_NANAE_COMMANDER_EX_FREEZE",
+      expectedRate: 1.5,
+      expectedMultiplier: 2.5,
+    },
+    {
+      unitId: "UNIT_RAMI_NEWYEAR",
+      effectActionId: "ACT_RAMI_NEWYEAR_EX_FREEZE",
+      expectedRate: 1.0,
+      expectedMultiplier: 2.0,
+    },
+  ])(
+    "IT-CAT-PROD-012 (レビュー再指摘[P1], Issue #183): $effectActionId's damageAmplificationOnBreak ($expectedRate) is an additive rate producing an effective $expectedMultiplier x multiplier, matching the raw flavor text ($unitId)",
+    ({ unitId, effectActionId, expectedRate, expectedMultiplier }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const freeze = snapshot.effectActions.get(effectActionId as never);
+      expect(freeze?.kind).toBe("APPLY_STATUS");
+      if (freeze?.kind === "APPLY_STATUS") {
+        expect(freeze.payload.status).toBe("FREEZE");
+        expect(freeze.payload.damageAmplificationOnBreak).toBe(expectedRate);
+        expect(1 + (freeze.payload.damageAmplificationOnBreak ?? 0)).toBe(expectedMultiplier);
       }
     },
   );

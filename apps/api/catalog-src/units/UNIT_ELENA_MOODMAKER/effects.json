@@ -104,6 +104,31 @@
     }
   },
   {
+    "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
+    "kind": "APPLY_ATTACK_DAMAGE_BONUS",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "stat": "ATTACK",
+        "ratio": 0.15
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_ATTACK_DAMAGE_BONUS"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
     "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEAL",
     "kind": "HEAL",
     "payload": {
