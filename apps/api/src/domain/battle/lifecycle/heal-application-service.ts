@@ -84,15 +84,25 @@ export function evaluateHealFormula(
  * 戦闘不能の対象は回復しない（`includeDefeated`が明示された選択で到達しうるが、
  * R-HEAL-01は蘇生規則を持たない — 蘇生は`APPLY_DEATH_SURVIVAL`/DMG-006の
  * スコープ）。この場合は`HealApplied`自体を発行せず、hitは解決済みとして数える。
+ *
+ * PR #259再レビュー[P2]（Issue #229、R-HEAL-04 #4/#6）: `HealApplied`と各
+ * `HealingTransferred`の直後にPS/Memory連鎖を解決するため、`applyDamageActionSteps`
+ * と同じgenerator形をとる。`context.onFactEventForPassiveChain`がある経路
+ * （AS/EX・チャージ発動・継続回復）はその場で同期的に連鎖を解決するため何も
+ * `yield`しない。callbackを持たない経路（PS自身のEffectSequence解決）だけが
+ * 連鎖境界ごとに`yield`し、`effect-action-group-resolver.ts`がそれを
+ * `EFFECT_RESOLVED`として`driveActivation`へ中継する — これが無いと、HEAL
+ * EffectAction全体（転送を含む）を適用し終えてからまとめてyieldすることになり、
+ * `HealApplied`起点の子PSが転送後のHPを観測してしまう。
  */
-export function applyHealAction(
+export function* applyHealActionSteps(
   hits: readonly ResolvedEffectApplication[],
   actor: BattleUnit,
   action: Extract<EffectActionDefinition, { kind: "HEAL" }>,
   units: readonly BattleUnit[],
   context: HealEventContext,
   distributionShareCount = 1,
-): ApplyHealActionResult {
+): Generator<HealResolutionStep, ApplyHealActionResult, readonly BattleUnit[] | undefined> {
   if (!Number.isInteger(distributionShareCount) || distributionShareCount < 1) {
     throw new DomainValidationError(
       "distributionShareCount",
@@ -117,7 +127,7 @@ export function applyHealAction(
     // 回復者自身も連鎖で変化しうるため、評価するこの瞬間の状態を引き直す
     // （`APPLY_STAT_MOD`ブランチと同じ規約 — 攻撃力バフ後の回復量を正しく反映する）。
     const healer = working.get(actor.battleUnitId) ?? actor;
-    const applied = applyOneHeal(
+    const applied = yield* applyOneHealSteps(
       {
         effectActionDefinitionId: action.effectActionDefinitionId,
         formula: action.payload.formula,
@@ -132,8 +142,8 @@ export function applyHealAction(
     if (applied === undefined) {
       continue;
     }
-    // `applyOneHeal`が`HealApplied`／各`HealingTransferred`の発行直後にPS/Memory
-    // 連鎖を解決済みのため（R-HEAL-04 #3/#5）、ここで再度連鎖させてはならない。
+    // `applyOneHealSteps`が`HealApplied`／各`HealingTransferred`の発行直後に連鎖を
+    // 解決済みのため（R-HEAL-04 #4/#6）、ここで再度連鎖させてはならない。
     working = new Map(applied.units.map((u) => [u.battleUnitId, u]));
     lastEventId = applied.lastEventId;
     // R-HEAL-04: 転送先のHPだけが増えた場合（100%転送）も「回復した」と扱う。
@@ -146,6 +156,36 @@ export function applyHealAction(
     resolvedCount,
     changed,
   };
+}
+
+/**
+ * `applyHealActionSteps`の同期driver（`damage-application-service.ts`の
+ * `applyDamageAction`と同じ形）。`context.onFactEventForPassiveChain`を持つ経路
+ * では`yield`が一切起きないため、この形で完全に等価である。callbackを持たない
+ * 経路でこれを使うと連鎖境界が失われる（`yield`されたstepを誰も処理しない）ので、
+ * PS自身のEffectSequence解決からは`applyHealActionSteps`を直接駆動すること。
+ */
+export function applyHealAction(
+  hits: readonly ResolvedEffectApplication[],
+  actor: BattleUnit,
+  action: Extract<EffectActionDefinition, { kind: "HEAL" }>,
+  units: readonly BattleUnit[],
+  context: HealEventContext,
+  distributionShareCount = 1,
+): ApplyHealActionResult {
+  const generator = applyHealActionSteps(
+    hits,
+    actor,
+    action,
+    units,
+    context,
+    distributionShareCount,
+  );
+  let step = generator.next();
+  while (!step.done) {
+    step = generator.next(step.value.units);
+  }
+  return step.value;
 }
 
 /** `applyOneHeal`の入力: R-HEAL-01を1対象へ1回適用するために必要な最小のCatalog由来情報。 */
@@ -166,6 +206,15 @@ export interface OneHealResult {
   readonly appliedAmount: number;
   /** 対象・転送先のいずれかで実際にHPが増えた場合`true`。 */
   readonly changed: boolean;
+}
+
+/**
+ * R-HEAL-04 #4/#6の連鎖境界（PR #259再レビュー[P2]）。`applyDamageActionSteps`の
+ * カスケードstepと同じく、この時点の`units`を駆動側へ渡して子PS連鎖を解決させ、
+ * その結果を`next(units)`で受け取ってから次へ進む。
+ */
+export interface HealResolutionStep {
+  readonly units: readonly BattleUnit[];
 }
 
 /** R-HEAL-04 #2で確定した1リンク分の転送割り当て。 */
@@ -239,22 +288,28 @@ function allocateHealingLinkTransfers(
  * スコープ。`HEAL`は`includeDefeated`が明示された選択で、継続回復は保持者が
  * 発火時点で戦闘不能な場合にこの経路へ到達しうる）。
  *
- * PRレビュー指摘[P2]（PR #259、Issue #229）: PS/Memory連鎖
- * （`context.onFactEventForPassiveChain`）はこの関数**自身**が、`HealApplied`と
- * 各`HealingTransferred`の発行直後にその場で解決する。呼び出し側が戻り値を受け取った
- * 後にまとめて連鎖させる形だと、(1)`HealApplied`に反応するPSが転送後のHPを観測し、
- * (2)その連鎖で転送先が戦闘不能になっても転送前に前提を再検証できず、既存の
- * 「各FACT発行直後に連鎖を解決してから次へ進む」契約から外れてしまう。そのため
- * `OneHealResult`は連鎖用のイベント列を返さない — 二重連鎖を型として防ぐ。
+ * PRレビュー指摘[P2]（PR #259、Issue #229）: PS/Memory連鎖はこの関数**自身**が、
+ * `HealApplied`と各`HealingTransferred`の発行直後に解決する。呼び出し側が戻り値を
+ * 受け取った後にまとめて連鎖させる形だと、(1)`HealApplied`に反応するPSが転送後の
+ * HPを観測し、(2)その連鎖で転送先が戦闘不能になっても転送前に前提を再検証できず、
+ * 既存の「各FACT発行直後に連鎖を解決してから次へ進む」契約から外れてしまう。
+ * そのため`OneHealResult`は連鎖用のイベント列を返さない — 二重連鎖を型として防ぐ。
+ *
+ * 連鎖の解決方法は経路によって2通りある（`applyDamageActionSteps`と同じ）。
+ * `context.onFactEventForPassiveChain`がある経路（AS/EX・チャージ発動・継続回復）は
+ * その場で同期的に呼び、何も`yield`しない。callbackを持たない経路（PS自身の
+ * EffectSequence解決）は連鎖境界ごとに`yield`し、駆動側（`effect-action-group-
+ * resolver.ts`）が`EFFECT_RESOLVED`として中継したうえで、連鎖後のunitsを
+ * `next(units)`で返す。
  */
-export function applyOneHeal(
+export function* applyOneHealSteps(
   input: OneHealInput,
   healer: BattleUnit,
   target: BattleUnit,
   units: readonly BattleUnit[],
   context: HealEventContext,
   parentEventId: DomainEventId,
-): OneHealResult | undefined {
+): Generator<HealResolutionStep, OneHealResult | undefined, readonly BattleUnit[] | undefined> {
   if (isDefeated(target)) {
     return undefined;
   }
@@ -364,7 +419,7 @@ export function applyOneHeal(
   // R-HEAL-04 #3の直後（＝転送の適用より前）にPS/Memory連鎖を解決する
   // （PRレビュー指摘[P2]、PR #259）。`HealApplied`に反応するPSは転送前のHPを観測し、
   // 続く各転送はこの連鎖後の最新stateに対して前提を再検証してから適用される。
-  nextUnits = chainFactEvent(context, healApplied, nextUnits);
+  nextUnits = yield* chainFactEvent(context, healApplied, nextUnits);
 
   // R-HEAL-04 #4/#5: 各転送先へ転送量をそのまま適用する。回復量Formulaと
   // HealingModifier（R-HEAL-02）は再計算しない（R-LNK-02と同じ規約）。最大HP上限と
@@ -437,7 +492,7 @@ export function applyOneHeal(
     });
     lastEventId = transferred.eventId;
     // R-HEAL-04 #5: 次の転送へ進む前にこの転送の連鎖を解決する（同上）。
-    nextUnits = chainFactEvent(context, transferred, nextUnits);
+    nextUnits = yield* chainFactEvent(context, transferred, nextUnits);
   }
 
   return { units: nextUnits, lastEventId, appliedAmount, changed };
@@ -445,17 +500,43 @@ export function applyOneHeal(
 
 /**
  * 1つのFACTイベントについてPS/Memory即時連鎖を解決し、連鎖後の最新stateを返す
- * （PRレビュー指摘[P2]、PR #259）。連鎖callbackを持たない経路
- * （`passive-activation-service.ts`から`yield*`委譲される継続回復など）では
- * 何もしない。
+ * （PRレビュー指摘[P2]・再レビュー[P2]、PR #259）。
+ *
+ * - callbackがある経路（AS/EX・チャージ発動・継続回復）はその場で同期的に解決する。
+ * - callbackが無い経路（PS自身のEffectSequence解決）は`yield`して駆動側へ委ね、
+ *   連鎖後のunitsを`next(units)`で受け取る。駆動側が何も返さない場合
+ *   （generatorを単純にdrainする同期driver）は、連鎖が起きなかったものとして
+ *   渡したunitsをそのまま使う。
  */
-function chainFactEvent(
+function* chainFactEvent(
   context: HealEventContext,
   event: BattleDomainEvent,
   units: readonly BattleUnit[],
-): readonly BattleUnit[] {
-  if (context.onFactEventForPassiveChain === undefined) {
-    return units;
+): Generator<HealResolutionStep, readonly BattleUnit[], readonly BattleUnit[] | undefined> {
+  if (context.onFactEventForPassiveChain !== undefined) {
+    return context.onFactEventForPassiveChain(event, units);
   }
-  return context.onFactEventForPassiveChain(event, units);
+  const resumed = yield { units };
+  return resumed ?? units;
+}
+
+/**
+ * `applyOneHealSteps`の同期driver（`applyHealAction`と同じ理由・同じ形）。
+ * 継続回復（`continuous-heal-service.ts`）は行動開始時の4経路すべてから連鎖
+ * callback付きで呼ばれるため`yield`が起きず、この形で完全に等価である。
+ */
+export function applyOneHeal(
+  input: OneHealInput,
+  healer: BattleUnit,
+  target: BattleUnit,
+  units: readonly BattleUnit[],
+  context: HealEventContext,
+  parentEventId: DomainEventId,
+): OneHealResult | undefined {
+  const generator = applyOneHealSteps(input, healer, target, units, context, parentEventId);
+  let step = generator.next();
+  while (!step.done) {
+    step = generator.next(step.value.units);
+  }
+  return step.value;
 }

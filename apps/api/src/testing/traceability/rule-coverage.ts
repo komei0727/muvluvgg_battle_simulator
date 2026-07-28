@@ -1316,6 +1316,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HEAL-04-014",
       "UT-R-HEAL-04-015",
       "UT-R-HEAL-04-016",
+      "UT-R-HEAL-04-017",
       "IT-CAP-HEALING-LINK-PROD-001",
       "IT-CAP-HEALING-LINK-PROD-002",
       "IT-CAP-HEALING-LINK-PROD-003",

@@ -1,7 +1,7 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import { applyModifyResourceAction } from "./resource-modification-service.js";
-import { applyHealAction } from "./heal-application-service.js";
+import { applyHealActionSteps } from "./heal-application-service.js";
 import {
   applyDamageActionSteps,
   type DamageEventContext,
@@ -1481,7 +1481,7 @@ function* resolveOneEffectActionApplication(
     // R-HEAL-01（M7-005、Issue #184）: 即時回復。HEAL_DISTRIBUTEは
     // `distributionShareCount`（同一EffectStep内でこのEffectActionが適用される
     // 対象数、呼び出し元の`resolveActionApplications`が算出）で総量を等分する。
-    const healResult = applyHealAction(
+    const healGen = applyHealActionSteps(
       application.hits,
       requireUnit(box.units, context.actorId),
       effectAction,
@@ -1504,6 +1504,28 @@ function* resolveOneEffectActionApplication(
       },
       distributionShareCount,
     );
+    // PR #259再レビュー[P2]（R-HEAL-04 #4/#6）: `applyHealActionSteps`は
+    // `context.onFactEventForPassiveChain`未指定（＝PS自身のEffectSequence解決）の
+    // 場合だけ、`HealApplied`／各`HealingTransferred`の直後に連鎖境界を`yield`する。
+    // DAMAGEの凍結カスケードと同じ形でそれを`EFFECT_RESOLVED`として中継し、
+    // `driveActivation`が子PS連鎖をその場で解決してから転送へ進めるようにする —
+    // これが無いと、HEAL EffectAction全体（転送を含む）を適用し終えてからまとめて
+    // yieldすることになり、`HealApplied`起点の子PSが転送後のHPを観測してしまう。
+    // 消費した分だけ`innerEventsStart`を前進させ、下の`innerEvents`捕捉との
+    // 二重処理を防ぐ。
+    let healStep = healGen.next();
+    while (!healStep.done) {
+      box.units = healStep.value.units;
+      yield {
+        kind: "EFFECT_RESOLVED",
+        events: context.recorder.getEvents().slice(innerEventsStart),
+      };
+      innerEventsStart = context.recorder.getEvents().length;
+      // 子PS連鎖（あれば）が`box.units`を書き換えている可能性があるため、
+      // 一時停止していたgeneratorを再開する前に取り込む（sync-in）。
+      healStep = healGen.next(box.units);
+    }
+    const healResult = healStep.value;
     box.units = healResult.units;
     resolvedCount = healResult.resolvedCount;
     interruptedCount = 0;
