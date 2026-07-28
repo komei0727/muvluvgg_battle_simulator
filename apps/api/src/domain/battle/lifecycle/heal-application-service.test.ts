@@ -4,6 +4,9 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
+import { createSkillUseId } from "../../shared/event-ids.js";
+import { recordDamageResult, type DamageResultRegistry } from "../skill/formula-evaluator.js";
+import { DomainValidationError } from "../../shared/errors.js";
 import {
   createEffectActionDefinitionId,
   createUnitDefinitionId,
@@ -267,5 +270,120 @@ describe("applyHealAction (R-HEAL-01, M7-005 Issue #184)", () => {
     expect(healed.currentHp).toBe(0);
     expect(result.changed).toBe(false);
     expect(recorder.getEvents().some((e) => e.eventType === "HealApplied")).toBe(false);
+  });
+});
+
+/**
+ * G-10（`14_Catalog定義スキーマ.md`）／RES-003A（Issue #257）: `SUM_DAMAGE_DEALT`を
+ * 参照するproduction HEAL 9件（`ACT_FLUTE_VAMPIRE_EX_SELF_HEAL`等）が実際に読む経路。
+ */
+describe("applyHealAction with DAMAGE_DEALT_RATIO(SUM_DAMAGE_DEALT) (G-10, RES-003A Issue #257)", () => {
+  const SEQUENCE = createSkillUseId("SKILL_USE_SELF_HEAL");
+  const OTHER_SEQUENCE = createSkillUseId("SKILL_USE_PASSIVE_CHAIN");
+
+  function sumHealAction(): Extract<EffectActionDefinition, { kind: "HEAL" }> {
+    return healAction("ACT_SUM_HEAL", {
+      formula: { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.6 },
+      overheal: "DISCARD",
+      distribution: "NONE",
+    });
+  }
+
+  it("UT-R-HEAL-01-013: heals the summed damage this EffectSequence has dealt so far, not only its most recent DAMAGE result", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 10, maximumHp: 1000 });
+    const { recorder, rootEventId } = seedRecorder();
+    const damageResults: DamageResultRegistry = new Map();
+    // 列攻撃100 + 条件付き追撃50 = 累計150（直前結果は50）。
+    recordDamageResult(
+      damageResults,
+      healer.battleUnitId,
+      createBattleUnitId("ENEMY"),
+      100,
+      SEQUENCE,
+    );
+    recordDamageResult(
+      damageResults,
+      healer.battleUnitId,
+      createBattleUnitId("ENEMY"),
+      50,
+      SEQUENCE,
+    );
+
+    const result = applyHealAction(
+      [hit("HEALER", "ACT_SUM_HEAL")],
+      healer,
+      sumHealAction(),
+      [healer],
+      { ...context(recorder, rootEventId), skillUseId: SEQUENCE, damageResults },
+    );
+
+    const healed = result.units.find((u) => u.battleUnitId === healer.battleUnitId)!;
+    expect(healed.currentHp).toBe(10 + Math.floor(150 * 0.6));
+  });
+
+  it("UT-R-HEAL-01-014: excludes damage recorded under a different EffectSequence resolution (a PS chain firing inside the same action)", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 10, maximumHp: 1000 });
+    const { recorder, rootEventId } = seedRecorder();
+    const damageResults: DamageResultRegistry = new Map();
+    recordDamageResult(
+      damageResults,
+      healer.battleUnitId,
+      createBattleUnitId("ENEMY"),
+      100,
+      SEQUENCE,
+    );
+    recordDamageResult(
+      damageResults,
+      healer.battleUnitId,
+      createBattleUnitId("ENEMY"),
+      900,
+      OTHER_SEQUENCE,
+    );
+
+    const result = applyHealAction(
+      [hit("HEALER", "ACT_SUM_HEAL")],
+      healer,
+      sumHealAction(),
+      [healer],
+      { ...context(recorder, rootEventId), skillUseId: SEQUENCE, damageResults },
+    );
+
+    const healed = result.units.find((u) => u.battleUnitId === healer.battleUnitId)!;
+    expect(healed.currentHp).toBe(10 + Math.floor(100 * 0.6));
+  });
+
+  it("UT-R-HEAL-01-015: heals 0 when this EffectSequence has produced no DAMAGE result yet (every damage step resolved to zero targets)", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 10, maximumHp: 1000 });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("HEALER", "ACT_SUM_HEAL")],
+      healer,
+      sumHealAction(),
+      [healer],
+      {
+        ...context(recorder, rootEventId),
+        skillUseId: SEQUENCE,
+        damageResults: new Map() as DamageResultRegistry,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === healer.battleUnitId)!.currentHp).toBe(10);
+    expect(result.changed).toBe(false);
+  });
+
+  it("UT-R-HEAL-01-016 (NEGATIVE): rejects the reference when the heal resolves outside any EffectSequence (no registry wired)", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 10, maximumHp: 1000 });
+    const { recorder, rootEventId } = seedRecorder();
+
+    expect(() =>
+      applyHealAction(
+        [hit("HEALER", "ACT_SUM_HEAL")],
+        healer,
+        sumHealAction(),
+        [healer],
+        context(recorder, rootEventId),
+      ),
+    ).toThrow(DomainValidationError);
   });
 });

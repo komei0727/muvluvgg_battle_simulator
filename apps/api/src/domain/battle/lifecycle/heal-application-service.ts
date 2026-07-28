@@ -1,10 +1,7 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
-import { evaluateFormula, lastDamageResultsFor } from "../skill/formula-evaluator.js";
-import type {
-  FormulaEvaluationContext,
-  LastDamageResultRegistry,
-} from "../skill/formula-evaluator.js";
+import { evaluateFormula, damageResultsFor } from "../skill/formula-evaluator.js";
+import type { FormulaEvaluationContext, DamageResultRegistry } from "../skill/formula-evaluator.js";
 import { composeHealingRate } from "./action-resolution-shared.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
@@ -33,7 +30,7 @@ export interface HealEventContext {
   readonly sourceUnitId: BattleUnitId;
   /** R-HEAL-02: 回復者・対象が保持する`APPLY_HEALING_MOD`をkindで引くために必要。 */
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
-  readonly lastDamageResults?: LastDamageResultRegistry;
+  readonly damageResults?: DamageResultRegistry;
   readonly onFactEventForPassiveChain?: (
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
@@ -201,8 +198,18 @@ export function applyOneHeal(
     skillSource: healer,
     target,
     allUnits: units,
-    ...(context.lastDamageResults !== undefined
-      ? { lastResults: lastDamageResultsFor(context.lastDamageResults, healer.battleUnitId) }
+    // G-10／RES-003A（Issue #257）: `context.skillUseId`はこのHEALが属する
+    // EffectSequence解決を識別し、`SUM_DAMAGE_DEALT`の集計スコープになる。
+    // 継続回復（`continuous-heal-service.ts`）はEffectSequenceの外で発火するため
+    // registry自体を渡さず、`SUM_*`参照は`evaluateFormula`が明確な例外で拒否する。
+    ...(context.damageResults !== undefined
+      ? {
+          lastResults: damageResultsFor(
+            context.damageResults,
+            healer.battleUnitId,
+            context.skillUseId,
+          ),
+        }
       : {}),
   });
 

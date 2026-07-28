@@ -6,8 +6,8 @@ import {
   createPassivePoint,
   truncateFraction,
 } from "../model/resource-gauge.js";
-import { evaluateFormula, lastDamageResultsFor } from "../skill/formula-evaluator.js";
-import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
+import { evaluateFormula, damageResultsFor } from "../skill/formula-evaluator.js";
+import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import {
   recordResourceChangeIfAny,
   type ResourceChangeRecordContext,
@@ -23,7 +23,7 @@ import type { DomainEventId } from "../../shared/event-ids.js";
 export interface ModifyResourceEventContext extends ResourceChangeRecordContext {
   readonly parentEventId: DomainEventId;
   readonly sourceUnitId: BattleUnitId;
-  readonly lastDamageResults?: LastDamageResultRegistry;
+  readonly damageResults?: DamageResultRegistry;
   readonly onFactEventForPassiveChain?: (
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
@@ -145,11 +145,15 @@ export function applyModifyResourceAction(
               skillSource: actor,
               target,
               allUnits: Array.from(working.values()),
-              ...(context.lastDamageResults !== undefined
+              // G-10／RES-003A（Issue #257）: `context.skillUseId`がこの
+              // `MODIFY_RESOURCE`が属するEffectSequence解決を識別し、
+              // `SUM_DAMAGE_*`の集計スコープになる。
+              ...(context.damageResults !== undefined
                 ? {
-                    lastResults: lastDamageResultsFor(
-                      context.lastDamageResults,
+                    lastResults: damageResultsFor(
+                      context.damageResults,
                       actor.battleUnitId,
+                      context.skillUseId,
                     ),
                   }
                 : {}),

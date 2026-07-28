@@ -371,10 +371,10 @@ export function resolveSkillUse(
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units).units,
     // R-SKL-08（レビュー再指摘[P1]、PR #214）: `passiveRuntime`はこの行動専用に
-    // 1つだけ生成されており（上のコメント参照）、その`lastDamageResultsRegistry`を
+    // 1つだけ生成されており（上のコメント参照）、その`damageResultsRegistry`を
     // このAS/EX自身のEffectSequenceにも使い回すことで、この行動内で発生した
     // DAMAGE結果をPS連鎖（カウンター等）からも同じ解決スコープ内として参照できる。
-    lastDamageResults: passiveRuntime.lastDamageResultsRegistry,
+    damageResults: passiveRuntime.damageResultsRegistry,
   });
   // EFF-006/Issue #212: `effectResult.units`は`onFactEventForPassiveChain`経由で
   // 既に`passiveRuntime`（`this.units`）へ同期済みのため、そのまま

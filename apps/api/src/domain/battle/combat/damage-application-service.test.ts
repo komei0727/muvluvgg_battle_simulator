@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyDamageAction, type DamageEventContext } from "./damage-application-service.js";
-import type { LastDamageResultRegistry } from "../skill/formula-evaluator.js";
+import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import {
   createBattleUnit,
   isDefeated,
@@ -941,7 +941,7 @@ describe("applyDamageAction", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
     const random = new SequenceRandomSource([]);
-    const lastDamageResults: LastDamageResultRegistry = new Map();
+    const damageResults: DamageResultRegistry = new Map();
 
     applyDamageAction(
       attacker,
@@ -949,13 +949,13 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, target],
       random,
-      { ...damageEventContext(), lastDamageResults },
+      { ...damageEventContext(), damageResults },
     );
 
-    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
-    expect(lastDamageResults.get(target.battleUnitId)?.lastDamageReceived).toBe(20);
-    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageReceived).toBeUndefined();
-    expect(lastDamageResults.get(target.battleUnitId)?.lastDamageDealt).toBeUndefined();
+    expect(damageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
+    expect(damageResults.get(target.battleUnitId)?.lastDamageReceived).toBe(20);
+    expect(damageResults.get(attacker.battleUnitId)?.lastDamageReceived).toBeUndefined();
+    expect(damageResults.get(target.battleUnitId)?.lastDamageDealt).toBeUndefined();
   });
 
   it("UT-DAMAGE-APPLICATION-011 (R-SKL-08, レビュー再指摘[P1] PR #214, mirrors production ACT_AOI_GUARDIAN_PS2_COUNTER): a DAMAGE_RECEIVED_RATIO formula reads the actor's own lastDamageReceived from an earlier hit in the SAME resolution scope (shared registry)", () => {
@@ -966,7 +966,7 @@ describe("applyDamageAction", () => {
     // single resolution scope (one action) that both the triggering hit and
     // the counter it provokes belong to (`PassiveActivationRuntime` threads
     // the same instance through nested PS chains in production).
-    const lastDamageResults: LastDamageResultRegistry = new Map();
+    const damageResults: DamageResultRegistry = new Map();
 
     // First hit: ATTACKER deals 20 to DEFENDER (attack 30 - defense 10).
     const firstHit = applyDamageAction(
@@ -975,12 +975,12 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, defender],
       random,
-      { ...damageEventContext(), lastDamageResults },
+      { ...damageEventContext(), damageResults },
     );
     const defenderAfterFirstHit = firstHit.units.find(
       (u) => u.battleUnitId === defender.battleUnitId,
     )!;
-    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
+    expect(damageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
 
     // Second hit: DEFENDER counters using DAMAGE_RECEIVED_RATIO(LAST_DAMAGE_RECEIVED, ratio: 1),
     // which should equal the 20 it just received, independent of its own attack stat.
@@ -1015,7 +1015,7 @@ describe("applyDamageAction", () => {
       counterAction,
       firstHit.units,
       random,
-      { ...damageEventContext(), lastDamageResults },
+      { ...damageEventContext(), damageResults },
     );
 
     expect(counterHit.hits[0]!.damage).toBe(20);
@@ -1065,14 +1065,14 @@ describe("applyDamageAction", () => {
 
     // Scope 1 (e.g. an earlier, unrelated action): records DEFENDER's
     // lastDamageReceived into its own registry.
-    const scope1Registry: LastDamageResultRegistry = new Map();
+    const scope1Registry: DamageResultRegistry = new Map();
     const firstHit = applyDamageAction(
       attacker,
       [hit("DEFENDER", 1)],
       damageAction("PREVENTED"),
       [attacker, defender],
       random,
-      { ...damageEventContext(), lastDamageResults: scope1Registry },
+      { ...damageEventContext(), damageResults: scope1Registry },
     );
     const defenderAfterFirstHit = firstHit.units.find(
       (u) => u.battleUnitId === defender.battleUnitId,
@@ -1082,7 +1082,7 @@ describe("applyDamageAction", () => {
     // Scope 2 (a brand-new resolution scope, e.g. a later, independent
     // action): a fresh, empty registry — must NOT see scope 1's value even
     // though it's evaluating a formula for the very same BattleUnit.
-    const scope2Registry: LastDamageResultRegistry = new Map();
+    const scope2Registry: DamageResultRegistry = new Map();
     const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
@@ -1113,7 +1113,7 @@ describe("applyDamageAction", () => {
         counterAction,
         firstHit.units,
         random,
-        { ...damageEventContext(), lastDamageResults: scope2Registry },
+        { ...damageEventContext(), damageResults: scope2Registry },
       ),
     ).toThrow(DomainValidationError);
   });
@@ -1122,7 +1122,7 @@ describe("applyDamageAction", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const defender = unit("DEFENDER", "ENEMY", { defense: 10, maximumHp: 200 });
     const random = new SequenceRandomSource([]);
-    const lastDamageResults: LastDamageResultRegistry = new Map();
+    const damageResults: DamageResultRegistry = new Map();
 
     // Hit 1 (success): ATTACKER deals 20 to DEFENDER, recorded in the shared
     // registry for this resolution scope.
@@ -1132,10 +1132,10 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attacker, defender],
       random,
-      { ...damageEventContext(), lastDamageResults },
+      { ...damageEventContext(), damageResults },
     );
-    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
-    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
+    expect(damageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
+    expect(damageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(20);
     const attackerAfterFirstHit = firstHit.units.find(
       (u) => u.battleUnitId === attacker.battleUnitId,
     )!;
@@ -1154,10 +1154,10 @@ describe("applyDamageAction", () => {
       damageAction("PREVENTED"),
       [attackerAfterFirstHit, defeatedDefender],
       random,
-      { ...damageEventContext(), lastDamageResults },
+      { ...damageEventContext(), damageResults },
     );
-    expect(lastDamageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(0);
-    expect(lastDamageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(0);
+    expect(damageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(0);
+    expect(damageResults.get(defender.battleUnitId)?.lastDamageReceived).toBe(0);
 
     // A later Formula referencing LAST_DAMAGE_DEALT in this same scope must
     // now evaluate to 0 — not the stale 20, and not a thrown error (MISS/
@@ -1188,7 +1188,7 @@ describe("applyDamageAction", () => {
       referencingAction,
       [attackerAfterFirstHit, otherTarget],
       random,
-      { ...damageEventContext(), lastDamageResults },
+      { ...damageEventContext(), damageResults },
     );
     // baseDamage = LAST_DAMAGE_DEALT(0) * ratio(1) = 0; R-DMG-02's minimum-1
     // still applies since this is a DAMAGE-kind effect.
@@ -1636,5 +1636,116 @@ describe("applyDamageAction", () => {
 
     expect(result.hits[0]!.applied).toBe(false);
     expect(result.hits[0]!.damage).toBe(0);
+  });
+});
+
+/**
+ * G-10（`14_Catalog定義スキーマ.md`）／RES-003A（Issue #257）: `applyDamageAction`が
+ * 直前結果（1解決スコープ）だけでなく、EffectSequence単位（`context.skillUseId`）の
+ * 累計も同じregistryへ記録することを、実executorを通して検証する。
+ */
+describe("applyDamageAction EffectSequence damage sums (G-10, RES-003A Issue #257)", () => {
+  function sumReferencingAction(): Extract<EffectActionDefinition, { kind: "DAMAGE" }> {
+    return {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SUM_REFERENCING"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+  }
+
+  it("UT-DAMAGE-APPLICATION-017 (G-10): two DAMAGE EffectActions of the same EffectSequence accumulate into SUM_DAMAGE_DEALT, which a later formula in that sequence reads as the total", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const first = unit("FIRST", "ENEMY", { defense: 10, maximumHp: 200 });
+    const second = unit("SECOND", "ENEMY", { defense: 10, maximumHp: 200 });
+    const random = new SequenceRandomSource([]);
+    const damageResults: DamageResultRegistry = new Map();
+    // 同じcontextを使い回すことで`skillUseId`（=EffectSequence解決）を共有する。
+    const context = damageEventContext();
+
+    const firstResult = applyDamageAction(
+      attacker,
+      [hit("FIRST", 1)],
+      damageAction("PREVENTED"),
+      [attacker, first, second],
+      random,
+      { ...context, damageResults },
+    );
+    const secondResult = applyDamageAction(
+      attacker,
+      [hit("SECOND", 1)],
+      damageAction("PREVENTED"),
+      firstResult.units,
+      random,
+      { ...context, damageResults },
+    );
+    expect(firstResult.hits[0]!.damage).toBe(20);
+    expect(secondResult.hits[0]!.damage).toBe(20);
+    // 直前結果は最後の1件だけ、累計はこのEffectSequenceの合計。
+    expect(damageResults.get(attacker.battleUnitId)?.lastDamageDealt).toBe(20);
+    expect(damageResults.get(attacker.battleUnitId)?.sumDamageDealt?.get(context.skillUseId)).toBe(
+      40,
+    );
+
+    const referencingResult = applyDamageAction(
+      attacker,
+      [hit("FIRST", 1)],
+      sumReferencingAction(),
+      secondResult.units,
+      random,
+      { ...context, damageResults },
+    );
+    expect(referencingResult.hits[0]!.damage).toBe(40);
+  });
+
+  it("UT-DAMAGE-APPLICATION-018 (G-10): damage produced by another EffectSequence resolution in the same action (a PS chain) stays out of the acting skill's own sum", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const passiveOwner = unit("PASSIVE_OWNER", "ALLY", { attack: 500 });
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 2000 });
+    const random = new SequenceRandomSource([]);
+    // `PassiveActivationRuntime`は1行動につき1つのregistryをPS連鎖まで共有する。
+    const damageResults: DamageResultRegistry = new Map();
+    const skillSequence = damageEventContext();
+    const passiveSequence = damageEventContext();
+
+    const skillHit = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, passiveOwner, target],
+      random,
+      { ...skillSequence, damageResults },
+    );
+    const passiveHit = applyDamageAction(
+      passiveOwner,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      skillHit.units,
+      random,
+      { ...passiveSequence, damageResults },
+    );
+    expect(skillHit.hits[0]!.damage).toBe(20);
+    expect(passiveHit.hits[0]!.damage).toBe(490);
+
+    const referencingResult = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      sumReferencingAction(),
+      passiveHit.units,
+      random,
+      { ...skillSequence, damageResults },
+    );
+    // PSが与えた490は別のEffectSequence解決に属するため、20だけを参照する。
+    expect(referencingResult.hits[0]!.damage).toBe(20);
   });
 });

@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { evaluateFormula, type FormulaEvaluationContext } from "./formula-evaluator.js";
+import {
+  damageResultsFor,
+  evaluateFormula,
+  recordDamageResult,
+  type DamageResultRegistry,
+  type FormulaEvaluationContext,
+} from "./formula-evaluator.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createMarkerInstanceId } from "../../shared/event-ids.js";
+import { createMarkerInstanceId, createSkillUseId } from "../../shared/event-ids.js";
 import {
   createMarkerId,
   createTargetBindingId,
@@ -400,5 +406,100 @@ describe("evaluateFormula", () => {
     // MARKER_COUNT_SCALE = min(7 * 0.03, 10) = 0.21 (7*0.03 is not exactly
     // 0.21 in IEEE754); CLAMP passes it through unchanged; SUM adds 0.001.
     expect(evaluateFormula(formula, ctx)).toBe(0.001 + Math.min(7 * 0.03, 10));
+  });
+});
+
+/**
+ * G-10（`14_Catalog定義スキーマ.md`）／RES-003A（Issue #257）: `SUM_DAMAGE_DEALT`/
+ * `SUM_DAMAGE_RECEIVED`は「同一`EffectSequence`実行中」の累計であり、`LAST_DAMAGE_*`
+ * （1解決スコープ＝1行動）とはスコープが異なる。`SkillUseId`が1回のEffectSequence
+ * 解決を一意に識別する既存の実行時識別子であるため、累計はそのidごとに分ける。
+ */
+describe("DamageResultRegistry EffectSequence sums (G-10, RES-003A)", () => {
+  const DEALER = createBattleUnitId("U_DEALER");
+  const RECEIVER = createBattleUnitId("U_RECEIVER");
+  const SEQUENCE_A = createSkillUseId("SKILL_USE_A");
+  const SEQUENCE_B = createSkillUseId("SKILL_USE_B");
+
+  it("UT-R-SKL-08-014: accumulates every DAMAGE result recorded under the same EffectSequence id, while LAST_DAMAGE_* keeps only the most recent one", () => {
+    const registry: DamageResultRegistry = new Map();
+    recordDamageResult(registry, DEALER, RECEIVER, 120, SEQUENCE_A);
+    recordDamageResult(registry, DEALER, RECEIVER, 80, SEQUENCE_A);
+
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_A)).toEqual({
+      LAST_DAMAGE_DEALT: 80,
+      SUM_DAMAGE_DEALT: 200,
+      SUM_DAMAGE_RECEIVED: 0,
+    });
+    expect(damageResultsFor(registry, RECEIVER, SEQUENCE_A)).toEqual({
+      LAST_DAMAGE_RECEIVED: 80,
+      SUM_DAMAGE_DEALT: 0,
+      SUM_DAMAGE_RECEIVED: 200,
+    });
+  });
+
+  it("UT-R-SKL-08-015: keeps sums of different EffectSequence resolutions separate even when they share one resolution-scope registry (a PS chain inside an action must not leak into the acting skill's own sum)", () => {
+    const registry: DamageResultRegistry = new Map();
+    recordDamageResult(registry, DEALER, RECEIVER, 120, SEQUENCE_A);
+    recordDamageResult(registry, DEALER, RECEIVER, 500, SEQUENCE_B);
+
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_A).SUM_DAMAGE_DEALT).toBe(120);
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_B).SUM_DAMAGE_DEALT).toBe(500);
+    // `LAST_DAMAGE_*`は解決スコープ（1行動）単位のままなので、最後に記録した
+    // 別EffectSequenceの結果がそのまま見える（R-SKL-08、既存契約）。
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_A).LAST_DAMAGE_DEALT).toBe(500);
+  });
+
+  it("UT-R-SKL-08-016: reports a sum of 0 for an EffectSequence that has produced no DAMAGE result yet (an empty sum is well-defined, unlike an absent LAST_DAMAGE_*)", () => {
+    const registry: DamageResultRegistry = new Map();
+
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_A)).toEqual({
+      SUM_DAMAGE_DEALT: 0,
+      SUM_DAMAGE_RECEIVED: 0,
+    });
+    expect(
+      evaluateFormula(
+        { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.6 },
+        context({ lastResults: damageResultsFor(registry, DEALER, SEQUENCE_A) }),
+      ),
+    ).toBe(0);
+  });
+
+  it("UT-R-SKL-08-017 (NEGATIVE): omits the SUM_* keys when no EffectSequence id is in scope, so a resolution outside an EffectSequence fails loudly instead of silently reading 0", () => {
+    const registry: DamageResultRegistry = new Map();
+    recordDamageResult(registry, DEALER, RECEIVER, 120, SEQUENCE_A);
+
+    expect(damageResultsFor(registry, DEALER)).toEqual({ LAST_DAMAGE_DEALT: 120 });
+    expect(() =>
+      evaluateFormula(
+        { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.6 },
+        context({ lastResults: damageResultsFor(registry, DEALER) }),
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-SKL-08-018: accumulates a self-inflicted DAMAGE result into both the dealt and received sums of the same unit", () => {
+    const registry: DamageResultRegistry = new Map();
+    recordDamageResult(registry, DEALER, DEALER, 30, SEQUENCE_A);
+    recordDamageResult(registry, DEALER, DEALER, 10, SEQUENCE_A);
+
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_A)).toEqual({
+      LAST_DAMAGE_DEALT: 10,
+      LAST_DAMAGE_RECEIVED: 10,
+      SUM_DAMAGE_DEALT: 40,
+      SUM_DAMAGE_RECEIVED: 40,
+    });
+  });
+
+  it("UT-R-SKL-08-019: records a non-applied result (MISS, absent target) as 0 without discarding what the EffectSequence has already accumulated", () => {
+    const registry: DamageResultRegistry = new Map();
+    recordDamageResult(registry, DEALER, RECEIVER, 120, SEQUENCE_A);
+    recordDamageResult(registry, DEALER, RECEIVER, 0, SEQUENCE_A);
+
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_A)).toEqual({
+      LAST_DAMAGE_DEALT: 0,
+      SUM_DAMAGE_DEALT: 120,
+      SUM_DAMAGE_RECEIVED: 0,
+    });
   });
 });

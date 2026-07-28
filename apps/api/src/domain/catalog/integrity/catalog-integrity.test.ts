@@ -1498,7 +1498,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-HEAL-01-009 (PRレビュー[P1] PR #256): accepts a HEAL referencing SUM_DAMAGE_DEALT when it declares the required CAP_SUM_DAMAGE_RESULT capability", () => {
+  it("UT-R-HEAL-01-009 (RES-003A, Issue #257): accepts a HEAL referencing SUM_DAMAGE_DEALT when it declares the required CAP_SUM_DAMAGE_RESULT capability", () => {
     const defs = baseDefinitions();
     const withSum: CatalogDefinitions = {
       ...defs,
@@ -1513,7 +1513,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_SUM_HEAL" as never)).toBeDefined();
   });
 
-  it("UT-R-HEAL-01-010 (PRレビュー[P1] PR #256, NEGATIVE): rejects a HEAL referencing SUM_DAMAGE_DEALT without CAP_SUM_DAMAGE_RESULT, so the unwired accumulation is caught at Catalog load time rather than as a runtime DomainValidationError", () => {
+  it("UT-R-HEAL-01-010 (RES-003A, Issue #257, NEGATIVE): rejects a HEAL referencing SUM_DAMAGE_DEALT without CAP_SUM_DAMAGE_RESULT, keeping the Capability registry's productionDefinitionIds aligned with the definitions that actually reference the accumulation", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
@@ -1530,7 +1530,7 @@ describe("buildCatalogIndex", () => {
       const err = error as CatalogIntegrityError;
       expect(
         err.violations.some(
-          (v) => v.rule === "UNSUPPORTED_SUM_DAMAGE_RESULT" && v.targetId === "ACT_SUM_HEAL",
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_SUM_HEAL",
         ),
       ).toBe(true);
     }

@@ -10,6 +10,7 @@ import type {
 } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { SkillUseId } from "../../shared/event-ids.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { matchesRelativeSide } from "../targeting/target-selection-policy.js";
 
@@ -30,7 +31,12 @@ export interface FormulaEvaluationContext {
   readonly triggerSource?: BattleUnit;
   readonly triggerTarget?: BattleUnit;
   readonly bindings?: ReadonlyMap<TargetBindingId, BattleUnit>;
-  /** `references.ts`の`LAST_RESULT_REFERENCE_KINDS`をキーとする、確定済みダメージ結果（RES-002/RES-003、Issue #174/#173が実ライフサイクルへ記録する）。 */
+  /**
+   * `references.ts`の`LAST_RESULT_REFERENCE_KINDS`をキーとする、確定済みダメージ結果。
+   * `LAST_DAMAGE_*`は1解決スコープ（=1行動）の直前結果（R-SKL-08）、`SUM_DAMAGE_*`は
+   * 1回のEffectSequence解決内の累計（G-10／RES-003A、Issue #257）で、どちらも
+   * `damageResultsFor`が`DamageResultRegistry`から組み立てる。
+   */
   readonly lastResults?: Readonly<Partial<Record<LastResultReference, number>>>;
 }
 
@@ -123,10 +129,24 @@ function lastResultValue(
   if (value === undefined) {
     throw new DomainValidationError(
       path,
-      `sourceResult "${key}" has no recorded value in the evaluation context (this resolution scope has no matching prior DAMAGE result yet, or SUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED accumulation is RES-002/RES-003, Issue #174/#173, scope)`,
+      `sourceResult "${key}" has no recorded value in the evaluation context (LAST_DAMAGE_* requires a prior DAMAGE result in this resolution scope; SUM_DAMAGE_* requires the evaluation to happen inside an EffectSequence resolution, G-10/RES-003A)`,
     );
   }
   return value;
+}
+
+/** `DamageResultRegistry`が1ユニットについて保持する、スコープ別のDAMAGE結果。 */
+export interface DamageResultRegistryEntry {
+  readonly lastDamageDealt?: number;
+  readonly lastDamageReceived?: number;
+  /**
+   * G-10（`14_Catalog定義スキーマ.md`）／RES-003A（Issue #257）: `SUM_DAMAGE_DEALT`が
+   * 参照する「同一`EffectSequence`実行中」の累計。EffectSequence 1回の解決を
+   * 一意に識別する`SkillUseId`をキーにする。
+   */
+  readonly sumDamageDealt?: ReadonlyMap<SkillUseId, number>;
+  /** `SUM_DAMAGE_RECEIVED`側の同じもの。 */
+  readonly sumDamageReceived?: ReadonlyMap<SkillUseId, number>;
 }
 
 /**
@@ -138,16 +158,36 @@ function lastResultValue(
  * PS連鎖へ使い回す）が保持する実行時registryとして扱う。`BattleUnit`のフィールドでは
  * ないため、StateDelta・独立Reducer復元の対象にもならない（スコープ終了と同時に
  * 破棄する短命な実行コンテキストであり、監査対象の永続状態ではないため）。
+ *
+ * G-10／RES-003A（Issue #257）: 同じregistryが`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
+ * の累計も保持するが、そちらのスコープは1行動ではなく**1回のEffectSequence解決**で
+ * ある。`SkillUseId`はまさにその単位で採番される既存の実行時識別子（AS/EXは
+ * `action-skill-use-resolver.ts`、チャージ解放は`action-charge-resolver.ts`、PSは
+ * `passive-activation-service.ts`の`activatePassiveCandidate`がそれぞれ
+ * `recorder.nextSkillUseId()`で新規採番し、`EFFECT_SEQUENCE`スコープの
+ * `RuntimeCounter`もこれをキーにする、EFF-006）であるため、`SkillUseId`ごとに
+ * 累計を分けることが「同一EffectSequence内のDAMAGE結果合算」そのものになる。
+ * 結果として、同じ行動中にPS連鎖が与えたダメージは別のEffectSequence解決
+ * （別の`SkillUseId`）に属し、そのスキル自身の累計へは混入しない。
  */
-export type LastDamageResultRegistry = Map<
-  BattleUnitId,
-  { readonly lastDamageDealt?: number; readonly lastDamageReceived?: number }
->;
+export type DamageResultRegistry = Map<BattleUnitId, DamageResultRegistryEntry>;
 
-/** `LastDamageResultRegistry`の該当ユニット分を`FormulaEvaluationContext.lastResults`の断片へ変換する。 */
-export function lastDamageResultsFor(
-  registry: LastDamageResultRegistry | undefined,
+/**
+ * `DamageResultRegistry`の該当ユニット分を`FormulaEvaluationContext.lastResults`の
+ * 断片へ変換する。
+ *
+ * `effectSequenceId`（現在解決中のEffectSequenceの`SkillUseId`）を渡した場合だけ
+ * `SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`を含める。まだ1件もDAMAGE結果が無い
+ * EffectSequenceでは0を返す — 空集合の合計は0として定義され、`LAST_DAMAGE_*`の
+ * 「直前結果が存在しない」（そもそも値が無い）とは異なるため。逆に
+ * EffectSequenceの外（`continuous-heal-service.ts`の継続回復など）から呼ばれた
+ * 場合はキー自体を含めず、`SUM_*`を参照するFormulaを`evaluateFormula`が明確な
+ * 例外で拒否できるようにする（暗黙の0にしない）。
+ */
+export function damageResultsFor(
+  registry: DamageResultRegistry | undefined,
   unitId: BattleUnitId,
+  effectSequenceId?: SkillUseId,
 ): NonNullable<FormulaEvaluationContext["lastResults"]> {
   const entry = registry?.get(unitId);
   return {
@@ -155,13 +195,33 @@ export function lastDamageResultsFor(
     ...(entry?.lastDamageReceived !== undefined
       ? { LAST_DAMAGE_RECEIVED: entry.lastDamageReceived }
       : {}),
+    ...(registry !== undefined && effectSequenceId !== undefined
+      ? {
+          SUM_DAMAGE_DEALT: entry?.sumDamageDealt?.get(effectSequenceId) ?? 0,
+          SUM_DAMAGE_RECEIVED: entry?.sumDamageReceived?.get(effectSequenceId) ?? 0,
+        }
+      : {}),
   };
+}
+
+/** `effectSequenceId`分の累計へ`finalDamage`を加算した新しいMapを返す（元のMapは変更しない）。 */
+function accumulated(
+  sums: ReadonlyMap<SkillUseId, number> | undefined,
+  effectSequenceId: SkillUseId,
+  finalDamage: number,
+): ReadonlyMap<SkillUseId, number> {
+  const next = new Map(sums);
+  next.set(effectSequenceId, (sums?.get(effectSequenceId) ?? 0) + finalDamage);
+  return next;
 }
 
 /**
  * `applyDamageAction`が確定させたダメージ結果を`registry`へ記録する
  * （ミュータブルな共有Mapを直接更新する — 新しいオブジェクトの返却も
  * イミュータブルコピーも不要、`registry`自体が1解決スコープの寿命を表す）。
+ * `effectSequenceId`（このDAMAGEが属するEffectSequence解決の`SkillUseId`）を
+ * 渡した場合は、G-10の累計（`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`）へも
+ * 同じ値を加算する。
  *
  * R-SKL-08（レビュー再々々指摘[P1]、PR #214）: MISS・対象不在などで効果が
  * 適用されなかった場合も「同じ解決スコープ内で直前に確定した結果」であり、
@@ -171,23 +231,43 @@ export function lastDamageResultsFor(
  * ない。呼び出し側（`applyDamageAction`）は不成立ヒットでも`finalDamage: 0`で
  * この関数を呼ぶことで、以前の成功結果を透けて見せずに済ませつつ、後続の
  * `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`評価を（`DomainValidationError`
- * ではなく）0として決定的に解決させる。
+ * ではなく）0として決定的に解決させる。累計側では0の加算が恒等演算になるため、
+ * 不成立ヒットはそれまでの累計をそのまま保つ。
  */
-export function recordLastDamageResult(
-  registry: LastDamageResultRegistry | undefined,
+export function recordDamageResult(
+  registry: DamageResultRegistry | undefined,
   dealerId: BattleUnitId,
   receiverId: BattleUnitId,
   finalDamage: number,
+  effectSequenceId?: SkillUseId,
 ): void {
   if (registry === undefined) {
     return;
   }
   const dealerBefore = registry.get(dealerId);
-  registry.set(dealerId, { ...dealerBefore, lastDamageDealt: finalDamage });
+  registry.set(dealerId, {
+    ...dealerBefore,
+    lastDamageDealt: finalDamage,
+    ...(effectSequenceId !== undefined
+      ? { sumDamageDealt: accumulated(dealerBefore?.sumDamageDealt, effectSequenceId, finalDamage) }
+      : {}),
+  });
   // 自傷（dealerId === receiverId）では上の`set`で書いたエントリを起点に
   // `lastDamageReceived`も重ねる必要があるため、`registry.get`をここで取り直す。
   const receiverBefore = registry.get(receiverId);
-  registry.set(receiverId, { ...receiverBefore, lastDamageReceived: finalDamage });
+  registry.set(receiverId, {
+    ...receiverBefore,
+    lastDamageReceived: finalDamage,
+    ...(effectSequenceId !== undefined
+      ? {
+          sumDamageReceived: accumulated(
+            receiverBefore?.sumDamageReceived,
+            effectSequenceId,
+            finalDamage,
+          ),
+        }
+      : {}),
+  });
 }
 
 /**

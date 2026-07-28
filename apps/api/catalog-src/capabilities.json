@@ -620,12 +620,32 @@
   {
     "capabilityId": "CAP_SUM_DAMAGE_RESULT",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-003A",
-    "description": "FormulaDefinitionのSUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED（EffectSequence実行中の累計ダメージ）参照。累計の集計スコープが未確定でFormulaEvaluationContextへ未配線（PR #256レビュー[P1]、Issue #257）",
+    "description": "FormulaDefinitionのSUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED（EffectSequence実行中の累計ダメージ）参照（G-10、Issue #257）。集計スコープは1回のEffectSequence解決であり、その単位で採番される既存のSkillUseId（AS/EXはaction-skill-use-resolver.ts、チャージ解放はaction-charge-resolver.ts、PSはpassive-activation-service.tsのactivatePassiveCandidateがそれぞれnextSkillUseId()で新規採番する。EFFECT_SEQUENCEスコープのRuntimeCounterも同じキーを使う）を集計キーにする。formula-evaluator.tsのDamageResultRegistryが、LAST_DAMAGE_*（1解決スコープ=1行動）と並べてSkillUseIdごとの累計を保持し、damage-application-service.tsが確定ダメージを両方へ記録する。これにより同じ行動中にPS連鎖が与えたダメージは別のEffectSequence解決に属し、そのスキル自身の累計へ混入しない。まだDAMAGE結果が無いEffectSequenceでは空集合の合計として0を返し、EffectSequenceの外（continuous-heal-service.tsの継続回復など）ではキー自体を渡さずFormulaEvaluatorが明確な例外で拒否する。SUM_*を参照するproduction定義はHEAL 9件＋APPLY_SHIELD 1件の計10件で、下記productionDefinitionIdsは他のCapabilityと同じくそのうちの代表証跡である（残る1件のACT_SUIRAN_CASINO_AS1_SHIELD2はCAP_SHIELD（PLANNED、DMG-004／Issue #194）で引き続き隔離されるため実行経路の証跡を持てない）。",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": [
+        "ACT_FLUTE_VAMPIRE_EX_SELF_HEAL",
+        "ACT_CHIZURU_DOMESTIC_EX_HEAL",
+        "ACT_SUIRAN_CASINO_AS3_HEAL"
+      ],
+      "testCaseIds": [
+        "IT-CAP-SUM-DAMAGE-PROD-001",
+        "IT-CAP-SUM-DAMAGE-PROD-002",
+        "UT-R-SKL-08-014",
+        "UT-R-SKL-08-015",
+        "UT-R-SKL-08-016",
+        "UT-R-SKL-08-017",
+        "UT-R-SKL-08-018",
+        "UT-R-SKL-08-019",
+        "UT-R-SKL-08-020",
+        "UT-DAMAGE-APPLICATION-017",
+        "UT-DAMAGE-APPLICATION-018",
+        "UT-R-HEAL-01-013",
+        "UT-R-HEAL-01-014",
+        "UT-R-HEAL-01-015",
+        "UT-R-HEAL-01-016"
+      ]
     }
   },
   {
