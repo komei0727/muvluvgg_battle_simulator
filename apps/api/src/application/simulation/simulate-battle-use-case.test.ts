@@ -304,7 +304,34 @@ describe("SimulateBattleUseCase", () => {
         }),
       ],
     ]);
-    const catalog = new FakeBattleCatalog(UNITS, memories);
+    // M7-006（Issue #179）: Memory発動エンジンの実装により、この`triggeredEffect`は
+    // 実際に`BattleStarted`で解決されるため、参照するEffectActionもCatalogへ載せる。
+    const memoryEffectActions = new Map([
+      [
+        createEffectActionDefinitionId("ACT_ATTACK_UP"),
+        {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK_UP"),
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: 0.1 },
+            stacking: { mode: "STACKABLE" },
+            duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
+          },
+          requiredCapabilities: [],
+          metadata: { tags: [] },
+        } as unknown as EffectActionDefinition,
+      ],
+    ]);
+    const catalog = new FakeBattleCatalog(
+      UNITS,
+      memories,
+      new Map(),
+      "rev-1",
+      EX_SKILLS,
+      memoryEffectActions,
+    );
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),

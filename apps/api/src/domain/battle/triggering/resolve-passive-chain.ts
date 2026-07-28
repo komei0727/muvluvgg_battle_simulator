@@ -15,6 +15,7 @@ import {
   checkEffectsResolvedCount,
   checkPassiveDepth,
 } from "./passive-chain-limits.js";
+import type { MemoryCandidate, MemoryCandidateGroup } from "./memory-candidate.js";
 import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidate.js";
 import {
   createEmptyPassiveResolutionStack,
@@ -23,6 +24,7 @@ import {
   popTop,
   pushCandidateGroups,
   withTopCandidates,
+  withTopMemoryCandidates,
   type PassiveResolutionStack,
 } from "./passive-resolution-stack.js";
 import { applySimultaneousActivationLimit } from "./passive-simultaneous-activation-limit.js";
@@ -86,6 +88,24 @@ export interface PassiveActivation {
 }
 
 export type DetectPassiveCandidates = (event: TriggerCandidateEvent) => PassiveCandidateGroup;
+/** R-MEM-01: `event`に対するMemory候補（R-MEM-02順に並んでいることを期待する）。 */
+export type DetectMemoryCandidates = (event: TriggerCandidateEvent) => MemoryCandidateGroup;
+/**
+ * `08_ドメインイベント.md`「発動直前の再確認」Memory候補: trigger conditionが
+ * 現在も成立しているかを候補処理の直前に再評価する（PS候補の
+ * `reconfirmPassiveCandidate`に対応）。`requiredCapabilities`はpreflightが戦闘
+ * 開始前に保証済みのため実行時には再確認しない。「対象候補が1件以上存在する」は
+ * 実際にEffectSequenceの対象解決を行う`activateMemory`側でしか判定できないため、
+ * 発動処理が対象0件を検出した時点でイベントを発行せずに終える契約とする。
+ */
+export type ReconfirmMemoryCandidate = (
+  candidate: MemoryCandidate,
+  event: TriggerCandidateEvent,
+) => boolean;
+export type ActivateMemoryCandidate = (
+  candidate: MemoryCandidate,
+  event: TriggerCandidateEvent,
+) => PassiveActivation;
 export type GetCurrentBattleUnit = (battleUnitId: BattleUnitId) => BattleUnit;
 /**
  * `POSITION_RELATION`（Issue #144）の対象解決専用の安全なlookup。
@@ -116,6 +136,13 @@ export interface PassiveChainDependencies {
    */
   readonly findUnit?: FindBattleUnit;
   readonly activate: ActivatePassiveCandidate;
+  /**
+   * R-MEM-01/02（Issue #179）: 同じイベントのMemory候補。未指定ならMemory候補を
+   * 一切持たない（M6までの挙動と同じ）。
+   */
+  readonly detectMemoryCandidates?: DetectMemoryCandidates;
+  readonly reconfirmMemoryCandidate?: ReconfirmMemoryCandidate;
+  readonly activateMemory?: ActivateMemoryCandidate;
   readonly limits: PassiveChainLimits;
   /**
    * `RESOLUTION_PHASE`（Issue #144、TRIGGER_EXCLUSION_TIMING）を候補検出時と
@@ -207,6 +234,18 @@ function detectLimitedCandidates(
   deps: PassiveChainDependencies,
 ): PassiveCandidateGroup {
   return applySimultaneousActivationLimit(deps.detectCandidates(event)).kept;
+}
+
+/**
+ * R-MEM-01: Memory候補の検出。R-PS-03の同時発動制限はPS専用（R-MEM-01「Memory
+ * triggeredEffects はPP、クールタイム、先制攻撃、1解決スコープ1回制限を持たない」）
+ * のため適用しない。
+ */
+function detectMemoryCandidateGroup(
+  event: TriggerCandidateEvent,
+  deps: PassiveChainDependencies,
+): MemoryCandidateGroup {
+  return deps.detectMemoryCandidates?.(event) ?? [];
 }
 
 /** `resolvePassiveChain`の再帰呼び出し全体で共有する可変状態。 */
@@ -318,7 +357,8 @@ function resolveEvent(
   }
 
   const candidates = detectLimitedCandidates(event, deps);
-  state.stack = pushCandidateGroups(state.stack, [{ event, candidates }]);
+  const memoryCandidates = detectMemoryCandidateGroup(event, deps);
+  state.stack = pushCandidateGroups(state.stack, [{ event, candidates, memoryCandidates }]);
 
   const depthCheck = checkPassiveDepth(depthOf(state.stack), deps.limits);
   if (!depthCheck.ok) {
@@ -345,7 +385,9 @@ function resolveTopGroup(
   }
   const [next, ...restCandidates] = top.candidates;
   if (next === undefined) {
-    return undefined;
+    // R-MEM-02「同じイベントでPS候補とMemory候補が両方存在する場合、PS候補を先に
+    // 解決し、その後Memory候補を解決する」: PS候補を使い切ってからMemory候補へ進む。
+    return resolveTopMemoryGroup(state, deps);
   }
   state.stack = withTopCandidates(state.stack, restCandidates);
 
@@ -378,6 +420,40 @@ function resolveTopGroup(
 }
 
 /**
+ * R-MEM-01/02: スタック先頭グループのMemory候補を先頭から順に処理する。PS候補と
+ * 異なり発動済み集合（R-PS-07）・PP・クールタイムを持たないため、`08_ドメイン
+ * イベント.md`「発動直前の再確認」のMemory候補側（trigger conditionが現在も成立
+ * すること）だけを`deps.reconfirmMemoryCandidate`で確認する。1件のMemory解決から
+ * 生じたイベントは`driveSteps`（PSと共通）が処理するため、そこで生じた新しい候補
+ * グループはスタック先頭へ積まれ、未処理の親Memory候補より先に解決される
+ * （R-MEM-02の後半、R-PS-06と同じ規約）。
+ */
+function resolveTopMemoryGroup(
+  state: ChainState,
+  deps: PassiveChainDependencies,
+): PassiveChainLimitViolationReason | undefined {
+  const top = peekTop(state.stack);
+  if (top === undefined) {
+    return undefined;
+  }
+  const [next, ...restCandidates] = top.memoryCandidates;
+  if (next === undefined) {
+    return undefined;
+  }
+  state.stack = withTopMemoryCandidates(state.stack, restCandidates);
+
+  const activateMemory = deps.activateMemory;
+  if (activateMemory !== undefined && (deps.reconfirmMemoryCandidate?.(next, top.event) ?? true)) {
+    const violation = driveSteps(activateMemory(next, top.event), state, deps, undefined);
+    if (violation !== undefined) {
+      return violation;
+    }
+  }
+
+  return resolveTopMemoryGroup(state, deps);
+}
+
+/**
  * `generator`を完了まで駆動する。`TIMING_EVENT`はGuardをカウントせずそのまま
  * 候補解決へ回す。`EFFECT_RESOLVED`は受け取った直後に効果解決数Guardを確認して
  * から、`events`を発生順に`resolveEvent`で解決する（各イベントの候補連鎖を
@@ -389,10 +465,23 @@ function driveActivation(
   state: ChainState,
   deps: PassiveChainDependencies,
 ): PassiveChainLimitViolationReason | undefined {
+  return driveSteps(generator, state, deps, candidate);
+}
+
+/**
+ * PS発動（`candidate`あり）とMemory発動（`candidate`なし）で共通の駆動ループ。
+ * Memory発動は使用者ユニットを持たないため中断（R-SKL-01）の集約対象にならない。
+ */
+function driveSteps(
+  generator: PassiveActivation,
+  state: ChainState,
+  deps: PassiveChainDependencies,
+  candidate: PassiveCandidate | undefined,
+): PassiveChainLimitViolationReason | undefined {
   while (true) {
     const step = generator.next();
     if (step.done) {
-      if (step.value.interrupted) {
+      if (step.value.interrupted && candidate !== undefined) {
         state.interruptedCandidates.push(candidate);
       }
       return undefined;

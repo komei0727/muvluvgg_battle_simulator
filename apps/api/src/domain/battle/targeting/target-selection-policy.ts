@@ -62,12 +62,70 @@ export function matchesRelativeSide(
   actor: BattleUnit,
   side: SelectorSide,
 ): boolean {
+  return matchesRelativeSideOf(unit, actor.side, side);
+}
+
+/**
+ * R-MEM-04「使用者はMemoryを指定した陣営を source side とする」: Memory由来の
+ * 解決には使用者BattleUnitが存在しないため、相対陣営の基準を`Side`だけで表す版。
+ * `matchesRelativeSide`（使用者ユニットを持つ通常のSkill/PS経路）はこの関数へ
+ * 委譲する — 相対陣営の解決規則自体は使用者の`side`しか使わないため、両者が
+ * 分岐して食い違うことがない。
+ */
+export function matchesRelativeSideOf(
+  unit: BattleUnit,
+  actorSide: Side,
+  side: SelectorSide,
+): boolean {
   if (side === "ALL") {
     return true;
   }
-  const opposite: Side = actor.side === "ALLY" ? "ENEMY" : "ALLY";
-  const absoluteSide = side === "ALLY" ? actor.side : opposite;
+  const opposite: Side = actorSide === "ALLY" ? "ENEMY" : "ALLY";
+  const absoluteSide = side === "ALLY" ? actorSide : opposite;
   return unit.side === absoluteSide;
+}
+
+/**
+ * R-MEM-04「使用者はMemoryを指定した陣営を source side とし、対象参照の`SELF`は
+ * 使用できない」: Memory の `triggeredEffects` 解決には使用者BattleUnitが存在
+ * しないため、対象解決の基準を「陣営だけ」で表す発生源。`BattleUnit`は
+ * `memorySource`フィールドを持たないため、両者は構造的に判別できる
+ * （既存のSkill/PS経路は`BattleUnit`をそのまま渡し続けられる）。
+ */
+export interface MemoryResolutionSource {
+  readonly side: Side;
+  readonly memorySource: true;
+}
+
+/** 対象解決の基準（通常のSkill/PS使用者、またはMemoryのsource side）。 */
+export type ResolutionSource = BattleUnit | MemoryResolutionSource;
+
+export function createMemoryResolutionSource(side: Side): MemoryResolutionSource {
+  return { side, memorySource: true };
+}
+
+export function isMemoryResolutionSource(
+  source: ResolutionSource,
+): source is MemoryResolutionSource {
+  return "memorySource" in source;
+}
+
+/**
+ * 使用者BattleUnitを必要とする対象解決（`SELF`、使用者からの距離順、
+ * `SELF_LOWEST_PRIORITY`、areaのbase）から呼ぶ。Memory由来の解決では
+ * 使用者が存在しないため、黙って候補0件にせず明確に拒否する
+ * （R-MEM-04「具体的な発生源 BattleUnit が必要なEffectActionをMemoryから使用
+ * する場合は、Catalog検証またはpreflightで拒否する」と同じ隔離方針で、
+ * Catalog整合性検証／preflightが本来ここへ到達させない）。
+ */
+export function requireSourceUnit(source: ResolutionSource, feature: string): BattleUnit {
+  if (isMemoryResolutionSource(source)) {
+    throw new DomainValidationError(
+      "selector",
+      `${feature} requires a source BattleUnit, which Memory triggeredEffects do not have (R-MEM-04)`,
+    );
+  }
+  return source;
 }
 
 const EMPTY_UNIT_DEFINITIONS: ReadonlyMap<UnitDefinitionId, UnitDefinition> = new Map();
@@ -114,7 +172,7 @@ function compareNumeric(
 }
 
 interface FilterContext {
-  readonly actor: BattleUnit;
+  readonly source: ResolutionSource;
   readonly allUnits: readonly BattleUnit[];
   readonly resolvedBindings: ResolvedTargetBindings;
   readonly unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
@@ -123,11 +181,11 @@ interface FilterContext {
 /** TARGET_EXCLUDE_RESOLVED_UNIT（TGT-002）: SELF/BINDINGのみ対応（TRIGGER_SOURCE/TRIGGER_TARGET/LAST_*はM7スコープ外）。 */
 function resolveExcludeReferenceUnits(
   reference: TargetReference,
-  actor: BattleUnit,
+  source: ResolutionSource,
   resolvedBindings: ResolvedTargetBindings,
 ): readonly BattleUnit[] {
   if (reference.kind === "SELF") {
-    return [actor];
+    return [requireSourceUnit(source, 'EXCLUDE_RESOLVED_UNIT with reference kind "SELF"')];
   }
   if (reference.kind === "BINDING") {
     const targetBindingId = reference.targetBindingId as TargetBindingId;
@@ -200,7 +258,7 @@ function matchesFilter(
     case "EXCLUDE_RESOLVED_UNIT": {
       const excluded = resolveExcludeReferenceUnits(
         filter.reference,
-        ctx.actor,
+        ctx.source,
         ctx.resolvedBindings,
       );
       return !excluded.some((unit) => unit.battleUnitId === candidate.battleUnitId);
@@ -225,13 +283,24 @@ function matchesFilter(
   }
 }
 
-/** R-TGT-02: 使用者からのマンハッタン距離昇順→対象側の行（前列、後列）→対象の列（絶対左、中央、右）。 */
-function compareDefaultOrder(actor: BattleUnit) {
+/**
+ * R-TGT-02: 使用者からのマンハッタン距離昇順→対象側の行（前列、後列）→対象の列
+ * （絶対左、中央、右）。
+ *
+ * R-MEM-04（Issue #179）: Memory由来の解決には使用者が存在しないため、距離の項を
+ * 持たず行→列だけで並べる（盤面上の位置は陣営内で一意なので、単一陣営を選ぶ
+ * production Memoryのbindingでは常に決定的な順序になる）。距離そのものを意味に
+ * 持つ`NEAREST`/`FARTHEST`は、代わりに使用者を要求して拒否する。
+ */
+function compareDefaultOrder(source: ResolutionSource) {
+  const actor = isMemoryResolutionSource(source) ? undefined : source;
   return (a: BattleUnit, b: BattleUnit): number => {
-    const distanceA = manhattanDistance(actor.globalCoordinate, a.globalCoordinate);
-    const distanceB = manhattanDistance(actor.globalCoordinate, b.globalCoordinate);
-    if (distanceA !== distanceB) {
-      return distanceA - distanceB;
+    if (actor !== undefined) {
+      const distanceA = manhattanDistance(actor.globalCoordinate, a.globalCoordinate);
+      const distanceB = manhattanDistance(actor.globalCoordinate, b.globalCoordinate);
+      if (distanceA !== distanceB) {
+        return distanceA - distanceB;
+      }
     }
     if (ROW_ORDER[a.position.row] !== ROW_ORDER[b.position.row]) {
       return ROW_ORDER[a.position.row] - ROW_ORDER[b.position.row];
@@ -241,8 +310,8 @@ function compareDefaultOrder(actor: BattleUnit) {
 }
 
 /** R-TGT-03: R-TGT-02の並び全体を逆順にする（距離だけでなく行・列の同点判定も反転する）。 */
-function compareFarthestOrder(actor: BattleUnit) {
-  const base = compareDefaultOrder(actor);
+function compareFarthestOrder(source: ResolutionSource) {
+  const base = compareDefaultOrder(requireSourceUnit(source, 'order key "FARTHEST"'));
   return (a: BattleUnit, b: BattleUnit): number => -base(a, b);
 }
 
@@ -269,7 +338,8 @@ function exGaugeRatio(unit: BattleUnit): number {
 }
 
 /** TGT-002（CAP_TARGET_FILTER_ORDER）: R-TGT-02の距離部分のみを単独比較キーとして使う（`["FRONT_ROW", "NEAREST", "LEFT_TO_RIGHT"]`のような分解済み並びに対応）。 */
-function compareNearestOrder(actor: BattleUnit) {
+function compareNearestOrder(source: ResolutionSource) {
+  const actor = requireSourceUnit(source, 'order key "NEAREST"');
   return (a: BattleUnit, b: BattleUnit): number =>
     manhattanDistance(actor.globalCoordinate, a.globalCoordinate) -
     manhattanDistance(actor.globalCoordinate, b.globalCoordinate);
@@ -312,7 +382,8 @@ function compareFastest(a: BattleUnit, b: BattleUnit): number {
 }
 
 /** TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDEテーマ:「自身以外を優先」— 自身をhard excludeせず末尾へ回す（自身しかいない場合は自身が残る）。 */
-function compareSelfLowestPriority(actor: BattleUnit) {
+function compareSelfLowestPriority(source: ResolutionSource) {
+  const actor = requireSourceUnit(source, 'order key "SELF_LOWEST_PRIORITY"');
   return (a: BattleUnit, b: BattleUnit): number => {
     const rankA = a.battleUnitId === actor.battleUnitId ? 1 : 0;
     const rankB = b.battleUnitId === actor.battleUnitId ? 1 : 0;
@@ -322,7 +393,7 @@ function compareSelfLowestPriority(actor: BattleUnit) {
 
 const SINGLE_KEY_ORDER_COMPARATORS: Record<
   TargetOrderKey,
-  (actor: BattleUnit) => (a: BattleUnit, b: BattleUnit) => number
+  (source: ResolutionSource) => (a: BattleUnit, b: BattleUnit) => number
 > = {
   DEFAULT: compareDefaultOrder,
   NEAREST: compareNearestOrder,
@@ -369,7 +440,7 @@ function compareUnitTypePriority(
  */
 function compareByOrder(
   orderEntries: readonly TargetOrderEntry[],
-  actor: BattleUnit,
+  source: ResolutionSource,
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ) {
   const comparators = orderEntries.map((entry) => {
@@ -385,9 +456,9 @@ function compareByOrder(
         `order key "${entry}" is not supported by this TargetSelectionPolicy (TGT-002/CAP_TARGET_FILTER_ORDER scope)`,
       );
     }
-    return factory(actor);
+    return factory(source);
   });
-  const fallback = compareDefaultOrder(actor);
+  const fallback = compareDefaultOrder(source);
   return (a: BattleUnit, b: BattleUnit): number => {
     for (const compare of comparators) {
       const result = compare(a, b);
@@ -410,17 +481,17 @@ function findUnit(allUnits: readonly BattleUnit[], id: BattleUnitId): BattleUnit
 
 function resolveBase(
   selector: TargetSelectorDefinition,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   resolvedBindings: ResolvedTargetBindings,
   triggerContext?: TriggerContext,
 ): BattleUnit | undefined {
   if (selector.kind !== "BINDING_DERIVED") {
-    return actor;
+    return requireSourceUnit(source, "an area whose base is the implicit source unit");
   }
   const reference = selector.base as TargetReference;
   if (reference.kind === "SELF") {
-    return actor;
+    return requireSourceUnit(source, 'an area base of kind "SELF"');
   }
   if (reference.kind === "BINDING") {
     const targetBindingId = reference.targetBindingId as TargetBindingId;
@@ -540,7 +611,7 @@ function applyArea(
  */
 function resolveTriggerPool(
   kind: "TRIGGER_SOURCE" | "TRIGGER_TARGET",
-  actor: BattleUnit,
+  source: ResolutionSource,
   selector: TargetSelectorDefinition,
   allUnits: readonly BattleUnit[],
   triggerContext: TriggerContext | undefined,
@@ -569,7 +640,7 @@ function resolveTriggerPool(
   });
   return selector.side === undefined
     ? units
-    : units.filter((u) => matchesRelativeSide(u, actor, selector.side as SelectorSide));
+    : units.filter((u) => matchesRelativeSideOf(u, source.side, selector.side as SelectorSide));
 }
 
 /** R-TGT-08（TGT-004、Issue #167）: 消費された（第一優先対象として移動された）Stealth AppliedEffectインスタンス。 */
@@ -714,7 +785,7 @@ function applyStealthRedirect(
 
 function resolveTargetsCore(
   selector: TargetSelectorDefinition,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   resolvedBindings: ResolvedTargetBindings,
   triggerContext: TriggerContext | undefined,
@@ -722,26 +793,32 @@ function resolveTargetsCore(
   alreadyConsumedStealthEffectInstanceIds: ReadonlySet<EffectInstanceId>,
 ): ResolveTargetsCoreResult {
   // R-TGT-09 #5相当の事前検証: orderは並べ替え前に検証する（候補0/1件でも不正なorderは拒否する）。
-  const compare = compareByOrder(selector.order, actor, unitDefinitions);
+  const compare = compareByOrder(selector.order, source, unitDefinitions);
 
   // R-TGT-09 #1: kindに基づき初期候補を作る。
   let pool: readonly BattleUnit[];
   switch (selector.kind) {
     case "SELF":
-      pool = [actor];
+      // R-MEM-04「対象参照の`SELF`は使用できない」: Memory由来の解決では使用者が
+      // 存在しないため、`requireSourceUnit`が明確に拒否する。
+      pool = [requireSourceUnit(source, 'selector kind "SELF"')];
       break;
     case "SELECT":
-      pool = allUnits.filter((u) => matchesRelativeSide(u, actor, selector.side as SelectorSide));
+      pool = allUnits.filter((u) =>
+        matchesRelativeSideOf(u, source.side, selector.side as SelectorSide),
+      );
       break;
     case "BINDING_DERIVED":
       pool =
         selector.side === undefined
           ? allUnits
-          : allUnits.filter((u) => matchesRelativeSide(u, actor, selector.side as SelectorSide));
+          : allUnits.filter((u) =>
+              matchesRelativeSideOf(u, source.side, selector.side as SelectorSide),
+            );
       break;
     case "TRIGGER_SOURCE":
     case "TRIGGER_TARGET":
-      pool = resolveTriggerPool(selector.kind, actor, selector, allUnits, triggerContext);
+      pool = resolveTriggerPool(selector.kind, source, selector, allUnits, triggerContext);
       break;
   }
 
@@ -752,7 +829,7 @@ function resolveTargetsCore(
 
   // R-TGT-09 #3（TGT-002、CAP_TARGET_FILTER_ORDER）: filtersを定義順（AND）に適用する。
   if (selector.filters.length > 0) {
-    const filterContext: FilterContext = { actor, allUnits, resolvedBindings, unitDefinitions };
+    const filterContext: FilterContext = { source, allUnits, resolvedBindings, unitDefinitions };
     pool = pool.filter((candidate) =>
       selector.filters.every((filter) => matchesFilter(filter, candidate, filterContext)),
     );
@@ -760,7 +837,7 @@ function resolveTargetsCore(
 
   // R-TGT-09 #4: areaが指定されている場合、baseを基準に候補を範囲で絞る。
   if (selector.area !== undefined) {
-    const base = resolveBase(selector, actor, allUnits, resolvedBindings, triggerContext);
+    const base = resolveBase(selector, source, allUnits, resolvedBindings, triggerContext);
     pool = applyArea(selector.area, base, pool);
   }
 
@@ -793,7 +870,7 @@ function resolveTargetsCore(
   if (selected.length === 0 && selector.fallback !== undefined) {
     return resolveTargetsCore(
       selector.fallback,
-      actor,
+      source,
       allUnits,
       resolvedBindings,
       triggerContext,
@@ -811,7 +888,7 @@ function resolveTargetsCore(
 
 export function resolveTargets(
   selector: TargetSelectorDefinition,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
   triggerContext?: TriggerContext,
@@ -819,7 +896,7 @@ export function resolveTargets(
 ): readonly BattleUnit[] {
   return resolveTargetsCore(
     selector,
-    actor,
+    source,
     allUnits,
     resolvedBindings,
     triggerContext,
@@ -844,7 +921,7 @@ export function resolveTargets(
  */
 export function resolveTargetsWithStealthConsumption(
   selector: TargetSelectorDefinition,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   resolvedBindings: ResolvedTargetBindings = EMPTY_RESOLVED_BINDINGS,
   triggerContext?: TriggerContext,
@@ -853,7 +930,7 @@ export function resolveTargetsWithStealthConsumption(
 ): { readonly units: readonly BattleUnit[]; readonly stealthConsumption?: StealthConsumption } {
   const result = resolveTargetsCore(
     selector,
-    actor,
+    source,
     allUnits,
     resolvedBindings,
     triggerContext,

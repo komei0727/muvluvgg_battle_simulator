@@ -30,6 +30,29 @@ function damageAction(id: string): EffectActionDefinition {
   );
 }
 
+/**
+ * M7-006（Issue #179、R-MEM-04）: Memory の `triggeredEffects` は使用者BattleUnitを
+ * 持たないため、`DAMAGE`のように発生源を必要とするEffectActionを参照できない
+ * （`MEMORY_REQUIRES_SOURCE_UNIT`）。Memory用fixtureはこの静的なmodifierを使う。
+ */
+function memoryModifierAction(id: string): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_DAMAGE_MOD",
+      payload: {
+        direction: "INCOMING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: 0.1 },
+        stacking: { mode: "STACKABLE" },
+        duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
+      },
+      requiredCapabilities: [],
+    },
+    "effectAction",
+  );
+}
+
 function effectImmunityAction(
   id: string,
   referencedEffectActionIds: readonly string[],
@@ -372,6 +395,14 @@ function branchMemory(requiredCapabilities: readonly string[]) {
           targetSelector: "ANY",
         },
         effectSequence: {
+          // R-MEM-04（Issue #179）: Memoryは使用者BattleUnitを持たないため、
+          // `SELF`対象参照や発生源を必要とするEffectActionは宣言できない。
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
           steps: [
             {
               kind: "BRANCH",
@@ -379,8 +410,8 @@ function branchMemory(requiredCapabilities: readonly string[]) {
               thenSteps: [
                 {
                   kind: "ACTION",
-                  target: { kind: "SELF" },
-                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                  target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+                  actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
                 },
               ],
               elseSteps: [],
@@ -406,11 +437,19 @@ function triggeredMemory(requiredCapabilities: readonly string[]) {
           targetSelector: "ANY",
         },
         effectSequence: {
+          // R-MEM-04（Issue #179）: Memoryは使用者BattleUnitを持たないため、
+          // `SELF`対象参照や発生源を必要とするEffectActionは宣言できない。
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
           steps: [
             {
               kind: "ACTION",
-              target: { kind: "SELF" },
-              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+              actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
             },
           ],
         },
@@ -433,11 +472,19 @@ function triggerContextMemory(requiredCapabilities: readonly string[]) {
           targetSelector: "SELF",
         },
         effectSequence: {
+          // R-MEM-04（Issue #179）: Memoryは使用者BattleUnitを持たないため、
+          // `SELF`対象参照や発生源を必要とするEffectActionは宣言できない。
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
           steps: [
             {
               kind: "ACTION",
-              target: { kind: "SELF" },
-              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+              actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
             },
           ],
         },
@@ -1923,6 +1970,7 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
         memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
         capabilities: [
           capability("CAP_MEMORY_TRIGGERED_EFFECT"),
@@ -1934,6 +1982,7 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
         memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_RESOLUTION_BRANCH_REPEAT"])],
         capabilities: [
           capability("CAP_MEMORY_TRIGGERED_EFFECT"),
@@ -1948,6 +1997,7 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
         memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
         capabilities: [
           capability("CAP_MEMORY_TRIGGERED_EFFECT"),
@@ -1959,6 +2009,7 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
         memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TRIGGER_CONTEXT"])],
         capabilities: [
           capability("CAP_MEMORY_TRIGGERED_EFFECT"),
@@ -2644,6 +2695,7 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
         memories: [triggeredMemory([])],
         capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
       }),
@@ -2652,6 +2704,7 @@ describe("buildCatalogIndex", () => {
     expect(() =>
       buildCatalogIndex({
         ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
         memories: [triggeredMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
         capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
       }),
@@ -3200,5 +3253,135 @@ describe("buildCatalogIndex", () => {
         expect(violation?.message).toContain("steps[0].condition");
       }
     });
+  });
+  it("UT-CAT-IDX-081 (R-MEM-04): rejects a Memory triggeredEffect whose EffectAction needs a source BattleUnit", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, damageAction("ACT_MEMORY_DAMAGE")],
+        memories: [
+          createMemoryDefinition({
+            memoryDefinitionId: "MEM_DAMAGE",
+            triggeredEffects: [
+              {
+                trigger: {
+                  eventType: "BattleStarted",
+                  category: "FACT",
+                  sourceSelector: "ANY",
+                  targetSelector: "ANY",
+                },
+                effectSequence: {
+                  targetBindings: [
+                    {
+                      targetBindingId: "TGT_ENEMIES",
+                      selector: { kind: "SELECT", side: "ENEMY", count: "ALL" },
+                    },
+                  ],
+                  steps: [
+                    {
+                      kind: "ACTION",
+                      target: { kind: "BINDING", targetBindingId: "TGT_ENEMIES" },
+                      actions: [{ effectActionDefinitionId: "ACT_MEMORY_DAMAGE" }],
+                    },
+                  ],
+                },
+              },
+            ],
+            requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
+            metadata: { displayName: "Damage Memory" },
+          }),
+        ],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
+      }),
+    ).toThrowError(/requires a source BattleUnit/);
+  });
+
+  it("UT-CAT-IDX-082 (R-MEM-04): rejects a Memory triggeredEffect that references SELF as a target", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+        memories: [
+          createMemoryDefinition({
+            memoryDefinitionId: "MEM_SELF",
+            triggeredEffects: [
+              {
+                trigger: {
+                  eventType: "BattleStarted",
+                  category: "FACT",
+                  sourceSelector: "ANY",
+                  targetSelector: "ANY",
+                },
+                effectSequence: {
+                  steps: [
+                    {
+                      kind: "ACTION",
+                      target: { kind: "SELF" },
+                      actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
+                    },
+                  ],
+                },
+              },
+            ],
+            requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
+            metadata: { displayName: "Self Memory" },
+          }),
+        ],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
+      }),
+    ).toThrowError(/cannot use the "SELF" target reference/);
+  });
+
+  it("UT-CAT-IDX-083 (R-MEM-04): rejects a Memory targetBinding ordered relative to the source unit", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+        memories: [
+          createMemoryDefinition({
+            memoryDefinitionId: "MEM_NEAREST",
+            triggeredEffects: [
+              {
+                trigger: {
+                  eventType: "BattleStarted",
+                  category: "FACT",
+                  sourceSelector: "ANY",
+                  targetSelector: "ANY",
+                },
+                effectSequence: {
+                  targetBindings: [
+                    {
+                      targetBindingId: "TGT_NEAREST_ENEMY",
+                      selector: {
+                        kind: "SELECT",
+                        side: "ENEMY",
+                        count: 1,
+                        order: ["NEAREST"],
+                      },
+                    },
+                  ],
+                  steps: [
+                    {
+                      kind: "ACTION",
+                      target: { kind: "BINDING", targetBindingId: "TGT_NEAREST_ENEMY" },
+                      actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
+                    },
+                  ],
+                },
+              },
+            ],
+            requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+            metadata: { displayName: "Nearest Memory" },
+          }),
+        ],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_TARGET_FILTER_ORDER"),
+        ],
+      }),
+    ).toThrowError(/resolves relative to the source unit/);
   });
 });

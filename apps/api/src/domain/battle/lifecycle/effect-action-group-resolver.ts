@@ -66,7 +66,12 @@ import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import { resolveDarkness } from "../combat/hit-policy.js";
+import {
+  createMemoryResolutionSource,
+  type ResolutionSource,
+} from "../targeting/target-selection-policy.js";
 
 /**
  * `resolveSkillOrder`/`resolveChargeReleaseOrder`が計画した`EffectSequencePlan`を
@@ -77,7 +82,17 @@ import { resolveDarkness } from "../combat/hit-policy.js";
  */
 export interface EffectActionGroupContext {
   readonly definitions: BattleDefinitions;
-  readonly actorId: BattleUnitId;
+  /**
+   * 使用者（AS/EXの実行者、PSの所有者）。R-MEM-04（Issue #179）: Memory の
+   * `triggeredEffects` 解決だけは使用者BattleUnitを持たないため`undefined`に
+   * なり、代わりに`sourceSide`（Memoryを指定した陣営）を持つ。使用者を必要と
+   * するEffectAction（DAMAGE・`SKILL_SOURCE`を参照するFormula・回復転送先など）は
+   * `requireActorUnit`が明確に拒否する（Catalog整合性検証／preflightが本来
+   * ここへ到達させない）。
+   */
+  readonly actorId?: BattleUnitId;
+  /** R-MEM-04: Memory由来の解決だけが持つ発生源陣営（`08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、`sourceSide`を持つ」）。 */
+  readonly sourceSide?: Side;
   readonly random: RandomSource;
   readonly recorder: EventRecorder;
   readonly turnNumber: number;
@@ -88,7 +103,13 @@ export interface EffectActionGroupContext {
   readonly actionScope: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
   readonly parentEventId: DomainEventId;
-  readonly skillDefinitionId: SkillDefinitionId;
+  /**
+   * R-MEM-04（Issue #179）: Memory の `triggeredEffects` はSkillに属さないため
+   * `undefined`。参照するのはDAMAGE経路（`DamageEventContext`・`SkillMissed`）
+   * だけであり、その経路は使用者BattleUnitも必要とするため
+   * （`requireActorUnit`）Memoryからは到達しない。
+   */
+  readonly skillDefinitionId?: SkillDefinitionId;
   /**
    * Issue #34/#73: FACT/TIMINGイベント確定直後にPS即時連鎖を解決するフック
    * （未指定ならPS解決を行わない）。`applyDamageAction`/`applyCooldownManipulationAction`
@@ -186,6 +207,93 @@ export interface EffectActionGroupsResult {
  */
 export interface UnitsBox {
   units: readonly BattleUnit[];
+}
+
+/**
+ * R-MEM-04（Issue #179）: 使用者BattleUnitを持たないMemory由来の解決
+ * （`context.actorId === undefined`）と、通常のSkill/PS解決の差を1か所へ閉じ込める
+ * ためのアクセサ群。
+ */
+function findActorUnit(context: EffectActionGroupContext, box: UnitsBox): BattleUnit | undefined {
+  return context.actorId === undefined ? undefined : requireUnit(box.units, context.actorId);
+}
+
+/**
+ * 使用者BattleUnitを必要とするEffectAction（DAMAGE、`SKILL_SOURCE`を参照する
+ * Formula、回復転送先など）から呼ぶ。Memory由来の解決では黙って別のユニットへ
+ * すり替えず、`14_Catalog定義スキーマ.md`/R-MEM-04が要求する「Catalog検証または
+ * preflightで拒否する」と同じ理由の明確なエラーにする。
+ */
+function requireActorUnit(context: EffectActionGroupContext, box: UnitsBox): BattleUnit {
+  const actor = findActorUnit(context, box);
+  if (actor === undefined) {
+    throw new DomainValidationError(
+      "effectAction",
+      "this EffectAction requires a source BattleUnit, which Memory triggeredEffects do not have (R-MEM-04; Catalog integrity/preflight should reject such a Memory definition)",
+    );
+  }
+  return actor;
+}
+
+/**
+ * R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」の判定。Memory
+ * 由来の解決には中断契機になる使用者が存在しない（R-MEM-01「Memory
+ * triggeredEffects はPP、クールタイム、先制攻撃、1解決スコープ1回制限を持たない」
+ * と同じく、使用者不在に由来する差分）ため常に`false`を返す。
+ */
+function isActorDefeated(context: EffectActionGroupContext, box: UnitsBox): boolean {
+  const actor = findActorUnit(context, box);
+  return actor !== undefined && isDefeated(actor);
+}
+
+/**
+ * 対象解決（`skill-resolution-service.ts`/`target-selection-policy.ts`）へ渡す
+ * 発生源。通常は使用者BattleUnit、Memory由来（R-MEM-04）ではsource sideだけを
+ * 持つ{@link MemoryResolutionSource}。
+ */
+function resolutionSourceOf(context: EffectActionGroupContext, box: UnitsBox): ResolutionSource {
+  const actor = findActorUnit(context, box);
+  if (actor !== undefined) {
+    return actor;
+  }
+  if (context.sourceSide === undefined) {
+    throw new DomainValidationError(
+      "effectAction",
+      "resolving targets requires either an actor BattleUnit or a Memory source side (R-MEM-04)",
+    );
+  }
+  return createMemoryResolutionSource(context.sourceSide);
+}
+
+/** DAMAGE経路が要求する所属Skill。Memory由来の解決には存在しない（R-MEM-04）。 */
+function requireSkillDefinitionId(context: EffectActionGroupContext): SkillDefinitionId {
+  if (context.skillDefinitionId === undefined) {
+    throw new DomainValidationError(
+      "effectAction",
+      "this EffectAction requires an owning SkillDefinition, which Memory triggeredEffects do not have (R-MEM-04)",
+    );
+  }
+  return context.skillDefinitionId;
+}
+
+/** イベントエンベロープ／payloadの発生源（`08_ドメインイベント.md`「Memory由来イベントは`sourceSide`を持つ」）。 */
+function sourceEnvelopeOf(
+  context: EffectActionGroupContext,
+): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } | Record<string, never> {
+  if (context.actorId !== undefined) {
+    return { sourceUnitId: context.actorId };
+  }
+  return context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {};
+}
+
+/** `AppliedEffect`/`MarkerState`の付与元（`GrantEffectRequest.sourceId`/`sourceSide`）。 */
+function grantSourceOf(
+  context: EffectActionGroupContext,
+): { readonly sourceId: BattleUnitId } | { readonly sourceSide: Side } | Record<string, never> {
+  if (context.actorId !== undefined) {
+    return { sourceId: context.actorId };
+  }
+  return context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {};
 }
 
 /**
@@ -439,7 +547,7 @@ function* resolveOneEffectActionApplication(
     resolutionScopeId: context.actionScope,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: context.actorId,
+    ...sourceEnvelopeOf(context),
     targetUnitIds: [application.targetBattleUnitId],
     payload: {
       effectActionDefinitionId: application.effectActionDefinitionId,
@@ -452,7 +560,7 @@ function* resolveOneEffectActionApplication(
   // TIMINGイベント後の再検証: 使用者がPS/Memory連鎖で戦闘不能になった場合、
   // このEffectActionへは進まず中断として計上する（R-SKL-01）。`box.units`は
   // 直前のyieldで駆動側が解決した子PS連鎖の結果を反映済み。
-  if (isDefeated(requireUnit(box.units, context.actorId))) {
+  if (isActorDefeated(context, box)) {
     return {
       lastEventId: starting.eventId,
       resolvedCount: 0,
@@ -503,7 +611,7 @@ function* resolveOneEffectActionApplication(
     effectLastEventId = starting.eventId;
     resultKind = "SKIPPED";
   } else if (effectAction.kind === "DAMAGE") {
-    const currentActor = requireUnit(box.units, context.actorId);
+    const currentActor = requireActorUnit(context, box);
     // R-ACTN-01 #2（レビュー再指摘[P2]、PR #215）: `includeDefeated`が明示された
     // 対象は、開始時点で戦闘不能であっても`applyDamageAction`がヒットを適用する
     // ため、resultKind算出上も「既に戦闘不能」として扱わない。
@@ -527,7 +635,7 @@ function* resolveOneEffectActionApplication(
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
-        skillDefinitionId: context.skillDefinitionId,
+        skillDefinitionId: requireSkillDefinitionId(context),
         consumeEffectDuration,
         finalizeConsumedEffectDurations,
         includeDefeated: application.includeDefeated,
@@ -631,7 +739,10 @@ function* resolveOneEffectActionApplication(
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
-        sourceUnitId: context.actorId,
+        // COOLDOWN_MANIPULATION/MODIFY_RESOURCE/HEALは発生源ユニットを前提とする
+        // （`CooldownManipulationEventContext`等の`sourceUnitId`は必須）。
+        // Memory由来の解決はR-MEM-04に従って拒否する。
+        sourceUnitId: requireActorUnit(context, box).battleUnitId,
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
@@ -674,13 +785,26 @@ function* resolveOneEffectActionApplication(
     // ままここまで運び、評価するこの瞬間の`box.units`から引き直す — PS開始時に
     // 一度だけ解決した`BattleUnit`を保持すると、先行するEffectActionや子PS連鎖
     // による対象のHP・combatStats変更をこのFormulaが見落としてしまうため。
-    const actor = requireUnit(box.units, context.actorId);
+    // R-MEM-04（Issue #179）: Memory由来の解決は使用者を持たない。`SKILL_SOURCE`を
+    // 参照するFormulaは`FormulaEvaluator`が明確に拒否し、`CONSTANT`のように
+    // 使用者を必要としないFormula（production Memoryの静的補正）はそのまま
+    // 評価できる。`lastResults`（使用者自身の直前DAMAGE結果）も同じ理由で持たない。
+    const actor = findActorUnit(context, box);
     const triggerTargetUnitId = context.triggerTargetUnitIds?.[0];
     const magnitude = evaluateFormula(effectAction.payload.formula, {
-      skillSource: actor,
+      ...(actor !== undefined ? { skillSource: actor } : {}),
+      ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
+      ...(actor !== undefined
+        ? {
+            lastResults: damageResultsFor(
+              context.damageResults,
+              actor.battleUnitId,
+              context.skillUseId,
+            ),
+          }
+        : {}),
       ...(context.triggerSourceUnitId !== undefined
         ? { triggerSource: requireUnit(box.units, context.triggerSourceUnitId) }
         : {}),
@@ -710,7 +834,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
         },
@@ -741,7 +865,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
           magnitude,
@@ -826,7 +950,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
           statusKind: effectAction.payload.status,
@@ -922,7 +1046,7 @@ function* resolveOneEffectActionApplication(
           : undefined;
       const grantRequest = {
         effectActionDefinitionId: application.effectActionDefinitionId,
-        sourceId: context.actorId,
+        ...grantSourceOf(context),
         targetId: application.targetBattleUnitId,
         duplicate: true,
         magnitude: 0,
@@ -1023,7 +1147,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
         },
@@ -1057,7 +1181,10 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           markerId: effectAction.payload.markerId,
-          sourceId: context.actorId,
+          // `10_API設計.md`「MarkerStateResponse.sourceUnitId」は必須（Markerは
+          // 常に「直近の付与者」を持つ）ため、Memory由来のAPPLY_MARKERは
+          // R-MEM-04「具体的な発生源BattleUnitが必要なEffectAction」として拒否する。
+          sourceId: requireActorUnit(context, box).battleUnitId,
           targetId: application.targetBattleUnitId,
           stackPolicy: effectAction.payload.stack.policy,
           stackMax: effectAction.payload.stack.max,
@@ -1213,7 +1340,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
         },
@@ -1248,7 +1375,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
           magnitude: 0,
@@ -1288,12 +1415,23 @@ function* resolveOneEffectActionApplication(
     // `AppliedEffect`自身へ焼き込む（`resolveDamageImmunity`/`resolveDarkness`と
     // 同じ理由）。CombatStatsを変更しないため`combat-stat-recalculation-
     // service.ts`は呼ばない。
-    const actor = requireUnit(box.units, context.actorId);
+    // R-MEM-04（Issue #179）: Memory由来の解決は使用者を持たないため、
+    // `SKILL_SOURCE`/`lastResults`を要求しないFormulaだけが評価できる。
+    const actor = findActorUnit(context, box);
     const magnitude = evaluateFormula(effectAction.payload.formula, {
-      skillSource: actor,
+      ...(actor !== undefined ? { skillSource: actor } : {}),
+      ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
+      ...(actor !== undefined
+        ? {
+            lastResults: damageResultsFor(
+              context.damageResults,
+              actor.battleUnitId,
+              context.skillUseId,
+            ),
+          }
+        : {}),
     });
     const blockingImmunity = findBlockingImmunity(
       requireUnit(box.units, application.targetBattleUnitId),
@@ -1314,7 +1452,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
         },
@@ -1344,7 +1482,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
           magnitude,
@@ -1372,12 +1510,23 @@ function* resolveOneEffectActionApplication(
     // （`resource-gain-mod-composition.ts`が対象の有効なAppliedEffectを合成）が
     // 行うため、ここではCombatStatsと同様の再計算は不要
     // （`APPLY_ATTACK_DAMAGE_BONUS`と同じ理由）。
-    const actor = requireUnit(box.units, context.actorId);
+    // R-MEM-04（Issue #179）: Memory由来の解決は使用者を持たないため、
+    // `SKILL_SOURCE`/`lastResults`を要求しないFormulaだけが評価できる。
+    const actor = findActorUnit(context, box);
     const magnitude = evaluateFormula(effectAction.payload.rateDelta, {
-      skillSource: actor,
+      ...(actor !== undefined ? { skillSource: actor } : {}),
+      ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
+      ...(actor !== undefined
+        ? {
+            lastResults: damageResultsFor(
+              context.damageResults,
+              actor.battleUnitId,
+              context.skillUseId,
+            ),
+          }
+        : {}),
     });
     const blockingImmunity = findBlockingImmunity(
       requireUnit(box.units, application.targetBattleUnitId),
@@ -1398,7 +1547,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
         },
@@ -1428,7 +1577,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
           magnitude,
@@ -1453,7 +1602,7 @@ function* resolveOneEffectActionApplication(
     // HPを直接増減する（`UNIT_SUIRAN_CASINO`等の自己コスト）。
     const modifyResult = applyModifyResourceAction(
       application.hits,
-      requireUnit(box.units, context.actorId),
+      requireActorUnit(context, box),
       effectAction,
       box.units,
       {
@@ -1465,7 +1614,10 @@ function* resolveOneEffectActionApplication(
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
-        sourceUnitId: context.actorId,
+        // COOLDOWN_MANIPULATION/MODIFY_RESOURCE/HEALは発生源ユニットを前提とする
+        // （`CooldownManipulationEventContext`等の`sourceUnitId`は必須）。
+        // Memory由来の解決はR-MEM-04に従って拒否する。
+        sourceUnitId: requireActorUnit(context, box).battleUnitId,
         ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
@@ -1483,7 +1635,7 @@ function* resolveOneEffectActionApplication(
     // 対象数、呼び出し元の`resolveActionApplications`が算出）で総量を等分する。
     const healGen = applyHealActionSteps(
       application.hits,
-      requireUnit(box.units, context.actorId),
+      requireActorUnit(context, box),
       effectAction,
       box.units,
       {
@@ -1495,7 +1647,10 @@ function* resolveOneEffectActionApplication(
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
-        sourceUnitId: context.actorId,
+        // COOLDOWN_MANIPULATION/MODIFY_RESOURCE/HEALは発生源ユニットを前提とする
+        // （`CooldownManipulationEventContext`等の`sourceUnitId`は必須）。
+        // Memory由来の解決はR-MEM-04に従って拒否する。
+        sourceUnitId: requireActorUnit(context, box).battleUnitId,
         effectActions: context.definitions.effectActions,
         ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
         ...(context.onFactEventForPassiveChain !== undefined
@@ -1556,12 +1711,23 @@ function* resolveOneEffectActionApplication(
     //   ので、ここで評価した`magnitude`は監査用の付与時snapshotに留める。
     // CombatStatsには影響しないため再計算は不要（`APPLY_ATTACK_DAMAGE_BONUS`/
     // `APPLY_RESOURCE_GAIN_MOD`と同じ理由）。
-    const actor = requireUnit(box.units, context.actorId);
+    // R-MEM-04（Issue #179）: Memory由来の解決は使用者を持たないため、
+    // `SKILL_SOURCE`/`lastResults`を要求しないFormulaだけが評価できる。
+    const actor = findActorUnit(context, box);
     const magnitude = evaluateFormula(effectAction.payload.formula, {
-      skillSource: actor,
+      ...(actor !== undefined ? { skillSource: actor } : {}),
+      ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
       target: requireUnit(box.units, application.targetBattleUnitId),
       allUnits: box.units,
-      lastResults: damageResultsFor(context.damageResults, actor.battleUnitId, context.skillUseId),
+      ...(actor !== undefined
+        ? {
+            lastResults: damageResultsFor(
+              context.damageResults,
+              actor.battleUnitId,
+              context.skillUseId,
+            ),
+          }
+        : {}),
     });
     const blockingImmunity = findBlockingImmunity(
       requireUnit(box.units, application.targetBattleUnitId),
@@ -1582,7 +1748,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
         },
@@ -1612,7 +1778,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
           magnitude,
@@ -1668,7 +1834,7 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           blockingEffect: blockingImmunity,
         },
@@ -1698,12 +1864,12 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           effectActionDefinitionId: application.effectActionDefinitionId,
-          sourceId: context.actorId,
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
           magnitude,
           healingLink: {
-            transferToUnitId: context.actorId,
+            transferToUnitId: requireActorUnit(context, box).battleUnitId,
             transferRate: effectAction.payload.transferRate,
           },
           durationDefinition: effectAction.payload.duration,
@@ -1743,7 +1909,7 @@ function* resolveOneEffectActionApplication(
     resolutionScopeId: context.actionScope,
     parentEventId: effectLastEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: context.actorId,
+    ...sourceEnvelopeOf(context),
     targetUnitIds: [application.targetBattleUnitId],
     payload: {
       effectActionDefinitionId: application.effectActionDefinitionId,
@@ -1791,7 +1957,7 @@ function emitEffectStepStarting(
     resolutionScopeId: context.actionScope,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: context.actorId,
+    ...sourceEnvelopeOf(context),
     payload: { stepIndex, stepKind, conditionKind },
   });
 }
@@ -1812,7 +1978,7 @@ function emitEffectStepCompleted(
     resolutionScopeId: context.actionScope,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: context.actorId,
+    ...sourceEnvelopeOf(context),
     payload: { stepIndex, resolvedActionCount },
   });
 }
@@ -1885,7 +2051,7 @@ function* resolveActionApplications(
 
   for (let index = 0; index < applications.length; index += 1) {
     const application = applications[index]!;
-    if (isDefeated(requireUnit(box.units, context.actorId))) {
+    if (isActorDefeated(context, box)) {
       finalizeStepTargets();
       return {
         lastEventId,
@@ -1987,7 +2153,7 @@ function* resolveActionStepBody(
   // `08_ドメインイベント.md`の契約上まだEffectActionが1件も開始していない
   // ため、対象別条件を評価してapplicationsを構築すること自体をせず
   // （`unresolvedEffectCount`へ計上せず）`INTERRUPTED`とする。
-  if (isDefeated(requireUnit(box.units, context.actorId))) {
+  if (isActorDefeated(context, box)) {
     return {
       lastEventId: stepStarting.eventId,
       walkResult: walkInterrupted(0, 0, countHits(applications)),
@@ -2009,7 +2175,7 @@ function* resolveActionStepBody(
       resolutionScopeId: context.actionScope,
       parentEventId: stepStarting.eventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: context.actorId,
+      ...sourceEnvelopeOf(context),
       payload: { stepIndex, conditionKind, result: false },
     });
     return { lastEventId: stepSkipped.eventId, walkResult: walkCompleted(0, 0) };
@@ -2090,7 +2256,7 @@ function* wrapStepLifecycle(
   );
   yield { kind: "TIMING_EVENT", event: stepStarting };
 
-  if (isDefeated(requireUnit(box.units, context.actorId))) {
+  if (isActorDefeated(context, box)) {
     return { lastEventId: stepStarting.eventId, walkResult: walkInterrupted(0, 0, 0) };
   }
 
@@ -2135,7 +2301,7 @@ function* resolveBranchStep(
       // 同じ`resolveTargetSet`経由で（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`
       // preflightが高々1体にしか解決されないことを保証する参照に限り）評価
       // できるため、`UNIT_TYPE`フィールド解決に要る`unitDefinitions`も渡す。
-      const actor = requireUnit(box.units, context.actorId);
+      const actor = resolutionSourceOf(context, box);
       const triggerContext = {
         ...(context.triggerSourceUnitId !== undefined
           ? { triggerSourceUnitId: context.triggerSourceUnitId }
@@ -2212,7 +2378,7 @@ function* resolveRandomBranchStep(
           resolutionScopeId: context.actionScope,
           parentEventId,
           rootEventId: context.rootEventId,
-          sourceUnitId: context.actorId,
+          ...sourceEnvelopeOf(context),
           payload: {
             stepIndex,
             mode: definition.mode,
@@ -2230,7 +2396,7 @@ function* resolveRandomBranchStep(
         );
         yield { kind: "EFFECT_RESOLVED", events: [selectedEvent] };
 
-        if (isDefeated(requireUnit(box.units, context.actorId))) {
+        if (isActorDefeated(context, box)) {
           return { lastEventId: selectedEvent.eventId, walkResult: walkInterrupted(0, 0, 0) };
         }
 
@@ -2250,7 +2416,7 @@ function* resolveRandomBranchStep(
       let resolvedCount = 0;
       let resolvedActionCount = 0;
       for (const [branchIndex, branch] of definition.branches.entries()) {
-        if (isDefeated(requireUnit(box.units, context.actorId))) {
+        if (isActorDefeated(context, box)) {
           return {
             lastEventId: eventId,
             walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
@@ -2266,7 +2432,7 @@ function* resolveRandomBranchStep(
         yield { kind: "EFFECT_RESOLVED", events: [selectedEvent] };
         eventId = selectedEvent.eventId;
 
-        if (isDefeated(requireUnit(box.units, context.actorId))) {
+        if (isActorDefeated(context, box)) {
           return {
             lastEventId: eventId,
             walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
@@ -2329,7 +2495,7 @@ function* resolveRepeatStep(
       let resolvedCount = 0;
       let resolvedActionCount = 0;
       for (let iteration = 0; iteration < definition.count; iteration += 1) {
-        if (isDefeated(requireUnit(box.units, context.actorId))) {
+        if (isActorDefeated(context, box)) {
           return {
             lastEventId: eventId,
             walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
@@ -2413,7 +2579,7 @@ function* resolveRawStep(
           readonly satisfied: boolean;
           readonly applications: readonly EffectActionApplication[];
         } => {
-          const actor = requireUnit(box.units, context.actorId);
+          const actor = resolutionSourceOf(context, box);
           const triggerContext = {
             ...(context.triggerSourceUnitId !== undefined
               ? { triggerSourceUnitId: context.triggerSourceUnitId }
@@ -2484,7 +2650,7 @@ function* resolveRawStep(
         );
       }
 
-      const actor = requireUnit(box.units, context.actorId);
+      const actor = resolutionSourceOf(context, box);
       const triggerContext = {
         ...(context.triggerSourceUnitId !== undefined
           ? { triggerSourceUnitId: context.triggerSourceUnitId }
@@ -2575,7 +2741,7 @@ function* resolveStepDefinitionList(
   let resolvedActionCount = 0;
 
   for (const [index, step] of steps.entries()) {
-    if (isDefeated(requireUnit(box.units, context.actorId))) {
+    if (isActorDefeated(context, box)) {
       return {
         lastEventId: currentEventId,
         walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
@@ -2653,7 +2819,14 @@ export function* resolveEffectSequencePlan(
   // しない」、DAMAGE以外のEffectActionも含む）。必中を持つスキルにも適用する
   // （`accuracyMode`を一切参照しない — 呼び出し元のACTION step条件によらず
   // 一律に適用する）。
-  const darkness = resolveDarkness(requireUnit(box.units, context.actorId), context.random);
+  // R-MEM-04（Issue #179）: Memory由来の解決には暗闇を持ちうる使用者が存在しない
+  // （暗闇は使用者へ付与された`AppliedEffect`から判定するため、判定対象そのものが
+  // 無い）。判定自体を行わず、常に命中として扱う。
+  const actorForDarkness = findActorUnit(context, box);
+  const darkness =
+    actorForDarkness === undefined
+      ? { checks: [] as const, missed: false }
+      : resolveDarkness(actorForDarkness, context.random);
   if (darkness.checks.length > 0) {
     const innerEventsStart = context.recorder.getEvents().length;
     for (const check of darkness.checks) {
@@ -2667,7 +2840,7 @@ export function* resolveEffectSequencePlan(
         resolutionScopeId: context.actionScope,
         parentEventId: lastEventId,
         rootEventId: context.rootEventId,
-        sourceUnitId: context.actorId,
+        ...sourceEnvelopeOf(context),
         payload: {
           effectActionDefinitionId: check.effectActionDefinitionId,
           effectInstanceId: check.effectInstanceId,
@@ -2688,9 +2861,9 @@ export function* resolveEffectSequencePlan(
         resolutionScopeId: context.actionScope,
         parentEventId: lastEventId,
         rootEventId: context.rootEventId,
-        sourceUnitId: context.actorId,
+        ...sourceEnvelopeOf(context),
         payload: {
-          skillDefinitionId: context.skillDefinitionId,
+          skillDefinitionId: requireSkillDefinitionId(context),
           missedByEffectInstanceIds: darkness.checks
             .filter((check) => check.missed)
             .map((check) => check.effectInstanceId),
@@ -2767,7 +2940,7 @@ export function* resolveEffectSequencePlan(
   }
 
   for (const step of plan.steps) {
-    if (isDefeated(requireUnit(box.units, context.actorId))) {
+    if (isActorDefeated(context, box)) {
       return {
         units: box.units,
         outcome: {

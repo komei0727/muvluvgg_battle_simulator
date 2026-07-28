@@ -343,10 +343,24 @@
   {
     "capabilityId": "CAP_MEMORY_TRIGGERED_EFFECT",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-006",
-    "description": "MemoryのTriggeredEffect化(BattleStartedでのtriggeredEffects解決・AppliedEffect反映を行うMemory発動エンジン)",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "MemoryのTriggeredEffect発動engine（M7-006、Issue #179、R-MEM-01〜04）: 編成に指定されたMemoryの`triggeredEffects`をPSと同じ候補スタックへ載せ、同じイベントではPS候補を先に、その後Memory候補をAPI指定順→同一Memory内定義順で解決する。`BattleStarted`（初回ターン開始前）・`TurnStarted`を含む任意のFACT/TIMINGイベントから発動し、使用者BattleUnitを持たずMemoryを指定した陣営をsource sideとして対象を解決する（敵側対象も可）。Memory由来の`APPLY_STAT_MOD`等は通常スキル由来と同じ`AppliedEffect`として保持し、`sourceUnitId`の代わりに`sourceSide`を持つ（`MemoryTriggered`/`MemoryResolved`も同じ）。使用者を必要とするEffectAction・`SELF`対象参照はCatalog整合性検証（`MEMORY_REQUIRES_SOURCE_UNIT`）が拒否する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "MEM_HARD_WARMUP",
+        "MEM_TIMID_REINDEER_EVE",
+        "MEM_STRANGERS",
+        "MEM_HEART_COLOR"
+      ],
+      "testCaseIds": [
+        "UT-PROD-MEM-001",
+        "UT-PROD-MEM-002",
+        "UT-PROD-MEM-003",
+        "UT-R-MEM-03-001",
+        "UT-R-MEM-04-003"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_PARTIAL_PIERCING",

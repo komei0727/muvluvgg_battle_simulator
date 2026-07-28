@@ -45,7 +45,8 @@ export function grantStunStatus(
 
   const nextEffect: AppliedEffect = {
     ...existing,
-    sourceId: request.sourceId,
+    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
     duration: buildInitialDurationState(request.durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,
@@ -73,7 +74,8 @@ export function grantStunStatus(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: request.sourceId,
+    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
     targetUnitIds: [request.targetId],
     payload: {
       effectInstanceId: existing.effectInstanceId,

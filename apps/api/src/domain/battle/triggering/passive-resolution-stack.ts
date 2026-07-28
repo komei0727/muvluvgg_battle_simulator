@@ -1,3 +1,4 @@
+import type { MemoryCandidate, MemoryCandidateGroup } from "./memory-candidate.js";
 import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidate.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
 
@@ -11,6 +12,15 @@ import type { TriggerCandidateEvent } from "./trigger-event.js";
 export interface PassiveResolutionStackEntry {
   readonly event: TriggerCandidateEvent;
   readonly candidates: PassiveCandidateGroup;
+  /**
+   * R-MEM-02「同じイベントでPS候補とMemory候補が両方存在する場合、PS候補を先に
+   * 解決し、その後Memory候補を解決する」: 同じイベントの候補グループはPS候補と
+   * Memory候補を1つのエントリとして保持し、`candidates`（PS）を使い切ってから
+   * `memoryCandidates`を先頭から処理する。PS解決中に新しいイベントが生じた場合は
+   * 新しいエントリがスタック先頭へ積まれるため（R-PS-06）、その中のMemory候補は
+   * 「現在のPS候補グループより後、未処理の親Memory候補より前」に自然と解決される。
+   */
+  readonly memoryCandidates: MemoryCandidateGroup;
 }
 
 export type PassiveResolutionStack = readonly PassiveResolutionStackEntry[];
@@ -48,7 +58,7 @@ export function popTop(stack: PassiveResolutionStack): PassiveResolutionStack {
   return stack.slice(1);
 }
 
-/** 最上位グループの候補配列だけを差し替える（1件処理するたびに残りを更新する）。 */
+/** 最上位グループのPS候補配列だけを差し替える（1件処理するたびに残りを更新する）。 */
 export function withTopCandidates(
   stack: PassiveResolutionStack,
   candidates: readonly PassiveCandidate[],
@@ -57,5 +67,17 @@ export function withTopCandidates(
   if (top === undefined) {
     return stack;
   }
-  return [{ event: top.event, candidates }, ...stack.slice(1)];
+  return [{ ...top, candidates }, ...stack.slice(1)];
+}
+
+/** R-MEM-02: 最上位グループのMemory候補配列だけを差し替える（PS候補版と同じ規約）。 */
+export function withTopMemoryCandidates(
+  stack: PassiveResolutionStack,
+  memoryCandidates: readonly MemoryCandidate[],
+): PassiveResolutionStack {
+  const top = stack[0];
+  if (top === undefined) {
+    return stack;
+  }
+  return [{ ...top, memoryCandidates }, ...stack.slice(1)];
 }

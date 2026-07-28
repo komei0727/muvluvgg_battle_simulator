@@ -20,6 +20,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
+import type { Side } from "../../shared/side.js";
 
 export interface GrantEffectContext {
   readonly recorder: EventRecorder;
@@ -33,7 +34,14 @@ export interface GrantEffectContext {
 
 export interface GrantEffectRequest {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
-  readonly sourceId: BattleUnitId;
+  /**
+   * 付与者。R-MEM-04（Issue #179）: Memory の `triggeredEffects` 由来の付与だけは
+   * 具体的な付与者ユニットを持たないため`undefined`を渡し、代わりに`sourceSide`
+   * を渡す（`AppliedEffect.sourceId`/`EffectApplied`も同じ規約）。
+   */
+  readonly sourceId?: BattleUnitId;
+  /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営。 */
+  readonly sourceSide?: Side;
   readonly targetId: BattleUnitId;
   readonly duplicate: boolean;
   readonly magnitude: number;
@@ -78,7 +86,8 @@ export function grantEffect(
     effectActionDefinitionId: request.effectActionDefinitionId,
     kindKey,
     duplicate: request.duplicate,
-    sourceId: request.sourceId,
+    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
     targetId: request.targetId,
     magnitude: request.magnitude,
     ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
@@ -124,12 +133,17 @@ export function grantEffect(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: request.sourceId,
+    // `08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、
+    // `sourceSide`を持つ」: Memory由来の付与（R-MEM-04）は発生源ユニットを
+    // 持たないため、envelopeもpayloadも`sourceSide`へ置き換える。
+    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
     targetUnitIds: [request.targetId],
     payload: {
       effectInstanceId: newEffect.effectInstanceId,
       effectActionDefinitionId: request.effectActionDefinitionId,
-      sourceUnitId: request.sourceId,
+      ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+      ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
       targetUnitId: request.targetId,
       duplicate: request.duplicate,
       kindKey,

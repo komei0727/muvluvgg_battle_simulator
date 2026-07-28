@@ -72,6 +72,8 @@ export interface EffectStateResponseBody {
   readonly effectInstanceId: string;
   readonly effectDefinitionId: string;
   readonly sourceUnitId?: string;
+  /** R-MEM-04（M7-006、Issue #179）: Memory由来の効果は付与者ユニットを持たず、付与元の陣営を持つ。 */
+  readonly sourceSide?: string;
   readonly category: string;
   readonly effectKindKey: string;
   readonly stackMode: string;

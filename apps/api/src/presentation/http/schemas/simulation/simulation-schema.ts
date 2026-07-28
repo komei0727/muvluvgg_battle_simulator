@@ -279,6 +279,8 @@ export const effectStateResponseSchema = {
     effectInstanceId: { type: "string" },
     effectDefinitionId: { type: "string" },
     sourceUnitId: { type: "string" },
+    // R-MEM-04（M7-006、Issue #179）: Memory由来の効果は付与者ユニットの代わりに付与元陣営を持つ。
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     category: { type: "string", enum: ["BUFF", "DEBUFF", "STATUS_ABNORMALITY"] },
     effectKindKey: { type: "string" },
     stackMode: { type: "string", enum: ["STACKABLE", "NON_STACKING"] },

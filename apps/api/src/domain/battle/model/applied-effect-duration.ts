@@ -40,7 +40,11 @@ export function resolveTimeLimitOwnerUnitId(effect: AppliedEffect): BattleUnitId
   if (owner === "BATTLE") {
     return "BATTLE";
   }
-  return owner === "EFFECT_SOURCE" ? effect.sourceId : effect.targetId;
+  // R-MEM-04（Issue #179）: Memory由来の効果は付与者ユニットを持たないため、
+  // `EFFECT_SOURCE`を突き合わせる相手が存在しない。特定ユニットの行動・ターンへ
+  // 紐付けず、`BATTLE`と同じ「いずれのユニットの完了契機でも減算する」扱いにする
+  // （減算契機を完全に失って永続化してしまうことを避ける）。
+  return owner === "EFFECT_SOURCE" ? (effect.sourceId ?? "BATTLE") : effect.targetId;
 }
 
 function decrementDurations(

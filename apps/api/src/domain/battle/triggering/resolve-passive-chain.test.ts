@@ -13,9 +13,11 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
+  createMemoryDefinitionId,
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { MemoryCandidate } from "./memory-candidate.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -124,6 +126,25 @@ function completedActivation(completion: PassiveActivationCompletion): PassiveAc
       }
       done = true;
       return { done: true, value: completion };
+    },
+  };
+}
+
+function memoryCandidateOf(memoryDefinitionId: string, memoryIndex: number): MemoryCandidate {
+  return {
+    side: "ALLY",
+    memoryDefinitionId: createMemoryDefinitionId(memoryDefinitionId),
+    memoryIndex,
+    triggeredEffectIndex: 0,
+    triggeredEffect: {
+      trigger: {
+        eventType: "ANY",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "ANY",
+        condition: { kind: "TRUE" },
+      },
+      effectSequence: { targetBindings: [], steps: [] },
     },
   };
 }
@@ -842,5 +863,95 @@ describe("resolvePassiveChain", () => {
     expect(root?.sequence).toBe(1);
     expect(fromA?.sequence).toBe(2);
     expect(fromB?.sequence).toBe(3);
+  });
+  it("UT-R-MEM-02-004: resolves every PS candidate of an event before its Memory candidates", () => {
+    const unitA = unit("A");
+    const skillA = skillOf("SKL_A");
+    const candA = candidateOf(unitA, skillA);
+    const memoryCandidate = memoryCandidateOf("MEM_A", 0);
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => (evt.eventType === rootEvent.eventType ? [candA] : []),
+      detectMemoryCandidates: (evt) =>
+        evt.eventType === rootEvent.eventType ? [memoryCandidate] : [],
+      getCurrentUnit: () => unitA,
+      activate: function* (candidate) {
+        order.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep();
+        return DONE;
+      },
+      activateMemory: (candidate) => {
+        order.push(candidate.memoryDefinitionId);
+        return completedActivation(DONE);
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(["SKL_A", "MEM_A"]);
+  });
+
+  it("UT-R-MEM-02-005: resolves a Memory candidate raised during PS resolution before the parent event's own Memory candidates", () => {
+    const unitA = unit("A");
+    const skillA = skillOf("SKL_A");
+    const candA = candidateOf(unitA, skillA);
+    const parentMemory = memoryCandidateOf("MEM_PARENT", 0);
+    const nestedMemory = memoryCandidateOf("MEM_NESTED", 1);
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+    const eventFromA = event("FROM_A");
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => (evt.eventType === rootEvent.eventType ? [candA] : []),
+      detectMemoryCandidates: (evt) => {
+        if (evt.eventType === rootEvent.eventType) {
+          return [parentMemory];
+        }
+        return evt.eventType === eventFromA.eventType ? [nestedMemory] : [];
+      },
+      getCurrentUnit: () => unitA,
+      activate: function* (candidate) {
+        order.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep([eventFromA]);
+        return DONE;
+      },
+      activateMemory: (candidate) => {
+        order.push(candidate.memoryDefinitionId);
+        return completedActivation(DONE);
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(["SKL_A", "MEM_NESTED", "MEM_PARENT"]);
+  });
+
+  it("UT-R-MEM-01-007: skips a Memory candidate whose trigger condition no longer holds at activation time", () => {
+    const unitA = unit("A");
+    const stale = memoryCandidateOf("MEM_STALE", 0);
+    const live = memoryCandidateOf("MEM_LIVE", 1);
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [],
+      detectMemoryCandidates: (evt) => (evt.eventType === rootEvent.eventType ? [stale, live] : []),
+      getCurrentUnit: () => unitA,
+      activate: () => completedActivation(DONE),
+      reconfirmMemoryCandidate: (candidate) => candidate.memoryDefinitionId !== "MEM_STALE",
+      activateMemory: (candidate) => {
+        order.push(candidate.memoryDefinitionId);
+        return completedActivation(DONE);
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(["MEM_LIVE"]);
   });
 });

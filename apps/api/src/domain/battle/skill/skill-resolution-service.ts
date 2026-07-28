@@ -1,6 +1,10 @@
 import type { BattleUnit } from "../model/battle-unit.js";
+import type { Side } from "../../shared/side.js";
 import {
+  createMemoryResolutionSource,
+  requireSourceUnit,
   resolveTargetsWithStealthConsumption,
+  type ResolutionSource,
   type StealthConsumption,
   type TriggerContext,
 } from "../targeting/target-selection-policy.js";
@@ -146,13 +150,18 @@ function findUnitById(allUnits: readonly BattleUnit[], id: BattleUnitId): Battle
 export function resolveReference(
   reference: TargetReference,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   lastResultTargets?: LastResultTargetContext,
   triggerContext?: TriggerContext,
 ): ResolvedBinding {
   if (reference.kind === "SELF") {
-    return { units: [actor], includeDefeated: false };
+    // R-MEM-04「対象参照の`SELF`は使用できない」: Memory由来の解決では使用者が
+    // 存在しないため`requireSourceUnit`が拒否する。
+    return {
+      units: [requireSourceUnit(source, 'target reference kind "SELF"')],
+      includeDefeated: false,
+    };
   }
   if (reference.kind === "TRIGGER_SOURCE") {
     const unit =
@@ -250,7 +259,7 @@ function hitCountOf(
 export function resolveActionStepApplications(
   step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   lastResultTargets?: LastResultTargetContext,
@@ -268,7 +277,7 @@ export function resolveActionStepApplications(
   const { units: resolvedTargets, includeDefeated } = resolveReference(
     step.target,
     resolvedBindings,
-    actor,
+    source,
     allUnits,
     lastResultTargets,
     triggerContext,
@@ -336,7 +345,7 @@ function refreshUnit(unit: BattleUnit, allUnits: readonly BattleUnit[]): BattleU
  */
 export function buildTargetSetResolver(
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   lastResultTargets?: LastResultTargetContext,
   triggerContext?: TriggerContext,
@@ -345,7 +354,7 @@ export function buildTargetSetResolver(
     resolveReference(
       reference,
       resolvedBindings,
-      actor,
+      source,
       allUnits,
       lastResultTargets,
       triggerContext,
@@ -355,7 +364,7 @@ export function buildTargetSetResolver(
 export function buildEffectStepPerTargetFilter(
   step: Extract<EffectStepDefinition, { kind: "ACTION" }>,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   lastResult?: LastEffectActionResult,
@@ -364,7 +373,7 @@ export function buildEffectStepPerTargetFilter(
 ): (target: BattleUnit) => boolean {
   const resolveTargetSet = buildTargetSetResolver(
     resolvedBindings,
-    actor,
+    source,
     allUnits,
     lastResultTargets,
     triggerContext,
@@ -462,10 +471,10 @@ function isEagerActionStep(
 function collectStructuralCandidateTargetUnitIdsForList(
   steps: readonly EffectStepDefinition[],
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
-  actor: BattleUnit,
+  source: ResolutionSource,
 ): readonly BattleUnitId[] {
   return steps.flatMap((step) =>
-    collectStructuralCandidateTargetUnitIds(step, resolvedBindings, actor),
+    collectStructuralCandidateTargetUnitIds(step, resolvedBindings, source),
   );
 }
 
@@ -480,12 +489,12 @@ function collectStructuralCandidateTargetUnitIdsForList(
 function collectStructuralCandidateTargetUnitIds(
   definition: EffectStepDefinition,
   resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
-  actor: BattleUnit,
+  source: ResolutionSource,
 ): readonly BattleUnitId[] {
   switch (definition.kind) {
     case "ACTION": {
       if (definition.target.kind === "SELF") {
-        return [actor.battleUnitId];
+        return [requireSourceUnit(source, 'target reference kind "SELF"').battleUnitId];
       }
       if (definition.target.kind === "BINDING") {
         const resolved = resolvedBindings.get(definition.target.targetBindingId as TargetBindingId);
@@ -498,23 +507,23 @@ function collectStructuralCandidateTargetUnitIds(
         ...collectStructuralCandidateTargetUnitIdsForList(
           definition.thenSteps,
           resolvedBindings,
-          actor,
+          source,
         ),
         ...collectStructuralCandidateTargetUnitIdsForList(
           definition.elseSteps,
           resolvedBindings,
-          actor,
+          source,
         ),
       ];
     case "RANDOM_BRANCH":
       return definition.branches.flatMap((branch) =>
-        collectStructuralCandidateTargetUnitIdsForList(branch.steps, resolvedBindings, actor),
+        collectStructuralCandidateTargetUnitIdsForList(branch.steps, resolvedBindings, source),
       );
     case "REPEAT":
       return collectStructuralCandidateTargetUnitIdsForList(
         definition.steps,
         resolvedBindings,
-        actor,
+        source,
       );
   }
 }
@@ -534,7 +543,7 @@ function collectStructuralCandidateTargetUnitIds(
  */
 function resolveEffectSequence(
   sequence: EffectSequence,
-  actor: BattleUnit,
+  source: ResolutionSource,
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
@@ -554,7 +563,7 @@ function resolveEffectSequence(
   for (const binding of sequence.targetBindings) {
     const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
       binding.selector,
-      actor,
+      source,
       allUnits,
       resolvedBindingUnits,
       triggerContext,
@@ -585,7 +594,7 @@ function resolveEffectSequence(
   // R-SKL-01 #2: stepsを定義順に解決する。
   sequence.steps.forEach((step, stepIndex) => {
     if (!isEagerActionStep(step)) {
-      for (const id of collectStructuralCandidateTargetUnitIds(step, resolvedBindings, actor)) {
+      for (const id of collectStructuralCandidateTargetUnitIds(step, resolvedBindings, source)) {
         addTargetUnitId(id);
       }
       steps.push({ planKind: "DEFERRED", stepIndex, stepKind: step.kind, definition: step });
@@ -613,7 +622,7 @@ function resolveEffectSequence(
     const applications = resolveActionStepApplications(
       step,
       resolvedBindings,
-      actor,
+      source,
       allUnits,
       effectActions,
       undefined,
@@ -669,6 +678,32 @@ export function resolveSkillOrder(
   return resolveEffectSequence(
     skill.resolution,
     actor,
+    allUnits,
+    effectActions,
+    triggerContext,
+    unitDefinitions,
+  );
+}
+
+/**
+ * R-MEM-04「Memory の `EffectSequence` はスキルと同じく `R-SKL-01` から
+ * `R-SKL-08` に従って解決する。ただし使用者はMemoryを指定した陣営を source side
+ * とし、対象参照の `SELF` は使用できない」: `resolveSkillOrder`と同じ
+ * `resolveEffectSequence`を、使用者BattleUnitの代わりに`side`だけを持つ発生源
+ * （{@link MemoryResolutionSource}）で呼び出す。`SELF`対象参照や使用者からの
+ * 距離順など、具体的な使用者を要求する構成は`requireSourceUnit`が明確に拒否する。
+ */
+export function resolveMemoryEffectSequenceOrder(
+  sequence: EffectSequence,
+  side: Side,
+  allUnits: readonly BattleUnit[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  triggerContext?: TriggerContext,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+): EffectSequencePlan {
+  return resolveEffectSequence(
+    sequence,
+    createMemoryResolutionSource(side),
     allUnits,
     effectActions,
     triggerContext,

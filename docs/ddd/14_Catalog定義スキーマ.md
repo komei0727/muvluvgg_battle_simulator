@@ -1891,7 +1891,16 @@ metadata:
 
 単純な「戦闘開始時に味方へ stat 補正」も、`APPLY_STAT_MOD` を持つ `triggeredEffects` として表現する（`eventType: BattleStarted`、`side: ALLY` の `selector`、`duration.timeLimit: { unit: BATTLE, count: 1 }`）。`modifiers` 省略記法は廃止した。
 
-`triggeredEffects` を持つ Memory は `requiredCapabilities` に `CAP_MEMORY_TRIGGERED_EFFECT` を含めること。Memory発動エンジン（M7、`BattleStarted` での `triggeredEffects` 解決、`R-MEM-01`〜`04`）が未実装の間、Capabilityで隔離しないと `SimulationPreflightValidator` を素通りし、戦闘は開始できるがMemory効果だけが黙って未適用になる（`REMOVE_EFFECTS`/`APPLY_SHIELD`と同じ理由）。
+`triggeredEffects` を持つ Memory は `requiredCapabilities` に `CAP_MEMORY_TRIGGERED_EFFECT` を含めること。Memory発動エンジン（`BattleStarted` での `triggeredEffects` 解決、`R-MEM-01`〜`04`）は M7-006（Issue #179）で実装し、同Capabilityは `IMPLEMENTED` になった。宣言自体は引き続き必須とする（宣言漏れのMemoryをCatalogロード時点で検出するため）。
+
+`R-MEM-04`「具体的な発生源 BattleUnit が必要なEffectActionをMemoryから使用する場合は、Catalog検証またはpreflightで拒否する」は、Catalog整合性検証の `MEMORY_REQUIRES_SOURCE_UNIT` が担う。Memory の `triggeredEffects` は次を宣言できない。
+
+- 発生源ユニットを必要とするEffectAction: `DAMAGE`、`HEAL`、`APPLY_CONTINUOUS_HEAL`、`MODIFY_RESOURCE`、`COOLDOWN_MANIPULATION`、`APPLY_MARKER`（`MarkerState` は常に「直近の付与者」を持つ、[10_API設計.md](./10_API設計.md)）。
+- 対象参照 `SELF`（`R-MEM-04` が明示的に禁止）。
+- 使用者を基準にする `TargetSelectorDefinition`（`kind: SELF`、`order` の `NEAREST`/`FARTHEST`/`SELF_LOWEST_PRIORITY`、`BINDING_DERIVED` 以外で `base` が暗黙に使用者になる `area`、`EXCLUDE_RESOLVED_UNIT` の `SELF` 参照）。
+- `EffectSequence` スコープの `counterUpdates`（保持先が解決ユニットになるため）。
+
+`FormulaDefinition` の `SKILL_SOURCE` 参照は `FormulaEvaluator` が評価時点で同じく明確に拒否する（`CONSTANT` のように使用者を必要としないFormulaはそのまま使える）。
 
 ---
 

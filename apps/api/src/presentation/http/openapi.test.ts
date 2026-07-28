@@ -871,6 +871,8 @@ describe("OpenAPI document", () => {
       PassiveActivated: true,
       PassiveResolved: true,
       PassiveInterrupted: true,
+      MemoryTriggered: true,
+      MemoryResolved: true,
       SkillUseInterrupted: true,
       RuntimeCounterChanged: true,
       RuntimeCounterReset: true,

@@ -23,7 +23,10 @@ import type { MemoryDefinition } from "../definitions/memory-definition.js";
 import { toReadonlyMap } from "../../shared/readonly-map.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TriggerDefinition } from "../definitions/trigger-definition.js";
-import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
+import type {
+  TargetFilterDefinition,
+  TargetSelectorDefinition,
+} from "../definitions/target-selector-definition.js";
 import type { TargetReference } from "../definitions/references.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
 
@@ -59,6 +62,7 @@ export const VIOLATION_RULES = [
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
   "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
+  "MEMORY_REQUIRES_SOURCE_UNIT",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -1804,6 +1808,119 @@ function checkCooldownManipulationOwnership(
   }
 }
 
+/**
+ * R-MEM-04「具体的な発生源 BattleUnit が必要なEffectActionをMemoryから使用する
+ * 場合は、Catalog検証またはpreflightで拒否する」: Memoryは使用者ユニットを持たない
+ * （source sideだけを持つ）ため、次を宣言するMemoryはCatalogロード時点で拒否する。
+ *
+ * - 使用者を必要とするEffectAction種別（下記`SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS`）。
+ * - 対象参照`SELF`（R-MEM-04が明示的に禁止）。
+ * - 使用者を基準にする`TargetSelectorDefinition`（`kind: SELF`、使用者からの距離順、
+ *   `SELF_LOWEST_PRIORITY`、`base`が暗黙の使用者になる`area`）。
+ *
+ * これらは実行時（`requireSourceUnit`/`requireActorUnit`）も決定的に拒否するが、
+ * 戦闘開始後に効果解決の途中で失敗させないため、ここで先に検出する
+ * （`EVENT_PAYLOAD_REQUIRES_PS_SKILL`と同じ方針）。Formulaの`SKILL_SOURCE`参照は
+ * `FormulaEvaluator`が評価時点で同じく明確に拒否する。
+ */
+const SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS = new Set<EffectActionDefinition["kind"]>([
+  // 使用者の攻撃力・命中/会心・被ダメージ記録を必要とする。
+  "DAMAGE",
+  // 回復者（回復量Formulaの基準・`HealApplied.sourceUnitId`）を必要とする。
+  "HEAL",
+  "APPLY_CONTINUOUS_HEAL",
+  // `ModifyResourceEventContext`/`CooldownManipulationEventContext`が発生源ユニットを要求する。
+  "MODIFY_RESOURCE",
+  "COOLDOWN_MANIPULATION",
+  // `10_API設計.md`の`MarkerStateResponse.sourceUnitId`は必須（Markerは常に直近の付与者を持つ）。
+  "APPLY_MARKER",
+]);
+
+const SOURCE_UNIT_REQUIRING_ORDER_KEYS: ReadonlySet<string> = new Set([
+  "NEAREST",
+  "FARTHEST",
+  "SELF_LOWEST_PRIORITY",
+]);
+
+const SELF_TARGET_REFERENCE_KINDS: ReadonlySet<string> = new Set(["SELF"]);
+
+function selectorRequiresSourceUnit(selector: TargetSelectorDefinition): boolean {
+  return selectorTreeSome(
+    selector,
+    (candidate) =>
+      candidate.kind === "SELF" ||
+      (candidate.kind === "BINDING_DERIVED" && candidate.base?.kind === "SELF") ||
+      // `area`のbaseは`BINDING_DERIVED`以外では暗黙に使用者になる（R-TGT-09 #4）。
+      (candidate.area !== undefined && candidate.kind !== "BINDING_DERIVED") ||
+      candidate.order.some(
+        (entry) => typeof entry === "string" && SOURCE_UNIT_REQUIRING_ORDER_KEYS.has(entry),
+      ) ||
+      candidate.filters.some((filter) => filterReferencesSelf(filter)),
+  );
+}
+
+function filterReferencesSelf(filter: TargetFilterDefinition): boolean {
+  switch (filter.kind) {
+    case "EXCLUDE_RESOLVED_UNIT":
+      return filter.reference.kind === "SELF";
+    case "AND":
+    case "OR":
+      return filter.conditions.some((condition) => filterReferencesSelf(condition));
+    case "NOT":
+      return filterReferencesSelf(filter.condition);
+    default:
+      return false;
+  }
+}
+
+function validateMemorySourceUnitIndependence(
+  memory: MemoryDefinition,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const triggeredEffect of memory.triggeredEffects) {
+    const sequence = triggeredEffect.effectSequence;
+    if (stepsContainTargetReferenceKinds(sequence.steps, SELF_TARGET_REFERENCE_KINDS)) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          'Memory triggeredEffects cannot use the "SELF" target reference (they have no source BattleUnit, R-MEM-04)',
+      });
+    }
+    for (const binding of sequence.targetBindings) {
+      if (selectorRequiresSourceUnit(binding.selector)) {
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `targetBinding "${binding.targetBindingId}" resolves relative to the source unit (SELF/implicit area base/actor-relative order), which Memory triggeredEffects do not have (R-MEM-04)`,
+        });
+      }
+    }
+    for (const ref of collectEffectActionReferences(sequence.steps)) {
+      const effectAction = effectActions.get(ref.effectActionDefinitionId);
+      if (
+        effectAction !== undefined &&
+        SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS.has(effectAction.kind)
+      ) {
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) requires a source BattleUnit, which Memory triggeredEffects do not have (R-MEM-04)`,
+        });
+      }
+    }
+    if (sequence.counterUpdates !== undefined && sequence.counterUpdates.length > 0) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          "EffectSequence-scoped counterUpdates are held by the resolving unit, which Memory triggeredEffects do not have (R-MEM-04)",
+      });
+    }
+  }
+}
+
 function validateMemory(
   memory: MemoryDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
@@ -1852,6 +1969,7 @@ function validateMemory(
       violations,
     );
   }
+  validateMemorySourceUnitIndependence(memory, effectActions, violations);
   checkRequiredCapabilities(
     memory.requiredCapabilities,
     memory.memoryDefinitionId,

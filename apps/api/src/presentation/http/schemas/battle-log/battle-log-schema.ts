@@ -24,6 +24,9 @@ export const battleLogEventResponseSchema = {
     parentSequence: { type: "integer", minimum: 1 },
     rootSequence: { type: "integer", minimum: 1 },
     sourceUnitId: { type: "string" },
+    // `08_ドメインイベント.md`「Memory由来イベントは`sourceSide`を持ち、特定ユニットを
+    // 発生源にしない」（M7-006、Issue #179）。
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     targetUnitIds: { type: "array", items: { type: "string" } },
     details: {},
     stateVersionBefore: { type: "integer", minimum: 0 },
@@ -862,6 +865,31 @@ const passiveInterruptedDetailsSchema = {
   },
 } as const;
 
+/** `08_ドメインイベント.md`「Memoryイベント」（M7-006、Issue #179）。 */
+const memoryTriggeredDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["memoryDefinitionId", "triggeredEffectIndex", "sourceSide", "triggerEventId"],
+  properties: {
+    memoryDefinitionId: { type: "string" },
+    triggeredEffectIndex: { type: "integer", minimum: 0 },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
+    triggerEventId: { type: "string" },
+  },
+} as const;
+
+const memoryResolvedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["memoryDefinitionId", "triggeredEffectIndex", "sourceSide", "resolvedStepCount"],
+  properties: {
+    memoryDefinitionId: { type: "string" },
+    triggeredEffectIndex: { type: "integer", minimum: 0 },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
+    resolvedStepCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 const skillUseInterruptedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1232,10 +1260,12 @@ export const conditionDefinitionDetailsSchema = {
 const effectAppliedDetailsSchema = {
   type: "object",
   additionalProperties: false,
+  // R-MEM-04（Issue #179）: Memory由来の付与は`sourceUnitId`を持たず`sourceSide`を
+  // 持つ（`08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、
+  // `sourceSide`を持つ」）ため、`sourceUnitId`は必須にしない。
   required: [
     "effectInstanceId",
     "effectActionDefinitionId",
-    "sourceUnitId",
     "targetUnitId",
     "duplicate",
     "kindKey",
@@ -1246,6 +1276,7 @@ const effectAppliedDetailsSchema = {
     effectInstanceId: { type: "string" },
     effectActionDefinitionId: { type: "string" },
     sourceUnitId: { type: "string" },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     targetUnitId: { type: "string" },
     duplicate: { type: "boolean" },
     kindKey: { type: "string" },
@@ -1298,17 +1329,13 @@ const EFFECT_APPLICATION_REJECTION_REASON_ENUM = ["IMMUNITY"] as const;
 const effectApplicationRejectedDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "battleUnitId",
-    "effectActionDefinitionId",
-    "sourceUnitId",
-    "blockingEffectInstanceId",
-    "reason",
-  ],
+  // R-MEM-04（Issue #179）: `EFFECT_APPLIED`と同じ理由で`sourceUnitId`は必須にしない。
+  required: ["battleUnitId", "effectActionDefinitionId", "blockingEffectInstanceId", "reason"],
   properties: {
     battleUnitId: { type: "string" },
     effectActionDefinitionId: { type: "string" },
     sourceUnitId: { type: "string" },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     blockingEffectInstanceId: { type: "string" },
     reason: { type: "string", enum: EFFECT_APPLICATION_REJECTION_REASON_ENUM },
     statusKind: { type: "string", enum: STATUS_KIND_ENUM },
@@ -1609,6 +1636,8 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   PASSIVE_ACTIVATED: passiveActivatedDetailsSchema,
   PASSIVE_RESOLVED: passiveResolvedDetailsSchema,
   PASSIVE_INTERRUPTED: passiveInterruptedDetailsSchema,
+  MEMORY_TRIGGERED: memoryTriggeredDetailsSchema,
+  MEMORY_RESOLVED: memoryResolvedDetailsSchema,
   SKILL_USE_INTERRUPTED: skillUseInterruptedDetailsSchema,
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
