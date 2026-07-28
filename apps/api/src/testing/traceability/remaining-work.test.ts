@@ -138,7 +138,12 @@ describe("remaining work manifest (PLAN-001)", () => {
       completed: RULE_COVERAGE.length - uncompleted.length,
       remaining: uncompleted.length,
     });
-    expect(manifest.current.rules.total).toBe(manifest.baseline.rules.total);
+    // M7-005-HEAL-LINK（Issue #229）: 実装中に新しいRuleを発見することはあるため
+    // （R-HEAL-04「回復リンク」は`APPLY_HEALING_LINK`の転送規則という、baseline
+    // 時点の`07_戦闘ルール詳細.md`に存在しなかった契約）、Rule総数は baseline から
+    // 増える方向だけを許す。`baseline`自体は履歴として変更しない（本書「更新手順」#3）。
+    // 減る方向を許さないことで、Ruleの削除による「見せかけの完了」は引き続き弾く。
+    expect(manifest.current.rules.total).toBeGreaterThanOrEqual(manifest.baseline.rules.total);
     expect(manifest.current.rules.completed).toBeGreaterThanOrEqual(
       manifest.baseline.rules.completedThroughM6,
     );

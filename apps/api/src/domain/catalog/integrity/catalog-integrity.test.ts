@@ -724,6 +724,30 @@ function sumDamageHealAction(
   );
 }
 
+function healingLinkAction(
+  id: string,
+  transferTo: { kind: string; targetBindingId?: string } = { kind: "SELF" },
+  requiredCapabilities: readonly string[] = ["CAP_HEALING_LINK"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_HEALING_LINK",
+      payload: {
+        transferTo,
+        transferRate: 1,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function continuousHealAction(
   id: string,
   timing: { eventType: string; targetSelector: string } = {
@@ -1575,6 +1599,70 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "UNSUPPORTED_CONTINUOUS_HEAL_TIMING" && v.targetId === "ACT_HOT",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-HEAL-04-001 (M7-005-HEAL-LINK Issue #229): accepts an APPLY_HEALING_LINK transferring to SELF, the only destination heal-application-service.ts can resolve", () => {
+    const defs = baseDefinitions();
+    const withLink: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, healingLinkAction("ACT_LINK")],
+      capabilities: [capability("CAP_HEALING_LINK")],
+    };
+
+    const index = buildCatalogIndex(withLink);
+
+    expect(index.effectActions.get("ACT_LINK" as never)).toBeDefined();
+  });
+
+  it("UT-R-HEAL-04-002 (M7-005-HEAL-LINK Issue #229, NEGATIVE): rejects an APPLY_HEALING_LINK whose transferTo is not SELF, so a link that would be granted without a resolvable destination is caught at Catalog load time", () => {
+    const defs = baseDefinitions();
+    const withUnsupportedDestination: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        healingLinkAction("ACT_LINK", { kind: "TRIGGER_SOURCE" }),
+      ],
+      capabilities: [capability("CAP_HEALING_LINK")],
+    };
+
+    try {
+      buildCatalogIndex(withUnsupportedDestination);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET" && v.targetId === "ACT_LINK",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-HEAL-04-003 (M7-005-HEAL-LINK Issue #229, NEGATIVE): rejects an APPLY_HEALING_LINK that omits CAP_HEALING_LINK from requiredCapabilities (same declaration-gate as CAP_COOLDOWN_MANIPULATION)", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, healingLinkAction("ACT_LINK", { kind: "SELF" }, [])],
+      capabilities: [capability("CAP_HEALING_LINK")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_LINK",
         ),
       ).toBe(true);
     }

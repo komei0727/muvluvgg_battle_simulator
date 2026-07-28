@@ -25,14 +25,14 @@
   },
   "current": {
     "rules": {
-      "total": 109,
-      "completed": 82,
+      "total": 110,
+      "completed": 83,
       "remaining": 27
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 55
+      "incompleteConversionRows": 54
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 26
     },
     "capabilities": {
-      "total": 43,
-      "implemented": 24
+      "total": 44,
+      "implemented": 25
     }
   },
   "tasks": [
@@ -141,7 +141,6 @@
       "taskId": "M7-001A"
     },
     { "milestone": "M7", "theme": "TRIGGER_PAYLOAD_FILTER", "rowCount": 2, "taskId": "M7-010" },
-    { "milestone": "M7", "theme": "HEALING_LINK", "rowCount": 1, "taskId": "M7-005-HEAL-LINK" },
     {
       "milestone": "M7",
       "theme": "DYNAMIC_DURATION_ON_REAPPLY",

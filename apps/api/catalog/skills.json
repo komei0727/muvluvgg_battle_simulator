@@ -2482,6 +2482,15 @@
             "count": "ALL",
             "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
           }
+        },
+        {
+          "targetBindingId": "TGT_LOWEST_HP_RATIO_ENEMY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
         }
       ],
       "steps": [
@@ -2489,6 +2498,16 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_ALLY" },
           "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEAL" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_RATIO_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK" }]
         }
       ]
     },
@@ -2496,6 +2515,7 @@
     "traits": {},
     "requiredCapabilities": [
       "CAP_HEAL",
+      "CAP_HEALING_LINK",
       "CAP_TARGET_FILTER_ORDER",
       "CAP_ACTION_ACTIVATION_CONDITION"
     ],

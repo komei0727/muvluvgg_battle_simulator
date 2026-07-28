@@ -6,6 +6,7 @@ import type {
   ApplyCoverPayload,
   ApplyDamageModPayload,
   ApplyDeathSurvivalPayload,
+  ApplyHealingLinkPayload,
   ApplyHealingModPayload,
   ApplyMarkerPayload,
   ApplyReflectPayload,
@@ -41,6 +42,7 @@ export const EFFECT_ACTION_KINDS = [
   "APPLY_STAT_MOD",
   "APPLY_DAMAGE_MOD",
   "APPLY_HEALING_MOD",
+  "APPLY_HEALING_LINK",
   "MODIFY_RESOURCE",
   "MODIFY_RESOURCE_CAPACITY",
   "APPLY_STATUS",
@@ -68,6 +70,7 @@ export type EffectActionPayload =
   | { readonly kind: "APPLY_STAT_MOD"; readonly payload: ApplyStatModPayload }
   | { readonly kind: "APPLY_DAMAGE_MOD"; readonly payload: ApplyDamageModPayload }
   | { readonly kind: "APPLY_HEALING_MOD"; readonly payload: ApplyHealingModPayload }
+  | { readonly kind: "APPLY_HEALING_LINK"; readonly payload: ApplyHealingLinkPayload }
   | { readonly kind: "MODIFY_RESOURCE"; readonly payload: ModifyResourcePayload }
   | { readonly kind: "MODIFY_RESOURCE_CAPACITY"; readonly payload: ModifyResourceCapacityPayload }
   | { readonly kind: "APPLY_STATUS"; readonly payload: ApplyStatusPayload }

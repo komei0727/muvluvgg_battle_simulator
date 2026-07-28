@@ -1,7 +1,7 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import { applyModifyResourceAction } from "./resource-modification-service.js";
-import { applyHealAction } from "./heal-application-service.js";
+import { applyHealActionSteps } from "./heal-application-service.js";
 import {
   applyDamageActionSteps,
   type DamageEventContext,
@@ -1481,7 +1481,7 @@ function* resolveOneEffectActionApplication(
     // R-HEAL-01（M7-005、Issue #184）: 即時回復。HEAL_DISTRIBUTEは
     // `distributionShareCount`（同一EffectStep内でこのEffectActionが適用される
     // 対象数、呼び出し元の`resolveActionApplications`が算出）で総量を等分する。
-    const healResult = applyHealAction(
+    const healGen = applyHealActionSteps(
       application.hits,
       requireUnit(box.units, context.actorId),
       effectAction,
@@ -1504,11 +1504,42 @@ function* resolveOneEffectActionApplication(
       },
       distributionShareCount,
     );
+    // PR #259再レビュー[P2]（R-HEAL-04 #4/#6）: `applyHealActionSteps`は
+    // `context.onFactEventForPassiveChain`未指定（＝PS自身のEffectSequence解決）の
+    // 場合だけ、`HealApplied`／各`HealingTransferred`の直後に連鎖境界を`yield`する。
+    // DAMAGEの凍結カスケードと同じ形でそれを`EFFECT_RESOLVED`として中継し、
+    // `driveActivation`が子PS連鎖をその場で解決してから転送へ進めるようにする —
+    // これが無いと、HEAL EffectAction全体（転送を含む）を適用し終えてからまとめて
+    // yieldすることになり、`HealApplied`起点の子PSが転送後のHPを観測してしまう。
+    // 消費した分だけ`innerEventsStart`を前進させ、下の`innerEvents`捕捉との
+    // 二重処理を防ぐ。
+    let healStep = healGen.next();
+    while (!healStep.done) {
+      box.units = healStep.value.units;
+      yield {
+        kind: "EFFECT_RESOLVED",
+        events: context.recorder.getEvents().slice(innerEventsStart),
+      };
+      innerEventsStart = context.recorder.getEvents().length;
+      // 子PS連鎖（あれば）が`box.units`を書き換えている可能性があるため、
+      // 一時停止していたgeneratorを再開する前に取り込む（sync-in）。
+      healStep = healGen.next(box.units);
+    }
+    const healResult = healStep.value;
     box.units = healResult.units;
     resolvedCount = healResult.resolvedCount;
-    interruptedCount = 0;
+    // R-SKL-01/R-SKL-02（PR #259再々レビュー[P2]）: 使用者が`HealApplied`／
+    // `HealingTransferred`起点の連鎖で戦闘不能になった場合、`applyHealActionSteps`は
+    // 未解決の転送・対象を適用せず`interruptedCount`として返す。DAMAGEと同じく
+    // `INTERRUPTED`として報告し、同じEffectStepの残りの対象と後続stepを止める
+    // （`resolveActionApplications`が`walkInterrupted`へ落とす）。
+    interruptedCount = healResult.interruptedCount;
     effectLastEventId = healResult.lastEventId;
-    resultKind = healResult.changed ? "APPLIED" : "SKIPPED";
+    resultKind = healResult.interrupted
+      ? "INTERRUPTED"
+      : healResult.changed
+        ? "APPLIED"
+        : "SKIPPED";
   } else if (
     effectAction.kind === "APPLY_HEALING_MOD" ||
     effectAction.kind === "APPLY_CONTINUOUS_HEAL"
@@ -1600,10 +1631,100 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_HEALING_LINK") {
+    // R-HEAL-04（M7-005-HEAL-LINK、Issue #229、production例:
+    // `SKL_ELENA_MOODMAKER_AS1`「対象が得られる回復効果を100%自身に転送する」）:
+    // 転送先を付与時点で解決し、転送率とともに`AppliedEffect.healingLink`へ
+    // 焼き込む（`APPLY_ATTACK_DAMAGE_BONUS`と同じ「付与時snapshot」規約 — 回復
+    // 適用時点にはTargetBindingもトリガーcontextも残っていない）。`transferTo`が
+    // `SELF`以外の定義はCatalogロード時点で
+    // `UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET`として拒否済みだが、Catalogを
+    // 経由しない合成定義に対する実行時backstopも残す。`magnitude`は監査用に
+    // 転送率をそのまま持つ（`APPLY_RESOURCE_GAIN_MOD`と同じ「符号付き割合を
+    // magnitudeへ」の規約）。CombatStatsは変えないため再計算は呼ばない。
+    if (effectAction.payload.transferTo.kind !== "SELF") {
+      throw new DomainValidationError(
+        "effectActionDefinitionId",
+        `APPLY_HEALING_LINK payload.transferTo.kind "${effectAction.payload.transferTo.kind}" is not supported (R-HEAL-04 implements "SELF" only)`,
+      );
+    }
+    const magnitude = effectAction.payload.transferRate;
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          healingLink: {
+            transferToUnitId: context.actorId,
+            transferRate: effectAction.payload.transferRate,
+          },
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_CONTINUOUS_HEAL" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_HEALING_LINK" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

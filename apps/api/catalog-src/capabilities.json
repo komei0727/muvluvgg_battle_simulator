@@ -288,6 +288,30 @@
     }
   },
   {
+    "capabilityId": "CAP_HEALING_LINK",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M7-005-HEAL-LINK",
+    "description": "回復リンク（R-HEAL-04、Issue #229）: `APPLY_HEALING_LINK`が付与する`AppliedEffect`が、保持者の回復量を`transferRate`の割合だけ転送先へ移し替える。転送は`heal-application-service.ts`の`applyOneHeal`（即時回復`HEAL`と継続回復`APPLY_CONTINUOUS_HEAL`の発火が共有するR-HEAL-01の手順そのもの）で行うため、両経路が同じ転送規則に従う。転送先は付与時点に解決して`AppliedEffect.healingLink.transferToUnitId`へ焼き込むため、実装済みの`transferTo`は付与時点で確定する`SELF`（付与者自身）だけであり、他のkindは`UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET`としてCatalogロード時点で拒否する。転送によって生じた回復からさらに転送を発生させない（R-LNK-03と同じ再リンク禁止）ため、相互リンク・循環リンクは常に有限回で停止し、preflightでの拒否を必要としない。自己リンクは恒等（転送を発生させない）、転送先が戦闘不能のリンクは成立せず対応分を保持者へ留める。production代表`ACT_ELENA_MOODMAKER_AS1_HEALING_LINK`（`SKL_ELENA_MOODMAKER_AS1`、最もHP割合の低い敵単体と自身への100%転送リンク）を実ライフサイクル（`resolveSkillUse`→`EffectApplied`→`HealApplied`→`HealingTransferred`→StateDelta→独立Reducer復元）まで検証する。被ダメージ側のリンク（`APPLY_DAMAGE_LINK`／`CAP_DAMAGE_LINK_STATE`、M8）は配分規則が異なる別Capabilityとして残る。",
+    "verification": {
+      "productionDefinitionIds": ["ACT_ELENA_MOODMAKER_AS1_HEALING_LINK"],
+      "testCaseIds": [
+        "IT-CAP-HEALING-LINK-PROD-001",
+        "IT-CAP-HEALING-LINK-PROD-002",
+        "IT-CAP-HEALING-LINK-PROD-003",
+        "UT-R-HEAL-04-004",
+        "UT-R-HEAL-04-005",
+        "UT-R-HEAL-04-008",
+        "UT-R-HEAL-04-009",
+        "UT-R-HEAL-04-010",
+        "UT-R-HEAL-04-014",
+        "UT-R-HEAL-04-016",
+        "UT-R-HEAL-04-017",
+        "UT-R-HEAL-04-018"
+      ]
+    }
+  },
+  {
     "capabilityId": "CAP_HIT_COUNT_EVASION",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",

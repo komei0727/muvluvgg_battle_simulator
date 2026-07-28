@@ -4213,6 +4213,24 @@ describe("applyEffectActionGroups", () => {
       };
     }
 
+    function healingLinkAction(id: string, transferRate = 1): EffectActionDefinition {
+      return {
+        kind: "APPLY_HEALING_LINK",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          transferTo: { kind: "SELF" },
+          transferRate,
+          duration: {
+            timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+        },
+      };
+    }
+
     it("UT-R-HEAL-01-007 (full stack): a HEAL EffectAction raises the target's HP and emits HealApplied through the real effect-action-group-resolver.ts wiring", () => {
       const actor = unit("ACTOR", "ALLY", { currentHp: 50 });
       const heal = healAction("ACT_HEAL", {
@@ -4277,6 +4295,40 @@ describe("applyEffectActionGroups", () => {
         magnitude: 0.15,
         duplicate: true,
       });
+    });
+
+    it("UT-R-HEAL-04-004 (full stack, R-HEAL-04): an APPLY_HEALING_LINK grants an AppliedEffect whose healingLink resolves transferTo: SELF to the granter at grant time", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const holder = unit("HOLDER", "ENEMY");
+      const link = healingLinkAction("ACT_LINK");
+      const effectActions = new Map([[link.effectActionDefinitionId, link]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, holder.battleUnitId, link.effectActionDefinitionId)],
+        targetUnitIds: [holder.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, holder], context);
+
+      const updated = result.units.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updated.appliedEffects).toHaveLength(1);
+      expect(updated.appliedEffects[0]).toMatchObject({
+        effectActionDefinitionId: link.effectActionDefinitionId,
+        duplicate: true,
+        healingLink: { transferToUnitId: actor.battleUnitId, transferRate: 1 },
+      });
+      const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied")!;
+      expect(applied.payload).toMatchObject({
+        targetUnitId: holder.battleUnitId,
+        sourceUnitId: actor.battleUnitId,
+      });
+      expect(
+        recorder.getEvents().find((e) => e.eventType === "EffectActionCompleted")!.payload
+          .resultKind,
+      ).toBe("APPLIED");
     });
 
     it("UT-R-HEAL-02-002 (full stack): the target's INCOMING healing modifiers scale the heal amount before truncation", () => {

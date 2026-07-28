@@ -137,6 +137,25 @@ export interface ApplyHealingModPayload {
 }
 
 /**
+ * HEALING_LINK（`M7-005-HEAL-LINK`、Issue #229、R-HEAL-04）: 保持者が得られる
+ * 回復効果を、`transferRate`の割合だけ`transferTo`へ移し替える継続効果
+ * （production例: `SKL_ELENA_MOODMAKER_AS1`「対象が得られる回復効果を100%自身に
+ * 転送する」）。`APPLY_HEALING_MOD`が「回復量そのものを増減する」のに対し、
+ * こちらは「回復量の受け取り先を移す」ため、`R-HEAL-01`の適用段階が異なる。
+ *
+ * `transferTo`は付与時点に解決して`AppliedEffect.healingLink.transferToUnitId`
+ * へ焼き込む（`APPLY_ATTACK_DAMAGE_BONUS`の`magnitude`と同じ「付与時snapshot」
+ * 規約）。実装済みは`SELF`（付与者自身）だけで、それ以外は
+ * `UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET`としてCatalogロード時点で拒否する。
+ */
+export interface ApplyHealingLinkPayload {
+  readonly transferTo: TargetReference;
+  /** 転送率。`0`以上`1`以下（`1`が原文の「100%転送」）。 */
+  readonly transferRate: number;
+  readonly duration: DurationDefinition;
+}
+
+/**
  * ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: 対象の攻撃を起点に追加
  * ダメージを発生させる汎用バフ（`docs/ddd/16_不完全変換対応予定方針.md`が
  * 追跡していた欠落EffectAction、production例: `SKL_ELENA_MOODMAKER_EX`の

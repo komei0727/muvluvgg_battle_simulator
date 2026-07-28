@@ -355,9 +355,39 @@ export interface BattleDomainEventPayloadMap {
     readonly healingModifierMultiplier: number;
     /** R-HEAL-01 #2/#3: 適用直前に切り捨て整数化し、0未満を0にした回復量。 */
     readonly healAmount: number;
-    /** R-HEAL-01 #4: 最大HPを超えない範囲で実際に増加したHP量。 */
+    /**
+     * R-HEAL-04（M7-005-HEAL-LINK、Issue #229）: 回復リンクで転送先へ移し替えた
+     * 合計量。転送しない場合は0。`StateDelta`は転送後に対象が保持した分だけを表し、
+     * 転送分は各`HealingTransferred`の`StateDelta`が運ぶ。
+     */
+    readonly transferredAmount: number;
+    /** R-HEAL-01 #4: 最大HPを超えない範囲で実際に増加したHP量（R-HEAL-04の転送分を除く）。 */
     readonly appliedAmount: number;
-    /** R-HEAL-01「overheal: DISCARD」で破棄した最大HP超過分（`healAmount - appliedAmount`）。 */
+    /** R-HEAL-01「overheal: DISCARD」で破棄した最大HP超過分（`healAmount - transferredAmount - appliedAmount`）。 */
+    readonly discardedAmount: number;
+    readonly hpBefore: number;
+    readonly hpAfter: number;
+  };
+  /**
+   * `08_ドメインイベント.md`「HealingTransferred payload」（M7-005-HEAL-LINK、
+   * Issue #229、R-HEAL-04）: 回復リンクによって転送先のHPを増加させた直後に発行
+   * する`FACT`。転送先のHP変化の`StateDelta`はこのイベントが持つ（`HealApplied`と
+   * 同じ規約）。`parentEventId`は転送の原因である`HealApplied`であり、転送によって
+   * 生じた回復からさらに転送を発生させないため（R-HEAL-04の再リンク禁止）、この
+   * イベントを親とする`HealingTransferred`は存在しない。
+   */
+  readonly HealingTransferred: {
+    /** 転送を成立させた回復リンクの効果インスタンス。 */
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    /** 転送元（リンク保持者）。 */
+    readonly fromUnitId: BattleUnitId;
+    readonly toUnitId: BattleUnitId;
+    readonly transferRate: number;
+    /** `切り捨て(転送前回復量 × 転送率)`を未転送残量で上限をとった後の値。 */
+    readonly transferredAmount: number;
+    /** 転送先で最大HPを超えない範囲で実際に増加したHP量。 */
+    readonly appliedAmount: number;
     readonly discardedAmount: number;
     readonly hpBefore: number;
     readonly hpAfter: number;
