@@ -469,9 +469,18 @@ export function* applyOneHealSteps(
   let interrupted = false;
 
   /**
-   * R-SKL-01（PR #259再々レビュー[P2]）: 連鎖境界から再開した直後に使用者の生存を
-   * 再検証する。戦闘不能なら未解決の転送へは進まない — 「使用者が戦闘不能になった
-   * 場合、未解決効果を中断する」。既に発行済みのイベントは巻き戻さない。
+   * R-SKL-01（PR #259再々レビュー[P2]・再々々レビュー[P2]）: 使用者が戦闘不能なら、
+   * **まだ適用していない転送が残っている場合に限り**中断する — R-SKL-01が中断を
+   * 求めるのは「未解決効果」であり、この適用に未解決分が無ければ中断ではない。
+   * 各iterationの先頭で1回だけ判定することで、次の2つを同時に満たす。
+   *
+   * - `HealApplied`の連鎖で倒れた場合: 転送が1件以上あるときだけ中断する
+   *   （リンクなしのHEALは`transfers`が空なのでループに入らず、中断にならない）。
+   * - 各`HealingTransferred`の連鎖で倒れた場合: 次の転送が残っているときだけ
+   *   中断する（最後の転送を適用し終えていれば中断にならない）。
+   *
+   * 残りの対象（hit）がある場合の中断は`applyHealActionSteps`の次hit開始時の
+   * 生存チェックが担う（R-SKL-02）。既に発行済みのイベントは巻き戻さない。
    */
   const userDefeated = (current: readonly BattleUnit[]): boolean => {
     if (input.interruptWhenDefeatedUnitId === undefined) {
@@ -485,15 +494,16 @@ export function* applyOneHealSteps(
   // （PRレビュー指摘[P2]、PR #259）。`HealApplied`に反応するPSは転送前のHPを観測し、
   // 続く各転送はこの連鎖後の最新stateに対して前提を再検証してから適用される。
   nextUnits = yield* chainFactEvent(context, healApplied, nextUnits);
-  if (userDefeated(nextUnits)) {
-    return { units: nextUnits, lastEventId, appliedAmount, changed, interrupted: true };
-  }
 
   // R-HEAL-04 #4/#5: 各転送先へ転送量をそのまま適用する。回復量Formulaと
   // HealingModifier（R-HEAL-02）は再計算しない（R-LNK-02と同じ規約）。最大HP上限と
   // `overheal: DISCARD`は転送先自身へ適用し、HP変化のStateDeltaは
   // `HealingTransferred`が持つ（同じHP変化を`HealApplied`と二重に運ばない）。
   for (const transfer of transfers) {
+    if (userDefeated(nextUnits)) {
+      interrupted = true;
+      break;
+    }
     const destination = nextUnits.find((u) => u.battleUnitId === transfer.toUnitId);
     if (destination === undefined) {
       // 防御的fallback（現行モデルではユニットが配列から消えることはない）。
@@ -560,12 +570,9 @@ export function* applyOneHealSteps(
     });
     lastEventId = transferred.eventId;
     // R-HEAL-04 #5: 次の転送へ進む前にこの転送の連鎖を解決する（同上）。
+    // この連鎖で使用者が戦闘不能になった場合の中断判定は、次iterationの先頭で行う
+    // （＝残りの転送があるときだけ中断する）。
     nextUnits = yield* chainFactEvent(context, transferred, nextUnits);
-    // R-SKL-01: その連鎖で使用者が戦闘不能になったら、残りの転送へ進まない。
-    if (userDefeated(nextUnits)) {
-      interrupted = true;
-      break;
-    }
   }
 
   return { units: nextUnits, lastEventId, appliedAmount, changed, interrupted };

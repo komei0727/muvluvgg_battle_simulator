@@ -774,6 +774,75 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
     expect(result.interruptedCount).toBe(1);
     expect(result.interrupted).toBe(true);
   });
+
+  it("UT-R-HEAL-04-020 (BOUNDARY, R-SKL-01): a link-less single-target heal whose HealApplied chain defeats the user is NOT reported as interrupted — there is no unresolved transfer left in this application", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
+    const target = unit("TARGET", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const { recorder, rootEventId } = seedRecorder();
+    const killHealerOnHeal = (
+      event: { readonly eventType: string },
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] =>
+      event.eventType === "HealApplied"
+        ? units.map((u) =>
+            u.battleUnitId === createBattleUnitId("HEALER") ? { ...u, currentHp: 0 } : u,
+          )
+        : units;
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, target],
+      context(recorder, rootEventId, new Map(), killHealerOnHeal),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(40);
+    expect(result.resolvedCount).toBe(1);
+    // 未解決効果が無いので中断ではない（後続EffectAction/stepの停止は
+    // `resolveOneEffectActionApplication`のTIMINGイベント後の再検証が担う）。
+    expect(result.interrupted).toBe(false);
+    expect(result.interruptedCount).toBe(0);
+  });
+
+  it("UT-R-HEAL-04-021 (BOUNDARY, R-SKL-01): a heal whose user dies in the LAST HealingTransferred chain is NOT reported as interrupted — every allocated transfer had already been applied", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
+    const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 50, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+    const killHealerOnTransfer = (
+      event: { readonly eventType: string },
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] =>
+      event.eventType === "HealingTransferred"
+        ? units.map((u) =>
+            u.battleUnitId === createBattleUnitId("HEALER") ? { ...u, currentHp: 0 } : u,
+          )
+        : units;
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, destination, linked],
+      context(recorder, rootEventId, new Map(), killHealerOnTransfer),
+    );
+
+    // 唯一の転送は適用済み。
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      70,
+    );
+    expect(recorder.getEvents().filter((e) => e.eventType === "HealingTransferred")).toHaveLength(
+      1,
+    );
+    expect(result.interrupted).toBe(false);
+    expect(result.interruptedCount).toBe(0);
+  });
 });
 
 /**
