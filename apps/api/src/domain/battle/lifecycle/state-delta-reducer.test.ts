@@ -635,6 +635,72 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_B]!.effects).toEqual([first, second]);
   });
 
+  it("UT-STATE-REDUCER-032 (M7-006、Issue #179、R-MEM-04): rejects an effects delta whose before.sourceSide disagrees with the stored Memory-granted effect", () => {
+    // Memory由来の効果は`sourceUnitId`を持たず`sourceSide`を持つ。`sourceSide`が
+    // 比較対象から漏れていると、発生源が欠落・破損したStateDeltaでも復元一致
+    // 検証を通過してしまう（PR #260レビュー[P2]）。
+    const memoryGranted: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "ACT_MEM_ATTACK_UP",
+      sourceSide: "ALLY",
+      kindKey: "ACT_MEM_ATTACK_UP",
+      duplicate: true,
+      isEffective: true,
+      magnitude: 10,
+      appliedTurnNumber: 0,
+    };
+    const granted = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: {
+          effects: {
+            [memoryGranted.effectInstanceId]: { before: undefined, after: memoryGranted },
+          },
+        },
+      },
+    });
+    expect(granted.units[UNIT_B]!.effects).toEqual([memoryGranted]);
+
+    const { sourceSide: _omitted, ...withoutSourceSide } = memoryGranted;
+    expect(() =>
+      applyStateDelta(granted, {
+        units: {
+          [UNIT_B]: {
+            effects: {
+              [memoryGranted.effectInstanceId]: { before: withoutSourceSide, after: undefined },
+            },
+          },
+        },
+      }),
+    ).toThrow(DomainValidationError);
+
+    expect(() =>
+      applyStateDelta(granted, {
+        units: {
+          [UNIT_B]: {
+            effects: {
+              [memoryGranted.effectInstanceId]: {
+                before: { ...memoryGranted, sourceSide: "ENEMY" },
+                after: undefined,
+              },
+            },
+          },
+        },
+      }),
+    ).toThrow(DomainValidationError);
+
+    // 正しい`sourceSide`を持つ差分は従来どおり適用できる。
+    const removed = applyStateDelta(granted, {
+      units: {
+        [UNIT_B]: {
+          effects: {
+            [memoryGranted.effectInstanceId]: { before: memoryGranted, after: undefined },
+          },
+        },
+      },
+    });
+    expect(removed.units[UNIT_B]!.effects ?? []).toEqual([]);
+  });
+
   it("UT-R-EFF-01-049 (TGT-004フェーズ3、Issue #167、R-ACTN-03): an APPLY_STATUS-style delta (statusKind set) round-trips through the independent Reducer", () => {
     const stealth: EffectSnapshot = {
       effectInstanceId: createEffectInstanceId("battle-1:effect:1"),

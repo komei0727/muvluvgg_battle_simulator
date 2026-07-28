@@ -1873,6 +1873,91 @@ function filterReferencesSelf(filter: TargetFilterDefinition): boolean {
   }
 }
 
+/**
+ * PR #260レビュー[P2]: EffectActionの`kind`だけでは、使用者BattleUnitを必要とする
+ * 構成を網羅できない（`APPLY_STAT_MOD`のFormulaが`SKILL_SOURCE`を参照する、
+ * `APPLY_HEALING_LINK`の`transferTo`が`SELF`を指す等）。payload全体を再帰走査し、
+ * 使用者を指す参照（`FormulaSourceReference.kind: SKILL_SOURCE`／
+ * `TargetReference.kind: SELF`）が1つでも埋め込まれていれば拒否する。
+ * `kind`という判別子はCatalogスキーマ全体で参照・Formula・stepの種別に共通して
+ * 使われており、`SKILL_SOURCE`/`SELF`という値を取るのは使用者を指す参照だけの
+ * ため、この汎用走査は将来payloadへ追加されるフィールドも自動的に覆う。
+ */
+const SOURCE_UNIT_REFERENCE_KINDS: ReadonlySet<string> = new Set(["SKILL_SOURCE", "SELF"]);
+
+function payloadReferencesSourceUnit(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((entry) => payloadReferencesSourceUnit(entry));
+  }
+  if (typeof value === "object" && value !== null) {
+    const kind = (value as { readonly kind?: unknown }).kind;
+    if (typeof kind === "string" && SOURCE_UNIT_REFERENCE_KINDS.has(kind)) {
+      return true;
+    }
+    return Object.values(value).some((entry) => payloadReferencesSourceUnit(entry));
+  }
+  return false;
+}
+
+/**
+ * PR #260レビュー[P2]: Memoryの`TriggerDefinition.condition`（およびEffectStepの
+ * 各condition）が使用者BattleUnitを必要とするかどうか。`trigger-condition-evaluator.ts`
+ * が`owner`不在で`DomainValidationError`にする条件種別と1対1で対応させる。
+ *
+ * - `POSITION_RELATION`: 所有者の座標を基準にする。
+ * - `RUNTIME_COUNTER`: `SkillRuntime`/`AppliedEffect`スコープのcounter保持者を要求する
+ *   （Memoryはどちらも持たない）。
+ * - `ALIVE_UNIT_COUNT`の`excludeSelf`: 除外すべき「自身」が存在しない。
+ * - 対象参照`SELF`（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_SET_COUNT`等）。
+ */
+function conditionRequiresSourceUnit(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "POSITION_RELATION":
+    case "RUNTIME_COUNTER":
+      return true;
+    case "ALIVE_UNIT_COUNT":
+      return condition.excludeSelf === true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((child) => conditionRequiresSourceUnit(child));
+    case "NOT":
+      return conditionRequiresSourceUnit(condition.condition);
+    default:
+      return collectConditionTargetReferences(condition).some(
+        (reference) => reference.kind === "SELF",
+      );
+  }
+}
+
+/** EffectStep（BRANCH/RANDOM_BRANCH/REPEATの内側を含む）が持つ全conditionを再帰的に走査する。 */
+function stepsSomeCondition(
+  steps: readonly EffectStepDefinition[],
+  predicate: (condition: ConditionDefinition) => boolean,
+): boolean {
+  for (const step of steps) {
+    if (step.kind === "ACTION") {
+      if (predicate(step.stepCondition) || predicate(step.targetCondition)) {
+        return true;
+      }
+    } else if (step.kind === "BRANCH") {
+      if (
+        predicate(step.condition) ||
+        stepsSomeCondition(step.thenSteps, predicate) ||
+        stepsSomeCondition(step.elseSteps, predicate)
+      ) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsSomeCondition(branch.steps, predicate))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsSomeCondition(step.steps, predicate)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function validateMemorySourceUnitIndependence(
   memory: MemoryDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
@@ -1880,6 +1965,22 @@ function validateMemorySourceUnitIndependence(
 ): void {
   for (const triggeredEffect of memory.triggeredEffects) {
     const sequence = triggeredEffect.effectSequence;
+    if (conditionRequiresSourceUnit(triggeredEffect.trigger.condition)) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          "trigger condition needs an owner BattleUnit (POSITION_RELATION/RUNTIME_COUNTER/ALIVE_UNIT_COUNT excludeSelf/SELF reference), which Memory triggeredEffects do not have (R-MEM-04)",
+      });
+    }
+    if (stepsSomeCondition(sequence.steps, conditionRequiresSourceUnit)) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          "EffectStep condition needs an owner BattleUnit (POSITION_RELATION/RUNTIME_COUNTER/ALIVE_UNIT_COUNT excludeSelf/SELF reference), which Memory triggeredEffects do not have (R-MEM-04)",
+      });
+    }
     if (stepsContainTargetReferenceKinds(sequence.steps, SELF_TARGET_REFERENCE_KINDS)) {
       violations.push({
         targetId: memory.memoryDefinitionId,
@@ -1899,14 +2000,22 @@ function validateMemorySourceUnitIndependence(
     }
     for (const ref of collectEffectActionReferences(sequence.steps)) {
       const effectAction = effectActions.get(ref.effectActionDefinitionId);
-      if (
-        effectAction !== undefined &&
-        SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS.has(effectAction.kind)
-      ) {
+      if (effectAction === undefined) {
+        continue;
+      }
+      if (SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS.has(effectAction.kind)) {
         violations.push({
           targetId: memory.memoryDefinitionId,
           rule: "MEMORY_REQUIRES_SOURCE_UNIT",
           message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) requires a source BattleUnit, which Memory triggeredEffects do not have (R-MEM-04)`,
+        });
+      } else if (payloadReferencesSourceUnit(effectAction.payload)) {
+        // PR #260レビュー[P2]: `kind`自体は使用者非依存でも、payload内のFormulaや
+        // 対象参照が使用者を指していれば同じく解決できない。
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) references the source BattleUnit in its payload (SKILL_SOURCE Formula or SELF target reference), which Memory triggeredEffects do not have (R-MEM-04)`,
         });
       }
     }

@@ -53,6 +53,81 @@ function memoryModifierAction(id: string): EffectActionDefinition {
   );
 }
 
+/**
+ * M7-006 レビュー[P2]（PR #260）: Memoryの`triggeredEffects`が「使用者BattleUnitを
+ * 必要とする」構成を宣言したケースを組み立てるためのfixture群。
+ */
+function memoryWithTrigger(
+  memoryDefinitionId: string,
+  condition: ConditionDefinitionInput,
+  effectActionDefinitionId = "ACT_MEMORY_STAT_MOD",
+) {
+  return createMemoryDefinition({
+    memoryDefinitionId,
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition,
+        },
+        effectSequence: {
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+              actions: [{ effectActionDefinitionId }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_PASSIVE_ACTIVATION_CONDITION"],
+    metadata: { displayName: memoryDefinitionId },
+  });
+}
+
+function memoryUsing(memoryDefinitionId: string, effectActionDefinitionId: string) {
+  return createMemoryDefinition({
+    memoryDefinitionId,
+    triggeredEffects: [
+      {
+        trigger: {
+          eventType: "BattleStarted",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+        },
+        effectSequence: {
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALL_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+              actions: [{ effectActionDefinitionId }],
+            },
+          ],
+        },
+      },
+    ],
+    requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
+    metadata: { displayName: memoryDefinitionId },
+  });
+}
+
 function effectImmunityAction(
   id: string,
   referencedEffectActionIds: readonly string[],
@@ -3383,5 +3458,149 @@ describe("buildCatalogIndex", () => {
         ],
       }),
     ).toThrowError(/resolves relative to the source unit/);
+  });
+  it("UT-CAT-IDX-084 (R-MEM-04): rejects a Memory EffectAction whose Formula references SKILL_SOURCE", () => {
+    const defs = baseDefinitions();
+    const skillSourceStatMod = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MEMORY_SKILL_SOURCE",
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "FIXED",
+          // 使用者の攻撃力を基準にするFormula（Memoryには使用者が存在しない）。
+          formula: {
+            kind: "SUM",
+            formulas: [
+              { kind: "CONSTANT", value: 10 },
+              { kind: "STAT_RATIO", source: { kind: "SKILL_SOURCE" }, stat: "ATTACK", ratio: 0.1 },
+            ],
+          },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
+        },
+        requiredCapabilities: ["CAP_STAT_MOD"],
+      },
+      "effectAction",
+    );
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, skillSourceStatMod],
+        memories: [memoryUsing("MEM_SKILL_SOURCE", "ACT_MEMORY_SKILL_SOURCE")],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_STAT_MOD")],
+      }),
+    ).toThrowError(/references the source BattleUnit/);
+  });
+
+  it("UT-CAT-IDX-085 (R-MEM-04): rejects a Memory EffectAction payload that targets the source unit (APPLY_HEALING_LINK transferTo SELF)", () => {
+    const defs = baseDefinitions();
+    const healingLink = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MEMORY_HEALING_LINK",
+        kind: "APPLY_HEALING_LINK",
+        payload: {
+          transferTo: { kind: "SELF" },
+          transferRate: 0.5,
+          duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
+        },
+        requiredCapabilities: ["CAP_HEALING_LINK"],
+      },
+      "effectAction",
+    );
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, healingLink],
+        memories: [memoryUsing("MEM_HEALING_LINK", "ACT_MEMORY_HEALING_LINK")],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_HEALING_LINK")],
+      }),
+    ).toThrowError(/references the source BattleUnit/);
+  });
+
+  it("UT-CAT-IDX-086 (R-MEM-04): rejects Memory trigger conditions that need an owner BattleUnit", () => {
+    const defs = baseDefinitions();
+    const withMemory = (memory: ReturnType<typeof memoryWithTrigger>) => ({
+      ...defs,
+      effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+      memories: [memory],
+      capabilities: [
+        capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+        capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
+      ],
+    });
+
+    expect(() =>
+      buildCatalogIndex(
+        withMemory(
+          memoryWithTrigger("MEM_POSITION", {
+            kind: "POSITION_RELATION",
+            target: { kind: "TRIGGER_SOURCE" },
+            relation: "IN_FRONT_OF",
+          }),
+        ),
+      ),
+    ).toThrowError(/trigger condition/);
+
+    expect(() =>
+      buildCatalogIndex(
+        withMemory(
+          memoryWithTrigger("MEM_COUNTER", {
+            kind: "RUNTIME_COUNTER",
+            counter: "CNT_1",
+            op: "GTE",
+            value: 1,
+          }),
+        ),
+      ),
+    ).toThrowError(/trigger condition/);
+
+    expect(() =>
+      buildCatalogIndex(
+        withMemory(
+          memoryWithTrigger("MEM_EXCLUDE_SELF", {
+            kind: "AND",
+            conditions: [
+              { kind: "TRUE" },
+              {
+                kind: "ALIVE_UNIT_COUNT",
+                side: "ALLY",
+                excludeSelf: true,
+                op: "GTE",
+                value: 1,
+              },
+            ],
+          }),
+        ),
+      ),
+    ).toThrowError(/trigger condition/);
+
+    expect(() =>
+      buildCatalogIndex(
+        withMemory(
+          memoryWithTrigger("MEM_SELF_STATE", {
+            kind: "TARGET_STATE",
+            target: { kind: "SELF" },
+            field: "IS_ALIVE",
+            op: "EQ",
+            value: true,
+          }),
+        ),
+      ),
+    ).toThrowError(/trigger condition/);
+
+    // 使用者に依存しない条件（イベントpayload参照）は従来どおり受理する。
+    expect(() =>
+      buildCatalogIndex(
+        withMemory(
+          memoryWithTrigger("MEM_PAYLOAD", {
+            kind: "ALIVE_UNIT_COUNT",
+            side: "ALLY",
+            op: "GTE",
+            value: 1,
+          }),
+        ),
+      ),
+    ).not.toThrow();
   });
 });
