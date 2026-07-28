@@ -91,6 +91,10 @@ export function fireContinuousHealsOnActionStart(
     }
     const healer = working.find((u) => u.battleUnitId === effect.sourceId) ?? currentOwner;
 
+    // R-HEAL-04（Issue #229、PRレビュー指摘[P2] PR #259）: 連鎖は`applyOneHeal`が
+    // `HealApplied`／各`HealingTransferred`の発行直後にその場で解決する。ここで
+    // まとめて連鎖させると`HealApplied`起点のPSが転送後のHPを観測してしまうため、
+    // callbackはcontext経由で渡し、この関数は連鎖順に関与しない。
     const applied = applyOneHeal(
       {
         effectActionDefinitionId: effect.effectActionDefinitionId,
@@ -99,7 +103,12 @@ export function fireContinuousHealsOnActionStart(
       healer,
       currentOwner,
       working,
-      { ...context, parentEventId: lastEventId, sourceUnitId: effect.sourceId },
+      {
+        ...context,
+        parentEventId: lastEventId,
+        sourceUnitId: effect.sourceId,
+        ...(onFactEvent !== undefined ? { onFactEventForPassiveChain: onFactEvent } : {}),
+      },
       lastEventId,
     );
     if (applied === undefined) {
@@ -107,13 +116,6 @@ export function fireContinuousHealsOnActionStart(
     }
     working = applied.units;
     lastEventId = applied.lastEventId;
-    // R-HEAL-04（Issue #229）: 継続回復もR-HEAL-01と同じ手順を共有するため、
-    // 回復リンクが成立すれば`HealingTransferred`も同じ連鎖へ流す。
-    if (onFactEvent !== undefined) {
-      for (const event of applied.chainEvents) {
-        working = onFactEvent(event, working);
-      }
-    }
   }
 
   return { units: working, lastEventId };

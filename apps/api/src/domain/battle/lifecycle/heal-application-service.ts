@@ -105,16 +105,6 @@ export function applyHealAction(
   let resolvedCount = 0;
   let changed = false;
 
-  function chain(events: readonly BattleDomainEvent[]): void {
-    if (context.onFactEventForPassiveChain === undefined) {
-      return;
-    }
-    for (const event of events) {
-      const updated = context.onFactEventForPassiveChain(event, Array.from(working.values()));
-      working = new Map(updated.map((u) => [u.battleUnitId, u]));
-    }
-  }
-
   for (const hit of hits) {
     const target = working.get(hit.targetBattleUnitId);
     if (target === undefined) {
@@ -142,11 +132,12 @@ export function applyHealAction(
     if (applied === undefined) {
       continue;
     }
+    // `applyOneHeal`が`HealApplied`／各`HealingTransferred`の発行直後にPS/Memory
+    // 連鎖を解決済みのため（R-HEAL-04 #3/#5）、ここで再度連鎖させてはならない。
     working = new Map(applied.units.map((u) => [u.battleUnitId, u]));
     lastEventId = applied.lastEventId;
     // R-HEAL-04: 転送先のHPだけが増えた場合（100%転送）も「回復した」と扱う。
     changed = changed || applied.changed;
-    chain(applied.chainEvents);
   }
 
   return {
@@ -173,14 +164,6 @@ export interface OneHealResult {
   readonly lastEventId: DomainEventId;
   /** 対象自身が実際に増やしたHP量（R-HEAL-04で転送された分は含まない）。 */
   readonly appliedAmount: number;
-  readonly healApplied: BattleDomainEvent;
-  /**
-   * R-HEAL-04（Issue #229）: PS/Memory連鎖へ転送すべきFACTイベント列。
-   * `HealApplied`に続き、成立した転送ごとの`HealingTransferred`を発行順に持つ。
-   * 呼び出し側は`healApplied`単体ではなくこの列を連鎖させる — 転送によるHP変化も
-   * `HealApplied`と同じくPS発動の契機になり得る。
-   */
-  readonly chainEvents: readonly BattleDomainEvent[];
   /** 対象・転送先のいずれかで実際にHPが増えた場合`true`。 */
   readonly changed: boolean;
 }
@@ -255,6 +238,14 @@ function allocateHealingLinkTransfers(
  * （R-HEAL-01は蘇生規則を持たない — 蘇生は`APPLY_DEATH_SURVIVAL`/DMG-006の
  * スコープ。`HEAL`は`includeDefeated`が明示された選択で、継続回復は保持者が
  * 発火時点で戦闘不能な場合にこの経路へ到達しうる）。
+ *
+ * PRレビュー指摘[P2]（PR #259、Issue #229）: PS/Memory連鎖
+ * （`context.onFactEventForPassiveChain`）はこの関数**自身**が、`HealApplied`と
+ * 各`HealingTransferred`の発行直後にその場で解決する。呼び出し側が戻り値を受け取った
+ * 後にまとめて連鎖させる形だと、(1)`HealApplied`に反応するPSが転送後のHPを観測し、
+ * (2)その連鎖で転送先が戦闘不能になっても転送前に前提を再検証できず、既存の
+ * 「各FACT発行直後に連鎖を解決してから次へ進む」契約から外れてしまう。そのため
+ * `OneHealResult`は連鎖用のイベント列を返さない — 二重連鎖を型として防ぐ。
  */
 export function applyOneHeal(
   input: OneHealInput,
@@ -367,21 +358,36 @@ export function applyOneHeal(
       : {}),
   });
 
+  let lastEventId = healApplied.eventId;
+  let changed = appliedAmount > 0;
+
+  // R-HEAL-04 #3の直後（＝転送の適用より前）にPS/Memory連鎖を解決する
+  // （PRレビュー指摘[P2]、PR #259）。`HealApplied`に反応するPSは転送前のHPを観測し、
+  // 続く各転送はこの連鎖後の最新stateに対して前提を再検証してから適用される。
+  nextUnits = chainFactEvent(context, healApplied, nextUnits);
+
   // R-HEAL-04 #4/#5: 各転送先へ転送量をそのまま適用する。回復量Formulaと
   // HealingModifier（R-HEAL-02）は再計算しない（R-LNK-02と同じ規約）。最大HP上限と
   // `overheal: DISCARD`は転送先自身へ適用し、HP変化のStateDeltaは
   // `HealingTransferred`が持つ（同じHP変化を`HealApplied`と二重に運ばない）。
-  let lastEventId = healApplied.eventId;
-  const chainEvents: BattleDomainEvent[] = [healApplied];
-  let changed = appliedAmount > 0;
   for (const transfer of transfers) {
     const destination = nextUnits.find((u) => u.battleUnitId === transfer.toUnitId);
     if (destination === undefined) {
+      // 防御的fallback（現行モデルではユニットが配列から消えることはない）。
       continue;
     }
+    // #2の割り当て時点では生存していた転送先が、直前の連鎖で戦闘不能になっている
+    // ことがある。R-HEAL-01「戦闘不能の対象は回復しない」（蘇生規則を持たない）に
+    // 従い適用しない — 割り当て済みの転送量は破棄し、保持者へは戻さない
+    // （`HealApplied`のStateDeltaは既に確定済みであり、`R-INT-03`「元ダメージの
+    // 適用結果を巻き戻さない」と同じ規約）。監査証跡を失わないよう、
+    // `appliedAmount: 0`／`discardedAmount: 転送量`の`HealingTransferred`は発行する。
+    const receivable = !isDefeated(destination);
     const destinationMax = truncateFraction(destination.combatStats.maximumHp);
     const destinationHpBefore = destination.currentHp;
-    const destinationHpAfter = Math.min(destinationMax, destinationHpBefore + transfer.amount);
+    const destinationHpAfter = receivable
+      ? Math.min(destinationMax, destinationHpBefore + transfer.amount)
+      : destinationHpBefore;
     const destinationApplied = destinationHpAfter - destinationHpBefore;
     if (destinationApplied > 0) {
       nextUnits = nextUnits.map((u) =>
@@ -430,8 +436,26 @@ export function applyOneHeal(
         : {}),
     });
     lastEventId = transferred.eventId;
-    chainEvents.push(transferred);
+    // R-HEAL-04 #5: 次の転送へ進む前にこの転送の連鎖を解決する（同上）。
+    nextUnits = chainFactEvent(context, transferred, nextUnits);
   }
 
-  return { units: nextUnits, lastEventId, appliedAmount, healApplied, chainEvents, changed };
+  return { units: nextUnits, lastEventId, appliedAmount, changed };
+}
+
+/**
+ * 1つのFACTイベントについてPS/Memory即時連鎖を解決し、連鎖後の最新stateを返す
+ * （PRレビュー指摘[P2]、PR #259）。連鎖callbackを持たない経路
+ * （`passive-activation-service.ts`から`yield*`委譲される継続回復など）では
+ * 何もしない。
+ */
+function chainFactEvent(
+  context: HealEventContext,
+  event: BattleDomainEvent,
+  units: readonly BattleUnit[],
+): readonly BattleUnit[] {
+  if (context.onFactEventForPassiveChain === undefined) {
+    return units;
+  }
+  return context.onFactEventForPassiveChain(event, units);
 }

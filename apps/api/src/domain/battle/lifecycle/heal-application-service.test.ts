@@ -89,6 +89,9 @@ function context(
   recorder: EventRecorder,
   rootEventId: DomainEventIdOf,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition> = new Map(),
+  onFactEventForPassiveChain?: NonNullable<
+    Parameters<typeof applyHealAction>[4]["onFactEventForPassiveChain"]
+  >,
 ): Parameters<typeof applyHealAction>[4] {
   return {
     recorder,
@@ -99,6 +102,7 @@ function context(
     parentEventId: rootEventId,
     sourceUnitId: createBattleUnitId("HEALER"),
     effectActions,
+    ...(onFactEventForPassiveChain !== undefined ? { onFactEventForPassiveChain } : {}),
   };
 }
 
@@ -606,6 +610,130 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
     );
     expect(recorder.getEvents().some((e) => e.eventType === "HealApplied")).toBe(false);
     expect(recorder.getEvents().some((e) => e.eventType === "HealingTransferred")).toBe(false);
+  });
+
+  /**
+   * PRレビュー指摘[P2]（PR #259）: `HealApplied`／各`HealingTransferred`のPS/Memory
+   * 連鎖は、それぞれの発行直後・次の転送を適用する前に解決しなければならない。
+   * 以下は連鎖callbackが観測したイベント順とその時点のHPを固定する。
+   */
+  function recordingChain(observedIds: readonly string[]) {
+    const observations: { eventType: string; hp: Record<string, number> }[] = [];
+    const callback = (
+      event: { readonly eventType: string },
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] => {
+      observations.push({
+        eventType: event.eventType,
+        hp: Object.fromEntries(
+          observedIds.map((id) => [
+            id,
+            units.find((u) => u.battleUnitId === createBattleUnitId(id))!.currentHp,
+          ]),
+        ),
+      });
+      return units;
+    };
+    return { observations, callback };
+  }
+
+  it("UT-R-HEAL-04-014: the HealApplied chain runs before the transfer is applied, so a reacting PS observes the pre-transfer HP, and the HealingTransferred chain runs after its own HP change", () => {
+    const healer = unit("HEALER", "ALLY");
+    const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 50, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+    const { observations, callback } = recordingChain(["TARGET", "DEST"]);
+
+    applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, destination, linked],
+      context(recorder, rootEventId, new Map(), callback),
+    );
+
+    expect(observations).toEqual([
+      // 転送前: 保持者は転送分を受け取らず（50のまま）、転送先も未受領（40のまま）。
+      { eventType: "HealApplied", hp: { TARGET: 50, DEST: 40 } },
+      // 転送後: 転送先のHP変化を適用してから連鎖する。
+      { eventType: "HealingTransferred", hp: { TARGET: 50, DEST: 70 } },
+    ]);
+  });
+
+  it("UT-R-HEAL-04-015: with two links, each transfer's chain resolves before the next transfer is applied", () => {
+    const healer = unit("HEALER", "ALLY");
+    const first = unit("DEST_A", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const second = unit("DEST_B", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 10, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK_A", "DEST_A", 0.5), link("ACT_LINK_B", "DEST_B", 0.5)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+    const { observations, callback } = recordingChain(["DEST_A", "DEST_B"]);
+
+    applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, first, second, linked],
+      context(recorder, rootEventId, new Map(), callback),
+    );
+
+    // heal 30 -> 15 to each destination, applied and chained one at a time.
+    expect(observations).toEqual([
+      { eventType: "HealApplied", hp: { DEST_A: 10, DEST_B: 10 } },
+      { eventType: "HealingTransferred", hp: { DEST_A: 25, DEST_B: 10 } },
+      { eventType: "HealingTransferred", hp: { DEST_A: 25, DEST_B: 25 } },
+    ]);
+  });
+
+  it("UT-R-HEAL-04-016 (NEGATIVE): when the HealApplied chain defeats the transfer destination, the already-allocated transfer is not applied (no revival) and is recorded as fully discarded rather than returned to the holder", () => {
+    const healer = unit("HEALER", "ALLY");
+    const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 50, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+    // `HealApplied`に反応したPSが転送先を戦闘不能にする状況を模す。
+    const killDestinationOnHeal = (
+      event: { readonly eventType: string },
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] =>
+      event.eventType === "HealApplied"
+        ? units.map((u) =>
+            u.battleUnitId === createBattleUnitId("DEST") ? { ...u, currentHp: 0 } : u,
+          )
+        : units;
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, destination, linked],
+      context(recorder, rootEventId, new Map(), killDestinationOnHeal),
+    );
+
+    // 転送先は蘇生しない（R-HEAL-01「戦闘不能の対象は回復しない」）。
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      0,
+    );
+    // 保持者へも戻さない（`HealApplied`のStateDeltaは既に確定済み、R-INT-03と同じ規約）。
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(50);
+    const transferred = recorder.getEvents().find((e) => e.eventType === "HealingTransferred")!;
+    expect(transferred.payload).toMatchObject({
+      transferredAmount: 30,
+      appliedAmount: 0,
+      discardedAmount: 30,
+      hpBefore: 0,
+      hpAfter: 0,
+    });
+    expect(transferred.stateDelta).toBeUndefined();
   });
 });
 
