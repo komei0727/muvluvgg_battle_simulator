@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyHealAction } from "./heal-application-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import type { AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
@@ -270,6 +271,341 @@ describe("applyHealAction (R-HEAL-01, M7-005 Issue #184)", () => {
     expect(healed.currentHp).toBe(0);
     expect(result.changed).toBe(false);
     expect(recorder.getEvents().some((e) => e.eventType === "HealApplied")).toBe(false);
+  });
+});
+
+/**
+ * R-HEAL-04 回復リンク（`M7-005-HEAL-LINK`、Issue #229）。production例は
+ * `SKL_ELENA_MOODMAKER_AS1`「対象が得られる回復効果を100%自身に転送する」。
+ * `applyOneHeal`（即時回復・継続回復が共有するR-HEAL-01の手順そのもの）が転送を
+ * 行うため、ここでの検証は`APPLY_CONTINUOUS_HEAL`の発火にもそのまま及ぶ。
+ */
+describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue #229)", () => {
+  function link(
+    id: string,
+    transferToUnitId: string,
+    transferRate: number,
+    holderId = "TARGET",
+  ): AppliedEffect {
+    return {
+      effectInstanceId: `B_1:effect:${id}` as AppliedEffect["effectInstanceId"],
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      kindKey: id as AppliedEffect["kindKey"],
+      duplicate: true,
+      sourceId: createBattleUnitId(transferToUnitId),
+      targetId: createBattleUnitId(holderId),
+      magnitude: transferRate,
+      healingLink: { transferToUnitId: createBattleUnitId(transferToUnitId), transferRate },
+      duration: {
+        definition: { dispellable: true, linkedEffectGroupId: null },
+      },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  function plainHeal(ratio: number): Extract<EffectActionDefinition, { kind: "HEAL" }> {
+    return healAction("ACT_HEAL", {
+      formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio },
+      overheal: "DISCARD",
+      distribution: "NONE",
+    });
+  }
+
+  it("UT-R-HEAL-04-005: a 100% healing link moves the whole heal to the transfer destination and leaves the holder's HP unchanged", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
+    const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const holder = { ...unit("TARGET", "ENEMY", { currentHp: 50, maximumHp: 100 }) };
+    const linked: BattleUnit = { ...holder, appliedEffects: [link("ACT_LINK", "DEST", 1)] };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, destination, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(50);
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      70,
+    );
+    const healApplied = recorder.getEvents().find((e) => e.eventType === "HealApplied")!;
+    expect(healApplied.payload).toMatchObject({
+      targetUnitId: createBattleUnitId("TARGET"),
+      healAmount: 30,
+      transferredAmount: 30,
+      appliedAmount: 0,
+      discardedAmount: 0,
+    });
+    expect(healApplied.stateDelta).toBeUndefined();
+    const transferred = recorder.getEvents().find((e) => e.eventType === "HealingTransferred")!;
+    expect(transferred.category).toBe("FACT");
+    expect(transferred.parentEventId).toBe(healApplied.eventId);
+    expect(transferred.payload).toMatchObject({
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_LINK"),
+      fromUnitId: createBattleUnitId("TARGET"),
+      toUnitId: createBattleUnitId("DEST"),
+      transferRate: 1,
+      transferredAmount: 30,
+      appliedAmount: 30,
+      discardedAmount: 0,
+      hpBefore: 40,
+      hpAfter: 70,
+    });
+    expect(transferred.stateDelta).toEqual({
+      units: { [createBattleUnitId("DEST")]: { hp: { before: 40, after: 70 } } },
+    });
+    expect(result.changed).toBe(true);
+  });
+
+  it("UT-R-HEAL-04-006: a partial healing link splits the heal, truncating the transferred share once (R-NUM-02)", () => {
+    const healer = unit("HEALER", "ALLY");
+    const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 10, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 0.5)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    // heal 25 -> truncate(25 * 0.5) = 12 transferred, 13 retained
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.25),
+      [healer, destination, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(23);
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      52,
+    );
+    expect(recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload).toMatchObject({
+      healAmount: 25,
+      transferredAmount: 12,
+      appliedAmount: 13,
+    });
+    expect(
+      recorder.getEvents().find((e) => e.eventType === "HealingTransferred")!.payload,
+    ).toMatchObject({ transferredAmount: 12, appliedAmount: 12 });
+  });
+
+  it("UT-R-HEAL-04-007 (BOUNDARY): multiple links whose rates sum above 1 are capped in grant order, so the holder's retained amount never goes negative", () => {
+    const healer = unit("HEALER", "ALLY");
+    const first = unit("DEST_A", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const second = unit("DEST_B", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 10, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK_A", "DEST_A", 0.8), link("ACT_LINK_B", "DEST_B", 0.8)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    // heal 30: first link takes truncate(30 * 0.8) = 24, second is capped at the
+    // remaining 6 (not 24). Holder retains 0 and never loses HP.
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, first, second, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(10);
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST_A"))!.currentHp,
+    ).toBe(34);
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST_B"))!.currentHp,
+    ).toBe(16);
+    expect(recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload).toMatchObject({
+      healAmount: 30,
+      transferredAmount: 30,
+      appliedAmount: 0,
+    });
+    expect(
+      recorder
+        .getEvents()
+        .filter((e) => e.eventType === "HealingTransferred")
+        .map((e) => e.payload),
+    ).toMatchObject([
+      { toUnitId: createBattleUnitId("DEST_A"), transferredAmount: 24 },
+      { toUnitId: createBattleUnitId("DEST_B"), transferredAmount: 6 },
+    ]);
+  });
+
+  it("UT-R-HEAL-04-008 (BOUNDARY): a self-link is the identity — the holder keeps the heal and no HealingTransferred is emitted (SKL_ELENA_MOODMAKER_AS1 links itself)", () => {
+    const healer = unit("HEALER", "ALLY");
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ALLY", { currentHp: 50, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "TARGET", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(80);
+    expect(recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload).toMatchObject({
+      transferredAmount: 0,
+      appliedAmount: 30,
+    });
+    expect(recorder.getEvents().some((e) => e.eventType === "HealingTransferred")).toBe(false);
+  });
+
+  it("UT-R-HEAL-04-009 (BOUNDARY): mutually linked units terminate in one hop — the transferred healing does not re-transfer back (R-HEAL-04 re-link prohibition)", () => {
+    const healer = unit("HEALER", "ALLY");
+    const a: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 10, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK_A", "DEST", 1, "TARGET")],
+    };
+    const b: BattleUnit = {
+      ...unit("DEST", "ENEMY", { currentHp: 10, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK_B", "TARGET", 1, "DEST")],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, a, b],
+      context(recorder, rootEventId),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(10);
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      40,
+    );
+    expect(recorder.getEvents().filter((e) => e.eventType === "HealingTransferred")).toHaveLength(
+      1,
+    );
+  });
+
+  it("UT-R-HEAL-04-010 (NEGATIVE): a link whose destination is defeated does not establish, and the holder retains that share instead of the healing being lost", () => {
+    const healer = unit("HEALER", "ALLY");
+    const destination = unit("DEST", "ALLY", { currentHp: 0, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 50, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, destination, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(80);
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      0,
+    );
+    expect(recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload).toMatchObject({
+      transferredAmount: 0,
+      appliedAmount: 30,
+    });
+    expect(recorder.getEvents().some((e) => e.eventType === "HealingTransferred")).toBe(false);
+  });
+
+  it("UT-R-HEAL-04-011 (BOUNDARY): the transfer destination's maximum HP caps the transferred amount and the excess is discarded there, not returned to the holder", () => {
+    const healer = unit("HEALER", "ALLY");
+    const destination = unit("DEST", "ALLY", { currentHp: 95, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 50, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, destination, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+    ).toBe(50);
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      100,
+    );
+    expect(
+      recorder.getEvents().find((e) => e.eventType === "HealingTransferred")!.payload,
+    ).toMatchObject({ transferredAmount: 30, appliedAmount: 5, discardedAmount: 25 });
+  });
+
+  it("UT-R-HEAL-04-012 (BOUNDARY): a heal of 0 transfers nothing and emits no HealingTransferred, while HealApplied is still recorded (R-HEAL-01 audit trail)", () => {
+    const healer = unit("HEALER", "ALLY");
+    const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 50, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0),
+      [healer, destination, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(result.changed).toBe(false);
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      40,
+    );
+    expect(recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload).toMatchObject({
+      healAmount: 0,
+      transferredAmount: 0,
+      appliedAmount: 0,
+    });
+    expect(recorder.getEvents().some((e) => e.eventType === "HealingTransferred")).toBe(false);
+  });
+
+  it("UT-R-HEAL-04-013 (NEGATIVE): a defeated link holder is not healed, so no transfer occurs and neither event is emitted", () => {
+    const healer = unit("HEALER", "ALLY");
+    const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
+    const linked: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { currentHp: 0, maximumHp: 100 }),
+      appliedEffects: [link("ACT_LINK", "DEST", 1)],
+    };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("TARGET", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, destination, linked],
+      context(recorder, rootEventId),
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp).toBe(
+      40,
+    );
+    expect(recorder.getEvents().some((e) => e.eventType === "HealApplied")).toBe(false);
+    expect(recorder.getEvents().some((e) => e.eventType === "HealingTransferred")).toBe(false);
   });
 });
 

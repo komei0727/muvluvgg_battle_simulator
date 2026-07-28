@@ -107,8 +107,12 @@ export function fireContinuousHealsOnActionStart(
     }
     working = applied.units;
     lastEventId = applied.lastEventId;
+    // R-HEAL-04（Issue #229）: 継続回復もR-HEAL-01と同じ手順を共有するため、
+    // 回復リンクが成立すれば`HealingTransferred`も同じ連鎖へ流す。
     if (onFactEvent !== undefined) {
-      working = onFactEvent(applied.healApplied, working);
+      for (const event of applied.chainEvents) {
+        working = onFactEvent(event, working);
+      }
     }
   }
 

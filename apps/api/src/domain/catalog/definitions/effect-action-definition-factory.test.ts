@@ -1108,6 +1108,71 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  // --- M7-005-HEAL-LINK (Issue #229, R-HEAL-04): APPLY_HEALING_LINK ---
+
+  it("UT-CAT-ACT-076: maps APPLY_HEALING_LINK transferring 100% of the holder's incoming healing to the granter (SKL_ELENA_MOODMAKER_AS1)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_HEALING_LINK_1",
+        kind: "APPLY_HEALING_LINK",
+        payload: {
+          transferTo: { kind: "SELF" },
+          transferRate: 1,
+          duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
+        },
+        requiredCapabilities: ["CAP_HEALING_LINK"],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_HEALING_LINK");
+    if (result.kind === "APPLY_HEALING_LINK") {
+      expect(result.payload.transferTo).toEqual({ kind: "SELF" });
+      expect(result.payload.transferRate).toBe(1);
+      expect(result.payload.duration.timeLimit).toEqual({
+        unit: "ACTION",
+        count: 1,
+        owner: "EFFECT_SOURCE",
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-077: rejects APPLY_HEALING_LINK with a transferRate outside [0, 1]", () => {
+    for (const transferRate of [-0.1, 1.5]) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_HEALING_LINK_1",
+            kind: "APPLY_HEALING_LINK",
+            payload: {
+              transferTo: { kind: "SELF" },
+              transferRate,
+              duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            },
+            requiredCapabilities: ["CAP_HEALING_LINK"],
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-ACT-078: rejects APPLY_HEALING_LINK without transferTo (the transfer destination has no default)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_HEALING_LINK_1",
+          kind: "APPLY_HEALING_LINK",
+          payload: {
+            transferRate: 1,
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+          },
+          requiredCapabilities: ["CAP_HEALING_LINK"],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   // --- Issue #44 G-02: APPLY_CONTINUOUS_DAMAGE ---
 
   it("UT-CAT-ACT-044: maps APPLY_CONTINUOUS_DAMAGE (DoT) ticking on ActionStarted", () => {

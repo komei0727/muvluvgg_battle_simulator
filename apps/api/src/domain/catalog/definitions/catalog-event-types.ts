@@ -71,6 +71,7 @@ export const EVENT_TYPE_CATEGORIES: Readonly<Record<string, EventCategory>> = {
   ReflectedDamageGenerated: "FACT",
   // 回復イベント
   HealApplied: "FACT",
+  HealingTransferred: "FACT",
   // 効果イベント
   EffectApplied: "FACT",
   EffectApplicationRejected: "FACT",

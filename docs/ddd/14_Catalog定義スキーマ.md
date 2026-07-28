@@ -745,6 +745,7 @@ metadata:
 | `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正 | `CAP_STAT_MOD`                 |
 | `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正              | `CAP_DAMAGE_MOD`               |
 | `APPLY_HEALING_MOD`        | 回復量増減                             | `CAP_HEAL`                     |
+| `APPLY_HEALING_LINK`       | 回復リンク（回復効果の転送）           | `CAP_HEALING_LINK`             |
 | `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                     | `CAP_RESOURCE_MUTATION`        |
 | `MODIFY_RESOURCE_CAPACITY` | 最大APなど上限変更                     | `CAP_RESOURCE_CAPACITY_MOD`    |
 | `APPLY_STATUS`             | 気絶、凍結、暗闇など                   | 状態により異なる               |
@@ -955,6 +956,32 @@ payload:
 | `formula`   | FormulaDefinition  | 符号付き。増加は正、減少は負                                   |
 | `stacking`  | object             | `APPLY_DAMAGE_MOD` と同じく `STACKABLE` のみ                   |
 | `duration`  | DurationDefinition | —                                                              |
+
+### APPLY_HEALING_LINK
+
+`M7-005-HEAL-LINK`（Issue #229、R-HEAL-04）。保持者が得られる回復効果を、指定した割合だけ転送先へ移し替える継続効果（`AppliedEffect`）。production例は `SKL_ELENA_MOODMAKER_AS1`（私に任せて！）の「対象が得られる回復効果を100%自身に転送する」。`APPLY_DAMAGE_LINK`（`CAP_DAMAGE_LINK_STATE`、M8）とは方向（回復／被ダメージ）も配分規則（転送＝移し替え／リンク＝同量を追加発生）も異なる別kindである。
+
+```yaml
+kind: APPLY_HEALING_LINK
+payload:
+  transferTo:
+    kind: SELF
+  transferRate: 1
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+      owner: EFFECT_SOURCE
+    dispellable: true
+```
+
+| フィールド     | 型                 | 必須 | 制約                                                                                                                   |
+| -------------- | ------------------ | ---- | ---------------------------------------------------------------------------------------------------------------------- |
+| `transferTo`   | TargetReference    | ✓    | 転送先。付与時点に解決して当該インスタンスへ固定する。実装済みは `SELF`（付与者自身）のみ                              |
+| `transferRate` | number             | ✓    | 転送率。`0` 以上 `1` 以下。`1` が原文の「100%転送」                                                                    |
+| `duration`     | DurationDefinition | ✓    | 「自身が1回行動を終えるまでの間」は `{unit: ACTION, count: 1, owner: EFFECT_SOURCE}`（R-EFF-04、既存の同一原文と同じ） |
+
+`transferTo` はスキーマ上 `TargetReference` の全kindを取れるが、`heal-application-service.ts` が転送先として解決できるのは付与時点に確定する `SELF` だけである。`TRIGGER_SOURCE`/`TRIGGER_TARGET`/`BINDING`/`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` は「付与は成功するが転送先が決まらない」silent partial implementationになるため、`APPLY_CONTINUOUS_HEAL` の未対応 `timing` と同じくCatalogロード時点で `UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET` として拒否する。`APPLY_HEALING_LINK` を使う `EffectActionDefinition` は `requiredCapabilities` へ `CAP_HEALING_LINK` を含めること（宣言漏れ自体を `MISSING_REQUIRED_CAPABILITY` として拒否する。`CAP_COOLDOWN_MANIPULATION` と同じ規約）。
 
 ### MODIFY_RESOURCE
 

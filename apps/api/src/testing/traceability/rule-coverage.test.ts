@@ -18,8 +18,11 @@ function extractRuleIdsFromSpec(): string[] {
 }
 
 describe("Rule coverage ledger", () => {
-  it("UT-TRACEABILITY-001: ledger contains exactly 109 rule IDs", () => {
-    expect(RULE_COVERAGE).toHaveLength(109);
+  it("UT-TRACEABILITY-001: ledger contains exactly 110 rule IDs", () => {
+    // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
+    // 実装中に新しいRuleを発見した場合はここと`17_残作業対応表.json`の
+    // `current.rules`を同じPRで更新する（`baseline`は履歴として変更しない）。
+    expect(RULE_COVERAGE).toHaveLength(110);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

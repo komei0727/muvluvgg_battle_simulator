@@ -46,6 +46,19 @@ export interface EffectImmunityState {
 }
 
 /**
+ * R-HEAL-04（`M7-005-HEAL-LINK`、Issue #229、`APPLY_HEALING_LINK`由来の
+ * `AppliedEffect`だけが持つ）: 保持者が得る回復量のうち`transferRate`の割合を
+ * `transferToUnitId`へ移し替える。`transferToUnitId`はCatalogの
+ * `payload.transferTo`（実装済みは`SELF`のみ）を付与時点で解決した結果であり、
+ * 回復適用時点にはTargetBindingもトリガーcontextも残っていないため、
+ * `StatusEffectDetails`/`EffectImmunityState`と同じ理由でインスタンス自身へ保持する。
+ */
+export interface HealingLinkState {
+  readonly transferToUnitId: BattleUnitId;
+  readonly transferRate: number;
+}
+
+/**
  * `07_戦闘ルール詳細.md` R-STA-03: 重複なし効果を同種としてグループ化する鍵
  * （`08_ドメインイベント.md`「EffectApplied payload」）。`14_Catalog定義スキーマ.md`
  * が明示するとおり、Catalog側の`stacking.mode`は現状`STACKABLE`しか値を持たず、
@@ -177,6 +190,15 @@ export interface AppliedEffect {
    * kindを持たせて判別する（`statusKind`/`immunity`と同じ理由）。
    */
   readonly isAttackDamageBonus?: true;
+  /**
+   * R-HEAL-04（`M7-005-HEAL-LINK`、Issue #229）: `APPLY_HEALING_LINK`由来の付与
+   * だけが持つkind判別子。保持者が得る回復量のうち`transferRate`の割合を
+   * `transferToUnitId`へ移し替える（`heal-application-service.ts`）。転送先は
+   * `payload.transferTo`を付与時点で解決した結果を焼き込む
+   * （`isAttackDamageBonus`の`magnitude`と同じ「付与時snapshot」規約 —
+   * 回復適用時点にはTargetBindingもトリガーcontextも残っていない）。
+   */
+  readonly healingLink?: HealingLinkState;
   readonly duration: EffectDurationState;
   /** 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。 */
   readonly snapshot?: Readonly<Record<string, number>>;

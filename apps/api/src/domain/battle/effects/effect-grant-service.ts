@@ -3,6 +3,7 @@ import {
   effectKindKeyFromDefinitionId,
   type AppliedEffect,
   type EffectImmunityState,
+  type HealingLinkState,
   type StatusEffectDetails,
 } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -44,6 +45,8 @@ export interface GrantEffectRequest {
   readonly immunity?: EffectImmunityState;
   /** M7-004（ON_ATTACK_BONUS_DAMAGE_BUFF、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`由来の付与だけが持つ。 */
   readonly isAttackDamageBonus?: true;
+  /** M7-005-HEAL-LINK（Issue #229、R-HEAL-04）: `APPLY_HEALING_LINK`由来の付与だけが持つ。 */
+  readonly healingLink?: HealingLinkState;
   readonly durationDefinition: DurationDefinition;
   readonly snapshot?: Readonly<Record<string, number>>;
 }
@@ -84,6 +87,7 @@ export function grantEffect(
     ...(request.isAttackDamageBonus !== undefined
       ? { isAttackDamageBonus: request.isAttackDamageBonus }
       : {}),
+    ...(request.healingLink !== undefined ? { healingLink: request.healingLink } : {}),
     duration: buildInitialDurationState(request.durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,

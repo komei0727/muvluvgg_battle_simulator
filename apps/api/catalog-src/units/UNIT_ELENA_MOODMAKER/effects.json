@@ -147,6 +147,28 @@
     }
   },
   {
+    "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+    "kind": "APPLY_HEALING_LINK",
+    "payload": {
+      "transferTo": {
+        "kind": "SELF"
+      },
+      "transferRate": 1,
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "EFFECT_SOURCE"
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_HEALING_LINK"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
     "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {

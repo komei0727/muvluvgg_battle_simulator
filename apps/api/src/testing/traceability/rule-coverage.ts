@@ -1297,6 +1297,28 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
+  {
+    ruleId: "R-HEAL-04",
+    testCaseIds: [
+      "UT-R-HEAL-04-001",
+      "UT-R-HEAL-04-002",
+      "UT-R-HEAL-04-003",
+      "UT-R-HEAL-04-004",
+      "UT-R-HEAL-04-005",
+      "UT-R-HEAL-04-006",
+      "UT-R-HEAL-04-007",
+      "UT-R-HEAL-04-008",
+      "UT-R-HEAL-04-009",
+      "UT-R-HEAL-04-010",
+      "UT-R-HEAL-04-011",
+      "UT-R-HEAL-04-012",
+      "UT-R-HEAL-04-013",
+      "IT-CAP-HEALING-LINK-PROD-001",
+      "IT-CAP-HEALING-LINK-PROD-002",
+      "IT-CAP-HEALING-LINK-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
 
   // SHD: シールド
   { ruleId: "R-SHD-01", testCaseIds: [], kinds: [] },

@@ -1600,10 +1600,100 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_HEALING_LINK") {
+    // R-HEAL-04（M7-005-HEAL-LINK、Issue #229、production例:
+    // `SKL_ELENA_MOODMAKER_AS1`「対象が得られる回復効果を100%自身に転送する」）:
+    // 転送先を付与時点で解決し、転送率とともに`AppliedEffect.healingLink`へ
+    // 焼き込む（`APPLY_ATTACK_DAMAGE_BONUS`と同じ「付与時snapshot」規約 — 回復
+    // 適用時点にはTargetBindingもトリガーcontextも残っていない）。`transferTo`が
+    // `SELF`以外の定義はCatalogロード時点で
+    // `UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET`として拒否済みだが、Catalogを
+    // 経由しない合成定義に対する実行時backstopも残す。`magnitude`は監査用に
+    // 転送率をそのまま持つ（`APPLY_RESOURCE_GAIN_MOD`と同じ「符号付き割合を
+    // magnitudeへ」の規約）。CombatStatsは変えないため再計算は呼ばない。
+    if (effectAction.payload.transferTo.kind !== "SELF") {
+      throw new DomainValidationError(
+        "effectActionDefinitionId",
+        `APPLY_HEALING_LINK payload.transferTo.kind "${effectAction.payload.transferTo.kind}" is not supported (R-HEAL-04 implements "SELF" only)`,
+      );
+    }
+    const magnitude = effectAction.payload.transferRate;
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          sourceId: context.actorId,
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          healingLink: {
+            transferToUnitId: context.actorId,
+            transferRate: effectAction.payload.transferRate,
+          },
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_CONTINUOUS_HEAL" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_HEALING_LINK" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

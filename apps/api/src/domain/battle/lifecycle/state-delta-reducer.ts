@@ -108,6 +108,20 @@ function sameStatusDetails(
 }
 
 /**
+ * R-HEAL-04（M7-005-HEAL-LINK、Issue #229）: `APPLY_HEALING_LINK`由来の効果だけが
+ * 持つ転送先・転送率を`sameStatusDetails`と同じ理由で構造比較する。
+ */
+function sameHealingLinkState(
+  a: EffectSnapshot["healingLink"],
+  b: EffectSnapshot["healingLink"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return a.transferToUnitId === b.transferToUnitId && a.transferRate === b.transferRate;
+}
+
+/**
  * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
  * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
  * 単位の構造比較を行う。
@@ -136,7 +150,8 @@ export function sameEffectSnapshot(
     sameCounters(a.counters, b.counters) &&
     sameImmunityState(a.immunity, b.immunity) &&
     sameStatusDetails(a.statusDetails, b.statusDetails) &&
-    a.isAttackDamageBonus === b.isAttackDamageBonus
+    a.isAttackDamageBonus === b.isAttackDamageBonus &&
+    sameHealingLinkState(a.healingLink, b.healingLink)
   );
 }
 

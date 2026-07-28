@@ -185,6 +185,7 @@ export const effectActionDefinitionSchema = {
         "APPLY_STAT_MOD",
         "APPLY_DAMAGE_MOD",
         "APPLY_HEALING_MOD",
+        "APPLY_HEALING_LINK",
         "MODIFY_RESOURCE",
         "MODIFY_RESOURCE_CAPACITY",
         "APPLY_STATUS",

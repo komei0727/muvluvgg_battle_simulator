@@ -54,6 +54,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_MARKER_LINKED_GROUP",
   "UNSUPPORTED_MARKER_DURATION",
   "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
+  "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
@@ -1471,6 +1472,30 @@ function validateEffectAction(
       });
     }
   }
+  // R-HEAL-04（`M7-005-HEAL-LINK`、Issue #229）: 回復リンクの転送先は付与時点に
+  // 解決して`AppliedEffect.healingLink`へ焼き込む。`heal-application-service.ts`は
+  // 回復適用時にそのユニットIDしか参照しないため、付与時点で確定しない
+  // `TargetReference`（`TRIGGER_*`/`BINDING`/`LAST_*`）は「`EffectApplied`として
+  // 成功するが転送先が決まらない」silent partial implementationになる。
+  // `APPLY_CONTINUOUS_HEAL`の未対応`timing`と同じくCatalogロード時点で拒否する。
+  // 併せて`COOLDOWN_MANIPULATION`/`APPLY_STAT_MOD`と同じ「宣言漏れ自体を拒否する」
+  // パターンで`CAP_HEALING_LINK`の宣言を必須にする。
+  if (effectAction.kind === "APPLY_HEALING_LINK") {
+    if (effectAction.payload.transferTo.kind !== "SELF") {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
+        message: `APPLY_HEALING_LINK only implements transferTo {kind: "SELF"} (R-HEAL-04, M7-005-HEAL-LINK), received {kind: "${effectAction.payload.transferTo.kind}"}`,
+      });
+    }
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_HEALING_LINK")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message: 'APPLY_HEALING_LINK must declare "CAP_HEALING_LINK" in requiredCapabilities',
+      });
+    }
+  }
   // PR #210再レビュー[P2]: `marker-duration.ts`はACTION/TURN単位のDuration
   // 減算だけを実装する（`BATTLE`は本来減算不要のため対象外扱いで問題ない）。
   // `consumption`（消費条件）・`expiration`（特殊失効条件）・`HIT`/`SKILL_USE`
@@ -1579,6 +1604,7 @@ function formulasOf(effectAction: EffectActionDefinition): readonly FormulaDefin
     case "APPLY_DEATH_SURVIVAL":
     case "APPLY_TARGET_REDIRECT":
     case "APPLY_COVER":
+    case "APPLY_HEALING_LINK":
     case "APPLY_SUBUNIT":
     case "COOLDOWN_MANIPULATION":
       return [];
@@ -1633,6 +1659,7 @@ function durationOf(effectAction: EffectActionDefinition): DurationDefinition | 
     case "APPLY_MARKER":
     case "APPLY_ATTACK_DAMAGE_BONUS":
     case "APPLY_RESOURCE_GAIN_MOD":
+    case "APPLY_HEALING_LINK":
       return effectAction.payload.duration;
     case "DAMAGE":
     case "HEAL":
@@ -1676,7 +1703,8 @@ function linkedEffectGroupIdOf(
     case "APPLY_COVER":
     case "APPLY_REFLECT":
     case "APPLY_ATTACK_DAMAGE_BONUS":
-    case "APPLY_RESOURCE_GAIN_MOD": {
+    case "APPLY_RESOURCE_GAIN_MOD":
+    case "APPLY_HEALING_LINK": {
       const groupId = effectAction.payload.duration.linkedEffectGroupId;
       return groupId === null ? undefined : { groupId, isMarker: false };
     }

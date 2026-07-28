@@ -104,6 +104,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
   APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "stacking", "duration"],
   APPLY_HEALING_MOD: ["direction", "formula", "stacking", "duration"],
+  APPLY_HEALING_LINK: ["transferTo", "transferRate", "duration"],
   MODIFY_RESOURCE: ["resource", "operation", "formula", "bounds"],
   MODIFY_RESOURCE_CAPACITY: ["resource", "operation", "formula", "duration"],
   APPLY_STATUS: [
@@ -451,6 +452,27 @@ function createPayload(
           direction,
           formula: createFormulaField(payload, "formula", path),
           stacking: { mode: stackingMode },
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "APPLY_HEALING_LINK": {
+      // R-HEAL-04（M7-005-HEAL-LINK、Issue #229）: 転送先は既定を持たないため必須。
+      // `transferTo`のkindごとの実装範囲（現時点は`SELF`のみ）はCatalog整合性検証
+      // （`UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET`）が担う — Factoryは
+      // `APPLY_TARGET_REDIRECT`/`APPLY_COVER`と同じく形式検証だけを行う。
+      const transferTo = requireField(
+        payload["transferTo"] as TargetReferenceInput | undefined,
+        `${path}.transferTo`,
+      );
+      return {
+        kind: "APPLY_HEALING_LINK",
+        payload: {
+          transferTo: createTargetReference(transferTo, `${path}.transferTo`, undefined),
+          transferRate: requireRate(
+            payload["transferRate"] as number | undefined,
+            `${path}.transferRate`,
+          ),
           duration: createDurationField(payload, path),
         },
       };

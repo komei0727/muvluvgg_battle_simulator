@@ -2,6 +2,7 @@ import type { BattleStatus } from "../model/battle-status.js";
 import type {
   AppliedEffect,
   EffectImmunityState,
+  HealingLinkState,
   StatusEffectDetails,
 } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
@@ -86,6 +87,12 @@ export interface EffectSnapshot {
   readonly immunity?: EffectImmunityState;
   /** M7-004（ON_ATTACK_BONUS_DAMAGE_BUFF、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`由来の効果だけが持つ。 */
   readonly isAttackDamageBonus?: true;
+  /**
+   * M7-005-HEAL-LINK（Issue #229、R-HEAL-04）: `APPLY_HEALING_LINK`由来の効果だけが
+   * 持つ。転送先・転送率が復元されないと、独立Reducerで復元した状態に対する回復が
+   * 転送されず、`HealingTransferred`のStateDeltaと矛盾するため同一性比較へ含める。
+   */
+  readonly healingLink?: HealingLinkState;
   readonly duration?: {
     readonly unit: "ACTION" | "TURN" | "SKILL_USE";
     readonly remaining: number;
@@ -133,6 +140,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     ...(effect.isAttackDamageBonus !== undefined
       ? { isAttackDamageBonus: effect.isAttackDamageBonus }
       : {}),
+    ...(effect.healingLink !== undefined ? { healingLink: effect.healingLink } : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
       ? { consumptionRemaining: effect.duration.consumptionRemaining }

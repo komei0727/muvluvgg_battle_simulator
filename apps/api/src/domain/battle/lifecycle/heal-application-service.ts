@@ -14,6 +14,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import type {
   ActionId,
   DomainEventId,
+  EffectInstanceId,
   ResolutionScopeId,
   SkillUseId,
 } from "../../shared/event-ids.js";
@@ -104,12 +105,14 @@ export function applyHealAction(
   let resolvedCount = 0;
   let changed = false;
 
-  function chain(event: BattleDomainEvent): void {
+  function chain(events: readonly BattleDomainEvent[]): void {
     if (context.onFactEventForPassiveChain === undefined) {
       return;
     }
-    const updated = context.onFactEventForPassiveChain(event, Array.from(working.values()));
-    working = new Map(updated.map((u) => [u.battleUnitId, u]));
+    for (const event of events) {
+      const updated = context.onFactEventForPassiveChain(event, Array.from(working.values()));
+      working = new Map(updated.map((u) => [u.battleUnitId, u]));
+    }
   }
 
   for (const hit of hits) {
@@ -141,8 +144,9 @@ export function applyHealAction(
     }
     working = new Map(applied.units.map((u) => [u.battleUnitId, u]));
     lastEventId = applied.lastEventId;
-    changed = changed || applied.appliedAmount > 0;
-    chain(applied.healApplied);
+    // R-HEAL-04: 転送先のHPだけが増えた場合（100%転送）も「回復した」と扱う。
+    changed = changed || applied.changed;
+    chain(applied.chainEvents);
   }
 
   return {
@@ -167,8 +171,78 @@ export interface OneHealInput {
 export interface OneHealResult {
   readonly units: readonly BattleUnit[];
   readonly lastEventId: DomainEventId;
+  /** 対象自身が実際に増やしたHP量（R-HEAL-04で転送された分は含まない）。 */
   readonly appliedAmount: number;
   readonly healApplied: BattleDomainEvent;
+  /**
+   * R-HEAL-04（Issue #229）: PS/Memory連鎖へ転送すべきFACTイベント列。
+   * `HealApplied`に続き、成立した転送ごとの`HealingTransferred`を発行順に持つ。
+   * 呼び出し側は`healApplied`単体ではなくこの列を連鎖させる — 転送によるHP変化も
+   * `HealApplied`と同じくPS発動の契機になり得る。
+   */
+  readonly chainEvents: readonly BattleDomainEvent[];
+  /** 対象・転送先のいずれかで実際にHPが増えた場合`true`。 */
+  readonly changed: boolean;
+}
+
+/** R-HEAL-04 #2で確定した1リンク分の転送割り当て。 */
+interface HealingLinkTransfer {
+  readonly effectInstanceId: EffectInstanceId;
+  readonly effectActionDefinitionId: EffectActionDefinitionId;
+  readonly toUnitId: BattleUnitId;
+  readonly transferRate: number;
+  readonly amount: number;
+}
+
+/**
+ * R-HEAL-04 #2（`M7-005-HEAL-LINK`、Issue #229）: 保持者が持つ回復リンクを付与順
+ * （`appliedEffects`の配列順＝付与順、R-TGT-10と同じ定義順評価の規約）に評価し、
+ * 各リンクの転送量を確定する。転送量は`切り捨て(転送前回復量 × 転送率)`とし
+ * （R-NUM-02）、その時点の未転送残量を上限とする — 転送率の合計が1を超えても
+ * 保持者の回復量が負になることはない。
+ *
+ * 次の3つは転送を発生させない（対応する分は保持者へ留まる）。
+ * - 転送先が保持者自身（自己リンクは恒等。`SKL_ELENA_MOODMAKER_AS1`は自身にも
+ *   リンクを付与するため、production経路で実際に通る分岐）
+ * - 転送先が戦闘不能（R-HEAL-01は蘇生規則を持たない）
+ * - 転送先が盤面から引けない（防御的fallback）
+ *
+ * 転送によって生じた回復からさらに転送を発生させないため（R-HEAL-04の再リンク
+ * 禁止）、この関数は保持者の`appliedEffects`だけを読み、転送先のリンクは辿らない。
+ */
+function allocateHealingLinkTransfers(
+  holder: BattleUnit,
+  healAmount: number,
+  units: readonly BattleUnit[],
+): readonly HealingLinkTransfer[] {
+  const transfers: HealingLinkTransfer[] = [];
+  let remaining = healAmount;
+  for (const effect of holder.appliedEffects) {
+    if (effect.healingLink === undefined || remaining <= 0) {
+      continue;
+    }
+    const { transferToUnitId, transferRate } = effect.healingLink;
+    if (transferToUnitId === holder.battleUnitId) {
+      continue;
+    }
+    const destination = units.find((u) => u.battleUnitId === transferToUnitId);
+    if (destination === undefined || isDefeated(destination)) {
+      continue;
+    }
+    const amount = Math.min(remaining, truncateFraction(healAmount * transferRate));
+    if (amount <= 0) {
+      continue;
+    }
+    remaining -= amount;
+    transfers.push({
+      effectInstanceId: effect.effectInstanceId,
+      effectActionDefinitionId: effect.effectActionDefinitionId,
+      toUnitId: transferToUnitId,
+      transferRate,
+      amount,
+    });
+  }
+  return transfers;
 }
 
 /**
@@ -232,13 +306,20 @@ export function applyOneHeal(
   // R-HEAL-01 #2/#3＋R-NUM-02: 切り捨ては適用直前の1回だけ。
   const healAmount = truncateFraction(Math.max(0, share * healingModifierMultiplier));
 
+  // R-HEAL-04（M7-005-HEAL-LINK、Issue #229）: 回復リンクの転送分を先に差し引き、
+  // 対象自身のHP上限判定（#3）は転送後の残量に対して行う — 転送された分は対象の
+  // overhealとして破棄されない。
+  const transfers = allocateHealingLinkTransfers(target, healAmount, units);
+  const transferredAmount = transfers.reduce((sum, transfer) => sum + transfer.amount, 0);
+  const retainedAmount = healAmount - transferredAmount;
+
   const hpBefore = target.currentHp;
   const currentMax = truncateFraction(target.combatStats.maximumHp);
-  const hpAfter = Math.min(currentMax, hpBefore + healAmount);
+  const hpAfter = Math.min(currentMax, hpBefore + retainedAmount);
   const appliedAmount = hpAfter - hpBefore;
-  const discardedAmount = healAmount - appliedAmount;
+  const discardedAmount = retainedAmount - appliedAmount;
 
-  const nextUnits =
+  let nextUnits =
     appliedAmount > 0
       ? units.map((u) =>
           u.battleUnitId === target.battleUnitId
@@ -267,6 +348,7 @@ export function applyOneHeal(
       distributionShareCount,
       healingModifierMultiplier,
       healAmount,
+      transferredAmount,
       appliedAmount,
       discardedAmount,
       hpBefore,
@@ -285,5 +367,71 @@ export function applyOneHeal(
       : {}),
   });
 
-  return { units: nextUnits, lastEventId: healApplied.eventId, appliedAmount, healApplied };
+  // R-HEAL-04 #4/#5: 各転送先へ転送量をそのまま適用する。回復量Formulaと
+  // HealingModifier（R-HEAL-02）は再計算しない（R-LNK-02と同じ規約）。最大HP上限と
+  // `overheal: DISCARD`は転送先自身へ適用し、HP変化のStateDeltaは
+  // `HealingTransferred`が持つ（同じHP変化を`HealApplied`と二重に運ばない）。
+  let lastEventId = healApplied.eventId;
+  const chainEvents: BattleDomainEvent[] = [healApplied];
+  let changed = appliedAmount > 0;
+  for (const transfer of transfers) {
+    const destination = nextUnits.find((u) => u.battleUnitId === transfer.toUnitId);
+    if (destination === undefined) {
+      continue;
+    }
+    const destinationMax = truncateFraction(destination.combatStats.maximumHp);
+    const destinationHpBefore = destination.currentHp;
+    const destinationHpAfter = Math.min(destinationMax, destinationHpBefore + transfer.amount);
+    const destinationApplied = destinationHpAfter - destinationHpBefore;
+    if (destinationApplied > 0) {
+      nextUnits = nextUnits.map((u) =>
+        u.battleUnitId === transfer.toUnitId
+          ? { ...u, currentHp: createHitPoint(destinationHpAfter, destinationMax) }
+          : u,
+      );
+      changed = true;
+    }
+    const transferred = context.recorder.record({
+      eventType: "HealingTransferred",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: healApplied.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: context.sourceUnitId,
+      targetUnitIds: [transfer.toUnitId],
+      payload: {
+        effectInstanceId: transfer.effectInstanceId,
+        effectActionDefinitionId: transfer.effectActionDefinitionId,
+        fromUnitId: target.battleUnitId,
+        toUnitId: transfer.toUnitId,
+        transferRate: transfer.transferRate,
+        transferredAmount: transfer.amount,
+        appliedAmount: destinationApplied,
+        discardedAmount: transfer.amount - destinationApplied,
+        hpBefore: destinationHpBefore,
+        hpAfter: destinationHpAfter,
+      },
+      // `HealApplied`と同じ規約 — 変化0のStateDeltaは独立Reducerにとって
+      // 無意味なno-opなので付けない。
+      ...(destinationApplied > 0
+        ? {
+            stateDelta: {
+              units: {
+                [transfer.toUnitId]: {
+                  hp: { before: destinationHpBefore, after: destinationHpAfter },
+                },
+              },
+            },
+          }
+        : {}),
+    });
+    lastEventId = transferred.eventId;
+    chainEvents.push(transferred);
+  }
+
+  return { units: nextUnits, lastEventId, appliedAmount, healApplied, chainEvents, changed };
 }
