@@ -42,6 +42,7 @@ import type { TargetReference } from "../../catalog/definitions/references.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -4579,6 +4580,71 @@ describe("applyEffectActionGroups", () => {
         distributionShareCount: 1,
         healAmount: 60,
       });
+    });
+
+    it("UT-R-SKL-08-020 (full stack, G-10/RES-003A Issue #257): a HEAL referencing SUM_DAMAGE_RECEIVED reads every DAMAGE result this EffectSequence inflicted on the healer itself — neither the healer's larger dealt sum nor its single most recent received result", () => {
+      // 1ヒットあたり attack(20) - defense(10) = 10。
+      // step0: 敵へ10（actorのdealt累計だけが増える）
+      // step1/step2: 自傷10ずつ（actorのreceived累計が20、dealt累計は合計30になる）
+      // step3: SUM_DAMAGE_RECEIVED(=20) × 1.0 を回復する。
+      // dealt累計30・直前received 10のどちらとも異なる値になるため、この1つの
+      // 期待値が「対象側への累積」と「Formulaへの配線」を同時に固定する。
+      const actor = unit("ACTOR", "ALLY", { currentHp: 60 });
+      const enemy = unit("ENEMY", "ENEMY");
+      const attack = damageAction("ACT_ATTACK_ENEMY");
+      const selfDamage = damageAction("ACT_SELF_DAMAGE");
+      const heal: EffectActionDefinition = {
+        kind: "HEAL",
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL_BY_RECEIVED"),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "SUM_DAMAGE_RECEIVED", ratio: 1 },
+          overheal: "DISCARD",
+          distribution: "NONE",
+        },
+      };
+      const effectActions = new Map([
+        [attack.effectActionDefinitionId, attack],
+        [selfDamage.effectActionDefinitionId, selfDamage],
+        [heal.effectActionDefinitionId, heal],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const damageResults: DamageResultRegistry = new Map();
+      const context = {
+        ...contextFor(actor, effectActions, recorder, rootEventId),
+        damageResults,
+      };
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId),
+          singleActionStep(1, true, actor.battleUnitId, selfDamage.effectActionDefinitionId),
+          singleActionStep(2, true, actor.battleUnitId, selfDamage.effectActionDefinitionId),
+          singleActionStep(3, true, actor.battleUnitId, heal.effectActionDefinitionId),
+        ],
+        targetUnitIds: [enemy.battleUnitId, actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+      // 60 - 10 - 10 (自傷2回) + 20 (SUM_DAMAGE_RECEIVED回復) = 60。
+      expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(60);
+      const healApplied = recorder.getEvents().find((e) => e.eventType === "HealApplied")!;
+      expect(healApplied.payload).toMatchObject({
+        effectActionDefinitionId: heal.effectActionDefinitionId,
+        targetUnitId: actor.battleUnitId,
+        formulaResult: 20,
+        healAmount: 20,
+        appliedAmount: 20,
+      });
+      // 実executorが与ダメージ側と被ダメージ側を同じEffectSequence解決へ
+      // 独立に累積していることを、registry側からも固定する。
+      const actorEntry = damageResults.get(actor.battleUnitId);
+      expect(actorEntry?.sumDamageReceived?.get(context.skillUseId)).toBe(20);
+      expect(actorEntry?.sumDamageDealt?.get(context.skillUseId)).toBe(30);
+      expect(actorEntry?.lastDamageReceived).toBe(10);
     });
   });
 

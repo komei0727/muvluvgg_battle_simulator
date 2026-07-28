@@ -1462,7 +1462,9 @@ ratio: 0.6
 - MISS・対象不在などで適用されなかった `DAMAGE` 結果は 0 として加算する（R-SKL-08 の直前結果と同じ契約）。累計は 0 の加算で変化しないため、それまでの合計をそのまま保つ。
 - `EffectSequence` の外（`continuous-heal-service.ts` の継続回復など）から評価される場合は `SUM_*` を `FormulaEvaluationContext` へ渡さず、`FormulaEvaluator` が `DomainValidationError` で明確に拒否する（暗黙の 0 にしない）。
 
-`SUM_*` を参照する `EffectActionDefinition` は `requiredCapabilities` に `CAP_SUM_DAMAGE_RESULT` を含めること（Capability registry の `verification.productionDefinitionIds` と参照定義集合を一致させるため、`catalog-integrity.ts` が `MISSING_REQUIRED_CAPABILITY` として宣言漏れを拒否する）。
+`SUM_*` を参照する `EffectActionDefinition` は `requiredCapabilities` に `CAP_SUM_DAMAGE_RESULT` を含めること。`checkRequiredCapabilities` は列挙済み Capability の存在有無しか検証できず宣言漏れを素通ししてしまうため、`CAP_COOLDOWN_MANIPULATION` と同じく `catalog-integrity.ts` が `MISSING_REQUIRED_CAPABILITY` として宣言漏れ自体を拒否する。この宣言が Capability → 定義の追跡可能性であり、将来 `SUM_*` の対応範囲が狭まった場合に `SimulationPreflightValidator` が該当定義を隔離する足場にもなる。
+
+なお Capability registry の `verification.productionDefinitionIds` は、他の Capability と同様に**代表証跡**であって参照定義集合の網羅一覧ではない（例: `CAP_CONTINUOUS_HEAL` は production 13 件のうち 1 件だけを挙げる）。上記の検証も各定義の宣言漏れを拒否するだけで、証跡一覧への登録漏れは検出しない。
 
 ### 例: 対象の現在HP90%、攻撃力150%上限
 

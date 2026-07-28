@@ -1435,8 +1435,14 @@ function validateEffectAction(
   // ために設けた`UNSUPPORTED_SUM_DAMAGE_RESULT`は役目を終えたので除去したが、
   // 宣言そのものは`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`
   // （同じく`IMPLEMENTED`）と同じ「宣言漏れ自体を拒否する」パターンで引き続き
-  // 必須にする — Capability registryの`verification.productionDefinitionIds`が
-  // 指す10件と、実際に`SUM_*`を参照する定義集合を一致させ続けるため。
+  // 必須にする — `14_Catalog定義スキーマ.md`が宣言を必須と定めている一方、
+  // `checkRequiredCapabilities`は列挙済みCapabilityの存在有無しか検証できず、
+  // 宣言漏れ自体は素通ししてしまうため（`CAP_COOLDOWN_MANIPULATION`と同じ理由）。
+  // 宣言はCapability→定義の追跡可能性そのものであり、将来`SUM_*`の対応範囲が
+  // 狭まった場合に`SimulationPreflightValidator`が該当定義を隔離する足場にもなる。
+  // なお`verification.productionDefinitionIds`は他のCapabilityと同じく代表証跡
+  // であり（例: `CAP_CONTINUOUS_HEAL`はproduction 13件中1件のみ）、この検証が
+  // 証跡一覧との一致を保証するわけではない。
   if (formulasOf(effectAction).some(referencesSumDamageResult)) {
     if (!effectAction.requiredCapabilities.some((id) => id === "CAP_SUM_DAMAGE_RESULT")) {
       violations.push({
