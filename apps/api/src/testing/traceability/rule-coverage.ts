@@ -581,8 +581,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-INT-004",
       "UT-R-SKL-INT-005",
       "UT-R-SKL-INT-006",
+      "UT-R-HEAL-04-018",
+      "UT-R-HEAL-04-019",
     ],
-    kinds: ["POSITIVE", "BOUNDARY"],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
   // R-SKL-02: 対象ごとの効果適用直後にPS候補を直ちに解決する要件をIssue #34
   // （`applyDamageAction`のヒット単位フック、`UT-R-SKL-02-001`）で満たし、
@@ -590,8 +592,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `EffectActionCompleted`）後の即時連鎖（`UT-R-SKL-06-011`）を追加した。
   {
     ruleId: "R-SKL-02",
-    testCaseIds: ["UT-R-SKL-02-001", "UT-R-SKL-06-011"],
-    kinds: ["POSITIVE", "SCENARIO"],
+    testCaseIds: ["UT-R-SKL-02-001", "UT-R-SKL-06-011", "UT-R-HEAL-04-019"],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
   { ruleId: "R-SKL-03", testCaseIds: [], kinds: [] },
   {
@@ -1317,6 +1319,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HEAL-04-015",
       "UT-R-HEAL-04-016",
       "UT-R-HEAL-04-017",
+      "UT-R-HEAL-04-018",
+      "UT-R-HEAL-04-019",
       "IT-CAP-HEALING-LINK-PROD-001",
       "IT-CAP-HEALING-LINK-PROD-002",
       "IT-CAP-HEALING-LINK-PROD-003",

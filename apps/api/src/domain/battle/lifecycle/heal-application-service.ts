@@ -44,6 +44,21 @@ export interface ApplyHealActionResult {
   readonly resolvedCount: number;
   /** いずれかのhitで実際にHPが増えた（`HealApplied`が非0のStateDeltaを持った）場合`true`。 */
   readonly changed: boolean;
+  /**
+   * R-SKL-02（PR #259再々レビュー[P2]）: 使用者がPS/Memory連鎖で戦闘不能になったため
+   * **一切適用しなかった**hit数。`applyDamageActionSteps`の同名フィールドと同じ意味で、
+   * `resolveActionApplications`が同じEffectStepの残りの対象・後続stepを止める際の
+   * 未解決数になる。
+   */
+  readonly interruptedCount: number;
+  /**
+   * R-SKL-01（同上）: 使用者の戦闘不能によってこのEffectActionが途中で打ち切られた
+   * 場合`true`。`interruptedCount`とは別に持つ — 最後のhitの`HealApplied`連鎖で
+   * 使用者が倒れた場合、そのhit自体は適用済み（`HealApplied`発行済み）で残りhitも
+   * 無いため`interruptedCount`は0になるが、未解決の転送を残して打ち切っている以上
+   * `EffectActionCompleted.resultKind`は`INTERRUPTED`でなければならない。
+   */
+  readonly interrupted: boolean;
 }
 
 /**
@@ -114,8 +129,20 @@ export function* applyHealActionSteps(
   let lastEventId = context.parentEventId;
   let resolvedCount = 0;
   let changed = false;
+  let interruptedCount = 0;
+  let interrupted = false;
 
-  for (const hit of hits) {
+  for (let index = 0; index < hits.length; index++) {
+    const hit = hits[index]!;
+    // R-SKL-02（PR #259再々レビュー[P2]）: 使用者が直前の対象の連鎖で戦闘不能に
+    // なった場合、残りの対象へ効果を適用しない（`applyDamageActionSteps`が
+    // ヒットごとに行う再検証と同じ）。解決済みの効果は巻き戻さない（R-SKL-01）。
+    const currentActor = working.get(actor.battleUnitId);
+    if (currentActor === undefined || isDefeated(currentActor)) {
+      interruptedCount = hits.length - index;
+      interrupted = true;
+      break;
+    }
     const target = working.get(hit.targetBattleUnitId);
     if (target === undefined) {
       throw new DomainValidationError(
@@ -124,16 +151,18 @@ export function* applyHealActionSteps(
       );
     }
     resolvedCount += 1;
-    // 回復者自身も連鎖で変化しうるため、評価するこの瞬間の状態を引き直す
-    // （`APPLY_STAT_MOD`ブランチと同じ規約 — 攻撃力バフ後の回復量を正しく反映する）。
-    const healer = working.get(actor.battleUnitId) ?? actor;
     const applied = yield* applyOneHealSteps(
       {
         effectActionDefinitionId: action.effectActionDefinitionId,
         formula: action.payload.formula,
         ...(action.payload.distribution === "EVEN" ? { distributionShareCount } : {}),
+        // R-SKL-01: 各連鎖境界からの再開直後に使用者の生存を再検証させ、
+        // 戦闘不能なら未解決の転送を中断させる。
+        interruptWhenDefeatedUnitId: actor.battleUnitId,
       },
-      healer,
+      // 回復者自身も連鎖で変化しうるため、評価するこの瞬間の状態を引き直す
+      // （`APPLY_STAT_MOD`ブランチと同じ規約 — 攻撃力バフ後の回復量を正しく反映する）。
+      currentActor,
       target,
       Array.from(working.values()),
       context,
@@ -148,6 +177,12 @@ export function* applyHealActionSteps(
     lastEventId = applied.lastEventId;
     // R-HEAL-04: 転送先のHPだけが増えた場合（100%転送）も「回復した」と扱う。
     changed = changed || applied.changed;
+    if (applied.interrupted) {
+      // この対象の転送が使用者の戦闘不能で中断された。残りの対象も適用しない。
+      interruptedCount = hits.length - index - 1;
+      interrupted = true;
+      break;
+    }
   }
 
   return {
@@ -155,6 +190,8 @@ export function* applyHealActionSteps(
     lastEventId,
     resolvedCount,
     changed,
+    interruptedCount,
+    interrupted,
   };
 }
 
@@ -197,6 +234,14 @@ export interface OneHealInput {
    * 未指定なら分配せず、Formula評価結果の全量をこの対象へ回復する。
    */
   readonly distributionShareCount?: number;
+  /**
+   * R-SKL-01（PR #259再々レビュー[P2]）: 各連鎖境界から再開した直後にこのユニットの
+   * 生存を再検証し、戦闘不能なら未解決の転送を中断する（`interrupted: true`）。
+   * スキル使用の一部として解決される即時回復（`applyHealActionSteps`）が使用者を
+   * 指定する。継続回復（`continuous-heal-service.ts`）はスキル使用ではなく
+   * R-SKL-01/02の「使用者」を持たないため指定しない。
+   */
+  readonly interruptWhenDefeatedUnitId?: BattleUnitId;
 }
 
 export interface OneHealResult {
@@ -206,6 +251,12 @@ export interface OneHealResult {
   readonly appliedAmount: number;
   /** 対象・転送先のいずれかで実際にHPが増えた場合`true`。 */
   readonly changed: boolean;
+  /**
+   * R-SKL-01（PR #259再々レビュー[P2]）: `interruptWhenDefeatedUnitId`が連鎖の
+   * 途中で戦闘不能になり、未解決の転送を中断した場合`true`。発行済みの
+   * `HealApplied`／`HealingTransferred`は巻き戻さない。
+   */
+  readonly interrupted: boolean;
 }
 
 /**
@@ -415,11 +466,28 @@ export function* applyOneHealSteps(
 
   let lastEventId = healApplied.eventId;
   let changed = appliedAmount > 0;
+  let interrupted = false;
+
+  /**
+   * R-SKL-01（PR #259再々レビュー[P2]）: 連鎖境界から再開した直後に使用者の生存を
+   * 再検証する。戦闘不能なら未解決の転送へは進まない — 「使用者が戦闘不能になった
+   * 場合、未解決効果を中断する」。既に発行済みのイベントは巻き戻さない。
+   */
+  const userDefeated = (current: readonly BattleUnit[]): boolean => {
+    if (input.interruptWhenDefeatedUnitId === undefined) {
+      return false;
+    }
+    const user = current.find((u) => u.battleUnitId === input.interruptWhenDefeatedUnitId);
+    return user === undefined || isDefeated(user);
+  };
 
   // R-HEAL-04 #3の直後（＝転送の適用より前）にPS/Memory連鎖を解決する
   // （PRレビュー指摘[P2]、PR #259）。`HealApplied`に反応するPSは転送前のHPを観測し、
   // 続く各転送はこの連鎖後の最新stateに対して前提を再検証してから適用される。
   nextUnits = yield* chainFactEvent(context, healApplied, nextUnits);
+  if (userDefeated(nextUnits)) {
+    return { units: nextUnits, lastEventId, appliedAmount, changed, interrupted: true };
+  }
 
   // R-HEAL-04 #4/#5: 各転送先へ転送量をそのまま適用する。回復量Formulaと
   // HealingModifier（R-HEAL-02）は再計算しない（R-LNK-02と同じ規約）。最大HP上限と
@@ -493,9 +561,14 @@ export function* applyOneHealSteps(
     lastEventId = transferred.eventId;
     // R-HEAL-04 #5: 次の転送へ進む前にこの転送の連鎖を解決する（同上）。
     nextUnits = yield* chainFactEvent(context, transferred, nextUnits);
+    // R-SKL-01: その連鎖で使用者が戦闘不能になったら、残りの転送へ進まない。
+    if (userDefeated(nextUnits)) {
+      interrupted = true;
+      break;
+    }
   }
 
-  return { units: nextUnits, lastEventId, appliedAmount, changed };
+  return { units: nextUnits, lastEventId, appliedAmount, changed, interrupted };
 }
 
 /**

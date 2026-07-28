@@ -1528,9 +1528,18 @@ function* resolveOneEffectActionApplication(
     const healResult = healStep.value;
     box.units = healResult.units;
     resolvedCount = healResult.resolvedCount;
-    interruptedCount = 0;
+    // R-SKL-01/R-SKL-02（PR #259再々レビュー[P2]）: 使用者が`HealApplied`／
+    // `HealingTransferred`起点の連鎖で戦闘不能になった場合、`applyHealActionSteps`は
+    // 未解決の転送・対象を適用せず`interruptedCount`として返す。DAMAGEと同じく
+    // `INTERRUPTED`として報告し、同じEffectStepの残りの対象と後続stepを止める
+    // （`resolveActionApplications`が`walkInterrupted`へ落とす）。
+    interruptedCount = healResult.interruptedCount;
     effectLastEventId = healResult.lastEventId;
-    resultKind = healResult.changed ? "APPLIED" : "SKIPPED";
+    resultKind = healResult.interrupted
+      ? "INTERRUPTED"
+      : healResult.changed
+        ? "APPLIED"
+        : "SKIPPED";
   } else if (
     effectAction.kind === "APPLY_HEALING_MOD" ||
     effectAction.kind === "APPLY_CONTINUOUS_HEAL"

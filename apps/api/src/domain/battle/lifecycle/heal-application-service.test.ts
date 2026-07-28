@@ -735,6 +735,45 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
     });
     expect(transferred.stateDelta).toBeUndefined();
   });
+
+  it("UT-R-HEAL-04-019 (NEGATIVE, R-SKL-02): when the first target's HealApplied chain defeats the skill user, the remaining targets are not healed and the result reports them as interrupted", () => {
+    const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
+    const first = unit("TARGET_A", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const second = unit("TARGET_B", "ALLY", { currentHp: 10, maximumHp: 100 });
+    const { recorder, rootEventId } = seedRecorder();
+    // 1体目の`HealApplied`に反応したPSが使用者を戦闘不能にする状況を模す。
+    const killHealerOnFirstHeal = (
+      event: { readonly eventType: string },
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] =>
+      event.eventType === "HealApplied"
+        ? units.map((u) =>
+            u.battleUnitId === createBattleUnitId("HEALER") ? { ...u, currentHp: 0 } : u,
+          )
+        : units;
+
+    const result = applyHealAction(
+      [hit("TARGET_A", "ACT_HEAL"), hit("TARGET_B", "ACT_HEAL")],
+      healer,
+      plainHeal(0.3),
+      [healer, first, second],
+      context(recorder, rootEventId, new Map(), killHealerOnFirstHeal),
+    );
+
+    // 1体目は解決済み（巻き戻さない、R-SKL-01）。
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET_A"))!.currentHp,
+    ).toBe(40);
+    // 2体目へは適用しない（R-SKL-02「使用者が途中で戦闘不能になった場合、残りの
+    // 対象へ効果を適用しない」）。
+    expect(
+      result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET_B"))!.currentHp,
+    ).toBe(10);
+    expect(recorder.getEvents().filter((e) => e.eventType === "HealApplied")).toHaveLength(1);
+    expect(result.resolvedCount).toBe(1);
+    expect(result.interruptedCount).toBe(1);
+    expect(result.interrupted).toBe(true);
+  });
 });
 
 /**

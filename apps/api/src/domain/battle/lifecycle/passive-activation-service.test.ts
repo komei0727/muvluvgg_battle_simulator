@@ -5119,131 +5119,152 @@ describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTIO
 });
 
 /**
- * R-HEAL-04 #4/#6（`M7-005-HEAL-LINK`、Issue #229、PR #259再レビュー[P2]）:
- * PS自身のEffectSequence解決は`onFactEventForPassiveChain`を渡さず、
- * `driveActivation`がgeneratorの`yield`境界ごとに子PS連鎖を解決する。HEALが
- * `HealApplied`と各`HealingTransferred`で`yield`しないと、HEAL EffectAction全体
- * （転送を含む）を適用し終えてからまとめてyieldすることになり、`HealApplied`起点の
- * 子PSが転送後のHPを観測してしまう。この経路を実driverで通す回帰テスト。
+ * R-HEAL-04 #4/#6（`M7-005-HEAL-LINK`、Issue #229、PR #259再レビュー[P2]・
+ * 再々レビュー[P2]）: PS自身のEffectSequence解決は`onFactEventForPassiveChain`を
+ * 渡さず、`driveActivation`がgeneratorの`yield`境界ごとに子PS連鎖を解決する。
+ * HEALが`HealApplied`と各`HealingTransferred`で`yield`しないと、HEAL EffectAction
+ * 全体（転送を含む）を適用し終えてからまとめてyieldすることになり、`HealApplied`
+ * 起点の子PSが転送後のHPを観測してしまう。この経路を実driverで通す回帰テスト。
  */
 describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6, Issue #229)", () => {
-  it("UT-R-HEAL-04-017: a child PS triggered by HealApplied fully resolves before the transfer is applied, so killing the transfer destination in that chain discards the transfer instead of healing (or reviving) it", () => {
-    const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_HEAL_LINK");
-    const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_HEAL_WATCHER");
-    const holderUnitDefinitionId = createUnitDefinitionId("UNIT_HEAL_LINK_HOLDER");
+  const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_HEAL_LINK");
+  const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_HEAL_WATCHER");
+  const plainUnitDefinitionId = createUnitDefinitionId("UNIT_HEAL_LINK_PLAIN");
 
-    const healAction: EffectActionDefinition = {
-      kind: "HEAL",
-      effectActionDefinitionId: createEffectActionDefinitionId("ACT_PARENT_HEAL"),
-      requiredCapabilities: [],
-      metadata: { tags: [] },
-      payload: {
-        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.3 },
-        overheal: "DISCARD",
-        distribution: "NONE",
+  const healAction: EffectActionDefinition = {
+    kind: "HEAL",
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_PARENT_HEAL"),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.3 },
+      overheal: "DISCARD",
+      distribution: "NONE",
+    },
+  };
+  const childDamage = damageEffectAction("ACT_CHILD_KILL");
+
+  /** 最もHP割合の低い敵単体を1件選ぶbinding（両PSが使う）。 */
+  function lowestEnemyBinding(id: string) {
+    return {
+      targetBindingId: createTargetBindingId(id),
+      selector: {
+        kind: "SELECT" as const,
+        side: "ENEMY" as const,
+        count: 1,
+        filters: [],
+        order: ["LOWEST_HP_RATIO" as const],
+        includeDefeated: false,
       },
     };
-    // 子PS: `HealApplied`（HEALの内部イベントそのもの）に反応し、転送先＝親PSの
-    // 所有者を撃破する。転送より前に解決されなければ、転送先は31へ回復した後で
-    // 21になり、`HealingTransferred`も適用済みとして記録されてしまう。
-    const childDamage = damageEffectAction("ACT_CHILD_KILL_DESTINATION");
+  }
 
-    const parentSkill: SkillDefinition = {
-      ...passiveSkillOf("SKL_PARENT_HEAL"),
-      resolution: {
-        kind: "IMMEDIATE",
-        targetBindings: [
-          {
-            targetBindingId: createTargetBindingId("TGT_HOLDER"),
-            // HOLDER(50/100) < WATCHER(100/100) なので保持者が一意に選ばれる。
-            selector: {
-              kind: "SELECT",
-              side: "ENEMY",
-              count: 1,
-              filters: [],
-              order: ["LOWEST_HP_RATIO"],
-              includeDefeated: false,
-            },
-          },
-        ],
-        steps: [
-          {
-            kind: "ACTION",
-            stepCondition: { kind: "TRUE" },
-            targetCondition: { kind: "TRUE" },
-            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_HOLDER") },
-            actions: [{ effectActionDefinitionId: healAction.effectActionDefinitionId }],
-          },
-        ],
+  function actionStep(bindingId: string, effectActionDefinitionId: string) {
+    return {
+      kind: "ACTION" as const,
+      stepCondition: { kind: "TRUE" as const },
+      targetCondition: { kind: "TRUE" as const },
+      target: {
+        kind: "BINDING" as const,
+        targetBindingId: createTargetBindingId(bindingId),
       },
-    };
-    const childSkill: SkillDefinition = {
-      ...passiveSkillOf("SKL_CHILD_HEAL_WATCHER"),
-      triggers: [
-        {
-          eventType: "HealApplied",
-          category: "FACT",
-          sourceSelector: "ANY",
-          targetSelector: "ANY",
-          condition: { kind: "TRUE" },
-        },
+      actions: [
+        { effectActionDefinitionId: createEffectActionDefinitionId(effectActionDefinitionId) },
       ],
-      resolution: {
-        kind: "IMMEDIATE",
-        targetBindings: [
-          {
-            targetBindingId: createTargetBindingId("TGT_LOWEST"),
-            selector: {
-              kind: "SELECT",
-              side: "ENEMY",
-              count: 1,
-              filters: [],
-              order: ["LOWEST_HP_RATIO"],
-              includeDefeated: false,
-            },
-          },
-        ],
-        steps: [
-          {
-            kind: "ACTION",
-            stepCondition: { kind: "TRUE" },
-            targetCondition: { kind: "TRUE" },
-            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_LOWEST") },
-            actions: [{ effectActionDefinitionId: childDamage.effectActionDefinitionId }],
-          },
-        ],
-      },
     };
+  }
 
-    // 親PSの所有者＝転送先。残HP1で、子PSの10ダメージによって戦闘不能になる。
-    const destination = unit("DESTINATION", "ALLY", {
+  /** 親PS: 最もHP割合の低い敵（＝回復リンク保持者）を回復する。 */
+  const parentSkill: SkillDefinition = {
+    ...passiveSkillOf("SKL_PARENT_HEAL"),
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [lowestEnemyBinding("TGT_HOLDER")],
+      steps: [actionStep("TGT_HOLDER", healAction.effectActionDefinitionId)],
+    },
+  };
+  /** 子PS: `HealApplied`（HEALの内部イベントそのもの）に反応し、最もHP割合の低い敵を撃破する。 */
+  const childSkill: SkillDefinition = {
+    ...passiveSkillOf("SKL_CHILD_HEAL_WATCHER"),
+    triggers: [
+      {
+        eventType: "HealApplied",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "ANY",
+        condition: { kind: "TRUE" },
+      },
+    ],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [lowestEnemyBinding("TGT_VICTIM")],
+      steps: [actionStep("TGT_VICTIM", childDamage.effectActionDefinitionId)],
+    },
+  };
+
+  const definitions = definitionsOf(
+    new Map([
+      [
+        parentUnitDefinitionId,
+        unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+      ],
+      [
+        childUnitDefinitionId,
+        unitDefinitionOf(childUnitDefinitionId, [childSkill.skillDefinitionId]),
+      ],
+      [plainUnitDefinitionId, unitDefinitionOf(plainUnitDefinitionId, [])],
+    ]),
+    new Map([
+      [parentSkill.skillDefinitionId, parentSkill],
+      [childSkill.skillDefinitionId, childSkill],
+    ]),
+    new Map([
+      [healAction.effectActionDefinitionId, healAction],
+      [childDamage.effectActionDefinitionId, childDamage],
+    ]),
+  );
+
+  function healingLink(holderId: string, destinationId: string): AppliedEffect {
+    return {
+      effectInstanceId: "B_1:effect:link" as AppliedEffect["effectInstanceId"],
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_LINK"),
+      kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_LINK")),
+      duplicate: true,
+      sourceId: createBattleUnitId(destinationId),
+      targetId: createBattleUnitId(holderId),
+      magnitude: 1,
+      healingLink: { transferToUnitId: createBattleUnitId(destinationId), transferRate: 1 },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  /**
+   * 盤面。`healerHp`/`destinationHp`のうち低い方が、子PSの`LOWEST_HP_RATIO`で
+   * 撃破される側になる（両者ともALLY側＝子PS所有者から見たENEMY側）。
+   * 保持者HOLDER(50/100) < WATCHER(100/100) なので、親PSは常にHOLDERを回復する。
+   */
+  function board(healerHp: number, destinationHp: number) {
+    const healer = unit("HEALER", "ALLY", {
       unitDefinitionId: parentUnitDefinitionId,
       currentPp: 3,
-      currentHp: 1,
+      currentHp: healerHp,
       maximumHp: 100,
       defense: 0,
     });
-    // リンク保持者。回復100%を`DESTINATION`へ転送する。
+    const destination = unit("DESTINATION", "ALLY", {
+      unitDefinitionId: plainUnitDefinitionId,
+      currentHp: destinationHp,
+      maximumHp: 100,
+      defense: 0,
+    });
     const holder: BattleUnit = {
       ...unit("HOLDER", "ENEMY", {
-        unitDefinitionId: holderUnitDefinitionId,
+        unitDefinitionId: plainUnitDefinitionId,
         currentHp: 50,
         maximumHp: 100,
       }),
-      appliedEffects: [
-        {
-          effectInstanceId: "B_1:effect:link" as AppliedEffect["effectInstanceId"],
-          effectActionDefinitionId: createEffectActionDefinitionId("ACT_LINK"),
-          kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_LINK")),
-          duplicate: true,
-          sourceId: createBattleUnitId("DESTINATION"),
-          targetId: createBattleUnitId("HOLDER"),
-          magnitude: 1,
-          healingLink: { transferToUnitId: createBattleUnitId("DESTINATION"), transferRate: 1 },
-          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
-          appliedTurnNumber: 1,
-        },
-      ],
+      appliedEffects: [healingLink("HOLDER", "DESTINATION")],
     };
     const watcher = unit("WATCHER", "ENEMY", {
       unitDefinitionId: childUnitDefinitionId,
@@ -5252,42 +5273,24 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6, Issue
       currentHp: 100,
       maximumHp: 100,
     });
-
-    const definitions = definitionsOf(
-      new Map([
-        [
-          parentUnitDefinitionId,
-          unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
-        ],
-        [
-          childUnitDefinitionId,
-          unitDefinitionOf(childUnitDefinitionId, [childSkill.skillDefinitionId]),
-        ],
-        [holderUnitDefinitionId, unitDefinitionOf(holderUnitDefinitionId, [])],
-      ]),
-      new Map([
-        [parentSkill.skillDefinitionId, parentSkill],
-        [childSkill.skillDefinitionId, childSkill],
-      ]),
-      new Map([
-        [healAction.effectActionDefinitionId, healAction],
-        [childDamage.effectActionDefinitionId, childDamage],
-      ]),
-    );
     const recorder = new EventRecorder(createBattleId("B_1"));
     const turnStarted = recordTurnStarted(recorder);
-    const startingUnits = [destination, watcher, holder];
+    const startingUnits = [healer, destination, holder, watcher];
     const runtime = new PassiveActivationRuntime(
       contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
       startingUnits,
     );
-
     const updatedUnits = runtime.onFactEvent(turnStarted, startingUnits).units;
+    return { recorder, updatedUnits, events: recorder.getEvents() };
+  }
 
-    const events = recorder.getEvents();
+  it("UT-R-HEAL-04-017: a child PS triggered by HealApplied fully resolves before the transfer is applied — killing the transfer destination in that chain discards the transfer instead of healing (or reviving) it", () => {
+    // HEALER(100) > DESTINATION(1) なので、子PSは転送先だけを撃破する（使用者は生存）。
+    const { updatedUnits, events } = board(100, 1);
+
     const healAppliedIndex = events.findIndex((e) => e.eventType === "HealApplied");
     const childActivatedIndex = events.findIndex(
-      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === watcher.battleUnitId,
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === createBattleUnitId("WATCHER"),
     );
     const transferredIndex = events.findIndex((e) => e.eventType === "HealingTransferred");
     expect(healAppliedIndex).toBeGreaterThanOrEqual(0);
@@ -5296,18 +5299,45 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6, Issue
     expect(transferredIndex).toBeGreaterThan(childActivatedIndex);
 
     // 子PSが転送先を撃破したため、転送は成立せず破棄される（蘇生させない）。
-    expect(updatedUnits.find((u) => u.battleUnitId === destination.battleUnitId)!.currentHp).toBe(
-      0,
-    );
+    expect(
+      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("DESTINATION"))!.currentHp,
+    ).toBe(0);
     expect(events[transferredIndex]!.payload).toMatchObject({
-      fromUnitId: holder.battleUnitId,
-      toUnitId: destination.battleUnitId,
+      fromUnitId: createBattleUnitId("HOLDER"),
+      toUnitId: createBattleUnitId("DESTINATION"),
       transferredAmount: 30,
       appliedAmount: 0,
       discardedAmount: 30,
     });
     expect(events[transferredIndex]!.stateDelta).toBeUndefined();
     // 保持者へも戻さない（R-HEAL-04、`HealApplied`のStateDeltaは確定済み）。
-    expect(updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!.currentHp).toBe(50);
+    expect(
+      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HOLDER"))!.currentHp,
+    ).toBe(50);
+  });
+
+  it("UT-R-HEAL-04-018 (NEGATIVE, R-SKL-01): when the HealApplied chain defeats the skill user itself, the pending transfer is interrupted — no HealingTransferred is emitted and the EffectAction completes as INTERRUPTED", () => {
+    // HEALER(1) < DESTINATION(40) なので、子PSは使用者（親PSの所有者）を撃破する。
+    const { updatedUnits, events } = board(1, 40);
+
+    expect(events.some((e) => e.eventType === "HealApplied")).toBe(true);
+    expect(
+      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HEALER"))!.currentHp,
+    ).toBe(0);
+    // R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」。
+    expect(events.some((e) => e.eventType === "HealingTransferred")).toBe(false);
+    expect(
+      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("DESTINATION"))!.currentHp,
+    ).toBe(40);
+    const completed = events.find(
+      (e) =>
+        e.eventType === "EffectActionCompleted" &&
+        e.payload.effectActionDefinitionId === healAction.effectActionDefinitionId,
+    )!;
+    expect(completed.payload).toMatchObject({ resultKind: "INTERRUPTED" });
+    // 解決済みの効果は巻き戻さない（R-SKL-01）: 保持者は転送分を差し引いた残量のまま。
+    expect(
+      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HOLDER"))!.currentHp,
+    ).toBe(50);
   });
 });
