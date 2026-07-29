@@ -1555,6 +1555,18 @@ condition:
 | `RESOLUTION_PHASE`  | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
 | `TARGET_SET_COUNT`  | `target`, `op`, `value`                | 対象集合（`TargetReference`が解決する集合）の生存数しきい値判定（RES-004集合条件、Issue #227）     |
 
+`EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。
+
+```yaml
+# 例: 「敵にデバフが付与された際に発動」（SKL_KEI_JACKKNIFE_PS2）
+- { kind: EVENT_PAYLOAD, field: categories, op: CONTAINS, value: DEBUFF }
+# 例: 「敵に状態異常が付与された際に発動」（SKL_SIENA_DIVA_PS1）
+#     effectKind: APPLY_STATUS ではSTEALTH等の有利な状態まで拾うため使わない
+- { kind: EVENT_PAYLOAD, field: categories, op: CONTAINS, value: STATUS }
+# 例: 「敵に気絶が付与された際に発動」（SKL_NADYA_SUCCESSOR_PS2）
+- { kind: EVENT_PAYLOAD, field: statusKind, op: EQ, value: STUN }
+```
+
 `RUNTIME_COUNTER`の`modulo`は`TURN_NUMBER`と同じ意味を持つ。省略時は`op`/`value`のみで判定する（従来どおり）。指定時は「更新後の`value`を`modulo`で割った余りが0」を追加条件とし、N回ごとの発動を表す（`RUNTIME_COUNTER_MODULO`、Issue #143）。
 
 ### counterUpdates（RuntimeCounterの更新契機、Issue #143）

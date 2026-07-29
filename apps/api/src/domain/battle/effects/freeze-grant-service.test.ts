@@ -12,6 +12,7 @@ import {
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -58,6 +59,20 @@ function freezeDuration(count: number): DurationDefinition {
   return { timeLimit: { unit: "ACTION", count }, dispellable: true, linkedEffectGroupId: null };
 }
 
+/**
+ * M7-011（Issue #265）: `grantEffect`系は`EffectActionDefinition`そのものを受け取り、
+ * `EffectApplied`の分類payload（`effectKind`/`categories`）を定義から導く。
+ */
+function freezeDefinition(): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: FREEZE_ACTION_ID,
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { status: "FREEZE", duration: freezeDuration(1) },
+  };
+}
+
 describe("grantFreezeStatus (R-STS-03)", () => {
   it("UT-R-STS-03-001: grants a new FREEZE AppliedEffect when the target has none yet", () => {
     const source = unit("source-1");
@@ -75,7 +90,7 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: FREEZE_ACTION_ID,
+        definition: freezeDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -114,7 +129,7 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       context,
       [source, target],
       {
-        effectActionDefinitionId: FREEZE_ACTION_ID,
+        definition: freezeDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -133,7 +148,7 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       context,
       first.units,
       {
-        effectActionDefinitionId: FREEZE_ACTION_ID,
+        definition: freezeDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -175,7 +190,7 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       },
       [source, chargedTarget],
       {
-        effectActionDefinitionId: FREEZE_ACTION_ID,
+        definition: freezeDefinition(),
         sourceId: source.battleUnitId,
         targetId: chargedTarget.battleUnitId,
         duplicate: true,

@@ -288,7 +288,13 @@
         "eventType": "EffectApplied",
         "category": "FACT",
         "sourceSelector": "ENEMY",
-        "targetSelector": "SELF"
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "categories",
+          "op": "CONTAINS",
+          "value": "DEBUFF"
+        }
       }
     ]
   }

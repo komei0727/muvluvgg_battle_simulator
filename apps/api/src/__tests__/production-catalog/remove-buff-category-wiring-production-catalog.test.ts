@@ -133,7 +133,7 @@ function grantBuff(
     { recorder, turnNumber: 1, cycleNumber: 1, resolutionScopeId, rootEventId: lastEventId },
     units,
     {
-      effectActionDefinitionId: BUFF_DEF_ID,
+      definition: buffDefinition,
       sourceId: holder.battleUnitId,
       targetId: holder.battleUnitId,
       duplicate: true,

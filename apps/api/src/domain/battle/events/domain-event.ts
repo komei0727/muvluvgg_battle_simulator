@@ -17,6 +17,7 @@ import type {
   DamageType,
   DurationOwner,
   DurationTimeUnit,
+  EffectImmunityCategory,
   MarkerStackPolicy,
   ResourceKind,
   SkillType,
@@ -616,6 +617,17 @@ export interface BattleDomainEventPayloadMap {
     readonly targetUnitId: BattleUnitId;
     readonly duplicate: boolean;
     readonly kindKey: string;
+    /**
+     * M7-011（Issue #265、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）: 付与した効果の
+     * 分類。`kindKey`が`EffectActionDefinitionId`そのもので分類に使えないため、
+     * `TriggerDefinition.condition`の`EVENT_PAYLOAD`が「デバフが付与された際」
+     * 「状態異常が付与された際」を表現できるように併せて運ぶ。`categories`は
+     * `effect-category-classifier.ts`（R-EFF-02/03の解除・免疫判定の正本）が導く
+     * 集合で、R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つため配列。
+     * 判定は`op: CONTAINS`で行う。値はソート済み（イベント列の決定性）。
+     */
+    readonly effectKind: EffectActionKind;
+    readonly categories: readonly EffectImmunityCategory[];
     readonly magnitude: number;
     /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ。 */
     readonly statusKind?: StatusKind;

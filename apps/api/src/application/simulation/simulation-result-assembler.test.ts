@@ -591,6 +591,9 @@ describe("assembleSimulationResult", () => {
         targetUnitId: UNIT_A,
         duplicate: true,
         kindKey: "ACT_ATK_UP",
+        // M7-011（Issue #265）: `EffectApplied`は効果分類を必ず運ぶ。
+        effectKind: "APPLY_STAT_MOD",
+        categories: ["BUFF"],
         magnitude: 20,
         linkedEffectGroupId: null,
       },

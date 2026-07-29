@@ -17,10 +17,11 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 import type { Side } from "../../shared/side.js";
+import { effectCategoriesOf } from "./effect-category-classifier.js";
 
 export interface GrantEffectContext {
   readonly recorder: EventRecorder;
@@ -33,7 +34,14 @@ export interface GrantEffectContext {
 }
 
 export interface GrantEffectRequest {
-  readonly effectActionDefinitionId: EffectActionDefinitionId;
+  /**
+   * 付与する効果の`EffectActionDefinition`そのもの。M7-011（Issue #265、
+   * `EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）以前は定義IDだけを受け取っていたが、
+   * `EffectApplied`の分類payload（`effectKind`/`categories`）は定義の`kind`と
+   * `effect-category-classifier.ts`から導く必要があり、IDと定義が食い違う余地を
+   * 残さないよう定義自体を正本にした（`effectActionDefinitionId`はここから導く）。
+   */
+  readonly definition: EffectActionDefinition;
   /**
    * 付与者。R-MEM-04（Issue #179）: Memory の `triggeredEffects` 由来の付与だけは
    * 具体的な付与者ユニットを持たないため`undefined`を渡し、代わりに`sourceSide`
@@ -78,12 +86,13 @@ export function grantEffect(
   parentEventId: DomainEventId,
 ): GrantEffectResult {
   const target = requireUnit(units, request.targetId);
-  const kindKey = effectKindKeyFromDefinitionId(request.effectActionDefinitionId);
+  const effectActionDefinitionId = request.definition.effectActionDefinitionId;
+  const kindKey = effectKindKeyFromDefinitionId(effectActionDefinitionId);
   const timeLimit = request.durationDefinition.timeLimit;
 
   const newEffect: AppliedEffect = {
     effectInstanceId: context.recorder.nextEffectInstanceId(),
-    effectActionDefinitionId: request.effectActionDefinitionId,
+    effectActionDefinitionId,
     kindKey,
     duplicate: request.duplicate,
     ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
@@ -141,12 +150,23 @@ export function grantEffect(
     targetUnitIds: [request.targetId],
     payload: {
       effectInstanceId: newEffect.effectInstanceId,
-      effectActionDefinitionId: request.effectActionDefinitionId,
+      effectActionDefinitionId,
       ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
       ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
       targetUnitId: request.targetId,
       duplicate: request.duplicate,
       kindKey,
+      // M7-011（Issue #265、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）:
+      // `TriggerDefinition.condition`の`EVENT_PAYLOAD`が「デバフが付与された際」
+      // 「状態異常が付与された際」を表現できるようにする分類フィールド。
+      // `kindKey`は`EffectActionDefinitionId`そのもの（定義ごとに一意）で分類には
+      // 使えないため、効果の種類（`effectKind`）と、解除・免疫判定の正本である
+      // `effect-category-classifier.ts`が導く分類集合（`categories`）を併せて運ぶ。
+      // `categories`は複数値（R-STS-01「状態異常はデバフの一種」の`APPLY_STATUS`は
+      // `STATUS`と`DEBUFF`の両方）を取るため配列とし、`op: CONTAINS`で判定する。
+      // 順序はイベント列の決定性のためソートして固定する。
+      effectKind: request.definition.kind,
+      categories: [...effectCategoriesOf(newEffect, request.definition)].sort(),
       magnitude: request.magnitude,
       ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
       linkedEffectGroupId: request.durationDefinition.linkedEffectGroupId,

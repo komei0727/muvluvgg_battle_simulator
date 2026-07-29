@@ -161,7 +161,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // evasion). Junka is not among the 10 promoted units here and stays blocked
     // by `CAP_DAMAGE_MOD`/`CAP_SHIELD`, so `unitCount`/violation/`selectable`
     // expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-30.4");
+    // Bumped again by M7-011 (Issue #265, EFFECT_APPLIED_CLASSIFICATION_PAYLOAD):
+    // eight PS trigger conditions now filter `EffectApplied` by the effect
+    // classification payload (`categories`/`effectKind`/`statusKind`) instead of
+    // firing on any effect application (or, for the three that already declared
+    // a condition, instead of never firing at all against a payload field that
+    // did not exist). No `runtimeStatus` flipped — the Capability those skills
+    // declare (`CAP_TRIGGER_CONTEXT`) was already IMPLEMENTED — so
+    // `unitCount`/violation/`selectable` expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-30.5");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -443,6 +451,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     { unitId: "UNIT_KEI_JACKKNIFE", skillId: "SKL_KEI_JACKKNIFE_PS2" },
     { unitId: "UNIT_LILY_SINGER", skillId: "SKL_LILY_SINGER_PS1" },
     { unitId: "UNIT_SIENA_DIVA", skillId: "SKL_SIENA_DIVA_PS1" },
+    // M7-011（Issue #265）: rawの「このスキルは戦闘開始時・ターン開始時・
+    // ターン終了時には発動しない」は`SKL_NADYA_SUCCESSOR_PS1`/`PS2`にも併記
+    // されているが、分類payload待ちで trigger condition 自体が未宣言だった。
+    { unitId: "UNIT_NADYA_SUCCESSOR", skillId: "SKL_NADYA_SUCCESSOR_PS1" },
+    { unitId: "UNIT_NADYA_SUCCESSOR", skillId: "SKL_NADYA_SUCCESSOR_PS2" },
   ])(
     "IT-CAT-PROD-011 (Issue #144, TRIGGER_EXCLUSION_TIMING): $skillId's trigger condition excludes BATTLE_START/TURN_START/TURN_END resolution phases ($unitId)",
     ({ unitId, skillId }) => {
@@ -506,6 +519,84 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
         expect(freeze.payload.damageAmplificationOnBreak).toBe(expectedRate);
         expect(1 + (freeze.payload.damageAmplificationOnBreak ?? 0)).toBe(expectedMultiplier);
       }
+    },
+  );
+
+  it.each([
+    // 「敵にデバフが付与された際に発動」。R-STS-01「状態異常はデバフの一種」に
+    // より、状態異常の付与も`categories`に`DEBUFF`を含むため同じ条件で拾える。
+    {
+      unitId: "UNIT_KEI_JACKKNIFE",
+      skillId: "SKL_KEI_JACKKNIFE_PS2",
+      raw: "敵にデバフが付与された際",
+      expected: [{ kind: "EVENT_PAYLOAD", field: "categories", op: "CONTAINS", value: "DEBUFF" }],
+    },
+    // 「他の味方がデバフを付与された際に発動」。
+    {
+      unitId: "UNIT_LILY_SINGER",
+      skillId: "SKL_LILY_SINGER_PS1",
+      raw: "味方がデバフを付与された際",
+      expected: [{ kind: "EVENT_PAYLOAD", field: "categories", op: "CONTAINS", value: "DEBUFF" }],
+    },
+    // 「敵に状態異常が付与された際に発動」。`effectKind: APPLY_STATUS`では
+    // STEALTH/EVASION等の対象に有利な状態まで拾ってしまうため、
+    // `effect-category-classifier.ts`が気絶・凍結・暗闇にだけ与える`STATUS`
+    // カテゴリで判定する（R-STS-01）。
+    {
+      unitId: "UNIT_SIENA_DIVA",
+      skillId: "SKL_SIENA_DIVA_PS1",
+      raw: "敵に状態異常が付与された際",
+      expected: [{ kind: "EVENT_PAYLOAD", field: "categories", op: "CONTAINS", value: "STATUS" }],
+    },
+    // 「自身にデバフが付与された際に発動」。
+    {
+      unitId: "UNIT_URUU_TIMID",
+      skillId: "SKL_URUU_TIMID_PS3",
+      raw: "自身にデバフが付与された際",
+      expected: [{ kind: "EVENT_PAYLOAD", field: "categories", op: "CONTAINS", value: "DEBUFF" }],
+    },
+    // 「自身に状態異常が付与された際に発動」。
+    {
+      unitId: "UNIT_NADYA_SUCCESSOR",
+      skillId: "SKL_NADYA_SUCCESSOR_PS1",
+      raw: "自身に状態異常が付与された際",
+      expected: [{ kind: "EVENT_PAYLOAD", field: "categories", op: "CONTAINS", value: "STATUS" }],
+    },
+    // 「敵に気絶が付与された際に発動」。種別まで指定するため`statusKind`
+    // （TGT-004フェーズ3で既にpayloadにある）で絞り込む。
+    {
+      unitId: "UNIT_NADYA_SUCCESSOR",
+      skillId: "SKL_NADYA_SUCCESSOR_PS2",
+      raw: "敵に気絶が付与された際",
+      expected: [{ kind: "EVENT_PAYLOAD", field: "statusKind", op: "EQ", value: "STUN" }],
+    },
+    // 「敵に凍結が付与された際に発動」。M7-011以前は`field: "status"`という
+    // payloadに存在しないフィールドを参照しており、条件が恒常的に不成立だった。
+    {
+      unitId: "UNIT_KATE_PALADIN",
+      skillId: "SKL_KATE_PALADIN_PS1",
+      raw: "敵に凍結が付与された際",
+      expected: [
+        { kind: "EVENT_PAYLOAD", field: "effectKind", op: "EQ", value: "APPLY_STATUS" },
+        { kind: "EVENT_PAYLOAD", field: "statusKind", op: "EQ", value: "FREEZE" },
+      ],
+    },
+    // 「自身にデバフが付与された際に発動」。
+    {
+      unitId: "UNIT_MEIYA_FATED",
+      skillId: "SKL_MEIYA_FATED_PS1",
+      raw: "自身にデバフが付与された際",
+      expected: [{ kind: "EVENT_PAYLOAD", field: "categories", op: "CONTAINS", value: "DEBUFF" }],
+    },
+  ])(
+    "IT-CAT-PROD-013 (M7-011, Issue #265, EFFECT_APPLIED_CLASSIFICATION_PAYLOAD): $skillId filters its EffectApplied trigger by the effect classification the raw text names ($raw), instead of firing on any effect application ($unitId)",
+    ({ unitId, skillId, expected }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const skill = snapshot.skills.get(skillId as never);
+      const trigger = skill?.triggers[0];
+      expect(trigger?.eventType).toBe("EffectApplied");
+      expect(findConditionsOfKind(trigger?.condition, "EVENT_PAYLOAD")).toEqual(expected);
     },
   );
 });

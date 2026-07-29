@@ -16,6 +16,8 @@ import {
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
@@ -65,6 +67,37 @@ const TURN_DURATION: DurationDefinition = {
   linkedEffectGroupId: null,
 };
 
+/**
+ * M7-011（Issue #265）: `grantEffect`は`EffectActionDefinition`そのものを受け取り、
+ * `EffectApplied`の分類payload（`effectKind`/`categories`）を`effect-category-classifier.ts`
+ * から導く。テストも定義IDだけでなく実際の定義を渡す。
+ */
+function statModDefinition(): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0.2 },
+      stacking: { mode: "STACKABLE" },
+      duration: TURN_DURATION,
+    },
+  };
+}
+
+function statusDefinition(status: StatusKind): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: createEffectActionDefinitionId(`ACT_${status}`),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { status, duration: TURN_DURATION },
+  };
+}
+
 describe("grantEffect", () => {
   it("UT-R-EFF-01-016 (R-EFF-01): appends a new AppliedEffect instance to the target's individually-held registry", () => {
     const source = unit("source-1");
@@ -82,7 +115,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statModDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -117,7 +150,7 @@ describe("grantEffect", () => {
       rootEventId,
     };
     const request = {
-      effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+      definition: statModDefinition(),
       sourceId: source.battleUnitId,
       targetId: target.battleUnitId,
       duplicate: true,
@@ -150,7 +183,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statModDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -198,7 +231,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statModDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -229,7 +262,7 @@ describe("grantEffect", () => {
         },
         [source],
         {
-          effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+          definition: statModDefinition(),
           sourceId: source.battleUnitId,
           targetId: createBattleUnitId("MISSING"),
           duplicate: true,
@@ -262,7 +295,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statModDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -294,7 +327,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statModDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -330,7 +363,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statModDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -364,7 +397,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statusDefinition("STEALTH"),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -400,7 +433,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statModDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -442,7 +475,7 @@ describe("grantEffect", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+        definition: statusDefinition("STEALTH"),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -454,5 +487,135 @@ describe("grantEffect", () => {
     );
 
     expect(result.appliedEffect.duration.grantedSkillUseId).toBe(skillUseId);
+  });
+
+  it("UT-R-EFF-01-059 (M7-011、Issue #265、EFFECT_APPLIED_CLASSIFICATION_PAYLOAD): carries the effect classification (effectKind + effectCategoriesOf categories) of a negative APPLY_STAT_MOD in the EffectApplied payload, so a TriggerDefinition can filter on DEBUFF", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statModDefinition(),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: -20,
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["DEBUFF"],
+    });
+  });
+
+  it("UT-R-EFF-01-060 (M7-011、Issue #265): classifies a positive APPLY_STAT_MOD as BUFF only, so a DEBUFF-filtered trigger does not match it", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statModDefinition(),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 20,
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["BUFF"],
+    });
+  });
+
+  it("UT-R-EFF-01-061 (M7-011、Issue #265、R-STS-01): classifies a status-ailment APPLY_STATUS as both STATUS and DEBUFF, in a deterministic order", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statusDefinition("STUN"),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STUN",
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({
+      effectKind: "APPLY_STATUS",
+      categories: ["DEBUFF", "STATUS"],
+    });
+  });
+
+  it("UT-R-EFF-01-062 (M7-011、Issue #265、R-STS-01境界): classifies a beneficial APPLY_STATUS (STEALTH) as BUFF only, so a STATUS-filtered trigger does not match it", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statusDefinition("STEALTH"),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STEALTH",
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({
+      effectKind: "APPLY_STATUS",
+      categories: ["BUFF"],
+    });
   });
 });

@@ -356,7 +356,7 @@ describe("production Catalog APPLY_STAT_MOD with ALIVE_UNIT_COUNT_SCALE (RES-001
       grantContext,
       fiveAllies,
       {
-        effectActionDefinitionId: effectAction.effectActionDefinitionId,
+        definition: effectAction,
         sourceId: laura.battleUnitId,
         targetId: laura.battleUnitId,
         duplicate: true,

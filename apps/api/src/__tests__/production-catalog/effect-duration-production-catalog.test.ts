@@ -140,7 +140,7 @@ describe("production Catalog ACTION-unit duration decrement (EFF-003, R-EFF-04)"
         },
         [source, other],
         {
-          effectActionDefinitionId: effectAction.effectActionDefinitionId,
+          definition: effectAction,
           sourceId: source.battleUnitId,
           targetId: holder.battleUnitId,
           duplicate: true,
@@ -253,7 +253,7 @@ describe("production Catalog TURN-unit duration decrement (EFF-003, R-EFF-06)", 
         },
         [owner],
         {
-          effectActionDefinitionId: effectAction.effectActionDefinitionId,
+          definition: effectAction,
           sourceId: owner.battleUnitId,
           targetId: owner.battleUnitId,
           duplicate: true,
@@ -355,7 +355,7 @@ describe("production Catalog consumption (EFF-003, R-EFF-07)", () => {
         },
         [owner],
         {
-          effectActionDefinitionId: effectAction.effectActionDefinitionId,
+          definition: effectAction,
           sourceId: owner.battleUnitId,
           targetId: owner.battleUnitId,
           duplicate: true,
@@ -460,7 +460,7 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       context,
       [owner],
       {
-        effectActionDefinitionId: atkDown.effectActionDefinitionId,
+        definition: atkDown,
         sourceId: owner.battleUnitId,
         targetId: owner.battleUnitId,
         duplicate: true,
@@ -474,7 +474,7 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       context,
       units,
       {
-        effectActionDefinitionId: dmgDown.effectActionDefinitionId,
+        definition: dmgDown,
         sourceId: owner.battleUnitId,
         targetId: owner.battleUnitId,
         duplicate: true,
@@ -555,7 +555,7 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       context,
       [owner],
       {
-        effectActionDefinitionId: immunity.effectActionDefinitionId,
+        definition: immunity,
         sourceId: owner.battleUnitId,
         targetId: owner.battleUnitId,
         duplicate: true,
@@ -569,7 +569,7 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       context,
       units,
       {
-        effectActionDefinitionId: continuousHeal.effectActionDefinitionId,
+        definition: continuousHeal,
         sourceId: owner.battleUnitId,
         targetId: owner.battleUnitId,
         duplicate: true,
