@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { battleHealEffectsFixture } from "./fixtures/battle-heal-effects.js";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { fillMinimalFormation } from "./support/formation.js";
@@ -30,6 +31,35 @@ test("runs a minimal battle from formation to summary, tolerating an unknown eve
   // row (its own type string as the title) rather than being dropped or
   // crashing the page.
   await expect(page.getByText("MYSTERIOUS_FUTURE_EVENT")).toBeVisible();
+});
+
+// UI-E2E-009 (M7-009, Issue #182): HEAL列がfixtureの実回復量と一致し、付与された
+// 効果・状態異常がユニット状態と時系列イベントの両方から辿れる
+// (07_UI実装・拡張計画.md §11完了条件)。
+test("shows the actually applied healing and the granted effects/status of an M7 battle", async ({
+  page,
+}) => {
+  await mockSimulationSequence(page, [{ status: 200, body: battleHealEffectsFixture }]);
+  await page.goto("./");
+
+  await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await page.getByRole("button", { name: "戦闘を開始" }).click();
+  await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
+
+  // 実回復量40(自己回復) + 10(回復リンクの転送先で実際に増えた分) = 50。
+  // 要求量60でも破棄分を含む合計でもない。
+  const allyRow = page.getByRole("row", { name: /アライアルファ/ });
+  await expect(allyRow.getByRole("cell", { name: "50", exact: true })).toBeVisible();
+
+  // 状態異常の付与はイベント要約から辿れる。
+  await expect(page.getByText(/状態異常 STUN/)).toBeVisible();
+
+  // finalStateの効果一覧はユニット状態タブに出る。
+  const tabs = page.getByRole("tablist", { name: "戦闘詳細" });
+  await tabs.getByRole("tab", { name: "ユニット状態" }).click();
+  const actionStatePanel = page.getByRole("tabpanel", { name: "ユニット状態" });
+  await expect(actionStatePanel.getByText(/ACT_ALLY_ATTACK_UP/)).toBeVisible();
+  await expect(actionStatePanel.getByText(/STUN（STATUS_ABNORMALITY）/)).toBeVisible();
 });
 
 // UI-E2E-002: memory dialogに未対応itemと理由が表示される。

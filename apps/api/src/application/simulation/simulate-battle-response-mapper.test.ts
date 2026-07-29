@@ -259,6 +259,95 @@ describe("toBattleSimulationResponseBody", () => {
     expect(body.finalState.units[1]!.markers).toEqual([]);
   });
 
+  it("API-RESP-012C (M7-009, Issue #182): classifies an APPLY_STATUS-derived AppliedEffect as STATUS_ABNORMALITY and publishes its statusKind, instead of deriving BUFF from a zero magnitude", () => {
+    const base = baseResult();
+    const withStatus = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: [
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+                effectDefinitionId: "ACT_TEST_STUN",
+                sourceUnitId: ENEMY_ID,
+                kindKey: "ACT_TEST_STUN",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0,
+                statusKind: "STUN",
+                duration: { unit: "ACTION", remaining: 1 },
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const body = toBattleSimulationResponseBody(withStatus);
+
+    expect(body.finalState.units[0]!.effects).toEqual([
+      {
+        effectInstanceId: "battle-1:effect:1",
+        effectDefinitionId: "ACT_TEST_STUN",
+        sourceUnitId: "enemy:1",
+        category: "STATUS_ABNORMALITY",
+        effectKindKey: "ACT_TEST_STUN",
+        statusKind: "STUN",
+        stackMode: "NON_STACKING",
+        isEffective: true,
+        value: { magnitude: 0 },
+        duration: { unit: "ACTION", remaining: 1 },
+        appliedTurnNumber: 1,
+      },
+    ]);
+  });
+
+  it("API-RESP-012D (M7-009, Issue #182): keeps deriving BUFF/DEBUFF from the magnitude sign for effects without a statusKind, and omits statusKind entirely", () => {
+    const base = baseResult();
+    const withStatMods = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: [
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+                effectDefinitionId: "ACT_TEST_ATTACK_UP",
+                sourceUnitId: ALLY_ID,
+                kindKey: "ACT_TEST_ATTACK_UP",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0.1,
+                appliedTurnNumber: 1,
+              },
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:2"),
+                effectDefinitionId: "ACT_TEST_ATTACK_DOWN",
+                sourceUnitId: ENEMY_ID,
+                kindKey: "ACT_TEST_ATTACK_DOWN",
+                duplicate: false,
+                isEffective: true,
+                magnitude: -0.1,
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const effects = toBattleSimulationResponseBody(withStatMods).finalState.units[0]!.effects;
+
+    expect(effects.map((effect) => effect.category)).toEqual(["BUFF", "DEBUFF"]);
+    expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
+  });
+
   it("API-RESP-012B (PR #262レビュー[P1]): throws INTERNAL_INVARIANT_VIOLATION instead of silently omitting the required sourceUnitId when a Memory-granted (source-less) MarkerState reaches the v1 MarkerStateResponse mapper", () => {
     const base = baseResult();
     const withMemoryMarker = baseResult({

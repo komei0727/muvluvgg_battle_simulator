@@ -34,6 +34,23 @@ interface Row {
   readonly actionState: UnitActionState;
 }
 
+// docs/ui-design/07_UI実装・拡張計画.md §11「effect一覧はUnit詳細へ追加し、
+// サマリ列を無制限に増やさない」「effectKindKeyの未知値を汎用表示する」。
+// 状態異常だけは`statusKind`（API契約の列挙）を先頭へ出し、それ以外は
+// `effectKindKey`をそのまま見せる（定義IDの命名規則を解析しない）。
+function effectLabel(effect: UnitActionState["effects"][number]): string {
+  const head =
+    effect.statusKind !== undefined
+      ? `${effect.statusKind}（${effect.category}）`
+      : effect.category;
+  const durationText =
+    effect.duration !== undefined
+      ? `残り ${effect.duration.unit} ${effect.duration.remaining}`
+      : "永続";
+  const effectiveText = effect.isEffective ? "" : "、次点（未採用）";
+  return `${head}: ${effect.effectKindKey}（${durationText}${effectiveText}）`;
+}
+
 // docs/ui-design/07_UI実装・拡張計画.md §9完了条件: M5追加eventを意味のある
 // 文言で表示し、cooldown/charge状態をbattleUnitId単位で追跡できる。
 // action-state-projector.tsが選んだ値（AP/EXはfinalState.resourcesから、
@@ -85,6 +102,17 @@ function UnitActionStateGroup({
                   チャージ中: {actionState.charge.skillDefinitionId}
                 </p>
               ) : null}
+              {!actionState.effectsKnown ? (
+                <p className={styles["muted"]}>効果・状態異常: このレスポンスに含まれず不明</p>
+              ) : actionState.effects.length === 0 ? (
+                <p className={styles["muted"]}>効果なし</p>
+              ) : (
+                <ul className={styles["effectList"]}>
+                  {actionState.effects.map((effect) => (
+                    <li key={effect.effectInstanceId}>{effectLabel(effect)}</li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
@@ -117,6 +145,8 @@ export function UnitActionStateSection({
         battleUnitId: entry.battleUnitId,
         cooldowns: [],
         cooldownChargeKnown: logLevel !== "SUMMARY",
+        effects: [],
+        effectsKnown: false,
       },
     }));
   }, [roster, actionStates, logLevel]);

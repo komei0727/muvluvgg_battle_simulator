@@ -126,13 +126,16 @@ function toChargeStateResponseBody(
 }
 
 /**
- * `10_API設計.md`「EffectStateResponse」。`category`はBUFF/DEBUFFを効果量の
- * 符号から導く — `AppliedEffect`を実際に付与できる唯一の経路（`grantEffect`、
- * `APPLY_STAT_MOD`由来）はまだ状態異常（`APPLY_STATUS`）を生成しないため、
- * `STATUS_ABNORMALITY`へ分類すべき`EffectSnapshot`は現状存在しない。`value`は
- * `effectKindKey`ごとの具体Schema（`oneOf`によるdiscriminated union）が定まる
- * までは、`EffectSnapshot`が実際に持つ`magnitude`だけを構造化して返す
- * （`response.ts`の`EffectStateResponseBody.value`コメント参照）。
+ * `10_API設計.md`「EffectStateResponse」。`category`は`APPLY_STATUS`由来
+ * （`statusKind`を持つ）の効果を`STATUS_ABNORMALITY`とし、それ以外だけを効果量の
+ * 符号からBUFF/DEBUFFへ導く（M7-009、Issue #182。M7-003〜004で気絶・凍結・暗闇等
+ * の`AppliedEffect`が実際に生成されるようになったため、符号だけで分類すると
+ * `magnitude: 0`の状態異常をBUFFとして返してしまう）。`statusKind`はどの状態異常
+ * かをクライアントが定義ID命名から推測せずに表示するための任意プロパティ
+ * （「バージョニング」の後方互換な追加）。`value`は`effectKindKey`ごとの具体Schema
+ * （`oneOf`によるdiscriminated union）が定まるまでは、`EffectSnapshot`が実際に持つ
+ * `magnitude`だけを構造化して返す（`response.ts`の
+ * `EffectStateResponseBody.value`コメント参照）。
  */
 function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseBody {
   return {
@@ -141,8 +144,14 @@ function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseB
     ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
     // R-MEM-04（M7-006、Issue #179）: Memory由来の効果は付与者ユニットを持たず、付与元の陣営を持つ。
     ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
-    category: effect.magnitude >= 0 ? "BUFF" : "DEBUFF",
+    category:
+      effect.statusKind !== undefined
+        ? "STATUS_ABNORMALITY"
+        : effect.magnitude >= 0
+          ? "BUFF"
+          : "DEBUFF",
     effectKindKey: effect.kindKey,
+    ...(effect.statusKind !== undefined ? { statusKind: effect.statusKind } : {}),
     stackMode: effect.duplicate ? "STACKABLE" : "NON_STACKING",
     isEffective: effect.isEffective,
     value: { magnitude: effect.magnitude },

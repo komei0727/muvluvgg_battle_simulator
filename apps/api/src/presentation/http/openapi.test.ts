@@ -1014,4 +1014,66 @@ describe("OpenAPI document", () => {
       JSON.stringify(validateDurationReduced.errors),
     ).toBe(true);
   });
+
+  it("API-OPENAPI-014 (M7-009, Issue #182): effectStateResponseSchema accepts a STATUS_ABNORMALITY effect carrying statusKind, and EffectApplied.details documents the statusKind the Domain payload already emits", () => {
+    const ajv = new Ajv({ strict: false });
+    const validateEffectState = ajv.compile(effectStateResponseSchema);
+
+    expect(
+      validateEffectState({
+        effectInstanceId: "battle-1:effect:1",
+        effectDefinitionId: "ACT_STUN",
+        category: "STATUS_ABNORMALITY",
+        effectKindKey: "ACT_STUN",
+        statusKind: "STUN",
+        stackMode: "NON_STACKING",
+        isEffective: true,
+        value: { magnitude: 0 },
+        duration: { unit: "ACTION", remaining: 1 },
+        appliedTurnNumber: 1,
+      }),
+      JSON.stringify(validateEffectState.errors),
+    ).toBe(true);
+    // 未知の状態異常種別はenum違反として拒否する（`STATUS_KIND_ENUM`と同じ粒度）。
+    expect(
+      validateEffectState({
+        effectInstanceId: "battle-1:effect:1",
+        effectDefinitionId: "ACT_STUN",
+        category: "STATUS_ABNORMALITY",
+        effectKindKey: "ACT_STUN",
+        statusKind: "NOT_A_STATUS",
+        stackMode: "NON_STACKING",
+        isEffective: true,
+        value: { magnitude: 0 },
+        appliedTurnNumber: 1,
+      }),
+    ).toBe(false);
+
+    const validateEvent = ajv.compile(battleLogEventResponseDocSchema);
+    expect(
+      validateEvent({
+        sequence: 1,
+        type: "EFFECT_APPLIED",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 0,
+        rootSequence: 1,
+        targetUnitIds: ["unit-1"],
+        stateVersionBefore: 0,
+        stateVersionAfter: 1,
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          effectActionDefinitionId: "ACT_STUN",
+          sourceUnitId: "unit-1",
+          targetUnitId: "unit-1",
+          duplicate: false,
+          kindKey: "ACT_STUN",
+          magnitude: 0,
+          statusKind: "STUN",
+          linkedEffectGroupId: null,
+        },
+      }),
+      JSON.stringify(validateEvent.errors),
+    ).toBe(true);
+  });
 });

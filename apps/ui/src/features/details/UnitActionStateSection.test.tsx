@@ -175,6 +175,109 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/SUMMARYログ/)).toBeInTheDocument();
   });
 
+  it("lists finalState effects with their kind, category and remaining duration (UI-CT-017)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [
+            {
+              effectInstanceId: "battle-1:effect:1",
+              effectDefinitionId: "ACT_ATTACK_UP",
+              category: "BUFF",
+              effectKindKey: "ACT_ATTACK_UP",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: { magnitude: 0.1 },
+              duration: { unit: "TURN", remaining: 2 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/ACT_ATTACK_UP/)).toBeInTheDocument();
+    expect(screen.getByText(/BUFF/)).toBeInTheDocument();
+    expect(screen.getByText(/TURN 2/)).toBeInTheDocument();
+  });
+
+  it("names a status abnormality by its statusKind and marks a superseded duplicate as inactive (UI-CT-018)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [
+            {
+              effectInstanceId: "battle-1:effect:1",
+              effectDefinitionId: "ACT_STUN_1",
+              category: "STATUS_ABNORMALITY",
+              effectKindKey: "ACT_STUN_1",
+              statusKind: "STUN",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: { magnitude: 0 },
+              duration: { unit: "ACTION", remaining: 1 },
+              appliedTurnNumber: 1,
+            },
+            {
+              effectInstanceId: "battle-1:effect:2",
+              effectDefinitionId: "ACT_ATTACK_UP",
+              category: "BUFF",
+              effectKindKey: "ACT_ATTACK_UP",
+              stackMode: "NON_STACKING",
+              isEffective: false,
+              value: { magnitude: 0.05 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/STUN/)).toBeInTheDocument();
+    expect(screen.getByText(/次点/)).toBeInTheDocument();
+  });
+
+  it("says effects are unknown, not absent, for a fixture whose finalState has no effects array (UI-CT-019)", () => {
+    const response = responseWith({
+      units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.queryByText("効果なし")).not.toBeInTheDocument();
+    expect(screen.getByText(/効果.*不明/)).toBeInTheDocument();
+  });
+
+  it("says there is no effect when finalState reports a truthfully empty effects array (UI-CT-020)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText("効果なし")).toBeInTheDocument();
+  });
+
   it("shows the known cooldown/charge state as usual when logLevel is DETAILED or DIAGNOSTIC", () => {
     const response = responseWith({
       units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],

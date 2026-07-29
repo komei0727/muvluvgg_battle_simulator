@@ -491,4 +491,361 @@ describe("formatEvent", () => {
     expect(presentation.summary).toContain("5");
     expect(presentation.severity).toBe("neutral");
   });
+  it("resolves HEAL_APPLIED with the actually applied HP and the discarded overheal", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "HEAL_APPLIED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectActionDefinitionId: "ACT_HEAL_1",
+          sourceUnitId: "ally:1",
+          targetUnitId: "enemy:1",
+          formulaResult: 60,
+          distributionShareCount: 1,
+          healingModifierMultiplier: 1,
+          healAmount: 60,
+          appliedAmount: 40,
+          discardedAmount: 20,
+          hpBefore: 60,
+          hpAfter: 100,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.title).toBe("HEAL_APPLIED");
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("ビー");
+    expect(presentation.summary).toContain("40");
+    expect(presentation.summary).toContain("60 → 100");
+    expect(presentation.summary).toContain("20");
+    expect(presentation.severity).toBe("positive");
+  });
+
+  it("resolves HEALING_TRANSFERRED into the transfer source and destination (R-HEAL-04)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "HEALING_TRANSFERRED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          effectActionDefinitionId: "ACT_HEAL_LINK_1",
+          fromUnitId: "ally:1",
+          toUnitId: "enemy:1",
+          transferRate: 0.5,
+          transferredAmount: 20,
+          appliedAmount: 15,
+          discardedAmount: 5,
+          hpBefore: 85,
+          hpAfter: 100,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("エー");
+    expect(presentation.summary).toContain("ビー");
+    expect(presentation.summary).toContain("15");
+    expect(presentation.severity).toBe("positive");
+  });
+
+  it("resolves EFFECT_APPLIED with the effect kind, duration and duplicate flag", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_APPLIED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          effectActionDefinitionId: "ACT_ATTACK_DOWN",
+          sourceUnitId: "ally:1",
+          targetUnitId: "enemy:1",
+          duplicate: true,
+          kindKey: "ACT_ATTACK_DOWN",
+          magnitude: -0.1,
+          durationUnit: "TURN",
+          initialRemaining: 2,
+          linkedEffectGroupId: null,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("ビー");
+    expect(presentation.summary).toContain("ACT_ATTACK_DOWN");
+    expect(presentation.summary).toContain("TURN");
+    expect(presentation.summary).toContain("2");
+    expect(presentation.summary).toContain("重複");
+  });
+
+  it("names the status kind of an APPLY_STATUS-derived EFFECT_APPLIED instead of only its definition id (M7-009)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_APPLIED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:2",
+          effectActionDefinitionId: "ACT_STUN_1",
+          sourceUnitId: "ally:1",
+          targetUnitId: "enemy:1",
+          duplicate: false,
+          kindKey: "ACT_STUN_1",
+          magnitude: 0,
+          statusKind: "STUN",
+          durationUnit: "ACTION",
+          initialRemaining: 1,
+          linkedEffectGroupId: null,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("STUN");
+    expect(presentation.severity).toBe("negative");
+  });
+
+  it("uses the Memory grant's sourceSide when EFFECT_APPLIED has no source unit (R-MEM-04)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_APPLIED",
+        sourceSide: "ALLY",
+        targetUnitIds: ["ally:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:3",
+          effectActionDefinitionId: "ACT_ATTACK_UP",
+          sourceSide: "ALLY",
+          targetUnitId: "ally:1",
+          duplicate: false,
+          kindKey: "ACT_ATTACK_UP",
+          magnitude: 0.1,
+          linkedEffectGroupId: null,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("ALLY");
+    expect(presentation.summary).toContain("エー");
+  });
+
+  it("resolves EFFECT_APPLICATION_REJECTED into the blocked status and the blocking instance (R-EFF-03)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_APPLICATION_REJECTED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          battleUnitId: "enemy:1",
+          effectActionDefinitionId: "ACT_STUN_1",
+          sourceUnitId: "ally:1",
+          blockingEffectInstanceId: "battle-1:effect:9",
+          reason: "IMMUNITY",
+          statusKind: "STUN",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("ビー");
+    expect(presentation.summary).toContain("IMMUNITY");
+    expect(presentation.summary).toContain("STUN");
+  });
+
+  it("resolves EFFECT_EXPIRED with its expiry reason and cascade flag (R-EFF-04/09)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_EXPIRED",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          battleUnitId: "enemy:1",
+          effectActionDefinitionId: "ACT_ATTACK_DOWN",
+          kindKey: "ACT_ATTACK_DOWN",
+          reason: "TIME_LIMIT",
+          linkedEffectGroupId: null,
+          cascaded: false,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("ビー");
+    expect(presentation.summary).toContain("ACT_ATTACK_DOWN");
+    expect(presentation.summary).toContain("TIME_LIMIT");
+  });
+
+  it("marks a cascaded EFFECT_REMOVED as linked-group removal (R-EFF-02/09)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_REMOVED",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          battleUnitId: "enemy:1",
+          effectActionDefinitionId: "ACT_ATTACK_DOWN",
+          kindKey: "ACT_ATTACK_DOWN",
+          reason: "LINKED_GROUP_CASCADE",
+          linkedEffectGroupId: "GRP_1",
+          cascaded: true,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("ビー");
+    expect(presentation.summary).toContain("LINKED_GROUP_CASCADE");
+    expect(presentation.summary).toContain("連動");
+  });
+
+  it("resolves EFFECT_DURATION_REDUCED and EFFECT_CONSUMPTION_CHANGED as before → after transitions", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const duration = formatEvent(
+      event({
+        type: "EFFECT_DURATION_REDUCED",
+        targetUnitIds: ["ally:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          battleUnitId: "ally:1",
+          unit: "TURN",
+          before: 2,
+          after: 1,
+        },
+      }),
+      rosterIndex,
+    );
+    const consumption = formatEvent(
+      event({
+        type: "EFFECT_CONSUMPTION_CHANGED",
+        targetUnitIds: ["ally:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          battleUnitId: "ally:1",
+          kind: "ON_DAMAGE_TAKEN",
+          before: 2,
+          after: 1,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(duration.summary).toContain("エー");
+    expect(duration.summary).toContain("2 → 1");
+    expect(consumption.summary).toContain("エー");
+    expect(consumption.summary).toContain("2 → 1");
+  });
+
+  it("resolves EFFECTIVE_EFFECT_CHANGED and COMBAT_STAT_CHANGED (R-EFF-05 / R-STA-04)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const effective = formatEvent(
+      event({
+        type: "EFFECTIVE_EFFECT_CHANGED",
+        targetUnitIds: ["ally:1"],
+        details: {
+          battleUnitId: "ally:1",
+          kindKey: "ACT_ATTACK_UP",
+          before: "battle-1:effect:1",
+          after: "battle-1:effect:2",
+        },
+      }),
+      rosterIndex,
+    );
+    const stat = formatEvent(
+      event({
+        type: "COMBAT_STAT_CHANGED",
+        targetUnitIds: ["ally:1"],
+        details: {
+          battleUnitId: "ally:1",
+          stat: "ATTACK",
+          before: 100,
+          after: 110,
+          reason: "EFFECT_APPLIED",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(effective.summary).toContain("ACT_ATTACK_UP");
+    expect(stat.summary).toContain("ATTACK");
+    expect(stat.summary).toContain("100 → 110");
+    expect(stat.severity).toBe("neutral");
+  });
+
+  it("resolves the stun/freeze/blind status events (R-STS-02/03, R-HIT-03)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const stun = formatEvent(
+      event({
+        type: "STUN_DURATION_CHANGED",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          battleUnitId: "enemy:1",
+          remainingBefore: 1,
+          remainingAfter: 2,
+          reason: "REGRANT_EXTENDED",
+        },
+      }),
+      rosterIndex,
+    );
+    const freeze = formatEvent(
+      event({
+        type: "FREEZE_REMOVED",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:2",
+          battleUnitId: "enemy:1",
+          triggeringDamage: 300,
+        },
+      }),
+      rosterIndex,
+    );
+    const blind = formatEvent(
+      event({
+        type: "BLINDNESS_CHECK_RESOLVED",
+        sourceUnitId: "ally:1",
+        details: {
+          effectActionDefinitionId: "ACT_BLIND_1",
+          effectInstanceId: "battle-1:effect:3",
+          probability: 30,
+          missed: true,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(stun.summary).toContain("ビー");
+    expect(stun.summary).toContain("1 → 2");
+    expect(freeze.summary).toContain("ビー");
+    expect(freeze.summary).toContain("300");
+    expect(blind.summary).toContain("エー");
+    expect(blind.summary).toContain("30");
+    expect(blind.severity).toBe("negative");
+  });
+
+  it("falls back to the generic presentation when an M7 event's details are malformed (UI-AC-011)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_APPLIED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: { effectInstanceId: 42 },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.title).toBe("EFFECT_APPLIED");
+    expect(presentation.summary).toBe("エー → ビー");
+    expect(presentation.severity).toBe("neutral");
+  });
 });

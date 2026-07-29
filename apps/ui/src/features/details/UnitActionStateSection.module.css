@@ -95,3 +95,13 @@
   color: var(--color-warning);
   font-size: 11px;
 }
+
+/* M7-009 (Issue #182): finalState.units[].effects の一覧。 */
+.effectList {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}

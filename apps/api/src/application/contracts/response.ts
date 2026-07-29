@@ -76,6 +76,13 @@ export interface EffectStateResponseBody {
   readonly sourceSide?: string;
   readonly category: string;
   readonly effectKindKey: string;
+  /**
+   * M7-009（Issue #182）: `APPLY_STATUS`由来の効果だけが持つ状態異常の種別
+   * （`category`が`STATUS_ABNORMALITY`のときだけ存在する）。どの状態異常かを
+   * クライアントが`effectKindKey`（現状は効果アクション定義ID）の命名から
+   * 推測せずに表示できるようにする。
+   */
+  readonly statusKind?: string;
   readonly stackMode: string;
   readonly isEffective: boolean;
   readonly value: unknown;
