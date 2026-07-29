@@ -9,12 +9,18 @@ import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import {
+  createEffectActionDefinitionId,
   createMemoryDefinitionId,
   createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-definition.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { Attribute } from "../../domain/catalog/definitions/catalog-enums.js";
+import type {
+  Attribute,
+  DamageType,
+  StatKind,
+} from "../../domain/catalog/definitions/catalog-enums.js";
+import type { TargetFilterDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import type { Side } from "../../domain/shared/side.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
@@ -210,6 +216,76 @@ function unitSnapshotOf(snapshot: BattleStateSnapshot, battleUnitId: string) {
   return snapshot.units[createBattleUnitId(battleUnitId)];
 }
 
+/**
+ * `APPLY_DAMAGE_MOD`を含む2件は`CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）未実装の
+ * ため実ライフサイクルを完走できないが、読み込んだproduction定義の対象条件と
+ * 補正値は今でも検証できる。raw原文の各要素（属性・ロール・unitTypeの絞り込み、
+ * ダメージ種別の有無、倍率・固定値）が定義のどこへ写っているかをここで固定し、
+ * `DMG-002`までの間に「近似なし」の変換内容が黙って変わらないようにする。
+ */
+interface TriggeredEffectExpectation {
+  readonly targetBindingId: string;
+  readonly filters: readonly TargetFilterDefinition[];
+  readonly effectActionDefinitionId: string;
+  readonly damageMod?: {
+    readonly direction: "OUTGOING" | "INCOMING";
+    readonly damageType: DamageType | null;
+    readonly value: number;
+  };
+  readonly statMod?: {
+    readonly stat: StatKind;
+    readonly valueType: "RATIO" | "FIXED";
+    readonly value: number;
+  };
+}
+
+const DAMAGE_MOD_MEMORY_EXPECTATIONS: readonly {
+  readonly memoryDefinitionId: string;
+  readonly displayName: string;
+  readonly triggeredEffects: readonly TriggeredEffectExpectation[];
+}[] = [
+  {
+    memoryDefinitionId: "MEM_THREE_MAIDS_HOSPITALITY",
+    displayName: "メイド３人のおもてなし？",
+    triggeredEffects: [
+      {
+        // 効果1「キュート属性の味方全員に対し、与ダメージを2.5%上昇させる」
+        targetBindingId: "TGT_CUTE_ALLIES",
+        filters: [{ kind: "ATTRIBUTE", attribute: "CUTE" }],
+        effectActionDefinitionId: "ACT_MEM_THREE_MAIDS_HOSPITALITY_CUTE_DMG_UP",
+        damageMod: { direction: "OUTGOING", damageType: null, value: 0.025 },
+      },
+      {
+        // 効果2「スマート属性の味方全員の攻撃力を1250上昇させる」
+        targetBindingId: "TGT_SMART_ALLIES",
+        filters: [{ kind: "ATTRIBUTE", attribute: "SMART" }],
+        effectActionDefinitionId: "ACT_MEM_THREE_MAIDS_HOSPITALITY_SMART_ATK_UP",
+        statMod: { stat: "ATTACK", valueType: "FIXED", value: 1250 },
+      },
+    ],
+  },
+  {
+    memoryDefinitionId: "MEM_ABSOLUTE_ORDER",
+    displayName: "絶対命令行使権！",
+    triggeredEffects: [
+      {
+        // 効果1「物理アタッカーの味方全員に対し、物理攻撃で与えるダメージを2.5%上昇させる」
+        targetBindingId: "TGT_PHYSICAL_ATTACKER_ALLIES",
+        filters: [{ kind: "ROLE", role: "PHYSICAL_ATTACKER" }],
+        effectActionDefinitionId: "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_ATTACKER_DMG_UP",
+        damageMod: { direction: "OUTGOING", damageType: "PHYSICAL", value: 0.025 },
+      },
+      {
+        // 効果2「物理タイプの味方の会心率を5%上昇させる」
+        targetBindingId: "TGT_PHYSICAL_ALLIES",
+        filters: [{ kind: "UNIT_TYPE", unitType: "PHYSICAL" }],
+        effectActionDefinitionId: "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_CRIT_UP",
+        statMod: { stat: "CRITICAL_RATE", valueType: "RATIO", value: 0.05 },
+      },
+    ],
+  },
+];
+
 describe("production Catalog M7-007 static Memory conversions (Issue #178)", () => {
   it("IT-CAP-MEMORY-STATIC-PROD-001: MEM_PANTS_STRAY_CAT raises ATTACK for every ENERGY ally and DEFENSE only for the EN_ATTACKER, leaving other unit types, other roles and the enemy untouched", () => {
     const { battle } = startWith(["MEM_PANTS_STRAY_CAT"]);
@@ -343,23 +419,83 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
     expect(restoredSupport?.combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP + 300, 6);
   });
 
-  it("IT-CAP-MEMORY-STATIC-PROD-006: the damage-mod half of MEM_THREE_MAIDS_HOSPITALITY/MEM_ABSOLUTE_ORDER is converted without approximation but still gated by the unimplemented CAP_DAMAGE_MOD", () => {
-    for (const memoryDefinitionId of ["MEM_THREE_MAIDS_HOSPITALITY", "MEM_ABSOLUTE_ORDER"]) {
-      const memory = memoryOf(memoryDefinitionId);
-      expect(memory.requiredCapabilities).toContain("CAP_DAMAGE_MOD");
-      // 変換自体は近似なし: 効果1が`APPLY_DAMAGE_MOD`、効果2が`APPLY_STAT_MOD`。
-      const kinds = memory.triggeredEffects.map((triggeredEffect) => {
-        const step = triggeredEffect.effectSequence.steps[0]!;
+  it("IT-CAP-MEMORY-STATIC-PROD-006: MEM_THREE_MAIDS_HOSPITALITY/MEM_ABSOLUTE_ORDER convert every raw filter and magnitude without approximation, and stay gated by the unimplemented CAP_DAMAGE_MOD", () => {
+    for (const expectation of DAMAGE_MOD_MEMORY_EXPECTATIONS) {
+      const memory = memoryOf(expectation.memoryDefinitionId);
+      expect(memory.metadata.displayName).toBe(expectation.displayName);
+      expect(memory.triggeredEffects).toHaveLength(expectation.triggeredEffects.length);
+
+      expectation.triggeredEffects.forEach((expected, index) => {
+        const triggeredEffect = memory.triggeredEffects[index]!;
+        // 発動タイミング「戦闘開始時に発動」
+        expect(triggeredEffect.trigger.eventType).toBe("BattleStarted");
+        expect(triggeredEffect.trigger.condition).toEqual({ kind: "TRUE" });
+
+        // 装備条件（対象集合）: 味方全体を`side: ALLY`/`count: ALL`で取り、
+        // raw記載の絞り込みだけをfilterで表現する。
+        const bindings = triggeredEffect.effectSequence.targetBindings;
+        expect(bindings).toHaveLength(1);
+        const binding = bindings[0]!;
+        expect(binding.targetBindingId).toBe(expected.targetBindingId);
+        expect(binding.selector.kind).toBe("SELECT");
+        expect(binding.selector.side).toBe("ALLY");
+        expect(binding.selector.count).toBe("ALL");
+        expect(binding.selector.filters).toEqual(expected.filters);
+
+        const steps = triggeredEffect.effectSequence.steps;
+        expect(steps).toHaveLength(1);
+        const step = steps[0]!;
         if (step.kind !== "ACTION") {
           throw new Error(`unexpected step kind "${step.kind}"`);
         }
-        const action = snapshot.effectActions.get(step.actions[0]!.effectActionDefinitionId);
-        return action?.kind;
+        expect(step.target).toEqual({
+          kind: "BINDING",
+          targetBindingId: expected.targetBindingId,
+        });
+        expect(step.actions.map((action) => action.effectActionDefinitionId)).toEqual([
+          expected.effectActionDefinitionId,
+        ]);
+
+        // 補正値: raw記載の倍率・固定値をそのまま`CONSTANT`へ写す（丸め・近似なし）。
+        const action = snapshot.effectActions.get(
+          createEffectActionDefinitionId(expected.effectActionDefinitionId),
+        );
+        if (action === undefined) {
+          throw new Error(
+            `production Catalog has no EffectAction "${expected.effectActionDefinitionId}"`,
+          );
+        }
+        if (expected.damageMod !== undefined) {
+          if (action.kind !== "APPLY_DAMAGE_MOD") {
+            throw new Error(`expected APPLY_DAMAGE_MOD, got "${action.kind}"`);
+          }
+          expect(action.payload.direction).toBe(expected.damageMod.direction);
+          // 「物理攻撃で与えるダメージ」はdamageType限定、種別を書いていない
+          // 「与ダメージ」は`null`（全ダメージ種別）として区別する。
+          expect(action.payload.damageType).toBe(expected.damageMod.damageType);
+          expect(action.payload.formula).toEqual({
+            kind: "CONSTANT",
+            value: expected.damageMod.value,
+          });
+        } else {
+          const statMod = expected.statMod;
+          if (statMod === undefined) {
+            throw new Error("expectation must declare either damageMod or statMod");
+          }
+          if (action.kind !== "APPLY_STAT_MOD") {
+            throw new Error(`expected APPLY_STAT_MOD, got "${action.kind}"`);
+          }
+          expect(action.payload.stat).toBe(statMod.stat);
+          expect(action.payload.valueType).toBe(statMod.valueType);
+          expect(action.payload.formula).toEqual({ kind: "CONSTANT", value: statMod.value });
+        }
+        // 「戦闘開始時に発動」の補正は戦闘終了まで残る（期間指定はraw原文に無い）。
+        expect(action.payload.duration.timeLimit).toEqual({ unit: "BATTLE", count: 1 });
       });
-      expect(kinds).toEqual(["APPLY_DAMAGE_MOD", "APPLY_STAT_MOD"]);
 
       // `CAP_DAMAGE_MOD`は`DMG-002`（Issue #192）まで`PLANNED`のため、この2件は
       // Capability preflightが編成不可として弾く（実ライフサイクル検証は#192後）。
+      expect(memory.requiredCapabilities).toContain("CAP_DAMAGE_MOD");
       const unimplemented = findUnimplementedCapabilities(
         collectRequiredCapabilities(snapshot, [], [memory.memoryDefinitionId]),
         snapshot.capabilities,
