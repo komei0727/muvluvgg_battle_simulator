@@ -195,3 +195,162 @@ describe("grantStunStatus (R-STS-02)", () => {
     expect(second.lastEventId).toBe(first.lastEventId);
   });
 });
+
+/**
+ * R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）:
+ * `SKL_SIENA_DIVA_PS1`「コン・フオーコ」の原文
+ * 「1行動の気絶を付与する。対象に1行動の気絶が付与されていた場合は、2行動の
+ * 気絶に上書きする」を、STUNの再付与規則（R-STS-02）と組み合わせて検証する。
+ * 一致判定は`statusKind`で行う（原文が付与元スキルを限定していないため、
+ * 同じ定義から来た気絶だけでなく他スキル由来の気絶も「付与されていた」に
+ * 当たる）。
+ */
+describe("grantStunStatus with a dynamic duration on re-apply (R-EFF-12)", () => {
+  const context = (
+    recorder: EventRecorder,
+    rootEventId: ReturnType<typeof createDomainEventId>,
+  ) => ({
+    recorder,
+    turnNumber: 1,
+    cycleNumber: 0,
+    actionId: createActionId("B_1:action:1"),
+    resolutionScopeId: recorder.nextResolutionScopeId(),
+    rootEventId,
+  });
+
+  /** `ACT_SIENA_DIVA_PS1_STUN`と同じ形: 基本1行動、既存が残り1なら2行動へ。 */
+  function reapplyingStunDuration(): DurationDefinition {
+    return {
+      timeLimit: { unit: "ACTION", count: 1 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+      reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 },
+    };
+  }
+
+  function reapplyingStunDefinition(): EffectActionDefinition {
+    return {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: STUN_ACTION_ID,
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: { status: "STUN", duration: reapplyingStunDuration() },
+    };
+  }
+
+  function reapplyingRequest(source: BattleUnit, target: BattleUnit) {
+    return {
+      definition: reapplyingStunDefinition(),
+      sourceId: source.battleUnitId,
+      targetId: target.battleUnitId,
+      duplicate: true,
+      magnitude: 0,
+      statusKind: "STUN" as const,
+      durationDefinition: reapplyingStunDuration(),
+    };
+  }
+
+  it("UT-R-EFF-12-001: the first grant uses the base count and the re-grant onto a 1-action STUN overwrites it with the reapply count", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const ctx = context(recorder, rootEventId);
+    const request = reapplyingRequest(source, target);
+
+    const first = grantStunStatus(ctx, [source, target], request, rootEventId);
+    const firstTarget = first.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(firstTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(1);
+
+    const second = grantStunStatus(ctx, first.units, request, first.lastEventId);
+    const secondTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+
+    expect(secondTarget.appliedEffects).toHaveLength(1);
+    expect(secondTarget.appliedEffects[0]!.effectInstanceId).toBe(
+      firstTarget.appliedEffects[0]!.effectInstanceId,
+    );
+    expect(secondTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
+
+    const changed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "StunDurationChanged") as Extract<
+      BattleDomainEvent,
+      { eventType: "StunDurationChanged" }
+    >;
+    expect(changed.payload).toMatchObject({
+      remainingBefore: 1,
+      remainingAfter: 2,
+      reason: "REGRANT_EXTENDED",
+    });
+  });
+
+  it("UT-R-EFF-12-002: a STUN applied by another definition also satisfies the reapply match", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const ctx = context(recorder, rootEventId);
+
+    // 他スキル由来（`ACT_SIENA_DIVA_EX_STUN`相当、reapplyを持たない1行動の気絶）。
+    const first = grantStunStatus(
+      ctx,
+      [source, target],
+      {
+        definition: stunDefinition(),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STUN" as const,
+        durationDefinition: stunDuration(1),
+      },
+      rootEventId,
+    );
+
+    const second = grantStunStatus(
+      ctx,
+      first.units,
+      reapplyingRequest(source, target),
+      first.lastEventId,
+    );
+    const secondTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+
+    expect(secondTarget.appliedEffects).toHaveLength(1);
+    expect(secondTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
+  });
+
+  it("UT-R-EFF-12-003: an existing STUN outside the existingRemaining comparison keeps the base count, so R-STS-02 leaves it unchanged", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const ctx = context(recorder, rootEventId);
+
+    // 残り2の気絶（`reapply`の`EQ 1`を満たさない境界）。基本1行動のまま付与を
+    // 試み、R-STS-02「残り回数が長い方を一つだけ残す」でno-opになる。
+    const first = grantStunStatus(
+      ctx,
+      [source, target],
+      {
+        definition: stunDefinition(),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STUN" as const,
+        durationDefinition: stunDuration(2),
+      },
+      rootEventId,
+    );
+    const eventCountAfterFirst = recorder.getEvents().length;
+
+    const second = grantStunStatus(
+      ctx,
+      first.units,
+      reapplyingRequest(source, target),
+      first.lastEventId,
+    );
+    const secondTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+
+    expect(secondTarget.appliedEffects).toHaveLength(1);
+    expect(secondTarget.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
+    expect(recorder.getEvents()).toHaveLength(eventCountAfterFirst);
+  });
+});

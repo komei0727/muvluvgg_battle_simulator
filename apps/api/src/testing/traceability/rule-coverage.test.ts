@@ -18,14 +18,17 @@ function extractRuleIdsFromSpec(): string[] {
 }
 
 describe("Rule coverage ledger", () => {
-  it("UT-TRACEABILITY-001: ledger contains exactly 112 rule IDs", () => {
+  it("UT-TRACEABILITY-001: ledger contains exactly 113 rule IDs", () => {
     // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
     // M7-018（Issue #272）でR-HIT-04（Nヒット回避）・R-HIT-05（必中付与）を
     // 追加し110→112 — どちらも`07_戦闘ルール詳細.md`にRule定義自体が無いまま
     // production定義（`HIT_EVASION`/`GUARANTEED_HIT`）だけが存在していた。
+    // M7-014（Issue #268）でR-EFF-12（再付与時の動的期間）を追加し112→113 —
+    // 既存効果の残存に応じて付与するdurationを変える契約は、R-EFF-01の期間単位でも
+    // R-STS-02の再付与規則でも規定されていなかった。
     // 実装中に新しいRuleを発見した場合はここと`17_残作業対応表.json`の
     // `current.rules`を同じPRで更新する（`baseline`は履歴として変更しない）。
-    expect(RULE_COVERAGE).toHaveLength(112);
+    expect(RULE_COVERAGE).toHaveLength(113);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

@@ -169,7 +169,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // did not exist). No `runtimeStatus` flipped — the Capability those skills
     // declare (`CAP_TRIGGER_CONTEXT`) was already IMPLEMENTED — so
     // `unitCount`/violation/`selectable` expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-30.5");
+    // Bumped again by M7-014 (Issue #268, DYNAMIC_DURATION_ON_REAPPLY):
+    // `ACT_SIENA_DIVA_PS1_STUN` now declares `duration.reapply` (R-EFF-12), so
+    // re-applying it onto a 1-action stun overwrites it with 2 actions instead
+    // of being a no-op. Siena is not among the 10 promoted units here and no
+    // `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
+    // expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-30.6");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -1,5 +1,6 @@
 import {
   grantEffect,
+  resolveDurationOnReapply,
   type GrantEffectContext,
   type GrantEffectRequest,
 } from "./effect-grant-service.js";
@@ -37,7 +38,13 @@ export function grantStunStatus(
     return grantEffect(context, units, request, parentEventId);
   }
 
-  const newRemaining = request.durationDefinition.timeLimit?.count ?? 0;
+  // R-EFF-12（M7-014、Issue #268）: `duration.reapply`を宣言した気絶
+  // （`ACT_SIENA_DIVA_PS1_STUN`「対象に1行動の気絶が付与されていた場合は、2行動の
+  // 気絶に上書きする」）は、既存インスタンスの残り回数に応じて初期残り回数が
+  // 変わる。差し替え可否（残り回数が長い方を残す、R-STS-02）の比較も、この
+  // 解決後の残り回数で行う。
+  const durationDefinition = resolveDurationOnReapply(target, request);
+  const newRemaining = durationDefinition.timeLimit?.count ?? 0;
   const existingRemaining = existing.duration.timeLimitRemaining ?? 0;
   if (newRemaining <= existingRemaining) {
     return { units, appliedEffect: existing, lastEventId: parentEventId };
@@ -47,7 +54,7 @@ export function grantStunStatus(
     ...existing,
     ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-    duration: buildInitialDurationState(request.durationDefinition, {
+    duration: buildInitialDurationState(durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,
       ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),

@@ -101,7 +101,11 @@
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
-      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true },
+      "duration": {
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "dispellable": true,
+        "reapply": { "existingRemaining": { "op": "EQ", "value": 1 }, "count": 2 }
+      },
       "probability": 1
     },
     "requiredCapabilities": [],

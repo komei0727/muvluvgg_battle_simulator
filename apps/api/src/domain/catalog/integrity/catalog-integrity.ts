@@ -58,6 +58,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_MARKER_DURATION",
   "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
   "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
+  "UNSUPPORTED_DYNAMIC_DURATION_REAPPLY",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
@@ -1565,6 +1566,34 @@ function validateEffectAction(
         "EffectActionDefinition duration.counterUpdates",
         violations,
       );
+    }
+  }
+  // R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 再付与時の動的
+  // 期間を解決するのは`resolveDurationOnReapply`（`effect-grant-service.ts`）を
+  // 通る付与経路だけである。`APPLY_MARKER`は`marker-apply-service.ts`が
+  // `stack.policy`（R-EFF-10）で再付与を解決してこの経路を通らず、FREEZEは
+  // R-STS-03「再付与時に期間延長や増幅率加算を行わない」により
+  // `grantFreezeStatus`が既存インスタンスをそのまま返す。どちらも`reapply`を
+  // 宣言できてしまうと「付与自体は成功するのに期間だけ差し替わらない」silent
+  // partial implementationになるため、`UNSUPPORTED_MARKER_DURATION`と同じく
+  // Catalogロード時点で拒否する。
+  const reapplyDuration = durationOf(effectAction);
+  if (reapplyDuration?.reapply !== undefined) {
+    if (effectAction.kind === "APPLY_MARKER") {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_DYNAMIC_DURATION_REAPPLY",
+        message:
+          "APPLY_MARKER.duration.reapply is not supported: Marker re-application is resolved by stack.policy (R-EFF-10, marker-apply-service.ts), not by resolveDurationOnReapply",
+      });
+    }
+    if (effectAction.kind === "APPLY_STATUS" && effectAction.payload.status === "FREEZE") {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_DYNAMIC_DURATION_REAPPLY",
+        message:
+          'APPLY_STATUS status "FREEZE" duration.reapply is not supported: freeze re-application is a no-op (R-STS-03, freeze-grant-service.ts), so the dynamic duration would never be evaluated',
+      });
     }
   }
   checkRequiredCapabilities(

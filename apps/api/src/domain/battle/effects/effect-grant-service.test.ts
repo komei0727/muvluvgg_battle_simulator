@@ -619,3 +619,96 @@ describe("grantEffect", () => {
     });
   });
 });
+
+/**
+ * R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: `statusKind`を
+ * 持たない汎用効果は`kindKey`（`EffectActionDefinitionId`）で「同じ効果が残って
+ * いるか」を判定する。`EffectApplied`は差し替え後の初期残り回数をそのまま運ぶ
+ * ため、独立Reducerも`stateDelta`だけで解決後の状態を復元できる。
+ */
+describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
+  const REAPPLYING_DURATION: DurationDefinition = {
+    timeLimit: { unit: "TURN", count: 2 },
+    dispellable: true,
+    linkedEffectGroupId: null,
+    reapply: { existingRemaining: { op: "GTE", value: 1 }, count: 3 },
+  };
+
+  function request(source: BattleUnit, target: BattleUnit, definitionId?: string) {
+    const id =
+      definitionId === undefined
+        ? EFFECT_ACTION_DEFINITION_ID
+        : createEffectActionDefinitionId(definitionId);
+    return {
+      definition: { ...statModDefinition(), effectActionDefinitionId: id },
+      sourceId: source.battleUnitId,
+      targetId: target.battleUnitId,
+      duplicate: true,
+      magnitude: 0.2,
+      durationDefinition: REAPPLYING_DURATION,
+    };
+  }
+
+  it("UT-R-EFF-12-004: applies the reapply count to the new instance and reports it in EffectApplied", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+
+    const first = grantEffect(context, [source, target], request(source, target), rootEventId);
+    expect(first.appliedEffect.duration.timeLimitRemaining).toBe(2);
+
+    const second = grantEffect(context, first.units, request(source, target), first.lastEventId);
+    const secondTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+
+    // R-EFF-01「重複あり効果は個別インスタンスとして保持する」はそのまま —
+    // 変わるのは新規インスタンスの初期残り回数だけ。
+    expect(secondTarget.appliedEffects).toHaveLength(2);
+    expect(second.appliedEffect.duration.timeLimitRemaining).toBe(3);
+    expect(second.appliedEffect.duration.definition.timeLimit).toEqual({
+      unit: "TURN",
+      count: 3,
+    });
+
+    const applied = recorder.getEvents().filter((e) => e.eventType === "EffectApplied");
+    expect(applied[1]!.payload).toMatchObject({
+      durationUnit: "TURN",
+      initialRemaining: 3,
+      remainingCount: 3,
+    });
+    expect(
+      applied[1]!.stateDelta?.units?.[target.battleUnitId]?.effects?.[
+        second.appliedEffect.effectInstanceId
+      ]?.after,
+    ).toMatchObject({ duration: { unit: "TURN", remaining: 3 } });
+  });
+
+  it("UT-R-EFF-12-005: another definition's instance is not the same effect, so the base count applies", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+
+    const other = grantEffect(
+      context,
+      [source, target],
+      request(source, target, "ACT_OTHER_ATK_UP"),
+      rootEventId,
+    );
+    const second = grantEffect(context, other.units, request(source, target), other.lastEventId);
+
+    expect(second.appliedEffect.duration.timeLimitRemaining).toBe(2);
+  });
+});
