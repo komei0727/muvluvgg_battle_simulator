@@ -1,0 +1,73 @@
+{
+  "memoryDefinitionId": "MEM_THREE_MAIDS_HOSPITALITY",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CUTE_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "ATTRIBUTE", "attribute": "CUTE" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_CUTE_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_THREE_MAIDS_HOSPITALITY_CUTE_DMG_UP" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SMART_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "ATTRIBUTE", "attribute": "SMART" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_SMART_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_THREE_MAIDS_HOSPITALITY_SMART_ATK_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": [
+    "CAP_DAMAGE_MOD",
+    "CAP_MEMORY_TRIGGERED_EFFECT",
+    "CAP_TARGET_FILTER_ORDER"
+  ],
+  "metadata": { "displayName": "メイド３人のおもてなし？", "tags": [] }
+}

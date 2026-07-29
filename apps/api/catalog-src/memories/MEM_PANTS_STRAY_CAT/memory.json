@@ -1,0 +1,67 @@
+{
+  "memoryDefinitionId": "MEM_PANTS_STRAY_CAT",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ENERGY_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "UNIT_TYPE", "unitType": "ENERGY" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ENERGY_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_PANTS_STRAY_CAT_ENERGY_ATK_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_EN_ATTACKER_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "ROLE", "role": "EN_ATTACKER" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_EN_ATTACKER_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_PANTS_STRAY_CAT_EN_ATTACKER_DEF_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+  "metadata": { "displayName": "おパンツ咥えたドラネコ", "tags": [] }
+}

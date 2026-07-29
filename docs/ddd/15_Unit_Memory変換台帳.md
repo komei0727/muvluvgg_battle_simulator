@@ -11,11 +11,11 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 | 区分            | 総数 | 済み                                                                                                                                                                     | 未変換 |
 | --------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
 | `raw/units/`    | 69   | 69（代表10 + Issue #47先行バッチ12 + Issue #55 Batch A 8 + Issue #59 Batch B 8 + Issue #57 Batch C 8 + Issue #56 Batch D 8 + Issue #58 Batch E 8 + Issue #60 Batch F 7） | 0      |
-| `raw/memories/` | 32   | 6（本Issue先行バッチ）                                                                                                                                                   | 26     |
+| `raw/memories/` | 32   | 12（Issue #47先行バッチ6 + Issue #178 M7-007 静的補正バッチ6）                                                                                                           | 20     |
 
 代表10ユニットは Issue #41 / #46 で production Catalog（`catalog-src/units/`）へ昇格済み。Issue #47 では「先行バッチ」として指定された12ユニット・6 Memory を同水準（`unit.json`/`skills.json`/`effects.json` フル変換）で追加した。Issue #55（Issue #54 Batch A）では既存キャラクターの別バージョンを中心とした8ユニットを同水準で追加した。Issue #59（Issue #54 Batch B）では同一キャラクターの複数バージョン整合性に注意が必要な8ユニット（生駒葵・リリー・ラヴォア・一条白奈・綺羅クララの各2バージョン）を同水準で追加した。Issue #57（Issue #54 Batch C）では所属/チーム系Memoryとの将来整合性に注意が必要な8ユニット（桃園める・シエナ・クラーク・リュシー・ムーアクロフト・朽葉ラミの各2バージョン）を同水準で追加した。Issue #56（Issue #54 Batch D）では戦術/前衛寄りの8ユニット（御剣冥夜・篁唯依・オルガ・ヴォルコワ・榊野ヒイロ・珠瀬壬姫・ノエル・アルエ・タリサ・マナンダル・姜小花）を同水準で追加した。Issue #58（Issue #54 Batch E）では支援/制御/イベント色の強い8ユニット（鳴滝七彩・姫川泉花（クリスマスコーデの参謀）・姫川泉花（自称腹黒の深謀策士）・樋向心香・大賀真桜・榊千鶴・ミリアム・ヘイワード・ルナ・メロウ）を同水準で追加した。Issue #60（Issue #54 Batch F）では残っていた最後の7ユニット（エレーナ・パステルコワ・タチアナ・ドロズドヴァ・ロージー・ヒューズ・波瀬うるう・レイヴェル・ブライトリーフ・ナージャ・ヴォルコワ・ジュリー・ステイシー）を同水準で追加し、`raw/units/` の全件変換が完了した。いずれも本Issueで初変換のキャラクターのため、`characterId`・`unitDefinitionId` を新規採番した。ナージャ・ヴォルコワの `characterId`（`CHAR_NADYA_VOLKOVA`）は、姓を共有する既存ユニット `UNIT_OLGA_VETERAN`（`CHAR_OLGA_VOLKOVA`）とは別キャラクターとして区別した。
 
-`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・32）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（69ユニット・6メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
+`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・32）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（69ユニット・12メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
 
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 
@@ -216,40 +216,40 @@ M7-002（Issue #185）は`MODIFY_RESOURCE`（HP_DIRECT_COST、`resource: HP`の�
 
 ## Memory 変換台帳
 
-| raw/memories/ ファイル            | memoryDefinitionId       | ステータス / M2向け分類                                                                                  |
-| --------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------- |
-| Chaos Maiden                      | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
-| Colorful Bouquet                  | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
-| Pyxis Ma Soeur                    | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
-| STRANGERS                         | `MEM_STRANGERS`          | 済み（本Issue #47 先行バッチ）                                                                           |
-| Sirius Sugar                      | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
-| Treble Quintet                    | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
-| Trinity Jewel                     | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
-| おパンツ咥えたドラネコ            | -                        | 未変換 — 属性/ロールfilterのみ・静的補正（変換容易）                                                     |
-| お傍にいるのはいつでもピコですよ♪ | -                        | 未変換 — Marker付与を含む動的効果あり（要EffectAction変換）                                              |
-| お嬢様直伝マナー講座              | `MEM_OJOSAMA_MANNERS`    | 済み（本Issue #47 先行バッチ）                                                                           |
-| お忍びシスターの冒険              | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ ロールfilter                |
-| これからも共に歩むあなたへ        | `MEM_WALK_TOGETHER`      | 済み（本Issue #47 先行バッチ）                                                                           |
-| エッ◯な罰ゲームやってみた         | -                        | 未変換 — ロールfilter + 与ダメージ補正（triggeredEffects要）                                             |
-| カオスメイデンツインテ祭り♡       | -                        | 未変換 — unitTypeフィルタのみ・静的補正（変換容易）                                                      |
-| ハードな準備運動                  | `MEM_HARD_WARMUP`        | 済み（本Issue #47 先行バッチ）                                                                           |
-| メイド３人のおもてなし？          | -                        | 未変換 — attributeフィルタのみ・静的補正（変換容易）                                                     |
-| 不満と不安                        | -                        | 未変換 — TurnStarted発動を含む（BattleStarted以外の発動タイミング）                                      |
-| 安心する香り                      | -                        | 未変換 — ロールfilter + ダメージ種別限定補正 + 位置スロットfilter                                        |
-| 家族のかたちを象りながら          | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ ロールfilter                |
-| 密着！？テントの中の珍騒動        | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ 列filter                    |
-| 少女たちとの邂逅                  | -                        | 未変換 — 与ダメージ補正あり（`APPLY_DAMAGE_MOD`が必要）                                                  |
-| 心の色                            | `MEM_HEART_COLOR`        | 済み（本Issue #47 先行バッチ）                                                                           |
-| 忙しい時のまどろみ                | -                        | 未変換 — TurnStarted発動を含む（BattleStarted以外の発動タイミング）                                      |
-| 新年のご挨拶                      | -                        | 未変換 — EN限定ダメージ補正あり（triggeredEffects要）                                                    |
-| 桃園家のお正月                    | -                        | 未変換 — unitTypeフィルタのみ・静的補正（変換容易）                                                      |
-| 気になる装備                      | -                        | 未変換 — 敵側(ENEMY)対象の効果を含む                                                                     |
-| 絶対命令行使権！                  | -                        | 未変換 — ロール/unitTypeフィルタ・静的補正（変換容易）                                                   |
-| 腐れ縁で犬猿の仲？                | -                        | 未変換 — 行/列filter + 与ダメージ補正（triggeredEffects要）                                              |
-| 臆病トナカイの聖夜                | `MEM_TIMID_REINDEER_EVE` | 済み（本Issue #47 先行バッチ）                                                                           |
-| 風紀委員会                        | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）                              |
-| 駆け落ちフルスロットル！          | -                        | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ 敵側(ENEMY)対象の効果を含む |
-| １日ユーロ・タワー体験            | -                        | 未変換 — ロールfilter + 位置スロットfilter（複数列指定）                                                 |
+| raw/memories/ ファイル            | memoryDefinitionId               | ステータス / M2向け分類                                                                                  |
+| --------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Chaos Maiden                      | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
+| Colorful Bouquet                  | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
+| Pyxis Ma Soeur                    | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
+| STRANGERS                         | `MEM_STRANGERS`                  | 済み（本Issue #47 先行バッチ）                                                                           |
+| Sirius Sugar                      | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
+| Treble Quintet                    | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
+| Trinity Jewel                     | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照。変換はM7-008）                |
+| おパンツ咥えたドラネコ            | `MEM_PANTS_STRAY_CAT`            | 済み（本Issue #178 M7-007 静的補正バッチ）                                                               |
+| お傍にいるのはいつでもピコですよ♪ | -                                | 未変換 — Marker付与を含む動的効果あり（要EffectAction変換）                                              |
+| お嬢様直伝マナー講座              | `MEM_OJOSAMA_MANNERS`            | 済み（本Issue #47 先行バッチ）                                                                           |
+| お忍びシスターの冒険              | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ ロールfilter                |
+| これからも共に歩むあなたへ        | `MEM_WALK_TOGETHER`              | 済み（本Issue #47 先行バッチ）                                                                           |
+| エッ◯な罰ゲームやってみた         | -                                | 未変換 — ロールfilter + 与ダメージ補正（triggeredEffects要）                                             |
+| カオスメイデンツインテ祭り♡       | `MEM_CHAOS_MAIDEN_TWINTAIL_FEST` | 済み（本Issue #178 M7-007 静的補正バッチ）                                                               |
+| ハードな準備運動                  | `MEM_HARD_WARMUP`                | 済み（本Issue #47 先行バッチ）                                                                           |
+| メイド３人のおもてなし？          | `MEM_THREE_MAIDS_HOSPITALITY`    | 済み（本Issue #178 M7-007 静的補正バッチ） ※与ダメージ補正の実行時解決は`DMG-002`待ち→下記参照           |
+| 不満と不安                        | -                                | 未変換 — TurnStarted発動を含む（BattleStarted以外の発動タイミング）                                      |
+| 安心する香り                      | -                                | 未変換 — ロールfilter + ダメージ種別限定補正 + 位置スロットfilter                                        |
+| 家族のかたちを象りながら          | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ ロールfilter                |
+| 密着！？テントの中の珍騒動        | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ 列filter                    |
+| 少女たちとの邂逅                  | -                                | 未変換 — 与ダメージ補正あり（`APPLY_DAMAGE_MOD`が必要）                                                  |
+| 心の色                            | `MEM_HEART_COLOR`                | 済み（本Issue #47 先行バッチ）                                                                           |
+| 忙しい時のまどろみ                | -                                | 未変換 — TurnStarted発動を含む（BattleStarted以外の発動タイミング）                                      |
+| 新年のご挨拶                      | -                                | 未変換 — EN限定ダメージ補正あり（triggeredEffects要）                                                    |
+| 桃園家のお正月                    | `MEM_MOMOZONO_NEW_YEAR`          | 済み（本Issue #178 M7-007 静的補正バッチ）                                                               |
+| 気になる装備                      | -                                | 未変換 — 敵側(ENEMY)対象の効果を含む                                                                     |
+| 絶対命令行使権！                  | `MEM_ABSOLUTE_ORDER`             | 済み（本Issue #178 M7-007 静的補正バッチ） ※与ダメージ補正の実行時解決は`DMG-002`待ち→下記参照           |
+| 腐れ縁で犬猿の仲？                | -                                | 未変換 — 行/列filter + 与ダメージ補正（triggeredEffects要）                                              |
+| 臆病トナカイの聖夜                | `MEM_TIMID_REINDEER_EVE`         | 済み（本Issue #47 先行バッチ）                                                                           |
+| 風紀委員会                        | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）                              |
+| 駆け落ちフルスロットル！          | -                                | 未変換 — 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照）+ 敵側(ENEMY)対象の効果を含む |
+| １日ユーロ・タワー体験            | `MEM_EURO_TOWER_DAY`             | 済み（本Issue #178 M7-007 静的補正バッチ）                                                               |
 
 ### 未変換 Memory の分類基準
 
@@ -258,20 +258,39 @@ Memory triggeredEffects と装備条件の後続バッチスコープを判断�
 | 分類                                                               | 該当件数 | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 所属条件あり（affiliationId確定済み。`18_Affiliation台帳.md`参照） | 11       | `所属フィルタ`（例:「カオスメイデンに所属するキャラクター」）を持つ。`affiliationId`（`AFF_*`）の採番方針・一覧・所属キャラクター40件はIssue #161で確定した（[`18_Affiliation台帳.md`](./18_Affiliation台帳.md)）。対応するUnit58件の `metadata.affiliations` も本Issueで反映済み（[`14_Catalog定義スキーマ.md`](./14_Catalog定義スキーマ.md) の方針どおり、出典を伴う根拠が確認できたUnitのみ）。Memory自体の変換（`triggeredEffects`実装）は`M7-008`（Issue #176）が担当する |
-| 静的補正のみ・変換容易                                             | 6        | attribute / unitType / role 単一フィルタ + 固定値または単純割合のstat補正のみで、`APPLY_STAT_MOD` を持つ単純な `triggeredEffects` で機械的に変換できる                                                                                                                                                                                                                                                                                                                         |
 | 与ダメージ・被ダメージ補正あり                                     | 5        | stat補正ではなく `APPLY_DAMAGE_MOD` が必要（対象がstatではなくdamage方向の補正のため）                                                                                                                                                                                                                                                                                                                                                                                         |
 | TurnStarted発動を含む                                              | 2        | `BattleStarted` 以外の発動タイミング（ターン開始時）を持つ                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | 動的効果（Marker付与等）あり                                       | 1        | Marker付与を伴い、`EffectAction` 変換が必要                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 敵側(ENEMY)対象の効果を含む                                        | 1        | 上記分類と重複するものを除き、Memoryが味方だけでなく敵側を対象とする効果を持つ                                                                                                                                                                                                                                                                                                                                                                                                 |
 
-合計は重複分類を含むため26件と一致しないことがある（例: 所属条件 + 敵側対象の両方に該当するMemoryが1件ある）。
+合計は重複分類を含むため20件と一致しないことがある（例: 所属条件 + 敵側対象の両方に該当するMemoryが1件ある）。
 
-本Issue先行バッチで変換した6 Memory（`MEM_HARD_WARMUP`、`MEM_STRANGERS`、`MEM_TIMID_REINDEER_EVE`、`MEM_WALK_TOGETHER`、`MEM_HEART_COLOR`、`MEM_OJOSAMA_MANNERS`）はいずれも raw 記載の効果を近似・省略なくフル変換できている。
+Issue #47先行バッチで変換した6 Memory（`MEM_HARD_WARMUP`、`MEM_STRANGERS`、`MEM_TIMID_REINDEER_EVE`、`MEM_WALK_TOGETHER`、`MEM_HEART_COLOR`、`MEM_OJOSAMA_MANNERS`）はいずれも raw 記載の効果を近似・省略なくフル変換できている。
+
+### Issue #178（M7-007）: 静的補正中心の6 Memory
+
+「静的補正のみ・変換容易」に分類していた6件を、`M7-006`（Issue #179）が実装したMemory発動エンジン上の`triggeredEffects`として近似・省略なく変換した。分類表の同行は0件になったため除去した。
+
+| raw/memories/ ファイル      | memoryDefinitionId               | 変換した装備条件・効果                                                                                                         |
+| --------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| おパンツ咥えたドラネコ      | `MEM_PANTS_STRAY_CAT`            | `UNIT_TYPE: ENERGY`へ攻撃力+1250（FIXED）／`ROLE: EN_ATTACKER`へ防御力+1000（FIXED）                                           |
+| カオスメイデンツインテ祭り♡ | `MEM_CHAOS_MAIDEN_TWINTAIL_FEST` | `UNIT_TYPE: ENERGY`へ攻撃力+750（FIXED）／味方全体へ最大HP+300（FIXED）                                                        |
+| メイド３人のおもてなし？    | `MEM_THREE_MAIDS_HOSPITALITY`    | `ATTRIBUTE: CUTE`へ与ダメージ+2.5%（`APPLY_DAMAGE_MOD`）／`ATTRIBUTE: SMART`へ攻撃力+1250（FIXED）                             |
+| 桃園家のお正月              | `MEM_MOMOZONO_NEW_YEAR`          | `UNIT_TYPE: PHYSICAL`へ攻撃力+1250（FIXED）／`UNIT_TYPE: AGILE`へ攻撃力+1250（FIXED）                                          |
+| 絶対命令行使権！            | `MEM_ABSOLUTE_ORDER`             | `ROLE: PHYSICAL_ATTACKER`へ物理与ダメージ+2.5%（`APPLY_DAMAGE_MOD`、`damageType: PHYSICAL`）／`UNIT_TYPE: PHYSICAL`へ会心率+5% |
+| １日ユーロ・タワー体験      | `MEM_EURO_TOWER_DAY`             | `ROLE: SUPPORT`へ攻撃力+4%（RATIO）／`POSITION_ROW: BACK` かつ `POSITION_COLUMN: RIGHT/CENTER`へ攻撃力+1250（FIXED）           |
+
+`APPLY_DAMAGE_MOD`を含まない4件（`MEM_PANTS_STRAY_CAT`／`MEM_CHAOS_MAIDEN_TWINTAIL_FEST`／`MEM_MOMOZONO_NEW_YEAR`／`MEM_EURO_TOWER_DAY`）は、実`startBattle`（`BattleStarted`）→`MemoryTriggered`／`MemoryResolved`→`AppliedEffect`付与→StateDelta→独立Reducer復元まで実データで検証した（`IT-CAP-MEMORY-STATIC-PROD-001`〜`005`）。対象・非対象の両方（`UNIT_TYPE`／`ROLE`／位置スロットのフィルタが外れるユニット、敵陣営）も同じテストで確認している。
+
+`MEM_THREE_MAIDS_HOSPITALITY`・`MEM_ABSOLUTE_ORDER`のCatalog定義自体も近似なしだが、与ダメージ補正が参照する`EffectActionDefinition.kind: "APPLY_DAMAGE_MOD"`は`effect-action-group-resolver.ts`に未実装（`CAP_DAMAGE_MOD`は`runtimeStatus: PLANNED`、`DMG-002`／Issue #192）である。したがってこの2件はCapability preflightが編成不可として弾き、実ライフサイクルの完全な発動は`DMG-002`以降になる（`IT-CAP-MEMORY-STATIC-PROD-006`がこの境界を固定する）。既存の`MEM_WALK_TOGETHER`・`MEM_OJOSAMA_MANNERS`（Issue #47先行バッチ）と同じ扱いであり、Unit側の`DAMAGE_MOD_KIND_UNIMPLEMENTED`テーマと同じく`DMG-002`が解消する。
+
+なお分類表が「静的補正のみ・変換容易」に数えていた6件のうち、この2件は実際には`APPLY_DAMAGE_MOD`を要する（raw原文の「与えるダメージを2.5%上昇」はstat補正ではない）。分類時点の誤りであり、本Issueで実データにあたって確定した。
 
 ## 後続バッチへの申し送り
 
 - 所属条件を持つ11件の Memory が参照する affiliationId の採番方針（`AFF_*` prefixとID一覧、raw原文の引用によるgitignore非依存の出典管理、Unit metadata更新方針）と、対応する40キャラクター・58 UnitへのaffiliationId付与はIssue #161で完了した（[`18_Affiliation台帳.md`](./18_Affiliation台帳.md)）。11件のMemory自体の変換（`triggeredEffects`実装）は`M7-008`（Issue #176）が担当する。
-- `TurnStarted` 発動の Memory 2件も、他の Memory と同様に `triggeredEffects` で表現する。
+- `TurnStarted` 発動の Memory 2件も、他の Memory と同様に `triggeredEffects` で表現する（`M7-006`／Issue #179 が `TurnStarted` からのMemory発動を実装済み。担当は `M7-008`／Issue #176）。
+- Issue #178（M7-007）で新たに確認したこと: Memory由来の`triggeredEffects`でも`UNIT_TYPE`／`ROLE`／`ATTRIBUTE`／`POSITION_ROW`+`POSITION_COLUMN`のTargetFilterはUnitのPSと同じ`CAP_TARGET_FILTER_ORDER`でそのまま表現でき、静的補正Memoryの変換に新しいスキーマ拡張は不要だった。残る未変換20件のうち、装備条件そのものが未対応で止まるものは無く、ブロッカーは効果側（`APPLY_DAMAGE_MOD`5件・`APPLY_MARKER`1件）と`AFFILIATION`フィルタを持つ11件の`affiliationId`整合だけである。
 - Marker付与を伴う Memory（お傍にいるのはいつでもピコですよ♪）は `APPLY_MARKER` の変換ルール（Marker ID採番、`14_Catalog定義スキーマ.md` の `MarkerDefinition` 制約）に従う。
 - 残り23ユニットの変換は、代表10ユニット昇格時と同水準の精度（Issue #41/#44/#45/#46 相当）を要するため、5〜15ユニット程度のバッチに分割した後続Issueで進める。
 - 「不完全変換の詳細」に挙げた表現ギャップ（自身/対象除外フィルタ、AOE内の対象別条件分岐、周期発動、クールタイムリセット、動的な被ダメージ軽減条件、位置関係trigger selector、同時発生イベント除外）は、Issue #44 のG-01〜G-10と同様に、対応するスキーマ拡張を検討する後続Issueの候補とする。

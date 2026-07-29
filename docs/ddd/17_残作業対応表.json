@@ -36,8 +36,8 @@
     },
     "memoryCatalog": {
       "sourceTotal": 32,
-      "converted": 6,
-      "unconverted": 26
+      "converted": 12,
+      "unconverted": 20
     },
     "capabilities": {
       "total": 44,
@@ -188,12 +188,6 @@
     { "milestone": "M8", "theme": "TEMP_PIERCING_GRANT", "rowCount": 1, "taskId": "DMG-003" }
   ],
   "unconvertedMemoryAssignments": [
-    { "name": "おパンツ咥えたドラネコ", "taskId": "M7-007" },
-    { "name": "カオスメイデンツインテ祭り♡", "taskId": "M7-007" },
-    { "name": "メイド３人のおもてなし？", "taskId": "M7-007" },
-    { "name": "桃園家のお正月", "taskId": "M7-007" },
-    { "name": "絶対命令行使権！", "taskId": "M7-007" },
-    { "name": "１日ユーロ・タワー体験", "taskId": "M7-007" },
     { "name": "Chaos Maiden", "taskId": "M7-008" },
     { "name": "Colorful Bouquet", "taskId": "M7-008" },
     { "name": "Pyxis Ma Soeur", "taskId": "M7-008" },
