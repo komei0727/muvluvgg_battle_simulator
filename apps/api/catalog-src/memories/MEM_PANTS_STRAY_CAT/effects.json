@@ -1,0 +1,28 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MEM_PANTS_STRAY_CAT_ENERGY_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1250 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_PANTS_STRAY_CAT_EN_ATTACKER_DEF_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1000 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "metadata": { "tags": [] }
+  }
+]

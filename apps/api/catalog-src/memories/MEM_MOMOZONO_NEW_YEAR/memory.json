@@ -1,0 +1,65 @@
+{
+  "memoryDefinitionId": "MEM_MOMOZONO_NEW_YEAR",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_PHYSICAL_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "UNIT_TYPE", "unitType": "PHYSICAL" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PHYSICAL_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_MOMOZONO_NEW_YEAR_PHYSICAL_ATK_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_AGILE_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "UNIT_TYPE", "unitType": "AGILE" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_AGILE_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_MOMOZONO_NEW_YEAR_AGILE_ATK_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+  "metadata": { "displayName": "桃園家のお正月", "tags": [] }
+}

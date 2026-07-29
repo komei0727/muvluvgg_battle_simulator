@@ -1,0 +1,76 @@
+{
+  "memoryDefinitionId": "MEM_EURO_TOWER_DAY",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SUPPORT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "ROLE", "role": "SUPPORT" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_SUPPORT_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_EURO_TOWER_DAY_SUPPORT_ATK_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_CENTER_RIGHT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                { "kind": "POSITION_ROW", "row": "BACK" },
+                {
+                  "kind": "OR",
+                  "conditions": [
+                    { "kind": "POSITION_COLUMN", "column": "RIGHT" },
+                    { "kind": "POSITION_COLUMN", "column": "CENTER" }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER_RIGHT_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_EURO_TOWER_DAY_BACK_CENTER_RIGHT_ATK_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+  "metadata": { "displayName": "１日ユーロ・タワー体験", "tags": [] }
+}

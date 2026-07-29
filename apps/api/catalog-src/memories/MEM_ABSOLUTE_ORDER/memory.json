@@ -1,0 +1,71 @@
+{
+  "memoryDefinitionId": "MEM_ABSOLUTE_ORDER",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_PHYSICAL_ATTACKER_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "ROLE", "role": "PHYSICAL_ATTACKER" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PHYSICAL_ATTACKER_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_ATTACKER_DMG_UP" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_PHYSICAL_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "UNIT_TYPE", "unitType": "PHYSICAL" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PHYSICAL_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_CRIT_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": [
+    "CAP_DAMAGE_MOD",
+    "CAP_MEMORY_TRIGGERED_EFFECT",
+    "CAP_TARGET_FILTER_ORDER"
+  ],
+  "metadata": { "displayName": "絶対命令行使権！", "tags": [] }
+}
