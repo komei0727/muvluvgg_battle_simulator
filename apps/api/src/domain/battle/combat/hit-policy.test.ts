@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveDarkness, resolveEvasion } from "./hit-policy.js";
+import { resolveDarkness, resolveEffectiveAccuracyMode, resolveEvasion } from "./hit-policy.js";
 import {
   createBattleUnit,
   type BattleUnit,
@@ -24,6 +24,8 @@ import { SequenceRandomSource } from "../../../testing/random/sequence-random-so
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const EVASION_DEFINITION_ID = createEffectActionDefinitionId("ACT_EVASION");
 const BLIND_DEFINITION_ID = createEffectActionDefinitionId("ACT_BLIND");
+const HIT_EVASION_DEFINITION_ID = createEffectActionDefinitionId("ACT_HIT_EVASION");
+const GUARANTEED_HIT_DEFINITION_ID = createEffectActionDefinitionId("ACT_GUARANTEED_HIT");
 
 function unit(id: string): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
@@ -61,6 +63,34 @@ function evasionEffect(
     magnitude: 0,
     statusKind: "EVASION",
     statusDetails: details,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
+function hitEvasionEffect(
+  id: string,
+  targetId: string,
+  details: StatusEffectDetails = {},
+): AppliedEffect {
+  return {
+    ...evasionEffect(id, targetId, details),
+    effectActionDefinitionId: HIT_EVASION_DEFINITION_ID,
+    kindKey: effectKindKeyFromDefinitionId(HIT_EVASION_DEFINITION_ID),
+    statusKind: "HIT_EVASION",
+  };
+}
+
+function guaranteedHitEffect(id: string, attackerId: string): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: GUARANTEED_HIT_DEFINITION_ID,
+    kindKey: effectKindKeyFromDefinitionId(GUARANTEED_HIT_DEFINITION_ID),
+    duplicate: true,
+    sourceId: createBattleUnitId(attackerId),
+    targetId: createBattleUnitId(attackerId),
+    magnitude: 0,
+    statusKind: "GUARANTEED_HIT",
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
     appliedTurnNumber: 1,
   };
@@ -213,6 +243,121 @@ describe("resolveEvasion (R-HIT-01/R-HIT-02)", () => {
     const result = resolveEvasion(target, "NORMAL", random);
 
     expect(result).toEqual({ evaded: false });
+    random.assertFullyConsumed();
+  });
+
+  it('UT-R-HIT-04-001 (R-HIT-04, M7-018/Issue #272): a HIT_EVASION effect evades a DAMAGE hit exactly like status: "EVASION"', () => {
+    const effect = hitEvasionEffect("eff-1", "TARGET", { probability: 1 });
+    const target = { ...unit("TARGET"), appliedEffects: [effect] };
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveEvasion(target, "NORMAL", random);
+
+    expect(result).toEqual({
+      evaded: true,
+      evadedByEffectInstanceId: effect.effectInstanceId,
+      evadedByEffectActionDefinitionId: effect.effectActionDefinitionId,
+    });
+    random.assertFullyConsumed();
+  });
+
+  it("UT-R-HIT-04-002 (R-HIT-04 -> R-HIT-02 #2): a GUARANTEED-hit attack never triggers a HIT_EVASION effect", () => {
+    const effect = hitEvasionEffect("eff-1", "TARGET", { probability: 1 });
+    const target = { ...unit("TARGET"), appliedEffects: [effect] };
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveEvasion(target, "GUARANTEED", random);
+
+    expect(result).toEqual({ evaded: false });
+    random.assertFullyConsumed();
+  });
+
+  it("UT-R-HIT-04-003 (R-HIT-04 -> R-HIT-02 #3): a charging target never triggers its own HIT_EVASION effect", () => {
+    const effect = hitEvasionEffect("eff-1", "TARGET", { probability: 1 });
+    const target = {
+      ...unit("TARGET"),
+      appliedEffects: [effect],
+      charge: { skill: {}, startedActionId: {} } as unknown as NonNullable<BattleUnit["charge"]>,
+    };
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveEvasion(target, "NORMAL", random);
+
+    expect(result).toEqual({ evaded: false });
+    random.assertFullyConsumed();
+  });
+
+  it("UT-R-HIT-04-004 (R-HIT-04: one ordered judgement sequence): HIT_EVASION and EVASION are judged together in application order, and the first effect that succeeds evades", () => {
+    const first = hitEvasionEffect("eff-1", "TARGET", { probability: 0.3 });
+    const second = evasionEffect("eff-2", "TARGET", { probability: 0.6 });
+    const target = { ...unit("TARGET"), appliedEffects: [first, second] };
+    // First roll fails (0.3 <= 0.5), second roll succeeds (0.1 < 0.6).
+    const random = new SequenceRandomSource([0.5, 0.1]);
+
+    const result = resolveEvasion(target, "NORMAL", random);
+
+    expect(result).toEqual({
+      evaded: true,
+      evadedByEffectInstanceId: second.effectInstanceId,
+      evadedByEffectActionDefinitionId: second.effectActionDefinitionId,
+    });
+    random.assertFullyConsumed();
+  });
+
+  it("UT-R-HIT-04-005 (R-HIT-04 -> R-HIT-02 appliesTo gate): a HIT_EVASION effect scoped to a different incoming action kind does not evade a DAMAGE attack", () => {
+    const effect = hitEvasionEffect("eff-1", "TARGET", {
+      probability: 1,
+      appliesTo: { incomingActionKinds: ["DEBUFF"] },
+    });
+    const target = { ...unit("TARGET"), appliedEffects: [effect] };
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveEvasion(target, "NORMAL", random);
+
+    expect(result).toEqual({ evaded: false });
+    random.assertFullyConsumed();
+  });
+});
+
+describe("resolveEffectiveAccuracyMode (R-HIT-05)", () => {
+  it("UT-R-HIT-05-001 (R-HIT-05 #1, M7-018/Issue #272): an attacker holding a GUARANTEED_HIT effect turns a NORMAL attack into a guaranteed hit", () => {
+    const attacker = {
+      ...unit("ATTACKER"),
+      appliedEffects: [guaranteedHitEffect("eff-1", "ATTACKER")],
+    };
+
+    expect(resolveEffectiveAccuracyMode(attacker, "NORMAL")).toBe("GUARANTEED");
+  });
+
+  it("UT-R-HIT-05-002: an attacker without a GUARANTEED_HIT effect keeps the declared NORMAL accuracy", () => {
+    expect(resolveEffectiveAccuracyMode(unit("ATTACKER"), "NORMAL")).toBe("NORMAL");
+  });
+
+  it("UT-R-HIT-05-003: an attack already declared GUARANTEED stays guaranteed regardless of the attacker's effects", () => {
+    expect(resolveEffectiveAccuracyMode(unit("ATTACKER"), "GUARANTEED")).toBe("GUARANTEED");
+  });
+
+  it("UT-R-HIT-05-004 (non-GUARANTEED_HIT statusKind ignored): an unrelated status-kind AppliedEffect does not make the attacker's attacks guaranteed", () => {
+    const attacker = {
+      ...unit("ATTACKER"),
+      appliedEffects: [
+        { ...guaranteedHitEffect("eff-1", "ATTACKER"), statusKind: "STUN" as const },
+      ],
+    };
+
+    expect(resolveEffectiveAccuracyMode(attacker, "NORMAL")).toBe("NORMAL");
+  });
+
+  it("UT-R-HIT-05-005 (R-HIT-05 #3 / R-HIT-03 #6): a GUARANTEED_HIT attacker is still subject to darkness MISS judgement", () => {
+    const blind = darknessEffect("eff-2", "ATTACKER", { probability: 1 });
+    const attacker = {
+      ...unit("ATTACKER"),
+      appliedEffects: [guaranteedHitEffect("eff-1", "ATTACKER"), blind],
+    };
+    const random = new SequenceRandomSource([]);
+
+    expect(resolveEffectiveAccuracyMode(attacker, "NORMAL")).toBe("GUARANTEED");
+    expect(resolveDarkness(attacker, random).missed).toBe(true);
     random.assertFullyConsumed();
   });
 });

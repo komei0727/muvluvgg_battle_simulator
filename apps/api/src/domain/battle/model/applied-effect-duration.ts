@@ -257,11 +257,18 @@ export interface ConsumeEffectDurationsResult {
  * から独立したフィールドであり、`owner`を持たない）。`consumptionRemaining`が
  * 0より大きい、`kind`が一致するインスタンスだけを1減らす。0になったインスタンス
  * の除去・失効処理は呼び出し側の責務。
+ *
+ * R-HIT-04（M7-018、Issue #272）: `effectInstanceId`を指定すると、そのインスタンス
+ * 1件だけへ消費を限定する。Nヒット回避は「回避を成立させたインスタンス自身」を
+ * 回避した被ヒットで消費するが、同じ対象が持つ他の`INCOMING_HIT`消費効果は
+ * R-EFF-07の一般規則どおり命中確定でしか消費しないため、owner+kindだけでは
+ * 対象を絞れない。
  */
 export function consumeEffectDurations(
   units: readonly BattleUnit[],
   ownerUnitId: BattleUnitId,
   kind: ConsumptionKind,
+  effectInstanceId?: EffectInstanceId,
 ): ConsumeEffectDurationsResult {
   const changes: ConsumptionChange[] = [];
   const nextUnits = units.map((battleUnit) => {
@@ -273,6 +280,7 @@ export function consumeEffectDurations(
       const consumption = effect.duration.definition.consumption;
       if (
         consumption?.kind !== kind ||
+        (effectInstanceId !== undefined && effect.effectInstanceId !== effectInstanceId) ||
         effect.duration.consumptionRemaining === undefined ||
         effect.duration.consumptionRemaining <= 0
       ) {

@@ -1250,6 +1250,149 @@ describe("applyEffectActionGroups", () => {
     });
   });
 
+  it("UT-R-HIT-04-009 (R-HIT-04, M7-018/Issue #272, CAP_HIT_COUNT_EVASION): an APPLY_STATUS(HIT_EVASION) ACTION step shaped like ACT_FLUTE_VAMPIRE_PS2_EVASION grants a statusKind HIT_EVASION AppliedEffect with its INCOMING_HIT consumption through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const hitEvasion: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_HIT_EVASION"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "HIT_EVASION",
+        probability: 1,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[hitEvasion.effectActionDefinitionId, hitEvasion]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, hitEvasion.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "HIT_EVASION",
+      statusDetails: { probability: 1 },
+      duration: { consumptionRemaining: 1 },
+    });
+  });
+
+  it("UT-R-HIT-05-007 (R-HIT-05, M7-018/Issue #272, CAP_STATUS_EFFECT_KIND): an APPLY_STATUS(GUARANTEED_HIT) ACTION step shaped like ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT grants a statusKind GUARANTEED_HIT AppliedEffect with its SKILL_USE time limit through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const guaranteedHit: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_GUARANTEED_HIT"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "GUARANTEED_HIT",
+        probability: 1,
+        duration: {
+          timeLimit: { unit: "SKILL_USE", count: 4 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[guaranteedHit.effectActionDefinitionId, guaranteedHit]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        singleActionStep(0, true, enemy.battleUnitId, guaranteedHit.effectActionDefinitionId),
+      ],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "GUARANTEED_HIT",
+      duration: { timeLimitRemaining: 4 },
+    });
+  });
+
+  it("UT-R-HIT-05-008 (R-HIT-05, M7-018/Issue #272): an APPLY_STATUS(GUARANTEED_HIT) carrying incoming-side fields is rejected instead of being granted without effect", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const guaranteedHit: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_GUARANTEED_HIT"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "GUARANTEED_HIT",
+        appliesTo: { incomingActionKinds: ["DAMAGE"] },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    };
+    const effectActions = new Map([[guaranteedHit.effectActionDefinitionId, guaranteedHit]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        singleActionStep(0, true, enemy.battleUnitId, guaranteedHit.effectActionDefinitionId),
+      ],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-R-HIT-05-009 (M7-018/Issue #272 boundary): APPLY_STATUS status kinds owned by another Task (CRITICAL_GUARANTEE, CAP_CRITICAL_CONTROL / Issue #196) stay rejected by the resolver", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const criticalGuarantee: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_CRIT_GUARANTEE"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "CRITICAL_GUARANTEE",
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    };
+    const effectActions = new Map([
+      [criticalGuarantee.effectActionDefinitionId, criticalGuarantee],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        singleActionStep(0, true, enemy.battleUnitId, criticalGuarantee.effectActionDefinitionId),
+      ],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
+      DomainValidationError,
+    );
+  });
+
   it("UT-R-HIT-03-008 (R-HIT-03/R-STS-04, Issue #183): an actor whose own BLIND effect rolls MISS skips the entire EffectSequence — no ACTION step resolves, BlindnessCheckResolved and SkillMissed are recorded instead", () => {
     const blindEffectId = createEffectInstanceId("blind-1");
     const blindDefId = createEffectActionDefinitionId("ACT_BLIND");

@@ -174,6 +174,49 @@ function evasionEffect(
   };
 }
 
+/**
+ * R-HIT-04（M7-018、Issue #272）: production定義（`ACT_ANIS_TROUBLEMAKER_PS1_EVASION`の
+ * `EVASION`、`ACT_FLUTE_VAMPIRE_PS2_EVASION`の`HIT_EVASION`）と同じ形の、被ヒット
+ * 消費（`INCOMING_HIT`）付き回避効果。
+ */
+function hitCountEvasionEffect(
+  id: string,
+  targetId: string,
+  statusKind: "EVASION" | "HIT_EVASION",
+  consumptionRemaining: number,
+): AppliedEffect {
+  return {
+    ...evasionEffect(id, targetId, { probability: 1 }),
+    statusKind,
+    duration: {
+      definition: {
+        consumption: { kind: "INCOMING_HIT", maxCount: consumptionRemaining },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      consumptionRemaining,
+    },
+  };
+}
+
+function evasionDefinition(): EffectActionDefinition {
+  return {
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_EVASION"),
+    kind: "APPLY_STATUS",
+    payload: {
+      status: "EVASION",
+      probability: 1,
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+  };
+}
+
+function guaranteedHitEffect(id: string, attackerId: string): AppliedEffect {
+  return { ...evasionEffect(id, attackerId, {}), statusKind: "GUARANTEED_HIT" };
+}
+
 function hit(targetId: string, hitIndex: number): ResolvedEffectApplication {
   return {
     targetBattleUnitId: createBattleUnitId(targetId),
@@ -271,8 +314,8 @@ function testConsumeEffectDuration(
   recorder: EventRecorder,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
 ): NonNullable<DamageEventContext["consumeEffectDuration"]> {
-  return (ownerUnitId, kind, units, parentEventId) => {
-    const consumption = consumeEffectDurations(units, ownerUnitId, kind);
+  return (ownerUnitId, kind, units, parentEventId, effectInstanceId) => {
+    const consumption = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
     if (consumption.changes.length === 0) {
       return { units, lastEventId: parentEventId };
     }
@@ -1296,6 +1339,163 @@ describe("applyDamageAction", () => {
     );
 
     expect(seenEventTypes).toContain("EvasionActivated");
+  });
+
+  it("UT-R-HIT-04-006 (R-HIT-04, M7-018/Issue #272): the hit an evasion effect evades consumes that instance's own INCOMING_HIT count, so a 2-hit evasion buff evades exactly two hits and the third lands", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const evasion = hitCountEvasionEffect("eff-evasion", "TARGET", "EVASION", 2);
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET", 2), hit("TARGET", 3)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([
+            [STAT_MOD_DEFINITION_ID, statModDefinition()],
+            [createEffectActionDefinitionId("ACT_EVASION"), evasionDefinition()],
+          ]),
+        ),
+      },
+    );
+
+    expect(result.hits.map((outcome) => outcome.applied)).toEqual([false, false, true]);
+    expect(result.hits[2]!.damage).toBe(20);
+
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toEqual([]);
+
+    const eventTypes = baseContext.recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes.filter((type) => type === "EvasionActivated")).toHaveLength(2);
+    expect(eventTypes.filter((type) => type === "EffectConsumptionChanged")).toHaveLength(2);
+    expect(eventTypes).toContain("EffectExpired");
+  });
+
+  it("UT-R-HIT-04-007 (R-HIT-04, M7-018/Issue #272): an evaded hit consumes only the evading instance — other INCOMING_HIT-consumption effects on the same target keep their count (R-EFF-07 still requires a confirmed hit for them)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const evasion = hitCountEvasionEffect("eff-evasion", "TARGET", "HIT_EVASION", 1);
+    const bystander = consumptionEffect(
+      "eff-incoming-hit",
+      createBattleUnitId("TARGET"),
+      "INCOMING_HIT",
+      2,
+    );
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion, bystander],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([
+            [STAT_MOD_DEFINITION_ID, statModDefinition()],
+            [createEffectActionDefinitionId("ACT_EVASION"), evasionDefinition()],
+          ]),
+        ),
+      },
+    );
+
+    expect(result.hits[0]!.applied).toBe(false);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(1);
+    expect(updatedTarget.appliedEffects[0]!.effectInstanceId).toBe(bystander.effectInstanceId);
+    expect(updatedTarget.appliedEffects[0]!.duration.consumptionRemaining).toBe(2);
+  });
+
+  it("UT-R-HIT-04-008 (R-HIT-04, M7-018/Issue #272): a HIT_EVASION buff shaped like ACT_FLUTE_VAMPIRE_PS2_EVASION evades exactly one hit and expires, so the next hit lands", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const evasion = hitCountEvasionEffect("eff-evasion", "TARGET", "HIT_EVASION", 1);
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET", 2)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([
+            [STAT_MOD_DEFINITION_ID, statModDefinition()],
+            [createEffectActionDefinitionId("ACT_EVASION"), evasionDefinition()],
+          ]),
+        ),
+      },
+    );
+
+    expect(result.hits.map((outcome) => outcome.applied)).toEqual([false, true]);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updatedTarget.appliedEffects).toEqual([]);
+    expect(updatedTarget.currentHp).toBe(80);
+  });
+
+  it("UT-R-HIT-05-006 (R-HIT-05 #2, M7-018/Issue #272): an attacker holding a GUARANTEED_HIT effect lands a NORMAL-accuracy hit through the target's evasion, leaving the evasion count untouched", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [guaranteedHitEffect("eff-guaranteed", "ATTACKER")],
+    };
+    const evasion = hitCountEvasionEffect("eff-evasion", "TARGET", "HIT_EVASION", 1);
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [evasion],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([
+            [STAT_MOD_DEFINITION_ID, statModDefinition()],
+            [createEffectActionDefinitionId("ACT_EVASION"), evasionDefinition()],
+          ]),
+        ),
+      },
+    );
+
+    expect(result.hits[0]!.applied).toBe(true);
+    expect(result.hits[0]!.damage).toBe(20);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    // R-EFF-07: the hit was confirmed, so the evasion instance's INCOMING_HIT
+    // count is consumed by the ordinary confirmed-hit rule (0 => expired).
+    expect(updatedTarget.appliedEffects).toEqual([]);
+    expect(baseContext.recorder.getEvents().map((event) => event.eventType)).not.toContain(
+      "EvasionActivated",
+    );
   });
 
   it("UT-R-DMG-02-008 (R-DMG-02, Issue #183): an unconditional DAMAGE_IMMUNITY effect nullifies a hit's damage to exactly 1, still confirming the hit (HitConfirmed/DamageApplied still fire)", () => {

@@ -436,8 +436,9 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
     kind,
     units,
     callParentEventId,
+    effectInstanceId,
   ) => {
-    const consumption = consumeEffectDurations(units, ownerUnitId, kind);
+    const consumption = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
     if (consumption.changes.length === 0) {
       return { units, lastEventId: callParentEventId };
     }
@@ -1007,11 +1008,31 @@ function* resolveOneEffectActionApplication(
         status !== "EVASION" &&
         status !== "BLIND" &&
         status !== "DAMAGE_IMMUNITY" &&
-        status !== "FREEZE"
+        status !== "FREEZE" &&
+        status !== "HIT_EVASION" &&
+        status !== "GUARANTEED_HIT"
       ) {
         throw new DomainValidationError(
           "effectActionDefinitionId",
-          `APPLY_STATUS status "${status}" is not yet supported by this resolver (only "STEALTH"/"STUN"/"EVASION"/"BLIND"/"DAMAGE_IMMUNITY"/"FREEZE" are; other status kinds require their own R-STS-01〜04 runtime behavior, tracked separately)`,
+          `APPLY_STATUS status "${status}" is not yet supported by this resolver (only "STEALTH"/"STUN"/"EVASION"/"BLIND"/"DAMAGE_IMMUNITY"/"FREEZE"/"HIT_EVASION"/"GUARANTEED_HIT" are; other status kinds require their own runtime behavior, tracked separately — CRITICAL_GUARANTEE/CRITICAL_PREVENTION are CAP_CRITICAL_CONTROL / DMG-003 / Issue #196)`,
+        );
+      }
+      // R-HIT-05（M7-018、Issue #272）: 必中付与は使用者側（OUTGOING）の効果で
+      // あり、`appliesTo.incomingActionKinds`（被効果の絞り込み）・
+      // `damageThreshold`・`damageAmplificationOnBreak`（いずれも被ダメージ側の
+      // 概念）を解釈する余地がない。production定義
+      // （`ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT`）はどれも持たないため、
+      // STUNと同じ理由で「未対応として明確に失敗する」ままにし、silent partial
+      // implementationへ退行させない。
+      if (
+        status === "GUARANTEED_HIT" &&
+        (effectAction.payload.appliesTo !== undefined ||
+          effectAction.payload.damageThreshold !== undefined ||
+          effectAction.payload.damageAmplificationOnBreak !== undefined)
+      ) {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          'APPLY_STATUS status "GUARANTEED_HIT" with appliesTo/damageThreshold/damageAmplificationOnBreak is not supported (R-HIT-05 applies to the holder\'s outgoing attacks; production GUARANTEED_HIT definitions declare none of them)',
         );
       }
       if (

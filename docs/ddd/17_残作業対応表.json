@@ -25,8 +25,8 @@
   },
   "current": {
     "rules": {
-      "total": 110,
-      "completed": 86,
+      "total": 112,
+      "completed": 88,
       "remaining": 24
     },
     "unitCatalog": {
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 45,
-      "implemented": 26
+      "implemented": 28
     }
   },
   "tasks": [
@@ -116,7 +116,7 @@
     { "taskId": "M7-015", "issue": 269, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-016", "issue": 270, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-017", "issue": 271, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-018", "issue": 272, "phase": 2, "milestone": "M7", "status": "OPEN" },
+    { "taskId": "M7-018", "issue": 272, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-019", "issue": 273, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "DMG-001", "issue": 195, "phase": 3, "milestone": "M8", "status": "OPEN" },
     { "taskId": "DMG-002", "issue": 192, "phase": 3, "milestone": "M8", "status": "OPEN" },
@@ -249,7 +249,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 4,
+      "selectableProductionUnits": 6,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -260,7 +260,7 @@
         "capabilityId": "CAP_DAMAGE_MOD",
         "blockedUnits": 54,
         "blockedMemories": 13,
-        "exclusivelyBlockedUnits": 17,
+        "exclusivelyBlockedUnits": 19,
         "exclusivelyBlockedMemories": 13
       },
       {
@@ -275,13 +275,6 @@
         "blockedUnits": 18,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 2,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_HIT_COUNT_EVASION",
-        "blockedUnits": 7,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 1,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -352,13 +345,6 @@
         "blockedUnits": 1,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_STATUS_EFFECT_KIND",
-        "blockedUnits": 1,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 1,
         "exclusivelyBlockedMemories": 0
       }
     ],

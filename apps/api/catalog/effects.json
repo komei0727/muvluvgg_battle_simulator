@@ -2643,7 +2643,7 @@
       },
       "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 } }
     },
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
