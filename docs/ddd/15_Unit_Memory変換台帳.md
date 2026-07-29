@@ -315,7 +315,7 @@ Issue #47先行バッチで変換した6 Memory（`MEM_HARD_WARMUP`、`MEM_STRAN
 
 `MEM_ALWAYS_PICO_BESIDE_YOU`（Marker付与）は、Domain・StateDelta・独立Reducer復元までは実データで完走できるが（`IT-CAP-MEMORY-DYNAMIC-PROD-007`）、v1のAPI契約が `MarkerStateResponse.sourceUnitId` を必須にしているためHTTPレスポンスとしては表現できない。必須プロパティの削除は `10_API設計.md`「バージョニング」の破壊的変更に当たるためv1契約は据え置き、新規Capability `CAP_MEMORY_GRANTED_MARKER`（`runtimeStatus: PLANNED`、`REL-008`／Issue #263）でCapability preflightが編成不可として弾く（PR #262レビュー[P1]）。
 
-`APPLY_DAMAGE_MOD`を含まない11件は、実`startBattle`（`BattleStarted`）／実`advanceBattle`（`TurnStarted`）→`MemoryTriggered`／`MemoryResolved`→`AppliedEffect`・`MarkerState`付与→StateDelta→独立Reducer復元まで、未改変のproduction Catalogで検証した（`IT-CAP-MEMORY-DYNAMIC-PROD-001`〜`007`）。対象・非対象の両方（所属外・ロール外・列外のユニット、敵陣営、所属メンバーが0件で`MemoryTriggered`自体が発行されない境界）も同じテストで確認している。
+`APPLY_DAMAGE_MOD`を含まない11件（Capability preflightを通る10件と、上記のとおりAPI公開だけを保留した`MEM_ALWAYS_PICO_BESIDE_YOU`）は、実`startBattle`（`BattleStarted`）／実`advanceBattle`（`TurnStarted`）→`MemoryTriggered`／`MemoryResolved`→`AppliedEffect`・`MarkerState`付与→StateDelta→独立Reducer復元まで、未改変のproduction Catalogで検証した（`IT-CAP-MEMORY-DYNAMIC-PROD-001`〜`007`）。対象・非対象の両方（所属外・ロール外・列外のユニット、敵陣営、所属メンバーが0件で`MemoryTriggered`自体が発行されない境界）も同じテストで確認している。
 
 `APPLY_DAMAGE_MOD`を含む9件（`MEM_SHAPING_FAMILY`／`MEM_TENT_COMMOTION`／`MEM_ELOPEMENT_FULL_THROTTLE`／`MEM_NAUGHTY_PENALTY_GAME`／`MEM_SOOTHING_SCENT`／`MEM_ENCOUNTER_WITH_GIRLS`／`MEM_NEW_YEAR_GREETING`／`MEM_CATS_AND_DOGS_BOND`／`MEM_BUSY_DAY_SLUMBER`）のCatalog定義自体も近似なしだが、`CAP_DAMAGE_MOD`が`runtimeStatus: PLANNED`（`DMG-002`／Issue #192）である間はCapability preflightが編成不可として弾く。M7-007の2件と同じ扱いで、`IT-CAP-MEMORY-DYNAMIC-PROD-008`がこの境界と全20件の変換内容（filter・発動タイミング・補正値・期間・消費条件）を1行ずつ固定する。
 

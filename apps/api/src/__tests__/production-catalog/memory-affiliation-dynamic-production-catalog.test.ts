@@ -83,7 +83,7 @@ const M7_008_MEMORY_IDS = [
 
 /**
  * R-MEM-02の順序・`sourceSide`・StateDelta復元をまとめて見るための編成。
- * 実ライフサイクルを完走できる10件のうち、`SimulationExecutionGuard`の
+ * Capability preflightを通る10件のうち、`SimulationExecutionGuard`の
  * 「1解決スコープ内の効果解決数」上限（50件、`passive-activation-service.ts`）に
  * 収まる6件を、興味のある性質（所属フィルタ・対象0件のskip・ROLEフィルタ・
  * `TurnStarted`のskip・敵側対象）が全部揃うように選ぶ。
@@ -420,7 +420,10 @@ function statOf(unit: BattleUnit, stat: StatKind): number {
  * 変換の「近似なし」を1行ずつ固定するための、raw原文→定義の対応表。
  * `APPLY_DAMAGE_MOD`を含む9件は`CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）未実装で
  * 実ライフサイクルを完走できないが、対象条件と補正値は今でも検証できる。
- * 実行可能な11件についても、実行結果の期待値がraw原文のどこ由来かをここで固定する。
+ * Domain解決を完走できる11件（Capability preflightを通る10件と、Domainは完走するが
+ * v1 API契約の都合で`CAP_MEMORY_GRANTED_MARKER`が編成を弾く
+ * `MEM_ALWAYS_PICO_BESIDE_YOU`）についても、実行結果の期待値がraw原文のどこ由来かを
+ * ここで固定する。
  */
 interface ActionExpectation {
   readonly effectActionDefinitionId: string;
