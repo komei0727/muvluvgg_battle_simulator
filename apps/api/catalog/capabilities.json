@@ -260,10 +260,32 @@
   {
     "capabilityId": "CAP_HIT_COUNT_EVASION",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-018",
-    "description": "Nヒット回避。M7-004（Issue #183、R-HIT-02）はstatus: \"EVASION\"の実効resolver（hit-policy.tsのresolveEvasion、effect-action-group-resolver.tsのAPPLY_STATUS分岐）を実装し、SKL_SUIRAN_CHAOS_PS1等のEVASION行は解決できるようになった。ただしこのCapabilityを要求する行にはstatus: \"HIT_EVASION\"（UNIT_FLUTE_VAMPIRE、R-*未定義のため本Issueのスコープ外）も含まれ、その実効処理は未実装のままのため、Capability全体としては引き続きPLANNEDのまま（全requiredCapabilities行が解決できて初めてIMPLEMENTEDにできる）。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "Nヒット回避（R-HIT-04）。M7-004（Issue #183、R-HIT-02）はstatus: \"EVASION\"の判定（hit-policy.tsのresolveEvasion、effect-action-group-resolver.tsのAPPLY_STATUS分岐）を実装したが、本Capabilityの名前が指す「Nヒット」自体は未実装のまま残っていた。M7-018（Issue #272）はまずR-HIT-04を新設し、回避が成立した被ヒットが回避を成立させたインスタンス自身のconsumption: INCOMING_HITを1消費する（R-EFF-07の一般規則「命中確定で消費」に対する本ルール固有の例外。同じ対象が持つ他のINCOMING_HIT消費効果は巻き込まない）ことと、逆に回避が成立しなかった被ヒット（確率判定失敗・必中・チャージ中・対象攻撃種別不一致）では消費しないことを規定したうえで、damage-application-service.tsのEvasionActivated直後へ配線し、命中確定時のR-EFF-07一括消費からは回避効果を常に除外した（applied-effect-duration.tsのisHitCountEvasionStatus、PR #275レビュー[P1]。ACT_STELLA_STATUE_AS2_SELF_EVASIONは確率0.6のため、除外がないと実戦で回避失敗のたびに残数を失っていた）。合わせてstatus: \"HIT_EVASION\"（UNIT_FLUTE_VAMPIREのACT_FLUTE_VAMPIRE_PS2_EVASION）をresolverの許可リストへ追加した — EVASION行もHIT_EVASION行もrawの原文は同じ「Nヒットだけ攻撃を回避するバフ」であり、14_Catalog定義スキーマ.mdも両者を「回避」の同一表現として並記するため、判定・消費とも同一に扱う。M7-010（Issue #177、監査）が記録した「EVASION/DAMAGE_IMMUNITYの6件は既に解決可能」は、判定だけを見た過大評価だった（ACT_ANIS_TROUBLEMAKER_PS1_EVASIONは1ヒットではなく1行動の全被ヒットを回避していた）。ACT_HARRIET_SAGE_AS2_IMMUNITY（DAMAGE_IMMUNITY＋INCOMING_HIT消費）は命中が確定する効果のため、R-EFF-07の一般規則のままで正しい。UNIT_JUNKA_CHILDHOOD（ACT_JUNKA_CHILDHOOD_EX_SHIELD／SKL_JUNKA_CHILDHOOD_EX、Nヒット消費のシールド）はIssue #272の指示に従い宣言を見直し、本Capabilityの宣言を除去した — シールドのNヒット消費は回避ではなくAPPLY_SHIELD本体の期間機構であり、CAP_SHIELD（DMG-004／Issue #194）が担当する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_FLUTE_VAMPIRE_PS2_EVASION",
+        "ACT_ANIS_TROUBLEMAKER_EX_EVASION",
+        "ACT_ANIS_TROUBLEMAKER_PS1_EVASION",
+        "ACT_ANIS_TROUBLEMAKER_PS2_EVASION",
+        "ACT_KATE_PALADIN_AS2_SELF_EVASION",
+        "ACT_STELLA_STATUE_EX_EVASION",
+        "ACT_STELLA_STATUE_AS2_SELF_EVASION",
+        "ACT_SUIRAN_CHAOS_PS1_EVASION",
+        "ACT_HARRIET_SAGE_AS2_IMMUNITY"
+      ],
+      "testCaseIds": [
+        "IT-CAP-HIT-EVASION-PROD-001",
+        "IT-CAP-HIT-EVASION-PROD-002",
+        "UT-R-HIT-04-006",
+        "UT-R-HIT-04-007",
+        "UT-R-HIT-04-008",
+        "UT-R-HIT-04-009",
+        "UT-R-HIT-04-010",
+        "UT-R-HIT-04-011"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_MARKER",
@@ -633,10 +655,23 @@
   {
     "capabilityId": "CAP_STATUS_EFFECT_KIND",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-018",
-    "description": "APPLY_STATUSの`status`がSTEALTH以外（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASION）の場合の実効処理（R-STS-01〜04等）。resolver（effect-action-group-resolver.ts）は現状`status`自体の許可リストでSTEALTH以外を無条件拒否しており（TGT-004フェーズ3再レビュー[P1]）、この拒否はCapability経由ではなくハードコードされている。M7-001B（Issue #243）はUNIT_LAYLA_ENTREPRENEURのEX/PS1がこのCapability未実装のまま`selectable`となり golden battle が失敗するのを防ぐため、この2行にだけ宣言した（既存の他ユニット行への遡及的な宣言はM7-004本体のスコープとする）。M7-004（Issue #183）はFREEZE（R-STS-03、`freeze-grant-service.ts`＋凍結解除時のダメージ増幅）・BLIND（R-STS-04/R-HIT-03、暗闇の定義順MISS判定）・EVASION（R-HIT-02、特別な回避効果）・DAMAGE_IMMUNITY（R-DMG-02、ダメージ無効効果）の許可リスト追加と実効処理を実装した。残るCRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASIONは対応するR-*ルール定義がdocs/ddd/07_戦闘ルール詳細.mdに存在せず本Issueのスコープ外のため、このCapability自体は引き続きPLANNEDのまま（例: UNIT_LAYLA_ENTREPRENEURのGUARANTEED_HIT行はまだ未対応）。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "APPLY_STATUSの`status`がSTEALTH以外（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASION）の場合の実効処理（R-STS-01〜04等）。resolver（effect-action-group-resolver.ts）は現状`status`自体の許可リストでSTEALTH以外を無条件拒否しており（TGT-004フェーズ3再レビュー[P1]）、この拒否はCapability経由ではなくハードコードされている。M7-001B（Issue #243）はUNIT_LAYLA_ENTREPRENEURのEX/PS1がこのCapability未実装のまま`selectable`となり golden battle が失敗するのを防ぐため、この2行にだけ宣言した（既存の他ユニット行への遡及的な宣言はM7-004本体のスコープとする）。M7-004（Issue #183）はFREEZE（R-STS-03、`freeze-grant-service.ts`＋凍結解除時のダメージ増幅）・BLIND（R-STS-04/R-HIT-03、暗闇の定義順MISS判定）・EVASION（R-HIT-02、特別な回避効果）・DAMAGE_IMMUNITY（R-DMG-02、ダメージ無効効果）の許可リスト追加と実効処理を実装した。残るCRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASIONは対応するR-*ルール定義がdocs/ddd/07_戦闘ルール詳細.mdに存在しなかった。M7-018（Issue #272）はR-HIT-05「必中付与」を新設し（使用者が持つGUARANTEED_HIT効果が、攻撃側定義のaccuracy.modeに関わらずその使用者の攻撃を必中にする。回避効果もNヒット回避も発動させないが、暗闇＝R-HIT-03 #6には影響しない）、hit-policy.tsのresolveEffectiveAccuracyModeとdamage-application-service.tsの命中判定へ配線したうえで、GUARANTEED_HITをresolverの許可リストへ追加した。これでこのCapabilityを宣言するproduction 2行（UNIT_LAYLA_ENTREPRENEURのEX＝DAMAGE_IMMUNITY、PS1＝GUARANTEED_HIT）がどちらも解決できるためIMPLEMENTEDへ更新する。CRITICAL_GUARANTEE/CRITICAL_PREVENTIONは引き続きresolverが拒否し、宣言側もCAP_CRITICAL_CONTROL（DMG-003／Issue #196）がgateする（UT-R-HIT-05-009がこの境界を固定する）。HIT_EVASIONはCAP_HIT_COUNT_EVASION（同じM7-018）が担当する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT",
+        "ACT_LAYLA_ENTREPRENEUR_EX_IMMUNITY"
+      ],
+      "testCaseIds": [
+        "IT-CAP-GUARANTEED-HIT-PROD-001",
+        "IT-CAP-GUARANTEED-HIT-PROD-002",
+        "UT-R-HIT-05-006",
+        "UT-R-HIT-05-007",
+        "UT-R-HIT-05-008",
+        "UT-R-HIT-05-009"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_STAT_MOD",

@@ -1254,6 +1254,58 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
+  // M7-018（Issue #272）で新設。R-HIT-04「Nヒット回避」は、回避が成立した
+  // 被ヒットが回避を成立させたインスタンス自身の`INCOMING_HIT`消費を1消費する
+  // （R-EFF-07の一般規則に対する本ルール固有の例外）ことを規定する。M7-004
+  // （Issue #183）は回避の判定（R-HIT-02）までを実装したが、この消費が無いため
+  // production定義（`ACT_ANIS_TROUBLEMAKER_PS1_EVASION`等の`EVASION`と
+  // `ACT_FLUTE_VAMPIRE_PS2_EVASION`の`HIT_EVASION`、いずれもraw原文は
+  // 「Nヒットだけ攻撃を回避するバフ」）のヒット数が実際には制限されていなかった。
+  // `CAP_HIT_COUNT_EVASION`（Nヒット回避）が要求していたのはまさにこの部分で、
+  // 判定側と合わせてここで完了する。消費契機はR-EFF-07に対して**逆**であり
+  // （回避したMISSで消費し、命中確定では消費しない）、後者の除外が抜けると
+  // 確率回避の失敗や必中で残数を失う（PR #275レビュー[P1]、
+  // `UT-R-HIT-04-010`/`011`が両方向を固定する）。
+  {
+    ruleId: "R-HIT-04",
+    testCaseIds: [
+      "UT-R-HIT-04-001",
+      "UT-R-HIT-04-002",
+      "UT-R-HIT-04-003",
+      "UT-R-HIT-04-004",
+      "UT-R-HIT-04-005",
+      "UT-R-HIT-04-006",
+      "UT-R-HIT-04-007",
+      "UT-R-HIT-04-008",
+      "UT-R-HIT-04-009",
+      "UT-R-HIT-04-010",
+      "UT-R-HIT-04-011",
+      "IT-CAP-HIT-EVASION-PROD-001",
+      "IT-CAP-HIT-EVASION-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+  // M7-018（Issue #272）で新設。R-HIT-05「必中付与」は、使用者が持つ
+  // `GUARANTEED_HIT`効果が攻撃側定義の`accuracy.mode`に関わらずその使用者の
+  // 攻撃を必中にする（回避効果・Nヒット回避のどちらも発動させない）ことと、
+  // 暗闇（R-HIT-03 #6）には影響しないことを規定する。
+  {
+    ruleId: "R-HIT-05",
+    testCaseIds: [
+      "UT-R-HIT-05-001",
+      "UT-R-HIT-05-002",
+      "UT-R-HIT-05-003",
+      "UT-R-HIT-05-004",
+      "UT-R-HIT-05-005",
+      "UT-R-HIT-05-006",
+      "UT-R-HIT-05-007",
+      "UT-R-HIT-05-008",
+      "UT-R-HIT-05-009",
+      "IT-CAP-GUARANTEED-HIT-PROD-001",
+      "IT-CAP-GUARANTEED-HIT-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
 
   // CRT: 会心
   {

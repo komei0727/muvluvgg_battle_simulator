@@ -153,7 +153,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // claimed the Capability was the *exclusive* blocker of some Units; measured
     // against the real Catalog none of the three is, so the wording was corrected.
     // Descriptions only — still no definition or `runtimeStatus` change.
-    expect(catalog.catalogRevision).toBe("2026-07-30.3");
+    // Bumped again by M7-018 (Issue #272): `CAP_HIT_COUNT_EVASION` (R-HIT-04,
+    // N-hit evasion) and `CAP_STATUS_EFFECT_KIND` (R-HIT-05, guaranteed hit)
+    // flipped to IMPLEMENTED, and `UNIT_JUNKA_CHILDHOOD`'s shield rows dropped
+    // their mis-classified `CAP_HIT_COUNT_EVASION` declaration (an
+    // `APPLY_SHIELD` consumed by N incoming hits is `CAP_SHIELD`/DMG-004, not
+    // evasion). Junka is not among the 10 promoted units here and stays blocked
+    // by `CAP_DAMAGE_MOD`/`CAP_SHIELD`, so `unitCount`/violation/`selectable`
+    // expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-30.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

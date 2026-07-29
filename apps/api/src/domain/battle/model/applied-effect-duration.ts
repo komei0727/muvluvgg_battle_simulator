@@ -249,6 +249,21 @@ export interface ConsumeEffectDurationsResult {
 }
 
 /**
+ * R-HIT-04（M7-018、Issue #272。PR #275レビュー[P1]）: 回避効果（`EVASION`/
+ * `HIT_EVASION`）の`INCOMING_HIT`消費は、R-EFF-07の一般規則（命中がMISSでなく
+ * 確定した時点）ではなく「自身が回避を成立させた被ヒット」でだけ起きる。
+ * つまり同じkindでありながら消費契機が逆で、確率判定に失敗した回避や、
+ * 必中（R-HIT-05）で発動しなかった回避は残数を失ってはならない
+ * （production定義の`ACT_STELLA_STATUE_AS2_SELF_EVASION`は確率0.6のため、
+ * 実戦で毎回起こりうる）。回避成立時の消費は
+ * `damage-application-service.ts`が`effectInstanceId`を明示して行うため、
+ * インスタンス指定のない一括消費からは常に除外する。
+ */
+function isHitCountEvasionStatus(effect: AppliedEffect): boolean {
+  return effect.statusKind === "EVASION" || effect.statusKind === "HIT_EVASION";
+}
+
+/**
  * R-EFF-07「消費条件」: `ownerUnitId`が`kind`に該当する事象（次の攻撃・被ヒット等）
  * に到達したときに呼ぶ。`consumption`は`timeLimit`と異なり、常に効果を保持する
  * ユニット自身（`effect.targetId`、`AppliedEffect`は常に対象側の`appliedEffects`
@@ -257,11 +272,19 @@ export interface ConsumeEffectDurationsResult {
  * から独立したフィールドであり、`owner`を持たない）。`consumptionRemaining`が
  * 0より大きい、`kind`が一致するインスタンスだけを1減らす。0になったインスタンス
  * の除去・失効処理は呼び出し側の責務。
+ *
+ * R-HIT-04（M7-018、Issue #272）: `effectInstanceId`を指定すると、そのインスタンス
+ * 1件だけへ消費を限定する。Nヒット回避は「回避を成立させたインスタンス自身」を
+ * 回避した被ヒットで消費するが、同じ対象が持つ他の`INCOMING_HIT`消費効果は
+ * R-EFF-07の一般規則どおり命中確定でしか消費しないため、owner+kindだけでは
+ * 対象を絞れない。逆向きの除外も同時に必要になる — `isHitCountEvasionStatus`を
+ * 参照。
  */
 export function consumeEffectDurations(
   units: readonly BattleUnit[],
   ownerUnitId: BattleUnitId,
   kind: ConsumptionKind,
+  effectInstanceId?: EffectInstanceId,
 ): ConsumeEffectDurationsResult {
   const changes: ConsumptionChange[] = [];
   const nextUnits = units.map((battleUnit) => {
@@ -273,6 +296,9 @@ export function consumeEffectDurations(
       const consumption = effect.duration.definition.consumption;
       if (
         consumption?.kind !== kind ||
+        (effectInstanceId !== undefined
+          ? effect.effectInstanceId !== effectInstanceId
+          : kind === "INCOMING_HIT" && isHitCountEvasionStatus(effect)) ||
         effect.duration.consumptionRemaining === undefined ||
         effect.duration.consumptionRemaining <= 0
       ) {

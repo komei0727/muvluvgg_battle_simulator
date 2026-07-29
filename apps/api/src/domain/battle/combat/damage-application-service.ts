@@ -17,7 +17,7 @@ import type {
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
-import { resolveEvasion } from "./hit-policy.js";
+import { resolveEffectiveAccuracyMode, resolveEvasion } from "./hit-policy.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
@@ -103,6 +103,8 @@ export interface DamageEventContext {
     kind: ConsumptionKind,
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
+    /** R-HIT-04: 指定時はこの1インスタンスだけを消費する（Nヒット回避の自己消費）。 */
+    effectInstanceId?: EffectInstanceId,
   ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
   /**
    * レビュー再々指摘[P1]（PR #209）: `consumeEffectDuration`が遅延させた
@@ -213,6 +215,7 @@ function consumeAndExpire(
   ownerUnitId: BattleUnitId,
   kind: ConsumptionKind,
   parentEventId: DomainEventId,
+  effectInstanceId?: EffectInstanceId,
 ): DomainEventId {
   if (context.consumeEffectDuration === undefined) {
     return parentEventId;
@@ -222,6 +225,7 @@ function consumeAndExpire(
     kind,
     Array.from(workingMap.values()),
     parentEventId,
+    effectInstanceId,
   );
   for (const unit of result.units) {
     workingMap.set(unit.battleUnitId, unit);
@@ -460,10 +464,18 @@ export function* applyDamageActionSteps(
       continue;
     }
 
-    // R-HIT-02: 対象の有効な回避効果を判定する（暗闇/R-HIT-03は
+    // R-HIT-02/R-HIT-04: 対象の有効な回避効果を判定する（暗闇/R-HIT-03は
     // `resolveEffectSequencePlan`のスキル使用単位ゲートで既に判定済み — MISSに
     // なるスキルはこのDAMAGE EffectAction自体に到達しない）。
-    const evasion = resolveEvasion(targetAfterTiming, damageAction.payload.accuracy.mode, random);
+    // R-HIT-05（M7-018、Issue #272）: 攻撃側定義の`accuracy.mode`と、使用者が
+    // 持つ必中効果（`GUARANTEED_HIT`）を実効値へ畳み込んでから判定する。使用者は
+    // TIMING処理後の最新状態（`attackerAfterTiming`）から取り直す — 直前のPS連鎖が
+    // 必中効果を付与・失効させ得るため。
+    const effectiveAccuracyMode = resolveEffectiveAccuracyMode(
+      attackerAfterTiming,
+      damageAction.payload.accuracy.mode,
+    );
+    const evasion = resolveEvasion(targetAfterTiming, effectiveAccuracyMode, random);
     if (evasion.evaded) {
       outcomes.push(skip(hit));
       const evasionEventsStart = context.recorder.getEvents().length;
@@ -487,9 +499,23 @@ export function* applyDamageActionSteps(
         },
       });
       lastEventId = evasionActivated.eventId;
+      // R-HIT-04（M7-018、Issue #272）: 回避したこの被ヒットで、回避を成立させた
+      // インスタンス自身の`INCOMING_HIT`消費を1消費する（Nヒット回避の「Nヒット」
+      // はこの消費で数える）。R-EFF-07の一般規則（命中確定で消費）に対する
+      // 本ルール固有の例外のため、同じ対象が持つ他の`INCOMING_HIT`消費効果を
+      // 巻き込まないよう、消費対象をこのインスタンスへ限定する。
+      lastEventId = consumeAndExpire(
+        context,
+        working,
+        targetAfterTiming.battleUnitId,
+        "INCOMING_HIT",
+        lastEventId,
+        evasion.evadedByEffectInstanceId,
+      );
       // R-SKL-01/02（レビュー指摘[P1]）: `EvasionActivated`もFACTイベントとして
       // PS/Memoryの即時連鎖の契機になり得るため、次のヒットへ進む前に通知する
-      // （`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`と同じ扱い）。
+      // （`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`と同じ扱い）。消費で発生した
+      // `EffectConsumptionChanged`/`EffectExpired`も同じ一括通知に含める。
       notifyNewEvents(context, working, evasionEventsStart);
       // R-SKL-08: MISSも結果種別を持つ直前結果として記録する（R-SKL-08本文）。
       // 有効な定義のもとで通常発生し得る実行時の結果であり、後続Formulaの
@@ -876,7 +902,12 @@ export function* applyDamageActionSteps(
     }
 
     // R-EFF-07: このヒットがMISSでなく確定した時点でOUTGOING_HIT（攻撃者側）/
-    // INCOMING_HIT（対象側）を消費する。
+    // INCOMING_HIT（対象側）を消費する。R-HIT-04の回避効果（EVASION/
+    // HIT_EVASION）はこの一括消費の対象外で、`consumeEffectDurations`
+    // （`applied-effect-duration.ts`の`isHitCountEvasionStatus`）が常に除外する
+    // — Nヒット回避は自身が回避した被ヒットでだけ消費するため、確率判定に
+    // 失敗した回避や必中で発動しなかった回避が残数を失ってはならない
+    // （PR #275レビュー[P1]）。
     const hitEventsStart = context.recorder.getEvents().length;
     lastEventId = consumeAndExpire(
       context,

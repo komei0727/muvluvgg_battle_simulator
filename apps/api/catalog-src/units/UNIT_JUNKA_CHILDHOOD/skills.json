@@ -19,7 +19,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_SHIELD", "CAP_HIT_COUNT_EVASION"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_SHIELD"],
     "metadata": { "displayName": "ドリルミルキィパンチ", "tags": [] }
   },
   {
