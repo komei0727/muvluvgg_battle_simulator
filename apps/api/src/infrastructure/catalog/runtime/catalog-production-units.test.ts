@@ -144,7 +144,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by M7-008 (Issue #176): the last 20 Memories (affiliation /
     // damage-mod / TurnStarted / Marker / enemy-side) were added, completing
     // `raw/memories/`. Same reasoning — units here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-30.1");
+    // Bumped again by M7-010 (Issue #177, M7完了監査): `capabilities.json` only —
+    // 9 orphaned `implementationTaskId`s were reassigned to the newly created
+    // owner Issues (M7-002A / M7-015〜M7-019) and three descriptions corrected.
+    // No `runtimeStatus` flipped and no Unit/Skill/EffectAction definition
+    // changed, so `unitCount`/violation/`selectable` expectations are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-30.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
