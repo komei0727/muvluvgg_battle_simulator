@@ -70,7 +70,7 @@ function marker(markerId: MarkerId, stackCount = 1): MarkerState {
     ...buildInitialMarkerState(
       createMarkerInstanceId(`mi-${markerId}`),
       markerId,
-      createBattleUnitId("SOURCE"),
+      { sourceId: createBattleUnitId("SOURCE") },
       createBattleUnitId("TARGET"),
       null,
       { dispellable: true, linkedEffectGroupId: null, timeLimit: { unit: "BATTLE", count: 1 } },

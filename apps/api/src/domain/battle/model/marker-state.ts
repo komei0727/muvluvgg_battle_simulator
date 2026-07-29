@@ -2,6 +2,7 @@ import type { EffectDurationState } from "./applied-effect.js";
 import { buildInitialDurationState } from "./applied-effect.js";
 import type { ActionId, MarkerInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 
@@ -20,18 +21,36 @@ import type { DurationDefinition } from "../../catalog/definitions/duration-defi
 export interface MarkerState {
   readonly markerInstanceId: MarkerInstanceId;
   readonly markerId: MarkerId;
-  readonly sourceId: BattleUnitId;
+  /**
+   * 直近の付与者の戦闘ユニットID。R-MEM-04（M7-008、Issue #176）: Memory の
+   * `triggeredEffects` 由来の付与だけは具体的な付与者ユニットを持たないため
+   * `undefined`になり、代わりに`sourceSide`（そのMemoryを指定した陣営）を持つ
+   * （`AppliedEffect.sourceId`/`10_API設計.md`の`MarkerStateResponse.sourceUnitId?`も
+   * 同じ理由で任意）。
+   */
+  readonly sourceId?: BattleUnitId;
+  /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営（source side）。 */
+  readonly sourceSide?: Side;
   readonly targetId: BattleUnitId;
   readonly stackCount: number;
   readonly stackMax: number | null;
   readonly duration: EffectDurationState;
 }
 
+/**
+ * `AppliedEffect`と同じく、付与元は「具体的なユニット」か「Memoryを指定した陣営」の
+ * どちらか一方だけを持つ（`effect-grant-service.ts`の`GrantEffectRequest`と同型）。
+ */
+export interface MarkerSource {
+  readonly sourceId?: BattleUnitId;
+  readonly sourceSide?: Side;
+}
+
 /** R-EFF-10: 新規Markerインスタンスをスタック1で組み立てる（ADD/KEEP_EXISTING/REFRESH/REPLACEのいずれも、既存Markerが無い場合はこの初期状態から始まる）。 */
 export function buildInitialMarkerState(
   markerInstanceId: MarkerInstanceId,
   markerId: MarkerId,
-  sourceId: BattleUnitId,
+  source: MarkerSource,
   targetId: BattleUnitId,
   stackMax: number | null,
   durationDefinition: DurationDefinition,
@@ -40,7 +59,8 @@ export function buildInitialMarkerState(
   return {
     markerInstanceId,
     markerId,
-    sourceId,
+    ...(source.sourceId !== undefined ? { sourceId: source.sourceId } : {}),
+    ...(source.sourceSide !== undefined ? { sourceSide: source.sourceSide } : {}),
     targetId,
     stackCount: 1,
     stackMax,

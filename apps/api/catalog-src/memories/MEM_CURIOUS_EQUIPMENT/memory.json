@@ -1,0 +1,90 @@
+{
+  "memoryDefinitionId": "MEM_CURIOUS_EQUIPMENT",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_CURIOUS_EQUIPMENT_ALL_HP_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "FRONT"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_FRONT_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_CURIOUS_EQUIPMENT_ENEMY_FRONT_DEF_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+  "metadata": {
+    "displayName": "気になる装備",
+    "tags": []
+  }
+}

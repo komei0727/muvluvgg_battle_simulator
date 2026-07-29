@@ -173,7 +173,9 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
 export interface MarkerSnapshot {
   readonly markerInstanceId: MarkerInstanceId;
   readonly markerId: MarkerId;
-  readonly sourceUnitId: BattleUnitId;
+  /** R-MEM-04（M7-008、Issue #176）: Memory由来の付与は`sourceSide`だけを持つ。 */
+  readonly sourceUnitId?: BattleUnitId;
+  readonly sourceSide?: Side;
   readonly stackCount: number;
   readonly stackMax: number | null;
   readonly duration?: { readonly unit: "ACTION" | "TURN"; readonly remaining: number };
@@ -195,7 +197,8 @@ export function toMarkerSnapshot(marker: MarkerState): MarkerSnapshot {
   return {
     markerInstanceId: marker.markerInstanceId,
     markerId: marker.markerId,
-    sourceUnitId: marker.sourceId,
+    ...(marker.sourceId !== undefined ? { sourceUnitId: marker.sourceId } : {}),
+    ...(marker.sourceSide !== undefined ? { sourceSide: marker.sourceSide } : {}),
     stackCount: marker.stackCount,
     stackMax: marker.stackMax,
     ...(duration !== undefined ? { duration } : {}),

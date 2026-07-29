@@ -327,7 +327,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId?`/`sourceSide?`へ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）を実ライフサイクル・StateDelta・独立Reducer復元まで通せるようにした。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -336,7 +336,8 @@
         "ACT_KARINA_DOWNER_PS1_MARK_ATTACKER",
         "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI",
         "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI",
-        "ACT_HARRIET_SAGE_AS1_MARKER"
+        "ACT_HARRIET_SAGE_AS1_MARKER",
+        "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS"
       ],
       "testCaseIds": [
         "UT-R-EFF-10-001",
@@ -358,7 +359,10 @@
         "UT-R-EFF-10-017",
         "UT-R-EFF-10-018",
         "IT-MARKER-PROD-001",
-        "IT-MARKER-PROD-002"
+        "IT-MARKER-PROD-002",
+        "UT-R-EFF-10-019",
+        "UT-R-EFF-10-020",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-007"
       ]
     }
   },
@@ -378,7 +382,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-006",
-    "description": "MemoryのTriggeredEffect発動engine（M7-006、Issue #179、R-MEM-01〜04）: 編成に指定されたMemoryの`triggeredEffects`をPSと同じ候補スタックへ載せ、同じイベントではPS候補を先に、その後Memory候補をAPI指定順→同一Memory内定義順で解決する。`BattleStarted`（初回ターン開始前）・`TurnStarted`を含む任意のFACT/TIMINGイベントから発動し、使用者BattleUnitを持たずMemoryを指定した陣営をsource sideとして対象を解決する（敵側対象も可）。Memory由来の`APPLY_STAT_MOD`等は通常スキル由来と同じ`AppliedEffect`として保持し、`sourceUnitId`の代わりに`sourceSide`を持つ（`MemoryTriggered`/`MemoryResolved`も同じ）。使用者を必要とするEffectAction・`SELF`対象参照はCatalog整合性検証（`MEMORY_REQUIRES_SOURCE_UNIT`）が拒否する。M7-007（Issue #178）は静的補正中心のproduction Memory 6件を変換し、うち`APPLY_DAMAGE_MOD`を含まない4件を実`startBattle`経由で検証した（`IT-CAP-MEMORY-STATIC-PROD-001`〜`005`）。",
+    "description": "MemoryのTriggeredEffect発動engine（M7-006、Issue #179、R-MEM-01〜04）: 編成に指定されたMemoryの`triggeredEffects`をPSと同じ候補スタックへ載せ、同じイベントではPS候補を先に、その後Memory候補をAPI指定順→同一Memory内定義順で解決する。`BattleStarted`（初回ターン開始前）・`TurnStarted`を含む任意のFACT/TIMINGイベントから発動し、使用者BattleUnitを持たずMemoryを指定した陣営をsource sideとして対象を解決する（敵側対象も可）。Memory由来の`APPLY_STAT_MOD`等は通常スキル由来と同じ`AppliedEffect`として保持し、`sourceUnitId`の代わりに`sourceSide`を持つ（`MemoryTriggered`/`MemoryResolved`も同じ）。使用者を必要とするEffectAction・`SELF`対象参照はCatalog整合性検証（`MEMORY_REQUIRES_SOURCE_UNIT`）が拒否する。M7-007（Issue #178）は静的補正中心のproduction Memory 6件を変換し、うち`APPLY_DAMAGE_MOD`を含まない4件を実`startBattle`経由で検証した（`IT-CAP-MEMORY-STATIC-PROD-001`〜`005`）。M7-008（Issue #176）は残り20 Memoryを変換し、`AFFILIATION`フィルタ・`side: ENEMY`（Memoryを指定した陣営から見た相対陣営）・`TurnStarted`発動・Memory由来の`APPLY_MARKER`（`MarkerState.sourceSide`）が実ライフサイクルで解決することを実production Memoryで確認した。",
     "verification": {
       "productionDefinitionIds": [
         "MEM_HARD_WARMUP",
@@ -388,7 +392,13 @@
         "MEM_PANTS_STRAY_CAT",
         "MEM_CHAOS_MAIDEN_TWINTAIL_FEST",
         "MEM_MOMOZONO_NEW_YEAR",
-        "MEM_EURO_TOWER_DAY"
+        "MEM_EURO_TOWER_DAY",
+        "MEM_CHAOS_MAIDEN",
+        "MEM_FUUKI_IINKAI",
+        "MEM_INCOGNITO_SISTER_ADVENTURE",
+        "MEM_DISCONTENT_AND_ANXIETY",
+        "MEM_ALWAYS_PICO_BESIDE_YOU",
+        "MEM_CURIOUS_EQUIPMENT"
       ],
       "testCaseIds": [
         "UT-PROD-MEM-001",
@@ -400,7 +410,14 @@
         "IT-CAP-MEMORY-STATIC-PROD-002",
         "IT-CAP-MEMORY-STATIC-PROD-003",
         "IT-CAP-MEMORY-STATIC-PROD-004",
-        "IT-CAP-MEMORY-STATIC-PROD-005"
+        "IT-CAP-MEMORY-STATIC-PROD-005",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-001",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-002",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-003",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-004",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-005",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-006",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-007"
       ]
     }
   },
@@ -774,7 +791,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "TGT-002",
-    "description": "Target filter・order・除外選択（Issue #169）。`TargetSelectorDefinition.filters`（POSITION_ROW/POSITION_COLUMN/POSITION_SLOT/UNIT_TYPE/ROLE/ATTRIBUTE/AFFILIATION/CHARACTER/HAS_MARKER（`countCondition`によるMarker所持数しきい値、TARGET_FILTER_MARKER_COUNT_THRESHOLD）/HP_RATIO/AND/OR/NOT）と、新設した`EXCLUDE_RESOLVED_UNIT`（TARGET_EXCLUDE_RESOLVED_UNIT: `reference`（SELF/BINDING）が指す解決済みユニットを除外）・`MARKER_IN_AREA`（TARGET_FILTER_MARKER_BY_AREA: 候補自身を基準にした`area`内のMarker所在を判定。`area`は`ADJACENT_ORTHOGONAL`/`DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`/`SAME_ROW_AS_BASE`/`SAME_COLUMN_AS_BASE`の5 kindのみCatalogロード時点で許可し、`SINGLE`/`ALL`/`ROW`/`COLUMN`は拒否する。所在判定は戦闘不能ユニットを除外する）を実装する。`EXCLUDE_RESOLVED_UNIT.reference`はSELF/BINDING以外の`kind`をCatalogロード時点で拒否する（PR #233レビュー）。`order`はDEFAULT/FARTHEST/FRONT_ROW/BACK_ROW（TGT-001）に加え、NEAREST・LEFT_TO_RIGHT・LOWEST_HP_RATIO・HIGHEST_HP_RATIO・HIGHEST_ATTACK・LOWEST_MAX_HP・新設HIGHEST_MAX_HP・HIGHEST_EX_GAUGE_RATIO・新設FASTEST（TARGET_ORDER_STAT_LOWEST_OR_SPEED）・新設SELF_LOWEST_PRIORITY（自身以外優先、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）と、パラメータ付きオブジェクト形式の新設`MARKER_COUNT`（markerId+direction、TARGET_ORDER_MARKER_COUNT）・`UNIT_TYPE_PRIORITY`（unitType、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）を実装する。`UNIT_TYPE`/`ROLE`/`AFFILIATION`/`CHARACTER`フィルタと`UNIT_TYPE_PRIORITY`順は静的Catalogデータ（`UnitDefinition`）の参照が要るため、`resolveTargets`以降の呼び出し連鎖へ`unitDefinitions`を新たに通す。M7-004（Issue #183）は`LOWEST_ATTACK`（`HIGHEST_ATTACK`の昇順版、`SKL_ELENA_MOODMAKER_EX`の「最も攻撃力が低い味方単体」選定）を追加した。M7-007（Issue #178）は、使用者BattleUnitを持たないMemory由来のEffectSequenceでも`UNIT_TYPE`/`ROLE`/`ATTRIBUTE`/`POSITION_ROW`+`POSITION_COLUMN`のフィルタが同じ`resolveTargets`経路で効くことを、実production Memory（`MEM_PANTS_STRAY_CAT`/`MEM_EURO_TOWER_DAY`）で確認した。",
+    "description": "Target filter・order・除外選択（Issue #169）。`TargetSelectorDefinition.filters`（POSITION_ROW/POSITION_COLUMN/POSITION_SLOT/UNIT_TYPE/ROLE/ATTRIBUTE/AFFILIATION/CHARACTER/HAS_MARKER（`countCondition`によるMarker所持数しきい値、TARGET_FILTER_MARKER_COUNT_THRESHOLD）/HP_RATIO/AND/OR/NOT）と、新設した`EXCLUDE_RESOLVED_UNIT`（TARGET_EXCLUDE_RESOLVED_UNIT: `reference`（SELF/BINDING）が指す解決済みユニットを除外）・`MARKER_IN_AREA`（TARGET_FILTER_MARKER_BY_AREA: 候補自身を基準にした`area`内のMarker所在を判定。`area`は`ADJACENT_ORTHOGONAL`/`DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`/`SAME_ROW_AS_BASE`/`SAME_COLUMN_AS_BASE`の5 kindのみCatalogロード時点で許可し、`SINGLE`/`ALL`/`ROW`/`COLUMN`は拒否する。所在判定は戦闘不能ユニットを除外する）を実装する。`EXCLUDE_RESOLVED_UNIT.reference`はSELF/BINDING以外の`kind`をCatalogロード時点で拒否する（PR #233レビュー）。`order`はDEFAULT/FARTHEST/FRONT_ROW/BACK_ROW（TGT-001）に加え、NEAREST・LEFT_TO_RIGHT・LOWEST_HP_RATIO・HIGHEST_HP_RATIO・HIGHEST_ATTACK・LOWEST_MAX_HP・新設HIGHEST_MAX_HP・HIGHEST_EX_GAUGE_RATIO・新設FASTEST（TARGET_ORDER_STAT_LOWEST_OR_SPEED）・新設SELF_LOWEST_PRIORITY（自身以外優先、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）と、パラメータ付きオブジェクト形式の新設`MARKER_COUNT`（markerId+direction、TARGET_ORDER_MARKER_COUNT）・`UNIT_TYPE_PRIORITY`（unitType、TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDE）を実装する。`UNIT_TYPE`/`ROLE`/`AFFILIATION`/`CHARACTER`フィルタと`UNIT_TYPE_PRIORITY`順は静的Catalogデータ（`UnitDefinition`）の参照が要るため、`resolveTargets`以降の呼び出し連鎖へ`unitDefinitions`を新たに通す。M7-004（Issue #183）は`LOWEST_ATTACK`（`HIGHEST_ATTACK`の昇順版、`SKL_ELENA_MOODMAKER_EX`の「最も攻撃力が低い味方単体」選定）を追加した。M7-007（Issue #178）は、使用者BattleUnitを持たないMemory由来のEffectSequenceでも`UNIT_TYPE`/`ROLE`/`ATTRIBUTE`/`POSITION_ROW`+`POSITION_COLUMN`のフィルタが同じ`resolveTargets`経路で効くことを、実production Memory（`MEM_PANTS_STRAY_CAT`/`MEM_EURO_TOWER_DAY`）で確認した。M7-008（Issue #176）は`AFFILIATION`（`UnitDefinition.metadata.affiliations`参照）と`side: ENEMY`のfilterがMemory由来のEffectSequenceでも同じ`resolveTargets`経路で効くこと、対象0件のtriggeredEffectが`MemoryTriggered`自体を発行しないことを実production Memory（`MEM_CHAOS_MAIDEN`/`MEM_FUUKI_IINKAI`/`MEM_CURIOUS_EQUIPMENT`）で確認した。",
     "verification": {
       "productionDefinitionIds": [
         "SKL_LYDIA_GENIUS_EX",
@@ -784,7 +801,10 @@
         "SKL_SHIRANA_SORA_AS1",
         "SKL_ELENA_MOODMAKER_EX",
         "MEM_PANTS_STRAY_CAT",
-        "MEM_EURO_TOWER_DAY"
+        "MEM_EURO_TOWER_DAY",
+        "MEM_CHAOS_MAIDEN",
+        "MEM_INCOGNITO_SISTER_ADVENTURE",
+        "MEM_CURIOUS_EQUIPMENT"
       ],
       "testCaseIds": [
         "UT-TGT-002-001",
@@ -800,7 +820,11 @@
         "IT-CAP-TARGET-FILTER-ORDER-PROD-006",
         "UT-R-BON-LOWEST-ATTACK-001",
         "IT-CAP-MEMORY-STATIC-PROD-001",
-        "IT-CAP-MEMORY-STATIC-PROD-004"
+        "IT-CAP-MEMORY-STATIC-PROD-004",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-001",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-002",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-003",
+        "IT-CAP-MEMORY-DYNAMIC-PROD-004"
       ]
     }
   },

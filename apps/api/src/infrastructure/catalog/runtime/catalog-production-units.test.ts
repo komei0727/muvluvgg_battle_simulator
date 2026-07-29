@@ -141,7 +141,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by M7-007 (Issue #178): 6 static-stat-mod Memories were added
     // to `catalog-src/memories/`. Memories are not part of the 10 promoted units
     // here, so `unitCount`/violation expectations are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-29.1");
+    // Bumped again by M7-008 (Issue #176): the last 20 Memories (affiliation /
+    // damage-mod / TurnStarted / Marker / enemy-side) were added, completing
+    // `raw/memories/`. Same reasoning — units here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-30.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

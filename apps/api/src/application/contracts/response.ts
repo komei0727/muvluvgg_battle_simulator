@@ -94,7 +94,10 @@ export interface EffectStateResponseBody {
 export interface MarkerStateResponseBody {
   readonly markerInstanceId: string;
   readonly markerId: string;
-  readonly sourceUnitId: string;
+  /** R-MEM-04（M7-008、Issue #176）: Memory由来のMarkerは付与者ユニットを持たない。 */
+  readonly sourceUnitId?: string;
+  /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営（`EffectStateResponse`と同じ）。 */
+  readonly sourceSide?: string;
   readonly stackCount: number;
   readonly stackMax: number | null;
   readonly duration?: { readonly unit: string; readonly remaining: number };

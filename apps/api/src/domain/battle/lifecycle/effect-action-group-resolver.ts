@@ -1181,10 +1181,10 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           markerId: effectAction.payload.markerId,
-          // `10_API設計.md`「MarkerStateResponse.sourceUnitId」は必須（Markerは
-          // 常に「直近の付与者」を持つ）ため、Memory由来のAPPLY_MARKERは
-          // R-MEM-04「具体的な発生源BattleUnitが必要なEffectAction」として拒否する。
-          sourceId: requireActorUnit(context, box).battleUnitId,
+          // R-MEM-04（M7-008、Issue #176）: Memory由来の`APPLY_MARKER`は付与者
+          // ユニットを持たないため、`AppliedEffect`と同じく`sourceSide`
+          // （そのMemoryを指定した陣営）を渡す。
+          ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           stackPolicy: effectAction.payload.stack.policy,
           stackMax: effectAction.payload.stack.max,

@@ -306,4 +306,80 @@ describe("applyMarker", () => {
 
     expect(second.markerState.stackCount).toBe(1);
   });
+
+  it("UT-R-EFF-10-019: a Memory-granted Marker (R-MEM-04) carries sourceSide instead of a granter unit, in the MarkerState, the MarkerApplied envelope and its payload", () => {
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+
+    const result = applyMarker(
+      context,
+      [target],
+      {
+        markerId,
+        sourceSide: "ALLY",
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+      },
+      rootEventId,
+    );
+
+    expect(result.markerState.sourceId).toBeUndefined();
+    expect(result.markerState.sourceSide).toBe("ALLY");
+    const applied = recorder.getEvents()[1]!;
+    expect(applied.eventType).toBe("MarkerApplied");
+    expect(applied.sourceUnitId).toBeUndefined();
+    expect(applied.sourceSide).toBe("ALLY");
+    expect(applied.payload).toMatchObject({ sourceSide: "ALLY" });
+    expect(applied.payload).not.toHaveProperty("sourceUnitId");
+    // StateDeltaの外部公開形も同じ規約（`EffectSnapshot`と揃える）。
+    const snapshot =
+      applied.stateDelta?.units?.[target.battleUnitId]?.markers?.[
+        result.markerState.markerInstanceId
+      ]?.after;
+    expect(snapshot?.sourceUnitId).toBeUndefined();
+    expect(snapshot?.sourceSide).toBe("ALLY");
+  });
+
+  it("UT-R-EFF-10-020: re-applying a Memory-granted Marker from a real unit records the granter, and vice versa", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+
+    const fromMemory = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceSide: "ALLY",
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+      },
+      rootEventId,
+    );
+    const fromUnit = applyMarker(
+      context,
+      fromMemory.units,
+      {
+        markerId,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+      },
+      fromMemory.lastEventId,
+    );
+
+    // `sourceId`/`sourceSide`は「直近の付与者」を表す監査用の値であり、後から
+    // 実ユニットが積み増したら、その時点の付与元へ入れ替わる（片方だけを持つ）。
+    expect(fromUnit.markerState.stackCount).toBe(2);
+    expect(fromUnit.markerState.sourceId).toBe(source.battleUnitId);
+    expect(fromUnit.markerState.sourceSide).toBeUndefined();
+  });
 });

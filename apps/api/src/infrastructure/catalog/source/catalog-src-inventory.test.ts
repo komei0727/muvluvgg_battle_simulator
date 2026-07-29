@@ -44,8 +44,8 @@ describe("catalog-src/ inventory (Issue #47 ledger)", () => {
     expect(source.units.length).toBe(70);
   });
 
-  it("IT-CAT-INV-002: catalog-src/ has exactly the 12 converted memories tallied in the ledger (6 from Issue #47 + 6 from Issue #178 M7-007)", () => {
+  it("IT-CAT-INV-002: catalog-src/ has all 32 converted memories tallied in the ledger (6 from Issue #47 + 6 from Issue #178 M7-007 + 20 from Issue #176 M7-008)", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
-    expect(source.memories.length).toBe(12);
+    expect(source.memories.length).toBe(32);
   });
 });

@@ -1488,14 +1488,18 @@ const effectRemovedDetailsSchema = {
 
 const MARKER_STACK_POLICY_ENUM = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 
-/** `MarkerApplied`（R-EFF-10）。新しい`MarkerState`インスタンス追加後に発行する。`EffectApplied`と同じ「持つ場合だけ対応フィールドを持つ」規約。 */
+/**
+ * `MarkerApplied`（R-EFF-10）。新しい`MarkerState`インスタンス追加後に発行する。
+ * `EffectApplied`と同じ「持つ場合だけ対応フィールドを持つ」規約 — R-MEM-04
+ * （M7-008、Issue #176）のMemory由来の付与は`sourceUnitId`を持たず`sourceSide`を
+ * 持つため、`sourceUnitId`は必須にしない。
+ */
 const markerAppliedDetailsSchema = {
   type: "object",
   additionalProperties: false,
   required: [
     "markerInstanceId",
     "markerId",
-    "sourceUnitId",
     "targetUnitId",
     "stackCount",
     "stackMax",
@@ -1505,6 +1509,7 @@ const markerAppliedDetailsSchema = {
     markerInstanceId: { type: "string" },
     markerId: { type: "string" },
     sourceUnitId: { type: "string" },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     targetUnitId: { type: "string" },
     stackCount: { type: "integer", minimum: 0 },
     stackMax: { type: ["integer", "null"], minimum: 1 },
@@ -1524,11 +1529,11 @@ const markerAppliedDetailsSchema = {
 const markerUpdatedDetailsSchema = {
   type: "object",
   additionalProperties: false,
+  // R-MEM-04（M7-008、Issue #176）: `MarkerApplied`と同じ理由で`sourceUnitId`は必須にしない。
   required: [
     "markerInstanceId",
     "markerId",
     "targetUnitId",
-    "sourceUnitId",
     "stackBefore",
     "stackAfter",
     "linkedEffectGroupId",
@@ -1538,6 +1543,7 @@ const markerUpdatedDetailsSchema = {
     markerId: { type: "string" },
     targetUnitId: { type: "string" },
     sourceUnitId: { type: "string" },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     policy: { type: "string", enum: MARKER_STACK_POLICY_ENUM },
     stackBefore: { type: "integer", minimum: 0 },
     stackAfter: { type: "integer", minimum: 0 },

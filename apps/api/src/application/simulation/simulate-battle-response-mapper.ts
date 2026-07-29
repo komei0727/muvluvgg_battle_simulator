@@ -153,15 +153,16 @@ function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseB
 
 /**
  * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1]):
- * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`は直近の付与者を表す
- * 監査用の値で常に存在する — `MarkerState`はAppliedEffectと異なり付与元不明の
- * インスタンスを持たない）。
+ * `MarkerSnapshot`をそのまま外部形へ写す。`sourceUnitId`は直近の付与者を表す
+ * 監査用の値で、R-MEM-04（M7-008、Issue #176）のMemory由来の付与だけが代わりに
+ * `sourceSide`を持つ（`EffectStateResponse`と同じ規約）。
  */
 function toMarkerStateResponseBody(marker: MarkerSnapshot): MarkerStateResponseBody {
   return {
     markerInstanceId: marker.markerInstanceId,
     markerId: marker.markerId,
-    sourceUnitId: marker.sourceUnitId,
+    ...(marker.sourceUnitId !== undefined ? { sourceUnitId: marker.sourceUnitId } : {}),
+    ...(marker.sourceSide !== undefined ? { sourceSide: marker.sourceSide } : {}),
     stackCount: marker.stackCount,
     stackMax: marker.stackMax,
     ...(marker.duration !== undefined ? { duration: marker.duration } : {}),

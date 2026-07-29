@@ -2,6 +2,7 @@ import { buildInitialDurationState } from "../model/applied-effect.js";
 import {
   buildInitialMarkerState,
   clampMarkerStack,
+  type MarkerSource,
   type MarkerState,
 } from "../model/marker-state.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -14,6 +15,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type { MarkerStackPolicy } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
@@ -30,7 +32,14 @@ export interface ApplyMarkerContext {
 
 export interface ApplyMarkerRequest {
   readonly markerId: MarkerId;
-  readonly sourceId: BattleUnitId;
+  /**
+   * 付与者の戦闘ユニットID。R-MEM-04（M7-008、Issue #176）: Memory の
+   * `triggeredEffects` 由来の付与だけは`undefined`で、代わりに`sourceSide`を渡す
+   * （`GrantEffectRequest`と同じ規約）。
+   */
+  readonly sourceId?: BattleUnitId;
+  /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営。 */
+  readonly sourceSide?: Side;
   readonly targetId: BattleUnitId;
   readonly stackPolicy: MarkerStackPolicy;
   readonly stackMax: number | null;
@@ -41,6 +50,26 @@ export interface ApplyMarkerResult {
   readonly units: readonly BattleUnit[];
   readonly markerState: MarkerState;
   readonly lastEventId: DomainEventId;
+}
+
+/**
+ * `08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、`sourceSide`を
+ * 持つ」: envelope・payload・`MarkerState`のいずれも、付与元は片方だけを持つ。
+ */
+function markerSourceOf(request: ApplyMarkerRequest): MarkerSource {
+  return {
+    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
+  };
+}
+
+function sourceEnvelopeOf(
+  request: ApplyMarkerRequest,
+): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } | Record<string, never> {
+  if (request.sourceId !== undefined) {
+    return { sourceUnitId: request.sourceId };
+  }
+  return request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {};
 }
 
 function actionTurnDurationOf(
@@ -80,7 +109,7 @@ export function applyMarker(
     const markerState = buildInitialMarkerState(
       context.recorder.nextMarkerInstanceId(),
       request.markerId,
-      request.sourceId,
+      markerSourceOf(request),
       request.targetId,
       request.stackMax,
       request.durationDefinition,
@@ -105,12 +134,12 @@ export function applyMarker(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: request.sourceId,
+      ...sourceEnvelopeOf(request),
       targetUnitIds: [request.targetId],
       payload: {
         markerInstanceId: markerState.markerInstanceId,
         markerId: request.markerId,
-        sourceUnitId: request.sourceId,
+        ...sourceEnvelopeOf(request),
         targetUnitId: request.targetId,
         stackCount: markerState.stackCount,
         stackMax: markerState.stackMax,
@@ -158,18 +187,25 @@ export function applyMarker(
   const stackBefore = existing.stackCount;
   const durationBefore = actionTurnDurationOf(existing);
 
+  // 「直近の付与者」は片方だけを持つため、`sourceId`/`sourceSide`は
+  // 上書きではなく両方を落としてから入れ替える。
+  const {
+    sourceId: _previousSourceId,
+    sourceSide: _previousSourceSide,
+    ...withoutSource
+  } = existing;
+  const carried = { ...withoutSource, ...markerSourceOf(request) };
+
   let nextMarker: MarkerState;
   if (request.stackPolicy === "ADD") {
     nextMarker = {
-      ...existing,
-      sourceId: request.sourceId,
+      ...carried,
       stackCount: clampMarkerStack(existing.stackCount + 1, request.stackMax),
       stackMax: request.stackMax,
     };
   } else if (request.stackPolicy === "REFRESH") {
     nextMarker = {
-      ...existing,
-      sourceId: request.sourceId,
+      ...carried,
       duration: buildInitialDurationState(request.durationDefinition, {
         ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         turnNumber: context.turnNumber,
@@ -178,8 +214,7 @@ export function applyMarker(
   } else {
     // REPLACE: 既存Markerを新しい定義内容で丸ごと置き換える。
     nextMarker = {
-      ...existing,
-      sourceId: request.sourceId,
+      ...carried,
       stackCount: clampMarkerStack(1, request.stackMax),
       stackMax: request.stackMax,
       duration: buildInitialDurationState(request.durationDefinition, {
@@ -211,13 +246,13 @@ export function applyMarker(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: request.sourceId,
+    ...sourceEnvelopeOf(request),
     targetUnitIds: [request.targetId],
     payload: {
       markerInstanceId: nextMarker.markerInstanceId,
       markerId: request.markerId,
       targetUnitId: request.targetId,
-      sourceUnitId: request.sourceId,
+      ...sourceEnvelopeOf(request),
       policy: request.stackPolicy,
       stackBefore,
       stackAfter: nextMarker.stackCount,

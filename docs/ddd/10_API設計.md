@@ -510,23 +510,27 @@ EffectStateResponse {
 MarkerStateResponse {
   markerInstanceId
   markerId
-  sourceUnitId
+  sourceUnitId?
+  sourceSide?
   stackCount
   stackMax
   duration?
 }
 ```
 
-| プロパティ         | 説明                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| `markerInstanceId` | 個別インスタンスの安定したドメインID。                                                     |
-| `markerId`         | Marker種別を識別するID（`MARKER_` 接頭辞）。                                               |
-| `sourceUnitId`     | 直近の付与者。複数付与元から同じMarkerが付与された場合も対象ごとに単一インスタンスへ積む。 |
-| `stackCount`       | 現在のスタック数（0未満にならない）。                                                      |
-| `stackMax`         | スタック上限。上限なしは `null`。                                                          |
-| `duration`         | `{ unit: "ACTION" \| "TURN", remaining: integer }`。永続効果では省略する。                 |
+| プロパティ         | 説明                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `markerInstanceId` | 個別インスタンスの安定したドメインID。                                                                                               |
+| `markerId`         | Marker種別を識別するID（`MARKER_` 接頭辞）。                                                                                         |
+| `sourceUnitId`     | 直近の付与者。複数付与元から同じMarkerが付与された場合も対象ごとに単一インスタンスへ積む。Memory由来の付与では存在しない。           |
+| `sourceSide`       | R-MEM-04: Memory由来の付与だけが持つ付与元陣営（`ALLY` / `ENEMY`）。`EffectStateResponse` と同じ規約で `sourceUnitId` と排他になる。 |
+| `stackCount`       | 現在のスタック数（0未満にならない）。                                                                                                |
+| `stackMax`         | スタック上限。上限なしは `null`。                                                                                                    |
+| `duration`         | `{ unit: "ACTION" \| "TURN", remaining: integer }`。永続効果では省略する。                                                           |
 
 `EffectStateResponse` と異なり `category`/`stackMode`/`isEffective`/`value` を持たない。Markerは重複あり・なしの選択（R-EFF-05）の対象ではなく、対象ごとに常に1インスタンスだけが存在し、`ADD`/`KEEP_EXISTING`/`REFRESH`/`REPLACE`の付与方針でこのインスタンスを更新する（R-EFF-10）。
+
+`sourceUnitId` は当初必須だったが、M7-008（Issue #176）で `MEM_ALWAYS_PICO_BESIDE_YOU`（「三ツ星」）のように Memory が Marker を付与する production 定義が現れたため、`EffectStateResponse.sourceUnitId?`/`sourceSide?` と同じ任意プロパティ対に変更した（schemaVersion の後方互換規則: 必須プロパティの削減はクライアントを壊さない）。
 
 ### SubUnitStateResponse
 
