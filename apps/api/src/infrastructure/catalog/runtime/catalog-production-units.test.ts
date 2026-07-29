@@ -149,7 +149,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // owner Issues (M7-002A / M7-015〜M7-019) and three descriptions corrected.
     // No `runtimeStatus` flipped and no Unit/Skill/EffectAction definition
     // changed, so `unitCount`/violation/`selectable` expectations are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-30.2");
+    // Bumped again by the same PR's review fix [P2]: three of those descriptions
+    // claimed the Capability was the *exclusive* blocker of some Units; measured
+    // against the real Catalog none of the three is, so the wording was corrected.
+    // Descriptions only — still no definition or `runtimeStatus` change.
+    expect(catalog.catalogRevision).toBe("2026-07-30.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

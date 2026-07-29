@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 54
+      "incompleteConversionRows": 55
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -235,6 +235,12 @@
       "theme": "LINKED_EFFECT_GROUP_SHIELD",
       "rowCount": 1,
       "taskId": "DMG-004"
+    },
+    {
+      "milestone": "M9",
+      "theme": "UNREACHABLE_BRANCH_BY_RAW_DATA",
+      "rowCount": 1,
+      "taskId": "REL-003"
     }
   ],
   "unconvertedMemoryAssignments": [],
@@ -250,21 +256,111 @@
       "selectableMemories": 18
     },
     "blockingCapabilities": [
-      { "capabilityId": "CAP_DAMAGE_MOD", "blockedUnits": 54, "blockedMemories": 13 },
-      { "capabilityId": "CAP_CONTINUOUS_DAMAGE", "blockedUnits": 19, "blockedMemories": 0 },
-      { "capabilityId": "CAP_SHIELD", "blockedUnits": 18, "blockedMemories": 0 },
-      { "capabilityId": "CAP_HIT_COUNT_EVASION", "blockedUnits": 7, "blockedMemories": 0 },
-      { "capabilityId": "CAP_CRITICAL_CONTROL", "blockedUnits": 6, "blockedMemories": 0 },
-      { "capabilityId": "CAP_DEATH_SURVIVAL", "blockedUnits": 6, "blockedMemories": 0 },
-      { "capabilityId": "CAP_PARTIAL_PIERCING", "blockedUnits": 4, "blockedMemories": 0 },
-      { "capabilityId": "CAP_COVER_DAMAGE", "blockedUnits": 3, "blockedMemories": 0 },
-      { "capabilityId": "CAP_MARKER_STACK_FORMULA", "blockedUnits": 3, "blockedMemories": 0 },
-      { "capabilityId": "CAP_CHARGE_RESTRICTION", "blockedUnits": 2, "blockedMemories": 0 },
-      { "capabilityId": "CAP_TARGET_REDIRECT", "blockedUnits": 2, "blockedMemories": 0 },
-      { "capabilityId": "CAP_RESOURCE_CAPACITY_MOD", "blockedUnits": 1, "blockedMemories": 0 },
-      { "capabilityId": "CAP_RESOURCE_DISTRIBUTE", "blockedUnits": 1, "blockedMemories": 0 },
-      { "capabilityId": "CAP_STATUS_EFFECT_KIND", "blockedUnits": 1, "blockedMemories": 0 },
-      { "capabilityId": "CAP_MEMORY_GRANTED_MARKER", "blockedUnits": 0, "blockedMemories": 1 }
+      {
+        "capabilityId": "CAP_DAMAGE_MOD",
+        "blockedUnits": 54,
+        "blockedMemories": 13,
+        "exclusivelyBlockedUnits": 17,
+        "exclusivelyBlockedMemories": 13
+      },
+      {
+        "capabilityId": "CAP_CONTINUOUS_DAMAGE",
+        "blockedUnits": 19,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 3,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_SHIELD",
+        "blockedUnits": 18,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 2,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_HIT_COUNT_EVASION",
+        "blockedUnits": 7,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_CRITICAL_CONTROL",
+        "blockedUnits": 6,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_DEATH_SURVIVAL",
+        "blockedUnits": 6,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_PARTIAL_PIERCING",
+        "blockedUnits": 4,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_COVER_DAMAGE",
+        "blockedUnits": 3,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_MARKER_STACK_FORMULA",
+        "blockedUnits": 3,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_CHARGE_RESTRICTION",
+        "blockedUnits": 2,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_TARGET_REDIRECT",
+        "blockedUnits": 2,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_MEMORY_GRANTED_MARKER",
+        "blockedUnits": 0,
+        "blockedMemories": 1,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 1
+      },
+      {
+        "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",
+        "blockedUnits": 1,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_RESOURCE_DISTRIBUTE",
+        "blockedUnits": 1,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_STATUS_EFFECT_KIND",
+        "blockedUnits": 1,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedMemories": 0
+      }
     ],
     "unreferencedCapabilities": [
       "CAP_EFFECT_RUNTIME_COUNTER",

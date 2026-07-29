@@ -16,7 +16,8 @@ import { loadBattleCatalogDirectory } from "../../infrastructure/catalog/runtime
  *
  * 1. 残作業の割当先Taskは必ずOPENである（`tasks[].status`）
  * 2. 未`IMPLEMENTED` CapabilityのimplementationTaskIdも必ずOPENである
- * 3. 実在Unit・Memoryのselectabilityと、それを阻むCapabilityの内訳が
+ * 3. 実在Unit・Memoryのselectabilityと、それを阻むCapabilityの内訳
+ *    （ブロック件数と、そのCapability**だけ**が理由になっている排他件数）が
  *    `17_残作業対応表.json`の`m7Audit`の宣言と一致する
  * 4. catalog-srcのどの定義からも`requiredCapabilities`で宣言されていない
  *    Capabilityの集合が、`m7Audit.unreferencedCapabilities`の宣言と一致する
@@ -41,6 +42,9 @@ interface BlockingCapability {
   readonly capabilityId: string;
   readonly blockedUnits: number;
   readonly blockedMemories: number;
+  /** そのCapabilityだけが非selectableの理由になっている件数（実装完了で即selectableになる件数）。 */
+  readonly exclusivelyBlockedUnits: number;
+  readonly exclusivelyBlockedMemories: number;
 }
 
 interface M7AuditManifest {
@@ -187,20 +191,31 @@ describe("M7 completion audit (M7-010)", () => {
   it("UT-AUDIT-M7-004: records exactly which Capabilities still block selection", () => {
     const manifest = readManifest();
     const result = projectCatalog();
-    const blocked = new Map<string, { blockedUnits: number; blockedMemories: number }>();
-    const bump = (capabilityId: string, key: "blockedUnits" | "blockedMemories"): void => {
-      const entry = blocked.get(capabilityId) ?? { blockedUnits: 0, blockedMemories: 0 };
-      entry[key] += 1;
-      blocked.set(capabilityId, entry);
+    type Counts = Omit<BlockingCapability, "capabilityId">;
+    const blocked = new Map<string, Counts>();
+    const bump = (capabilityId: string, key: keyof Counts): void => {
+      const entry = blocked.get(capabilityId) ?? {
+        blockedUnits: 0,
+        blockedMemories: 0,
+        exclusivelyBlockedUnits: 0,
+        exclusivelyBlockedMemories: 0,
+      };
+      blocked.set(capabilityId, { ...entry, [key]: entry[key] + 1 });
     };
     for (const unit of result.units) {
       for (const capabilityId of unit.unavailableCapabilities) {
         bump(capabilityId, "blockedUnits");
+        if (unit.unavailableCapabilities.length === 1) {
+          bump(capabilityId, "exclusivelyBlockedUnits");
+        }
       }
     }
     for (const memory of result.memories) {
       for (const capabilityId of memory.unavailableCapabilities) {
         bump(capabilityId, "blockedMemories");
+        if (memory.unavailableCapabilities.length === 1) {
+          bump(capabilityId, "exclusivelyBlockedMemories");
+        }
       }
     }
 

@@ -47,7 +47,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-016",
-    "description": "チャージ中の回避/PS制限。M7-003（Issue #180）は気絶・凍結と行動可能判定・Charge連携を実装したが、チャージ中の回避・PS制限そのものは実装せずcloseした。M7-010（Issue #177、監査）で所有者不在を検出し、完了境界（対象Rule IDを含む）の確定ごとM7-016（Issue #270）へ引き継いだ。production使用はSKL_MIRIAM_MAGE_AS2・SKL_SIENA_OFFSTAGE_AS1（いずれもresolution.kind: CHARGE）の2件で、この2ユニットのselectableを単独でブロックしている。",
+    "description": "チャージ中の回避/PS制限。M7-003（Issue #180）は気絶・凍結と行動可能判定・Charge連携を実装したが、チャージ中の回避・PS制限そのものは実装せずcloseした。M7-010（Issue #177、監査）で所有者不在を検出し、完了境界（対象Rule IDを含む）の確定ごとM7-016（Issue #270）へ引き継いだ。production使用はSKL_MIRIAM_MAGE_AS2・SKL_SIENA_OFFSTAGE_AS1（いずれもresolution.kind: CHARGE）の2件で、この2ユニットの非selectable要因の一つだが、排他的なブロッカーではない（UNIT_MIRIAM_MAGEはCAP_CONTINUOUS_DAMAGE/CAP_DAMAGE_MOD、UNIT_SIENA_OFFSTAGEはCAP_DAMAGE_MODでも非selectableのままで、本Capabilityの完了だけではどちらもselectableにならない）。",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []
@@ -344,7 +344,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-015",
-    "description": "Marker所持数を参照するFormula（MARKER_COUNT_SCALE）。EFF-004（Issue #160）はMarker本体を実装したがこのFormulaの実ライフサイクル配線は行わずcloseした。M7-010（Issue #177、監査）で所有者不在を検出しM7-015（Issue #269）へ引き継いだ。production使用はACT_CHIYURU_NEWYEAR_AS1_ATK_UP／ACT_CHIYURU_NEWYEAR_AS1_DEF_UPのformulaと、ACT_KARINA_DOWNER_AS1_DAMAGE／ACT_FEE_BATH_AS2_DAMAGEのdamageModifiersで、UNIT_CHIYURU_NEWYEAR・UNIT_KARINA_DOWNER・UNIT_FEE_BATHのselectableを単独でブロックしている。",
+    "description": "Marker所持数を参照するFormula（MARKER_COUNT_SCALE）。EFF-004（Issue #160）はMarker本体を実装したがこのFormulaの実ライフサイクル配線は行わずcloseした。M7-010（Issue #177、監査）で所有者不在を検出しM7-015（Issue #269）へ引き継いだ。production使用はACT_CHIYURU_NEWYEAR_AS1_ATK_UP／ACT_CHIYURU_NEWYEAR_AS1_DEF_UPのformulaと、ACT_KARINA_DOWNER_AS1_DAMAGE／ACT_FEE_BATH_AS2_DAMAGEのdamageModifiersで、UNIT_CHIYURU_NEWYEAR・UNIT_KARINA_DOWNER・UNIT_FEE_BATHの非selectable要因の一つだが、排他的なブロッカーではない（3件ともM8のCAP_DAMAGE_MOD/CAP_CONTINUOUS_DAMAGE/CAP_SHIELD等でも非selectableのままで、本Capabilityの完了だけではselectableにならない）。",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []
@@ -507,7 +507,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
     "implementationTaskId": "M7-002A",
-    "description": "最大APなどの上限変更（MODIFY_RESOURCE_CAPACITY）。M7-002（Issue #185）はこのCapabilityの実装を見送り、production需要が発生した時点で着手する待機TaskとしてM7-002A（Issue #255）へ分離した。実装するとCombatStat（APPLY_STAT_MOD）と同等の継続効果再計算システム（重複ポリシー・失効時の現在値clamp等）を新規に丸ごと設計することになる。M7-010（Issue #177、監査）で、#185とM7-002Aが記録した「現行のCatalog変換行のどれからも参照されていない」という前提が事実誤りであることを検出した — UNIT_FLUTE_VAMPIREのACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP（resource: AP、operation: ADD）が実際に参照しており、当該Unitのselectableを単独でブロックしている。着手トリガーは既に成立しているため、M7-002Aは「需要待ち」ではなく通常の未実装TaskとしてM7-019（Issue #273）の需要待ちリストには含めない。",
+    "description": "最大APなどの上限変更（MODIFY_RESOURCE_CAPACITY）。M7-002（Issue #185）はこのCapabilityの実装を見送り、production需要が発生した時点で着手する待機TaskとしてM7-002A（Issue #255）へ分離した。実装するとCombatStat（APPLY_STAT_MOD）と同等の継続効果再計算システム（重複ポリシー・失効時の現在値clamp等）を新規に丸ごと設計することになる。M7-010（Issue #177、監査）で、#185とM7-002Aが記録した「現行のCatalog変換行のどれからも参照されていない」という前提が事実誤りであることを検出した — UNIT_FLUTE_VAMPIREのACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP（resource: AP、operation: ADD）が実際に参照しており、当該Unitの非selectable要因の一つである（UNIT_FLUTE_VAMPIREは他にCAP_DAMAGE_MOD・CAP_DEATH_SURVIVAL・CAP_HIT_COUNT_EVASIONでも非selectableのため、本Capabilityの完了だけではselectableにならない）。着手トリガーは既に成立しているため、M7-002Aは「需要待ち」ではなく通常の未実装TaskとしてM7-019（Issue #273）の需要待ちリストには含めない。",
     "verification": {
       "productionDefinitionIds": [],
       "testCaseIds": []
