@@ -76,6 +76,14 @@ export interface EffectStateResponseBody {
   readonly sourceSide?: string;
   readonly category: string;
   readonly effectKindKey: string;
+  /**
+   * M7-009（Issue #182）: `APPLY_STATUS`由来の効果だけが持つ状態の種別。気絶等の
+   * 状態異常（`category: STATUS_ABNORMALITY`）だけでなく、STEALTH等の対象に有利な
+   * 状態（`category: BUFF`）も持つ（PR #264レビュー[P1]）。どの状態かをクライアント
+   * が`effectKindKey`（現状は効果アクション定義ID）の命名から推測せずに表示できる
+   * ようにするための値であり、状態異常かどうかの判定には`category`を使う。
+   */
+  readonly statusKind?: string;
   readonly stackMode: string;
   readonly isEffective: boolean;
   readonly value: unknown;

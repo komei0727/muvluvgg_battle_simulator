@@ -12,6 +12,7 @@ import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { createMarkerInstanceId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import type { EffectSnapshot } from "../../domain/battle/events/state-delta.js";
+import { STATUS_AILMENT_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const ALLY_ID = createBattleUnitId("ally:1");
@@ -257,6 +258,172 @@ describe("toBattleSimulationResponseBody", () => {
     ]);
     // A unit with no MarkerState instances still gets a truthfully-empty array.
     expect(body.finalState.units[1]!.markers).toEqual([]);
+  });
+
+  it("API-RESP-012C (M7-009, Issue #182): classifies an APPLY_STATUS-derived AppliedEffect as STATUS_ABNORMALITY and publishes its statusKind, instead of deriving BUFF from a zero magnitude", () => {
+    const base = baseResult();
+    const withStatus = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: [
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+                effectDefinitionId: "ACT_TEST_STUN",
+                sourceUnitId: ENEMY_ID,
+                kindKey: "ACT_TEST_STUN",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0,
+                statusKind: "STUN",
+                duration: { unit: "ACTION", remaining: 1 },
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const body = toBattleSimulationResponseBody(withStatus);
+
+    expect(body.finalState.units[0]!.effects).toEqual([
+      {
+        effectInstanceId: "battle-1:effect:1",
+        effectDefinitionId: "ACT_TEST_STUN",
+        sourceUnitId: "enemy:1",
+        category: "STATUS_ABNORMALITY",
+        effectKindKey: "ACT_TEST_STUN",
+        statusKind: "STUN",
+        stackMode: "NON_STACKING",
+        isEffective: true,
+        value: { magnitude: 0 },
+        duration: { unit: "ACTION", remaining: 1 },
+        appliedTurnNumber: 1,
+      },
+    ]);
+  });
+
+  it("API-RESP-012E (PR #264レビュー[P1]): classifies an advantageous APPLY_STATUS (STEALTH etc., outside STATUS_AILMENT_KINDS) as BUFF while still publishing its statusKind, matching effectCategoriesOf", () => {
+    const base = baseResult();
+    const withAdvantageousStatus = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: [
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+                effectDefinitionId: "ACT_TEST_STEALTH",
+                sourceUnitId: ALLY_ID,
+                kindKey: "ACT_TEST_STEALTH",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0,
+                statusKind: "STEALTH",
+                appliedTurnNumber: 1,
+              },
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:2"),
+                effectDefinitionId: "ACT_TEST_DAMAGE_IMMUNITY",
+                sourceUnitId: ALLY_ID,
+                kindKey: "ACT_TEST_DAMAGE_IMMUNITY",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0,
+                statusKind: "DAMAGE_IMMUNITY",
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const effects =
+      toBattleSimulationResponseBody(withAdvantageousStatus).finalState.units[0]!.effects;
+
+    expect(effects.map((effect) => effect.category)).toEqual(["BUFF", "BUFF"]);
+    expect(effects.map((effect) => effect.statusKind)).toEqual(["STEALTH", "DAMAGE_IMMUNITY"]);
+  });
+
+  it("API-RESP-012F (PR #264レビュー[P1]): classifies every STATUS_AILMENT_KINDS member as STATUS_ABNORMALITY", () => {
+    const base = baseResult();
+    const withAilments = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: STATUS_AILMENT_KINDS.map((statusKind, index) => ({
+              effectInstanceId: createEffectInstanceId(`battle-1:effect:${index + 1}`),
+              effectDefinitionId: `ACT_TEST_${statusKind}`,
+              sourceUnitId: ENEMY_ID,
+              kindKey: `ACT_TEST_${statusKind}`,
+              duplicate: false,
+              isEffective: true,
+              magnitude: 0,
+              statusKind,
+              appliedTurnNumber: 1,
+            })),
+          },
+        },
+      },
+    });
+
+    const effects = toBattleSimulationResponseBody(withAilments).finalState.units[0]!.effects;
+
+    expect(effects.map((effect) => effect.category)).toEqual(
+      STATUS_AILMENT_KINDS.map(() => "STATUS_ABNORMALITY"),
+    );
+  });
+
+  it("API-RESP-012D (M7-009, Issue #182): keeps deriving BUFF/DEBUFF from the magnitude sign for effects without a statusKind, and omits statusKind entirely", () => {
+    const base = baseResult();
+    const withStatMods = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: [
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+                effectDefinitionId: "ACT_TEST_ATTACK_UP",
+                sourceUnitId: ALLY_ID,
+                kindKey: "ACT_TEST_ATTACK_UP",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0.1,
+                appliedTurnNumber: 1,
+              },
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:2"),
+                effectDefinitionId: "ACT_TEST_ATTACK_DOWN",
+                sourceUnitId: ENEMY_ID,
+                kindKey: "ACT_TEST_ATTACK_DOWN",
+                duplicate: false,
+                isEffective: true,
+                magnitude: -0.1,
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const effects = toBattleSimulationResponseBody(withStatMods).finalState.units[0]!.effects;
+
+    expect(effects.map((effect) => effect.category)).toEqual(["BUFF", "DEBUFF"]);
+    expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
   });
 
   it("API-RESP-012B (PR #262レビュー[P1]): throws INTERNAL_INVARIANT_VIOLATION instead of silently omitting the required sourceUnitId when a Memory-granted (source-less) MarkerState reaches the v1 MarkerStateResponse mapper", () => {

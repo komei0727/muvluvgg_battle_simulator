@@ -36,6 +36,23 @@ export interface UnitChargeState {
   readonly skillDefinitionId: string;
 }
 
+/**
+ * `10_API設計.md`「EffectStateResponse」のうち、ユニット状態の一覧表示が使う項目
+ * （M7-009、Issue #182）。`statusKind`は`APPLY_STATUS`由来の効果だけが持ち、
+ * 気絶等の状態異常だけでなくSTEALTH等の有利な状態にも設定される（PR #264
+ * レビュー[P1]）。状態異常かどうかは`category`が正本であり、`statusKind`の有無や
+ * `effectKindKey`の命名からは判定しない。
+ */
+export interface UnitEffectState {
+  readonly effectInstanceId: string;
+  readonly effectKindKey: string;
+  readonly category: string;
+  readonly statusKind?: string;
+  readonly isEffective: boolean;
+  /** 永続効果は持たない（`10_API設計.md`「EffectStateResponse.duration」）。 */
+  readonly duration?: { readonly unit: string; readonly remaining: number };
+}
+
 export interface UnitActionState {
   readonly battleUnitId: string;
   readonly ap?: ResourceValue;
@@ -45,6 +62,9 @@ export interface UnitActionState {
   readonly charge?: UnitChargeState;
   /** falseの場合、cooldowns/chargeが空でも「クールタイム/チャージなし」を意味しない(SUMMARYログ)。 */
   readonly cooldownChargeKnown: boolean;
+  readonly effects: readonly UnitEffectState[];
+  /** falseの場合、effectsが空でも「効果なし」を意味しない(effects契約より前に録取したfixture)。 */
+  readonly effectsKnown: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,6 +123,47 @@ function readChargeFromFinalState(finalUnit: unknown): UnitChargeState | undefin
     return undefined;
   }
   return { skillDefinitionId: charge["skillDefinitionId"] };
+}
+
+/**
+ * `finalUnit["effects"]`（`10_API設計.md`「EffectStateResponse」、v1の必須配列）を
+ * `UnitEffectState`へ変換する。配列でない場合（effects契約より前に手で録取した
+ * UI fixture）は`undefined`を返し、呼び出し側が「効果なし」ではなく「不明」として
+ * 扱えるようにする — `cooldowns`と同じ後方互換規約。個々の要素が必須項目を欠く
+ * 場合はその要素だけ落とし、残りの効果は表示する（1件の契約違反で効果一覧全体を
+ * 消さない）。
+ */
+function readEffectsFromFinalState(finalUnit: unknown): readonly UnitEffectState[] | undefined {
+  if (!isRecord(finalUnit) || !Array.isArray(finalUnit["effects"])) {
+    return undefined;
+  }
+  const effects: UnitEffectState[] = [];
+  for (const entry of finalUnit["effects"]) {
+    if (
+      !isRecord(entry) ||
+      typeof entry["effectInstanceId"] !== "string" ||
+      typeof entry["effectKindKey"] !== "string" ||
+      typeof entry["category"] !== "string" ||
+      typeof entry["isEffective"] !== "boolean"
+    ) {
+      continue;
+    }
+    const duration = entry["duration"];
+    const statusKind = entry["statusKind"];
+    effects.push({
+      effectInstanceId: entry["effectInstanceId"],
+      effectKindKey: entry["effectKindKey"],
+      category: entry["category"],
+      ...(typeof statusKind === "string" ? { statusKind } : {}),
+      isEffective: entry["isEffective"],
+      ...(isRecord(duration) &&
+      typeof duration["unit"] === "string" &&
+      typeof duration["remaining"] === "number"
+        ? { duration: { unit: duration["unit"], remaining: duration["remaining"] } }
+        : {}),
+    });
+  }
+  return effects;
 }
 
 interface MutableUnitAccumulator {
@@ -268,6 +329,7 @@ export function selectUnitActionStates(
       cooldownsFromFinalState !== undefined
         ? readChargeFromFinalState(finalUnit)
         : accumulator?.charge;
+    const effects = readEffectsFromFinalState(finalUnit);
     return {
       battleUnitId: entry.battleUnitId,
       ...(ap !== undefined ? { ap } : {}),
@@ -276,6 +338,8 @@ export function selectUnitActionStates(
       cooldowns,
       ...(charge !== undefined ? { charge } : {}),
       cooldownChargeKnown,
+      effects: effects ?? [],
+      effectsKnown: effects !== undefined,
     };
   });
 }

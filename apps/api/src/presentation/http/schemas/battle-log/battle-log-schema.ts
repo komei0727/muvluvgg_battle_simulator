@@ -1257,6 +1257,24 @@ export const conditionDefinitionDetailsSchema = {
  * `durationUnit`/`initialRemaining`は`timeLimit`を持つ場合、`consumptionKind`/
  * `consumptionMaxCount`は`consumption`を持つ場合だけ存在する。
  */
+/**
+ * `AppliedEffect.statusKind`（`APPLY_STATUS`由来の効果だけが持つ状態異常の種別）。
+ * `EffectApplied`/`EffectApplicationRejected`の`details`と、
+ * `EffectStateResponse`（`simulation-schema.ts`）が共有する。
+ */
+export const STATUS_KIND_ENUM = [
+  "STUN",
+  "FREEZE",
+  "BLIND",
+  "STEALTH",
+  "EVASION",
+  "DAMAGE_IMMUNITY",
+  "CRITICAL_GUARANTEE",
+  "CRITICAL_PREVENTION",
+  "GUARANTEED_HIT",
+  "HIT_EVASION",
+] as const;
+
 const effectAppliedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1281,6 +1299,9 @@ const effectAppliedDetailsSchema = {
     duplicate: { type: "boolean" },
     kindKey: { type: "string" },
     magnitude: { type: "number" },
+    // TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ
+    // （`domain-event.ts`の`EffectApplied.statusKind`。M7-009／Issue #182で公開文書へ追記）。
+    statusKind: { type: "string", enum: STATUS_KIND_ENUM },
     durationUnit: { type: "string", enum: DURATION_TIME_UNIT_ENUM },
     durationOwner: { type: "string", enum: DURATION_OWNER_ENUM },
     initialRemaining: { type: "integer", minimum: 1 },
@@ -1304,19 +1325,6 @@ const STAT_KIND_ENUM = [
   "CRITICAL_DAMAGE_BONUS",
   "AFFINITY_BONUS",
   "ACTION_SPEED",
-] as const;
-
-const STATUS_KIND_ENUM = [
-  "STUN",
-  "FREEZE",
-  "BLIND",
-  "STEALTH",
-  "EVASION",
-  "DAMAGE_IMMUNITY",
-  "CRITICAL_GUARANTEE",
-  "CRITICAL_PREVENTION",
-  "GUARANTEED_HIT",
-  "HIT_EVASION",
 ] as const;
 
 const EFFECT_APPLICATION_REJECTION_REASON_ENUM = ["IMMUNITY"] as const;

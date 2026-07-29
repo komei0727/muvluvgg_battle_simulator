@@ -1,8 +1,8 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §10 (表示用Roster), §11
 // (サマリ集計), §11.4 (Adapter registry). DAMAGE/DEFENSE come from
 // DAMAGE_APPLIED.details.hitPointDamage, never calculatedDamage
-// (01_UI要求・画面設計.md §7.2). HEAL stays 0 until the M7 heal event
-// contract exists (03 §11.3).
+// (01_UI要求・画面設計.md §7.2). HEAL comes from the M7 heal event contract
+// (HEAL_APPLIED / HEALING_TRANSFERRED の details.appliedAmount, 03 §11.3).
 
 import type {
   BattleLogEventResponse,
@@ -75,6 +75,7 @@ export function selectRoster(
 interface MutableSummaryAccumulator {
   readonly damageDealt: Map<string, number>;
   readonly damageTaken: Map<string, number>;
+  readonly healingDone: Map<string, number>;
   readonly validBattleUnitIds: ReadonlySet<string>;
   warned: boolean;
 }
@@ -115,6 +116,74 @@ function applyDamageApplied(
   addTo(accumulator.damageTaken, targetUnitId, hitPointDamage);
 }
 
+// docs/ui-design/01_UI要求・画面設計.md §7.2「HEAL: 実HP回復量」/
+// 07_UI実装・拡張計画.md §11「HEALは要求量ではなく実HP回復量を集計する」。
+// HealApplied.details.appliedAmount は「最大HPを超えない範囲で実際に増加したHP量」
+// (apps/api/src/domain/battle/events/domain-event.ts) であり、要求量である
+// healAmount でも破棄分を含む formulaResult でもない。回復者(details.sourceUnitId)
+// 側へ積む — DAMAGEをsourceUnitIdへ積むのと同じ規約。
+function applyHealApplied(
+  event: BattleLogEventResponse,
+  accumulator: MutableSummaryAccumulator,
+): void {
+  const details = event["details"];
+  if (!isRecord(details)) {
+    accumulator.warned = true;
+    return;
+  }
+  const sourceUnitId = details["sourceUnitId"];
+  const targetUnitId = details["targetUnitId"];
+  const appliedAmount = details["appliedAmount"];
+  if (
+    typeof sourceUnitId !== "string" ||
+    typeof targetUnitId !== "string" ||
+    !isNonNegativeInteger(appliedAmount)
+  ) {
+    accumulator.warned = true;
+    return;
+  }
+  if (
+    !accumulator.validBattleUnitIds.has(sourceUnitId) ||
+    !accumulator.validBattleUnitIds.has(targetUnitId)
+  ) {
+    accumulator.warned = true;
+    return;
+  }
+  addTo(accumulator.healingDone, sourceUnitId, appliedAmount);
+}
+
+// R-HEAL-04 (M7-005-HEAL-LINK, Issue #229): 回復リンクは HealApplied の回復量の
+// 一部を別ユニットへ移し替える。HealApplied.appliedAmount は転送分を含まない
+// ため、転送先で実際に増えたHP量 (HealingTransferred.details.appliedAmount) を
+// 加算しないと回復者の実回復量を過小表示する。転送分の「回復者」はイベント側の
+// sourceUnitId (元のHealApplied と同じ context.sourceUnitId) を正本とし、
+// details.fromUnitId(リンク保持者)を回復者と読み替える推測はしない。
+function applyHealingTransferred(
+  event: BattleLogEventResponse,
+  accumulator: MutableSummaryAccumulator,
+): void {
+  const sourceUnitId = event["sourceUnitId"];
+  const details = event["details"];
+  if (typeof sourceUnitId !== "string" || !isRecord(details)) {
+    accumulator.warned = true;
+    return;
+  }
+  const toUnitId = details["toUnitId"];
+  const appliedAmount = details["appliedAmount"];
+  if (typeof toUnitId !== "string" || !isNonNegativeInteger(appliedAmount)) {
+    accumulator.warned = true;
+    return;
+  }
+  if (
+    !accumulator.validBattleUnitIds.has(sourceUnitId) ||
+    !accumulator.validBattleUnitIds.has(toUnitId)
+  ) {
+    accumulator.warned = true;
+    return;
+  }
+  addTo(accumulator.healingDone, sourceUnitId, appliedAmount);
+}
+
 type SummaryEventAdapter = (
   event: BattleLogEventResponse,
   accumulator: MutableSummaryAccumulator,
@@ -122,7 +191,8 @@ type SummaryEventAdapter = (
 
 const summaryAdapters: Readonly<Record<string, SummaryEventAdapter>> = {
   DAMAGE_APPLIED: applyDamageApplied,
-  // M7: HEAL_APPLIED等、API契約確定後に追加(03 §11.3)。
+  HEAL_APPLIED: applyHealApplied,
+  HEALING_TRANSFERRED: applyHealingTransferred,
 };
 
 // finalState/initialStateのroster対応関係は、成功レスポンス全体を失敗させる
@@ -141,6 +211,7 @@ export function selectBattleSummary(
   const accumulator: MutableSummaryAccumulator = {
     damageDealt: new Map(),
     damageTaken: new Map(),
+    healingDone: new Map(),
     validBattleUnitIds: new Set(roster.map((entry) => entry.battleUnitId)),
     warned: false,
   };
@@ -157,7 +228,7 @@ export function selectBattleSummary(
       battleUnitId: entry.battleUnitId,
       damageDealt: accumulator.damageDealt.get(entry.battleUnitId) ?? 0,
       damageTaken: accumulator.damageTaken.get(entry.battleUnitId) ?? 0,
-      healingDone: 0,
+      healingDone: accumulator.healingDone.get(entry.battleUnitId) ?? 0,
       combatStatus: finalUnit?.combatStatus ?? "UNKNOWN",
       finalHp: finalUnit?.hp.current ?? 0,
       maximumHp: finalUnit?.hp.maximum ?? 0,

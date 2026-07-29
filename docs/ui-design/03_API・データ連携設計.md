@@ -344,12 +344,18 @@ damageTaken[details.targetUnitId] += amount
 
 ### 11.3 HEAL
 
-M4時点では回復EffectActionは基本resolverの対象外であり、公開回復イベント契約も未確定である。
+M7-005（Issue #184）・M7-005-HEAL-LINK（Issue #229）で回復イベント契約が確定したため、M7-009で次のadapterを追加した。
 
-- 列は常に表示する。
-- 対応イベントがなければ0。
-- イベント名やdetails keyを推測しない。
-- M7で回復イベント契約が確定したPRに、event adapterと集計テストを追加する。
+```text
+healingDone[HEAL_APPLIED.details.sourceUnitId]   += HEAL_APPLIED.details.appliedAmount
+healingDone[HEALING_TRANSFERRED.sourceUnitId]    += HEALING_TRANSFERRED.details.appliedAmount
+```
+
+- 列は常に表示する。対応イベントがなければ0。
+- 要求量（`healAmount`）でも評価結果（`formulaResult`）でもなく、実際にHPが増えた量（`appliedAmount`）を集計する。overhealの破棄分（`discardedAmount`）は含めない。
+- `HEAL_APPLIED.appliedAmount`はR-HEAL-04で転送した分を含まないため、`HEALING_TRANSFERRED.appliedAmount`を加算しないと回復者の実回復量を過小表示する。二重計上ではない。
+- 転送分の回復者はイベントの`sourceUnitId`（元の`HEAL_APPLIED`と同じ）を正本とし、`details.fromUnitId`（リンク保持者）を回復者と読み替えない。
+- DAMAGEと同じく、details shape不正・roster外のbattleUnitId・非整数値はそのイベントを集計から除外し、警告フラグだけ立てる。
 
 ### 11.4 Adapter registry
 
@@ -358,7 +364,8 @@ type SummaryEventAdapter = (event: BattleLogEvent, accumulator: MutableSummaryAc
 
 const summaryAdapters: Readonly<Record<string, SummaryEventAdapter>> = {
   DAMAGE_APPLIED: applyDamageApplied,
-  // M7: HEAL_APPLIED等、API契約確定後に追加
+  HEAL_APPLIED: applyHealApplied,
+  HEALING_TRANSFERRED: applyHealingTransferred,
 };
 ```
 
@@ -450,7 +457,7 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-003`: 同じunitDefinitionIdを複数枠へ送れる。
 - `UI-API-004`: 422のJSON Pointerを元の画面枠へ対応づける。
 - `UI-API-005`: DAMAGE/DEFENSEをhitPointDamageからbattleUnitId単位で集計する。
-- `UI-API-006`: 回復イベント未対応でもHEAL列を0表示する。
+- `UI-API-006`: HEAL列を要求量ではなく実HP回復量（`appliedAmount`）で集計し、回復イベントを持たないレスポンスでは0表示する。
 - `UI-API-007`: 未知イベントを詳細に残し、サマリ集計では安全に無視する。
 - `UI-API-008`: Request ID、diagnosticId、Retry-After、ETagを取得でき、必要な値を表示できる。
 - `UI-API-009`: 自動retryを行わない。

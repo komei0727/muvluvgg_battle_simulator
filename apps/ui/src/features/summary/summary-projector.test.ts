@@ -76,6 +76,84 @@ function damageAppliedEvent(overrides: {
   };
 }
 
+// apps/api/src/presentation/http/schemas/battle-log/battle-log-schema.ts
+// healAppliedDetailsSchema (M7-005, Issue #184).
+function healAppliedEvent(overrides: {
+  sequence: number;
+  sourceUnitId?: string;
+  targetUnitId: string;
+  appliedAmount: number;
+  healAmount?: number;
+  discardedAmount?: number;
+  transferredAmount?: number;
+}): BattleLogEventResponse {
+  const healAmount = overrides.healAmount ?? overrides.appliedAmount;
+  return {
+    sequence: overrides.sequence,
+    type: "HEAL_APPLIED",
+    category: "FACT",
+    turnNumber: 1,
+    cycleNumber: 1,
+    rootSequence: overrides.sequence,
+    ...(overrides.sourceUnitId !== undefined ? { sourceUnitId: overrides.sourceUnitId } : {}),
+    targetUnitIds: [overrides.targetUnitId],
+    details: {
+      effectActionDefinitionId: "ACT_HEAL_1",
+      ...(overrides.sourceUnitId !== undefined ? { sourceUnitId: overrides.sourceUnitId } : {}),
+      targetUnitId: overrides.targetUnitId,
+      formulaResult: healAmount,
+      distributionShareCount: 1,
+      healingModifierMultiplier: 1,
+      healAmount,
+      ...(overrides.transferredAmount !== undefined
+        ? { transferredAmount: overrides.transferredAmount }
+        : {}),
+      appliedAmount: overrides.appliedAmount,
+      discardedAmount: overrides.discardedAmount ?? 0,
+      hpBefore: 100,
+      hpAfter: 100 + overrides.appliedAmount,
+    },
+    stateVersionBefore: 0,
+    stateVersionAfter: 1,
+  };
+}
+
+// 同上 healingTransferredDetailsSchema (M7-005-HEAL-LINK, Issue #229, R-HEAL-04)。
+function healingTransferredEvent(overrides: {
+  sequence: number;
+  sourceUnitId?: string;
+  fromUnitId: string;
+  toUnitId: string;
+  appliedAmount: number;
+  transferredAmount?: number;
+}): BattleLogEventResponse {
+  const transferredAmount = overrides.transferredAmount ?? overrides.appliedAmount;
+  return {
+    sequence: overrides.sequence,
+    type: "HEALING_TRANSFERRED",
+    category: "FACT",
+    turnNumber: 1,
+    cycleNumber: 1,
+    rootSequence: overrides.sequence,
+    ...(overrides.sourceUnitId !== undefined ? { sourceUnitId: overrides.sourceUnitId } : {}),
+    targetUnitIds: [overrides.toUnitId],
+    details: {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_HEAL_LINK_1",
+      fromUnitId: overrides.fromUnitId,
+      toUnitId: overrides.toUnitId,
+      transferRate: 0.5,
+      transferredAmount,
+      appliedAmount: overrides.appliedAmount,
+      discardedAmount: transferredAmount - overrides.appliedAmount,
+      hpBefore: 100,
+      hpAfter: 100 + overrides.appliedAmount,
+    },
+    stateVersionBefore: 1,
+    stateVersionAfter: 2,
+  };
+}
+
 function responseWith(overrides: {
   initialUnits: readonly BattleUnitStateResponse[];
   finalUnits: readonly BattleUnitStateResponse[];
@@ -290,7 +368,156 @@ describe("selectBattleSummary", () => {
     expect(summary?.damageTaken).toBe(0);
   });
 
-  it("always shows 0 for HEAL ahead of the M7 heal event contract (UI-UT-SUM-006)", () => {
+  it("adds HEAL_APPLIED.appliedAmount to the healer's HEAL, not the requested healAmount (UI-UT-SUM-011)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      events: [
+        healAppliedEvent({
+          sequence: 1,
+          sourceUnitId: "ally:1",
+          targetUnitId: "ally:2",
+          healAmount: 50,
+          appliedAmount: 20,
+          discardedAmount: 30,
+        }),
+      ],
+    });
+
+    const projection = selectBattleSummary(response, catalog);
+
+    expect(
+      projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1")?.summary.healingDone,
+    ).toBe(20);
+    expect(
+      projection.allyRows.find((row) => row.roster.battleUnitId === "ally:2")?.summary.healingDone,
+    ).toBe(0);
+  });
+
+  it("adds HEALING_TRANSFERRED.appliedAmount to the original healer without double counting the HEAL_APPLIED transfer (UI-UT-SUM-012)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "ally:3", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "ally:3", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      events: [
+        healAppliedEvent({
+          sequence: 1,
+          sourceUnitId: "ally:1",
+          targetUnitId: "ally:2",
+          healAmount: 40,
+          transferredAmount: 20,
+          appliedAmount: 20,
+        }),
+        healingTransferredEvent({
+          sequence: 2,
+          sourceUnitId: "ally:1",
+          fromUnitId: "ally:2",
+          toUnitId: "ally:3",
+          transferredAmount: 20,
+          appliedAmount: 15,
+        }),
+      ],
+    });
+
+    const projection = selectBattleSummary(response, catalog);
+
+    expect(
+      projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1")?.summary.healingDone,
+    ).toBe(35);
+  });
+
+  it("excludes a malformed HEAL_APPLIED event from aggregation and reports a warning (UI-UT-SUM-013)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      events: [
+        {
+          sequence: 1,
+          type: "HEAL_APPLIED",
+          sourceUnitId: "ally:1",
+          targetUnitIds: ["ally:1"],
+          details: { targetUnitId: "ally:1", appliedAmount: "not-a-number" },
+        },
+      ],
+    });
+
+    const projection = selectBattleSummary(response, catalog);
+
+    expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
+    expect(projection.hasProjectionWarning).toBe(true);
+  });
+
+  it("excludes a HEAL_APPLIED event whose healer isn't part of the roster and warns (UI-UT-SUM-014)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      events: [
+        healAppliedEvent({
+          sequence: 1,
+          sourceUnitId: "ally:ghost",
+          targetUnitId: "ally:1",
+          appliedAmount: 10,
+        }),
+      ],
+    });
+
+    const projection = selectBattleSummary(response, catalog);
+
+    expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
+    expect(projection.hasProjectionWarning).toBe(true);
+  });
+
+  it("rejects a non-integer appliedAmount as malformed rather than aggregating a rounded display value (UI-UT-SUM-015)", () => {
+    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      finalUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      events: [
+        healAppliedEvent({
+          sequence: 1,
+          sourceUnitId: "ally:1",
+          targetUnitId: "ally:1",
+          appliedAmount: 1.5,
+        }),
+      ],
+    });
+
+    const projection = selectBattleSummary(response, catalog);
+
+    expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
+    expect(projection.hasProjectionWarning).toBe(true);
+  });
+
+  it("shows 0 for HEAL when the response carries no heal events at all (M4〜M6 fixture backward compatibility, UI-UT-SUM-006)", () => {
     const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
     const response = responseWith({
       initialUnits: [

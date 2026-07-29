@@ -386,4 +386,143 @@ describe("selectUnitActionStates", () => {
     expect(states[0]?.cooldownChargeKnown).toBe(true);
     expect(states[0]?.cooldowns).toEqual([]);
   });
+  it("reads finalState.units[].effects into per-unit effect states, keeping the API's category/statusKind (UI-UT-EFF-001)", () => {
+    const response = responseWith({
+      finalUnits: [
+        {
+          battleUnitId: "ally:1",
+          cooldowns: [],
+          effects: [
+            {
+              effectInstanceId: "battle-1:effect:1",
+              effectDefinitionId: "ACT_ATTACK_UP",
+              sourceUnitId: "ally:1",
+              category: "BUFF",
+              effectKindKey: "ACT_ATTACK_UP",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: { magnitude: 0.1 },
+              duration: { unit: "TURN", remaining: 2 },
+              appliedTurnNumber: 1,
+            },
+            {
+              effectInstanceId: "battle-1:effect:2",
+              effectDefinitionId: "ACT_STUN_1",
+              sourceUnitId: "enemy:1",
+              category: "STATUS_ABNORMALITY",
+              effectKindKey: "ACT_STUN_1",
+              statusKind: "STUN",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: { magnitude: 0 },
+              duration: { unit: "ACTION", remaining: 1 },
+              appliedTurnNumber: 2,
+            },
+          ],
+        },
+        { battleUnitId: "enemy:1", cooldowns: [], effects: [] },
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.effectsKnown).toBe(true);
+    expect(states[0]?.effects).toEqual([
+      {
+        effectInstanceId: "battle-1:effect:1",
+        effectKindKey: "ACT_ATTACK_UP",
+        category: "BUFF",
+        isEffective: true,
+        duration: { unit: "TURN", remaining: 2 },
+      },
+      {
+        effectInstanceId: "battle-1:effect:2",
+        effectKindKey: "ACT_STUN_1",
+        category: "STATUS_ABNORMALITY",
+        statusKind: "STUN",
+        isEffective: true,
+        duration: { unit: "ACTION", remaining: 1 },
+      },
+    ]);
+    expect(states[1]?.effects).toEqual([]);
+    expect(states[1]?.effectsKnown).toBe(true);
+  });
+
+  it("keeps a permanent effect (no duration) and a superseded duplicate (isEffective=false) instead of dropping them (UI-UT-EFF-002)", () => {
+    const response = responseWith({
+      finalUnits: [
+        {
+          battleUnitId: "ally:1",
+          cooldowns: [],
+          effects: [
+            {
+              effectInstanceId: "battle-1:effect:1",
+              effectDefinitionId: "ACT_ATTACK_UP",
+              category: "BUFF",
+              effectKindKey: "ACT_ATTACK_UP",
+              stackMode: "NON_STACKING",
+              isEffective: false,
+              value: { magnitude: 0.1 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+        { battleUnitId: "enemy:1", cooldowns: [], effects: [] },
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.effects).toEqual([
+      {
+        effectInstanceId: "battle-1:effect:1",
+        effectKindKey: "ACT_ATTACK_UP",
+        category: "BUFF",
+        isEffective: false,
+      },
+    ]);
+  });
+
+  it("reports effects as unknown, not as an empty list, when finalState has no effects array (M4〜M6 fixture back-compat, UI-UT-EFF-003)", () => {
+    const response = responseWith({
+      finalUnits: [{ battleUnitId: "ally:1" }, { battleUnitId: "enemy:1" }],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.effects).toEqual([]);
+    expect(states[0]?.effectsKnown).toBe(false);
+  });
+
+  it("skips an effect entry whose required shape is broken without dropping the well-formed ones (UI-UT-EFF-004)", () => {
+    const response = responseWith({
+      finalUnits: [
+        {
+          battleUnitId: "ally:1",
+          cooldowns: [],
+          effects: [
+            { effectInstanceId: 42 },
+            {
+              effectInstanceId: "battle-1:effect:2",
+              effectDefinitionId: "ACT_ATTACK_UP",
+              category: "BUFF",
+              effectKindKey: "ACT_ATTACK_UP",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: { magnitude: 0.1 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+        { battleUnitId: "enemy:1", cooldowns: [], effects: [] },
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.effects.map((effect) => effect.effectInstanceId)).toEqual([
+      "battle-1:effect:2",
+    ]);
+    expect(states[0]?.effectsKnown).toBe(true);
+  });
 });

@@ -1,4 +1,5 @@
 import { ApplicationError } from "../contracts/application-error.js";
+import { STATUS_AILMENT_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
 import type { BattleLogEvent } from "../observation/battle-log-event.js";
 import type { StateTransition } from "../observation/battle-observation.js";
 import type {
@@ -125,13 +126,31 @@ function toChargeStateResponseBody(
   };
 }
 
+const STATUS_AILMENT_KIND_SET: ReadonlySet<string> = new Set<string>(STATUS_AILMENT_KINDS);
+
 /**
- * `10_API設計.md`「EffectStateResponse」。`category`はBUFF/DEBUFFを効果量の
- * 符号から導く — `AppliedEffect`を実際に付与できる唯一の経路（`grantEffect`、
- * `APPLY_STAT_MOD`由来）はまだ状態異常（`APPLY_STATUS`）を生成しないため、
- * `STATUS_ABNORMALITY`へ分類すべき`EffectSnapshot`は現状存在しない。`value`は
- * `effectKindKey`ごとの具体Schema（`oneOf`によるdiscriminated union）が定まる
- * までは、`EffectSnapshot`が実際に持つ`magnitude`だけを構造化して返す
+ * `10_API設計.md`「EffectStateResponse.category」。R-STS-01「状態異常はデバフの
+ * 一種とする」に従い、`STATUS_AILMENT_KINDS`（気絶・凍結・暗闇）の`APPLY_STATUS`
+ * だけを`STATUS_ABNORMALITY`とする。`STEALTH`/`EVASION`/`DAMAGE_IMMUNITY`等の
+ * 残りの`APPLY_STATUS`は対象自身にとって有利であり、Domainの
+ * `effect-category-classifier.ts`（R-EFF-02/03の解除・免疫判定の正本）も`BUFF`
+ * として扱うため、ここでも`BUFF`を返す（PR #264レビュー[P1]: `statusKind`の
+ * 有無だけで分類すると、有利な状態がAPI上だけ状態異常になりDomain分類と
+ * 矛盾する）。`statusKind`を持たない効果は従来どおり効果量の符号で分類する。
+ */
+function effectCategoryOf(effect: EffectSnapshot): string {
+  if (effect.statusKind !== undefined) {
+    return STATUS_AILMENT_KIND_SET.has(effect.statusKind) ? "STATUS_ABNORMALITY" : "BUFF";
+  }
+  return effect.magnitude >= 0 ? "BUFF" : "DEBUFF";
+}
+
+/**
+ * `10_API設計.md`「EffectStateResponse」。`statusKind`は`APPLY_STATUS`由来の効果が
+ * どの状態か（有利な状態を含む）をクライアントが定義ID命名から推測せずに表示する
+ * ための任意プロパティ（「バージョニング」の後方互換な追加、M7-009／Issue #182）。
+ * `value`は`effectKindKey`ごとの具体Schema（`oneOf`によるdiscriminated union）が
+ * 定まるまでは、`EffectSnapshot`が実際に持つ`magnitude`だけを構造化して返す
  * （`response.ts`の`EffectStateResponseBody.value`コメント参照）。
  */
 function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseBody {
@@ -141,8 +160,9 @@ function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseB
     ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
     // R-MEM-04（M7-006、Issue #179）: Memory由来の効果は付与者ユニットを持たず、付与元の陣営を持つ。
     ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
-    category: effect.magnitude >= 0 ? "BUFF" : "DEBUFF",
+    category: effectCategoryOf(effect),
     effectKindKey: effect.kindKey,
+    ...(effect.statusKind !== undefined ? { statusKind: effect.statusKind } : {}),
     stackMode: effect.duplicate ? "STACKABLE" : "NON_STACKING",
     isEffective: effect.isEffective,
     value: { magnitude: effect.magnitude },
