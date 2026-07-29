@@ -36,8 +36,12 @@ interface Row {
 
 // docs/ui-design/07_UI実装・拡張計画.md §11「effect一覧はUnit詳細へ追加し、
 // サマリ列を無制限に増やさない」「effectKindKeyの未知値を汎用表示する」。
-// 状態異常だけは`statusKind`（API契約の列挙）を先頭へ出し、それ以外は
-// `effectKindKey`をそのまま見せる（定義IDの命名規則を解析しない）。
+// `APPLY_STATUS`由来（`statusKind`を持つ）の効果はその種別を先頭へ出し、
+// バフ／デバフ／状態異常の分類はAPIの`category`をそのまま表示する
+// （PR #264レビュー[P1]: `statusKind`はSTEALTH等の有利な状態にも設定されるため、
+// 有無だけで状態異常と決めない。分類の正本はDomainの
+// `effect-category-classifier.ts`であり、UIはその結果を受け取るだけにする）。
+// `effectKindKey`は定義IDの命名規則を解析せずそのまま見せる。
 function effectLabel(effect: UnitActionState["effects"][number]): string {
   const head =
     effect.statusKind !== undefined

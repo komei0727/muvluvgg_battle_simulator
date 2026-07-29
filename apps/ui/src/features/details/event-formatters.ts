@@ -519,6 +519,13 @@ function formatHealApplied(
 }
 
 // R-HEAL-04（M7-005-HEAL-LINK、Issue #229）: 回復リンクによる転送。
+//
+// PR #264レビュー[P2]: 転送先の最大HP超過分（`discardedAmount`）を落とすと、
+// 割当済みの回復が破棄された事実を追跡できない。特に「連鎖の途中で転送先が
+// 戦闘不能になり、`appliedAmount: 0`／`discardedAmount: 転送量全量`の監査証跡
+// として発行された」場合（R-HEAL-04の中断規約）、`appliedAmount`だけを表示すると
+// 「HPを0回復しました」としか読めなくなる。全量破棄はHPが増えていないので
+// `positive`にもしない。
 function formatHealingTransferred(
   event: BattleLogEventResponse,
   roster: RosterIndex,
@@ -534,16 +541,40 @@ function formatHealingTransferred(
   ) {
     return undefined;
   }
+  const appliedAmount = details["appliedAmount"];
+  const discardedAmount = details["discardedAmount"];
+  const discardedText =
+    typeof discardedAmount === "number" && discardedAmount > 0
+      ? `（転送分のうち${discardedAmount}を破棄）`
+      : "";
+  const fromName = resolveDisplayName(roster, details["fromUnitId"]);
+  const toName = resolveDisplayName(roster, details["toUnitId"]);
+  if (appliedAmount === 0) {
+    return {
+      title: event.type,
+      summary: `${fromName}への回復が${toName}へ転送されましたが、HPは増えませんでした${discardedText}。HP ${details["hpBefore"]} → ${details["hpAfter"]}`,
+      details,
+      severity: "neutral",
+    };
+  }
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["fromUnitId"])}への回復が${resolveDisplayName(roster, details["toUnitId"])}へ転送され、HPを${details["appliedAmount"]}回復しました。HP ${details["hpBefore"]} → ${details["hpAfter"]}`,
+    summary: `${fromName}への回復が${toName}へ転送され、HPを${appliedAmount}回復しました${discardedText}。HP ${details["hpBefore"]} → ${details["hpAfter"]}`,
     details,
     severity: "positive",
   };
 }
 
-// R-EFF-01/05（EFF-001〜002）: 付与。`statusKind`を持つ付与（`APPLY_STATUS`由来、
-// 気絶・凍結・暗闇など）は種別をそのまま表示し、定義IDの命名規則から推測しない。
+// R-EFF-01/05（EFF-001〜002）: 付与。`statusKind`を持つ付与（`APPLY_STATUS`由来）は
+// 種別をそのまま表示し、定義IDの命名規則から推測しない。
+//
+// PR #264レビュー[P1]: `statusKind`は気絶・凍結・暗闇（`STATUS_AILMENT_KINDS`）
+// だけでなくSTEALTH・EVASION・DAMAGE_IMMUNITY等の有利な状態にも設定される。
+// R-STS-01のどちらに当たるかはDomainの`effect-category-classifier.ts`が正本であり、
+// `EffectApplied`のdetailsはその分類（`category`）を持たない。UI側で状態異常の
+// 部分集合を持つとDomainの規則が二重定義になり黙って乖離するため、時系列イベント
+// では「状態」と中立に表示し、severityも中立に保つ。バフ／デバフ／状態異常の分類は
+// `EffectStateResponse.category`を持つ「ユニット状態」タブ側で表示する。
 function formatEffectApplied(
   event: BattleLogEventResponse,
   roster: RosterIndex,
@@ -558,14 +589,14 @@ function formatEffectApplied(
     return undefined;
   }
   const statusKind = details["statusKind"];
-  const statusText = typeof statusKind === "string" ? `状態異常 ${statusKind}（` : "効果「";
+  const statusText = typeof statusKind === "string" ? `状態 ${statusKind}（` : "効果「";
   const statusTextEnd = typeof statusKind === "string" ? "）" : "」";
   const duplicateText = details["duplicate"] ? "、重複あり" : "";
   return {
     title: event.type,
     summary: `${resolveOrigin(event, details, roster)} → ${resolveDisplayName(roster, details["targetUnitId"])}へ${statusText}${details["kindKey"]}${statusTextEnd}を付与しました${durationText(details)}${duplicateText}。`,
     details,
-    severity: typeof statusKind === "string" ? "negative" : "neutral",
+    severity: "neutral",
   };
 }
 
@@ -584,8 +615,10 @@ function formatEffectApplicationRejected(
   ) {
     return undefined;
   }
+  // `formatEffectApplied`と同じ理由（PR #264レビュー[P1]）で、状態異常かどうかを
+  // UI側で判定せず種別だけを添える。
   const statusKind = details["statusKind"];
-  const statusText = typeof statusKind === "string" ? `（状態異常 ${statusKind}）` : "";
+  const statusText = typeof statusKind === "string" ? `（状態 ${statusKind}）` : "";
   return {
     title: event.type,
     summary: `${resolveDisplayName(roster, details["battleUnitId"])}への効果「${details["effectActionDefinitionId"]}」${statusText}の付与が拒否されました（理由: ${details["reason"]}、拒否した効果: ${details["blockingEffectInstanceId"]}）。`,

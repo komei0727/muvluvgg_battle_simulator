@@ -550,7 +550,39 @@ describe("formatEvent", () => {
     expect(presentation.summary).toContain("エー");
     expect(presentation.summary).toContain("ビー");
     expect(presentation.summary).toContain("15");
+    // 転送先の最大HP超過で破棄された5を黙って落とさない (PR #264レビュー[P2])。
+    expect(presentation.summary).toContain("5");
+    expect(presentation.summary).toContain("破棄");
     expect(presentation.severity).toBe("positive");
+  });
+
+  it("reports a fully discarded HEALING_TRANSFERRED as discarded rather than as a 0 heal (PR #264レビュー[P2], R-HEAL-04)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "HEALING_TRANSFERRED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          effectActionDefinitionId: "ACT_HEAL_LINK_1",
+          fromUnitId: "ally:1",
+          toUnitId: "enemy:1",
+          transferRate: 0.5,
+          transferredAmount: 20,
+          appliedAmount: 0,
+          discardedAmount: 20,
+          hpBefore: 0,
+          hpAfter: 0,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("20");
+    expect(presentation.summary).toContain("破棄");
+    expect(presentation.summary).not.toContain("0回復");
+    expect(presentation.severity).not.toBe("positive");
   });
 
   it("resolves EFFECT_APPLIED with the effect kind, duration and duplicate flag", () => {
@@ -608,7 +640,56 @@ describe("formatEvent", () => {
     );
 
     expect(presentation.summary).toContain("STUN");
-    expect(presentation.severity).toBe("negative");
+  });
+
+  it("does not classify an advantageous APPLY_STATUS as a status abnormality or a negative event (PR #264レビュー[P1])", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_APPLIED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["ally:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:4",
+          effectActionDefinitionId: "ACT_STEALTH_1",
+          sourceUnitId: "ally:1",
+          targetUnitId: "ally:1",
+          duplicate: false,
+          kindKey: "ACT_STEALTH_1",
+          magnitude: 0,
+          statusKind: "STEALTH",
+          linkedEffectGroupId: null,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("STEALTH");
+    expect(presentation.summary).not.toContain("状態異常");
+    expect(presentation.severity).not.toBe("negative");
+  });
+
+  it("does not call a rejected advantageous APPLY_STATUS a status abnormality either (PR #264レビュー[P1])", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECT_APPLICATION_REJECTED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["ally:1"],
+        details: {
+          battleUnitId: "ally:1",
+          effectActionDefinitionId: "ACT_STEALTH_1",
+          sourceUnitId: "ally:1",
+          blockingEffectInstanceId: "battle-1:effect:9",
+          reason: "IMMUNITY",
+          statusKind: "STEALTH",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("STEALTH");
+    expect(presentation.summary).not.toContain("状態異常");
   });
 
   it("uses the Memory grant's sourceSide when EFFECT_APPLIED has no source unit (R-MEM-04)", () => {

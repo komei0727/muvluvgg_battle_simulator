@@ -51,8 +51,9 @@ test("shows the actually applied healing and the granted effects/status of an M7
   const allyRow = page.getByRole("row", { name: /アライアルファ/ });
   await expect(allyRow.getByRole("cell", { name: "50", exact: true })).toBeVisible();
 
-  // 状態異常の付与はイベント要約から辿れる。
-  await expect(page.getByText(/状態異常 STUN/)).toBeVisible();
+  // 状態の付与はイベント要約から辿れる（時系列イベントは`category`を持たないため
+  // 状態異常かどうかを判定せず種別だけを出す。PR #264レビュー[P1]）。
+  await expect(page.getByText(/状態 STUN/)).toBeVisible();
 
   // finalStateの効果一覧はユニット状態タブに出る。
   const tabs = page.getByRole("tablist", { name: "戦闘詳細" });

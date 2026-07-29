@@ -284,9 +284,11 @@ export const effectStateResponseSchema = {
     sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     category: { type: "string", enum: ["BUFF", "DEBUFF", "STATUS_ABNORMALITY"] },
     effectKindKey: { type: "string" },
-    // M7-009（Issue #182）: `category`が`STATUS_ABNORMALITY`の効果だけが持つ状態異常の
-    // 種別。`effectKindKey`（現状は効果アクション定義ID）の命名規則を解析させずに、
-    // 気絶・凍結・暗闇などを表示できるようにする任意プロパティ。
+    // M7-009（Issue #182）: `APPLY_STATUS`由来の効果だけが持つ状態の種別。
+    // `effectKindKey`（現状は効果アクション定義ID）の命名規則を解析させずに、
+    // 気絶・凍結・暗闇・隠密などを表示できるようにする任意プロパティ。状態異常か
+    // どうかは`category`が表す（PR #264レビュー[P1]: `statusKind`はSTEALTH等の
+    // 有利な状態にも設定されるため、有無だけでは状態異常を判別できない）。
     statusKind: { type: "string", enum: STATUS_KIND_ENUM },
     stackMode: { type: "string", enum: ["STACKABLE", "NON_STACKING"] },
     isEffective: { type: "boolean" },

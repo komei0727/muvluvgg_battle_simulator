@@ -249,6 +249,37 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/次点/)).toBeInTheDocument();
   });
 
+  it("labels an advantageous APPLY_STATUS by the API's BUFF category rather than as a status abnormality (UI-CT-021, PR #264レビュー[P1])", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [
+            {
+              effectInstanceId: "battle-1:effect:1",
+              effectDefinitionId: "ACT_STEALTH_1",
+              category: "BUFF",
+              effectKindKey: "ACT_STEALTH_1",
+              statusKind: "STEALTH",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: { magnitude: 0 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/STEALTH（BUFF）/)).toBeInTheDocument();
+    expect(screen.queryByText(/STATUS_ABNORMALITY/)).not.toBeInTheDocument();
+  });
+
   it("says effects are unknown, not absent, for a fixture whose finalState has no effects array (UI-CT-019)", () => {
     const response = responseWith({
       units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],

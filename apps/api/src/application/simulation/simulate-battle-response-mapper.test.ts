@@ -12,6 +12,7 @@ import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { createMarkerInstanceId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import type { EffectSnapshot } from "../../domain/battle/events/state-delta.js";
+import { STATUS_AILMENT_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 const ALLY_ID = createBattleUnitId("ally:1");
@@ -304,6 +305,83 @@ describe("toBattleSimulationResponseBody", () => {
         appliedTurnNumber: 1,
       },
     ]);
+  });
+
+  it("API-RESP-012E (PR #264レビュー[P1]): classifies an advantageous APPLY_STATUS (STEALTH etc., outside STATUS_AILMENT_KINDS) as BUFF while still publishing its statusKind, matching effectCategoriesOf", () => {
+    const base = baseResult();
+    const withAdvantageousStatus = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: [
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+                effectDefinitionId: "ACT_TEST_STEALTH",
+                sourceUnitId: ALLY_ID,
+                kindKey: "ACT_TEST_STEALTH",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0,
+                statusKind: "STEALTH",
+                appliedTurnNumber: 1,
+              },
+              {
+                effectInstanceId: createEffectInstanceId("battle-1:effect:2"),
+                effectDefinitionId: "ACT_TEST_DAMAGE_IMMUNITY",
+                sourceUnitId: ALLY_ID,
+                kindKey: "ACT_TEST_DAMAGE_IMMUNITY",
+                duplicate: false,
+                isEffective: true,
+                magnitude: 0,
+                statusKind: "DAMAGE_IMMUNITY",
+                appliedTurnNumber: 1,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const effects =
+      toBattleSimulationResponseBody(withAdvantageousStatus).finalState.units[0]!.effects;
+
+    expect(effects.map((effect) => effect.category)).toEqual(["BUFF", "BUFF"]);
+    expect(effects.map((effect) => effect.statusKind)).toEqual(["STEALTH", "DAMAGE_IMMUNITY"]);
+  });
+
+  it("API-RESP-012F (PR #264レビュー[P1]): classifies every STATUS_AILMENT_KINDS member as STATUS_ABNORMALITY", () => {
+    const base = baseResult();
+    const withAilments = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: STATUS_AILMENT_KINDS.map((statusKind, index) => ({
+              effectInstanceId: createEffectInstanceId(`battle-1:effect:${index + 1}`),
+              effectDefinitionId: `ACT_TEST_${statusKind}`,
+              sourceUnitId: ENEMY_ID,
+              kindKey: `ACT_TEST_${statusKind}`,
+              duplicate: false,
+              isEffective: true,
+              magnitude: 0,
+              statusKind,
+              appliedTurnNumber: 1,
+            })),
+          },
+        },
+      },
+    });
+
+    const effects = toBattleSimulationResponseBody(withAilments).finalState.units[0]!.effects;
+
+    expect(effects.map((effect) => effect.category)).toEqual(
+      STATUS_AILMENT_KINDS.map(() => "STATUS_ABNORMALITY"),
+    );
   });
 
   it("API-RESP-012D (M7-009, Issue #182): keeps deriving BUFF/DEBUFF from the magnitude sign for effects without a statusKind, and omits statusKind entirely", () => {

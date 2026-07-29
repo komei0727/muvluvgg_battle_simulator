@@ -38,8 +38,10 @@ export interface UnitChargeState {
 
 /**
  * `10_API設計.md`「EffectStateResponse」のうち、ユニット状態の一覧表示が使う項目
- * （M7-009、Issue #182）。`statusKind`は`category: STATUS_ABNORMALITY`の効果だけが
- * 持ち、これが無い効果の状態異常種別を`effectKindKey`の命名から推測しない。
+ * （M7-009、Issue #182）。`statusKind`は`APPLY_STATUS`由来の効果だけが持ち、
+ * 気絶等の状態異常だけでなくSTEALTH等の有利な状態にも設定される（PR #264
+ * レビュー[P1]）。状態異常かどうかは`category`が正本であり、`statusKind`の有無や
+ * `effectKindKey`の命名からは判定しない。
  */
 export interface UnitEffectState {
   readonly effectInstanceId: string;
