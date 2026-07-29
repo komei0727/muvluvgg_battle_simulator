@@ -1262,7 +1262,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `ACT_FLUTE_VAMPIRE_PS2_EVASION`の`HIT_EVASION`、いずれもraw原文は
   // 「Nヒットだけ攻撃を回避するバフ」）のヒット数が実際には制限されていなかった。
   // `CAP_HIT_COUNT_EVASION`（Nヒット回避）が要求していたのはまさにこの部分で、
-  // 判定側と合わせてここで完了する。
+  // 判定側と合わせてここで完了する。消費契機はR-EFF-07に対して**逆**であり
+  // （回避したMISSで消費し、命中確定では消費しない）、後者の除外が抜けると
+  // 確率回避の失敗や必中で残数を失う（PR #275レビュー[P1]、
+  // `UT-R-HIT-04-010`/`011`が両方向を固定する）。
   {
     ruleId: "R-HIT-04",
     testCaseIds: [
@@ -1275,6 +1278,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HIT-04-007",
       "UT-R-HIT-04-008",
       "UT-R-HIT-04-009",
+      "UT-R-HIT-04-010",
+      "UT-R-HIT-04-011",
       "IT-CAP-HIT-EVASION-PROD-001",
       "IT-CAP-HIT-EVASION-PROD-002",
     ],

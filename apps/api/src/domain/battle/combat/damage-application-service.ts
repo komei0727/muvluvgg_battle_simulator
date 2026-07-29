@@ -902,7 +902,12 @@ export function* applyDamageActionSteps(
     }
 
     // R-EFF-07: このヒットがMISSでなく確定した時点でOUTGOING_HIT（攻撃者側）/
-    // INCOMING_HIT（対象側）を消費する。
+    // INCOMING_HIT（対象側）を消費する。R-HIT-04の回避効果（EVASION/
+    // HIT_EVASION）はこの一括消費の対象外で、`consumeEffectDurations`
+    // （`applied-effect-duration.ts`の`isHitCountEvasionStatus`）が常に除外する
+    // — Nヒット回避は自身が回避した被ヒットでだけ消費するため、確率判定に
+    // 失敗した回避や必中で発動しなかった回避が残数を失ってはならない
+    // （PR #275レビュー[P1]）。
     const hitEventsStart = context.recorder.getEvents().length;
     lastEventId = consumeAndExpire(
       context,
