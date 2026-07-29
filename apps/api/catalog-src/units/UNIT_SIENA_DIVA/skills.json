@@ -157,9 +157,9 @@
           "conditions": [
             {
               "kind": "EVENT_PAYLOAD",
-              "field": "effectKind",
-              "op": "EQ",
-              "value": "APPLY_STATUS"
+              "field": "categories",
+              "op": "CONTAINS",
+              "value": "STATUS"
             },
             { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
             { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },

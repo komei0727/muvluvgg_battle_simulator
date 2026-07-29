@@ -222,8 +222,8 @@
         "targetSelector": "SELF",
         "condition": {
           "kind": "EVENT_PAYLOAD",
-          "field": "category",
-          "op": "EQ",
+          "field": "categories",
+          "op": "CONTAINS",
           "value": "DEBUFF"
         }
       }

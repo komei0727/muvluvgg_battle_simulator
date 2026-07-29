@@ -277,7 +277,16 @@
         "eventType": "EffectApplied",
         "category": "FACT",
         "sourceSelector": "ANY",
-        "targetSelector": "SELF"
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "STATUS" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
+        }
       }
     ]
   },
@@ -333,8 +342,17 @@
       {
         "eventType": "EffectApplied",
         "category": "FACT",
-        "sourceSelector": "SELF",
-        "targetSelector": "ENEMY"
+        "sourceSelector": "ANY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "statusKind", "op": "EQ", "value": "STUN" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
+        }
       }
     ]
   },

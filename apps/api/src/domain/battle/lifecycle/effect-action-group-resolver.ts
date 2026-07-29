@@ -885,7 +885,7 @@ function* resolveOneEffectActionApplication(
         },
         box.units,
         {
-          effectActionDefinitionId: application.effectActionDefinitionId,
+          definition: effectAction,
           ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
@@ -1086,7 +1086,7 @@ function* resolveOneEffectActionApplication(
             }
           : undefined;
       const grantRequest = {
-        effectActionDefinitionId: application.effectActionDefinitionId,
+        definition: effectAction,
         ...grantSourceOf(context),
         targetId: application.targetBattleUnitId,
         duplicate: true,
@@ -1415,7 +1415,7 @@ function* resolveOneEffectActionApplication(
         },
         box.units,
         {
-          effectActionDefinitionId: application.effectActionDefinitionId,
+          definition: effectAction,
           ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
@@ -1522,7 +1522,7 @@ function* resolveOneEffectActionApplication(
         },
         box.units,
         {
-          effectActionDefinitionId: application.effectActionDefinitionId,
+          definition: effectAction,
           ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
@@ -1617,7 +1617,7 @@ function* resolveOneEffectActionApplication(
         },
         box.units,
         {
-          effectActionDefinitionId: application.effectActionDefinitionId,
+          definition: effectAction,
           ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
@@ -1818,7 +1818,7 @@ function* resolveOneEffectActionApplication(
         },
         box.units,
         {
-          effectActionDefinitionId: application.effectActionDefinitionId,
+          definition: effectAction,
           ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,
@@ -1904,7 +1904,7 @@ function* resolveOneEffectActionApplication(
         },
         box.units,
         {
-          effectActionDefinitionId: application.effectActionDefinitionId,
+          definition: effectAction,
           ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
           duplicate: true,

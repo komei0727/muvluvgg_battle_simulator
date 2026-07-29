@@ -5438,7 +5438,7 @@
           "kind": "AND",
           "conditions": [
             { "kind": "EVENT_PAYLOAD", "field": "effectKind", "op": "EQ", "value": "APPLY_STATUS" },
-            { "kind": "EVENT_PAYLOAD", "field": "status", "op": "EQ", "value": "FREEZE" }
+            { "kind": "EVENT_PAYLOAD", "field": "statusKind", "op": "EQ", "value": "FREEZE" }
           ]
         }
       }
@@ -5652,7 +5652,7 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" },
+            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "DEBUFF" },
             { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
             { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
             { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
@@ -6983,7 +6983,7 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" },
+            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "DEBUFF" },
             { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
             { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
             { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
@@ -8780,7 +8780,12 @@
         "category": "FACT",
         "sourceSelector": "ANY",
         "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "category", "op": "EQ", "value": "DEBUFF" }
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "categories",
+          "op": "CONTAINS",
+          "value": "DEBUFF"
+        }
       }
     ]
   },
@@ -10193,7 +10198,16 @@
         "eventType": "EffectApplied",
         "category": "FACT",
         "sourceSelector": "ANY",
-        "targetSelector": "SELF"
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "STATUS" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
+        }
       }
     ]
   },
@@ -10228,8 +10242,17 @@
       {
         "eventType": "EffectApplied",
         "category": "FACT",
-        "sourceSelector": "SELF",
-        "targetSelector": "ENEMY"
+        "sourceSelector": "ANY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "statusKind", "op": "EQ", "value": "STUN" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
+        }
       }
     ]
   },
@@ -13388,7 +13411,7 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "effectKind", "op": "EQ", "value": "APPLY_STATUS" },
+            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "STATUS" },
             { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
             { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
             { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
@@ -14980,7 +15003,13 @@
         "eventType": "EffectApplied",
         "category": "FACT",
         "sourceSelector": "ENEMY",
-        "targetSelector": "SELF"
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "categories",
+          "op": "CONTAINS",
+          "value": "DEBUFF"
+        }
       }
     ]
   },

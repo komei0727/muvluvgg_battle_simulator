@@ -580,6 +580,10 @@ describe("OpenAPI document", () => {
       targetUnitId: "unit-1",
       duplicate: true,
       kindKey: "ACT_1",
+      // M7-011（Issue #265）: `EffectApplied`は効果分類（`effectKind`/`categories`）を
+      // 必ず運ぶ（`domain-event.ts`）ため、公開Schemaでも必須プロパティ。
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["BUFF"],
       magnitude: 10,
       linkedEffectGroupId: null,
     };
@@ -643,6 +647,9 @@ describe("OpenAPI document", () => {
       targetUnitId: "unit-1",
       duplicate: true,
       kindKey: "ACT_1",
+      // M7-011（Issue #265）: `EffectApplied`の必須分類payload。
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["BUFF"],
       magnitude: 10,
       linkedEffectGroupId: null,
     };
@@ -695,6 +702,9 @@ describe("OpenAPI document", () => {
       targetUnitId: "unit-1",
       duplicate: true,
       kindKey: "ACT_1",
+      // M7-011（Issue #265）: `EffectApplied`の必須分類payload。
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["BUFF"],
       magnitude: 10,
       linkedEffectGroupId: null,
     };
@@ -751,6 +761,9 @@ describe("OpenAPI document", () => {
       targetUnitId: "unit-1",
       duplicate: true,
       kindKey: "ACT_1",
+      // M7-011（Issue #265）: `EffectApplied`の必須分類payload。
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["BUFF"],
       magnitude: 10,
       linkedEffectGroupId: null,
     };
@@ -795,6 +808,9 @@ describe("OpenAPI document", () => {
       targetUnitId: "unit-1",
       duplicate: true,
       kindKey: "ACT_1",
+      // M7-011（Issue #265）: `EffectApplied`の必須分類payload。
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["BUFF"],
       magnitude: 10,
       linkedEffectGroupId: null,
     };
@@ -1068,6 +1084,9 @@ describe("OpenAPI document", () => {
           targetUnitId: "unit-1",
           duplicate: false,
           kindKey: "ACT_STUN",
+          // M7-011（Issue #265、R-STS-01）: 状態異常はSTATUSかつDEBUFF。
+          effectKind: "APPLY_STATUS",
+          categories: ["DEBUFF", "STATUS"],
           magnitude: 0,
           statusKind: "STUN",
           linkedEffectGroupId: null,

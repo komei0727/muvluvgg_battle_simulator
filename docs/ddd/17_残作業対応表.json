@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 55
+      "incompleteConversionRows": 50
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -109,7 +109,7 @@
     { "taskId": "M7-008", "issue": 176, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-009", "issue": 182, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-010", "issue": 177, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-011", "issue": 265, "phase": 2, "milestone": "M7", "status": "OPEN" },
+    { "taskId": "M7-011", "issue": 265, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-012", "issue": 266, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-013", "issue": 267, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-014", "issue": 268, "phase": 2, "milestone": "M7", "status": "OPEN" },
@@ -162,12 +162,6 @@
       "theme": "TARGET_STATE_QUERY_BUFF_DEBUFF",
       "rowCount": 5,
       "taskId": "M7-001E"
-    },
-    {
-      "milestone": "M7",
-      "theme": "EFFECT_APPLIED_CLASSIFICATION_PAYLOAD",
-      "rowCount": 5,
-      "taskId": "M7-011"
     },
     {
       "milestone": "M7",

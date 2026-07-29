@@ -72,6 +72,30 @@ function newContext() {
   };
 }
 
+/**
+ * M7-011（Issue #265）: `grantEffect`は`EffectActionDefinition`そのものを受け取る
+ * （`EffectApplied`の分類payloadを定義から導くため）。このファイルのテスト用
+ * インスタンスはいずれも符号付き`magnitude`でBUFF/DEBUFFを作る継続ステータス
+ * 補正なので、定義IDを`APPLY_STAT_MOD`の最小定義へ包む。
+ */
+function statModDefinitionOf(
+  effectActionDefinitionId: EffectActionDefinition["effectActionDefinitionId"],
+): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId,
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0 },
+      stacking: { mode: "STACKABLE" },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+  };
+}
+
 /** Grants `count` distinct effect instances of `definitionId` onto `holder`, with the given magnitude sign (negative = DEBUFF, non-negative = BUFF per R-EFF-05). */
 function withEffects(
   context: ReturnType<typeof newContext>["context"],
@@ -87,7 +111,7 @@ function withEffects(
       context,
       units,
       {
-        effectActionDefinitionId: definitionId,
+        definition: statModDefinitionOf(definitionId),
         sourceId: holder.battleUnitId,
         targetId: holder.battleUnitId,
         duplicate: true,
@@ -326,7 +350,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
         context,
         units,
         {
-          effectActionDefinitionId: id,
+          definition: statModDef(id),
           sourceId: owner.battleUnitId,
           targetId: owner.battleUnitId,
           duplicate: true,

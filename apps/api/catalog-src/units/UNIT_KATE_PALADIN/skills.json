@@ -318,7 +318,7 @@
           "kind": "AND",
           "conditions": [
             { "kind": "EVENT_PAYLOAD", "field": "effectKind", "op": "EQ", "value": "APPLY_STATUS" },
-            { "kind": "EVENT_PAYLOAD", "field": "status", "op": "EQ", "value": "FREEZE" }
+            { "kind": "EVENT_PAYLOAD", "field": "statusKind", "op": "EQ", "value": "FREEZE" }
           ]
         }
       }

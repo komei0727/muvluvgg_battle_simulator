@@ -279,6 +279,28 @@ const EFFECT_ACTION_KIND_ENUM = [
   "APPLY_SUBUNIT",
   "COOLDOWN_MANIPULATION",
   "APPLY_ATTACK_DAMAGE_BONUS",
+  // M7-011（Issue #265）: `EffectApplied.effectKind`をこのenumで検証するように
+  // なったため、`effect-action-definition.ts`の`EFFECT_ACTION_KINDS`に対して
+  // 欠けていた2種（M7-005-HEAL-LINK／Issue #229、M7-002／Issue #185で実装済み）
+  // を補う。欠けたままではHEALING_LINK等の実付与がschema検証で落ちる。
+  "APPLY_HEALING_LINK",
+  "APPLY_RESOURCE_GAIN_MOD",
+] as const;
+/**
+ * `EffectApplied.categories`（M7-011、Issue #265）。`catalog-enums.ts`の
+ * `EffectImmunityCategory`（`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と共有する分類軸）
+ * と同じ値集合。`effect-category-classifier.ts`は`SPECIFIC_EFFECT`を返さないが、
+ * 分類軸そのものの列挙としては同一の集合を公開する。
+ */
+const EFFECT_CATEGORY_ENUM = [
+  "BUFF",
+  "DEBUFF",
+  "STATUS",
+  "MARKER",
+  "DAMAGE_MOD",
+  "SHIELD",
+  "SUBUNIT",
+  "SPECIFIC_EFFECT",
 ] as const;
 const EFFECT_ACTION_RESULT_KIND_ENUM = [
   "APPLIED",
@@ -1287,6 +1309,8 @@ const effectAppliedDetailsSchema = {
     "targetUnitId",
     "duplicate",
     "kindKey",
+    "effectKind",
+    "categories",
     "magnitude",
     "linkedEffectGroupId",
   ],
@@ -1298,6 +1322,16 @@ const effectAppliedDetailsSchema = {
     targetUnitId: { type: "string" },
     duplicate: { type: "boolean" },
     kindKey: { type: "string" },
+    // M7-011（Issue #265、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）: 付与した効果の
+    // 分類（`domain-event.ts`の`EffectApplied.effectKind`/`categories`）。
+    // `TriggerDefinition`の`EVENT_PAYLOAD`が「デバフが付与された際」等を表現する
+    // ために必須で、R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ。
+    effectKind: { type: "string", enum: EFFECT_ACTION_KIND_ENUM },
+    categories: {
+      type: "array",
+      items: { type: "string", enum: EFFECT_CATEGORY_ENUM },
+      minItems: 1,
+    },
     magnitude: { type: "number" },
     // TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ
     // （`domain-event.ts`の`EffectApplied.statusKind`。M7-009／Issue #182で公開文書へ追記）。

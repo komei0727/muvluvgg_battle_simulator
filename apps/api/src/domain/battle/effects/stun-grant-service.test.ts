@@ -13,6 +13,7 @@ import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -59,6 +60,20 @@ function stunDuration(count: number): DurationDefinition {
   return { timeLimit: { unit: "ACTION", count }, dispellable: true, linkedEffectGroupId: null };
 }
 
+/**
+ * M7-011（Issue #265）: `grantEffect`系は`EffectActionDefinition`そのものを受け取り、
+ * `EffectApplied`の分類payload（`effectKind`/`categories`）を定義から導く。
+ */
+function stunDefinition(): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: STUN_ACTION_ID,
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { status: "STUN", duration: stunDuration(1) },
+  };
+}
+
 describe("grantStunStatus (R-STS-02)", () => {
   it("UT-R-STS-02-001: grants a new STUN AppliedEffect when the target has none yet", () => {
     const source = unit("source-1");
@@ -76,7 +91,7 @@ describe("grantStunStatus (R-STS-02)", () => {
       },
       [source, target],
       {
-        effectActionDefinitionId: STUN_ACTION_ID,
+        definition: stunDefinition(),
         sourceId: source.battleUnitId,
         targetId: target.battleUnitId,
         duplicate: true,
@@ -110,7 +125,7 @@ describe("grantStunStatus (R-STS-02)", () => {
       rootEventId,
     };
     const request = (durationCount: number) => ({
-      effectActionDefinitionId: STUN_ACTION_ID,
+      definition: stunDefinition(),
       sourceId: source.battleUnitId,
       targetId: target.battleUnitId,
       duplicate: true,
@@ -159,7 +174,7 @@ describe("grantStunStatus (R-STS-02)", () => {
       rootEventId,
     };
     const request = (durationCount: number) => ({
-      effectActionDefinitionId: STUN_ACTION_ID,
+      definition: stunDefinition(),
       sourceId: source.battleUnitId,
       targetId: target.battleUnitId,
       duplicate: true,

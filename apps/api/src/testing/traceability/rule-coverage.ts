@@ -999,8 +999,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-01-052",
       "UT-R-PS-01-053",
       "UT-R-PS-01-054",
+      // M7-011（Issue #265、EFFECT_APPLIED_CLASSIFICATION_PAYLOAD）: 「敵にデバフが
+      // 付与された際」等、付与された効果の分類を発動契機にするPSの候補検出。
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-001",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-002",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-003",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-004",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-005",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-006",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-007",
+      "IT-CAT-PROD-013",
     ],
-    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
   {
     ruleId: "R-PS-02",
@@ -1486,6 +1496,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   {
     ruleId: "R-STS-01",
     testCaseIds: [
+      // M7-011（Issue #265）: `EffectApplied.categories`が状態異常へ`STATUS`と
+      // `DEBUFF`の両方を与え、STEALTH等の有利な`APPLY_STATUS`には与えない。
+      "UT-R-EFF-01-061",
+      "UT-R-EFF-01-062",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-003",
+      "IT-CAP-TRIGGER-PAYLOAD-PROD-004",
       "UT-CAT-ACT-075",
       "UT-R-EFF-02-004",
       "UT-R-EFF-02-013",
@@ -1545,6 +1561,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   {
     ruleId: "R-EFF-01",
     testCaseIds: [
+      // M7-011（Issue #265）: `EffectApplied` payloadの効果分類
+      // （`effectKind`/`categories`、`08_ドメインイベント.md`「EffectApplied payload」）。
+      "UT-R-EFF-01-059",
+      "UT-R-EFF-01-060",
+      "UT-R-EFF-01-061",
+      "UT-R-EFF-01-062",
       "UT-R-EFF-01-001",
       "UT-R-EFF-01-002",
       "UT-R-EFF-01-003",

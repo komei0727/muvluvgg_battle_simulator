@@ -94,7 +94,7 @@ describe("production Catalog APPLY_STAT_MOD (EFF-002, R-STA-02〜04/R-EFF-05)", 
         grantContext,
         [actor],
         {
-          effectActionDefinitionId: effectAction.effectActionDefinitionId,
+          definition: effectAction,
           sourceId: actor.battleUnitId,
           targetId: actor.battleUnitId,
           duplicate: true,
