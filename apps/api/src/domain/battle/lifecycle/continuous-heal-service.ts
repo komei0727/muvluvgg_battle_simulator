@@ -106,7 +106,9 @@ export function fireContinuousHealsOnActionStart(
       {
         ...context,
         parentEventId: lastEventId,
-        sourceUnitId: effect.sourceId,
+        // R-MEM-04（Issue #179）: Memory由来の継続回復は付与者ユニットを持たない
+        // ため、回復の発生源としては`healer`（保持者へフォールバック済み）を使う。
+        sourceUnitId: effect.sourceId ?? healer.battleUnitId,
         ...(onFactEvent !== undefined ? { onFactEventForPassiveChain: onFactEvent } : {}),
       },
       lastEventId,

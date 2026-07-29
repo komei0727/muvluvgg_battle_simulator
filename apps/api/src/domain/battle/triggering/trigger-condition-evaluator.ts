@@ -9,10 +9,11 @@ import type {
 import type { TargetReference } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
-import { matchesRelativeSide } from "../targeting/target-selection-policy.js";
+import { matchesRelativeSideOf } from "../targeting/target-selection-policy.js";
 import { compareWithOperator } from "../skill/comparison-operator.js";
 
 /**
@@ -62,7 +63,21 @@ export interface TriggerConditionPayloadSource {
  *   未指定時は評価できずthrowする。
  */
 export interface RuntimeCounterLookupContext {
-  readonly owner: BattleUnit;
+  /**
+   * R-MEM-01（Issue #179）: Memory の `triggeredEffects` から評価する場合だけ
+   * `undefined`（Memoryは所有ユニットを持たない、R-MEM-04「使用者はMemoryを
+   * 指定した陣営を source side とする」）。`owner`を必要とする条件種別
+   * （`SELF`対象参照・`POSITION_RELATION`・`SKILL_RUNTIME`スコープの
+   * `RUNTIME_COUNTER`・`excludeSelf`）は、その場合に他の未対応条件と同じ
+   * 明確な`DomainValidationError`で隔離する（Catalog整合性検証／preflightが
+   * 本来ここへ到達させない）。
+   */
+  readonly owner?: BattleUnit;
+  /**
+   * `owner`を持たないMemory評価での相対陣営の基準（そのMemoryを編成に指定した
+   * 陣営）。`owner`がある場合は`owner.side`を使うためこのフィールドは不要。
+   */
+  readonly ownerSide?: Side;
   readonly skillDefinitionId?: SkillDefinitionId;
   readonly effectCounters?: RuntimeCounterMap;
   readonly getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined;
@@ -80,11 +95,19 @@ export interface RuntimeCounterLookupContext {
  */
 function resolveTargetReferenceIds(
   target: TargetReference,
-  owner: BattleUnit,
+  owner: BattleUnit | undefined,
   event: TriggerConditionPayloadSource,
 ): readonly BattleUnitId[] {
   switch (target.kind) {
     case "SELF":
+      // R-MEM-04「対象参照の`SELF`は使用できない」: Memory評価（owner不在）では
+      // 「自身」に相当するBattleUnitが存在しないため、黙って0件にせず拒否する。
+      if (owner === undefined) {
+        throw new DomainValidationError(
+          "condition.target",
+          'kind "SELF" is not available without an owner BattleUnit (Memory triggeredEffects have no owner unit, R-MEM-04)',
+        );
+      }
       return [owner.battleUnitId];
     case "TRIGGER_SOURCE":
       return event.sourceUnitId !== undefined ? [event.sourceUnitId] : [];
@@ -185,7 +208,7 @@ export function evaluateTriggerCondition(
       let value: number;
       if (context?.effectCounters !== undefined) {
         value = context.effectCounters[condition.counter]?.value ?? 0;
-      } else if (context?.skillDefinitionId !== undefined) {
+      } else if (context?.skillDefinitionId !== undefined && context.owner !== undefined) {
         value =
           context.owner.skillCounters?.[context.skillDefinitionId]?.[condition.counter]?.value ?? 0;
       } else {
@@ -200,10 +223,10 @@ export function evaluateTriggerCondition(
       return compareWithOperator(value, condition.op, condition.value);
     }
     case "POSITION_RELATION": {
-      if (context?.getUnit === undefined) {
+      if (context?.getUnit === undefined || context.owner === undefined) {
         throw new DomainValidationError(
           "condition",
-          'kind "POSITION_RELATION" requires a context with a getUnit lookup (owner + getUnit)',
+          'kind "POSITION_RELATION" requires a context with an owner BattleUnit and a getUnit lookup (Memory triggeredEffects have no owner unit, R-MEM-04)',
         );
       }
       const { owner, getUnit } = context;
@@ -268,18 +291,27 @@ export function evaluateTriggerCondition(
       });
     }
     case "ALIVE_UNIT_COUNT": {
-      if (context?.units === undefined) {
+      const relativeSide = context?.owner?.side ?? context?.ownerSide;
+      if (context?.units === undefined || relativeSide === undefined) {
         throw new DomainValidationError(
           "condition",
-          'kind "ALIVE_UNIT_COUNT" requires a RuntimeCounterLookupContext with units (owner + units)',
+          'kind "ALIVE_UNIT_COUNT" requires a RuntimeCounterLookupContext with units and an owner (or ownerSide)',
+        );
+      }
+      // Memory評価（owner不在）では除外すべき「自身」が存在しないため、
+      // `excludeSelf`を黙って無視せず拒否する（R-MEM-04と同じ隔離方針）。
+      if (condition.excludeSelf && context.owner === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "ALIVE_UNIT_COUNT" with excludeSelf requires an owner BattleUnit (Memory triggeredEffects have no owner unit, R-MEM-04)',
         );
       }
       const { owner, units } = context;
       const count = units.filter(
         (unit) =>
           !isDefeated(unit) &&
-          matchesRelativeSide(unit, owner, condition.side) &&
-          !(condition.excludeSelf && unit.battleUnitId === owner.battleUnitId),
+          matchesRelativeSideOf(unit, relativeSide, condition.side) &&
+          !(condition.excludeSelf && unit.battleUnitId === owner?.battleUnitId),
       ).length;
       return compareWithOperator(count, condition.op, condition.value);
     }

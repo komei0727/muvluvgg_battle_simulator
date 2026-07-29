@@ -24,12 +24,15 @@ import {
   decrementSkillUseEffectDurations,
   reapplySkillUseDurationDecrement,
 } from "../model/applied-effect-duration.js";
-import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
+import {
+  resolveMemoryEffectSequenceOrder,
+  resolveSkillOrder,
+} from "../skill/skill-resolution-service.js";
 import type { TriggerContext } from "../targeting/target-selection-policy.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { BattleUnit } from "../model/battle-unit.js";
-import type { BattleDefinitions } from "../model/battle-definitions.js";
+import { NO_MEMORIES, type BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { ResolutionResult } from "./resolution-result.js";
 import type { EventRecorder } from "../events/event-recorder.js";
@@ -42,6 +45,11 @@ import type {
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError, ExecutionGuardExceededError } from "../../shared/errors.js";
 import { detectPassiveCandidates } from "../triggering/passive-trigger-matcher.js";
+import {
+  detectMemoryCandidates,
+  matchesMemoryTrigger,
+} from "../triggering/memory-trigger-matcher.js";
+import type { MemoryCandidate } from "../triggering/memory-candidate.js";
 import {
   applyMatchedRuntimeCounterUpdate,
   collectResolutionScopeResets,
@@ -341,6 +349,22 @@ export class PassiveActivationRuntime {
       findUnit: (battleUnitId) => this.units.find((unit) => unit.battleUnitId === battleUnitId),
       activate: (candidate, event): PassiveActivation =>
         this.activatePassiveCandidate(candidate, event),
+      // R-MEM-01/02（M7-006、Issue #179）: 同じイベントのMemory候補。PS候補と同じ
+      // `resolvePassiveChain`のスタックへ乗せ、PS候補を使い切った後に解決させる。
+      detectMemoryCandidates: (event) =>
+        detectMemoryCandidates({
+          event,
+          units: this.units,
+          memoriesBySide: this.context.definitions.memoriesBySide ?? NO_MEMORIES,
+          ...(this.context.resolutionPhase !== undefined
+            ? { resolutionPhase: this.context.resolutionPhase }
+            : {}),
+          turnNumber: this.context.turnNumber,
+        }),
+      reconfirmMemoryCandidate: (candidate, event) =>
+        this.reconfirmMemoryCandidate(candidate, event),
+      activateMemory: (candidate, event): PassiveActivation =>
+        this.activateMemoryCandidate(candidate, event),
       limits: this.context.limits ?? DEFAULT_PASSIVE_CHAIN_LIMITS,
       turnNumber: this.context.turnNumber,
       // RES-004（Issue #171）: `ALIVE_UNIT_COUNT`の再確認（R-PS-04）が候補検出時と
@@ -1153,6 +1177,177 @@ export class PassiveActivationRuntime {
         lastEventId = resolved.lastEventId;
       }
     }
+  }
+
+  /**
+   * `08_ドメインイベント.md`「発動直前の再確認」Memory候補「trigger conditionが
+   * 現在も成立」: 候補検出（R-MEM-01）と同じ照合を、発動直前の最新`this.units`で
+   * もう一度行う。PS側の`reconfirmPassiveCandidate`（PP・クールタイム・発動済み
+   * 集合も見る）と異なり、Memoryはtrigger自身の成立だけを見る（R-MEM-01「Memory
+   * triggeredEffects はPP、クールタイム、先制攻撃、1解決スコープ1回制限を
+   * 持たない」）。`requiredCapabilities`はpreflightが戦闘開始前に保証済み。
+   */
+  private reconfirmMemoryCandidate(
+    candidate: MemoryCandidate,
+    event: TriggerCandidateEvent,
+  ): boolean {
+    return matchesMemoryTrigger({
+      trigger: candidate.triggeredEffect.trigger,
+      side: candidate.side,
+      event,
+      units: this.units,
+      ...(this.context.resolutionPhase !== undefined
+        ? { resolutionPhase: this.context.resolutionPhase }
+        : {}),
+      turnNumber: this.context.turnNumber,
+    });
+  }
+
+  /**
+   * R-MEM-04「Memory の `EffectSequence` はスキルと同じく `R-SKL-01` から
+   * `R-SKL-08` に従って解決する」: PSの`activatePassiveCandidate`に対応する
+   * Memory版。R-MEM-01「Memory triggeredEffects はPP、クールタイム、先制攻撃、
+   * 1解決スコープ1回制限を持たない」ため、PP消費・EX増加・クールタイム設定・
+   * 発動済み集合への登録を一切行わず、`MemoryTriggered`→EffectSequence解決→
+   * `MemoryResolved`だけを行う。使用者BattleUnitを持たない（R-MEM-04）ため
+   * R-SKL-01の使用者戦闘不能による中断も持たず、常に`interrupted: false`を返す。
+   *
+   * `08_ドメインイベント.md`「発動直前の再確認」Memory候補「対象候補が1件以上
+   * 存在する」: 対象解決（`resolveMemoryEffectSequenceOrder`）の結果が0件の場合は
+   * `MemoryTriggered`自体を発行せずに終える（PS側の`PassiveCandidateSuppressed`
+   * と同じくDIAGNOSTICイベントは発行しない — 既存のPS実装が
+   * `PassiveCandidateDetected`/`Suppressed`を発行していないのと同じ扱い、
+   * `08_ドメインイベント.md`「発行自体を省略する実装も許容する」）。
+   */
+  private *activateMemoryCandidate(
+    candidate: MemoryCandidate,
+    event: TriggerCandidateEvent,
+  ): Generator<PassiveActivationStep, { readonly interrupted: boolean }, unknown> {
+    const triggerEventId = this.eventIdOf(event);
+    const sequence = candidate.triggeredEffect.effectSequence;
+    if (sequence.counterUpdates !== undefined && sequence.counterUpdates.length > 0) {
+      // `EFFECT_SEQUENCE`スコープのRuntimeCounterは保持者ユニット
+      // （`BattleUnit.effectSequenceCounters`、EFF-006/Issue #212）を前提とするため、
+      // 使用者を持たないMemoryからは扱えない。黙って無視せず明確に拒否する。
+      throw new DomainValidationError(
+        "memory.triggeredEffects.effectSequence.counterUpdates",
+        "EffectSequence-scoped RuntimeCounters require an owner BattleUnit, which Memory triggeredEffects do not have (R-MEM-04)",
+      );
+    }
+
+    // CAP_TRIGGER_CONTEXT（RES-005）/ CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247）:
+    // PS側と同じく、候補検出に使った原因イベントの発生源・対象・payloadを
+    // そのまま解決へ渡す（`TRIGGER_SOURCE`/`TRIGGER_TARGET`はMemoryでも使える
+    // ——`SELF`と異なり具体的な使用者を必要としないため）。
+    const triggerContext: TriggerContext = {
+      ...(event.sourceUnitId !== undefined ? { triggerSourceUnitId: event.sourceUnitId } : {}),
+      ...(event.targetUnitIds !== undefined ? { triggerTargetUnitIds: event.targetUnitIds } : {}),
+      triggerEventPayload: event.payload,
+    };
+
+    const plan = resolveMemoryEffectSequenceOrder(
+      sequence,
+      candidate.side,
+      this.units,
+      this.context.definitions.effectActions,
+      triggerContext,
+      this.context.definitions.unitDefinitions,
+    );
+    if (plan.targetUnitIds.length === 0) {
+      return { interrupted: false };
+    }
+
+    // `08_ドメインイベント.md`「MemoryTriggered から発生するEffectSequenceイベントは、
+    // 同じ`effectSequenceId`と`sourceSide`を引き継ぐ」: 1件のMemory解決を識別する
+    // 実行時IDとして、PSと同じく`SkillUseId`を採番して全イベントへ伝播させる。
+    const skillUseId = this.context.recorder.nextSkillUseId();
+    const memoryTriggered = this.context.recorder.record({
+      eventType: "MemoryTriggered",
+      category: "FACT",
+      turnNumber: this.context.turnNumber,
+      cycleNumber: this.context.cycleNumber,
+      ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      skillUseId,
+      resolutionScopeId: this.context.resolutionScopeId,
+      parentEventId: triggerEventId,
+      rootEventId: this.context.rootEventId,
+      // `08_ドメインイベント.md`: Memoryイベントは`sourceUnitId`を持たず`sourceSide`を持つ。
+      sourceSide: candidate.side,
+      payload: {
+        memoryDefinitionId: candidate.memoryDefinitionId,
+        triggeredEffectIndex: candidate.triggeredEffectIndex,
+        sourceSide: candidate.side,
+        triggerEventId,
+      },
+    });
+    // `MemoryTriggered`自身も別のPS/Memoryの発動契機になり得る
+    // （`08_ドメインイベント.md`「PS/Memoryからの連鎖」）ため、PSの
+    // `PassiveActivated`と同じくTIMING_EVENTとしてyieldし、進行中の連鎖へ参加させる。
+    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(memoryTriggered) };
+
+    const groupContext: EffectActionGroupContext = {
+      definitions: this.context.definitions,
+      // R-MEM-04: 使用者BattleUnitを持たず、Memoryを指定した陣営をsource sideとする。
+      sourceSide: candidate.side,
+      random: this.context.random,
+      recorder: this.context.recorder,
+      turnNumber: this.context.turnNumber,
+      cycleNumber: this.context.cycleNumber,
+      ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      skillUseId,
+      actionScope: this.context.resolutionScopeId,
+      rootEventId: this.context.rootEventId,
+      parentEventId: memoryTriggered.eventId,
+      damageResults: this.damageResults,
+      ...triggerContext,
+    };
+    const box: UnitsBox = { units: this.units };
+    const generator = resolveEffectSequencePlan(plan, box, groupContext);
+    let lastEventId: DomainEventId = memoryTriggered.eventId;
+    let step = generator.next();
+    while (!step.done) {
+      this.units = box.units;
+      if (step.value.kind === "TIMING_EVENT") {
+        yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(step.value.event) };
+      } else {
+        yield {
+          kind: "EFFECT_RESOLVED",
+          events: step.value.events.map((resolved) => this.toTriggerEvent(resolved)),
+        };
+      }
+      box.units = this.units;
+      const lastYielded =
+        step.value.kind === "TIMING_EVENT"
+          ? step.value.event
+          : step.value.events[step.value.events.length - 1];
+      if (lastYielded !== undefined) {
+        lastEventId = lastYielded.eventId;
+      }
+      step = generator.next();
+    }
+    this.units = box.units;
+
+    const memoryResolved = this.context.recorder.record({
+      eventType: "MemoryResolved",
+      category: "FACT",
+      turnNumber: this.context.turnNumber,
+      cycleNumber: this.context.cycleNumber,
+      ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      skillUseId,
+      resolutionScopeId: this.context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: this.context.rootEventId,
+      sourceSide: candidate.side,
+      payload: {
+        memoryDefinitionId: candidate.memoryDefinitionId,
+        triggeredEffectIndex: candidate.triggeredEffectIndex,
+        sourceSide: candidate.side,
+        resolvedStepCount: sequence.steps.length,
+      },
+    });
+    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(memoryResolved) };
+
+    return { interrupted: false };
   }
 
   /**

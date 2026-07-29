@@ -15,6 +15,7 @@ import type {
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import type {
   ActionId,
   EffectInstanceId,
@@ -69,7 +70,9 @@ export interface ChargeState {
 export interface EffectSnapshot {
   readonly effectInstanceId: EffectInstanceId;
   readonly effectDefinitionId: string;
-  readonly sourceUnitId: BattleUnitId;
+  /** R-MEM-04（Issue #179）: Memory由来の効果インスタンスは付与者ユニットを持たず`sourceSide`を持つ。 */
+  readonly sourceUnitId?: BattleUnitId;
+  readonly sourceSide?: Side;
   readonly kindKey: string;
   readonly duplicate: boolean;
   readonly isEffective: boolean;
@@ -129,7 +132,8 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
   return {
     effectInstanceId: effect.effectInstanceId,
     effectDefinitionId: effect.effectActionDefinitionId,
-    sourceUnitId: effect.sourceId,
+    ...(effect.sourceId !== undefined ? { sourceUnitId: effect.sourceId } : {}),
+    ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
     kindKey: effect.kindKey,
     duplicate: effect.duplicate,
     isEffective,

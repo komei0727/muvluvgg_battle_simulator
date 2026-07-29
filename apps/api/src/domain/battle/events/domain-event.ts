@@ -25,6 +25,7 @@ import type {
 import type {
   EffectActionDefinitionId,
   MarkerId,
+  MemoryDefinitionId,
   RuntimeCounterId,
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
@@ -520,6 +521,25 @@ export interface BattleDomainEventPayloadMap {
     readonly resolvedStepCount: number;
   };
   /**
+   * `08_ドメインイベント.md`「Memoryイベント」（M7-006、Issue #179、R-MEM-01〜04）:
+   * Memory の1件の`triggeredEffect`の解決を開始した時。Memoryイベントは
+   * `sourceUnitId`を持たず`sourceSide`（そのMemoryを指定した陣営）を持つ。
+   */
+  readonly MemoryTriggered: {
+    readonly memoryDefinitionId: MemoryDefinitionId;
+    /** R-MEM-02 #2「同一 Memory 内の`triggeredEffects`定義順」の位置。 */
+    readonly triggeredEffectIndex: number;
+    readonly sourceSide: Side;
+    readonly triggerEventId: DomainEventId;
+  };
+  /** R-MEM-04: Memory の`triggeredEffect`の`EffectSequence`解決後。 */
+  readonly MemoryResolved: {
+    readonly memoryDefinitionId: MemoryDefinitionId;
+    readonly triggeredEffectIndex: number;
+    readonly sourceSide: Side;
+    readonly resolvedStepCount: number;
+  };
+  /**
    * R-SKL-01: PS所有者が解決中に戦闘不能になり中断した時。Issue #217設計方針
    * B/C: `PassiveResolved`/`PassiveInterrupted`の選択は、実際に解決が最後まで
    * 進んだか使用者戦闘不能で打ち切ったかという事実だけから決まり、
@@ -590,7 +610,9 @@ export interface BattleDomainEventPayloadMap {
   readonly EffectApplied: {
     readonly effectInstanceId: EffectInstanceId;
     readonly effectActionDefinitionId: EffectActionDefinitionId;
-    readonly sourceUnitId: BattleUnitId;
+    /** R-MEM-04（Issue #179）: Memory由来の付与では`sourceSide`へ置き換わる。 */
+    readonly sourceUnitId?: BattleUnitId;
+    readonly sourceSide?: Side;
     readonly targetUnitId: BattleUnitId;
     readonly duplicate: boolean;
     readonly kindKey: string;
@@ -623,7 +645,9 @@ export interface BattleDomainEventPayloadMap {
   readonly EffectApplicationRejected: {
     readonly battleUnitId: BattleUnitId;
     readonly effectActionDefinitionId: EffectActionDefinitionId;
-    readonly sourceUnitId: BattleUnitId;
+    /** R-MEM-04（Issue #179）: Memory由来の付与では`sourceSide`へ置き換わる。 */
+    readonly sourceUnitId?: BattleUnitId;
+    readonly sourceSide?: Side;
     readonly blockingEffectInstanceId: EffectInstanceId;
     readonly reason: EffectApplicationRejectionReason;
     readonly statusKind?: StatusKind;

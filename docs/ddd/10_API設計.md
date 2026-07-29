@@ -480,6 +480,7 @@ EffectStateResponse {
   effectInstanceId
   effectDefinitionId
   sourceUnitId?
+  sourceSide?
   category
   effectKindKey
   stackMode
@@ -493,6 +494,7 @@ EffectStateResponse {
 
 | プロパティ      | 説明                                                                                                                                         |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sourceSide`    | Memory の `triggeredEffects` 由来の効果だけが持つ付与元の陣営（`R-MEM-04`、M7-006/Issue #179）。この場合 `sourceUnitId` は持たない。         |
 | `category`      | `BUFF`、`DEBUFF`、`STATUS_ABNORMALITY`のいずれか。状態異常はデバフの一種だが、解除・無効判定のため区別して返す。                             |
 | `effectKindKey` | 重複判定で同種を識別する安定したキー。                                                                                                       |
 | `stackMode`     | `STACKABLE` または `NON_STACKING`。                                                                                                          |
@@ -596,6 +598,7 @@ BattleLogEventResponse {
   parentSequence?
   rootSequence
   sourceUnitId?
+  sourceSide?
   targetUnitIds[]
   details
   stateVersionBefore
@@ -611,6 +614,7 @@ BattleLogEventResponse {
 | `category`             | `FACT`、`TIMING`、`DIAGNOSTIC`。                                                                                    |
 | `parentSequence`       | 直接の原因イベントが公開されているかにかかわらず、元の連番を返す。                                                  |
 | `rootSequence`         | 解決スコープの起点イベント連番。                                                                                    |
+| `sourceSide`           | Memory由来イベント（`MemoryTriggered`等）だけが持つ発生源の陣営。この場合`sourceUnitId`は持たない。                 |
 | `targetUnitIds`        | 対象なしの場合は空配列。対象順を保持する。                                                                          |
 | `details`              | イベント種別ごとのJSON object。                                                                                     |
 | `stateTransitionIndex` | このイベントが所有する状態変更の `stateTransitions` 配列における0始まりのインデックス。状態変更がなければ省略する。 |

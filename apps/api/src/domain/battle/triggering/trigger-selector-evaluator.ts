@@ -95,6 +95,68 @@ export function evaluateSourceSelector(
 }
 
 /**
+ * R-MEM-01 #3の`sourceSelector`部分（`evaluateSourceSelector`のMemory版）。
+ * Memoryは所有ユニットを持たず、R-MEM-04「使用者はMemoryを指定した陣営を
+ * source side とする」ため、視点は`memorySide`（そのMemoryを編成に指定した陣営）
+ * になる。
+ *
+ * - `SELF`: 「自身」に相当するBattleUnitが存在しないため、`BattleStarted`/
+ *   `TurnStarted`のように発生源を特定ユニットへ帰属できないグローバルイベント
+ *   （`isSourceUnattributed`、PS側と同じ判定）のときだけ成立させる。production
+ *   Catalogの戦闘開始時Memoryはこの著者慣習（`sourceSelector: SELF`）で書かれて
+ *   いる。特定ユニット起因のイベントに対しては「自身」が存在しないため不成立。
+ * - `ALLY`/`ENEMY`: 発生源の陣営を`memorySide`と比較する（PS側の`owner.side`が
+ *   `memorySide`へ置き換わるだけ）。
+ */
+export function evaluateMemorySourceSelector(
+  selector: EventSelector,
+  memorySide: Side,
+  event: TriggerCandidateEvent,
+  unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
+): boolean {
+  rejectEffectOwner(selector, "trigger.sourceSelector");
+  switch (selector) {
+    case "ANY":
+      return true;
+    case "SELF":
+      return isSourceUnattributed(event);
+    case "ALLY":
+      return resolveSourceSide(event, unitsById) === memorySide;
+    case "ENEMY": {
+      const side = resolveSourceSide(event, unitsById);
+      return side !== undefined && side !== memorySide;
+    }
+  }
+}
+
+/** 上記`evaluateMemorySourceSelector`と対になる`targetSelector`版。 */
+export function evaluateMemoryTargetSelector(
+  selector: EventSelector,
+  memorySide: Side,
+  event: TriggerCandidateEvent,
+  unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
+): boolean {
+  rejectEffectOwner(selector, "trigger.targetSelector");
+  if (selector === "ANY") {
+    return true;
+  }
+  if (selector === "SELF") {
+    return isTargetUnattributed(event);
+  }
+  const targetUnitIds = event.targetUnitIds;
+  if (targetUnitIds === undefined || targetUnitIds.length === 0) {
+    return false;
+  }
+  return targetUnitIds.some((id) => {
+    const target = unitsById.get(id);
+    if (target === undefined) {
+      return false;
+    }
+    return selector === "ALLY" ? target.side === memorySide : target.side !== memorySide;
+  });
+}
+
+/**
  * R-PS-01「...対象...をConditionDefinitionで評価する」のうち`targetSelector`部分。
  * `targetUnitIds`は複数持ちうるため、いずれか1件が条件を満たせば候補にする。
  */

@@ -137,6 +137,11 @@ export function sameEffectSnapshot(
     a.effectInstanceId === b.effectInstanceId &&
     a.effectDefinitionId === b.effectDefinitionId &&
     a.sourceUnitId === b.sourceUnitId &&
+    // R-MEM-04（M7-006、Issue #179）: Memory由来の効果は`sourceUnitId`を持たず
+    // `sourceSide`を持つ。両方を比較しないと、Memory由来効果のStateDeltaから
+    // 発生源が欠落・破損しても独立Reducerの復元一致検証を通過してしまう
+    // （PR #260レビュー[P2]）。
+    a.sourceSide === b.sourceSide &&
     a.kindKey === b.kindKey &&
     a.duplicate === b.duplicate &&
     a.isEffective === b.isEffective &&

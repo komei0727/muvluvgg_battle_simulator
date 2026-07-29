@@ -138,6 +138,8 @@ function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseB
     effectInstanceId: effect.effectInstanceId,
     effectDefinitionId: effect.effectDefinitionId,
     ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
+    // R-MEM-04（M7-006、Issue #179）: Memory由来の効果は付与者ユニットを持たず、付与元の陣営を持つ。
+    ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
     category: effect.magnitude >= 0 ? "BUFF" : "DEBUFF",
     effectKindKey: effect.kindKey,
     stackMode: effect.duplicate ? "STACKABLE" : "NON_STACKING",
@@ -249,6 +251,7 @@ function toBattleLogEventResponseBody(event: BattleLogEvent): BattleLogEventResp
     ...(event.parentSequence !== undefined ? { parentSequence: event.parentSequence } : {}),
     rootSequence: event.rootSequence,
     ...(event.sourceUnitId !== undefined ? { sourceUnitId: event.sourceUnitId } : {}),
+    ...(event.sourceSide !== undefined ? { sourceSide: event.sourceSide } : {}),
     targetUnitIds: event.targetUnitIds,
     details: event.details,
     stateVersionBefore: event.stateVersionBefore,

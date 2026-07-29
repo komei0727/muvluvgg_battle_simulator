@@ -8,6 +8,7 @@ import {
   withTopCandidates,
   type PassiveResolutionStackEntry,
 } from "./passive-resolution-stack.js";
+import type { MemoryCandidate } from "./memory-candidate.js";
 import type { PassiveCandidate } from "./passive-candidate.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
 
@@ -21,8 +22,9 @@ const CANDIDATE_3 = { id: 3 } as unknown as PassiveCandidate;
 function entry(
   event: TriggerCandidateEvent,
   candidates: readonly PassiveCandidate[],
+  memoryCandidates: readonly MemoryCandidate[] = [],
 ): PassiveResolutionStackEntry {
-  return { event, candidates };
+  return { event, candidates, memoryCandidates };
 }
 
 describe("PassiveResolutionStack", () => {

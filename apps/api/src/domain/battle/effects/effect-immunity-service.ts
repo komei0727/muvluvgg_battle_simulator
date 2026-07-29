@@ -15,6 +15,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 
 /**
  * R-EFF-03（M7-001B、Issue #243）: これから付与しようとしている効果の候補。
@@ -113,7 +114,9 @@ export interface RejectEffectApplicationContext {
 
 export interface RejectEffectApplicationRequest {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
-  readonly sourceId: BattleUnitId;
+  /** R-MEM-04（Issue #179）: Memory由来の付与では`sourceSide`へ置き換わる（`GrantEffectRequest`と同じ規約）。 */
+  readonly sourceId?: BattleUnitId;
+  readonly sourceSide?: Side;
   readonly targetId: BattleUnitId;
   readonly blockingEffect: AppliedEffect;
   /** TGT-004フェーズ3と同じ規約: 拒否対象が`APPLY_STATUS`由来の場合だけ持つ。 */
@@ -164,12 +167,14 @@ export function rejectEffectApplication(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: request.sourceId,
+    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
     targetUnitIds: [request.targetId],
     payload: {
       battleUnitId: request.targetId,
       effectActionDefinitionId: request.effectActionDefinitionId,
-      sourceUnitId: request.sourceId,
+      ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+      ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
       blockingEffectInstanceId: before.effectInstanceId,
       reason: "IMMUNITY",
       ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),

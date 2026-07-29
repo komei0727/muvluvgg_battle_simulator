@@ -38,6 +38,32 @@ function damageAction(
   );
 }
 
+/**
+ * M7-006（Issue #179、R-MEM-04）: Memory の `triggeredEffects` は使用者BattleUnitを
+ * 持たないため、`DAMAGE`のように発生源ユニットを必要とするEffectActionを参照できない
+ * （`MEMORY_REQUIRES_SOURCE_UNIT`）。Memory用のfixtureは静的なstat補正を使う。
+ */
+function memoryModifierAction(
+  id: string,
+  requiredCapabilities: readonly string[] = [],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_DAMAGE_MOD",
+      payload: {
+        direction: "INCOMING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: 0.1 },
+        stacking: { mode: "STACKABLE" },
+        duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function asSkill(id: string, requiredCapabilities: readonly string[] = []): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -268,7 +294,7 @@ describe("InMemoryBattleCatalog.loadSnapshot", () => {
     const defs: CatalogDefinitions = {
       units: [],
       skills: [],
-      effectActions: [damageAction("ACT_DAMAGE_MEMORY", ["CAP_MEMORY_ACTION"])],
+      effectActions: [memoryModifierAction("ACT_DAMAGE_MEMORY", ["CAP_MEMORY_ACTION"])],
       memories: [memory("MEM_001", ["CAP_MEMORY", "CAP_MEMORY_TRIGGERED_EFFECT"])],
       capabilities: [
         capability("CAP_MEMORY"),

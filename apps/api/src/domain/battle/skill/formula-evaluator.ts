@@ -12,7 +12,8 @@ import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { SkillUseId } from "../../shared/event-ids.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
-import { matchesRelativeSide } from "../targeting/target-selection-policy.js";
+import type { Side } from "../../shared/side.js";
+import { matchesRelativeSideOf } from "../targeting/target-selection-policy.js";
 
 /**
  * R-NUM-04のFormulaEvaluatorが数値を導出するために参照する実行時状態。
@@ -25,7 +26,16 @@ import { matchesRelativeSide } from "../targeting/target-selection-policy.js";
  * 別Issueのスコープで、このEvaluatorは代わりに呼び出し時点で明確に失敗する）。
  */
 export interface FormulaEvaluationContext {
-  readonly skillSource: BattleUnit;
+  /**
+   * R-MEM-04（Issue #179）: Memory の `triggeredEffects` から評価する場合だけ
+   * `undefined`（Memoryは使用者BattleUnitを持たず、source sideだけを持つ）。
+   * `SKILL_SOURCE`参照を実際に使うFormulaはその時点で`DomainValidationError`に
+   * なる（他の未提供参照と同じ扱い）。`ALIVE_UNIT_COUNT_SCALE`の相対陣営は
+   * `sourceSide`で代替できる。
+   */
+  readonly skillSource?: BattleUnit;
+  /** `skillSource`不在時の相対陣営基準（Memoryを指定した陣営）。 */
+  readonly sourceSide?: Side;
   readonly target: BattleUnit;
   readonly allUnits: readonly BattleUnit[];
   readonly triggerSource?: BattleUnit;
@@ -47,6 +57,12 @@ function resolveSourceUnit(
 ): BattleUnit {
   switch (ref.kind) {
     case "SKILL_SOURCE":
+      if (context.skillSource === undefined) {
+        throw new DomainValidationError(
+          path,
+          'kind "SKILL_SOURCE" requires a source BattleUnit, which Memory triggeredEffects do not have (R-MEM-04)',
+        );
+      }
       return context.skillSource;
     case "TARGET":
       return context.target;
@@ -111,12 +127,12 @@ function markerStackCount(unit: BattleUnit, markerId: MarkerId): number {
  * `context.skillSource`（Formulaを持つ効果の使用者）を基準にする。
  */
 function aliveUnitCount(
-  perspective: BattleUnit,
+  perspectiveSide: Side,
   allUnits: readonly BattleUnit[],
   side: SelectorSide,
 ): number {
   return allUnits.filter(
-    (unit) => !isDefeated(unit) && matchesRelativeSide(unit, perspective, side),
+    (unit) => !isDefeated(unit) && matchesRelativeSideOf(unit, perspectiveSide, side),
   ).length;
 }
 
@@ -322,7 +338,14 @@ export function evaluateFormula(
       return Math.min(stackCount * formula.perStack, formula.max);
     }
     case "ALIVE_UNIT_COUNT_SCALE": {
-      const count = aliveUnitCount(context.skillSource, context.allUnits, formula.side);
+      const relativeSide = context.skillSource?.side ?? context.sourceSide;
+      if (relativeSide === undefined) {
+        throw new DomainValidationError(
+          `${path}.side`,
+          'kind "ALIVE_UNIT_COUNT_SCALE" requires a source BattleUnit or sourceSide to resolve the relative side',
+        );
+      }
+      const count = aliveUnitCount(relativeSide, context.allUnits, formula.side);
       return Math.min(count * formula.perUnit, formula.max);
     }
     case "SUM":

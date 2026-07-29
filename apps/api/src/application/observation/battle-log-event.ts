@@ -7,6 +7,7 @@ import type {
 import type { ActionId, DomainEventId, SkillUseId } from "../../domain/shared/event-ids.js";
 import { DomainValidationError } from "../../domain/shared/errors.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
+import type { Side } from "../../domain/shared/side.js";
 
 /**
  * `10_API設計.md`「BattleLogEventResponse」と同じ形。内部イベント名(`eventType`)を
@@ -25,6 +26,8 @@ export interface BattleLogEvent {
   /** 解決スコープの起点イベント連番。ルートイベント自身では自分の`sequence`と同じ値になる。 */
   readonly rootSequence: number;
   readonly sourceUnitId?: BattleUnitId;
+  /** `08_ドメインイベント.md`「Memory由来イベントは`sourceSide`を持ち、特定ユニットを発生源にしない」（M7-006、Issue #179）。 */
+  readonly sourceSide?: Side;
   /** 対象なしの場合は空配列（省略しない）。 */
   readonly targetUnitIds: readonly BattleUnitId[];
   readonly details: unknown;
@@ -96,6 +99,7 @@ export function toBattleLogEvents(
       ...(parentSequence !== undefined ? { parentSequence } : {}),
       rootSequence,
       ...(event.sourceUnitId !== undefined ? { sourceUnitId: event.sourceUnitId } : {}),
+      ...(event.sourceSide !== undefined ? { sourceSide: event.sourceSide } : {}),
       targetUnitIds: event.targetUnitIds ?? [],
       details: event.payload,
       stateVersionBefore: event.stateVersionBefore,

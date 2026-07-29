@@ -23,7 +23,10 @@ import type { MemoryDefinition } from "../definitions/memory-definition.js";
 import { toReadonlyMap } from "../../shared/readonly-map.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TriggerDefinition } from "../definitions/trigger-definition.js";
-import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
+import type {
+  TargetFilterDefinition,
+  TargetSelectorDefinition,
+} from "../definitions/target-selector-definition.js";
 import type { TargetReference } from "../definitions/references.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
 
@@ -59,6 +62,7 @@ export const VIOLATION_RULES = [
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
   "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
+  "MEMORY_REQUIRES_SOURCE_UNIT",
 ] as const;
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
@@ -1804,6 +1808,270 @@ function checkCooldownManipulationOwnership(
   }
 }
 
+/**
+ * R-MEM-04「具体的な発生源 BattleUnit が必要なEffectActionをMemoryから使用する
+ * 場合は、Catalog検証またはpreflightで拒否する」: Memoryは使用者ユニットを持たない
+ * （source sideだけを持つ）ため、次を宣言するMemoryはCatalogロード時点で拒否する。
+ *
+ * - 使用者を必要とするEffectAction種別（下記`SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS`）。
+ * - 対象参照`SELF`（R-MEM-04が明示的に禁止）。
+ * - 使用者を基準にする`TargetSelectorDefinition`（`kind: SELF`、使用者からの距離順、
+ *   `SELF_LOWEST_PRIORITY`、`base`が暗黙の使用者になる`area`）。
+ *
+ * これらは実行時（`requireSourceUnit`/`requireActorUnit`）も決定的に拒否するが、
+ * 戦闘開始後に効果解決の途中で失敗させないため、ここで先に検出する
+ * （`EVENT_PAYLOAD_REQUIRES_PS_SKILL`と同じ方針）。Formulaの`SKILL_SOURCE`参照は
+ * `FormulaEvaluator`が評価時点で同じく明確に拒否する。
+ */
+const SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS = new Set<EffectActionDefinition["kind"]>([
+  // 使用者の攻撃力・命中/会心・被ダメージ記録を必要とする。
+  "DAMAGE",
+  // 回復者（回復量Formulaの基準・`HealApplied.sourceUnitId`）を必要とする。
+  "HEAL",
+  "APPLY_CONTINUOUS_HEAL",
+  // `ModifyResourceEventContext`/`CooldownManipulationEventContext`が発生源ユニットを要求する。
+  "MODIFY_RESOURCE",
+  "COOLDOWN_MANIPULATION",
+  // `10_API設計.md`の`MarkerStateResponse.sourceUnitId`は必須（Markerは常に直近の付与者を持つ）。
+  "APPLY_MARKER",
+]);
+
+const SOURCE_UNIT_REQUIRING_ORDER_KEYS: ReadonlySet<string> = new Set([
+  "NEAREST",
+  "FARTHEST",
+  "SELF_LOWEST_PRIORITY",
+]);
+
+const SELF_TARGET_REFERENCE_KINDS: ReadonlySet<string> = new Set(["SELF"]);
+
+function selectorRequiresSourceUnit(selector: TargetSelectorDefinition): boolean {
+  return selectorTreeSome(
+    selector,
+    (candidate) =>
+      candidate.kind === "SELF" ||
+      (candidate.kind === "BINDING_DERIVED" && candidate.base?.kind === "SELF") ||
+      // `area`のbaseは`BINDING_DERIVED`以外では暗黙に使用者になる（R-TGT-09 #4）。
+      (candidate.area !== undefined && candidate.kind !== "BINDING_DERIVED") ||
+      candidate.order.some(
+        (entry) => typeof entry === "string" && SOURCE_UNIT_REQUIRING_ORDER_KEYS.has(entry),
+      ) ||
+      candidate.filters.some((filter) => filterReferencesSelf(filter)),
+  );
+}
+
+function filterReferencesSelf(filter: TargetFilterDefinition): boolean {
+  switch (filter.kind) {
+    case "EXCLUDE_RESOLVED_UNIT":
+      return filter.reference.kind === "SELF";
+    case "AND":
+    case "OR":
+      return filter.conditions.some((condition) => filterReferencesSelf(condition));
+    case "NOT":
+      return filterReferencesSelf(filter.condition);
+    default:
+      return false;
+  }
+}
+
+/**
+ * PR #260レビュー[P2]: EffectActionの`kind`だけでは、使用者BattleUnitを必要とする
+ * 構成を網羅できない（`APPLY_STAT_MOD`のFormulaが`SKILL_SOURCE`を参照する、
+ * `APPLY_HEALING_LINK`の`transferTo`が`SELF`を指す等）。payloadを再帰走査し、
+ * EffectSequenceの**発生源**を指す参照が1つでも埋め込まれていれば拒否する。
+ *
+ * PR #260再レビュー[P2]: ただし`DurationDefinition`（`duration`）配下は「効果を
+ * 保持する対象ユニット」のスコープであり、発生源スコープではない —
+ * `expiration.conditions`の`SELF`は保持者を指し（`effect-expiration-condition-service.ts`
+ * が各効果の保持者を`context.owner`として渡す）、`counterUpdates`も同じ
+ * `AppliedEffect`インスタンス自身のcounterを指す。Memoryが付与する効果へ
+ * 「保持者自身の状態で失効する」正常な特殊失効条件を書けなくならないよう、
+ * このスコープは走査対象から外す。それ以外のpayloadフィールド
+ * （`formula`/`rateDelta`等のFormula、`transferTo`/`redirectTo`/`coverer`/
+ * `reflectTo`等のTargetReference）は解決時に発生源へ解決されるため、
+ * 汎用走査のまま将来追加されるフィールドも覆う。
+ */
+const SOURCE_UNIT_REFERENCE_KINDS: ReadonlySet<string> = new Set([
+  // `FormulaSourceReference.kind`（Formulaが使用者のstat/HPを読む）。
+  "SKILL_SOURCE",
+  // `TargetReference.kind`（`transferTo`等が使用者自身を指す）。
+  "SELF",
+  // PR #260再レビュー[P2]: 直前・累計DAMAGE結果は使用者ごとに記録される
+  // （`DamageResultRegistry`は`BattleUnitId`キー）。使用者を持たないMemoryの
+  // 解決では`lastResults`自体がFormula評価contextへ渡らないため、
+  // `LAST_DAMAGE_*`/`SUM_DAMAGE_*`を読むFormula種別も評価不能として扱う。
+  "DAMAGE_DEALT_RATIO",
+  "DAMAGE_RECEIVED_RATIO",
+]);
+
+/**
+ * `duration`配下で唯一、発生源ユニットを指す宣言。`payloadReferencesSourceUnit`が
+ * `duration`を走査対象外にする代わりに、この1点だけを明示的に確認する。
+ */
+function effectActionDurationOwnedBySource(effectAction: EffectActionDefinition): boolean {
+  return durationOf(effectAction)?.timeLimit?.owner === "EFFECT_SOURCE";
+}
+
+/** 発生源ではなく「効果保持者」のスコープを表すpayloadキー（走査対象外）。 */
+const EFFECT_HOLDER_SCOPED_PAYLOAD_KEYS: ReadonlySet<string> = new Set(["duration"]);
+
+function payloadReferencesSourceUnit(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((entry) => payloadReferencesSourceUnit(entry));
+  }
+  if (typeof value === "object" && value !== null) {
+    const kind = (value as { readonly kind?: unknown }).kind;
+    if (typeof kind === "string" && SOURCE_UNIT_REFERENCE_KINDS.has(kind)) {
+      return true;
+    }
+    return Object.entries(value).some(
+      ([key, entry]) =>
+        !EFFECT_HOLDER_SCOPED_PAYLOAD_KEYS.has(key) && payloadReferencesSourceUnit(entry),
+    );
+  }
+  return false;
+}
+
+/**
+ * PR #260レビュー[P2]: Memoryの`TriggerDefinition.condition`（およびEffectStepの
+ * 各condition）が使用者BattleUnitを必要とするかどうか。`trigger-condition-evaluator.ts`
+ * が`owner`不在で`DomainValidationError`にする条件種別と1対1で対応させる。
+ *
+ * - `POSITION_RELATION`: 所有者の座標を基準にする。
+ * - `RUNTIME_COUNTER`: `SkillRuntime`/`AppliedEffect`スコープのcounter保持者を要求する
+ *   （Memoryはどちらも持たない）。
+ * - `ALIVE_UNIT_COUNT`の`excludeSelf`: 除外すべき「自身」が存在しない。
+ * - 対象参照`SELF`（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_SET_COUNT`等）。
+ */
+function conditionRequiresSourceUnit(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "POSITION_RELATION":
+    case "RUNTIME_COUNTER":
+      return true;
+    case "ALIVE_UNIT_COUNT":
+      return condition.excludeSelf === true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((child) => conditionRequiresSourceUnit(child));
+    case "NOT":
+      return conditionRequiresSourceUnit(condition.condition);
+    default:
+      return collectConditionTargetReferences(condition).some(
+        (reference) => reference.kind === "SELF",
+      );
+  }
+}
+
+/** EffectStep（BRANCH/RANDOM_BRANCH/REPEATの内側を含む）が持つ全conditionを再帰的に走査する。 */
+function stepsSomeCondition(
+  steps: readonly EffectStepDefinition[],
+  predicate: (condition: ConditionDefinition) => boolean,
+): boolean {
+  for (const step of steps) {
+    if (step.kind === "ACTION") {
+      if (predicate(step.stepCondition) || predicate(step.targetCondition)) {
+        return true;
+      }
+    } else if (step.kind === "BRANCH") {
+      if (
+        predicate(step.condition) ||
+        stepsSomeCondition(step.thenSteps, predicate) ||
+        stepsSomeCondition(step.elseSteps, predicate)
+      ) {
+        return true;
+      }
+    } else if (step.kind === "RANDOM_BRANCH") {
+      if (step.branches.some((branch) => stepsSomeCondition(branch.steps, predicate))) {
+        return true;
+      }
+    } else if (step.kind === "REPEAT" && stepsSomeCondition(step.steps, predicate)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function validateMemorySourceUnitIndependence(
+  memory: MemoryDefinition,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const triggeredEffect of memory.triggeredEffects) {
+    const sequence = triggeredEffect.effectSequence;
+    if (conditionRequiresSourceUnit(triggeredEffect.trigger.condition)) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          "trigger condition needs an owner BattleUnit (POSITION_RELATION/RUNTIME_COUNTER/ALIVE_UNIT_COUNT excludeSelf/SELF reference), which Memory triggeredEffects do not have (R-MEM-04)",
+      });
+    }
+    if (stepsSomeCondition(sequence.steps, conditionRequiresSourceUnit)) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          "EffectStep condition needs an owner BattleUnit (POSITION_RELATION/RUNTIME_COUNTER/ALIVE_UNIT_COUNT excludeSelf/SELF reference), which Memory triggeredEffects do not have (R-MEM-04)",
+      });
+    }
+    if (stepsContainTargetReferenceKinds(sequence.steps, SELF_TARGET_REFERENCE_KINDS)) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          'Memory triggeredEffects cannot use the "SELF" target reference (they have no source BattleUnit, R-MEM-04)',
+      });
+    }
+    for (const binding of sequence.targetBindings) {
+      if (selectorRequiresSourceUnit(binding.selector)) {
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `targetBinding "${binding.targetBindingId}" resolves relative to the source unit (SELF/implicit area base/actor-relative order), which Memory triggeredEffects do not have (R-MEM-04)`,
+        });
+      }
+    }
+    for (const ref of collectEffectActionReferences(sequence.steps)) {
+      const effectAction = effectActions.get(ref.effectActionDefinitionId);
+      if (effectAction === undefined) {
+        continue;
+      }
+      if (SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS.has(effectAction.kind)) {
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) requires a source BattleUnit, which Memory triggeredEffects do not have (R-MEM-04)`,
+        });
+      } else if (effectActionDurationOwnedBySource(effectAction)) {
+        // PR #260再レビュー[P2]と同じ理由の隣接ケース: `timeLimit.owner:
+        // EFFECT_SOURCE`は「付与者の行動・ターン完了で減算する」意味であり、
+        // 付与者ユニットが存在しないMemoryでは減算契機を特定できない
+        // （実行時は`BATTLE`扱いへフォールバックする＝意味が静かに変わる）。
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `EffectAction "${ref.effectActionDefinitionId}" declares timeLimit.owner "EFFECT_SOURCE", whose decrement trigger is the granting unit's action/turn — Memory triggeredEffects have no source BattleUnit (R-MEM-04)`,
+        });
+      } else if (payloadReferencesSourceUnit(effectAction.payload)) {
+        // PR #260レビュー[P2]: `kind`自体は使用者非依存でも、payload内のFormulaや
+        // 対象参照が使用者を指していれば同じく解決できない。
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) references the source BattleUnit in its payload (SKILL_SOURCE Formula, SELF target reference, or a LAST_DAMAGE_*/SUM_DAMAGE_* result), which Memory triggeredEffects do not have (R-MEM-04)`,
+        });
+      }
+    }
+    if (sequence.counterUpdates !== undefined && sequence.counterUpdates.length > 0) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+        message:
+          "EffectSequence-scoped counterUpdates are held by the resolving unit, which Memory triggeredEffects do not have (R-MEM-04)",
+      });
+    }
+  }
+}
+
 function validateMemory(
   memory: MemoryDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
@@ -1852,6 +2120,7 @@ function validateMemory(
       violations,
     );
   }
+  validateMemorySourceUnitIndependence(memory, effectActions, violations);
   checkRequiredCapabilities(
     memory.requiredCapabilities,
     memory.memoryDefinitionId,

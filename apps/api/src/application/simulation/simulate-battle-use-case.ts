@@ -21,6 +21,8 @@ import type {
   MemoryDefinitionId,
   UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-definition.js";
+import type { Side } from "../../domain/shared/side.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
@@ -112,13 +114,48 @@ function buildExSkillByUnit(
   return result;
 }
 
-function buildBattleDefinitions(snapshot: BattleCatalogSnapshot): BattleDefinitions {
+/**
+ * R-MEM-02 #1「APIリクエストで指定された Memory の順序」（M7-006、Issue #179）:
+ * 各陣営の`memoryDefinitionIds`をリクエストの並びのまま`MemoryDefinition`へ解決する
+ * （Setで重複排除する`collectReferencedIds`とは別に、陣営ごとの指定順そのものを
+ * Memory候補順の唯一の情報源として保つ）。`loadSnapshot`は参照の推移閉包を返す
+ * 契約のため、欠落はCatalogの不変条件違反として防御的に検出する。
+ */
+function buildMemoriesBySide(
+  command: SimulateBattleCommand,
+  memories: BattleCatalogSnapshot["memories"],
+): Readonly<Record<Side, readonly MemoryDefinition[]>> {
+  const resolve = (
+    memoryDefinitionIds: readonly MemoryDefinitionId[],
+    path: string,
+  ): readonly MemoryDefinition[] =>
+    memoryDefinitionIds.map((memoryDefinitionId, index) => {
+      const memory = memories.get(memoryDefinitionId);
+      if (memory === undefined) {
+        throw new DomainValidationError(
+          `${path}.memoryDefinitionIds[${index}]`,
+          `references a MemoryDefinitionId absent from the loaded Catalog snapshot: "${memoryDefinitionId}"`,
+        );
+      }
+      return memory;
+    });
+  return {
+    ALLY: resolve(command.allyFormation.memoryDefinitionIds, "allyFormation"),
+    ENEMY: resolve(command.enemyFormation.memoryDefinitionIds, "enemyFormation"),
+  };
+}
+
+function buildBattleDefinitions(
+  snapshot: BattleCatalogSnapshot,
+  command: SimulateBattleCommand,
+): BattleDefinitions {
   return {
     activeSkillsByUnit: buildActiveSkillsByUnit(snapshot.units, snapshot.skills),
     exSkillByUnit: buildExSkillByUnit(snapshot.units, snapshot.skills),
     effectActions: snapshot.effectActions,
     unitDefinitions: snapshot.units,
     skillDefinitions: snapshot.skills,
+    memoriesBySide: buildMemoriesBySide(command, snapshot.memories),
   };
 }
 
@@ -190,7 +227,7 @@ export class SimulateBattleUseCase {
         allyUnits,
         enemyUnits,
         createTurnLimit(command.turnLimit),
-        buildBattleDefinitions(snapshot),
+        buildBattleDefinitions(snapshot, command),
       );
       const initialState = captureBattleState(battle);
       const unitRoster = captureUnitRoster(battle);

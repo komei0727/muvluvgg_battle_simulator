@@ -26,6 +26,32 @@ function damageAction(
   );
 }
 
+/**
+ * M7-006（Issue #179、R-MEM-04）: Memoryは使用者BattleUnitを持たないため、
+ * `DAMAGE`のように発生源を必要とするEffectActionを参照できない
+ * （`MEMORY_REQUIRES_SOURCE_UNIT`）。Memory用fixtureはこの静的modifierを使う。
+ */
+function memoryModifierAction(
+  id: string,
+  requiredCapabilities: readonly string[] = [],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_DAMAGE_MOD",
+      payload: {
+        direction: "INCOMING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: 0.1 },
+        stacking: { mode: "STACKABLE" },
+        duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function asSkill(
   id: string,
   targetActionId: string,
@@ -246,7 +272,7 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     const defs: CatalogDefinitions = {
       units: [],
       skills: [],
-      effectActions: [damageAction("ACT_ATTACK_UP")],
+      effectActions: [memoryModifierAction("ACT_ATTACK_UP")],
       memories: [memoryWithCapability("MEM_001", ["CAP_MEMORY_TRIGGERED_EFFECT"])],
       capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT", "IMPLEMENTED")],
     };
@@ -260,7 +286,7 @@ describe("collectRequiredCapabilities / findUnimplementedCapabilities", () => {
     const defs: CatalogDefinitions = {
       units: [],
       skills: [],
-      effectActions: [damageAction("ACT_ATTACK_UP", ["CAP_MEMORY_ACTION"])],
+      effectActions: [memoryModifierAction("ACT_ATTACK_UP", ["CAP_MEMORY_ACTION"])],
       memories: [memoryWithEffectActionCapability("MEM_001", "ACT_ATTACK_UP")],
       capabilities: [
         capability("CAP_MEMORY_TRIGGERED_EFFECT", "PLANNED"),

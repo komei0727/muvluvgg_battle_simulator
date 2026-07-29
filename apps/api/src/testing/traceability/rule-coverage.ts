@@ -1098,10 +1098,59 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // MEM: Memory発動
-  { ruleId: "R-MEM-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-MEM-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-MEM-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-MEM-04", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-MEM-01",
+    testCaseIds: [
+      "UT-R-MEM-01-001",
+      "UT-R-MEM-01-002",
+      "UT-R-MEM-01-003",
+      "UT-R-MEM-01-004",
+      "UT-R-MEM-01-005",
+      "UT-R-MEM-01-006",
+      "UT-R-MEM-01-007",
+      "UT-R-MEM-01-008",
+      "UT-PROD-MEM-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-MEM-02",
+    testCaseIds: [
+      "UT-R-MEM-02-001",
+      "UT-R-MEM-02-002",
+      "UT-R-MEM-02-003",
+      "UT-R-MEM-02-004",
+      "UT-R-MEM-02-005",
+      "UT-PROD-MEM-003",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-MEM-03",
+    testCaseIds: ["UT-R-MEM-03-001", "UT-R-MEM-03-002", "UT-R-MEM-03-003", "UT-PROD-MEM-001"],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-MEM-04",
+    testCaseIds: [
+      "UT-R-MEM-04-001",
+      "UT-R-MEM-04-002",
+      "UT-R-MEM-04-003",
+      "UT-R-MEM-04-004",
+      "UT-CAT-IDX-081",
+      "UT-CAT-IDX-082",
+      "UT-CAT-IDX-083",
+      "UT-CAT-IDX-084",
+      "UT-CAT-IDX-085",
+      "UT-CAT-IDX-086",
+      "UT-CAT-IDX-087",
+      "UT-CAT-IDX-088",
+      "UT-CAT-IDX-089",
+      "UT-STATE-REDUCER-032",
+      "UT-PROD-MEM-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE"],
+  },
 
   // ACTN: EffectAction解決
   {

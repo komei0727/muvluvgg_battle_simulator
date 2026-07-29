@@ -1,6 +1,7 @@
 import type { Brand } from "../../shared/brand.js";
 import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   ActionKind,
@@ -160,7 +161,15 @@ export interface AppliedEffect {
   readonly kindKey: EffectKindKey;
   /** true: 重複あり（同種すべてが計算に有効）。false: 重複なし（同種グループ内の最強1件だけが有効、選択はEFF-002）。 */
   readonly duplicate: boolean;
-  readonly sourceId: BattleUnitId;
+  /**
+   * 付与者の戦闘ユニットID。R-MEM-04（Issue #179）: Memory の `triggeredEffects`
+   * 由来の付与だけは具体的な付与者ユニットを持たないため`undefined`になり、
+   * 代わりに`sourceSide`（そのMemoryを指定した陣営）を持つ
+   * （`10_API設計.md`の`EffectStateResponse.sourceUnitId?`も同じ理由で任意）。
+   */
+  readonly sourceId?: BattleUnitId;
+  /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営（source side）。 */
+  readonly sourceSide?: Side;
   readonly targetId: BattleUnitId;
   /** 効果量。符号付き（バフは正、デバフは負）。 */
   readonly magnitude: number;
