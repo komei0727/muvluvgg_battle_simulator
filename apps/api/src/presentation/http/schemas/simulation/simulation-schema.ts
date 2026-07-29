@@ -304,19 +304,16 @@ export const effectStateResponseSchema = {
  * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1])。
  * `EffectStateResponse`と異なり`category`/`stackMode`/`isEffective`/`value`を
  * 持たず、代わりに`stackCount`/`stackMax`を持つ（Markerは重複解決の対象外、
- * 対象ごとに常に1インスタンス）。R-MEM-04（M7-008、Issue #176）のMemory由来の
- * Markerは`sourceUnitId`を持たず`sourceSide`を持つため、`EffectStateResponse`と
- * 同じく`sourceUnitId`は必須にしない。
+ * 対象ごとに常に1インスタンス）。
  */
 const markerStateResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["markerInstanceId", "markerId", "stackCount", "stackMax"],
+  required: ["markerInstanceId", "markerId", "sourceUnitId", "stackCount", "stackMax"],
   properties: {
     markerInstanceId: { type: "string" },
     markerId: { type: "string" },
     sourceUnitId: { type: "string" },
-    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     stackCount: { type: "integer", minimum: 0 },
     stackMax: { type: ["integer", "null"], minimum: 1 },
     duration: {

@@ -2,6 +2,7 @@ import { buildInitialDurationState } from "../model/applied-effect.js";
 import {
   buildInitialMarkerState,
   clampMarkerStack,
+  markerSourceFields,
   type MarkerSource,
   type MarkerState,
 } from "../model/marker-state.js";
@@ -30,21 +31,19 @@ export interface ApplyMarkerContext {
   readonly rootEventId: DomainEventId;
 }
 
-export interface ApplyMarkerRequest {
+/**
+ * 付与元（`sourceId` / `sourceSide`）は{@link MarkerSource}のexactly-one union で
+ * 受け取る。R-MEM-04（M7-008、Issue #176）: Memory の `triggeredEffects` 由来の
+ * 付与だけが具体的な付与者ユニットを持たず`sourceSide`（そのMemoryを指定した陣営）
+ * を渡す。両方欠落・両方指定はコンパイル時に弾かれる（PR #262レビュー[P2]）。
+ */
+export type ApplyMarkerRequest = MarkerSource & {
   readonly markerId: MarkerId;
-  /**
-   * 付与者の戦闘ユニットID。R-MEM-04（M7-008、Issue #176）: Memory の
-   * `triggeredEffects` 由来の付与だけは`undefined`で、代わりに`sourceSide`を渡す
-   * （`GrantEffectRequest`と同じ規約）。
-   */
-  readonly sourceId?: BattleUnitId;
-  /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営。 */
-  readonly sourceSide?: Side;
   readonly targetId: BattleUnitId;
   readonly stackPolicy: MarkerStackPolicy;
   readonly stackMax: number | null;
   readonly durationDefinition: DurationDefinition;
-}
+};
 
 export interface ApplyMarkerResult {
   readonly units: readonly BattleUnit[];
@@ -54,22 +53,14 @@ export interface ApplyMarkerResult {
 
 /**
  * `08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、`sourceSide`を
- * 持つ」: envelope・payload・`MarkerState`のいずれも、付与元は片方だけを持つ。
+ * 持つ」: envelope・payloadの付与元も`MarkerState`と同じく片方だけを持つ。
  */
-function markerSourceOf(request: ApplyMarkerRequest): MarkerSource {
-  return {
-    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
-    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-  };
-}
-
 function sourceEnvelopeOf(
   request: ApplyMarkerRequest,
-): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } | Record<string, never> {
-  if (request.sourceId !== undefined) {
-    return { sourceUnitId: request.sourceId };
-  }
-  return request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {};
+): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } {
+  return request.sourceId !== undefined
+    ? { sourceUnitId: request.sourceId }
+    : { sourceSide: request.sourceSide };
 }
 
 function actionTurnDurationOf(
@@ -109,7 +100,7 @@ export function applyMarker(
     const markerState = buildInitialMarkerState(
       context.recorder.nextMarkerInstanceId(),
       request.markerId,
-      markerSourceOf(request),
+      request,
       request.targetId,
       request.stackMax,
       request.durationDefinition,
@@ -194,7 +185,7 @@ export function applyMarker(
     sourceSide: _previousSourceSide,
     ...withoutSource
   } = existing;
-  const carried = { ...withoutSource, ...markerSourceOf(request) };
+  const carried = { ...withoutSource, ...markerSourceFields(request) };
 
   let nextMarker: MarkerState;
   if (request.stackPolicy === "ADD") {

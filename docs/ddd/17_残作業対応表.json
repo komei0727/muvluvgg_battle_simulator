@@ -40,7 +40,7 @@
       "unconverted": 0
     },
     "capabilities": {
-      "total": 44,
+      "total": 45,
       "implemented": 26
     }
   },
@@ -102,7 +102,8 @@
     { "taskId": "REL-004", "issue": 203, "phase": 4, "milestone": "M9" },
     { "taskId": "REL-005", "issue": 198, "phase": 4, "milestone": "M9" },
     { "taskId": "REL-006", "issue": 197, "phase": 4, "milestone": "M9" },
-    { "taskId": "REL-007", "issue": 201, "phase": 4, "milestone": "M9" }
+    { "taskId": "REL-007", "issue": 201, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-008", "issue": 263, "phase": 4, "milestone": "M9" }
   ],
   "ruleAssignments": [
     { "taskId": "EFF-002", "ruleIds": ["R-EFF-05"] },

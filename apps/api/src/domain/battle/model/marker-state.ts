@@ -38,12 +38,27 @@ export interface MarkerState {
 }
 
 /**
- * `AppliedEffect`と同じく、付与元は「具体的なユニット」か「Memoryを指定した陣営」の
- * どちらか一方だけを持つ（`effect-grant-service.ts`の`GrantEffectRequest`と同型）。
+ * 付与元は「具体的なユニット」か「Memoryを指定した陣営」のどちらか**一方だけ**を持つ。
+ * PR #262レビュー[P2]: 両方optionalなinterfaceでは「両方欠落」「両方指定」が型検査を
+ * 通り、前者は発生源を持たない`MarkerState`・イベントを、後者は`MarkerState`と
+ * イベントenvelopeで観測結果が食い違う状態を生む。判別可能なunionにして、
+ * exactly-oneをコンパイル時に保証する（`exactOptionalPropertyTypes: true`のため
+ * `{}`も`{ sourceId, sourceSide }`もどちらのメンバーにも代入できない）。
  */
-export interface MarkerSource {
-  readonly sourceId?: BattleUnitId;
-  readonly sourceSide?: Side;
+export type MarkerSource =
+  | { readonly sourceId: BattleUnitId; readonly sourceSide?: undefined }
+  | { readonly sourceId?: undefined; readonly sourceSide: Side };
+
+/**
+ * `MarkerSource`（片方だけを持つunion）を、`exactOptionalPropertyTypes: true`の
+ * オブジェクトへそのまま展開できる形へ落とす。
+ */
+export function markerSourceFields(
+  source: MarkerSource,
+): { readonly sourceId: BattleUnitId } | { readonly sourceSide: Side } {
+  return source.sourceId !== undefined
+    ? { sourceId: source.sourceId }
+    : { sourceSide: source.sourceSide };
 }
 
 /** R-EFF-10: 新規Markerインスタンスをスタック1で組み立てる（ADD/KEEP_EXISTING/REFRESH/REPLACEのいずれも、既存Markerが無い場合はこの初期状態から始まる）。 */
@@ -59,8 +74,7 @@ export function buildInitialMarkerState(
   return {
     markerInstanceId,
     markerId,
-    ...(source.sourceId !== undefined ? { sourceId: source.sourceId } : {}),
-    ...(source.sourceSide !== undefined ? { sourceSide: source.sourceSide } : {}),
+    ...markerSourceFields(source),
     targetId,
     stackCount: 1,
     stackMax,

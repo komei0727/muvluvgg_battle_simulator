@@ -5,7 +5,7 @@
     "units.json": "sha256:a15b6dbabc287b426a6f67984ff38250ca4227c1cfb39eebb10e9d267c75ee90",
     "skills.json": "sha256:106061ac93215c57de2e789551e50ebb6ec0e1c5fbde41bfe40e6f867063d490",
     "effects.json": "sha256:db62cf33f395cb460d565089967ed0a15929c3b0be331e3a2bb0b9de94c6573e",
-    "memories.json": "sha256:f0c50cd5ebc92282874137ba88ac492de91b14ff4134cc38bc51f026e8f3bbe5",
-    "capabilities.json": "sha256:bc12d202e3c0db6cab1d07be9862d901a8ceaab8123c02e1cad476d1f5397c1c"
+    "memories.json": "sha256:86acdacc575a28bb1b8222a1b7a3d9b9c6a229b843c107445caa21f5de278e24",
+    "capabilities.json": "sha256:ce5d96359d078b3470c94616121b6bea516a9caa7645b7ae38d33b2bf1acd8ce"
   }
 }

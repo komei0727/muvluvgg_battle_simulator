@@ -1,21 +1,5 @@
 [
   {
-    "capabilityId": "CAP_ATTACK_DAMAGE_BONUS",
-    "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "IMPLEMENTED",
-    "implementationTaskId": "M7-004",
-    "description": "ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`（対象の攻撃を起点に追加ダメージを発生させる汎用バフ）を実装した。`formula`は付与時点で一度だけ評価し（`APPLY_STAT_MOD`と同じ「付与時snapshot」規約）、結果を`AppliedEffect.magnitude`（`isAttackDamageBonus: true`）として保持する。`damage-application-service.ts`が保持者自身のDAMAGE EffectActionのヒットごとに、凍結解除時のダメージ増幅（R-STS-03）適用後・DAMAGE_IMMUNITY（R-DMG-02）判定前の値へ加算する（複数付与時は全て合算、免疫の無効化はこの合算後の値へも及ぶ）。production例: `SKL_ELENA_MOODMAKER_EX`の`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`（「攻撃力×15%のダメージを追加するバフ」）。",
-    "verification": {
-      "productionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"],
-      "testCaseIds": [
-        "UT-R-BON-ATTACK-DMG-001",
-        "UT-R-BON-ATTACK-DMG-002",
-        "UT-R-BON-ATTACK-DMG-003",
-        "UT-R-BON-ATTACK-DMG-004"
-      ]
-    }
-  },
-  {
     "capabilityId": "CAP_ACTION_ACTIVATION_CONDITION",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
@@ -43,29 +27,18 @@
     }
   },
   {
-    "capabilityId": "CAP_PASSIVE_ACTIVATION_CONDITION",
+    "capabilityId": "CAP_ATTACK_DAMAGE_BONUS",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
-    "implementationTaskId": "RES-004",
-    "description": "PSのactivationConditionを候補判定と発動直前再確認で評価する",
+    "implementationTaskId": "M7-004",
+    "description": "ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`（対象の攻撃を起点に追加ダメージを発生させる汎用バフ）を実装した。`formula`は付与時点で一度だけ評価し（`APPLY_STAT_MOD`と同じ「付与時snapshot」規約）、結果を`AppliedEffect.magnitude`（`isAttackDamageBonus: true`）として保持する。`damage-application-service.ts`が保持者自身のDAMAGE EffectActionのヒットごとに、凍結解除時のダメージ増幅（R-STS-03）適用後・DAMAGE_IMMUNITY（R-DMG-02）判定前の値へ加算する（複数付与時は全て合算、免疫の無効化はこの合算後の値へも及ぶ）。production例: `SKL_ELENA_MOODMAKER_EX`の`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`（「攻撃力×15%のダメージを追加するバフ」）。",
     "verification": {
-      "productionDefinitionIds": [
-        "SKL_KOKORO_SPORTSDAY_PS1",
-        "SKL_LAURA_MOUNTAIN_PS2",
-        "SKL_LUCIE_MAID_PS2",
-        "SKL_MAO_COMMITTEE_PS2",
-        "SKL_MERU_SIRIUS_PS2",
-        "SKL_RAMI_NEWYEAR_PS1",
-        "SKL_TATIANA_SAGE_PS1"
-      ],
+      "productionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"],
       "testCaseIds": [
-        "IT-CAP-PASSIVE-001",
-        "IT-CAP-PASSIVE-002",
-        "IT-CAP-PASSIVE-003",
-        "IT-CAP-PASSIVE-004",
-        "IT-CAP-PASSIVE-005",
-        "IT-CAP-PASSIVE-006",
-        "IT-CAP-PASSIVE-007"
+        "UT-R-BON-ATTACK-DMG-001",
+        "UT-R-BON-ATTACK-DMG-002",
+        "UT-R-BON-ATTACK-DMG-003",
+        "UT-R-BON-ATTACK-DMG-004"
       ]
     }
   },
@@ -297,7 +270,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId?`/`sourceSide?`へ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）を実ライフサイクル・StateDelta・独立Reducer復元まで通せるようにした。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId`/`sourceSide`のexactly-one unionへ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）をDomain・StateDelta・独立Reducer復元まで通せるようにした。ただしAPI公開（`MarkerStateResponse.sourceUnitId`が必須）は別Capability `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）が担当する。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -343,6 +316,14 @@
     "implementationTaskId": "EFF-004",
     "description": "Marker数を参照するFormula",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+  },
+  {
+    "capabilityId": "CAP_MEMORY_GRANTED_MARKER",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "REL-008",
+    "description": "Memory由来Marker（R-MEM-04）のAPI公開。M7-008（Issue #176）でDomain側（`MarkerState.sourceId`/`sourceSide`のexactly-one union、`MarkerSnapshot`、`MarkerApplied`/`MarkerUpdated` payload、独立Reducer復元）は実装・検証済みだが、`10_API設計.md`「バージョニング」が既存必須プロパティの削除を破壊的変更と定めるため、v1の`MarkerStateResponse.sourceUnitId`（および同名のイベントdetails）を必須のまま据え置いた。したがってMemoryがMarkerを付与するCatalog定義はCapability preflightが編成不可として弾く。`/api/v2`化など互換性を保つ公開方法の決定と実装は`REL-008`（Issue #263）が担当する（PR #262レビュー[P1]）。",
+    "verification": { "productionDefinitionIds": ["MEM_ALWAYS_PICO_BESIDE_YOU"], "testCaseIds": [] }
   },
   {
     "capabilityId": "CAP_MEMORY_TRIGGERED_EFFECT",
@@ -395,6 +376,33 @@
     "implementationTaskId": "DMG-003",
     "description": "部分防御/シールド無視",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+  },
+  {
+    "capabilityId": "CAP_PASSIVE_ACTIVATION_CONDITION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "RES-004",
+    "description": "PSのactivationConditionを候補判定と発動直前再確認で評価する",
+    "verification": {
+      "productionDefinitionIds": [
+        "SKL_KOKORO_SPORTSDAY_PS1",
+        "SKL_LAURA_MOUNTAIN_PS2",
+        "SKL_LUCIE_MAID_PS2",
+        "SKL_MAO_COMMITTEE_PS2",
+        "SKL_MERU_SIRIUS_PS2",
+        "SKL_RAMI_NEWYEAR_PS1",
+        "SKL_TATIANA_SAGE_PS1"
+      ],
+      "testCaseIds": [
+        "IT-CAP-PASSIVE-001",
+        "IT-CAP-PASSIVE-002",
+        "IT-CAP-PASSIVE-003",
+        "IT-CAP-PASSIVE-004",
+        "IT-CAP-PASSIVE-005",
+        "IT-CAP-PASSIVE-006",
+        "IT-CAP-PASSIVE-007"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_RANDOM_BRANCH",
@@ -464,36 +472,6 @@
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
-    "capabilityId": "CAP_RESOURCE_MUTATION",
-    "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "IMPLEMENTED",
-    "implementationTaskId": "M7-002",
-    "description": "AP / PP / EX / HP操作（MODIFY_RESOURCE）。M7-002（Issue #185）がADD/SET/SET_TO_MAXの3操作を`effect-action-group-resolver.ts`（`resource-modification-service.ts`）へ実配線した（`operation: DISTRIBUTE`は対象間分配ロジックが未設計のため引き続き未実装、production使用は`UNIT_SUIRAN_CHAOS`の1件のみで本Issueのスコープ外）。HP_DIRECT_COST（`resource: HP`、防御力・会心などの通常ダメージ処理を経由しない直接消費）を新設し、`UNIT_SUIRAN_CASINO`/`UNIT_LILY_HERO`/`UNIT_OLGA_VETERAN`/`UNIT_MAO_COMMITTEE`の自己コストを近似なしへ変換した。",
-    "verification": {
-      "productionDefinitionIds": [
-        "ACT_SUIRAN_CASINO_AS2_HP_COST",
-        "ACT_LILY_HERO_AS1_HP_COST",
-        "ACT_OLGA_VETERAN_PS2_HP_COST",
-        "ACT_MAO_COMMITTEE_AS1_HP_COST"
-      ],
-      "testCaseIds": [
-        "UT-R-ACTN-02-001",
-        "UT-R-ACTN-02-002",
-        "UT-R-ACTN-02-003",
-        "UT-R-ACTN-02-004",
-        "UT-R-ACTN-02-005",
-        "UT-R-ACTN-02-006",
-        "UT-R-ACTN-02-007",
-        "UT-R-ACTN-02-008",
-        "UT-R-ACTN-02-009",
-        "UT-R-ACTN-02-010",
-        "UT-R-ACTN-02-011",
-        "UT-R-ACTN-02-014",
-        "UT-R-ACT-04-005"
-      ]
-    }
-  },
-  {
     "capabilityId": "CAP_RESOURCE_DISTRIBUTE",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
@@ -522,6 +500,36 @@
         "UT-R-ACT-04-012",
         "UT-R-ACT-04-013",
         "UT-R-ACT-04-014"
+      ]
+    }
+  },
+  {
+    "capabilityId": "CAP_RESOURCE_MUTATION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M7-002",
+    "description": "AP / PP / EX / HP操作（MODIFY_RESOURCE）。M7-002（Issue #185）がADD/SET/SET_TO_MAXの3操作を`effect-action-group-resolver.ts`（`resource-modification-service.ts`）へ実配線した（`operation: DISTRIBUTE`は対象間分配ロジックが未設計のため引き続き未実装、production使用は`UNIT_SUIRAN_CHAOS`の1件のみで本Issueのスコープ外）。HP_DIRECT_COST（`resource: HP`、防御力・会心などの通常ダメージ処理を経由しない直接消費）を新設し、`UNIT_SUIRAN_CASINO`/`UNIT_LILY_HERO`/`UNIT_OLGA_VETERAN`/`UNIT_MAO_COMMITTEE`の自己コストを近似なしへ変換した。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_SUIRAN_CASINO_AS2_HP_COST",
+        "ACT_LILY_HERO_AS1_HP_COST",
+        "ACT_OLGA_VETERAN_PS2_HP_COST",
+        "ACT_MAO_COMMITTEE_AS1_HP_COST"
+      ],
+      "testCaseIds": [
+        "UT-R-ACTN-02-001",
+        "UT-R-ACTN-02-002",
+        "UT-R-ACTN-02-003",
+        "UT-R-ACTN-02-004",
+        "UT-R-ACTN-02-005",
+        "UT-R-ACTN-02-006",
+        "UT-R-ACTN-02-007",
+        "UT-R-ACTN-02-008",
+        "UT-R-ACTN-02-009",
+        "UT-R-ACTN-02-010",
+        "UT-R-ACTN-02-011",
+        "UT-R-ACTN-02-014",
+        "UT-R-ACT-04-005"
       ]
     }
   },
@@ -631,37 +639,6 @@
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
-    "capabilityId": "CAP_SUM_DAMAGE_RESULT",
-    "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "IMPLEMENTED",
-    "implementationTaskId": "RES-003A",
-    "description": "FormulaDefinitionのSUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED（EffectSequence実行中の累計ダメージ）参照（G-10、Issue #257）。集計スコープは1回のEffectSequence解決であり、その単位で採番される既存のSkillUseId（AS/EXはaction-skill-use-resolver.ts、チャージ解放はaction-charge-resolver.ts、PSはpassive-activation-service.tsのactivatePassiveCandidateがそれぞれnextSkillUseId()で新規採番する。EFFECT_SEQUENCEスコープのRuntimeCounterも同じキーを使う）を集計キーにする。formula-evaluator.tsのDamageResultRegistryが、LAST_DAMAGE_*（1解決スコープ=1行動）と並べてSkillUseIdごとの累計を保持し、damage-application-service.tsが確定ダメージを両方へ記録する。これにより同じ行動中にPS連鎖が与えたダメージは別のEffectSequence解決に属し、そのスキル自身の累計へ混入しない。まだDAMAGE結果が無いEffectSequenceでは空集合の合計として0を返し、EffectSequenceの外（continuous-heal-service.tsの継続回復など）ではキー自体を渡さずFormulaEvaluatorが明確な例外で拒否する。SUM_*を参照するproduction定義はHEAL 9件＋APPLY_SHIELD 1件の計10件で、下記productionDefinitionIdsは他のCapabilityと同じくそのうちの代表証跡である（残る1件のACT_SUIRAN_CASINO_AS1_SHIELD2はCAP_SHIELD（PLANNED、DMG-004／Issue #194）で引き続き隔離されるため実行経路の証跡を持てない）。",
-    "verification": {
-      "productionDefinitionIds": [
-        "ACT_FLUTE_VAMPIRE_EX_SELF_HEAL",
-        "ACT_CHIZURU_DOMESTIC_EX_HEAL",
-        "ACT_SUIRAN_CASINO_AS3_HEAL"
-      ],
-      "testCaseIds": [
-        "IT-CAP-SUM-DAMAGE-PROD-001",
-        "IT-CAP-SUM-DAMAGE-PROD-002",
-        "UT-R-SKL-08-014",
-        "UT-R-SKL-08-015",
-        "UT-R-SKL-08-016",
-        "UT-R-SKL-08-017",
-        "UT-R-SKL-08-018",
-        "UT-R-SKL-08-019",
-        "UT-R-SKL-08-020",
-        "UT-DAMAGE-APPLICATION-017",
-        "UT-DAMAGE-APPLICATION-018",
-        "UT-R-HEAL-01-013",
-        "UT-R-HEAL-01-014",
-        "UT-R-HEAL-01-015",
-        "UT-R-HEAL-01-016"
-      ]
-    }
-  },
-  {
     "capabilityId": "CAP_STAT_MOD",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
@@ -695,6 +672,37 @@
     "implementationTaskId": "DMG-005",
     "description": "サブユニット付与（R-SUB-01/02）。M7-001（Issue #181、再々レビュー[P2]）でREMOVE_EFFECTSのSUBUNITカテゴリが要求するcapabilityとしても登録する（未実装であることを明示し、選択されたUnit/MemoryグラフだけをSimulationPreflightValidatorがUNSUPPORTED_RULEで拒否できるようにするため）。",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+  },
+  {
+    "capabilityId": "CAP_SUM_DAMAGE_RESULT",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "RES-003A",
+    "description": "FormulaDefinitionのSUM_DAMAGE_DEALT/SUM_DAMAGE_RECEIVED（EffectSequence実行中の累計ダメージ）参照（G-10、Issue #257）。集計スコープは1回のEffectSequence解決であり、その単位で採番される既存のSkillUseId（AS/EXはaction-skill-use-resolver.ts、チャージ解放はaction-charge-resolver.ts、PSはpassive-activation-service.tsのactivatePassiveCandidateがそれぞれnextSkillUseId()で新規採番する。EFFECT_SEQUENCEスコープのRuntimeCounterも同じキーを使う）を集計キーにする。formula-evaluator.tsのDamageResultRegistryが、LAST_DAMAGE_*（1解決スコープ=1行動）と並べてSkillUseIdごとの累計を保持し、damage-application-service.tsが確定ダメージを両方へ記録する。これにより同じ行動中にPS連鎖が与えたダメージは別のEffectSequence解決に属し、そのスキル自身の累計へ混入しない。まだDAMAGE結果が無いEffectSequenceでは空集合の合計として0を返し、EffectSequenceの外（continuous-heal-service.tsの継続回復など）ではキー自体を渡さずFormulaEvaluatorが明確な例外で拒否する。SUM_*を参照するproduction定義はHEAL 9件＋APPLY_SHIELD 1件の計10件で、下記productionDefinitionIdsは他のCapabilityと同じくそのうちの代表証跡である（残る1件のACT_SUIRAN_CASINO_AS1_SHIELD2はCAP_SHIELD（PLANNED、DMG-004／Issue #194）で引き続き隔離されるため実行経路の証跡を持てない）。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_FLUTE_VAMPIRE_EX_SELF_HEAL",
+        "ACT_CHIZURU_DOMESTIC_EX_HEAL",
+        "ACT_SUIRAN_CASINO_AS3_HEAL"
+      ],
+      "testCaseIds": [
+        "IT-CAP-SUM-DAMAGE-PROD-001",
+        "IT-CAP-SUM-DAMAGE-PROD-002",
+        "UT-R-SKL-08-014",
+        "UT-R-SKL-08-015",
+        "UT-R-SKL-08-016",
+        "UT-R-SKL-08-017",
+        "UT-R-SKL-08-018",
+        "UT-R-SKL-08-019",
+        "UT-R-SKL-08-020",
+        "UT-DAMAGE-APPLICATION-017",
+        "UT-DAMAGE-APPLICATION-018",
+        "UT-R-HEAL-01-013",
+        "UT-R-HEAL-01-014",
+        "UT-R-HEAL-01-015",
+        "UT-R-HEAL-01-016"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_TARGET_BINDING_FALLBACK",

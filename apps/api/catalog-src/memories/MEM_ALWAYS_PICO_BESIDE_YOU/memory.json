@@ -7,7 +7,9 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
@@ -18,8 +20,14 @@
               "side": "ALLY",
               "count": "ALL",
               "filters": [
-                { "kind": "POSITION_ROW", "row": "BACK" },
-                { "kind": "POSITION_COLUMN", "column": "CENTER" }
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "BACK"
+                },
+                {
+                  "kind": "POSITION_COLUMN",
+                  "column": "CENTER"
+                }
               ]
             }
           }
@@ -27,10 +35,17 @@
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER_ALLIES" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BACK_CENTER_ALLIES"
+            },
             "actions": [
-              { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_BACK_CENTER_ATK_UP" },
-              { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS" }
+              {
+                "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_BACK_CENTER_ATK_UP"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS"
+              }
             ]
           }
         ]
@@ -42,28 +57,49 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
           {
             "targetBindingId": "TGT_ALL_ALLIES",
-            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
             "actions": [
-              { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_HP_UP" },
-              { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_DEF_UP" }
+              {
+                "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_HP_UP"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_DEF_UP"
+              }
             ]
           }
         ]
       }
     }
   ],
-  "requiredCapabilities": ["CAP_MARKER", "CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
-  "metadata": { "displayName": "お傍にいるのはいつでもピコですよ♪", "tags": [] }
+  "requiredCapabilities": [
+    "CAP_MARKER",
+    "CAP_MEMORY_GRANTED_MARKER",
+    "CAP_MEMORY_TRIGGERED_EFFECT",
+    "CAP_TARGET_FILTER_ORDER"
+  ],
+  "metadata": {
+    "displayName": "お傍にいるのはいつでもピコですよ♪",
+    "tags": []
+  }
 }

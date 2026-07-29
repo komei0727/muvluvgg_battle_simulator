@@ -48,8 +48,11 @@ import {
  *   `BattleStarted` 発動の triggeredEffect は戦闘開始時の1回だけであること。
  *
  * `APPLY_DAMAGE_MOD` を含む9件は `CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）が
- * `PLANNED` のため実ライフサイクルを完走できない。Catalog上の変換が近似なしで
- * あることと、Capability preflightがそれらを編成不可として弾くことを固定する。
+ * `PLANNED` のため実ライフサイクルを完走できない。Memory由来Markerを持つ
+ * `MEM_ALWAYS_PICO_BESIDE_YOU` はDomain側は完走できるが、v1 API契約が付与元なし
+ * Markerを表現できないため `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263、
+ * PR #262レビュー[P1]）で同じくpreflightが弾く。いずれもCatalog上の変換が近似なしで
+ * あることと、Capability preflightが編成不可として弾くことを固定する。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
@@ -455,8 +458,13 @@ interface TriggeredEffectExpectation {
 interface MemoryExpectation {
   readonly memoryDefinitionId: string;
   readonly displayName: string;
-  /** `CAP_DAMAGE_MOD`（`DMG-002`）待ちで実ライフサイクルを完走できない。 */
-  readonly gatedByDamageMod: boolean;
+  /**
+   * Capability preflightがこのMemoryを編成不可として弾く原因のCapability。
+   * `CAP_DAMAGE_MOD`は実行時解決の未実装（`DMG-002`／Issue #192）、
+   * `CAP_MEMORY_GRANTED_MARKER`はv1 API契約が付与元なしMarkerを表現できないこと
+   * （`REL-008`／Issue #263、PR #262レビュー[P1]）による。空配列なら編成可能。
+   */
+  readonly gatedBy: readonly string[];
   readonly triggeredEffects: readonly TriggeredEffectExpectation[];
 }
 
@@ -472,7 +480,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の防御力を200上昇させる」
     memoryDefinitionId: "MEM_CHAOS_MAIDEN",
     displayName: "Chaos Maiden",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -505,7 +513,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の攻撃力を250上昇させる」
     memoryDefinitionId: "MEM_COLORFUL_BOUQUET",
     displayName: "Colorful Bouquet",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -538,7 +546,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の行動速度を12上昇させる」
     memoryDefinitionId: "MEM_PYXIS_MA_SOEUR",
     displayName: "Pyxis Ma Soeur",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -571,7 +579,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体のHPを300上昇させる」
     memoryDefinitionId: "MEM_SIRIUS_SUGAR",
     displayName: "Sirius Sugar",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -604,7 +612,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の会心率を1%上昇させる」
     memoryDefinitionId: "MEM_TREBLE_QUINTET",
     displayName: "Treble Quintet",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -637,7 +645,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の防御力を200上昇させる」
     memoryDefinitionId: "MEM_TRINITY_JEWEL",
     displayName: "Trinity Jewel",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -670,7 +678,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の行動速度を12上昇させる」
     memoryDefinitionId: "MEM_FUUKI_IINKAI",
     displayName: "風紀委員会",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -703,7 +711,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：物理アタッカーの攻撃力を2.5％上昇させる」
     memoryDefinitionId: "MEM_INCOGNITO_SISTER_ADVENTURE",
     displayName: "お忍びシスターの冒険",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -736,7 +744,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：コントロールの味方全員の攻撃力を1250上昇させる」
     memoryDefinitionId: "MEM_SHAPING_FAMILY",
     displayName: "家族のかたちを象りながら",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -769,7 +777,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方前衛の防御力を2.5％上昇させる」
     memoryDefinitionId: "MEM_TENT_COMMOTION",
     displayName: "密着！？テントの中の珍騒動",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -802,7 +810,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：敵後衛の行動速度を70下降させる」
     memoryDefinitionId: "MEM_ELOPEMENT_FULL_THROTTLE",
     displayName: "駆け落ちフルスロットル！",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -835,7 +843,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：タンクの防御力を1000上昇させる」
     memoryDefinitionId: "MEM_NAUGHTY_PENALTY_GAME",
     displayName: "エッ◯な罰ゲームやってみた",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -868,7 +876,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：左列後衛の味方の攻撃力を1行動の間2500上昇させる」
     memoryDefinitionId: "MEM_SOOTHING_SCENT",
     displayName: "安心する香り",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -905,7 +913,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の会心率を1％上昇させる」
     memoryDefinitionId: "MEM_ENCOUNTER_WITH_GIRLS",
     displayName: "少女たちとの邂逅",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -938,7 +946,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の攻撃力を250上昇させる」
     memoryDefinitionId: "MEM_NEW_YEAR_GREETING",
     displayName: "新年のご挨拶",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -971,7 +979,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方前衛のHPを1500上昇させる」
     memoryDefinitionId: "MEM_CATS_AND_DOGS_BOND",
     displayName: "腐れ縁で犬猿の仲？",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -1004,7 +1012,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：戦闘開始時に発動。味方後衛のHPを1500上昇させる」
     memoryDefinitionId: "MEM_DISCONTENT_AND_ANXIETY",
     displayName: "不満と不安",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "TurnStarted",
@@ -1037,7 +1045,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：戦闘開始時に発動。味方後衛の防御力を1000上昇させる」
     memoryDefinitionId: "MEM_BUSY_DAY_SLUMBER",
     displayName: "忙しい時のまどろみ",
-    gatedByDamageMod: true,
+    gatedBy: ["CAP_DAMAGE_MOD"],
     triggeredEffects: [
       {
         eventType: "TurnStarted",
@@ -1073,7 +1081,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方のHPと防御力を300上昇させる」
     memoryDefinitionId: "MEM_ALWAYS_PICO_BESIDE_YOU",
     displayName: "お傍にいるのはいつでもピコですよ♪",
-    gatedByDamageMod: false,
+    gatedBy: ["CAP_MEMORY_GRANTED_MARKER"],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -1118,7 +1126,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：敵前衛の防御力を1％下降させる」
     memoryDefinitionId: "MEM_CURIOUS_EQUIPMENT",
     displayName: "気になる装備",
-    gatedByDamageMod: false,
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -1470,7 +1478,7 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     expect(restored?.markers?.[0]?.sourceSide).toBe("ALLY");
   });
 
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and the nine APPLY_DAMAGE_MOD ones stay gated by the unimplemented CAP_DAMAGE_MOD", () => {
+  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and the ten Memories that need an unimplemented Capability stay gated by exactly that Capability", () => {
     expect(MEMORY_EXPECTATIONS.map((expectation) => expectation.memoryDefinitionId)).toEqual([
       ...M7_008_MEMORY_IDS,
     ]);
@@ -1566,15 +1574,11 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
         collectRequiredCapabilities(snapshot, [], [memory.memoryDefinitionId]),
         snapshot.capabilities,
       ).map((capability) => capability.capabilityId);
-      if (expectation.gatedByDamageMod) {
-        // `CAP_DAMAGE_MOD`は`DMG-002`（Issue #192）まで`PLANNED`のため、Capability
-        // preflightがこのMemoryを編成不可として弾く（実ライフサイクル検証は#192後）。
-        expect(memory.requiredCapabilities).toContain("CAP_DAMAGE_MOD");
-        expect(unimplemented).toEqual(["CAP_DAMAGE_MOD"]);
-      } else {
-        expect(memory.requiredCapabilities).not.toContain("CAP_DAMAGE_MOD");
-        expect(unimplemented).toEqual([]);
+      // gate対象のCapabilityは宣言もされていること（宣言漏れならpreflightをすり抜ける）。
+      for (const capabilityId of expectation.gatedBy) {
+        expect(memory.requiredCapabilities).toContain(capabilityId);
       }
+      expect(unimplemented).toEqual([...expectation.gatedBy]);
     }
   });
 });

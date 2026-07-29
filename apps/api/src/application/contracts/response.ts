@@ -94,10 +94,15 @@ export interface EffectStateResponseBody {
 export interface MarkerStateResponseBody {
   readonly markerInstanceId: string;
   readonly markerId: string;
-  /** R-MEM-04（M7-008、Issue #176）: Memory由来のMarkerは付与者ユニットを持たない。 */
-  readonly sourceUnitId?: string;
-  /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営（`EffectStateResponse`と同じ）。 */
-  readonly sourceSide?: string;
+  /**
+   * 直近の付与者。R-MEM-04（M7-008、Issue #176）のMemory由来Markerは付与者ユニットを
+   * 持たないが、`10_API設計.md`「バージョニング」が既存必須プロパティの削除を破壊的
+   * 変更と定めるため、v1契約では必須のまま据え置く。Memory由来Markerを生む唯一の
+   * production定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は`CAP_MEMORY_GRANTED_MARKER`
+   * （`runtimeStatus: PLANNED`、`REL-008`／Issue #263）がCapability preflightで
+   * 編成不可として弾くため、v1のレスポンスへ到達しない（PR #262レビュー[P1]）。
+   */
+  readonly sourceUnitId: string;
   readonly stackCount: number;
   readonly stackMax: number | null;
   readonly duration?: { readonly unit: string; readonly remaining: number };
