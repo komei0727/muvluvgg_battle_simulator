@@ -1896,7 +1896,8 @@ metadata:
 `R-MEM-04`「具体的な発生源 BattleUnit が必要なEffectActionをMemoryから使用する場合は、Catalog検証またはpreflightで拒否する」は、Catalog整合性検証の `MEMORY_REQUIRES_SOURCE_UNIT` が担う。Memory の `triggeredEffects` は次を宣言できない。
 
 - 発生源ユニットを必要とするEffectAction種別: `DAMAGE`、`HEAL`、`APPLY_CONTINUOUS_HEAL`、`MODIFY_RESOURCE`、`COOLDOWN_MANIPULATION`、`APPLY_MARKER`（`MarkerState` は常に「直近の付与者」を持つ、[10_API設計.md](./10_API設計.md)）。
-- 使用者を指す参照を payload に埋め込むEffectAction: `FormulaDefinition` の `SKILL_SOURCE`（`STAT_RATIO`/`MAX_HP_RATIO` などの `source`、`SUM`/`MIN`/`MAX`/`CLAMP` の入れ子内も含む）、`TargetReference` の `SELF`（例: `APPLY_HEALING_LINK.transferTo`）。
+- 使用者を指す参照を payload に埋め込むEffectAction: `FormulaDefinition` の `SKILL_SOURCE`（`STAT_RATIO`/`MAX_HP_RATIO` などの `source`、`SUM`/`MIN`/`MAX`/`CLAMP` の入れ子内も含む）、`TargetReference` の `SELF`（例: `APPLY_HEALING_LINK.transferTo`）、`LAST_DAMAGE_*`/`SUM_DAMAGE_*` を読む `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`（直前・累計DAMAGE結果は使用者ごとに記録されるため、Memoryの解決では評価contextへ渡らない）。
+- `DurationDefinition.timeLimit.owner: EFFECT_SOURCE`（減算契機が付与者の行動・ターン完了になるため）。ただし `DurationDefinition` 配下のそれ以外（`expiration.conditions` や `counterUpdates`）は**効果保持者**のスコープであり、そこに現れる `SELF` は保持者を指す正当な参照として受理する（`effect-expiration-condition-service.ts` は各効果の保持者を `owner` として評価する）。
 - 対象参照 `SELF`（`R-MEM-04` が明示的に禁止）。
 - 使用者を基準にする `TargetSelectorDefinition`（`kind: SELF`、`order` の `NEAREST`/`FARTHEST`/`SELF_LOWEST_PRIORITY`、`BINDING_DERIVED` 以外で `base` が暗黙に使用者になる `area`、`EXCLUDE_RESOLVED_UNIT` の `SELF` 参照）。
 - 所有者を必要とする `ConditionDefinition`（`TriggerDefinition.condition` と EffectStep の各 condition の両方）: `POSITION_RELATION`、`RUNTIME_COUNTER`、`excludeSelf: true` の `ALIVE_UNIT_COUNT`、対象参照 `SELF`。

@@ -41,9 +41,11 @@ export function resolveTimeLimitOwnerUnitId(effect: AppliedEffect): BattleUnitId
     return "BATTLE";
   }
   // R-MEM-04（Issue #179）: Memory由来の効果は付与者ユニットを持たないため、
-  // `EFFECT_SOURCE`を突き合わせる相手が存在しない。特定ユニットの行動・ターンへ
-  // 紐付けず、`BATTLE`と同じ「いずれのユニットの完了契機でも減算する」扱いにする
-  // （減算契機を完全に失って永続化してしまうことを避ける）。
+  // `EFFECT_SOURCE`を突き合わせる相手が存在しない。Catalog整合性検証
+  // （`MEMORY_REQUIRES_SOURCE_UNIT`、PR #260再レビュー[P2]）がMemoryからの
+  // `owner: EFFECT_SOURCE`宣言自体を拒否するため通常ここへは到達しないが、
+  // 万一到達しても減算契機を完全に失って永続化しないよう、`BATTLE`と同じ
+  // 「いずれのユニットの完了契機でも減算する」扱いへ倒す。
   return owner === "EFFECT_SOURCE" ? (effect.sourceId ?? "BATTLE") : effect.targetId;
 }
 

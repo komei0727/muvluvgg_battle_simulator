@@ -3603,4 +3603,123 @@ describe("buildCatalogIndex", () => {
       ),
     ).not.toThrow();
   });
+  it("UT-CAT-IDX-087 (PR #260再レビュー[P2]): accepts a Memory effect whose expiration.conditions reference SELF (the effect holder, not the Memory source)", () => {
+    const defs = baseDefinitions();
+    // `DurationDefinition.expiration.conditions`の`SELF`は効果保持者を指す
+    // （`effect-expiration-condition-service.ts`が保持者を`context.owner`として渡す）。
+    // Memoryの使用者参照ではないため拒否してはならない。
+    const holderScopedExpiry = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MEMORY_HOLDER_EXPIRY",
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "FIXED",
+          formula: { kind: "CONSTANT", value: 20 },
+          stacking: { mode: "STACKABLE" },
+          duration: {
+            timeLimit: { unit: "BATTLE", count: 1 },
+            dispellable: true,
+            expiration: {
+              conditions: [
+                {
+                  kind: "TARGET_STATE",
+                  target: { kind: "SELF" },
+                  field: "HP_RATIO",
+                  op: "LTE",
+                  value: 0.5,
+                },
+              ],
+            },
+          },
+        },
+        requiredCapabilities: ["CAP_STAT_MOD"],
+      },
+      "effectAction",
+    );
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, holderScopedExpiry],
+        memories: [memoryUsing("MEM_HOLDER_EXPIRY", "ACT_MEMORY_HOLDER_EXPIRY")],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_STAT_MOD")],
+      }),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-088 (PR #260再レビュー[P2], R-MEM-04): rejects a Memory EffectAction whose Formula reads a preceding DAMAGE result", () => {
+    const defs = baseDefinitions();
+    // `LAST_DAMAGE_*`/`SUM_DAMAGE_*`は使用者ごとの直前DAMAGE結果であり、
+    // 使用者を持たないMemoryの解決では`lastResults`自体が評価contextへ渡らない。
+    const lastDamageStatMod = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MEMORY_LAST_DAMAGE",
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "FIXED",
+          formula: {
+            kind: "CLAMP",
+            formula: {
+              kind: "DAMAGE_DEALT_RATIO",
+              sourceResult: "LAST_DAMAGE_DEALT",
+              ratio: 0.1,
+            },
+            min: 0,
+            max: 100,
+          },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
+        },
+        requiredCapabilities: ["CAP_STAT_MOD", "CAP_SUM_DAMAGE_RESULT"],
+      },
+      "effectAction",
+    );
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, lastDamageStatMod],
+        memories: [memoryUsing("MEM_LAST_DAMAGE", "ACT_MEMORY_LAST_DAMAGE")],
+        capabilities: [
+          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+          capability("CAP_STAT_MOD"),
+          capability("CAP_SUM_DAMAGE_RESULT"),
+        ],
+      }),
+    ).toThrowError(/references the source BattleUnit/);
+  });
+  it("UT-CAT-IDX-089 (PR #260再レビュー[P2], R-MEM-04): rejects a Memory effect whose timeLimit.owner is the granting unit", () => {
+    const defs = baseDefinitions();
+    // `EFFECT_SOURCE`は「付与者の行動・ターン完了で減算する」意味であり、
+    // 付与者を持たないMemoryでは減算契機を特定できない。
+    const sourceOwnedDuration = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MEMORY_SOURCE_OWNED",
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "FIXED",
+          formula: { kind: "CONSTANT", value: 20 },
+          stacking: { mode: "STACKABLE" },
+          duration: {
+            timeLimit: { unit: "TURN", count: 2, owner: "EFFECT_SOURCE" },
+            dispellable: true,
+          },
+        },
+        requiredCapabilities: ["CAP_STAT_MOD"],
+      },
+      "effectAction",
+    );
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, sourceOwnedDuration],
+        memories: [memoryUsing("MEM_SOURCE_OWNED", "ACT_MEMORY_SOURCE_OWNED")],
+        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_STAT_MOD")],
+      }),
+    ).toThrowError(/timeLimit.owner "EFFECT_SOURCE"/);
+  });
 });

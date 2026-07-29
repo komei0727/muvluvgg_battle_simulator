@@ -1876,14 +1876,43 @@ function filterReferencesSelf(filter: TargetFilterDefinition): boolean {
 /**
  * PR #260レビュー[P2]: EffectActionの`kind`だけでは、使用者BattleUnitを必要とする
  * 構成を網羅できない（`APPLY_STAT_MOD`のFormulaが`SKILL_SOURCE`を参照する、
- * `APPLY_HEALING_LINK`の`transferTo`が`SELF`を指す等）。payload全体を再帰走査し、
- * 使用者を指す参照（`FormulaSourceReference.kind: SKILL_SOURCE`／
- * `TargetReference.kind: SELF`）が1つでも埋め込まれていれば拒否する。
- * `kind`という判別子はCatalogスキーマ全体で参照・Formula・stepの種別に共通して
- * 使われており、`SKILL_SOURCE`/`SELF`という値を取るのは使用者を指す参照だけの
- * ため、この汎用走査は将来payloadへ追加されるフィールドも自動的に覆う。
+ * `APPLY_HEALING_LINK`の`transferTo`が`SELF`を指す等）。payloadを再帰走査し、
+ * EffectSequenceの**発生源**を指す参照が1つでも埋め込まれていれば拒否する。
+ *
+ * PR #260再レビュー[P2]: ただし`DurationDefinition`（`duration`）配下は「効果を
+ * 保持する対象ユニット」のスコープであり、発生源スコープではない —
+ * `expiration.conditions`の`SELF`は保持者を指し（`effect-expiration-condition-service.ts`
+ * が各効果の保持者を`context.owner`として渡す）、`counterUpdates`も同じ
+ * `AppliedEffect`インスタンス自身のcounterを指す。Memoryが付与する効果へ
+ * 「保持者自身の状態で失効する」正常な特殊失効条件を書けなくならないよう、
+ * このスコープは走査対象から外す。それ以外のpayloadフィールド
+ * （`formula`/`rateDelta`等のFormula、`transferTo`/`redirectTo`/`coverer`/
+ * `reflectTo`等のTargetReference）は解決時に発生源へ解決されるため、
+ * 汎用走査のまま将来追加されるフィールドも覆う。
  */
-const SOURCE_UNIT_REFERENCE_KINDS: ReadonlySet<string> = new Set(["SKILL_SOURCE", "SELF"]);
+const SOURCE_UNIT_REFERENCE_KINDS: ReadonlySet<string> = new Set([
+  // `FormulaSourceReference.kind`（Formulaが使用者のstat/HPを読む）。
+  "SKILL_SOURCE",
+  // `TargetReference.kind`（`transferTo`等が使用者自身を指す）。
+  "SELF",
+  // PR #260再レビュー[P2]: 直前・累計DAMAGE結果は使用者ごとに記録される
+  // （`DamageResultRegistry`は`BattleUnitId`キー）。使用者を持たないMemoryの
+  // 解決では`lastResults`自体がFormula評価contextへ渡らないため、
+  // `LAST_DAMAGE_*`/`SUM_DAMAGE_*`を読むFormula種別も評価不能として扱う。
+  "DAMAGE_DEALT_RATIO",
+  "DAMAGE_RECEIVED_RATIO",
+]);
+
+/**
+ * `duration`配下で唯一、発生源ユニットを指す宣言。`payloadReferencesSourceUnit`が
+ * `duration`を走査対象外にする代わりに、この1点だけを明示的に確認する。
+ */
+function effectActionDurationOwnedBySource(effectAction: EffectActionDefinition): boolean {
+  return durationOf(effectAction)?.timeLimit?.owner === "EFFECT_SOURCE";
+}
+
+/** 発生源ではなく「効果保持者」のスコープを表すpayloadキー（走査対象外）。 */
+const EFFECT_HOLDER_SCOPED_PAYLOAD_KEYS: ReadonlySet<string> = new Set(["duration"]);
 
 function payloadReferencesSourceUnit(value: unknown): boolean {
   if (Array.isArray(value)) {
@@ -1894,7 +1923,10 @@ function payloadReferencesSourceUnit(value: unknown): boolean {
     if (typeof kind === "string" && SOURCE_UNIT_REFERENCE_KINDS.has(kind)) {
       return true;
     }
-    return Object.values(value).some((entry) => payloadReferencesSourceUnit(entry));
+    return Object.entries(value).some(
+      ([key, entry]) =>
+        !EFFECT_HOLDER_SCOPED_PAYLOAD_KEYS.has(key) && payloadReferencesSourceUnit(entry),
+    );
   }
   return false;
 }
@@ -2009,13 +2041,23 @@ function validateMemorySourceUnitIndependence(
           rule: "MEMORY_REQUIRES_SOURCE_UNIT",
           message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) requires a source BattleUnit, which Memory triggeredEffects do not have (R-MEM-04)`,
         });
+      } else if (effectActionDurationOwnedBySource(effectAction)) {
+        // PR #260再レビュー[P2]と同じ理由の隣接ケース: `timeLimit.owner:
+        // EFFECT_SOURCE`は「付与者の行動・ターン完了で減算する」意味であり、
+        // 付与者ユニットが存在しないMemoryでは減算契機を特定できない
+        // （実行時は`BATTLE`扱いへフォールバックする＝意味が静かに変わる）。
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `EffectAction "${ref.effectActionDefinitionId}" declares timeLimit.owner "EFFECT_SOURCE", whose decrement trigger is the granting unit's action/turn — Memory triggeredEffects have no source BattleUnit (R-MEM-04)`,
+        });
       } else if (payloadReferencesSourceUnit(effectAction.payload)) {
         // PR #260レビュー[P2]: `kind`自体は使用者非依存でも、payload内のFormulaや
         // 対象参照が使用者を指していれば同じく解決できない。
         violations.push({
           targetId: memory.memoryDefinitionId,
           rule: "MEMORY_REQUIRES_SOURCE_UNIT",
-          message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) references the source BattleUnit in its payload (SKILL_SOURCE Formula or SELF target reference), which Memory triggeredEffects do not have (R-MEM-04)`,
+          message: `EffectAction "${ref.effectActionDefinitionId}" (${effectAction.kind}) references the source BattleUnit in its payload (SKILL_SOURCE Formula, SELF target reference, or a LAST_DAMAGE_*/SUM_DAMAGE_* result), which Memory triggeredEffects do not have (R-MEM-04)`,
         });
       }
     }
