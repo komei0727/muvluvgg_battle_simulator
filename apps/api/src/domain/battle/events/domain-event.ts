@@ -763,7 +763,13 @@ export interface BattleDomainEventPayloadMap {
   readonly MarkerApplied: {
     readonly markerInstanceId: MarkerInstanceId;
     readonly markerId: MarkerId;
-    readonly sourceUnitId: BattleUnitId;
+    /**
+     * R-MEM-04（M7-008、Issue #176）: Memory の `triggeredEffects` 由来の付与だけは
+     * 具体的な付与者ユニットを持たず、`sourceSide`（そのMemoryを指定した陣営）を
+     * 持つ（`EffectApplied`と同じ規約）。
+     */
+    readonly sourceUnitId?: BattleUnitId;
+    readonly sourceSide?: Side;
     readonly targetUnitId: BattleUnitId;
     readonly stackCount: number;
     readonly stackMax: number | null;
@@ -792,7 +798,9 @@ export interface BattleDomainEventPayloadMap {
     readonly markerInstanceId: MarkerInstanceId;
     readonly markerId: MarkerId;
     readonly targetUnitId: BattleUnitId;
-    readonly sourceUnitId: BattleUnitId;
+    /** R-MEM-04: Memory由来の付与・更新だけが`sourceSide`側を持つ（`MarkerApplied`と同じ）。 */
+    readonly sourceUnitId?: BattleUnitId;
+    readonly sourceSide?: Side;
     readonly policy?: MarkerStackPolicy;
     readonly stackBefore: number;
     readonly stackAfter: number;

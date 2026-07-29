@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ApplicationError } from "../contracts/application-error.js";
 import type { CooldownStateResponseBody } from "../contracts/response.js";
 import { toBattleSimulationResponseBody } from "./simulate-battle-response-mapper.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
@@ -256,6 +257,39 @@ describe("toBattleSimulationResponseBody", () => {
     ]);
     // A unit with no MarkerState instances still gets a truthfully-empty array.
     expect(body.finalState.units[1]!.markers).toEqual([]);
+  });
+
+  it("API-RESP-012B (PR #262レビュー[P1]): throws INTERNAL_INVARIANT_VIOLATION instead of silently omitting the required sourceUnitId when a Memory-granted (source-less) MarkerState reaches the v1 MarkerStateResponse mapper", () => {
+    const base = baseResult();
+    const withMemoryMarker = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            markers: [
+              {
+                markerInstanceId: createMarkerInstanceId("battle-1:marker:1"),
+                markerId: createMarkerId("MARKER_TEST"),
+                // R-MEM-04: Memory由来の付与は`sourceUnitId`を持たず`sourceSide`を持つ。
+                sourceSide: "ALLY",
+                stackCount: 1,
+                stackMax: null,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    // production Catalogでは`CAP_MEMORY_GRANTED_MARKER`（PLANNED、REL-008／Issue #263）が
+    // Capability preflightで弾くためここへは到達しない。到達した場合に`sourceUnitId`を
+    // 黙って落としたv1レスポンスを返さないことを固定する。
+    expect(() => toBattleSimulationResponseBody(withMemoryMarker)).toThrow(ApplicationError);
+    expect(() => toBattleSimulationResponseBody(withMemoryMarker)).toThrow(
+      /INTERNAL_INVARIANT_VIOLATION/,
+    );
   });
 
   it("API-RESP-013 (R-EFF-10, PR #210レビュー[P1] fix): maps a StateTransition's markers delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined)", () => {

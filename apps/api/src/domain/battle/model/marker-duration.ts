@@ -15,7 +15,11 @@ export function resolveMarkerTimeLimitOwnerUnitId(marker: MarkerState): BattleUn
   if (owner === "BATTLE") {
     return "BATTLE";
   }
-  return owner === "EFFECT_SOURCE" ? marker.sourceId : marker.targetId;
+  // R-MEM-04（M7-008、Issue #176）: Memory由来のMarkerは付与者ユニットを持たない。
+  // `catalog-integrity.ts`がMemoryの`timeLimit.owner: EFFECT_SOURCE`宣言自体を
+  // 拒否するため通常ここへは到達しないが、`applied-effect-duration.ts`と同じく
+  // 「減算契機を持たない」＝`BATTLE`扱いへ決定的にフォールバックする。
+  return owner === "EFFECT_SOURCE" ? (marker.sourceId ?? "BATTLE") : marker.targetId;
 }
 
 /** `applied-effect-duration.ts`の`EffectDurationChange`と同じ形の`MarkerState`版。 */

@@ -64,6 +64,7 @@ import {
 } from "../skill/formula-evaluator.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import type { MarkerSource } from "../model/marker-state.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
@@ -294,6 +295,25 @@ function grantSourceOf(
     return { sourceId: context.actorId };
   }
   return context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {};
+}
+
+/**
+ * `MarkerState`はR-EFF-10「直近の付与者」を必ず1つ持つ（`MarkerSource`のexactly-one
+ * union）。スキル解決は`actorId`を、Memory解決（R-MEM-04）は`sourceSide`を必ず持つ
+ * ため実際には両方欠落しないが、`grantSourceOf`の型はそれを保証しない。付与元不明の
+ * Markerを黙って作らないよう、この境界で明確に拒否する（PR #262レビュー[P2]）。
+ */
+function requireMarkerSource(context: EffectActionGroupContext): MarkerSource {
+  if (context.actorId !== undefined) {
+    return { sourceId: context.actorId };
+  }
+  if (context.sourceSide !== undefined) {
+    return { sourceSide: context.sourceSide };
+  }
+  throw new DomainValidationError(
+    "effectActionGroupContext",
+    "APPLY_MARKER requires either an actor BattleUnit or a Memory source side (R-EFF-10 MarkerState always records its latest granter)",
+  );
 }
 
 /**
@@ -1181,10 +1201,10 @@ function* resolveOneEffectActionApplication(
         box.units,
         {
           markerId: effectAction.payload.markerId,
-          // `10_API設計.md`「MarkerStateResponse.sourceUnitId」は必須（Markerは
-          // 常に「直近の付与者」を持つ）ため、Memory由来のAPPLY_MARKERは
-          // R-MEM-04「具体的な発生源BattleUnitが必要なEffectAction」として拒否する。
-          sourceId: requireActorUnit(context, box).battleUnitId,
+          // R-MEM-04（M7-008、Issue #176）: Memory由来の`APPLY_MARKER`は付与者
+          // ユニットを持たないため、`AppliedEffect`と同じく`sourceSide`
+          // （そのMemoryを指定した陣営）を渡す。
+          ...requireMarkerSource(context),
           targetId: application.targetBattleUnitId,
           stackPolicy: effectAction.payload.stack.policy,
           stackMax: effectAction.payload.stack.max,

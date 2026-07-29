@@ -1,3 +1,4 @@
+import { ApplicationError } from "../contracts/application-error.js";
 import type { BattleLogEvent } from "../observation/battle-log-event.js";
 import type { StateTransition } from "../observation/battle-observation.js";
 import type {
@@ -154,10 +155,28 @@ function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseB
 /**
  * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1]):
  * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`は直近の付与者を表す
- * 監査用の値で常に存在する — `MarkerState`はAppliedEffectと異なり付与元不明の
- * インスタンスを持たない）。
+ * 監査用の値）。
+ *
+ * PR #262レビュー[P1]: R-MEM-04（M7-008、Issue #176）のMemory由来Markerは付与者
+ * ユニットを持たない（`MarkerSnapshot.sourceUnitId`が`undefined`）が、v1契約は
+ * `sourceUnitId`を必須のまま据え置く（既存必須プロパティの削除は
+ * `10_API設計.md`「バージョニング」の破壊的変更に当たる）。そうしたMarkerを生む
+ * 唯一のproduction定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は
+ * `CAP_MEMORY_GRANTED_MARKER`（`runtimeStatus: PLANNED`、`REL-008`／Issue #263）が
+ * Capability preflightで編成不可として弾くため、ここへは到達しない。将来
+ * preflightをすり抜けた場合に「付与元不明のMarkerを黙って返す」ことがないよう、
+ * 実装不変条件違反として明確に失敗させる。
  */
 function toMarkerStateResponseBody(marker: MarkerSnapshot): MarkerStateResponseBody {
+  if (marker.sourceUnitId === undefined) {
+    throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+      {
+        definitionId: marker.markerId,
+        reason:
+          "Marker has no source BattleUnit, which the v1 MarkerStateResponse contract cannot represent (Memory-granted Markers stay gated by CAP_MEMORY_GRANTED_MARKER until REL-008 / issue #263)",
+      },
+    ]);
+  }
   return {
     markerInstanceId: marker.markerInstanceId,
     markerId: marker.markerId,

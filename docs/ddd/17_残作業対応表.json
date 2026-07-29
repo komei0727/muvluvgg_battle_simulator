@@ -36,11 +36,11 @@
     },
     "memoryCatalog": {
       "sourceTotal": 32,
-      "converted": 12,
-      "unconverted": 20
+      "converted": 32,
+      "unconverted": 0
     },
     "capabilities": {
-      "total": 44,
+      "total": 45,
       "implemented": 26
     }
   },
@@ -102,7 +102,8 @@
     { "taskId": "REL-004", "issue": 203, "phase": 4, "milestone": "M9" },
     { "taskId": "REL-005", "issue": 198, "phase": 4, "milestone": "M9" },
     { "taskId": "REL-006", "issue": 197, "phase": 4, "milestone": "M9" },
-    { "taskId": "REL-007", "issue": 201, "phase": 4, "milestone": "M9" }
+    { "taskId": "REL-007", "issue": 201, "phase": 4, "milestone": "M9" },
+    { "taskId": "REL-008", "issue": 263, "phase": 4, "milestone": "M9" }
   ],
   "ruleAssignments": [
     { "taskId": "EFF-002", "ruleIds": ["R-EFF-05"] },
@@ -187,26 +188,5 @@
     },
     { "milestone": "M8", "theme": "TEMP_PIERCING_GRANT", "rowCount": 1, "taskId": "DMG-003" }
   ],
-  "unconvertedMemoryAssignments": [
-    { "name": "Chaos Maiden", "taskId": "M7-008" },
-    { "name": "Colorful Bouquet", "taskId": "M7-008" },
-    { "name": "Pyxis Ma Soeur", "taskId": "M7-008" },
-    { "name": "Sirius Sugar", "taskId": "M7-008" },
-    { "name": "Treble Quintet", "taskId": "M7-008" },
-    { "name": "Trinity Jewel", "taskId": "M7-008" },
-    { "name": "お傍にいるのはいつでもピコですよ♪", "taskId": "M7-008" },
-    { "name": "お忍びシスターの冒険", "taskId": "M7-008" },
-    { "name": "エッ◯な罰ゲームやってみた", "taskId": "M7-008" },
-    { "name": "不満と不安", "taskId": "M7-008" },
-    { "name": "安心する香り", "taskId": "M7-008" },
-    { "name": "家族のかたちを象りながら", "taskId": "M7-008" },
-    { "name": "密着！？テントの中の珍騒動", "taskId": "M7-008" },
-    { "name": "少女たちとの邂逅", "taskId": "M7-008" },
-    { "name": "忙しい時のまどろみ", "taskId": "M7-008" },
-    { "name": "新年のご挨拶", "taskId": "M7-008" },
-    { "name": "気になる装備", "taskId": "M7-008" },
-    { "name": "腐れ縁で犬猿の仲？", "taskId": "M7-008" },
-    { "name": "風紀委員会", "taskId": "M7-008" },
-    { "name": "駆け落ちフルスロットル！", "taskId": "M7-008" }
-  ]
+  "unconvertedMemoryAssignments": []
 }

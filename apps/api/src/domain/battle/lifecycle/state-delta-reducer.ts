@@ -209,6 +209,10 @@ export function sameMarkerSnapshot(
     a.markerInstanceId === b.markerInstanceId &&
     a.markerId === b.markerId &&
     a.sourceUnitId === b.sourceUnitId &&
+    // R-MEM-04（M7-008、Issue #176）: `sameEffectSnapshot`と同じ理由 — Memory由来の
+    // Markerは`sourceUnitId`を持たず`sourceSide`を持つため、両方を比較しないと
+    // 発生源の欠落・破損が独立Reducerの復元一致検証をすり抜ける。
+    a.sourceSide === b.sourceSide &&
     a.stackCount === b.stackCount &&
     a.stackMax === b.stackMax &&
     a.duration?.unit === b.duration?.unit &&

@@ -1832,8 +1832,6 @@ const SOURCE_UNIT_REQUIRING_EFFECT_ACTION_KINDS = new Set<EffectActionDefinition
   // `ModifyResourceEventContext`/`CooldownManipulationEventContext`が発生源ユニットを要求する。
   "MODIFY_RESOURCE",
   "COOLDOWN_MANIPULATION",
-  // `10_API設計.md`の`MarkerStateResponse.sourceUnitId`は必須（Markerは常に直近の付与者を持つ）。
-  "APPLY_MARKER",
 ]);
 
 const SOURCE_UNIT_REQUIRING_ORDER_KEYS: ReadonlySet<string> = new Set([

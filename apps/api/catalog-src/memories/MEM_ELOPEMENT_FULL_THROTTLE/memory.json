@@ -1,0 +1,100 @@
+{
+  "memoryDefinitionId": "MEM_ELOPEMENT_FULL_THROTTLE",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_AFF_CHAOS_MAIDEN_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "AFFILIATION",
+                  "affiliationId": "AFF_CHAOS_MAIDEN"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_AFF_CHAOS_MAIDEN_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_ELOPEMENT_FULL_THROTTLE_AFFILIATION_DMG_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "BACK"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BACK_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_ELOPEMENT_FULL_THROTTLE_ENEMY_BACK_SPEED_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": [
+    "CAP_DAMAGE_MOD",
+    "CAP_MEMORY_TRIGGERED_EFFECT",
+    "CAP_TARGET_FILTER_ORDER"
+  ],
+  "metadata": {
+    "displayName": "駆け落ちフルスロットル！",
+    "tags": []
+  }
+}

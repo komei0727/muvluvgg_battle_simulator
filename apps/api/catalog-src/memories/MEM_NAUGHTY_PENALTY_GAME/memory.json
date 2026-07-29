@@ -1,0 +1,100 @@
+{
+  "memoryDefinitionId": "MEM_NAUGHTY_PENALTY_GAME",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CONTROL_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ROLE",
+                  "role": "CONTROL"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_CONTROL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_NAUGHTY_PENALTY_GAME_CONTROL_PHYSICAL_DMG_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_TANK_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ROLE",
+                  "role": "TANK"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_TANK_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_NAUGHTY_PENALTY_GAME_TANK_DEF_UP"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": [
+    "CAP_DAMAGE_MOD",
+    "CAP_MEMORY_TRIGGERED_EFFECT",
+    "CAP_TARGET_FILTER_ORDER"
+  ],
+  "metadata": {
+    "displayName": "エッ◯な罰ゲームやってみた",
+    "tags": []
+  }
+}

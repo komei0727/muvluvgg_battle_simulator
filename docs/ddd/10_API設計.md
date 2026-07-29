@@ -528,6 +528,12 @@ MarkerStateResponse {
 
 `EffectStateResponse` と異なり `category`/`stackMode`/`isEffective`/`value` を持たない。Markerは重複あり・なしの選択（R-EFF-05）の対象ではなく、対象ごとに常に1インスタンスだけが存在し、`ADD`/`KEEP_EXISTING`/`REFRESH`/`REPLACE`の付与方針でこのインスタンスを更新する（R-EFF-10）。
 
+#### Memory由来Markerと `sourceUnitId` の必須性（M7-008 / Issue #176、PR #262レビュー[P1]）
+
+R-MEM-04 の Memory は使用者 `BattleUnit` を持たないため、Memory が付与した `MarkerState` は付与者ユニットの代わりに付与元陣営（`sourceSide`）だけを持つ。M7-008 でこの表現を Domain・`StateDelta`・`MarkerApplied`/`MarkerUpdated` の各payloadへ実装したが、`MarkerStateResponse.sourceUnitId`（および同名のイベント `details` プロパティ）を任意へ緩める変更は、下記「バージョニング」が破壊的変更と定義する「既存必須プロパティの削除」に当たるため採用しない。
+
+したがってv1では `sourceUnitId` を必須のまま据え置き、Memory が Marker を付与する production 定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は `CAP_MEMORY_GRANTED_MARKER`（`runtimeStatus: PLANNED`）が Capability preflight で編成不可として弾く。互換性を保つ公開方法（`/api/v2` 化など）の決定と実装は `REL-008`（Issue #263）が担当する。`simulate-battle-response-mapper.ts` は、preflight をすり抜けて付与元なしMarkerが到達した場合に `INTERNAL_INVARIANT_VIOLATION` で明確に失敗させる（黙って `sourceUnitId` を欠落させない）。
+
 ### SubUnitStateResponse
 
 ```text

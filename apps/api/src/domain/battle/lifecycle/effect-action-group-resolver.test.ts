@@ -1818,6 +1818,34 @@ describe("applyEffectActionGroups", () => {
       expect(completed.payload.resultKind).toBe("SKIPPED");
     });
 
+    it("UT-R-ACTN-01-002B (PR #262レビュー[P2]): APPLY_MARKER rejects a context that has neither an actor BattleUnit nor a Memory source side, instead of granting a MarkerState with no recorded granter", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const markerId = createMarkerId("MARKER_TEST");
+      const apply = markerAction("ACT_APPLY_MARKER", markerId);
+      const effectActions = new Map([[apply.effectActionDefinitionId, apply]]);
+      const { recorder, rootEventId } = seedRecorder();
+      // R-EFF-10「直近の付与者」はexactly-one（`MarkerSource`）。実経路では
+      // スキル解決が`actorId`を、Memory解決（R-MEM-04）が`sourceSide`を必ず持つが、
+      // 型だけでは両方欠落を防げないためこの境界で決定的に拒否する。
+      const { actorId: _actorId, ...withoutSource } = contextFor(
+        actor,
+        effectActions,
+        recorder,
+        rootEventId,
+      );
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, enemy.battleUnitId, apply.effectActionDefinitionId)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      expect(() => applyEffectActionGroups(plan, [actor, enemy], withoutSource)).toThrow(
+        DomainValidationError,
+      );
+    });
+
     it("UT-R-ACTN-01-003: REMOVE_MARKER against an already-defeated target leaves its existing marker untouched and completes as SKIPPED (not APPLIED)", () => {
       const actor = unit("ACTOR", "ALLY");
       const enemy = unit("ENEMY", "ENEMY");

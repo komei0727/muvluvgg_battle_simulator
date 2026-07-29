@@ -71,6 +71,280 @@
     "metadata": { "displayName": "絶対命令行使権！", "tags": [] }
   },
   {
+    "memoryDefinitionId": "MEM_ALWAYS_PICO_BESIDE_YOU",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_CENTER_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  { "kind": "POSITION_ROW", "row": "BACK" },
+                  { "kind": "POSITION_COLUMN", "column": "CENTER" }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_BACK_CENTER_ATK_UP" },
+                { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_HP_UP" },
+                { "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_DEF_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_MEMORY_GRANTED_MARKER",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "お傍にいるのはいつでもピコですよ♪", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_BUSY_DAY_SLUMBER",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "TurnStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_BUSY_DAY_SLUMBER_BACK_DMG_DOWN" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_BUSY_DAY_SLUMBER_BACK_DEF_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "忙しい時のまどろみ", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_CATS_AND_DOGS_BOND",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_FRONT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_CATS_AND_DOGS_BOND_FRONT_PHYSICAL_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_FRONT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_CATS_AND_DOGS_BOND_FRONT_HP_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "腐れ縁で犬猿の仲？", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_CHAOS_MAIDEN",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_CHAOS_MAIDEN_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_CHAOS_MAIDEN" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_CHAOS_MAIDEN_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_CHAOS_MAIDEN_AFFILIATION_ATK_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_CHAOS_MAIDEN_ALL_DEF_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "Chaos Maiden", "tags": [] }
+  },
+  {
     "memoryDefinitionId": "MEM_CHAOS_MAIDEN_TWINTAIL_FEST",
     "triggeredEffects": [
       {
@@ -133,6 +407,331 @@
     ],
     "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "カオスメイデンツインテ祭り♡", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_COLORFUL_BOUQUET",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_COLORFUL_BOUQUET_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_COLORFUL_BOUQUET" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_COLORFUL_BOUQUET_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_COLORFUL_BOUQUET_AFFILIATION_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_COLORFUL_BOUQUET_ALL_ATK_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "Colorful Bouquet", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_CURIOUS_EQUIPMENT",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_CURIOUS_EQUIPMENT_ALL_HP_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_FRONT_ENEMIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ENEMY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ENEMIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_CURIOUS_EQUIPMENT_ENEMY_FRONT_DEF_DOWN" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "気になる装備", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_DISCONTENT_AND_ANXIETY",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "TurnStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_FRONT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_DISCONTENT_AND_ANXIETY_FRONT_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_DISCONTENT_AND_ANXIETY_BACK_HP_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "不満と不安", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_ELOPEMENT_FULL_THROTTLE",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_CHAOS_MAIDEN_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_CHAOS_MAIDEN" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_CHAOS_MAIDEN_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_ELOPEMENT_FULL_THROTTLE_AFFILIATION_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_ENEMIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ENEMY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ENEMIES" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MEM_ELOPEMENT_FULL_THROTTLE_ENEMY_BACK_SPEED_DOWN"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "駆け落ちフルスロットル！", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_ENCOUNTER_WITH_GIRLS",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_ENCOUNTER_WITH_GIRLS_ALL_DMG_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_ENCOUNTER_WITH_GIRLS_ALL_CRIT_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
+    "metadata": { "displayName": "少女たちとの邂逅", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_EURO_TOWER_DAY",
@@ -209,6 +808,66 @@
     ],
     "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "１日ユーロ・タワー体験", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_FUUKI_IINKAI",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_FUUKI_IINKAI_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_FUUKI_IINKAI" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_FUUKI_IINKAI_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_FUUKI_IINKAI_AFFILIATION_ATK_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_FUUKI_IINKAI_ALL_SPEED_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "風紀委員会", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_HARD_WARMUP",
@@ -336,6 +995,79 @@
     "metadata": { "displayName": "心の色", "tags": [] }
   },
   {
+    "memoryDefinitionId": "MEM_INCOGNITO_SISTER_ADVENTURE",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_PYXIS_MA_SOEUR_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_PYXIS_MA_SOEUR" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_PYXIS_MA_SOEUR_ALLIES" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MEM_INCOGNITO_SISTER_ADVENTURE_AFFILIATION_DEF_UP"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_PHYSICAL_ATTACKER_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ROLE", "role": "PHYSICAL_ATTACKER" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PHYSICAL_ATTACKER_ALLIES" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MEM_INCOGNITO_SISTER_ADVENTURE_PHYSICAL_ATTACKER_ATK_UP"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "お忍びシスターの冒険", "tags": [] }
+  },
+  {
     "memoryDefinitionId": "MEM_MOMOZONO_NEW_YEAR",
     "triggeredEffects": [
       {
@@ -401,6 +1133,136 @@
     ],
     "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "桃園家のお正月", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_NAUGHTY_PENALTY_GAME",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CONTROL_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ROLE", "role": "CONTROL" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CONTROL_ALLIES" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MEM_NAUGHTY_PENALTY_GAME_CONTROL_PHYSICAL_DMG_UP"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_TANK_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ROLE", "role": "TANK" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_TANK_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_NAUGHTY_PENALTY_GAME_TANK_DEF_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "エッ◯な罰ゲームやってみた", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_NEW_YEAR_GREETING",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_NEW_YEAR_GREETING_ALL_EN_DMG_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_NEW_YEAR_GREETING_ALL_ATK_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
+    "metadata": { "displayName": "新年のご挨拶", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_OJOSAMA_MANNERS",
@@ -534,6 +1396,273 @@
     "metadata": { "displayName": "おパンツ咥えたドラネコ", "tags": [] }
   },
   {
+    "memoryDefinitionId": "MEM_PYXIS_MA_SOEUR",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_PYXIS_MA_SOEUR_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_PYXIS_MA_SOEUR" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_PYXIS_MA_SOEUR_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_PYXIS_MA_SOEUR_AFFILIATION_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_PYXIS_MA_SOEUR_ALL_SPEED_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "Pyxis Ma Soeur", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_SHAPING_FAMILY",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_KURASUNA_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_KURASUNA" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_KURASUNA_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_SHAPING_FAMILY_AFFILIATION_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CONTROL_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ROLE", "role": "CONTROL" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CONTROL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_SHAPING_FAMILY_CONTROL_ATK_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "家族のかたちを象りながら", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_SIRIUS_SUGAR",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_SIRIUS_SUGAR_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_SIRIUS_SUGAR" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_SIRIUS_SUGAR_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_SIRIUS_SUGAR_AFFILIATION_ATK_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_SIRIUS_SUGAR_ALL_HP_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "Sirius Sugar", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_SOOTHING_SCENT",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_EN_ATTACKER_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ROLE", "role": "EN_ATTACKER" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_EN_ATTACKER_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_SOOTHING_SCENT_EN_ATTACKER_EN_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_LEFT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  { "kind": "POSITION_ROW", "row": "BACK" },
+                  { "kind": "POSITION_COLUMN", "column": "LEFT" }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_LEFT_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_SOOTHING_SCENT_BACK_LEFT_ATK_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "安心する香り", "tags": [] }
+  },
+  {
     "memoryDefinitionId": "MEM_STRANGERS",
     "triggeredEffects": [
       {
@@ -587,6 +1716,77 @@
     ],
     "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
     "metadata": { "displayName": "STRANGERS", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_TENT_COMMOTION",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_PRE_KURASU_A_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_PRE_KURASU_A" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_PRE_KURASU_A_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_TENT_COMMOTION_AFFILIATION_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_FRONT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_TENT_COMMOTION_FRONT_DEF_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_MEMORY_TRIGGERED_EFFECT",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": { "displayName": "密着！？テントの中の珍騒動", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_THREE_MAIDS_HOSPITALITY",
@@ -722,6 +1922,130 @@
     ],
     "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "臆病トナカイの聖夜", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_TREBLE_QUINTET",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_TREBLE_QUINTET_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_TREBLE_QUINTET" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_TREBLE_QUINTET_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_TREBLE_QUINTET_AFFILIATION_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_TREBLE_QUINTET_ALL_CRIT_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "Treble Quintet", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_TRINITY_JEWEL",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AFF_TRINITY_JEWEL_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "AFFILIATION", "affiliationId": "AFF_TRINITY_JEWEL" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AFF_TRINITY_JEWEL_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_TRINITY_JEWEL_AFFILIATION_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_ALL_ALLIES",
+              "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_TRINITY_JEWEL_ALL_DEF_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
+    "metadata": { "displayName": "Trinity Jewel", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_WALK_TOGETHER",

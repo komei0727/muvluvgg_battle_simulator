@@ -2,6 +2,8 @@ import { buildInitialDurationState } from "../model/applied-effect.js";
 import {
   buildInitialMarkerState,
   clampMarkerStack,
+  markerSourceFields,
+  type MarkerSource,
   type MarkerState,
 } from "../model/marker-state.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -14,6 +16,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type { MarkerStackPolicy } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
@@ -28,19 +31,36 @@ export interface ApplyMarkerContext {
   readonly rootEventId: DomainEventId;
 }
 
-export interface ApplyMarkerRequest {
+/**
+ * 付与元（`sourceId` / `sourceSide`）は{@link MarkerSource}のexactly-one union で
+ * 受け取る。R-MEM-04（M7-008、Issue #176）: Memory の `triggeredEffects` 由来の
+ * 付与だけが具体的な付与者ユニットを持たず`sourceSide`（そのMemoryを指定した陣営）
+ * を渡す。両方欠落・両方指定はコンパイル時に弾かれる（PR #262レビュー[P2]）。
+ */
+export type ApplyMarkerRequest = MarkerSource & {
   readonly markerId: MarkerId;
-  readonly sourceId: BattleUnitId;
   readonly targetId: BattleUnitId;
   readonly stackPolicy: MarkerStackPolicy;
   readonly stackMax: number | null;
   readonly durationDefinition: DurationDefinition;
-}
+};
 
 export interface ApplyMarkerResult {
   readonly units: readonly BattleUnit[];
   readonly markerState: MarkerState;
   readonly lastEventId: DomainEventId;
+}
+
+/**
+ * `08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、`sourceSide`を
+ * 持つ」: envelope・payloadの付与元も`MarkerState`と同じく片方だけを持つ。
+ */
+function sourceEnvelopeOf(
+  request: ApplyMarkerRequest,
+): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } {
+  return request.sourceId !== undefined
+    ? { sourceUnitId: request.sourceId }
+    : { sourceSide: request.sourceSide };
 }
 
 function actionTurnDurationOf(
@@ -80,7 +100,7 @@ export function applyMarker(
     const markerState = buildInitialMarkerState(
       context.recorder.nextMarkerInstanceId(),
       request.markerId,
-      request.sourceId,
+      request,
       request.targetId,
       request.stackMax,
       request.durationDefinition,
@@ -105,12 +125,12 @@ export function applyMarker(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: request.sourceId,
+      ...sourceEnvelopeOf(request),
       targetUnitIds: [request.targetId],
       payload: {
         markerInstanceId: markerState.markerInstanceId,
         markerId: request.markerId,
-        sourceUnitId: request.sourceId,
+        ...sourceEnvelopeOf(request),
         targetUnitId: request.targetId,
         stackCount: markerState.stackCount,
         stackMax: markerState.stackMax,
@@ -158,18 +178,25 @@ export function applyMarker(
   const stackBefore = existing.stackCount;
   const durationBefore = actionTurnDurationOf(existing);
 
+  // 「直近の付与者」は片方だけを持つため、`sourceId`/`sourceSide`は
+  // 上書きではなく両方を落としてから入れ替える。
+  const {
+    sourceId: _previousSourceId,
+    sourceSide: _previousSourceSide,
+    ...withoutSource
+  } = existing;
+  const carried = { ...withoutSource, ...markerSourceFields(request) };
+
   let nextMarker: MarkerState;
   if (request.stackPolicy === "ADD") {
     nextMarker = {
-      ...existing,
-      sourceId: request.sourceId,
+      ...carried,
       stackCount: clampMarkerStack(existing.stackCount + 1, request.stackMax),
       stackMax: request.stackMax,
     };
   } else if (request.stackPolicy === "REFRESH") {
     nextMarker = {
-      ...existing,
-      sourceId: request.sourceId,
+      ...carried,
       duration: buildInitialDurationState(request.durationDefinition, {
         ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         turnNumber: context.turnNumber,
@@ -178,8 +205,7 @@ export function applyMarker(
   } else {
     // REPLACE: 既存Markerを新しい定義内容で丸ごと置き換える。
     nextMarker = {
-      ...existing,
-      sourceId: request.sourceId,
+      ...carried,
       stackCount: clampMarkerStack(1, request.stackMax),
       stackMax: request.stackMax,
       duration: buildInitialDurationState(request.durationDefinition, {
@@ -211,13 +237,13 @@ export function applyMarker(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: request.sourceId,
+    ...sourceEnvelopeOf(request),
     targetUnitIds: [request.targetId],
     payload: {
       markerInstanceId: nextMarker.markerInstanceId,
       markerId: request.markerId,
       targetUnitId: request.targetId,
-      sourceUnitId: request.sourceId,
+      ...sourceEnvelopeOf(request),
       policy: request.stackPolicy,
       stackBefore,
       stackAfter: nextMarker.stackCount,

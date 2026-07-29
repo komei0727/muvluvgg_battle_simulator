@@ -1,0 +1,100 @@
+{
+  "memoryDefinitionId": "MEM_CATS_AND_DOGS_BOND",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "FRONT"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_FRONT_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_CATS_AND_DOGS_BOND_FRONT_PHYSICAL_DMG_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "FRONT"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_FRONT_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_CATS_AND_DOGS_BOND_FRONT_HP_UP"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "requiredCapabilities": [
+    "CAP_DAMAGE_MOD",
+    "CAP_MEMORY_TRIGGERED_EFFECT",
+    "CAP_TARGET_FILTER_ORDER"
+  ],
+  "metadata": {
+    "displayName": "腐れ縁で犬猿の仲？",
+    "tags": []
+  }
+}

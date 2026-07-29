@@ -327,7 +327,7 @@ describe("evaluateEffectStepCondition", () => {
           buildInitialMarkerState(
             createMarkerInstanceId("mi-1"),
             markerId,
-            createBattleUnitId("actor"),
+            { sourceId: createBattleUnitId("actor") },
             createBattleUnitId("t1"),
             null,
             {
@@ -363,7 +363,7 @@ describe("evaluateEffectStepCondition", () => {
             ...buildInitialMarkerState(
               createMarkerInstanceId("mi-1"),
               markerId,
-              createBattleUnitId("actor"),
+              { sourceId: createBattleUnitId("actor") },
               createBattleUnitId("t1"),
               null,
               {
@@ -382,7 +382,7 @@ describe("evaluateEffectStepCondition", () => {
           buildInitialMarkerState(
             createMarkerInstanceId("mi-2"),
             markerId,
-            createBattleUnitId("actor"),
+            { sourceId: createBattleUnitId("actor") },
             createBattleUnitId("t2"),
             null,
             {
@@ -490,7 +490,7 @@ describe("evaluateEffectStepCondition", () => {
             ...buildInitialMarkerState(
               createMarkerInstanceId("mi-1"),
               markerId,
-              createBattleUnitId("actor"),
+              { sourceId: createBattleUnitId("actor") },
               createBattleUnitId("enemy"),
               null,
               {
