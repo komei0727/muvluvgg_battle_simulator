@@ -457,6 +457,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // production Catalogに使用例が無く対象外のまま残した（必要になった時点で
   // キーを追加する、TGT-001以来の既定方針）。TGT-002はこのIssueで完了するため、
   // 残る左右列優先は次にproduction使用例が現れた時点の担当Issueへ引き継ぐ。
+  // M7-010（Issue #177、監査）: その「担当Issue」は実際には作られておらず、
+  // TGT-002（Issue #169）もclose済みで所有者不在だったため、production需要待ちの
+  // 残作業を追跡するM7-019（Issue #273）へ明示的に割り当てた。
   { ruleId: "R-TGT-06", testCaseIds: [], kinds: [] },
   {
     ruleId: "R-TGT-07",
@@ -1642,6 +1645,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 経路・最強選択・次点繰上げ・`EffectiveEffectChanged`のいずれにも到達
   // できない。NON_STACKABLEのCatalog表現・Mapper・実ライフサイクルの
   // シナリオテストが揃うまで未完了のまま残す。
+  // M7-010（Issue #177、監査）: 完了責任を持っていたEFF-002（Issue #165）が
+  // close済みで所有者不在だったため、同じギャップを持つ不完全変換テーマ
+  // `STACK_LIMIT_ON_STAT_MOD`（1行）ごとM7-012（Issue #266）へ引き継いだ。
   { ruleId: "R-EFF-05", testCaseIds: [], kinds: [] },
   // R-EFF-06: EFF-003。ターン単位期間の減算・失効（`battle.ts`のTURN_ENDING
   // 配線）。`IT-CAP-COMPLEX-EXPIRATION-PROD-002`が実production Catalogの
@@ -1699,23 +1705,27 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
-  // R-EFF-09: EFF-003。linkedEffectGroupの親子連動カスケード
-  // （`applied-effect-linked-group.ts`、`duration-expiry-service.ts`の
-  // 子優先順序）。`IT-CAP-COMPLEX-EXPIRATION-PROD-004`がUNIT_HARRIET_SAGEの
-  // 実`linkedEffectGroupId`（`HARRIET_CURSE_LINK`）で検証する。
-  {
-    ruleId: "R-EFF-09",
-    testCaseIds: [
-      "UT-R-EFF-09-001",
-      "UT-R-EFF-09-002",
-      "UT-R-EFF-09-003",
-      "UT-R-EFF-09-004",
-      "UT-R-EFF-09-005",
-      "UT-R-EFF-09-006",
-      "IT-CAP-COMPLEX-EXPIRATION-PROD-004",
-    ],
-    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
-  },
+  // R-EFF-09: linkedEffectGroupの親子連動カスケード。EFF-003（Issue #159）が
+  // `AppliedEffect`同士（`applied-effect-linked-group.ts`、
+  // `duration-expiry-service.ts`の子優先順序）を、EFF-004（Issue #160）が
+  // `MarkerState`同士（`marker-linked-group.ts`）を実装し、
+  // `UT-R-EFF-09-001`〜`006`と`IT-CAP-COMPLEX-EXPIRATION-PROD-004`
+  // （UNIT_HARRIET_SAGEの実`linkedEffectGroupId` `HARRIET_CURSE_LINK`）が
+  // 検証している。
+  //
+  // M7-010（Issue #177、監査）: しかしR-EFF-09の第1項「同じ
+  // `linkedEffectGroupId`を持つ`AppliedEffect`**と**`MarkerState`は親子連動
+  // グループとして扱う」は未実装であり、`catalog-integrity.ts`の
+  // `validateMarkerLinkedGroupCascadeSupport`が該当Catalog定義を
+  // `UNSUPPORTED_MARKER_LINKED_GROUP`としてロード時点で拒否している。
+  // 「SchemaやMapperが定義を受理するだけでは完了としない」
+  // （`17_残作業対応表.md`「更新手順」）に照らすと完了計上は過大であり、
+  // 実際に当該規定を必要とするproduction Catalog行が2行残っている
+  // （`LINKED_EFFECT_GROUP_CROSS_TYPE`）。上記の既存テストは残存する事実だが、
+  // ルールCoverage上は未完了へ戻し、M7-013（Issue #267）へ割り当てる —
+  // R-EFF-05と同じ運用（実ライフサイクル到達不能な部分がある間は
+  // `testCaseIds`を空にし、根拠をこのコメントへ残す）。
+  { ruleId: "R-EFF-09", testCaseIds: [], kinds: [] },
   // R-EFF-10: EFF-004（Issue #160）。ADD/KEEP_EXISTING/REFRESH/REPLACEの4方針、
   // stack.max clamp・0未満禁止（`marker-apply-service.ts`）、明示的
   // `REMOVE_MARKER`とlinkedEffectGroupカスケード（`MarkerState`同士、

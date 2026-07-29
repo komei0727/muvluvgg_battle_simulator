@@ -60,7 +60,7 @@ interface RemainingWorkManifest {
     readonly ruleIds: readonly string[];
   }[];
   readonly conversionThemeAssignments: readonly {
-    readonly milestone: "M7" | "M8";
+    readonly milestone: "M7" | "M8" | "M9";
     readonly theme: string;
     readonly rowCount: number;
     readonly taskId: string;
@@ -100,7 +100,11 @@ function parseIncompleteConversionThemes(): Map<string, number> {
     const columns = line.split("|");
     const milestone = stripCode(columns[5] ?? "");
     const theme = stripCode(columns[6] ?? "");
-    if (milestone !== "M7" && milestone !== "M8") {
+    // M7-010（Issue #177）レビュー[P1]: 当初はM7/M8だけを読み、`M9`の
+    // `UNREACHABLE_BRANCH_BY_RAW_DATA`（`UNIT_SUIRAN_CASINO`、1行）が
+    // 割当検証からも件数からも黙って外れていた。`対応予定`に現れる
+    // マイルストーンはすべて読み、割当先Taskの存在をCIで要求する。
+    if (milestone !== "M7" && milestone !== "M8" && milestone !== "M9") {
       continue;
     }
     const key = `${milestone}:${theme}`;
