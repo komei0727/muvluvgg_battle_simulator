@@ -11,6 +11,7 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import {
   createActionId,
   createEffectInstanceId,
@@ -545,6 +546,176 @@ describe("removeMarkers", () => {
       parentEffect.effectInstanceId,
     ]);
     expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
+  });
+
+  it("UT-R-EFF-09-019 (R-EFF-09 順序, PR #280 レビュー[P2]): every CHILD member is expired before every PARENT member, even when a cascaded group holds more than one PARENT", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const definition = statModDefinition("ACT_GROUP_MEMBER");
+    // 同じグループに `AppliedEffect` の PARENT と CHILD、`MarkerState` の CHILD が
+    // 同居する（スキーマはグループあたりのPARENTを1件に制限していない）。
+    // seedはMarkerのPARENTなので、カスケードは残り3件すべてへ及ぶ。
+    const parentEffect = linkedEffect(
+      "effect-parent",
+      target,
+      definition.effectActionDefinitionId,
+      {
+        duration: {
+          definition: {
+            dispellable: false,
+            linkedEffectGroupId: "GROUP_1",
+            linkedEffectGroupRole: "PARENT",
+          },
+        },
+      },
+    );
+    const childEffect = linkedEffect("effect-child", target, definition.effectActionDefinitionId);
+
+    const grantedChildMarker = applyMarker(
+      context,
+      [source, { ...target, appliedEffects: [parentEffect, childEffect] }],
+      {
+        markerId: createMarkerId("MARKER_CHILD"),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_1",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+      rootEventId,
+    );
+    const grantedParentMarker = applyMarker(
+      context,
+      grantedChildMarker.units,
+      {
+        markerId: createMarkerId("MARKER_PARENT"),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+      grantedChildMarker.lastEventId,
+    );
+
+    const before = recorder.getEvents().length;
+    const result = removeMarkers(
+      context,
+      grantedParentMarker.units,
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          markerInstanceId: grantedParentMarker.markerState.markerInstanceId,
+          reason: "REMOVED",
+        },
+      ],
+      new Map([[definition.effectActionDefinitionId, definition]]),
+      grantedParentMarker.lastEventId,
+    );
+
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(nextTarget.appliedEffects).toHaveLength(0);
+    expect(nextTarget.markerStates).toHaveLength(0);
+
+    const removalOrder = recorder
+      .getEvents()
+      .slice(before)
+      .filter((e) => e.eventType === "EffectExpired" || e.eventType === "MarkerRemoved")
+      .map((e) => {
+        const payload = e.payload as {
+          effectInstanceId?: string;
+          markerInstanceId?: string;
+        };
+        return payload.effectInstanceId ?? payload.markerInstanceId;
+      });
+    // CHILD（`AppliedEffect`→`MarkerState`）→ PARENT（同順）→ seed のPARENT Marker。
+    expect(removalOrder).toEqual([
+      childEffect.effectInstanceId,
+      grantedChildMarker.markerState.markerInstanceId,
+      parentEffect.effectInstanceId,
+      grantedParentMarker.markerState.markerInstanceId,
+    ]);
+  });
+
+  it("UT-R-EFF-09-020 (R-EFF-09 通知順序, PR #280 レビュー[P1]): each cascade step notifies onFactEventForPassiveChain before the next member is removed, so a watcher of a CHILD EffectExpired still observes the PARENT Marker", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const definition = statModDefinition("ACT_CHILD_ATK_UP");
+    const childEffect = linkedEffect("child-1", target, definition.effectActionDefinitionId);
+
+    const observations: { eventType: string; parentMarkerPresent: boolean }[] = [];
+    const context = {
+      ...baseContext(recorder, rootEventId),
+      onFactEventForPassiveChain: (
+        event: BattleDomainEvent,
+        unitsForChain: readonly BattleUnit[],
+      ): readonly BattleUnit[] => {
+        observations.push({
+          eventType: event.eventType,
+          parentMarkerPresent: unitsForChain.some((u) =>
+            u.markerStates.some((m) => m.markerId === parentMarkerId),
+          ),
+        });
+        return unitsForChain;
+      },
+    };
+    const parentMarkerId = createMarkerId("MARKER_PARENT");
+
+    const granted = applyMarker(
+      context,
+      [source, { ...target, appliedEffects: [childEffect] }],
+      {
+        markerId: parentMarkerId,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+      rootEventId,
+    );
+    observations.length = 0;
+
+    removeMarkers(
+      context,
+      granted.units,
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          markerInstanceId: granted.markerState.markerInstanceId,
+          reason: "REMOVED",
+        },
+      ],
+      new Map([[definition.effectActionDefinitionId, definition]]),
+      granted.lastEventId,
+    );
+
+    const childExpired = observations.find((o) => o.eventType === "EffectExpired");
+    expect(childExpired).toBeDefined();
+    // `08_ドメインイベント.md`「各イベントに対応するPS/Memory候補を直ちに解決する」:
+    // 子の`EffectExpired`を観測する時点で、親Markerはまだ除去されていない。
+    expect(childExpired!.parentMarkerPresent).toBe(true);
+    const markerRemoved = observations.find((o) => o.eventType === "MarkerRemoved");
+    expect(markerRemoved).toBeDefined();
+    expect(markerRemoved!.parentMarkerPresent).toBe(false);
+    // 子の`EffectExpired`が親の`MarkerRemoved`より前に通知される（`combatStats`は
+    // このユニットでは付与時に加算していないため`CombatStatChanged`は発生しない）。
+    expect(observations.map((o) => o.eventType)).toEqual(["EffectExpired", "MarkerRemoved"]);
   });
 });
 

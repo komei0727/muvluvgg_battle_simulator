@@ -3,6 +3,7 @@ import { selectEffectiveInstances } from "../model/effective-effect-selector.js"
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot, toMarkerSnapshot } from "../events/state-delta.js";
 import type { LinkedGroupInstances, LinkedGroupMember } from "../model/linked-effect-group.js";
+import type { LinkedEffectGroupRole } from "../../catalog/definitions/duration-definition.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
@@ -32,6 +33,45 @@ export interface LinkedGroupCascadeContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #280レビュー[P1]: 1メンバーの除去（イベント記録＋CombatStat再計算）ごとに、
+   * 次のメンバーへ進む前にPS/Memoryの即時連鎖へ通知する
+   * （`08_ドメインイベント.md`「各イベントに対応するPS/Memory候補を直ちに解決する」）。
+   * まとめて最後に通知すると、子の`EffectExpired`をtriggerにするPSが、イベント順では
+   * まだ存在する親Marker／親効果を既に除去済みとして観測してしまう。
+   * `freeze-removal-service.ts`の`RemoveFreezeContext`と同じ形・同じ役割で、
+   * 未指定なら通知しない（呼び出し側がgenerator経由で自分で駆動する経路）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
+}
+
+/**
+ * `eventsStart`以降に記録されたイベントを順に`onFactEventForPassiveChain`へ渡し、
+ * PS/Memory連鎖が書き換えた`units`を返す（callback未指定なら`units`をそのまま返す）。
+ * カスケード分（`removeCascadedMembers`）とseed分（各サービスの除去ループ）が
+ * 同じ粒度・同じ手順で通知するための共有ヘルパー。
+ *
+ * callbackを持たない経路（PS自身のEffectSequence解決が`passive-activation-service.ts`
+ * から委譲される経路、およびダメージpipeline内の消費失効フック）は、
+ * `freeze-removal-service.ts`の`removeFreezeEffectSteps`と同じくイベント列を
+ * driverへ渡す設計であり、そちらの粒度はdriver側が決める。
+ */
+export function notifyRemovalStep(
+  context: LinkedGroupCascadeContext,
+  units: readonly BattleUnit[],
+  eventsStart: number,
+): readonly BattleUnit[] {
+  if (context.onFactEventForPassiveChain === undefined) {
+    return units;
+  }
+  let working = units;
+  for (const event of context.recorder.getEvents().slice(eventsStart)) {
+    working = context.onFactEventForPassiveChain(event, working);
+  }
+  return working;
 }
 
 /**
@@ -65,44 +105,69 @@ function isEffectiveNow(unit: BattleUnit, effectInstanceId: EffectInstanceId): b
 }
 
 /**
+ * `linkedEffectGroupRole`から失効順の優先度を導く。R-EFF-09「同時失効では、子効果を
+ * 先に失効させ、最後に親効果を失効させる」を、ロールを持たない（レガシー、対称
+ * カスケード）メンバーを挟んだ3段で表す。
+ */
+function cascadeOrderTier(role: LinkedEffectGroupRole | undefined): number {
+  if (role === "CHILD") {
+    return 0;
+  }
+  return role === "PARENT" ? 2 : 1;
+}
+
+/**
  * R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」:
  * `cascade`（`collectLinkedGroupCascade`の結果。seed自身も含む）から`seeds`を
- * 除いた「カスケードだけで巻き込まれたメンバー」を、`AppliedEffect`→`MarkerState`
- * の順に並べる。同種別内の順序は`units`の保持順（付与順）とする。
+ * 除いた「カスケードだけで巻き込まれたメンバー」を失効順に並べる。
  *
- * 種別間で`AppliedEffect`を先に置くのは、production Catalogのcross-typeグループ
- * （`UNIT_TARISA_TROUBLEMAKER`の「負けん気」・`UNIT_AOI_ELEGANT`の「高揚」）が
- * いずれもMarkerを`PARENT`、`AppliedEffect`を`CHILD`とするため — 「子を先に」を
- * 実際の親子関係と一致させる。`AppliedEffect`が`PARENT`のグループでは、
- * cascadeで巻き込まれる側は定義上すべて子であり、種別間の相対順は
- * R-EFF-09の規定に触れない（どちらも親より前に発行される）。
+ * 第1キーは`linkedEffectGroupRole`（`CHILD`→ロールなし→`PARENT`）。PR #280
+ * レビュー[P2]: 以前は種別（`AppliedEffect`→`MarkerState`）と保持順だけで並べて
+ * いたため、スキーマが禁じていない「同一グループに複数の`PARENT`」を持つ定義では、
+ * カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た（例: Markerの
+ * `PARENT`をseedにし、同グループに`AppliedEffect`の`PARENT`とMarkerの`CHILD`が
+ * ある場合）。ロールを第1キーにすることで、グループあたりのPARENT数を
+ * Catalog整合性検証で縛らずにR-EFF-09の順序契約を満たす。
+ *
+ * 第2キーは種別（`AppliedEffect`→`MarkerState`）、第3キーは`units`の保持順
+ * （付与順）。同じtier内の相対順はR-EFF-09の規定に触れないが、イベント列を
+ * 決定的にするため固定する。
  */
 export function orderCascadedOnlyMembers(
   units: readonly BattleUnit[],
   cascade: LinkedGroupInstances,
   seeds: LinkedGroupInstances,
 ): readonly LinkedGroupMember[] {
-  const effects: LinkedGroupMember[] = [];
-  const markers: LinkedGroupMember[] = [];
+  const ordered: { readonly member: LinkedGroupMember; readonly tier: number }[] = [];
   for (const unit of units) {
     for (const effect of unit.appliedEffects) {
       if (
         cascade.effectInstanceIds.has(effect.effectInstanceId) &&
         !seeds.effectInstanceIds.has(effect.effectInstanceId)
       ) {
-        effects.push({ kind: "EFFECT", effectInstanceId: effect.effectInstanceId });
+        ordered.push({
+          member: { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
+          tier: cascadeOrderTier(effect.duration.definition.linkedEffectGroupRole),
+        });
       }
     }
+  }
+  for (const unit of units) {
     for (const marker of unit.markerStates) {
       if (
         cascade.markerInstanceIds.has(marker.markerInstanceId) &&
         !seeds.markerInstanceIds.has(marker.markerInstanceId)
       ) {
-        markers.push({ kind: "MARKER", markerInstanceId: marker.markerInstanceId });
+        ordered.push({
+          member: { kind: "MARKER", markerInstanceId: marker.markerInstanceId },
+          tier: cascadeOrderTier(marker.duration.definition.linkedEffectGroupRole),
+        });
       }
     }
   }
-  return [...effects, ...markers];
+  // `Array.prototype.sort`は安定ソートのため、同じtier内では上で積んだ順
+  // （種別→保持順）がそのまま保たれる。
+  return ordered.sort((left, right) => left.tier - right.tier).map((entry) => entry.member);
 }
 
 /**
@@ -279,10 +344,11 @@ export function* removeCascadedMembersSteps(
 }
 
 /**
- * `removeCascadedMembersSteps`をステップ通知なしで駆動する薄いwrapper。
- * `duration-expiry-service.ts`／`marker-removal-service.ts`／
- * `effect-removal-service.ts`（いずれも呼び出し側がカスケード全体の完了後に
- * まとめてイベント列を扱う経路）が使う。
+ * `removeCascadedMembersSteps`を`context.onFactEventForPassiveChain`（あれば）で
+ * 同期的に駆動する薄いwrapper（`freeze-removal-service.ts`の`removeFreezeEffect`と
+ * 同じ形）。`duration-expiry-service.ts`／`marker-removal-service.ts`／
+ * `effect-removal-service.ts`が使う。callbackが無い場合はステップ通知なしで
+ * 最後まで進める（呼び出し側がイベント列をまとめて扱う経路）。
  */
 export function removeCascadedMembers(
   context: LinkedGroupCascadeContext,
@@ -302,7 +368,13 @@ export function removeCascadedMembers(
   );
   let step = steps.next();
   while (!step.done) {
-    step = steps.next(step.value.units);
+    let currentUnits = step.value.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of step.value.events) {
+        currentUnits = context.onFactEventForPassiveChain(event, currentUnits);
+      }
+    }
+    step = steps.next(currentUnits);
   }
   return step.value;
 }

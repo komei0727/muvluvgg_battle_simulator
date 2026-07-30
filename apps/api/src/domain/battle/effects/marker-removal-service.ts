@@ -1,9 +1,13 @@
-import { removeCascadedMembers, orderCascadedOnlyMembers } from "./linked-group-cascade.js";
+import {
+  notifyRemovalStep,
+  removeCascadedMembers,
+  orderCascadedOnlyMembers,
+} from "./linked-group-cascade.js";
 import { NO_EFFECT_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { MarkerRemovalReason } from "../events/domain-event.js";
+import type { BattleDomainEvent, MarkerRemovalReason } from "../events/domain-event.js";
 import type { MarkerDurationChange } from "../model/marker-duration.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId, MarkerId } from "../../catalog/definitions/catalog-ids.js";
@@ -24,6 +28,16 @@ export interface RemoveMarkersContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
+   * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
+   * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 /**
@@ -163,6 +177,7 @@ export function removeMarkers(
   let lastEventId = cascaded.lastEventId;
 
   for (const markerInstanceId of seeds.map((seed) => seed.markerInstanceId)) {
+    const stepEventsStart = context.recorder.getEvents().length;
     const holder = working.find((unit) =>
       unit.markerStates.some((marker) => marker.markerInstanceId === markerInstanceId),
     );
@@ -220,6 +235,10 @@ export function removeMarkers(
       },
     });
     lastEventId = removed.eventId;
+
+    // PR #280レビュー[P1]: このseedの`MarkerRemoved`を、次のseedへ進む前に
+    // PS/Memory連鎖へ通知する（カスケード分と同じ粒度）。
+    working = notifyRemovalStep(context, working, stepEventsStart);
   }
 
   return { units: working, lastEventId };
@@ -267,6 +286,7 @@ export function reduceMarkerStack(
     return { units: result.units, lastEventId: result.lastEventId, changed: true };
   }
 
+  const stackReductionEventsStart = context.recorder.getEvents().length;
   const nextMarker = { ...existing, stackCount: stackAfter };
   const nextUnits = units.map((unit) =>
     unit.battleUnitId === targetId
@@ -313,5 +333,13 @@ export function reduceMarkerStack(
       },
     },
   });
-  return { units: nextUnits, lastEventId: updated.eventId, changed: true };
+  // PR #280レビュー[P1]: `removeMarkers`経路と同じ粒度で、スタック減算だけの
+  // `MarkerUpdated`もその場でPS/Memory連鎖へ通知する（呼び出し側が
+  // 「除去は内部で通知済み」を前提にイベント列を切り詰めるため、
+  // ここで通知しないとこの1件が連鎖から落ちる）。
+  return {
+    units: notifyRemovalStep(context, nextUnits, stackReductionEventsStart),
+    lastEventId: updated.eventId,
+    changed: true,
+  };
 }

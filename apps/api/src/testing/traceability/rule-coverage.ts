@@ -1850,6 +1850,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 4経路すべてを同じ実装へ配線した。`catalog-integrity.ts`の拒否も撤去し、
   // production Catalogの2グループ（`TARISA_TROUBLEMAKER_PS1_LINK`／
   // `AOI_ELEGANT_AS1_KOUYOU_LINK`）を近似なしへ更新した。
+  //
+  // PR #280レビュー[P1]/[P2]: カスケードの通知粒度と失効順を2点修正した。
+  // (1) 1インスタンスの除去ごとにPS/Memoryの即時連鎖へ通知する
+  // （`notifyRemovalStep`。まとめて最後に通知すると、子の`EffectExpired`を
+  // triggerにするPSがイベント順ではまだ存在する親Marker／親効果を除去済みとして
+  // 観測し、`08_ドメインイベント.md`の「各イベントに対応するPS/Memory候補を
+  // 直ちに解決する」契約を破る。`UT-R-EFF-09-020`／
+  // `IT-LINKED-GROUP-CROSS-TYPE-PROD-005`が固定）。
+  // (2) カスケード対象の並びを`linkedEffectGroupRole`（`CHILD`→ロールなし→
+  // `PARENT`）を第1キーに変更した（スキーマが禁じていない「同一グループに複数の
+  // `PARENT`」で、カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た。
+  // `UT-R-EFF-09-019`が固定）。
   {
     ruleId: "R-EFF-09",
     testCaseIds: [
@@ -1871,6 +1883,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-016",
       "UT-R-EFF-09-017",
       "UT-R-EFF-09-018",
+      "UT-R-EFF-09-019",
+      "UT-R-EFF-09-020",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-004",
@@ -1878,6 +1892,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-002",
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-003",
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-004",
+      "IT-LINKED-GROUP-CROSS-TYPE-PROD-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

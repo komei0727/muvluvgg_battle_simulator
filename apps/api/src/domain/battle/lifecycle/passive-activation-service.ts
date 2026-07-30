@@ -977,7 +977,9 @@ export class PassiveActivationRuntime {
       effectInstanceId: match.effectInstanceId,
       reason: "EXPIRATION_CONDITION",
     }));
-    const eventsStart = this.context.recorder.getEvents().length;
+    // PR #280レビュー[P1]: 通知は`expireEffects`が1インスタンスの失効ごとに行う
+    // （R-EFF-09カスケードで巻き込まれた子効果・子Markerを含む）。ここでまとめて
+    // 通知すると、子の`EffectExpired`をtriggerにするPSが親の除去済み状態を見る。
     const expiry = expireEffects(
       {
         recorder: this.context.recorder,
@@ -986,17 +988,15 @@ export class PassiveActivationRuntime {
         ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
         resolutionScopeId: this.context.resolutionScopeId,
         rootEventId: this.context.rootEventId,
+        onFactEventForPassiveChain: (newEvent, unitsForChain) =>
+          this.onFactEvent(newEvent, unitsForChain, depth).units,
       },
       this.units,
       seeds,
       this.context.definitions.effectActions,
       event.eventId,
     );
-    let units = expiry.units;
-    for (const newEvent of this.context.recorder.getEvents().slice(eventsStart)) {
-      units = this.onFactEvent(newEvent, units, depth).units;
-    }
-    return units;
+    return expiry.units;
   }
 
   /**

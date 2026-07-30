@@ -12,7 +12,9 @@ import { createActionId } from "../../domain/shared/event-ids.js";
 import { createBattleId, createBattleUnitId, type BattleUnitId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createSkillDefinitionId,
+  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
@@ -52,6 +54,8 @@ const TARISA_ATK_UP_EFFECT_ID = "ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP";
 const TARISA_REMOVE_MARKER_EFFECT_ID = "ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER";
 const TARISA_MARKER_ID = "MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT";
 const TARISA_GROUP_ID = "TARISA_TROUBLEMAKER_PS1_LINK";
+/** 連動グループ外の実定義（+10% ATTACK、1行動、`linkedEffectGroupId: null`）。watcher PSの可視な効果として使う。 */
+const TARISA_EX_ATK_UP_EFFECT_ID = "ACT_TARISA_TROUBLEMAKER_EX_ATK_UP";
 
 const AOI_UNIT_ID = "UNIT_AOI_ELEGANT";
 const AOI_MARKER_EFFECT_ID = "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU";
@@ -106,6 +110,62 @@ function selfSkill(skillDefinitionId: string, effectActionIds: readonly string[]
           actions: effectActionIds.map((id) => ({
             effectActionDefinitionId: createEffectActionDefinitionId(id),
           })),
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    requiredCapabilities: [],
+    metadata: { displayName: skillDefinitionId, tags: [] },
+  };
+}
+
+/**
+ * PR #280レビュー[P1]: カスケードで巻き込まれた子`AppliedEffect`の`EffectExpired`を
+ * triggerにし、その時点で親Markerを所持しているかを`activationCondition`
+ * （`TARGET_HAS_MARKER`）で判定するPS。カスケードの通知がステップ単位でなく
+ * バッチだと、このPSは親Markerが既に除去された状態を観測して発動しない。
+ */
+function markerWatcherPassiveSkill(skillDefinitionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(skillDefinitionId),
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    activationCondition: {
+      kind: "TARGET_HAS_MARKER",
+      target: { kind: "SELF" },
+      markerId: createMarkerId(TARISA_MARKER_ID),
+    },
+    triggers: [
+      {
+        eventType: "EffectExpired",
+        category: "FACT",
+        sourceSelector: "SELF",
+        targetSelector: "SELF",
+        condition: { kind: "TRUE" },
+      },
+    ],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [
+            {
+              effectActionDefinitionId: createEffectActionDefinitionId(TARISA_EX_ATK_UP_EFFECT_ID),
+            },
+          ],
         },
       ],
     },
@@ -373,5 +433,66 @@ describe("production Catalog cross-type linkedEffectGroup cascade (M7-013, Issue
     expect(restored.effects ?? []).toHaveLength(0);
     expect(restored.markers ?? []).toHaveLength(0);
     expect(restored).toEqual(liveSnapshot(actorOf(h, units)));
+  });
+
+  it("IT-LINKED-GROUP-CROSS-TYPE-PROD-005 (R-EFF-09 通知順序, PR #280 レビュー[P1]): a PS triggered by a cascaded child's EffectExpired still observes the parent 「負けん気」 Marker and activates", () => {
+    const grant = selfSkill("SKL_TEST_TARISA_GRANT", [
+      TARISA_MARKER_EFFECT_ID,
+      TARISA_ATK_UP_EFFECT_ID,
+    ]);
+    const clear = selfSkill("SKL_TEST_TARISA_CLEAR", [TARISA_REMOVE_MARKER_EFFECT_ID]);
+    const watcher = markerWatcherPassiveSkill("SKL_TEST_TARISA_MARKER_WATCHER");
+    const base = harness(TARISA_UNIT_ID, [grant, clear, watcher]);
+    // watcher PS を Tarisa の所有PSへ加える（PS候補抽出は`unitDefinitions`の
+    // `passiveSkillDefinitionIds`を見る）。
+    const tarisaDefinitionId = createUnitDefinitionId(TARISA_UNIT_ID);
+    const tarisaDefinition = base.definitions.unitDefinitions.get(tarisaDefinitionId)!;
+    const unitDefinitions = new Map(base.definitions.unitDefinitions);
+    unitDefinitions.set(tarisaDefinitionId, {
+      ...tarisaDefinition,
+      passiveSkillDefinitionIds: [watcher.skillDefinitionId],
+    });
+    const h: Harness = {
+      ...base,
+      definitions: { ...base.definitions, unitDefinitions },
+      actor: { ...base.actor, currentPp: LIMITS.maximumPp },
+    };
+
+    let units: readonly BattleUnit[] = [h.actor];
+    units = useSkill(h, units, "SKL_TEST_TARISA_GRANT", 1);
+    expect(
+      actorOf(h, units).markerStates.find((m) => m.markerId === TARISA_MARKER_ID)?.stackCount,
+    ).toBe(1);
+
+    const before = h.recorder.getEvents().length;
+    units = useSkill(h, units, "SKL_TEST_TARISA_CLEAR", 2);
+
+    const emitted = h.recorder.getEvents().slice(before);
+    // 子の`EffectExpired`（カスケード）が親の`MarkerRemoved`より前に記録される。
+    const childExpiredIndex = emitted.findIndex(
+      (e) =>
+        e.eventType === "EffectExpired" &&
+        (e.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+          TARISA_ATK_UP_EFFECT_ID,
+    );
+    const markerRemovedIndex = emitted.findIndex((e) => e.eventType === "MarkerRemoved");
+    expect(childExpiredIndex).toBeGreaterThanOrEqual(0);
+    expect(markerRemovedIndex).toBeGreaterThan(childExpiredIndex);
+
+    // 本命: 子の`EffectExpired`を契機に、まだ親Markerを所持している状態で
+    // `TARGET_HAS_MARKER`が成立し、watcher PSが発動している。カスケード全体の
+    // 完了後にまとめて通知していると、この`PassiveActivated`は発行されない。
+    const activated = emitted.filter(
+      (e) =>
+        e.eventType === "PassiveActivated" &&
+        (e.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          watcher.skillDefinitionId,
+    );
+    expect(activated).toHaveLength(1);
+    expect(
+      actorOf(h, units).appliedEffects.some(
+        (effect) => effect.effectActionDefinitionId === TARISA_EX_ATK_UP_EFFECT_ID,
+      ),
+    ).toBe(true);
   });
 });

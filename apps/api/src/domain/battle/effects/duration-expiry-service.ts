@@ -1,11 +1,15 @@
 import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
-import { removeCascadedMembers, orderCascadedOnlyMembers } from "./linked-group-cascade.js";
+import {
+  notifyRemovalStep,
+  removeCascadedMembers,
+  orderCascadedOnlyMembers,
+} from "./linked-group-cascade.js";
 import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { EffectExpirationReason } from "../events/domain-event.js";
+import type { BattleDomainEvent, EffectExpirationReason } from "../events/domain-event.js";
 import type { ConsumptionChange, EffectDurationChange } from "../model/applied-effect-duration.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -26,6 +30,16 @@ export interface ExpireEffectsContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
+   * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
+   * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 /**
@@ -251,6 +265,7 @@ export function expireEffects(
   let lastEventId = cascaded.lastEventId;
 
   for (const effectInstanceId of seeds.map((seed) => seed.effectInstanceId)) {
+    const stepEventsStart = context.recorder.getEvents().length;
     const holder = working.find((unit) =>
       unit.appliedEffects.some((effect) => effect.effectInstanceId === effectInstanceId),
     );
@@ -340,6 +355,10 @@ export function expireEffects(
     );
     working = recalculation.units;
     lastEventId = recalculation.lastEventId;
+
+    // PR #280レビュー[P1]: このseedの`EffectExpired`とそれに続く`CombatStatChanged`を、
+    // 次のseedへ進む前にPS/Memory連鎖へ通知する（カスケード分と同じ粒度）。
+    working = notifyRemovalStep(context, working, stepEventsStart);
   }
 
   return { units: working, lastEventId };

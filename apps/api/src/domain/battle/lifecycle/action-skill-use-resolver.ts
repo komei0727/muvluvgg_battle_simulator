@@ -510,7 +510,8 @@ export function resolveSkillUse(
           reason: "TIME_LIMIT",
         }));
       if (skillUseExpirySeeds.length > 0) {
-        const expiryEventsStart = recorder.getEvents().length;
+        // PR #280レビュー[P1]: 通知は`expireEffects`が1インスタンスの失効ごとに行う
+        // （R-EFF-09カスケードで巻き込まれた子効果・子Markerを含む）。
         const skillUseExpiry = expireEffects(
           {
             recorder,
@@ -520,6 +521,8 @@ export function resolveSkillUse(
             skillUseId,
             resolutionScopeId: actionScope,
             rootEventId: actionStarted.eventId,
+            onFactEventForPassiveChain: (event, unitsForChain) =>
+              passiveRuntime.onFactEvent(event, unitsForChain).units,
           },
           working,
           skillUseExpirySeeds,
@@ -527,9 +530,6 @@ export function resolveSkillUse(
           skillUseDurationLastEventId,
         );
         working = skillUseExpiry.units;
-        for (const event of recorder.getEvents().slice(expiryEventsStart)) {
-          working = passiveRuntime.onFactEvent(event, working).units;
-        }
       }
     }
   }
