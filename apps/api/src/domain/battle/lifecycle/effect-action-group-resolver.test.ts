@@ -5519,6 +5519,97 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(recorder.getEvents().some((e) => e.eventType === "MarkerApplied")).toBe(false);
   });
 
+  it("UT-R-EFF-07-011 (R-EFF-07 通知粒度, PR #280 再々レビュー[P1]): EffectConsumptionChanged reaches the PS/Memory chain before the next hit, even when the consumption does not reach 0 (no expiry step)", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const attack = damageAction("ACT_TWO_HIT", 2);
+    const consumptionDefId = createEffectActionDefinitionId("ACT_INCOMING_HIT_BUFF");
+    // 残回数3・2ヒットなので、どちらのヒットでも0にならない = 失効stepが存在しない。
+    // 以前は`EffectConsumptionChanged`をstepとしてyieldしていなかったため、
+    // この経路では一度もPS/Memory連鎖へ届かなかった。
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("incoming-hit-buff"),
+          effectActionDefinitionId: consumptionDefId,
+          kindKey: effectKindKeyFromDefinitionId(consumptionDefId),
+          duplicate: true,
+          sourceId: createBattleUnitId("ENEMY"),
+          targetId: createBattleUnitId("ENEMY"),
+          magnitude: 0,
+          duration: {
+            definition: {
+              dispellable: true,
+              linkedEffectGroupId: null,
+              consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+            },
+            consumptionRemaining: 3,
+          },
+          appliedTurnNumber: 0,
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const observed: string[] = [];
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      observed.push(event.eventType);
+      return units;
+    });
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        {
+          planKind: "ACTION_PLAN",
+          stepIndex: 0,
+          stepKind: "ACTION",
+          conditionKind: "TRUE",
+          satisfied: true,
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          applications: [
+            {
+              targetBattleUnitId: enemy.battleUnitId,
+              effectActionDefinitionId: attack.effectActionDefinitionId,
+              includeDefeated: false,
+              hits: [
+                {
+                  targetBattleUnitId: enemy.battleUnitId,
+                  effectActionDefinitionId: attack.effectActionDefinitionId,
+                  hitIndex: 1,
+                },
+                {
+                  targetBattleUnitId: enemy.battleUnitId,
+                  effectActionDefinitionId: attack.effectActionDefinitionId,
+                  hitIndex: 2,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects[0]!.duration.consumptionRemaining).toBe(1);
+
+    // 2件の`EffectConsumptionChanged`が、それぞれのヒットの`DamageApplied`の後・
+    // 次のヒットの`DamageApplied`より前にPS/Memory連鎖へ渡っている。
+    const consumptionIndexes = observed.flatMap((eventType, index) =>
+      eventType === "EffectConsumptionChanged" ? [index] : [],
+    );
+    const damageIndexes = observed.flatMap((eventType, index) =>
+      eventType === "DamageApplied" ? [index] : [],
+    );
+    expect(consumptionIndexes).toHaveLength(2);
+    expect(damageIndexes).toHaveLength(2);
+    expect(consumptionIndexes[0]).toBeGreaterThan(damageIndexes[0]!);
+    expect(consumptionIndexes[0]).toBeLessThan(damageIndexes[1]!);
+    expect(consumptionIndexes[1]).toBeGreaterThan(damageIndexes[1]!);
+  });
+
   it("UT-R-EFF-03-016 (maxBlocks + STATUS_BLOCKED self-consumption, production shape ACT_SENKA_CHRISTMAS_PS1_STUN_IMMUNITY): a STATUS immunity with maxBlocks=1 and duration.consumption STATUS_BLOCKED blocks a STUN attempt exactly once, then consumes/expires itself so a second attempt grants the STUN", () => {
     const actor = unit("ACTOR", "ALLY");
     const stun: EffectActionDefinition = {

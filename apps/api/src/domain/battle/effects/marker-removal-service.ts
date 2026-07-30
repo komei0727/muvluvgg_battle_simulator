@@ -1,8 +1,9 @@
 import {
+  cascadedOnlyRemovals,
   notifyRemovalStep,
-  removeCascadedMembers,
-  orderCascadedOnlyMembers,
-  sortSeedsByCascadeOrder,
+  orderGroupRemovals,
+  removeGroupMembers,
+  type LinkedGroupRemoval,
 } from "./linked-group-cascade.js";
 import { NO_EFFECT_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -161,100 +162,27 @@ export function removeMarkers(
     reasonById.set(seed.markerInstanceId, { reason: seed.reason, cascaded: false });
   }
 
-  // R-EFF-09「子効果を先に、最後に親効果を」: cascadeだけで巻き込まれた
-  // `AppliedEffect`／`MarkerState`を共有実装（`linked-group-cascade.ts`）が
-  // 先に処理し、そのあとで`seeds`自身のMarkerを除去する。
-  const cascadedMembers = orderCascadedOnlyMembers(units, cascade, seedInstances);
-  const cascaded = removeCascadedMembers(
+  // PR #280再々レビュー[P2]: カスケード分とseed分を単一の除去バッチとして扱い、
+  // メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順（`CHILD`→
+  // ロールなし→`PARENT`）へ整列する（`duration-expiry-service.ts`と同じ形）。
+  const removals = orderGroupRemovals(units, [
+    ...cascadedOnlyRemovals(cascade, seedInstances),
+    ...seeds.map(
+      (seed): LinkedGroupRemoval => ({
+        member: { kind: "MARKER", markerInstanceId: seed.markerInstanceId },
+        reason: seed.reason,
+        cascaded: false,
+      }),
+    ),
+  ]);
+  return removeGroupMembers(
     context,
     units,
-    cascadedMembers,
+    removals,
     effectActions,
     parentEventId,
     "EffectExpired",
   );
-
-  let working = cascaded.units;
-  let lastEventId = cascaded.lastEventId;
-
-  // PR #280再レビュー[P2]: seed同士でも「子を先に、親を最後に」を守る。
-  const orderedSeedIds = sortSeedsByCascadeOrder(seeds, (seed) => {
-    for (const unit of units) {
-      for (const marker of unit.markerStates) {
-        if (marker.markerInstanceId === seed.markerInstanceId) {
-          return marker.duration.definition.linkedEffectGroupRole;
-        }
-      }
-    }
-    return undefined;
-  }).map((seed) => seed.markerInstanceId);
-
-  for (const markerInstanceId of orderedSeedIds) {
-    const stepEventsStart = context.recorder.getEvents().length;
-    const holder = working.find((unit) =>
-      unit.markerStates.some((marker) => marker.markerInstanceId === markerInstanceId),
-    );
-    if (holder === undefined) {
-      continue;
-    }
-    const target = requireUnit(working, holder.battleUnitId);
-    const targetMarker = target.markerStates.find(
-      (marker) => marker.markerInstanceId === markerInstanceId,
-    )!;
-
-    working = working.map((unit) =>
-      unit.battleUnitId === target.battleUnitId
-        ? {
-            ...unit,
-            markerStates: unit.markerStates.filter(
-              (marker) => marker.markerInstanceId !== markerInstanceId,
-            ),
-          }
-        : unit,
-    );
-
-    const info = reasonById.get(markerInstanceId)!;
-    const removed = context.recorder.record({
-      eventType: "MarkerRemoved",
-      category: "FACT",
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-      resolutionScopeId: context.resolutionScopeId,
-      parentEventId: lastEventId,
-      rootEventId: context.rootEventId,
-      sourceUnitId: target.battleUnitId,
-      targetUnitIds: [target.battleUnitId],
-      payload: {
-        markerInstanceId,
-        markerId: targetMarker.markerId,
-        targetUnitId: target.battleUnitId,
-        reason: info.reason,
-        linkedEffectGroupId: targetMarker.duration.definition.linkedEffectGroupId,
-        cascaded: info.cascaded,
-      },
-      stateDelta: {
-        units: {
-          [target.battleUnitId]: {
-            markers: {
-              [markerInstanceId]: {
-                before: toMarkerSnapshot(targetMarker),
-                after: undefined,
-              },
-            },
-          },
-        },
-      },
-    });
-    lastEventId = removed.eventId;
-
-    // PR #280レビュー[P1]: このseedの`MarkerRemoved`を、次のseedへ進む前に
-    // PS/Memory連鎖へ通知する（カスケード分と同じ粒度）。
-    working = notifyRemovalStep(context, working, stepEventsStart);
-  }
-
-  return { units: working, lastEventId };
 }
 
 export interface ReduceMarkerStackResult {

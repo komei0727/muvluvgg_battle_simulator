@@ -487,6 +487,87 @@ describe("expireEffects", () => {
     });
   });
 
+  it("UT-R-EFF-09-024 (R-EFF-09 順序, PR #280 再々レビュー[P2]): a non-seed PARENT pulled in by the cascade still expires after every CHILD, seed or not", () => {
+    const def = statModDefinition("ACT_LINK");
+    const target = unit("target-1");
+    const group = (role: "PARENT" | "CHILD") => ({
+      definition: {
+        dispellable: true,
+        linkedEffectGroupId: "GROUP_A",
+        linkedEffectGroupRole: role,
+      },
+    });
+    // 同一グループに複数PARENT（スキーマは禁じていない）。
+    // `parentSeed`と`childSeed`が同時に0になり、`parentCascaded`はカスケードで
+    // 巻き込まれるだけ（seedではない）。
+    const parentCascaded = effect(
+      "parent-cascaded",
+      target.battleUnitId,
+      def.effectActionDefinitionId,
+      { duration: group("PARENT") },
+    );
+    const parentSeed = effect("parent-seed", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: group("PARENT"),
+    });
+    const childSeed = effect("child-seed", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: group("CHILD"),
+    });
+    const withEffects = {
+      ...target,
+      appliedEffects: [parentCascaded, parentSeed, childSeed],
+    };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = expireEffects(
+      context(recorder, rootEventId),
+      [withEffects],
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          effectInstanceId: parentSeed.effectInstanceId,
+          reason: "TIME_LIMIT",
+        },
+        {
+          battleUnitId: target.battleUnitId,
+          effectInstanceId: childSeed.effectInstanceId,
+          reason: "TIME_LIMIT",
+        },
+      ],
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+    );
+
+    expect(
+      result.units.find((u) => u.battleUnitId === target.battleUnitId)!.appliedEffects,
+    ).toHaveLength(0);
+
+    const expired = recorder
+      .getEvents()
+      .filter((ev) => ev.eventType === "EffectExpired")
+      .map((ev) => ev.payload as { effectInstanceId: string; reason: string; cascaded: boolean });
+    expect(expired).toHaveLength(3);
+    // 除去バッチ全体（カスケード分＋seed分）が単一のrole順で並ぶ: CHILDが先頭。
+    expect(expired[0]).toMatchObject({
+      effectInstanceId: childSeed.effectInstanceId,
+      reason: "TIME_LIMIT",
+      cascaded: false,
+    });
+    // 残り2件はどちらもPARENT。メンバー固有のreason/cascadedは保持される。
+    expect(
+      expired
+        .slice(1)
+        .map((e) => e.effectInstanceId)
+        .sort(),
+    ).toEqual([parentCascaded.effectInstanceId, parentSeed.effectInstanceId].sort());
+    expect(
+      expired.find((e) => e.effectInstanceId === parentCascaded.effectInstanceId),
+    ).toMatchObject({ reason: "LINKED_GROUP_CASCADE", cascaded: true });
+    expect(expired.find((e) => e.effectInstanceId === parentSeed.effectInstanceId)).toMatchObject({
+      reason: "TIME_LIMIT",
+      cascaded: false,
+    });
+  });
+
   it("UT-R-EFF-06-005 (R-EFF-05/06 next-best promotion): promotes the next-strongest non-stackable effect and emits EffectiveEffectChanged", () => {
     const def = statModDefinition("ACT_ATK_UP_UNIQUE");
     const target = unit("target-1");

@@ -28,9 +28,10 @@ export type LinkedGroupMember =
   | { readonly kind: "MARKER"; readonly markerInstanceId: MarkerInstanceId };
 
 /** BFSの訪問済み判定キー。`EffectInstanceId`と`MarkerInstanceId`の値衝突を防ぐため種別で接頭辞を付ける。 */
-type MemberKey = string;
+export type LinkedGroupMemberKey = string;
 
-function memberKey(member: LinkedGroupMember): MemberKey {
+/** `LinkedGroupMember`を`Map`/`Set`のキーへ落とす（種別ごとのID空間を混ぜないため接頭辞を付ける）。 */
+export function linkedGroupMemberKey(member: LinkedGroupMember): LinkedGroupMemberKey {
   return member.kind === "EFFECT" ? `E:${member.effectInstanceId}` : `M:${member.markerInstanceId}`;
 }
 
@@ -65,8 +66,8 @@ export function collectLinkedGroupCascade(
   units: readonly BattleUnit[],
   seeds: LinkedGroupInstances,
 ): LinkedGroupInstances {
-  const groupIdByKey = new Map<MemberKey, string>();
-  const roleByKey = new Map<MemberKey, LinkedEffectGroupRole | undefined>();
+  const groupIdByKey = new Map<LinkedGroupMemberKey, string>();
+  const roleByKey = new Map<LinkedGroupMemberKey, LinkedEffectGroupRole | undefined>();
   const membersByGroupId = new Map<string, LinkedGroupMember[]>();
 
   const register = (member: LinkedGroupMember, definition: DurationDefinition): void => {
@@ -74,8 +75,8 @@ export function collectLinkedGroupCascade(
     if (groupId === null) {
       return;
     }
-    groupIdByKey.set(memberKey(member), groupId);
-    roleByKey.set(memberKey(member), definition.linkedEffectGroupRole);
+    groupIdByKey.set(linkedGroupMemberKey(member), groupId);
+    roleByKey.set(linkedGroupMemberKey(member), definition.linkedEffectGroupRole);
     const bucket = membersByGroupId.get(groupId);
     if (bucket === undefined) {
       membersByGroupId.set(groupId, [member]);
@@ -109,17 +110,19 @@ export function collectLinkedGroupCascade(
       (markerInstanceId): LinkedGroupMember => ({ kind: "MARKER", markerInstanceId }),
     ),
   ];
-  const visited = new Set<MemberKey>(seedMembers.map(memberKey));
-  const queue = seedMembers.filter((member) => roleByKey.get(memberKey(member)) !== "CHILD");
+  const visited = new Set<LinkedGroupMemberKey>(seedMembers.map(linkedGroupMemberKey));
+  const queue = seedMembers.filter(
+    (member) => roleByKey.get(linkedGroupMemberKey(member)) !== "CHILD",
+  );
 
   while (queue.length > 0) {
     const member = queue.shift()!;
-    const groupId = groupIdByKey.get(memberKey(member));
+    const groupId = groupIdByKey.get(linkedGroupMemberKey(member));
     if (groupId === undefined) {
       continue;
     }
     for (const sibling of membersByGroupId.get(groupId) ?? []) {
-      const key = memberKey(sibling);
+      const key = linkedGroupMemberKey(sibling);
       if (visited.has(key)) {
         continue;
       }

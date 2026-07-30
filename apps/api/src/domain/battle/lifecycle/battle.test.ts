@@ -830,6 +830,111 @@ describe("advanceBattle", () => {
     expect(types.indexOf("CombatStatChanged")).toBeLessThan(types.indexOf("TurnCompleted"));
   });
 
+  it("UT-BATTLE-017 (06_戦闘状態遷移.md TURN_ENDING #8, PR #280 再々レビュー[P1]): resolves a PS that triggers on TurnCompleted before the turn-end resolution scope is finalized", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_001");
+    const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_COMPLETED");
+    const passiveSkill: SkillDefinition = {
+      skillDefinitionId: passiveSkillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "TurnCompleted",
+          category: "FACT",
+          // `TurnCompleting`（UT-BATTLE-016）と同じくunit固有の`sourceUnitId`を
+          // 持たないグローバルイベントのため、production Catalogの慣習に合わせて
+          // `SELF`/`SELF`で宣言する。
+          sourceSelector: "SELF",
+          targetSelector: "SELF",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "TURN", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: "SKL_PS_ON_TURN_COMPLETED", tags: [] },
+    };
+    const unitDefinitions = new DefaultUnitDefinitionMap([
+      [
+        unitDefinitionId,
+        {
+          unitDefinitionId,
+          attribute: "AGGRESSIVE",
+          unitType: "PHYSICAL",
+          role: "SUPPORT",
+          positionAptitudes: ["FRONT", "BACK"],
+          baseStats: {
+            maximumHp: 100,
+            attack: 10,
+            defense: 10,
+            criticalRate: 0.1,
+            criticalDamageBonus: 0.5,
+            affinityBonus: 0.25,
+            actionSpeed: 10,
+            maximumAp: 3,
+            maximumPp: 3,
+          },
+          extraGaugeMaximum: 100,
+          activeSkillDefinitionIds: [],
+          passiveSkillDefinitionIds: [passiveSkillDefinitionId],
+          extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
+          requiredCapabilities: [],
+          metadata: {
+            displayName: "Supporter",
+            characterName: "Supporter",
+            characterId: "CHAR_SUPPORTER",
+            affiliations: [],
+            tags: [],
+          },
+        },
+      ],
+    ]);
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions,
+      skillDefinitions: new Map([[passiveSkillDefinitionId, passiveSkill]]),
+    };
+    const battle = startBattle(
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+      ),
+      NO_RANDOM(),
+      recorder(),
+    );
+
+    const turnRecorder = recorder();
+    const advanced = advanceBattle(battle, NO_RANDOM(), turnRecorder);
+
+    const events = turnRecorder.getEvents();
+    const types = events.map((e) => e.eventType);
+    const turnCompletedIndex = types.indexOf("TurnCompleted");
+    const activatedIndex = types.findIndex(
+      (type, index) =>
+        type === "PassiveActivated" &&
+        (events[index]!.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          passiveSkillDefinitionId,
+    );
+    expect(turnCompletedIndex).toBeGreaterThanOrEqual(0);
+    // `TurnCompleted`は発行しただけで対応PSが解決されていなかった（TURN_ENDING #8）。
+    expect(activatedIndex).toBeGreaterThan(turnCompletedIndex);
+    expect(advanced.allyUnits[0]!.currentPp).toBe(2);
+  });
+
   it("UT-R-EFF-09-023 (R-EFF-09 cross-type / turn-end 通知, PR #280 再レビュー[P1]): a TURN-unit PARENT Marker expiring at turn end cascades to its CHILD AppliedEffect and both events resolve PS candidates in the same turn-end scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_CASCADED_EXPIRY");

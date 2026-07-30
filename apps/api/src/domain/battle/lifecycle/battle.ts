@@ -542,22 +542,13 @@ export function advanceBattle(
     }
   }
 
-  // `06_戦闘状態遷移.md` TURN_ENDING #9「解決スコープ完了」: 期間イベントの
-  // PS/Memory連鎖まで解決し終えてからスコープを終了する（`RuntimeCounterReset`）。
-  // 減算だけでイベントを伴わない変化（残り回数が0にならなかったMarker等）は
-  // runtimeへ届いていないため、最新の`turnEndUnits`を明示的に同期して渡す。
-  const { units: afterTurnEndScope } = turnEndPassiveRuntime.finalizeResolutionScope(
-    lastTurnEndEventId,
-    turnEndUnits,
-  );
-
-  const progressedWithMarkerDuration: Battle = {
-    ...progressed,
-    allyUnits: afterTurnEndScope.filter((unit) => unit.side === "ALLY"),
-    enemyUnits: afterTurnEndScope.filter((unit) => unit.side === "ENEMY"),
-  };
-
-  recorder.record({
+  // `06_戦闘状態遷移.md` TURN_ENDING #8: `TurnCompleted`を発行し、対応するPSを
+  // 解決する。PR #280再々レビュー[P1]: 以前は発行するだけで`onFactEvent`へ
+  // 渡しておらず、`TurnCompleted`をtriggerにするPS/Memoryが発動しなかった
+  // （「ターン終了PSによって敵が全滅した場合はターン上限敗北より先に勝利判定」の
+  // 契約も満たせなかった）。減算だけでイベントを伴わない変化はruntimeへ届いて
+  // いないため、`turnEndUnits`を明示的に渡す。
+  const turnCompleted = recorder.record({
     eventType: "TurnCompleted",
     category: "FACT",
     turnNumber: nextTurnNumber,
@@ -567,6 +558,21 @@ export function advanceBattle(
     rootEventId: turnCompleting.eventId,
     payload: { turnNumber: nextTurnNumber },
   });
+  const afterTurnCompleted = turnEndPassiveRuntime.onFactEvent(turnCompleted, turnEndUnits);
+
+  // `06_戦闘状態遷移.md` TURN_ENDING #9「解決スコープ完了」: 期間イベントと
+  // `TurnCompleted`のPS/Memory連鎖まで解決し終えてからスコープを終了する
+  // （`RuntimeCounterReset`）。
+  const { units: afterTurnEndScope } = turnEndPassiveRuntime.finalizeResolutionScope(
+    afterTurnCompleted.lastEventId,
+    afterTurnCompleted.units,
+  );
+
+  const progressedWithMarkerDuration: Battle = {
+    ...progressed,
+    allyUnits: afterTurnEndScope.filter((unit) => unit.side === "ALLY"),
+    enemyUnits: afterTurnEndScope.filter((unit) => unit.side === "ENEMY"),
+  };
 
   const afterTurnEnd = resolveVictory({
     allAlliesDefeated: allDefeated(progressedWithMarkerDuration.allyUnits),

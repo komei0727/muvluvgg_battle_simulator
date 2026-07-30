@@ -2,10 +2,16 @@ import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot, toMarkerSnapshot } from "../events/state-delta.js";
+import { linkedGroupMemberKey, type LinkedGroupMemberKey } from "../model/linked-effect-group.js";
 import type { LinkedGroupInstances, LinkedGroupMember } from "../model/linked-effect-group.js";
 import type { LinkedEffectGroupRole } from "../../catalog/definitions/duration-definition.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { BattleDomainEvent } from "../events/domain-event.js";
+import type {
+  BattleDomainEvent,
+  EffectExpirationReason,
+  EffectRemovalReason,
+  MarkerRemovalReason,
+} from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
@@ -118,82 +124,153 @@ function cascadeOrderTier(role: LinkedEffectGroupRole | undefined): number {
 }
 
 /**
- * R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」を、
- * 同じ除去バッチのseed列（呼び出し側が渡した`ExpirationSeed`／`MarkerRemovalSeed`
- * ／解除対象`AppliedEffect`）へも適用する。
+ * 除去バッチの1メンバーと、そのメンバー固有の失効・解除理由。
  *
- * PR #280再レビュー[P2]: ロール順の整列を`orderCascadedOnlyMembers`（カスケード分）
- * だけに適用していたため、同じグループの`PARENT`と`CHILD`が同一ターン／行動で
- * 同時に0になった場合（どちらもseedになり、カスケード分には含まれない）、
- * `units`／`changes`の並び次第で`PARENT`の失効イベントが先に発行され得た。
- *
- * 安定ソートのため、同じtier内では呼び出し側が渡した順（減算・消費が検出した順）が
- * そのまま保たれる。
+ * PR #280再々レビュー[P2]: カスケード分とseed分を別々のリストとして順に処理して
+ * いたため、除去バッチ**全体**ではR-EFF-09の「子を先に、親を最後に」が崩れていた
+ * （同一グループに複数`PARENT`がある合法な定義で、非seedの`PARENT`がカスケード分
+ * として先に失効し、その後でseedの`CHILD`が失効し得た）。両者を単一のリストへ
+ * まとめ、メンバーごとの`reason`/`cascaded`を保持したまま一度だけrole順へ整列する。
  */
-export function sortSeedsByCascadeOrder<T>(
-  seeds: readonly T[],
-  roleOf: (seed: T) => LinkedEffectGroupRole | undefined,
-): readonly T[] {
-  if (seeds.length < 2) {
-    return seeds;
+export interface LinkedGroupRemoval {
+  readonly member: LinkedGroupMember;
+  /**
+   * `EffectExpirationReason`／`EffectRemovalReason`／`MarkerRemovalReason`のいずれか。
+   * 3つのunionの和は`MarkerRemovalReason`（`REMOVED`＋失効4種）に一致する。
+   * `AppliedEffect`側は`effectEventType`と組み合わせて`asEffectExpirationReason`／
+   * `asEffectRemovalReason`で狭める。
+   */
+  readonly reason: MarkerRemovalReason;
+  readonly cascaded: boolean;
+}
+
+/**
+ * `EffectExpired`が運べる理由へ狭める。`REMOVED`は`EffectRemoved`固有の理由で
+ * あり（`domain-event.ts`の`EffectRemovalReason`）、`effectEventType`が
+ * `EffectExpired`の呼び出し（期間満了・消費・特殊失効・凍結解除）が渡すことは
+ * ないため、到達したら呼び出し側の配線ミスとして明確に失敗させる。
+ */
+function asEffectExpirationReason(reason: MarkerRemovalReason): EffectExpirationReason {
+  if (reason === "REMOVED") {
+    throw new Error(
+      'EffectExpired cannot carry reason "REMOVED" — an EffectExpired batch received a REMOVED seed (only EffectRemoved represents active removal, domain-event.ts)',
+    );
   }
-  return [...seeds].sort(
-    (left, right) => cascadeOrderTier(roleOf(left)) - cascadeOrderTier(roleOf(right)),
-  );
+  return reason;
+}
+
+/** `EffectRemoved`が運べる理由へ狭める（`asEffectExpirationReason`と対）。 */
+function asEffectRemovalReason(reason: MarkerRemovalReason): EffectRemovalReason {
+  if (reason !== "REMOVED" && reason !== "LINKED_GROUP_CASCADE") {
+    throw new Error(
+      `EffectRemoved cannot carry reason "${reason}" — natural expiration reasons belong to EffectExpired (domain-event.ts)`,
+    );
+  }
+  return reason;
+}
+
+function memberOrderKey(units: readonly BattleUnit[]): (member: LinkedGroupMember) => {
+  readonly tier: number;
+  readonly typeRank: number;
+  readonly index: number;
+} {
+  const effectIndex = new Map<LinkedGroupMemberKey, number>();
+  const markerIndex = new Map<LinkedGroupMemberKey, number>();
+  const roleByKey = new Map<LinkedGroupMemberKey, LinkedEffectGroupRole | undefined>();
+  for (const unit of units) {
+    for (const effect of unit.appliedEffects) {
+      const key = linkedGroupMemberKey({
+        kind: "EFFECT",
+        effectInstanceId: effect.effectInstanceId,
+      });
+      effectIndex.set(key, effectIndex.size);
+      roleByKey.set(key, effect.duration.definition.linkedEffectGroupRole);
+    }
+    for (const marker of unit.markerStates) {
+      const key = linkedGroupMemberKey({
+        kind: "MARKER",
+        markerInstanceId: marker.markerInstanceId,
+      });
+      markerIndex.set(key, markerIndex.size);
+      roleByKey.set(key, marker.duration.definition.linkedEffectGroupRole);
+    }
+  }
+  return (member) => {
+    const key = linkedGroupMemberKey(member);
+    return {
+      tier: cascadeOrderTier(roleByKey.get(key)),
+      typeRank: member.kind === "EFFECT" ? 0 : 1,
+      index: (member.kind === "EFFECT" ? effectIndex.get(key) : markerIndex.get(key)) ?? 0,
+    };
+  };
 }
 
 /**
  * R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」:
- * `cascade`（`collectLinkedGroupCascade`の結果。seed自身も含む）から`seeds`を
- * 除いた「カスケードだけで巻き込まれたメンバー」を失効順に並べる。
+ * 除去バッチ（カスケードで巻き込まれたメンバー＋呼び出し側が確定させたseed）を
+ * 単一の失効順へ並べる。
  *
  * 第1キーは`linkedEffectGroupRole`（`CHILD`→ロールなし→`PARENT`）。PR #280
- * レビュー[P2]: 以前は種別（`AppliedEffect`→`MarkerState`）と保持順だけで並べて
- * いたため、スキーマが禁じていない「同一グループに複数の`PARENT`」を持つ定義では、
- * カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た（例: Markerの
- * `PARENT`をseedにし、同グループに`AppliedEffect`の`PARENT`とMarkerの`CHILD`が
- * ある場合）。ロールを第1キーにすることで、グループあたりのPARENT数を
- * Catalog整合性検証で縛らずにR-EFF-09の順序契約を満たす。
- *
- * 第2キーは種別（`AppliedEffect`→`MarkerState`）、第3キーは`units`の保持順
- * （付与順）。同じtier内の相対順はR-EFF-09の規定に触れないが、イベント列を
- * 決定的にするため固定する。
+ * レビュー[P2]: スキーマは同一グループの複数`PARENT`を禁じていないため、ロールを
+ * 第1キーにすることでグループあたりのPARENT数をCatalog整合性検証で縛らずに
+ * R-EFF-09の順序契約を満たす。第2キーはカスケード分か`seeds`か（カスケード分が
+ * 先 — ロールを持たないレガシーグループではこれが唯一の親子情報）。第3キーは
+ * 種別（`AppliedEffect`→`MarkerState`）、第4キーは`units`の保持順（付与順）。
+ * 第3・第4キーはR-EFF-09の規定に触れないが、イベント列を決定的にするため固定する。
  */
-export function orderCascadedOnlyMembers(
+export function orderGroupRemovals(
   units: readonly BattleUnit[],
+  removals: readonly LinkedGroupRemoval[],
+): readonly LinkedGroupRemoval[] {
+  if (removals.length < 2) {
+    return removals;
+  }
+  const keyOf = memberOrderKey(units);
+  return [...removals].sort((left, right) => {
+    const a = keyOf(left.member);
+    const b = keyOf(right.member);
+    return (
+      a.tier - b.tier ||
+      // 同じロール階層内では、カスケードで巻き込まれたメンバーをseedより先に置く。
+      // ロールを持たない（レガシー、対称カスケード）グループではこれが唯一の
+      // 親子情報 — 直接失効が確定した`seeds`を「親」、そこから引き込まれた側を
+      // 「子」として扱う従来の順序（`UT-R-EFF-09-005`）を保つ。
+      Number(right.cascaded) - Number(left.cascaded) ||
+      a.typeRank - b.typeRank ||
+      a.index - b.index
+    );
+  });
+}
+
+/**
+ * `collectLinkedGroupCascade`の結果（seed自身も含む）から`seeds`を除いた
+ * 「カスケードだけで巻き込まれたメンバー」を`LinkedGroupRemoval`（
+ * `reason: LINKED_GROUP_CASCADE`／`cascaded: true`）として列挙する。
+ */
+export function cascadedOnlyRemovals(
   cascade: LinkedGroupInstances,
   seeds: LinkedGroupInstances,
-): readonly LinkedGroupMember[] {
-  const ordered: { readonly member: LinkedGroupMember; readonly tier: number }[] = [];
-  for (const unit of units) {
-    for (const effect of unit.appliedEffects) {
-      if (
-        cascade.effectInstanceIds.has(effect.effectInstanceId) &&
-        !seeds.effectInstanceIds.has(effect.effectInstanceId)
-      ) {
-        ordered.push({
-          member: { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
-          tier: cascadeOrderTier(effect.duration.definition.linkedEffectGroupRole),
-        });
-      }
+): readonly LinkedGroupRemoval[] {
+  const removals: LinkedGroupRemoval[] = [];
+  for (const effectInstanceId of cascade.effectInstanceIds) {
+    if (!seeds.effectInstanceIds.has(effectInstanceId)) {
+      removals.push({
+        member: { kind: "EFFECT", effectInstanceId },
+        reason: "LINKED_GROUP_CASCADE",
+        cascaded: true,
+      });
     }
   }
-  for (const unit of units) {
-    for (const marker of unit.markerStates) {
-      if (
-        cascade.markerInstanceIds.has(marker.markerInstanceId) &&
-        !seeds.markerInstanceIds.has(marker.markerInstanceId)
-      ) {
-        ordered.push({
-          member: { kind: "MARKER", markerInstanceId: marker.markerInstanceId },
-          tier: cascadeOrderTier(marker.duration.definition.linkedEffectGroupRole),
-        });
-      }
+  for (const markerInstanceId of cascade.markerInstanceIds) {
+    if (!seeds.markerInstanceIds.has(markerInstanceId)) {
+      removals.push({
+        member: { kind: "MARKER", markerInstanceId },
+        reason: "LINKED_GROUP_CASCADE",
+        cascaded: true,
+      });
     }
   }
-  // `Array.prototype.sort`は安定ソートのため、同じtier内では上で積んだ順
-  // （種別→保持順）がそのまま保たれる。
-  return ordered.sort((left, right) => left.tier - right.tier).map((entry) => entry.member);
+  return removals;
 }
 
 /**
@@ -211,10 +288,10 @@ export function orderCascadedOnlyMembers(
  * `.next(externallyMutatedUnits)`で外部変化を注入すれば、次のステップはその状態を
  * 前提に進む。yieldを必要としない呼び出し側は`removeCascadedMembers`を使う。
  */
-export function* removeCascadedMembersSteps(
+export function* removeGroupMembersSteps(
   context: LinkedGroupCascadeContext,
   units: readonly BattleUnit[],
-  members: readonly LinkedGroupMember[],
+  removals: readonly LinkedGroupRemoval[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
   effectEventType: CascadedEffectEventType,
@@ -222,7 +299,7 @@ export function* removeCascadedMembersSteps(
   let working = units;
   let lastEventId = parentEventId;
 
-  for (const member of members) {
+  for (const { member, reason, cascaded } of removals) {
     const stepEventsStart = context.recorder.getEvents().length;
     const holder = working.find((unit) =>
       member.kind === "EFFECT"
@@ -266,9 +343,9 @@ export function* removeCascadedMembersSteps(
           markerInstanceId: member.markerInstanceId,
           markerId: targetMarker.markerId,
           targetUnitId: target.battleUnitId,
-          reason: "LINKED_GROUP_CASCADE",
+          reason,
           linkedEffectGroupId: targetMarker.duration.definition.linkedEffectGroupId,
-          cascaded: true,
+          cascaded,
         },
         stateDelta: {
           units: {
@@ -300,8 +377,27 @@ export function* removeCascadedMembersSteps(
             }
           : unit,
       );
-      const removed = context.recorder.record({
-        eventType: effectEventType,
+      const effectPayload = {
+        effectInstanceId: member.effectInstanceId,
+        battleUnitId: target.battleUnitId,
+        effectActionDefinitionId: targetEffect.effectActionDefinitionId,
+        kindKey: targetEffect.kindKey,
+        linkedEffectGroupId: targetEffect.duration.definition.linkedEffectGroupId,
+        cascaded,
+      };
+      const effectStateDelta = {
+        units: {
+          [target.battleUnitId]: {
+            effects: {
+              [member.effectInstanceId]: {
+                before: toEffectSnapshot(targetEffect, wasEffective),
+                after: undefined,
+              },
+            },
+          },
+        },
+      };
+      const effectEnvelope = {
         category: "FACT",
         turnNumber: context.turnNumber,
         cycleNumber: context.cycleNumber,
@@ -312,28 +408,21 @@ export function* removeCascadedMembersSteps(
         rootEventId: context.rootEventId,
         sourceUnitId: target.battleUnitId,
         targetUnitIds: [target.battleUnitId],
-        payload: {
-          effectInstanceId: member.effectInstanceId,
-          battleUnitId: target.battleUnitId,
-          effectActionDefinitionId: targetEffect.effectActionDefinitionId,
-          kindKey: targetEffect.kindKey,
-          reason: "LINKED_GROUP_CASCADE",
-          linkedEffectGroupId: targetEffect.duration.definition.linkedEffectGroupId,
-          cascaded: true,
-        },
-        stateDelta: {
-          units: {
-            [target.battleUnitId]: {
-              effects: {
-                [member.effectInstanceId]: {
-                  before: toEffectSnapshot(targetEffect, wasEffective),
-                  after: undefined,
-                },
-              },
-            },
-          },
-        },
-      });
+      } as const;
+      const removed =
+        effectEventType === "EffectExpired"
+          ? context.recorder.record({
+              eventType: "EffectExpired",
+              ...effectEnvelope,
+              payload: { ...effectPayload, reason: asEffectExpirationReason(reason) },
+              stateDelta: effectStateDelta,
+            })
+          : context.recorder.record({
+              eventType: "EffectRemoved",
+              ...effectEnvelope,
+              payload: { ...effectPayload, reason: asEffectRemovalReason(reason) },
+              stateDelta: effectStateDelta,
+            });
       lastEventId = removed.eventId;
 
       const recalculation = recalculateCombatStats(
@@ -376,18 +465,18 @@ export function* removeCascadedMembersSteps(
  * `effect-removal-service.ts`が使う。callbackが無い場合はステップ通知なしで
  * 最後まで進める（呼び出し側がイベント列をまとめて扱う経路）。
  */
-export function removeCascadedMembers(
+export function removeGroupMembers(
   context: LinkedGroupCascadeContext,
   units: readonly BattleUnit[],
-  members: readonly LinkedGroupMember[],
+  removals: readonly LinkedGroupRemoval[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
   effectEventType: CascadedEffectEventType,
 ): LinkedGroupCascadeResult {
-  const steps = removeCascadedMembersSteps(
+  const steps = removeGroupMembersSteps(
     context,
     units,
-    members,
+    removals,
     effectActions,
     parentEventId,
     effectEventType,

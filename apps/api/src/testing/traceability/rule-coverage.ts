@@ -1805,6 +1805,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-07-007",
       "UT-R-EFF-07-008",
       "UT-R-EFF-07-009",
+      "UT-R-EFF-07-011",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
@@ -1877,6 +1878,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // (5) ロール順の整列をカスケード対象だけでなく同じ除去バッチの`seeds`へも
   // 適用した（同じグループの`PARENT`と`CHILD`が同時に0になり得る。
   // `UT-R-EFF-09-021`が固定）。
+  //
+  // PR #280再々レビュー[P1]/[P1]/[P2]: さらに3点。
+  // (6) `EffectConsumptionChanged`自身も1イベント=1stepとして`yield`する
+  // （残回数が0にならない消費では失効stepが無く、PS/Memory連鎖へ一度も
+  // 渡らなかった。`UT-R-EFF-07-011`が固定）。
+  // (7) `TurnCompleted`も`turnEndPassiveRuntime`へ渡してから解決スコープを
+  // 終了する（`06_戦闘状態遷移.md` TURN_ENDING #8、`UT-BATTLE-017`が固定）。
+  // (8) カスケード分とseed分を単一の除去バッチ（`orderGroupRemovals`／
+  // `removeGroupMembersSteps`）へ統合し、メンバー固有の`reason`/`cascaded`を
+  // 保ったまま一度だけrole順へ整列する — 二段で処理していたため非seedの
+  // `PARENT`がseedの`CHILD`より先に失効し得た（`UT-R-EFF-09-024`が固定）。
   {
     ruleId: "R-EFF-09",
     testCaseIds: [
@@ -1903,6 +1915,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-021",
       "UT-R-EFF-09-022",
       "UT-R-EFF-09-023",
+      "UT-R-EFF-09-024",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-004",

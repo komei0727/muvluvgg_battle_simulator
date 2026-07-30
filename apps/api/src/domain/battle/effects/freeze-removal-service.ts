@@ -1,5 +1,9 @@
 import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
-import { removeCascadedMembersSteps, orderCascadedOnlyMembers } from "./linked-group-cascade.js";
+import {
+  cascadedOnlyRemovals,
+  orderGroupRemovals,
+  removeGroupMembersSteps,
+} from "./linked-group-cascade.js";
 import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -102,10 +106,10 @@ export function* removeFreezeEffectSteps(
   // R-EFF-09「子を先に、親を最後に」: カスケードで見つかった子（`AppliedEffect`と、
   // M7-013で加わった同グループの`MarkerState`）を共有実装で先に処理し、凍結自身は
   // そのあとで`FreezeRemoved`として除去する。
-  const cascadeSteps = removeCascadedMembersSteps(
+  const cascadeSteps = removeGroupMembersSteps(
     context,
     units,
-    orderCascadedOnlyMembers(units, cascade, seedInstances),
+    orderGroupRemovals(units, cascadedOnlyRemovals(cascade, seedInstances)),
     effectActions,
     parentEventId,
     "EffectExpired",

@@ -442,12 +442,29 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
       if (consumption.changes.length === 0) {
         return { units, lastEventId: callParentEventId };
       }
-      const lastEventId = emitEffectConsumptionChangedEvents(
-        eventContext,
-        consumption.units,
-        consumption.changes,
-        callParentEventId,
-      );
+      // PR #280再々レビュー[P1]: `EffectConsumptionChanged`自身も1イベント=1stepとして
+      // `yield`する。以前は失効stepだけを`yield`していたため、残回数が0にならない
+      // 消費（`INCOMING_HIT`の残回数>1、遅延失効する`NEXT_*_ATTACK`など）では
+      // `EffectConsumptionChanged`がPS/Memory連鎖へ一度も渡らなかった。各stepの
+      // 直後にdriverが注入する`units`（連鎖後の状態）を次の消費・失効へ引き継ぐ。
+      let workingUnits = consumption.units;
+      let lastEventId = callParentEventId;
+      for (const change of consumption.changes) {
+        const stepEventsStart = eventContext.recorder.getEvents().length;
+        lastEventId = emitEffectConsumptionChangedEvents(
+          eventContext,
+          workingUnits,
+          [change],
+          lastEventId,
+        );
+        const injected = yield {
+          events: eventContext.recorder.getEvents().slice(stepEventsStart),
+          units: workingUnits,
+        };
+        if (injected !== undefined) {
+          workingUnits = injected;
+        }
+      }
       const seeds: ExpirationSeed[] = consumption.changes
         .filter((change) => change.after === 0)
         .map((change) => ({
@@ -456,15 +473,15 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
           reason: "CONSUMPTION",
         }));
       if (seeds.length === 0) {
-        return { units: consumption.units, lastEventId };
+        return { units: workingUnits, lastEventId };
       }
       if (DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind)) {
         pendingExpirySeeds.push(...seeds);
-        return { units: consumption.units, lastEventId };
+        return { units: workingUnits, lastEventId };
       }
       const expiry = yield* expireEffectsSteps(
         eventContext,
-        consumption.units,
+        workingUnits,
         seeds,
         context.definitions.effectActions,
         lastEventId,
