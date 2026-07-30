@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 113,
-      "completed": 89,
-      "remaining": 24
+      "completed": 90,
+      "remaining": 23
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 49
+      "incompleteConversionRows": 48
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -110,7 +110,7 @@
     { "taskId": "M7-009", "issue": 182, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-010", "issue": 177, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-011", "issue": 265, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-012", "issue": 266, "phase": 2, "milestone": "M7", "status": "OPEN" },
+    { "taskId": "M7-012", "issue": 266, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-013", "issue": 267, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-014", "issue": 268, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-015", "issue": 269, "phase": 2, "milestone": "M7", "status": "OPEN" },
@@ -139,7 +139,6 @@
     { "taskId": "REL-008", "issue": 263, "phase": 4, "milestone": "M9", "status": "OPEN" }
   ],
   "ruleAssignments": [
-    { "taskId": "M7-012", "ruleIds": ["R-EFF-05"] },
     { "taskId": "M7-013", "ruleIds": ["R-EFF-09"] },
     { "taskId": "M7-019", "ruleIds": ["R-TGT-06"] },
     { "taskId": "DMG-001", "ruleIds": ["R-SKL-03", "R-ACTN-02", "R-DMG-05"] },
@@ -175,7 +174,6 @@
       "rowCount": 2,
       "taskId": "M7-013"
     },
-    { "milestone": "M7", "theme": "STACK_LIMIT_ON_STAT_MOD", "rowCount": 1, "taskId": "M7-012" },
     {
       "milestone": "M8",
       "theme": "DAMAGE_MOD_KIND_UNIMPLEMENTED",

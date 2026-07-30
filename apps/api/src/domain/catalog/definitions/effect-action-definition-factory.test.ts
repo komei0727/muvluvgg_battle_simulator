@@ -424,7 +424,7 @@ describe("EffectActionDefinition", () => {
     );
     expect(result).toMatchObject({
       kind: "APPLY_STAT_MOD",
-      payload: { stat: "ATTACK", valueType: "RATIO" },
+      payload: { stat: "ATTACK", valueType: "RATIO", stacking: { mode: "STACKABLE", max: null } },
     });
   });
 
@@ -438,7 +438,10 @@ describe("EffectActionDefinition", () => {
             stat: "ATTACK",
             valueType: "RATIO",
             formula: { kind: "CONSTANT", value: 0.2 },
-            stacking: { mode: "NON_STACKABLE" },
+            // M7-012（Issue #266）で`NON_STACKABLE`が有効値になったため、この
+            // 拒否ケースはenumに存在しない値（Marker側の`stack.policy`と混同した
+            // 誤authoring）へ差し替えた。
+            stacking: { mode: "REFRESH" },
             duration: { timeLimit: { unit: "ACTION", count: 2 } },
           },
           requiredCapabilities: [],
@@ -1685,5 +1688,127 @@ describe("EffectActionDefinition", () => {
         "effectAction",
       ),
     ).toThrow(DomainValidationError);
+  });
+
+  // M7-012（Issue #266、R-EFF-05／`STACK_LIMIT_ON_STAT_MOD`）: `APPLY_STAT_MOD`の
+  // 重複なし表現（`NON_STACKABLE`）と重複上限（`stacking.max`）。
+  it("UT-CAT-ACT-079: maps APPLY_STAT_MOD with NON_STACKABLE stacking (R-EFF-05)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_STAT_MOD_NON_STACKABLE",
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "RATIO",
+          formula: { kind: "CONSTANT", value: 0.2 },
+          stacking: { mode: "NON_STACKABLE" },
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result).toMatchObject({
+      kind: "APPLY_STAT_MOD",
+      payload: { stacking: { mode: "NON_STACKABLE", max: null } },
+    });
+  });
+
+  it("UT-CAT-ACT-080: maps APPLY_STAT_MOD stacking.max and accepts an explicit null (no limit)", () => {
+    for (const [max, expected] of [
+      [14, 14],
+      [1, 1],
+      [null, null],
+    ] as const) {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_STAT_MOD_MAX",
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: 0.025 },
+            stacking: { mode: "STACKABLE", max },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      );
+      expect(result).toMatchObject({
+        kind: "APPLY_STAT_MOD",
+        payload: { stacking: { mode: "STACKABLE", max: expected } },
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-081: rejects a non-positive or fractional APPLY_STAT_MOD stacking.max", () => {
+    for (const max of [0, -1, 1.5]) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_STAT_MOD_BAD_MAX",
+            kind: "APPLY_STAT_MOD",
+            payload: {
+              stat: "ATTACK",
+              valueType: "RATIO",
+              formula: { kind: "CONSTANT", value: 0.025 },
+              stacking: { mode: "STACKABLE", max },
+              duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+            },
+            requiredCapabilities: [],
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-ACT-082: rejects NON_STACKABLE and stacking.max on the other stacking-bearing kinds", () => {
+    const payloadsByKind = {
+      APPLY_DAMAGE_MOD: {
+        direction: "OUTGOING",
+        formula: { kind: "CONSTANT", value: 0.03 },
+        duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+      },
+      APPLY_HEALING_MOD: {
+        direction: "INCOMING",
+        formula: { kind: "CONSTANT", value: -0.2 },
+        duration: { timeLimit: { unit: "ACTION", count: 1 } },
+      },
+      APPLY_RESOURCE_GAIN_MOD: {
+        resource: "EX_GAUGE",
+        rateDelta: { kind: "CONSTANT", value: 0.5 },
+        duration: { timeLimit: { unit: "ACTION", count: 1 } },
+      },
+    } as const;
+    for (const [kind, base] of Object.entries(payloadsByKind)) {
+      // 重複なし最強選択の合成経路を持たないkindでは`NON_STACKABLE`を許可しない
+      // （受理しても`composeDamageModifier`等が全インスタンスを合算するだけで
+      // 何も変わらない silent partial implementation になるため）。
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_OTHER_MOD",
+            kind,
+            payload: { ...base, stacking: { mode: "NON_STACKABLE" } },
+            requiredCapabilities: [],
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+      // 同じ理由で`stacking.max`も未知キーとして拒否する。
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_OTHER_MOD",
+            kind,
+            payload: { ...base, stacking: { mode: "STACKABLE", max: 3 } },
+            requiredCapabilities: [],
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
   });
 });

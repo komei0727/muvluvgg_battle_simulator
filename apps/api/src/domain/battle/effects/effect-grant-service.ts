@@ -17,6 +17,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
@@ -157,6 +158,36 @@ export function resolveDurationOnReapply(
     return duration;
   }
   return { ...duration, timeLimit: { ...timeLimit, count: reapply.count } };
+}
+
+/**
+ * R-EFF-05（`STACK_LIMIT_ON_STAT_MOD`、M7-012、Issue #266）: `APPLY_STAT_MOD`の
+ * `stacking.max`（重複上限）に到達しているかを判定する。raw原文の例は
+ * `SKL_TARISA_TROUBLEMAKER_PS1`「「負けん気」は最大14個まで所持できる」に対応する
+ * 攻撃力バフ側の上限。
+ *
+ * 重複数の単位は`EffectKindKey`（現状は`EffectActionDefinitionId`そのもの、
+ * `applied-effect.ts`）— R-EFF-05が同種グループを括る単位と同じものを使い、
+ * 別定義由来の同種statバフを巻き込まない。
+ *
+ * `APPLY_MARKER.stack.max`が単一`MarkerState`のスタック数をclampする
+ * （`clampMarkerStack`）のに対し、`AppliedEffect`は「重複あり・重複なしの
+ * どちらも効果インスタンスと残り期間を個別に保持する」（R-EFF-05第1〜2項）ため
+ * clampする先の可変スタック数を持たない。上限到達時は付与自体を行わず、
+ * 呼び出し側が`EffectActionCompleted.resultKind: SKIPPED`として記録する
+ * （`marker-apply-service.ts`の`KEEP_EXISTING`と同じ「変化が無ければイベントを
+ * 発行しない」規約）。
+ */
+export function isStackLimitReached(
+  target: BattleUnit,
+  effectActionDefinitionId: EffectActionDefinitionId,
+  max: number | null,
+): boolean {
+  if (max === null) {
+    return false;
+  }
+  const kindKey = effectKindKeyFromDefinitionId(effectActionDefinitionId);
+  return target.appliedEffects.filter((effect) => effect.kindKey === kindKey).length >= max;
 }
 
 /**

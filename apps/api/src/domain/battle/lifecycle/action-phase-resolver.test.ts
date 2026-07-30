@@ -207,7 +207,7 @@ function statModEffectAction(
       stat,
       valueType,
       formula: { kind: "CONSTANT", value },
-      stacking: { mode: "STACKABLE" },
+      stacking: { mode: "STACKABLE", max: null },
       duration: {
         timeLimit: { unit: "TURN", count: 2 },
         dispellable: true,

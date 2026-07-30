@@ -902,6 +902,32 @@ payload:
 - `AFFINITY_BONUS`
 - `ACTION_SPEED`
 
+| フィールド  | 型                 | 必須 | 制約                                                              |
+| ----------- | ------------------ | ---- | ----------------------------------------------------------------- |
+| `stat`      | enum               | ✓    | 下記の `stat` 候補                                                |
+| `valueType` | enum               | ✓    | `RATIO` / `FIXED`                                                 |
+| `formula`   | FormulaDefinition  | ✓    | 符号付き。増加は正、減少は負                                      |
+| `stacking`  | object             | ✓    | `mode`（`STACKABLE` / `NON_STACKABLE`）と任意の `max`。詳細は下記 |
+| `duration`  | DurationDefinition | ✓    | —                                                                 |
+
+`stacking.mode`（`R-EFF-05` / `R-STA-03`、`M7-012`／Issue #266）:
+
+- `STACKABLE`（重複あり）は保持している全インスタンスを合成する。
+- `NON_STACKABLE`（重複なし）は同じ `EffectKindKey` のグループ内で最も強い1件だけを合成する。
+- `NON_STACKABLE` は `APPLY_STAT_MOD` だけが宣言できる。他の `stacking` 保持kind（`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD`）は合成経路が全インスタンスの合算だけを実装しており、受理しても何も変わらない「受理されるが効かない定義」になるため、Mapperは引き続き `STACKABLE` のみを許可する。
+
+`stacking.max`（重複上限、`APPLY_MARKER` の `stack.max` に対応、`APPLY_STAT_MOD` 専用）:
+
+- 1以上の整数、または `null`（上限なし）。省略時は `null`。
+- 対象が同じ `EffectKindKey` のインスタンスを `max` 件保持している場合、それ以上の付与を行わない（`EffectApplied` を発行せず、`EffectActionCompleted.resultKind` は `SKIPPED` になる）。
+- production例は `ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`（`max: 14`）。Marker「負けん気」の `stack.max: 14` と1対1で対応する攻撃力バフである。
+
+```yaml
+stacking:
+  mode: STACKABLE
+  max: 14
+```
+
 `AFFINITY_BONUS` と `CRITICAL_DAMAGE_BONUS` は Unit の `baseStats` に保持する。Catalog作成時の初期値はそれぞれ `0.25` と `0.5` だが、Unitごとの上書きと `APPLY_STAT_MOD` による一時補正の対象にできる。
 
 ### APPLY_DAMAGE_MOD
@@ -2251,7 +2277,7 @@ Catalog v2 DTO・Domain Definition・Mapperの実装（Issue #6）で、本書�
 
 1. `EffectActionDefinition.kind` のうち `APPLY_HEALING_MOD`、`MODIFY_RESOURCE_CAPACITY`、`APPLY_SHIELD`、`REMOVE_EFFECTS`、`APPLY_DAMAGE_LINK` の5種はpayload例が示されていなかった。Issue #44でこのうち `APPLY_HEALING_MOD`・`MODIFY_RESOURCE_CAPACITY`・`APPLY_SHIELD`・`REMOVE_EFFECTS` の4種のpayload形状を本書へ追記し、Mapperへ実装した（下記「Issue #44実装で追加した拡張」）。`APPLY_DAMAGE_LINK` はCover/Reflect/DamageLinkの割り込み順（本書「後続設計で具体化する点」#3）が未確定のため、引き続きMapperは未サポートとして拒否する。`REMOVE_MARKER` は `APPLY_MARKER` の対称形（`markerId` のみ）として実装した。
 2. `FormulaDefinition` の `HP_RATIO_SCALE.direction` は値候補が本書のどこにも列挙されていない。Mapperは `HP_RATIO_SCALE` 自体を未サポートとして拒否する。
-3. `APPLY_STAT_MOD.stacking.mode` / `APPLY_DAMAGE_MOD.stacking.mode` は例で `STACKABLE` しか示されていない。「重複なし」(`R-STA-03`) に対応する値が未定義のため、Mapperは `STACKABLE` のみを許可する。
+3. `APPLY_STAT_MOD.stacking.mode` / `APPLY_DAMAGE_MOD.stacking.mode` は例で `STACKABLE` しか示されていない。「重複なし」(`R-STA-03`) に対応する値が未定義のため、Mapperは `STACKABLE` のみを許可していた。`M7-012`（Issue #266）が `APPLY_STAT_MOD` 側について `NON_STACKABLE` と重複上限 `stacking.max` を本書「APPLY_STAT_MOD」節へ定義し、Mapper・実ライフサイクルへ実装して解消した（`R-EFF-05` 完了）。`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD` は最強選択を行う合成経路を持たないため引き続き `STACKABLE` のみである。
 4. Formulaの `source`/`target` 参照（`STAT_RATIO.source`、`MARKER_COUNT_SCALE.target` など）はHEAL/MARKER_COUNT_SCALE例では `{kind: ...}` オブジェクト形式、APPLY_SUBUNIT例 (`source: SKILL_SOURCE`) では裸のenum文字列形式と表記が揺れている。Mapperはオブジェクト形式 `{kind, targetBindingId?}` に統一した（`BINDING` 種別が追加フィールドを要するため）。
 5. `TriggerDefinition.sourceSelector` / `targetSelector` の値候補は本書に一覧化されていない。実装では `08_ドメインイベント.md` と本書の例に実際に現れる値（`SELF`、`ALLY`、`ENEMY`、`ANY`、`EFFECT_OWNER`）だけを許可した。
 6. `MarkerDefinition` はUnit/Skill/EffectAction/Memoryのような専用Catalogファイルを持たず、`MarkerId` 参照のみが登場する。Issue #6では `MarkerId` のformat検証のみを実装し、スタック上限や関連効果を持つ独立したMarkerカタログは未実装とした。

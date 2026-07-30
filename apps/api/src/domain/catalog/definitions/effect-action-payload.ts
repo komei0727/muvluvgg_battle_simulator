@@ -112,11 +112,34 @@ export interface ApplyContinuousDamagePayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * R-EFF-05／R-STA-03（`STACK_LIMIT_ON_STAT_MOD`、M7-012、Issue #266）:
+ * `APPLY_STAT_MOD`だけが持つ重複方針。`STACKABLE`（重複あり）は保持している
+ * 全インスタンスが常に有効、`NON_STACKABLE`（重複なし）は同じ`EffectKindKey`の
+ * グループ内で最も強い1件だけが有効になる（`effective-effect-selector.ts`）。
+ *
+ * `NON_STACKABLE`を`APPLY_STAT_MOD`に限るのは、CombatStat合成
+ * （`effect-stacking-policy.ts`の`combineEffects`）だけが重複なしグループの
+ * 最強選択を実装しているためである。`APPLY_DAMAGE_MOD`/`APPLY_HEALING_MOD`/
+ * `APPLY_RESOURCE_GAIN_MOD`の合成経路（`composeHealingRate`等）は保持している
+ * 全インスタンスを合算するだけで、`NON_STACKABLE`を受理しても何も変わらない
+ * silent partial implementationになる。
+ */
+export const STAT_MOD_STACKING_MODES = ["STACKABLE", "NON_STACKABLE"] as const;
+
+export type StatModStackingMode = (typeof STAT_MOD_STACKING_MODES)[number];
+
 export interface ApplyStatModPayload {
   readonly stat: StatKind;
   readonly valueType: "RATIO" | "FIXED";
   readonly formula: FormulaDefinition;
-  readonly stacking: { readonly mode: "STACKABLE" };
+  /**
+   * `max`はR-EFF-05の重複上限（`APPLY_MARKER.stack.max`の`AppliedEffect`版、
+   * production例は`ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`の「負けん気」14個に
+   * 対応する攻撃力バフ）。`null`は上限なし。対象が同じ`EffectKindKey`の
+   * インスタンスをこの数だけ保持している場合、それ以上の付与を行わない。
+   */
+  readonly stacking: { readonly mode: StatModStackingMode; readonly max: number | null };
   readonly duration: DurationDefinition;
 }
 

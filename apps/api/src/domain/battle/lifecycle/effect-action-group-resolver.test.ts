@@ -96,7 +96,7 @@ function statModAction(id: string): EffectActionDefinition {
       stat: "ATTACK",
       valueType: "FIXED",
       formula: { kind: "CONSTANT", value: 20 },
-      stacking: { mode: "STACKABLE" },
+      stacking: { mode: "STACKABLE", max: null },
       duration: {
         timeLimit: { unit: "TURN", count: 2 },
         dispellable: true,
@@ -1709,7 +1709,7 @@ describe("applyEffectActionGroups", () => {
           stat: "ATTACK",
           ratio: 0.5,
         },
-        stacking: { mode: "STACKABLE" },
+        stacking: { mode: "STACKABLE", max: null },
         duration: {
           timeLimit: { unit: "TURN", count: 2 },
           dispellable: true,
@@ -1765,7 +1765,7 @@ describe("applyEffectActionGroups", () => {
         stat: "ATTACK",
         valueType: "FIXED",
         formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TRIGGER_TARGET" }, ratio: 1 },
-        stacking: { mode: "STACKABLE" },
+        stacking: { mode: "STACKABLE", max: null },
         duration: {
           timeLimit: { unit: "TURN", count: 2 },
           dispellable: true,
@@ -1822,7 +1822,7 @@ describe("applyEffectActionGroups", () => {
         stat: "ATTACK",
         valueType: "RATIO",
         formula: { kind: "CONSTANT", value: 0.4 },
-        stacking: { mode: "STACKABLE" },
+        stacking: { mode: "STACKABLE", max: null },
         duration: consumedAtkBuffDuration,
       },
     };
@@ -5311,7 +5311,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
         stat: "ATTACK",
         valueType: "FIXED",
         formula: { kind: "CONSTANT", value: -10 },
-        stacking: { mode: "STACKABLE" },
+        stacking: { mode: "STACKABLE", max: null },
         duration: {
           timeLimit: { unit: "TURN", count: 2 },
           dispellable: true,
@@ -5590,5 +5590,183 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     const secondTarget = secondResult.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
     expect(secondTarget.appliedEffects).toHaveLength(1);
     expect(secondTarget.appliedEffects[0]).toMatchObject({ statusKind: "STUN" });
+  });
+});
+
+/**
+ * M7-012（Issue #266、R-EFF-05／`STACK_LIMIT_ON_STAT_MOD`）: `APPLY_STAT_MOD`の
+ * 重複なし（`NON_STACKABLE`）表現と重複上限（`stacking.max`）の実ライフサイクル配線。
+ * それまで`stacking.mode`は`STACKABLE`しかCatalogスキーマに存在せず、resolverも
+ * `duplicate: true`固定で付与していたため、重複なし経路・最強選択・
+ * `EffectiveEffectChanged`のいずれにも実ライフサイクルから到達できなかった。
+ */
+describe("applyEffectActionGroups: R-EFF-05 stacking mode and stack limit (M7-012, Issue #266)", () => {
+  function ratioStatMod(
+    id: string,
+    value: number,
+    stacking: { mode: "STACKABLE" | "NON_STACKABLE"; max: number | null },
+  ): EffectActionDefinition {
+    return {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        stat: "ATTACK",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value },
+        stacking,
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+  }
+
+  /**
+   * `recalculateCombatStats`は`context.definitions.effectActions`から各
+   * `AppliedEffect`の定義を引くため、既に付与済みの効果の定義も併せて渡す
+   * （`known`）。渡さないと過去に付与した効果がCombatStat合成から黙って
+   * 落ちてしまい、テスト自身の前提が崩れる。
+   */
+  function applyOnce(
+    definition: EffectActionDefinition,
+    units: readonly BattleUnit[],
+    actor: BattleUnit,
+    recorder: EventRecorder,
+    rootEventId: string,
+    known: readonly EffectActionDefinition[] = [],
+  ): EffectActionGroupsResult {
+    const effectActions = new Map(
+      [...known, definition].map((d) => [d.effectActionDefinitionId, d]),
+    );
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, actor.battleUnitId, definition.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+    return applyEffectActionGroups(
+      plan,
+      units,
+      contextFor(actor, effectActions, recorder, rootEventId),
+    );
+  }
+
+  it("UT-R-EFF-05-017 (real lifecycle wiring): a NON_STACKABLE APPLY_STAT_MOD is granted with duplicate: false, so only the strongest instance feeds CombatStat", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const { recorder, rootEventId } = seedRecorder();
+    const weak = ratioStatMod("ACT_ATK_UP_WEAK", 20, { mode: "NON_STACKABLE", max: null });
+
+    const first = applyOnce(weak, [actor], actor, recorder, rootEventId);
+    const afterFirst = first.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(afterFirst.appliedEffects).toHaveLength(1);
+    expect(afterFirst.appliedEffects[0]!.duplicate).toBe(false);
+    expect(afterFirst.combatStats.attack).toBe(actor.baseCombatStats.attack + 20);
+
+    // 同じ`EffectKindKey`の2件目（同じ効果量）は保持されるが（R-EFF-05第2項
+    // 「重複なし効果も、既存効果を上書きせず個別に保持する」）、計算へ採用される
+    // のは最強1件だけなので攻撃力は増えない — `STACKABLE`なら+40になる。
+    const second = applyOnce(weak, first.units, actor, recorder, rootEventId);
+    const afterSecond = second.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(afterSecond.appliedEffects).toHaveLength(2);
+    expect(afterSecond.combatStats.attack).toBe(actor.baseCombatStats.attack + 20);
+  });
+
+  it("UT-R-EFF-05-018 (real lifecycle wiring): a stronger NON_STACKABLE instance displaces the previous winner, emitting EffectiveEffectChanged before CombatStatChanged", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const { recorder, rootEventId } = seedRecorder();
+    // 同じ`EffectKindKey`（＝同じ`EffectActionDefinitionId`）でなければ同種
+    // グループにならないため、効果量だけをFormulaで差し替えた同一IDの定義を使う。
+    const weak = ratioStatMod("ACT_ATK_UP", 20, { mode: "NON_STACKABLE", max: null });
+    const strong = ratioStatMod("ACT_ATK_UP", 50, { mode: "NON_STACKABLE", max: null });
+
+    const first = applyOnce(weak, [actor], actor, recorder, rootEventId);
+    const before = recorder.getEvents().length;
+    const second = applyOnce(strong, first.units, actor, recorder, rootEventId);
+
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+    expect(emitted).toContain("EffectiveEffectChanged");
+    expect(emitted.indexOf("EffectiveEffectChanged")).toBeLessThan(
+      emitted.indexOf("CombatStatChanged"),
+    );
+
+    const changed = recorder
+      .getEvents()
+      .slice(before)
+      .find((e) => e.eventType === "EffectiveEffectChanged") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectiveEffectChanged" }
+    >;
+    const winner = first.units.find((u) => u.battleUnitId === actor.battleUnitId)!
+      .appliedEffects[0]!.effectInstanceId;
+    expect(changed.payload).toMatchObject({
+      battleUnitId: actor.battleUnitId,
+      kindKey: "ACT_ATK_UP",
+      before: winner,
+    });
+
+    const afterSecond = second.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(afterSecond.combatStats.attack).toBe(actor.baseCombatStats.attack + 50);
+  });
+
+  it("UT-R-EFF-05-019 (real lifecycle wiring, 重複上限): a grant at stacking.max adds no instance and completes as SKIPPED without EffectApplied", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const { recorder, rootEventId } = seedRecorder();
+    const capped = ratioStatMod("ACT_ATK_UP_CAPPED", 20, { mode: "STACKABLE", max: 2 });
+
+    let units: readonly BattleUnit[] = [actor];
+    for (const expectedCount of [1, 2]) {
+      units = applyOnce(capped, units, actor, recorder, rootEventId).units;
+      expect(units.find((u) => u.battleUnitId === actor.battleUnitId)!.appliedEffects).toHaveLength(
+        expectedCount,
+      );
+    }
+
+    const before = recorder.getEvents().length;
+    const third = applyOnce(capped, units, actor, recorder, rootEventId);
+    const emitted = recorder
+      .getEvents()
+      .slice(before)
+      .map((e) => e.eventType);
+
+    expect(emitted).toEqual([
+      "EffectStepStarting",
+      "EffectActionStarting",
+      "EffectActionCompleted",
+      "EffectStepCompleted",
+    ]);
+    const completed = recorder
+      .getEvents()
+      .slice(before)
+      .find((e) => e.eventType === "EffectActionCompleted") as Extract<
+      BattleDomainEvent,
+      { eventType: "EffectActionCompleted" }
+    >;
+    expect(completed.payload.resultKind).toBe("SKIPPED");
+    expectCompleted(third, 1);
+
+    const afterThird = third.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(afterThird.appliedEffects).toHaveLength(2);
+    expect(afterThird.combatStats.attack).toBe(actor.baseCombatStats.attack + 40);
+  });
+
+  it("UT-R-EFF-05-020 (boundary): instances of another definition never consume this definition's stacking.max", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const { recorder, rootEventId } = seedRecorder();
+    const other = ratioStatMod("ACT_ATK_UP_OTHER", 20, { mode: "STACKABLE", max: null });
+    const capped = ratioStatMod("ACT_ATK_UP_CAPPED", 20, { mode: "STACKABLE", max: 1 });
+
+    const withOther = applyOnce(other, [actor], actor, recorder, rootEventId);
+    const withCapped = applyOnce(capped, withOther.units, actor, recorder, rootEventId, [other]);
+
+    const target = withCapped.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(2);
+    expect(target.combatStats.attack).toBe(actor.baseCombatStats.attack + 40);
   });
 });

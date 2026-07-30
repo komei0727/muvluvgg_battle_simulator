@@ -29,9 +29,11 @@ import {
   COOLDOWN_MANIPULATION_OPERATIONS,
   REFLECT_TIMINGS,
   RESOURCE_CAPACITY_OPERATIONS,
+  STAT_MOD_STACKING_MODES,
   STATUS_AILMENT_KINDS,
   STATUS_KINDS,
   type DamageThreshold,
+  type StatModStackingMode,
 } from "./effect-action-payload.js";
 import {
   createFormulaDefinition,
@@ -70,6 +72,13 @@ const STAT_KINDS = [
 ] as const;
 const STAT_VALUE_TYPES = ["RATIO", "FIXED"] as const;
 const STACKING_MODES = ["STACKABLE"] as const;
+/**
+ * M7-012（Issue #266、R-EFF-05）: `APPLY_STAT_MOD`だけは重複なし
+ * （`NON_STACKABLE`）と重複上限（`max`）を宣言できる。他の`stacking`保持kindは
+ * 最強選択の合成経路を持たないため`STACKING_MODES`／`STACKING_ALLOWED_KEYS`の
+ * ままに留める（`effect-action-payload.ts`の`STAT_MOD_STACKING_MODES`参照）。
+ */
+const STAT_MOD_STACKING_ALLOWED_KEYS = ["mode", "max"] as const;
 const DAMAGE_MOD_DIRECTIONS = ["OUTGOING", "INCOMING"] as const;
 const ACTION_KINDS = ["DAMAGE", "DEBUFF", "ANY"] as const;
 const EFFECT_IMMUNITY_CATEGORIES = [
@@ -212,6 +221,29 @@ function requireStackingMode(payload: Record<string, unknown>, path: string): "S
   const mode = requireField(stacking.mode, `${path}.stacking.mode`);
   assertEnumValue(mode, STACKING_MODES, `${path}.stacking.mode`);
   return mode;
+}
+
+/**
+ * M7-012（Issue #266、R-EFF-05／`STACK_LIMIT_ON_STAT_MOD`）: `APPLY_STAT_MOD`の
+ * `stacking`。`mode`は重複なし（`NON_STACKABLE`）も取り、`max`は重複上限
+ * （省略・`null`で上限なし）を表す。`APPLY_MARKER.stack.max`と同じ検証
+ * （1以上の整数、または`null`）にする。
+ */
+function requireStatModStacking(
+  payload: Record<string, unknown>,
+  path: string,
+): { readonly mode: StatModStackingMode; readonly max: number | null } {
+  const stacking = requireField(
+    payload["stacking"] as { mode?: string; max?: number | null } | undefined,
+    `${path}.stacking`,
+  );
+  assertKnownKeys(stacking, STAT_MOD_STACKING_ALLOWED_KEYS, `${path}.stacking`);
+  const mode = requireField(stacking.mode, `${path}.stacking.mode`);
+  assertEnumValue(mode, STAT_MOD_STACKING_MODES, `${path}.stacking.mode`);
+  if (stacking.max !== undefined) {
+    assertNullableInteger(stacking.max, `${path}.stacking.max`, { min: 1 });
+  }
+  return { mode, max: stacking.max ?? null };
 }
 
 function createAppliesTo(
@@ -403,14 +435,17 @@ function createPayload(
         `${path}.valueType`,
       );
       assertEnumValue(valueType, STAT_VALUE_TYPES, `${path}.valueType`);
-      const stackingMode = requireStackingMode(payload, path);
+      // `stacking`は`formula`より先に検証する（`requireStackingMode`を呼んで
+      // いた時点と同じ順序 — 不正な定義がどのフィールドのエラーを報告するかを
+      // 変えないため）。
+      const stacking = requireStatModStacking(payload, path);
       return {
         kind: "APPLY_STAT_MOD",
         payload: {
           stat,
           valueType,
           formula: createFormulaField(payload, "formula", path),
-          stacking: { mode: stackingMode },
+          stacking,
           duration: createDurationField(payload, path),
         },
       };

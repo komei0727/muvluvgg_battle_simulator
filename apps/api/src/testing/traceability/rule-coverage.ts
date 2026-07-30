@@ -1711,18 +1711,66 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
-  // R-EFF-05: PR #208レビュー[P2]。`effective-effect-selector.ts`の選択規則
-  // 自体（次点繰上げ含む）はUT-R-EFF-05-001〜013で単体検証済みだが、Catalog
-  // Schemaの`APPLY_STAT_MOD.stacking.mode`が現状"STACKABLE"しか許可せず、
-  // `effect-action-group-resolver.ts`も`duplicate: true`固定で付与するため、
-  // 実ライフサイクル（`resolveActionPhase`等）からduplicate:falseの重複なし
-  // 経路・最強選択・次点繰上げ・`EffectiveEffectChanged`のいずれにも到達
-  // できない。NON_STACKABLEのCatalog表現・Mapper・実ライフサイクルの
-  // シナリオテストが揃うまで未完了のまま残す。
-  // M7-010（Issue #177、監査）: 完了責任を持っていたEFF-002（Issue #165）が
-  // close済みで所有者不在だったため、同じギャップを持つ不完全変換テーマ
+  // R-EFF-05: `effective-effect-selector.ts`の選択規則自体（次点繰上げ含む）は
+  // 早期からUT-R-EFF-05-001〜013で単体検証済みだったが、Catalog Schemaの
+  // `APPLY_STAT_MOD.stacking.mode`が`STACKABLE`しか許可せず、
+  // `effect-action-group-resolver.ts`も`duplicate: true`固定で付与していたため、
+  // 実ライフサイクルからduplicate:falseの重複なし経路・最強選択・次点繰上げ・
+  // `EffectiveEffectChanged`のいずれにも到達できなかった（PR #208レビュー[P2]）。
+  // M7-010（Issue #177、監査）が、完了責任を持っていたEFF-002（Issue #165）の
+  // 所有者不在を検出し、同じギャップを持つ不完全変換テーマ
   // `STACK_LIMIT_ON_STAT_MOD`（1行）ごとM7-012（Issue #266）へ引き継いだ。
-  { ruleId: "R-EFF-05", testCaseIds: [], kinds: [] },
+  //
+  // M7-012（Issue #266）が`stacking.mode: NON_STACKABLE`と重複上限
+  // `stacking.max`をCatalogスキーマ・Mapper（`effect-action-definition-factory.ts`）
+  // へ追加し、resolverが`stacking.mode`から`duplicate`を導くよう配線したため、
+  // 重複なし経路が実ライフサイクルから到達可能になった:
+  // - 付与（`duplicate: false`）・最強選択・`EffectiveEffectChanged`→
+  //   `CombatStatChanged`順序: UT-R-EFF-05-017/018（`applyEffectActionGroups`）
+  // - 次点繰上げの実失効経路: UT-R-EFF-05-021（`expireEffects`）
+  // - 重複上限（上限到達時は付与せず`resultKind: SKIPPED`、別定義は上限を
+  //   共有しない）: UT-R-EFF-05-014〜016/019/020、および実production Catalogの
+  //   `ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`（`stacking.max: 14`）を
+  //   `resolveSkillUse`から検証する`IT-CAP-STAT-MOD-STACK-LIMIT-PROD-001`〜`003`。
+  //
+  // `NON_STACKABLE`を宣言するproduction定義は現時点で存在しない（raw原文が
+  // 明記するのは「重複可」だけで、重複なしへの再分類はどの台帳行も要求して
+  // いない）ため、`IT-`層は重複上限だけを対象にし、重複なし経路はR-EFF-11の
+  // `EFFECT_SEQUENCE`スコープと同じく明示的な実ライフサイクルテストで検証する。
+  {
+    ruleId: "R-EFF-05",
+    testCaseIds: [
+      "UT-R-EFF-05-001",
+      "UT-R-EFF-05-002",
+      "UT-R-EFF-05-003",
+      "UT-R-EFF-05-004",
+      "UT-R-EFF-05-005",
+      "UT-R-EFF-05-006",
+      "UT-R-EFF-05-007",
+      "UT-R-EFF-05-008",
+      "UT-R-EFF-05-009",
+      "UT-R-EFF-05-010",
+      "UT-R-EFF-05-011",
+      "UT-R-EFF-05-012",
+      "UT-R-EFF-05-013",
+      "UT-R-EFF-05-014",
+      "UT-R-EFF-05-015",
+      "UT-R-EFF-05-016",
+      "UT-R-EFF-05-017",
+      "UT-R-EFF-05-018",
+      "UT-R-EFF-05-019",
+      "UT-R-EFF-05-020",
+      "UT-R-EFF-05-021",
+      "UT-CAT-ACT-079",
+      "UT-CAT-ACT-080",
+      "UT-CAT-ACT-081",
+      "UT-CAT-ACT-082",
+      "IT-CAP-STAT-MOD-STACK-LIMIT-PROD-001",
+      "IT-CAP-STAT-MOD-STACK-LIMIT-PROD-002",
+      "IT-CAP-STAT-MOD-STACK-LIMIT-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // R-EFF-06: EFF-003。ターン単位期間の減算・失効（`battle.ts`のTURN_ENDING
   // 配線）。`IT-CAP-COMPLEX-EXPIRATION-PROD-002`が実production Catalogの
   // TURN単位`duration`で検証する。

@@ -24,7 +24,7 @@ describe("findBlockingImmunity", () => {
         stat: "ATTACK",
         valueType: "FIXED",
         formula: { kind: "CONSTANT", value: -10 },
-        stacking: { mode: "STACKABLE" },
+        stacking: { mode: "STACKABLE", max: null },
         duration: {
           timeLimit: { unit: "TURN", count: 1 },
           dispellable: true,

@@ -57,7 +57,7 @@ function statModDefinition(id: string): EffectActionDefinition {
       stat: "ATTACK",
       valueType: "RATIO",
       formula: { kind: "CONSTANT", value: 0 },
-      stacking: { mode: "STACKABLE" },
+      stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
     requiredCapabilities: [],
@@ -516,5 +516,93 @@ describe("emitEffectConsumptionChangedEvents", () => {
     expect(
       recorder.getEvents().filter((ev) => ev.eventType === "EffectConsumptionChanged"),
     ).toHaveLength(0);
+  });
+});
+
+/**
+ * M7-012（Issue #266、R-EFF-05）: 「採用中の最強効果が失効・解除された場合、
+ * 残っている同種効果を再評価し、次に強い1件を即時に有効化する」（次点繰上げ）を、
+ * 実際の失効経路（`action-completion.ts`/`battle.ts`が呼ぶ`expireEffects`）で
+ * 検証する。`effective-effect-selector.ts`の純粋関数レベルの検証は
+ * `UT-R-EFF-05-006`が担う。
+ */
+describe("expireEffects: R-EFF-05 次点繰上げ (M7-012, Issue #266)", () => {
+  const NON_STACKABLE_DEFINITION_ID = createEffectActionDefinitionId("ACT_NON_STACKABLE_ATK_UP");
+
+  function nonStackableStatModDefinition(): EffectActionDefinition {
+    return {
+      effectActionDefinitionId: NON_STACKABLE_DEFINITION_ID,
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "RATIO",
+        formula: { kind: "CONSTANT", value: 0 },
+        stacking: { mode: "NON_STACKABLE", max: null },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+  }
+
+  it("UT-R-EFF-05-021 (real lifecycle wiring): expiring the current winner promotes the surviving runner-up, emitting EffectiveEffectChanged before CombatStatChanged", () => {
+    const targetId = createBattleUnitId("target-1");
+    const strongest = effect("E_STRONG", targetId, NON_STACKABLE_DEFINITION_ID, {
+      duplicate: false,
+      magnitude: 0.5,
+    });
+    const runnerUp = effect("E_RUNNER_UP", targetId, NON_STACKABLE_DEFINITION_ID, {
+      duplicate: false,
+      magnitude: 0.2,
+    });
+    const target = {
+      ...unit("target-1", [strongest, runnerUp]),
+      // 最強1件（+50%）だけが採用されている状態から始める（R-EFF-05第3項）。
+      combatStats: { ...BASE_COMBAT_STATS, attack: BASE_COMBAT_STATS.attack * 1.5 },
+    };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = expireEffects(
+      context(recorder, rootEventId),
+      [target],
+      [
+        {
+          battleUnitId: targetId,
+          effectInstanceId: strongest.effectInstanceId,
+          reason: "TIME_LIMIT",
+        },
+      ],
+      new Map([[NON_STACKABLE_DEFINITION_ID, nonStackableStatModDefinition()]]),
+      rootEventId,
+    );
+
+    const after = result.units.find((u) => u.battleUnitId === targetId)!;
+    expect(after.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      runnerUp.effectInstanceId,
+    ]);
+    // 次点（+20%）が即時に有効化される。
+    expect(after.combatStats.attack).toBe(BASE_COMBAT_STATS.attack * 1.2);
+
+    const emitted = recorder.getEvents().map((e) => e.eventType);
+    expect(emitted).toContain("EffectiveEffectChanged");
+    expect(emitted.indexOf("EffectExpired")).toBeLessThan(
+      emitted.indexOf("EffectiveEffectChanged"),
+    );
+    expect(emitted.indexOf("EffectiveEffectChanged")).toBeLessThan(
+      emitted.indexOf("CombatStatChanged"),
+    );
+
+    const changed = recorder
+      .getEvents()
+      .find((e) => e.eventType === "EffectiveEffectChanged") as Extract<
+      ReturnType<EventRecorder["getEvents"]>[number],
+      { eventType: "EffectiveEffectChanged" }
+    >;
+    expect(changed.payload).toEqual({
+      battleUnitId: targetId,
+      kindKey: NON_STACKABLE_DEFINITION_ID,
+      before: strongest.effectInstanceId,
+      after: runnerUp.effectInstanceId,
+    });
   });
 });
