@@ -227,7 +227,8 @@
         "value": 0.025
       },
       "stacking": {
-        "mode": "STACKABLE"
+        "mode": "STACKABLE",
+        "max": 14
       },
       "duration": {
         "dispellable": false,

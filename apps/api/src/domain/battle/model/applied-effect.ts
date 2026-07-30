@@ -62,12 +62,13 @@ export interface HealingLinkState {
 /**
  * `07_戦闘ルール詳細.md` R-STA-03: 重複なし効果を同種としてグループ化する鍵
  * （`08_ドメインイベント.md`「EffectApplied payload」）。`14_Catalog定義スキーマ.md`
- * が明示するとおり、Catalog側の`stacking.mode`は現状`STACKABLE`しか値を持たず、
- * `kindKey`専用のauthoring fieldも定義されていない。そのためドメイン側は
- * `EffectActionDefinitionId`をそのまま`EffectKindKey`として扱う — 同じ効果
- * アクション定義からの付与だけを同種とみなす、現時点で唯一実データから導出
- * できる粒度。どの`EffectKindKey`が現在の計算へ採用されているか（R-EFF-05の
- * 最強選択）はこのIssueのスコープ外（EFF-002）で、ここでは鍵の導出だけを扱う。
+ * には`kindKey`専用のauthoring fieldが定義されていない（M7-012／Issue #266が
+ * `APPLY_STAT_MOD.stacking.mode: NON_STACKABLE`と重複上限`stacking.max`を
+ * 追加したが、同種グループの単位を明示する field は依然として無い）。そのため
+ * ドメイン側は`EffectActionDefinitionId`をそのまま`EffectKindKey`として扱う —
+ * 同じ効果アクション定義からの付与だけを同種とみなす、現時点で唯一実データから
+ * 導出できる粒度。この鍵はR-EFF-05の最強選択（`effective-effect-selector.ts`）と
+ * 重複上限（`isStackLimitReached`）の両方が使う。
  *
  * この導出規則はplaceholderであり、確定した公開契約ではない
  * （PR #207レビュー[P2]）: 異なるスキル由来の同種効果（例: 2つの異なるASが

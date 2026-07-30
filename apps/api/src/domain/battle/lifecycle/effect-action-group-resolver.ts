@@ -6,7 +6,7 @@ import {
   applyDamageActionSteps,
   type DamageEventContext,
 } from "../combat/damage-application-service.js";
-import { grantEffect } from "../effects/effect-grant-service.js";
+import { grantEffect, isStackLimitReached } from "../effects/effect-grant-service.js";
 import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
 import { removeFreezeEffectSteps } from "../effects/freeze-removal-service.js";
@@ -776,11 +776,32 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
     effectLastEventId = cooldownResult.lastEventId;
     resultKind = cooldownResult.changed ? "APPLIED" : "SKIPPED";
+  } else if (
+    effectAction.kind === "APPLY_STAT_MOD" &&
+    isStackLimitReached(
+      requireUnit(box.units, application.targetBattleUnitId),
+      effectAction.effectActionDefinitionId,
+      effectAction.payload.stacking.max,
+    )
+  ) {
+    // R-EFF-05「重複上限」（`STACK_LIMIT_ON_STAT_MOD`、M7-012、Issue #266）:
+    // 対象が同じ`EffectKindKey`のインスタンスを`stacking.max`件保持している
+    // 場合、新規インスタンスを追加しない（`EffectApplied`もCombatStat再計算も
+    // 行わず、`EffectActionCompleted.resultKind: SKIPPED`だけを記録する）。
+    //
+    // 免疫判定（R-EFF-03）より前に評価する — `rejectEffectApplication`は
+    // `EFFECT_IMMUNITY`の`blockedCount`を1消費するため、そもそも1件も追加
+    // できない付与でその有限な回数を使わせてはならない。Formula評価も同じ理由で
+    // ここでは行わない（付与しない値を計算しても捨てるだけ）。
+    resolvedCount = application.hits.length;
+    interruptedCount = 0;
+    effectLastEventId = starting.eventId;
+    resultKind = "SKIPPED";
   } else if (effectAction.kind === "APPLY_STAT_MOD") {
     // R-EFF-01: 継続stat補正をAppliedEffectとして個別に付与する（レジストリ
-    // 追加・`EffectApplied`・StateDelta・独立Reducer復元まで）。`stacking.mode`は
-    // 現状"STACKABLE"しかCatalogスキーマに存在しないため、重複あり
-    // (duplicate: true)として扱う（`applied-effect.ts`のコメント参照）。
+    // 追加・`EffectApplied`・StateDelta・独立Reducer復元まで）。重複あり・
+    // 重複なしは`stacking.mode`（M7-012、Issue #266でCatalogスキーマへ
+    // `NON_STACKABLE`を追加）から`duplicate`へそのまま写す。
     // R-EFF-05/R-STA-02〜04: 付与直後にCombatStatを再計算し、実際に変化した
     // statごとに`CombatStatChanged`を、重複なしグループの採用対象が変わった
     // 場合は`EffectiveEffectChanged`も発行する
@@ -888,7 +909,7 @@ function* resolveOneEffectActionApplication(
           definition: effectAction,
           ...grantSourceOf(context),
           targetId: application.targetBattleUnitId,
-          duplicate: true,
+          duplicate: effectAction.payload.stacking.mode === "STACKABLE",
           magnitude,
           durationDefinition: effectAction.payload.duration,
         },

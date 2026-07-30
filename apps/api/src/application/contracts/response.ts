@@ -156,11 +156,12 @@ export interface ChargeStateResponseBody {
  * 「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
  * 付与されていない」ことを表す空配列は事実そのもの）。`effects`はEFF-002
  * （R-EFF-05の重複なし最強選択・CombatStat再計算）で`snapshot.effects`
- * （`isEffective`を含む）を実際にマップする。`APPLY_STAT_MOD`はCatalogの
- * `stacking.mode`が現状`STACKABLE`しか持てないため、productionで観測される
- * `effects`は常に`isEffective: true`・`stackMode: "STACKABLE"`になる
- * （`effect-stacking-policy.ts`の`NON_STACKABLE`分岐は現状ドメイン層の単体
- * テストだけが到達する）。`markers`はEFF-004（R-EFF-10）で`snapshot.markers`を
+ * （`isEffective`を含む）を実際にマップする。`APPLY_STAT_MOD`の
+ * `stacking.mode: NON_STACKABLE`はM7-012（Issue #266）でCatalogスキーマ・
+ * resolverへ配線済みだが、それを宣言するproduction定義は現時点で存在しないため、
+ * productionで観測される`effects`は引き続き常に`isEffective: true`・
+ * `stackMode: "STACKABLE"`になる（重複なし側は`effect-action-group-resolver.test.ts`
+ * のUT-R-EFF-05-017/018等が実ライフサイクル経由で到達する）。`markers`はEFF-004（R-EFF-10）で`snapshot.markers`を
  * 実際にマップする。`cooldowns`/`charge`はM5で実装済みのDomain状態
  * （`BattleUnitSnapshot`）をそのまま反映する。
  */

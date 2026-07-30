@@ -175,7 +175,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // of being a no-op. Siena is not among the 10 promoted units here and no
     // `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
     // expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-30.6");
+    // Bumped again by M7-012 (Issue #266, STACK_LIMIT_ON_STAT_MOD):
+    // `ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP` now declares `stacking.max: 14`
+    // (R-EFF-05), matching the 「負けん気」 Marker's `stack.max`, so that buff stops
+    // stacking past 14 instances. Tarisa is not among the 10 promoted units here
+    // and no `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
+    // expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-30.7");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

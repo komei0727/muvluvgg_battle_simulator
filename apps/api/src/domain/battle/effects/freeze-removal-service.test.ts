@@ -55,7 +55,7 @@ function statModDefinition(id: string): EffectActionDefinition {
       stat: "ATTACK",
       valueType: "RATIO",
       formula: { kind: "CONSTANT", value: 0.2 },
-      stacking: { mode: "STACKABLE" },
+      stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
     requiredCapabilities: [],

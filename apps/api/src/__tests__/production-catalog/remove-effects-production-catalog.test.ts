@@ -90,7 +90,7 @@ function statModDefinitionOf(
       stat: "ATTACK",
       valueType: "RATIO",
       formula: { kind: "CONSTANT", value: 0 },
-      stacking: { mode: "STACKABLE" },
+      stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
   };
@@ -171,7 +171,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
           stat: "ATTACK",
           valueType: "RATIO",
           formula: { kind: "CONSTANT", value: -0.1 },
-          stacking: { mode: "STACKABLE" },
+          stacking: { mode: "STACKABLE", max: null },
           duration: { dispellable: true, linkedEffectGroupId: null },
         },
       };
@@ -235,7 +235,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
           stat: "ATTACK",
           valueType: "RATIO",
           formula: { kind: "CONSTANT", value: 0.1 },
-          stacking: { mode: "STACKABLE" },
+          stacking: { mode: "STACKABLE", max: null },
           duration: { dispellable: true, linkedEffectGroupId: null },
         },
       };
@@ -290,7 +290,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
           stat: "ATTACK",
           valueType: "RATIO",
           formula: { kind: "CONSTANT", value: 0.1 },
-          stacking: { mode: "STACKABLE" },
+          stacking: { mode: "STACKABLE", max: null },
           duration: { dispellable: true, linkedEffectGroupId: null },
         },
       };
@@ -335,7 +335,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
         stat: "ATTACK",
         valueType: "RATIO",
         formula: { kind: "CONSTANT", value: 0 },
-        stacking: { mode: "STACKABLE" },
+        stacking: { mode: "STACKABLE", max: null },
         duration: { dispellable: true, linkedEffectGroupId: null },
       },
     });
@@ -402,7 +402,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
         stat: "ATTACK",
         valueType: "FIXED",
         formula: { kind: "CONSTANT", value: 20 },
-        stacking: { mode: "STACKABLE" },
+        stacking: { mode: "STACKABLE", max: null },
         duration: { dispellable: true, linkedEffectGroupId: null },
       },
     };

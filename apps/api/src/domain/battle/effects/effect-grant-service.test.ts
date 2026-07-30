@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { grantEffect } from "./effect-grant-service.js";
+import { grantEffect, isStackLimitReached } from "./effect-grant-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
@@ -82,7 +82,7 @@ function statModDefinition(): EffectActionDefinition {
       stat: "ATTACK",
       valueType: "RATIO",
       formula: { kind: "CONSTANT", value: 0.2 },
-      stacking: { mode: "STACKABLE" },
+      stacking: { mode: "STACKABLE", max: null },
       duration: TURN_DURATION,
     },
   };
@@ -793,5 +793,59 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
 
     const second = grantEffect(context, first.units, request, first.lastEventId);
     expect(second.appliedEffect.duration.timeLimitRemaining).toBe(3);
+  });
+});
+
+/**
+ * M7-012（Issue #266、R-EFF-05／`STACK_LIMIT_ON_STAT_MOD`）: `APPLY_STAT_MOD`の
+ * 重複上限（`stacking.max`）判定。`APPLY_MARKER.stack.max`が単一`MarkerState`の
+ * スタック数をclampするのに対し、`AppliedEffect`は同じ`EffectKindKey`の
+ * インスタンス数そのものが重複数になるため、上限到達時は付与自体を行わない
+ * （clampする先の可変スタック数を持たない）。
+ */
+describe("isStackLimitReached (R-EFF-05 重複上限)", () => {
+  function withEffects(target: BattleUnit, definitionIds: readonly string[]): BattleUnit {
+    return {
+      ...target,
+      appliedEffects: definitionIds.map((definitionId, index) => ({
+        effectInstanceId: `E_${index}` as never,
+        effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
+        kindKey: definitionId as never,
+        duplicate: true,
+        targetId: target.battleUnitId,
+        magnitude: 0.025,
+        duration: { definition: TURN_DURATION, timeLimitRemaining: 2 },
+        appliedTurnNumber: 1,
+      })),
+    };
+  }
+
+  it("UT-R-EFF-05-014: a null max means no limit, so the grant is never blocked", () => {
+    const target = withEffects(
+      unit("target-1"),
+      Array.from({ length: 20 }, () => "ACT_ATK_UP"),
+    );
+    expect(isStackLimitReached(target, EFFECT_ACTION_DEFINITION_ID, null)).toBe(false);
+  });
+
+  it("UT-R-EFF-05-015: the limit is reached exactly when the target already holds max instances of the same kindKey", () => {
+    const target = unit("target-1");
+    for (const [held, expected] of [
+      [0, false],
+      [1, false],
+      [2, true],
+      [3, true],
+    ] as const) {
+      const withHeld = withEffects(
+        target,
+        Array.from({ length: held }, () => "ACT_ATK_UP"),
+      );
+      expect(isStackLimitReached(withHeld, EFFECT_ACTION_DEFINITION_ID, 2)).toBe(expected);
+    }
+  });
+
+  it("UT-R-EFF-05-016: instances of a different kindKey do not count toward this definition's limit", () => {
+    const target = withEffects(unit("target-1"), ["ACT_OTHER_ATK_UP", "ACT_OTHER_ATK_UP"]);
+    expect(isStackLimitReached(target, EFFECT_ACTION_DEFINITION_ID, 1)).toBe(false);
   });
 });
