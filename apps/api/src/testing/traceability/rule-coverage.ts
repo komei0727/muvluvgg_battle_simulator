@@ -1974,6 +1974,36 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
 
+  // R-EFF-12: M7-014（Issue #268、`DYNAMIC_DURATION_ON_REAPPLY`）。
+  // `duration.reapply`（既存インスタンスの残り回数を見て初期残り回数を差し替える）
+  // のCatalog検証・汎用付与経路・R-STS-02との組み合わせ・未対応経路の拒否と、
+  // 実カタログ`ACT_SIENA_DIVA_PS1_STUN`の実ライフサイクル。
+  {
+    ruleId: "R-EFF-12",
+    testCaseIds: [
+      "UT-CAT-DUR-021",
+      "UT-CAT-DUR-022",
+      "UT-CAT-DUR-023",
+      "UT-CAT-DUR-024",
+      "UT-CAT-DUR-025",
+      "UT-CAT-DUR-026",
+      "UT-R-EFF-12-001",
+      "UT-R-EFF-12-002",
+      "UT-R-EFF-12-003",
+      "UT-R-EFF-12-004",
+      "UT-R-EFF-12-005",
+      "UT-R-EFF-12-006",
+      "UT-R-EFF-12-007",
+      "UT-CAT-IDX-090",
+      "UT-CAT-IDX-091",
+      "IT-CAP-DYNAMIC-DURATION-PROD-001",
+      "IT-CAP-DYNAMIC-DURATION-PROD-002",
+      "IT-CAP-DYNAMIC-DURATION-PROD-003",
+      "IT-CAP-DYNAMIC-DURATION-PROD-004",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+
   // END: 勝敗判定
   // R-END-01の2つの判定タイミング区分を#9で両方カバーした:
   // (1) ターン開始・終了などの行動外トップレベル解決スコープ完了後

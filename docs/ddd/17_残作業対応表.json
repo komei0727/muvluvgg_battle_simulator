@@ -25,14 +25,14 @@
   },
   "current": {
     "rules": {
-      "total": 112,
-      "completed": 88,
+      "total": 113,
+      "completed": 89,
       "remaining": 24
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 50
+      "incompleteConversionRows": 49
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -112,7 +112,7 @@
     { "taskId": "M7-011", "issue": 265, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-012", "issue": 266, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-013", "issue": 267, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-014", "issue": 268, "phase": 2, "milestone": "M7", "status": "OPEN" },
+    { "taskId": "M7-014", "issue": 268, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-015", "issue": 269, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-016", "issue": 270, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-017", "issue": 271, "phase": 2, "milestone": "M7", "status": "OPEN" },
@@ -174,12 +174,6 @@
       "theme": "LINKED_EFFECT_GROUP_CROSS_TYPE",
       "rowCount": 2,
       "taskId": "M7-013"
-    },
-    {
-      "milestone": "M7",
-      "theme": "DYNAMIC_DURATION_ON_REAPPLY",
-      "rowCount": 1,
-      "taskId": "M7-014"
     },
     { "milestone": "M7", "theme": "STACK_LIMIT_ON_STAT_MOD", "rowCount": 1, "taskId": "M7-012" },
     {

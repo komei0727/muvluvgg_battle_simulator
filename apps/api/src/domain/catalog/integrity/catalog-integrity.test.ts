@@ -3722,4 +3722,74 @@ describe("buildCatalogIndex", () => {
       }),
     ).toThrowError(/timeLimit.owner "EFFECT_SOURCE"/);
   });
+
+  it("UT-CAT-IDX-090 (R-EFF-12, M7-014 Issue #268): rejects an APPLY_MARKER with duration.reapply, since MarkerState grant does not resolve it", () => {
+    const defs = baseDefinitions();
+    // `marker-apply-service.ts`は`stack.policy`（ADD/REFRESH/KEEP_EXISTING/
+    // REPLACE、R-EFF-10）で再付与を解決し、`resolveDurationOnReapply`を通らない。
+    // 宣言できてしまうと`MarkerApplied`は成功するのに期間だけ差し替わらない
+    // silent partial implementationになるため、`UNSUPPORTED_MARKER_DURATION`と
+    // 同じくCatalogロード時点で拒否する。
+    const markerWithReapply = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_REAPPLY",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_TEST",
+          stack: { policy: "ADD", max: null },
+          duration: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            timeLimit: { unit: "ACTION", count: 1 },
+            reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 },
+          },
+        },
+        requiredCapabilities: ["CAP_MARKER"],
+      },
+      "effectAction",
+    );
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_REAPPLY")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, markerWithReapply],
+        capabilities: [capability("CAP_MARKER")],
+      }),
+    ).toThrowError(/duration\.reapply is not/);
+  });
+
+  it("UT-CAT-IDX-091 (R-EFF-12/R-STS-03, M7-014 Issue #268): rejects a FREEZE APPLY_STATUS with duration.reapply, since freeze re-grant is a no-op", () => {
+    const defs = baseDefinitions();
+    // R-STS-03「再付与時に期間延長や増幅率加算を行わない」により
+    // `grantFreezeStatus`は既存インスタンスをそのまま返す。`reapply`を宣言しても
+    // 一度も評価されないため、宣言自体を拒否する。
+    const freezeWithReapply = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_FREEZE_REAPPLY",
+        kind: "APPLY_STATUS",
+        payload: {
+          status: "FREEZE",
+          duration: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            timeLimit: { unit: "ACTION", count: 1 },
+            reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 },
+          },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_FREEZE_REAPPLY")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, freezeWithReapply],
+      }),
+    ).toThrowError(/duration\.reapply is not/);
+  });
 });

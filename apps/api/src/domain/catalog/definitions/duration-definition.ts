@@ -28,10 +28,20 @@ const DURATION_ALLOWED_KEYS = [
   "linkedEffectGroupId",
   "linkedEffectGroupRole",
   "counterUpdates",
+  "reapply",
 ] as const;
 const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner"] as const;
 const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount"] as const;
 const EXPIRATION_ALLOWED_KEYS = ["conditions"] as const;
+const REAPPLY_ALLOWED_KEYS = ["existingRemaining", "count"] as const;
+const REAPPLY_REMAINING_ALLOWED_KEYS = ["op", "value"] as const;
+
+/**
+ * `HAS_MARKER.countCondition`（`target-selector-definition.ts`）と同じ理由で
+ * 数値比較だけを許可する。`existingRemaining`は常に既存インスタンスの残り回数
+ * （整数）との比較であり、`IN`/`CONTAINS`は評価側に対応する意味を持たない。
+ */
+const REAPPLY_COMPARISON_OPERATORS = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"] as const;
 
 const DURATION_TIME_UNITS = ["ACTION", "TURN", "BATTLE", "HIT", "SKILL_USE"] as const;
 const DURATION_OWNERS = ["EFFECT_TARGET", "EFFECT_SOURCE", "BATTLE"] as const;
@@ -58,6 +68,29 @@ export interface DurationConsumption {
 
 export interface DurationExpiration {
   readonly conditions: readonly ConditionDefinition[];
+}
+
+/** `DurationReapply.existingRemaining`が使う数値比較演算子（`IN`/`CONTAINS`は含まない）。 */
+export type ReapplyComparisonOperator = (typeof REAPPLY_COMPARISON_OPERATORS)[number];
+
+/**
+ * R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 同じ効果が
+ * 既に対象へ残っている場合だけ、`timeLimit.count`の代わりに`count`を初期残り
+ * 回数として付与する。`unit`・`owner`は`timeLimit`のものを引き継ぐため、
+ * `existingRemaining`の比較は常に同じ期間単位どうしの比較になる（別単位を
+ * 宣言できてしまう余地を型で消す）。
+ *
+ * raw原文の例（`SKL_SIENA_DIVA_PS1`「コン・フオーコ」）:
+ * 「1行動の気絶を付与する。対象に1行動の気絶が付与されていた場合は、2行動の
+ * 気絶に上書きする」＝ `timeLimit: {ACTION, 1}` ＋
+ * `reapply: {existingRemaining: {op: EQ, value: 1}, count: 2}`。
+ */
+export interface DurationReapply {
+  readonly existingRemaining: {
+    readonly op: ReapplyComparisonOperator;
+    readonly value: number;
+  };
+  readonly count: number;
 }
 
 /**
@@ -88,6 +121,12 @@ export interface DurationDefinition {
    * 参照できる（`skill-definition.ts`の同名規則と同じ「参照は宣言必須」方針）。
    */
   readonly counterUpdates?: readonly RuntimeCounterUpdateDefinition[];
+  /**
+   * R-EFF-12（M7-014、Issue #268）: 再付与時に既存インスタンスの残り回数を見て
+   * 初期残り回数を差し替える。`timeLimit`が無い（即時効果）durationには宣言
+   * できない。
+   */
+  readonly reapply?: DurationReapply;
 }
 
 export interface DurationTimeLimitInput {
@@ -105,6 +144,11 @@ export interface DurationExpirationInput {
   readonly conditions: readonly ConditionDefinitionInput[];
 }
 
+export interface DurationReapplyInput {
+  readonly existingRemaining: { readonly op: string; readonly value: number };
+  readonly count: number;
+}
+
 export interface DurationDefinitionInput {
   readonly timeLimit?: DurationTimeLimitInput;
   readonly consumption?: DurationConsumptionInput;
@@ -113,6 +157,7 @@ export interface DurationDefinitionInput {
   readonly linkedEffectGroupId?: string | null;
   readonly linkedEffectGroupRole?: string;
   readonly counterUpdates?: readonly RuntimeCounterUpdateDefinitionInput[];
+  readonly reapply?: DurationReapplyInput;
 }
 
 function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationTimeLimit {
@@ -124,6 +169,26 @@ function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationT
   }
   assertEnumValue(input.owner, DURATION_OWNERS, `${path}.owner`);
   return { unit: input.unit, count: input.count, owner: input.owner };
+}
+
+function createReapply(
+  input: DurationReapplyInput,
+  timeLimit: DurationTimeLimit | undefined,
+  path: string,
+): DurationReapply {
+  assertKnownKeys(input, REAPPLY_ALLOWED_KEYS, path);
+  // 即時効果（`timeLimit`無し）に再付与時の残り回数を宣言しても、比較対象も
+  // 差し替え先も存在しない。`unit`/`owner`を`timeLimit`から引き継ぐという
+  // 設計自体が成立しないため、Catalogロード時点で拒否する。
+  if (timeLimit === undefined) {
+    throw new DomainValidationError(path, "requires timeLimit to be set");
+  }
+  const remaining = input.existingRemaining;
+  assertKnownKeys(remaining, REAPPLY_REMAINING_ALLOWED_KEYS, `${path}.existingRemaining`);
+  assertEnumValue(remaining.op, REAPPLY_COMPARISON_OPERATORS, `${path}.existingRemaining.op`);
+  assertInteger(remaining.value, `${path}.existingRemaining.value`, { min: 0 });
+  assertInteger(input.count, `${path}.count`, { min: 1 });
+  return { existingRemaining: { op: remaining.op, value: remaining.value }, count: input.count };
 }
 
 function createConsumption(input: DurationConsumptionInput, path: string): DurationConsumption {
@@ -233,6 +298,7 @@ export function createDurationDefinition(
     linkedEffectGroupId: string | null;
     linkedEffectGroupRole?: LinkedEffectGroupRole;
     counterUpdates?: readonly RuntimeCounterUpdateDefinition[];
+    reapply?: DurationReapply;
   } = { dispellable, linkedEffectGroupId };
   if (counterUpdates.length > 0) {
     result.counterUpdates = counterUpdates;
@@ -255,6 +321,9 @@ export function createDurationDefinition(
 
   if (input.timeLimit !== undefined) {
     result.timeLimit = createTimeLimit(input.timeLimit, `${path}.timeLimit`);
+  }
+  if (input.reapply !== undefined) {
+    result.reapply = createReapply(input.reapply, result.timeLimit, `${path}.reapply`);
   }
   if (input.consumption !== undefined) {
     result.consumption = createConsumption(input.consumption, `${path}.consumption`);

@@ -21,6 +21,7 @@ import type { DurationDefinition } from "../../catalog/definitions/duration-defi
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 import type { Side } from "../../shared/side.js";
+import { compareWithOperator } from "../skill/comparison-operator.js";
 import { effectCategoriesOf } from "./effect-category-classifier.js";
 
 export interface GrantEffectContext {
@@ -74,6 +75,91 @@ export interface GrantEffectResult {
 }
 
 /**
+ * 再付与時に`statusKind`単位で1インスタンスへ集約する状態異常。R-EFF-12の
+ * 「状態異常は状態種別で一致させる」が指すのは、その集約を実際に実装している
+ * 状態種別だけである — `grantStunStatus`のSTUN（R-STS-02「再付与時は残り回数が
+ * 長い方を一つだけ残す」）と`grantFreezeStatus`のFREEZE（R-STS-03「再付与時に
+ * 期間延長や増幅率加算を行わない」）の2つ。
+ *
+ * PR #277レビュー[P2]: 当初は`request.statusKind`の有無だけで判定しており、
+ * 集約を持たない`APPLY_STATUS`（STEALTH/EVASION/BLIND/DAMAGE_IMMUNITY/
+ * HIT_EVASION/GUARANTEED_HIT）まで状態種別で同一視していた。これらは
+ * `grantEffect`が常に新規インスタンスを追加する（R-EFF-01）ため、別の効果定義
+ * による同種ステータスが残っているだけで差し替えが誤発動してしまう。特にR-STS-04
+ * の暗闇は「複数の暗闇を付与順に独立して処理する」と規定されており、状態種別
+ * 単位の同一視自体が規則に反する。よって集約を持つ2種別だけを列挙する。
+ *
+ * 分類上の状態異常（`STATUS_AILMENT_KINDS`＝気絶・凍結・暗闇、R-STS-01）とは
+ * 意図的に別集合である — ここで問うのは解除・免疫の分類ではなく「再付与が
+ * 既存インスタンスへ集約されるか」であり、暗闇は集約されない。
+ *
+ * FREEZEは`reapply`の宣言自体をCatalogロード時点で拒否する
+ * （`UNSUPPORTED_DYNAMIC_DURATION_REAPPLY`、R-STS-03の再付与がno-opで一度も
+ * 評価されないため）ので、実際にこの集合が効くのはSTUNだけである。集約規則を
+ * 持つ状態種別を将来追加する場合は、その付与サービスと併せてここへ追加する。
+ */
+const STATUS_KINDS_AGGREGATED_ON_REAPPLY: ReadonlySet<StatusKind> = new Set<StatusKind>([
+  "STUN",
+  "FREEZE",
+]);
+
+/**
+ * R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: `duration.reapply`
+ * を宣言した効果は、同じ効果が既に対象へ残っている場合だけ初期残り回数を
+ * `reapply.count`へ差し替える（`unit`・`owner`は`timeLimit`のまま）。
+ * raw原文の例は`SKL_SIENA_DIVA_PS1`「1行動の気絶を付与する。対象に1行動の気絶が
+ * 付与されていた場合は、2行動の気絶に上書きする」。
+ *
+ * 「同じ効果」の一致判定は、その効果自身の再付与規則が持つ同一性に合わせる。
+ * 再付与が`statusKind`単位で1インスタンスへ集約される状態異常
+ * （`STATUS_KINDS_AGGREGATED_ON_REAPPLY`）だけは`statusKind`で一致させる —
+ * raw原文も付与元スキルを限定していない（「対象に1行動の気絶が付与されていた
+ * 場合」）ためである。それ以外はすべて`kindKey`（`EffectActionDefinitionId`
+ * そのもの）で一致させる。
+ *
+ * 一致インスタンスが複数ある場合は残り回数が最大のものと比較する。集約される
+ * 状態異常は常に1件だけだが、`kindKey`一致の重複あり効果は複数残り得るため、
+ * どれと比較するかを付与順のような不安定な基準に委ねない。
+ */
+export function resolveDurationOnReapply(
+  target: BattleUnit,
+  request: GrantEffectRequest,
+): DurationDefinition {
+  const duration = request.durationDefinition;
+  const reapply = duration.reapply;
+  const timeLimit = duration.timeLimit;
+  if (reapply === undefined || timeLimit === undefined) {
+    return duration;
+  }
+  const kindKey = effectKindKeyFromDefinitionId(request.definition.effectActionDefinitionId);
+  const aggregatedStatusKind =
+    request.statusKind !== undefined && STATUS_KINDS_AGGREGATED_ON_REAPPLY.has(request.statusKind)
+      ? request.statusKind
+      : undefined;
+  const matches = target.appliedEffects.filter((effect) =>
+    aggregatedStatusKind !== undefined
+      ? effect.statusKind === aggregatedStatusKind
+      : effect.kindKey === kindKey,
+  );
+  if (matches.length === 0) {
+    return duration;
+  }
+  const existingRemaining = Math.max(
+    ...matches.map((effect) => effect.duration.timeLimitRemaining ?? 0),
+  );
+  if (
+    !compareWithOperator(
+      existingRemaining,
+      reapply.existingRemaining.op,
+      reapply.existingRemaining.value,
+    )
+  ) {
+    return duration;
+  }
+  return { ...duration, timeLimit: { ...timeLimit, count: reapply.count } };
+}
+
+/**
  * R-EFF-01: 新しい`AppliedEffect`インスタンスを対象へ個別に付与し、`EffectApplied`
  * を発行する。同種の既存効果を上書き・統合せず、重複あり・重複なしのどちらも
  * 常に新規インスタンスとして追加する（重複なし効果群の最強選択・次点繰上げは
@@ -88,7 +174,11 @@ export function grantEffect(
   const target = requireUnit(units, request.targetId);
   const effectActionDefinitionId = request.definition.effectActionDefinitionId;
   const kindKey = effectKindKeyFromDefinitionId(effectActionDefinitionId);
-  const timeLimit = request.durationDefinition.timeLimit;
+  // R-EFF-12（M7-014、Issue #268）: 以降はCatalog上の`durationDefinition`ではなく
+  // 再付与解決後のものを正本にする（`AppliedEffect.duration.definition`にも
+  // これが入り、次回の再付与判定は解決後の残り回数と比較される）。
+  const durationDefinition = resolveDurationOnReapply(target, request);
+  const timeLimit = durationDefinition.timeLimit;
 
   const newEffect: AppliedEffect = {
     effectInstanceId: context.recorder.nextEffectInstanceId(),
@@ -106,7 +196,7 @@ export function grantEffect(
       ? { isAttackDamageBonus: request.isAttackDamageBonus }
       : {}),
     ...(request.healingLink !== undefined ? { healingLink: request.healingLink } : {}),
-    duration: buildInitialDurationState(request.durationDefinition, {
+    duration: buildInitialDurationState(durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,
       ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
@@ -169,7 +259,7 @@ export function grantEffect(
       categories: [...effectCategoriesOf(newEffect, request.definition)].sort(),
       magnitude: request.magnitude,
       ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
-      linkedEffectGroupId: request.durationDefinition.linkedEffectGroupId,
+      linkedEffectGroupId: durationDefinition.linkedEffectGroupId,
       ...(timeLimit !== undefined
         ? { durationUnit: timeLimit.unit, initialRemaining: timeLimit.count }
         : {}),
@@ -177,17 +267,17 @@ export function grantEffect(
         ? { remainingCount: newEffect.duration.timeLimitRemaining }
         : {}),
       ...(timeLimit?.owner !== undefined ? { durationOwner: timeLimit.owner } : {}),
-      ...(request.durationDefinition.consumption !== undefined
+      ...(durationDefinition.consumption !== undefined
         ? {
-            consumptionKind: request.durationDefinition.consumption.kind,
-            consumptionMaxCount: request.durationDefinition.consumption.maxCount,
+            consumptionKind: durationDefinition.consumption.kind,
+            consumptionMaxCount: durationDefinition.consumption.maxCount,
           }
         : {}),
       ...(newEffect.duration.consumptionRemaining !== undefined
         ? { consumptionRemaining: newEffect.duration.consumptionRemaining }
         : {}),
-      ...(request.durationDefinition.expiration !== undefined
-        ? { expirationConditions: request.durationDefinition.expiration.conditions }
+      ...(durationDefinition.expiration !== undefined
+        ? { expirationConditions: durationDefinition.expiration.conditions }
         : {}),
       ...(newEffect.duration.grantedActionId !== undefined
         ? { grantedActionId: newEffect.duration.grantedActionId }

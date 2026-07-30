@@ -281,4 +281,82 @@ describe("DurationDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-DUR-021 (R-EFF-12 M7-014 Issue #268): maps reapply with an existingRemaining comparison and an override count", () => {
+    const result = createDurationDefinition(
+      {
+        timeLimit: { unit: "ACTION", count: 1 },
+        reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 },
+      },
+      "duration",
+      undefined,
+    );
+    expect(result.reapply).toEqual({ existingRemaining: { op: "EQ", value: 1 }, count: 2 });
+  });
+
+  it("UT-CAT-DUR-022 (R-EFF-12 M7-014 Issue #268): rejects reapply without a base timeLimit", () => {
+    expect(() =>
+      createDurationDefinition(
+        { reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 } },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-023 (R-EFF-12 M7-014 Issue #268): rejects reapply.count below 1", () => {
+    expect(() =>
+      createDurationDefinition(
+        {
+          timeLimit: { unit: "ACTION", count: 1 },
+          reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 0 },
+        },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-024 (R-EFF-12 M7-014 Issue #268): rejects a non-numeric existingRemaining operator", () => {
+    expect(() =>
+      createDurationDefinition(
+        {
+          timeLimit: { unit: "ACTION", count: 1 },
+          reapply: { existingRemaining: { op: "CONTAINS", value: 1 }, count: 2 },
+        },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-025 (R-EFF-12 M7-014 Issue #268): rejects an unknown key inside reapply", () => {
+    expect(() =>
+      createDurationDefinition(
+        {
+          timeLimit: { unit: "ACTION", count: 1 },
+          reapply: {
+            existingRemaining: { op: "EQ", value: 1 },
+            count: 2,
+            unit: "TURN",
+          } as unknown as never,
+        },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-026 (R-EFF-12 M7-014 Issue #268): rejects a negative existingRemaining value", () => {
+    expect(() =>
+      createDurationDefinition(
+        {
+          timeLimit: { unit: "ACTION", count: 1 },
+          reapply: { existingRemaining: { op: "GTE", value: -1 }, count: 2 },
+        },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -1773,6 +1773,11 @@ duration:
   dispellable: true
   linkedEffectGroupId: null
   linkedEffectGroupRole: null
+  reapply:
+    existingRemaining:
+      op: EQ
+      value: 1
+    count: 2
 ```
 
 | フィールド              | 型          | 必須 | 制約                                                                                                              |
@@ -1783,6 +1788,7 @@ duration:
 | `dispellable`           | boolean     | —    | 省略時 true                                                                                                       |
 | `linkedEffectGroupId`   | string/null | —    | 親子連動                                                                                                          |
 | `linkedEffectGroupRole` | enum        | —    | `PARENT` / `CHILD`。`linkedEffectGroupId`必須。省略時は理由を問わずグループ全体へ対称にカスケードするレガシー扱い |
+| `reapply`               | object      | —    | 再付与時の動的期間（R-EFF-12）。`timeLimit`必須                                                                   |
 
 `linkedEffectGroupRole`（R-EFF-09）: `linkedEffectGroupId`が同じ`AppliedEffect`間のカスケード方向を明示する。`PARENT`が失効すると理由を問わず同グループ全体（他の`PARENT`・`CHILD`）へカスケードするが、`CHILD`が単独で失効してもカスケードしない（「子効果だけが消費条件で失効した場合、親効果は維持する」）。どちらのメンバーも`linkedEffectGroupRole`を持たないグループは従来どおり対称にカスケードする。
 
@@ -1816,6 +1822,37 @@ duration:
 | `LETHAL_DAMAGE`        | 致死ダメージを受けたとき |
 
 `consumption.maxCount` は消費条件の成立回数上限を表す。上限に到達した効果は、該当する EffectAction の解決後に失効する。
+
+### reapply
+
+R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、`M7-014`／Issue #268）: 同じ効果が付与対象に残っている場合だけ、初期残り回数を `timeLimit.count` の代わりに `reapply.count` にする。
+
+| フィールド                | 型      | 必須 | 制約                                                       |
+| ------------------------- | ------- | ---- | ---------------------------------------------------------- |
+| `existingRemaining.op`    | enum    | ✓    | `GT` / `GTE` / `LT` / `LTE` / `EQ` / `NEQ`（数値比較のみ） |
+| `existingRemaining.value` | integer | ✓    | 0以上。既存インスタンスの残り回数と比較する                |
+| `count`                   | integer | ✓    | 1以上。差し替え後の初期残り回数                            |
+
+期間単位（`timeLimit.unit`）とownerは差し替えない。`existingRemaining` の比較が常に同じ期間単位どうしになるようにするためであり、`timeLimit` を持たない（即時効果の）durationへ `reapply` を宣言することはできない。
+
+「同じ効果」は、再付与が状態種別単位で1インスタンスへ集約される状態異常（`STUN`＝R-STS-02、`FREEZE`＝R-STS-03）だけを状態種別で、それ以外はすべて `effectActionDefinitionId` で一致させる（前者は付与元スキルを問わない）。`BLIND`（R-STS-04により複数インスタンスを独立処理）・`STEALTH`・`EVASION`・`DAMAGE_IMMUNITY` 等は集約されないため後者に含まれる — 解除・免疫判定の分類（R-STS-01の `STATUS` カテゴリ＝気絶・凍結・暗闇）とは別の区別である。一致インスタンスが複数ある場合は残り回数が最大のものと比較する。
+
+`APPLY_MARKER`（再付与は `stack.policy` が解決する、R-EFF-10）と `APPLY_STATUS` の `status: FREEZE`（再付与は新しい付与内容を一切反映しない、R-STS-03）には宣言できない。宣言しても評価されないため、`catalog-integrity.ts` が `UNSUPPORTED_DYNAMIC_DURATION_REAPPLY` としてCatalogロード時点で拒否する。
+
+production例（`ACT_SIENA_DIVA_PS1_STUN`、raw「1行動の気絶を付与する。対象に1行動の気絶が付与されていた場合は、2行動の気絶に上書きする」）:
+
+```yaml
+duration:
+  timeLimit:
+    unit: ACTION
+    count: 1
+  dispellable: true
+  reapply:
+    existingRemaining:
+      op: EQ
+      value: 1
+    count: 2
+```
 
 ---
 
