@@ -94,7 +94,7 @@ export interface DurationReapply {
 }
 
 /**
- * R-EFF-09: 同じ`linkedEffectGroupId`を持つ`AppliedEffect`間のカスケード方向を
+ * R-EFF-09: 同じ`linkedEffectGroupId`を持つメンバー間のカスケード方向を
  * 明示する。`PARENT`が失効すると理由を問わず同グループ全体へカスケードする
  * （R-EFF-09「グループの親効果が失効・解除された場合、同じグループの子効果と
  * Markerも同時に失効させる」）が、`CHILD`が単独で失効してもカスケードしない
@@ -102,6 +102,13 @@ export interface DurationReapply {
  * どちらのメンバーも`linkedEffectGroupRole`を持たない（レガシー）グループでは
  * 従来どおり対称にカスケードする — グループ内のどのメンバーが失効理由を持つかを
  * `expireEffects`の呼び出し側の`ExpirationSeedReason`から推測しない。
+ *
+ * M7-013（Issue #267）: ロールは`AppliedEffect`同士のグループだけでなく、
+ * `AppliedEffect`と`MarkerState`が混在するグループ（R-EFF-09第1項）でも同じ
+ * 意味で使う — production Catalogの`TARISA_TROUBLEMAKER_PS1_LINK`／
+ * `AOI_ELEGANT_AS1_KOUYOU_LINK`はMarkerを`PARENT`、`AppliedEffect`を`CHILD`と
+ * 宣言し、「Markerの解除が効果へ連動し、効果単独の失効はMarkerへ連動しない」を
+ * 表す。
  */
 export type LinkedEffectGroupRole = (typeof LINKED_EFFECT_GROUP_ROLES)[number];
 

@@ -2,19 +2,21 @@ import { describe, expect, it } from "vitest";
 import { removeFreezeEffect } from "./freeze-removal-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createUnitDefinitionId,
   type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 
 const BASE_COMBAT_STATS: CombatStats = {
@@ -292,5 +294,57 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
     expect(updated.appliedEffects).toEqual([parentSibling]);
     expect(recorder.getEvents().some((ev) => ev.eventType === "EffectExpired")).toBe(false);
     expect(recorder.getEvents().filter((ev) => ev.eventType === "FreezeRemoved")).toHaveLength(1);
+  });
+
+  it("UT-R-EFF-09-018 (R-EFF-09 cross-type, M7-013): a freeze removal cascades to the MarkerState sharing its linkedEffectGroupId, emitting MarkerRemoved before the freeze's own FreezeRemoved", () => {
+    const statMod = statModDefinition("ACT_LINK");
+    const targetId = createBattleUnitId("target-1");
+    const freeze = freezeEffect("freeze-1", targetId, {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_A",
+      linkedEffectGroupRole: "PARENT",
+    });
+    const childMarker: MarkerState = {
+      markerInstanceId: createMarkerInstanceId("marker-child"),
+      markerId: createMarkerId("MARKER_CHILD"),
+      sourceId: targetId,
+      targetId,
+      stackCount: 1,
+      stackMax: null,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    };
+    const baseTarget = unit("target-1", [freeze]);
+    const target = { ...baseTarget, markerStates: [childMarker] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = removeFreezeEffect(
+      context(recorder, rootEventId),
+      [target],
+      target.battleUnitId,
+      freeze.effectInstanceId,
+      30,
+      new Map([[statMod.effectActionDefinitionId, statMod]]),
+      rootEventId,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.appliedEffects).toHaveLength(0);
+    expect(updated.markerStates).toHaveLength(0);
+
+    const relevantEvents = recorder
+      .getEvents()
+      .filter((ev) => ev.eventType === "MarkerRemoved" || ev.eventType === "FreezeRemoved");
+    expect(relevantEvents.map((ev) => ev.eventType)).toEqual(["MarkerRemoved", "FreezeRemoved"]);
+    expect(relevantEvents[0]!.payload).toMatchObject({
+      markerInstanceId: childMarker.markerInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
   });
 });

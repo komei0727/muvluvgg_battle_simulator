@@ -1805,7 +1805,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_MARKER" as never)).toBeDefined();
   });
 
-  it("UT-R-EFF-10-016 (R-EFF-10, PR #210再レビュー[P2]): accepts two APPLY_MARKER definitions sharing a linkedEffectGroupId (Marker-to-Marker cascade is implemented, marker-linked-group.ts)", () => {
+  it("UT-R-EFF-10-016 (R-EFF-10, PR #210再レビュー[P2]): accepts two APPLY_MARKER definitions sharing a linkedEffectGroupId (Marker-to-Marker cascade is implemented, linked-effect-group.ts)", () => {
     const defs = baseDefinitions();
     const withLinkedMarkers: CatalogDefinitions = {
       ...defs,
@@ -1829,7 +1829,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_MARKER_2" as never)).toBeDefined();
   });
 
-  it("UT-R-EFF-10-017 (R-EFF-10, PR #210再レビュー[P2]): rejects an APPLY_MARKER sharing a linkedEffectGroupId with a non-Marker EffectActionDefinition (AppliedEffect<->MarkerState cross-type cascade, R-EFF-09, is not yet implemented)", () => {
+  it("UT-R-EFF-10-017 (R-EFF-10/R-EFF-09 cross-type, M7-013): accepts an APPLY_MARKER sharing a linkedEffectGroupId with a non-Marker EffectActionDefinition now that the AppliedEffect<->MarkerState cascade is implemented", () => {
     const defs = baseDefinitions();
     const withCrossTypeGroup: CatalogDefinitions = {
       ...defs,
@@ -1847,17 +1847,10 @@ describe("buildCatalogIndex", () => {
       capabilities: [capability("CAP_MARKER"), capability("CAP_STAT_MOD")],
     };
 
-    try {
-      buildCatalogIndex(withCrossTypeGroup);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "UNSUPPORTED_MARKER_LINKED_GROUP" && v.targetId === "ACT_MARKER",
-        ),
-      ).toBe(true);
-    }
+    const index = buildCatalogIndex(withCrossTypeGroup);
+
+    expect(index.effectActions.get("ACT_MARKER" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_STAT_MOD" as never)).toBeDefined();
   });
 
   it("UT-R-EFF-10-018 (R-EFF-10, PR #210再レビュー[P2]): rejects an APPLY_MARKER with duration.consumption, duration.expiration, or a HIT/SKILL_USE timeLimit unit, since Marker consumption/special-expiration/per-hit-or-use decrement are not implemented (marker-duration.ts)", () => {

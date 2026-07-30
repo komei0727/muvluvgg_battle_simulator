@@ -1293,6 +1293,7 @@ function* resolveOneEffectActionApplication(
         application.targetBattleUnitId,
         effectAction.payload.markerId,
         effectAction.payload.count,
+        context.definitions.effectActions,
         starting.eventId,
       );
       box.units = reduction.units;
@@ -1309,6 +1310,7 @@ function* resolveOneEffectActionApplication(
             reason: "REMOVED",
           },
         ],
+        context.definitions.effectActions,
         starting.eventId,
       );
       box.units = removalResult.units;

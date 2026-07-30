@@ -275,6 +275,7 @@ export function recordActionCompletion(
         },
         working,
         markerSeeds,
+        context.effectActions,
         lastEventId,
       );
       working = markerRemoval.units;

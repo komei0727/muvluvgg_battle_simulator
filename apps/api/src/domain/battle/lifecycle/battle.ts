@@ -530,6 +530,7 @@ export function advanceBattle(
         },
         unitsAfterMarkerDuration,
         markerSeeds,
+        battle.definitions.effectActions,
         lastTurnEndEventId,
       );
       unitsAfterMarkerDuration = markerRemoval.units;

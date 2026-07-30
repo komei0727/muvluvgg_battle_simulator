@@ -8,16 +8,77 @@ import {
 } from "./marker-removal-service.js";
 import { decrementActionMarkerDurations } from "../model/marker-duration.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
-import { createActionId, type DomainEventId } from "../../shared/event-ids.js";
+import {
+  createActionId,
+  createEffectInstanceId,
+  type DomainEventId,
+} from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import { createMarkerId, createUnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createMarkerId,
+  createUnitDefinitionId,
+  type EffectActionDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
+
+/** Marker同士のカスケードしか起こさないケース向け（cross-typeの子`AppliedEffect`が存在しない）。 */
+const NO_EFFECT_ACTIONS: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition> = new Map();
+
+function statModDefinition(id: string): EffectActionDefinition {
+  return {
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    kind: "APPLY_STAT_MOD",
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0 },
+      stacking: { mode: "STACKABLE", max: null },
+      duration: {
+        dispellable: false,
+        linkedEffectGroupId: "GROUP_1",
+        linkedEffectGroupRole: "CHILD",
+      },
+    },
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+  };
+}
+
+/** 既定で`GROUP_1`の`CHILD`ロールを持つ`AppliedEffect`（cross-typeカスケードの被連動側）。 */
+function linkedEffect(
+  id: string,
+  target: BattleUnit,
+  definitionId: EffectActionDefinitionId,
+  overrides: Partial<AppliedEffect> = {},
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: target.battleUnitId,
+    targetId: target.battleUnitId,
+    magnitude: 0.025,
+    duration: {
+      definition: {
+        dispellable: false,
+        linkedEffectGroupId: "GROUP_1",
+        linkedEffectGroupRole: "CHILD",
+      },
+    },
+    appliedTurnNumber: 1,
+    ...overrides,
+  };
+}
 
 function unit(id: string): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
@@ -97,7 +158,13 @@ describe("removeMarkers", () => {
         reason: "REMOVED",
       },
     ];
-    const result = removeMarkers(context, granted.units, seeds, granted.lastEventId);
+    const result = removeMarkers(
+      context,
+      granted.units,
+      seeds,
+      NO_EFFECT_ACTIONS,
+      granted.lastEventId,
+    );
 
     const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(nextTarget.markerStates).toHaveLength(0);
@@ -138,7 +205,15 @@ describe("removeMarkers", () => {
     }
 
     const before = recorder.getEvents().length;
-    const result = reduceMarkerStack(context, units, target.battleUnitId, markerId, 3, lastEventId);
+    const result = reduceMarkerStack(
+      context,
+      units,
+      target.battleUnitId,
+      markerId,
+      3,
+      NO_EFFECT_ACTIONS,
+      lastEventId,
+    );
 
     expect(result.changed).toBe(true);
     const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
@@ -177,6 +252,7 @@ describe("removeMarkers", () => {
       target.battleUnitId,
       markerId,
       3,
+      NO_EFFECT_ACTIONS,
       granted.lastEventId,
     );
 
@@ -203,6 +279,7 @@ describe("removeMarkers", () => {
       target.battleUnitId,
       createMarkerId("MARKER_ABSENT"),
       2,
+      NO_EFFECT_ACTIONS,
       rootEventId,
     );
 
@@ -258,7 +335,13 @@ describe("removeMarkers", () => {
         reason: "REMOVED",
       },
     ];
-    const result = removeMarkers(context, grantedChild.units, seeds, grantedChild.lastEventId);
+    const result = removeMarkers(
+      context,
+      grantedChild.units,
+      seeds,
+      NO_EFFECT_ACTIONS,
+      grantedChild.lastEventId,
+    );
 
     const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(nextTarget.markerStates).toHaveLength(0);
@@ -316,10 +399,152 @@ describe("removeMarkers", () => {
         reason: "REMOVED",
       },
     ];
-    const result = removeMarkers(context, grantedChild.units, seeds, grantedChild.lastEventId);
+    const result = removeMarkers(
+      context,
+      grantedChild.units,
+      seeds,
+      NO_EFFECT_ACTIONS,
+      grantedChild.lastEventId,
+    );
 
     const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(nextTarget.markerStates.map((m) => m.markerId)).toEqual([parentMarkerId]);
+  });
+
+  it("UT-R-EFF-09-015 (R-EFF-09 cross-type, M7-013): removing a PARENT MarkerState cascades to the CHILD AppliedEffects sharing its linkedEffectGroupId, emitting EffectExpired before MarkerRemoved", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const parentMarkerId = createMarkerId("MARKER_PARENT");
+    const definition = statModDefinition("ACT_CHILD_ATK_UP");
+    const childEffects = [
+      linkedEffect("child-1", target, definition.effectActionDefinitionId),
+      linkedEffect("child-2", target, definition.effectActionDefinitionId),
+    ];
+
+    const granted = applyMarker(
+      context,
+      [source, { ...target, appliedEffects: childEffects }],
+      {
+        markerId: parentMarkerId,
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+      rootEventId,
+    );
+
+    const seeds: readonly MarkerRemovalSeed[] = [
+      {
+        battleUnitId: target.battleUnitId,
+        markerInstanceId: granted.markerState.markerInstanceId,
+        reason: "REMOVED",
+      },
+    ];
+    const before = recorder.getEvents().length;
+    const result = removeMarkers(
+      context,
+      granted.units,
+      seeds,
+      new Map([[definition.effectActionDefinitionId, definition]]),
+      granted.lastEventId,
+    );
+
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(nextTarget.appliedEffects).toHaveLength(0);
+    expect(nextTarget.markerStates).toHaveLength(0);
+
+    const events = recorder
+      .getEvents()
+      .slice(before)
+      .filter((e) => e.eventType === "EffectExpired" || e.eventType === "MarkerRemoved");
+    expect(events.map((e) => e.eventType)).toEqual([
+      "EffectExpired",
+      "EffectExpired",
+      "MarkerRemoved",
+    ]);
+    expect(events[0]!.payload).toMatchObject({
+      effectInstanceId: childEffects[0]!.effectInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      linkedEffectGroupId: "GROUP_1",
+      cascaded: true,
+    });
+    expect(events[1]!.payload).toMatchObject({
+      effectInstanceId: childEffects[1]!.effectInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(events[2]!.payload).toMatchObject({ reason: "REMOVED", cascaded: false });
+    // R-STA-04: the cascaded APPLY_STAT_MOD removals re-run the CombatStat recalculation.
+    expect(
+      recorder
+        .getEvents()
+        .slice(before)
+        .filter((e) => e.eventType === "CombatStatChanged").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("UT-R-EFF-09-016 (R-EFF-09 cross-type, M7-013): a CHILD MarkerState removed alone does not cascade to the PARENT AppliedEffect of the same group", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const definition = statModDefinition("ACT_PARENT_ATK_UP");
+    const parentEffect = linkedEffect("parent", target, definition.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+    });
+
+    const granted = applyMarker(
+      context,
+      [source, { ...target, appliedEffects: [parentEffect] }],
+      {
+        markerId: createMarkerId("MARKER_CHILD"),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_1",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+      rootEventId,
+    );
+
+    const result = removeMarkers(
+      context,
+      granted.units,
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          markerInstanceId: granted.markerState.markerInstanceId,
+          reason: "REMOVED",
+        },
+      ],
+      new Map([[definition.effectActionDefinitionId, definition]]),
+      granted.lastEventId,
+    );
+
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(nextTarget.markerStates).toHaveLength(0);
+    expect(nextTarget.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      parentEffect.effectInstanceId,
+    ]);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
   });
 });
 
@@ -373,7 +598,7 @@ describe("action-boundary Marker duration decrement + removal", () => {
         markerInstanceId: change.markerInstanceId,
         reason: "TIME_LIMIT",
       }));
-    const result = removeMarkers(context, decrement.units, seeds, afterEmit);
+    const result = removeMarkers(context, decrement.units, seeds, NO_EFFECT_ACTIONS, afterEmit);
 
     const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(nextTarget.markerStates).toHaveLength(0);

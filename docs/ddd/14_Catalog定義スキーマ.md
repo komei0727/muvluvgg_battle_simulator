@@ -1816,7 +1816,9 @@ duration:
 | `linkedEffectGroupRole` | enum        | —    | `PARENT` / `CHILD`。`linkedEffectGroupId`必須。省略時は理由を問わずグループ全体へ対称にカスケードするレガシー扱い |
 | `reapply`               | object      | —    | 再付与時の動的期間（R-EFF-12）。`timeLimit`必須                                                                   |
 
-`linkedEffectGroupRole`（R-EFF-09）: `linkedEffectGroupId`が同じ`AppliedEffect`間のカスケード方向を明示する。`PARENT`が失効すると理由を問わず同グループ全体（他の`PARENT`・`CHILD`）へカスケードするが、`CHILD`が単独で失効してもカスケードしない（「子効果だけが消費条件で失効した場合、親効果は維持する」）。どちらのメンバーも`linkedEffectGroupRole`を持たないグループは従来どおり対称にカスケードする。
+`linkedEffectGroupRole`（R-EFF-09）: `linkedEffectGroupId`が同じメンバー間のカスケード方向を明示する。`PARENT`が失効すると理由を問わず同グループ全体（他の`PARENT`・`CHILD`）へカスケードするが、`CHILD`が単独で失効してもカスケードしない（「子効果だけが消費条件で失効した場合、親効果は維持する」）。どちらのメンバーも`linkedEffectGroupRole`を持たないグループは従来どおり対称にカスケードする。
+
+同じ`linkedEffectGroupId`は`APPLY_MARKER`（`MarkerState`を生成する）と非Marker種別（`AppliedEffect`を生成する）が混在して宣言できる — R-EFF-09第1項が「同じ`linkedEffectGroupId`を持つ`AppliedEffect`**と**`MarkerState`は親子連動グループとして扱う」と規定するcross-typeグループで、`M7-013`（Issue #267）が実装した。それまでは`catalog-integrity.ts`が`UNSUPPORTED_MARKER_LINKED_GROUP`としてCatalogロード時点で拒否していた。production Catalogの例は`TARISA_TROUBLEMAKER_PS1_LINK`（Marker「負けん気」＝`PARENT`、`ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`＝`CHILD`）と`AOI_ELEGANT_AS1_KOUYOU_LINK`（Marker「高揚」＝`PARENT`、`ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN`／`ACT_AOI_ELEGANT_AS1_KOUYOU_DOT`＝`CHILD`）。`dispellable: false`とカスケードは両立する — `REMOVE_EFFECTS`では解除できない子効果も、親Markerの解除には連動して失効する。
 
 ### timeLimit.unit
 

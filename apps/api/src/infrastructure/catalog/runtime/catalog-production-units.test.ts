@@ -181,7 +181,16 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // stacking past 14 instances. Tarisa is not among the 10 promoted units here
     // and no `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
     // expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-30.7");
+    // Bumped again by M7-013 (Issue #267, LINKED_EFFECT_GROUP_CROSS_TYPE):
+    // `ACT_TARISA_TROUBLEMAKER_PS1_MARKER`/`ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU`
+    // now declare `linkedEffectGroupId` + `linkedEffectGroupRole: PARENT`, and
+    // the `AppliedEffect` children they gate (`..._PS1_ATK_UP`,
+    // `..._AS1_KOUYOU_CRIT_DOWN`, `..._AS1_KOUYOU_DOT`) declare the same group
+    // as `CHILD`, so removing the Marker now cascades to them (R-EFF-09 第1項).
+    // Neither Tarisa nor Aoi is among the 10 promoted units here and no
+    // `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
+    // expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-30.8");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

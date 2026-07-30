@@ -1,6 +1,7 @@
 import { effectCategoriesOf } from "./effect-category-classifier.js";
 import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
-import { collectLinkedGroupCascade } from "../model/applied-effect-linked-group.js";
+import { removeCascadedMembers, orderCascadedOnlyMembers } from "./linked-group-cascade.js";
+import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
@@ -131,7 +132,15 @@ export function removeEffects(
     .map((effect) => effect.effectInstanceId);
 
   const rootSeedSet = new Set(rootSeedIds);
-  const cascadeIds = collectLinkedGroupCascade(units, rootSeedSet);
+  const seedInstances = {
+    effectInstanceIds: rootSeedSet,
+    markerInstanceIds: NO_MARKER_INSTANCE_IDS,
+  };
+  // M7-013（Issue #267）: R-EFF-09第1項に従い、解除した親効果と同じ
+  // `linkedEffectGroupId`を持つ`MarkerState`も連動解除する（`MarkerRemoved`／
+  // `reason: LINKED_GROUP_CASCADE`）。カスケード分の`AppliedEffect`は解除起点に
+  // 連なるため`EffectRemoved`で表す（`EffectRemovalReason`）。
+  const cascade = collectLinkedGroupCascade(units, seedInstances);
   const reasonById = new Map<
     EffectInstanceId,
     { reason: EffectRemovalReason; cascaded: boolean }
@@ -139,24 +148,20 @@ export function removeEffects(
   for (const id of rootSeedIds) {
     reasonById.set(id, { reason: "REMOVED", cascaded: false });
   }
-  const cascadedOnlyOrdered: EffectInstanceId[] = [];
-  for (const unit of units) {
-    for (const effect of unit.appliedEffects) {
-      if (cascadeIds.has(effect.effectInstanceId) && !rootSeedSet.has(effect.effectInstanceId)) {
-        cascadedOnlyOrdered.push(effect.effectInstanceId);
-        reasonById.set(effect.effectInstanceId, {
-          reason: "LINKED_GROUP_CASCADE",
-          cascaded: true,
-        });
-      }
-    }
-  }
-  const orderedInstanceIds = [...cascadedOnlyOrdered, ...rootSeedIds];
+  const cascadedMembers = orderCascadedOnlyMembers(units, cascade, seedInstances);
+  const cascaded = removeCascadedMembers(
+    context,
+    units,
+    cascadedMembers,
+    effectActions,
+    parentEventId,
+    "EffectRemoved",
+  );
 
-  let working = units;
-  let lastEventId = parentEventId;
+  let working = cascaded.units;
+  let lastEventId = cascaded.lastEventId;
 
-  for (const effectInstanceId of orderedInstanceIds) {
+  for (const effectInstanceId of rootSeedIds) {
     const holder = working.find((unit) =>
       unit.appliedEffects.some((effect) => effect.effectInstanceId === effectInstanceId),
     );

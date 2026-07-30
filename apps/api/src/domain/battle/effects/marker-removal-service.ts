@@ -1,10 +1,12 @@
-import { collectMarkerLinkedGroupCascade } from "../model/marker-linked-group.js";
+import { removeCascadedMembers, orderCascadedOnlyMembers } from "./linked-group-cascade.js";
+import { NO_EFFECT_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { MarkerRemovalReason } from "../events/domain-event.js";
 import type { MarkerDurationChange } from "../model/marker-duration.js";
-import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { EffectActionDefinitionId, MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   ActionId,
   DomainEventId,
@@ -107,16 +109,23 @@ export interface RemoveMarkersResult {
 /**
  * R-EFF-10「Markerが0スタックになった場合は解除」/R-EFF-09: `seeds`（明示的な
  * `REMOVE_MARKER`、または時間制限が0になったMarker）から、同じ`linkedEffectGroupId`
- * を共有する未除去のMarkerを`collectMarkerLinkedGroupCascade`でカスケードし、
+ * を共有する未除去のメンバーを`collectLinkedGroupCascade`でカスケードし、
  * `MarkerRemoved`をインスタンスごとに発行してから対象を除去する。`duration-
  * expiry-service.ts`の`expireEffects`と同じ順序規約（子を先に、親を最後に）。
- * `AppliedEffect`をまたぐカスケード（R-EFF-09の完全な範囲）は
- * `marker-linked-group.ts`のコメントのとおり本Issueの対象外。
+ *
+ * M7-013（Issue #267）: カスケードはR-EFF-09第1項が規定するとおり`MarkerState`
+ * 同士に閉じず、同じ`linkedEffectGroupId`を持つ`AppliedEffect`（`EffectExpired`
+ * ／`reason: LINKED_GROUP_CASCADE`）も巻き込む — production Catalogの
+ * `MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT`（負けん気→攻撃力バフ）・
+ * `MARKER_AOI_ELEGANT_KOUYOU`（高揚→会心率デバフ／継続ダメージ）がこの向きを
+ * 使う。カスケードされた`AppliedEffect`の除去はCombatStat再計算を伴うため
+ * `effectActions`を要求する（`expireEffects`と同じ引数位置）。
  */
 export function removeMarkers(
   context: RemoveMarkersContext,
   units: readonly BattleUnit[],
   seeds: readonly MarkerRemovalSeed[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): RemoveMarkersResult {
   if (seeds.length === 0) {
@@ -124,7 +133,11 @@ export function removeMarkers(
   }
 
   const seedIds = new Set(seeds.map((seed) => seed.markerInstanceId));
-  const cascadeIds = collectMarkerLinkedGroupCascade(units, seedIds);
+  const seedInstances = {
+    effectInstanceIds: NO_EFFECT_INSTANCE_IDS,
+    markerInstanceIds: seedIds,
+  };
+  const cascade = collectLinkedGroupCascade(units, seedInstances);
   const reasonById = new Map<
     MarkerInstanceId,
     { reason: MarkerRemovalReason; cascaded: boolean }
@@ -133,24 +146,23 @@ export function removeMarkers(
     reasonById.set(seed.markerInstanceId, { reason: seed.reason, cascaded: false });
   }
 
-  const cascadedOnlyOrdered: MarkerInstanceId[] = [];
-  for (const unit of units) {
-    for (const marker of unit.markerStates) {
-      if (cascadeIds.has(marker.markerInstanceId) && !seedIds.has(marker.markerInstanceId)) {
-        cascadedOnlyOrdered.push(marker.markerInstanceId);
-        reasonById.set(marker.markerInstanceId, { reason: "LINKED_GROUP_CASCADE", cascaded: true });
-      }
-    }
-  }
-  const orderedInstanceIds = [
-    ...cascadedOnlyOrdered,
-    ...seeds.map((seed) => seed.markerInstanceId),
-  ];
+  // R-EFF-09「子効果を先に、最後に親効果を」: cascadeだけで巻き込まれた
+  // `AppliedEffect`／`MarkerState`を共有実装（`linked-group-cascade.ts`）が
+  // 先に処理し、そのあとで`seeds`自身のMarkerを除去する。
+  const cascadedMembers = orderCascadedOnlyMembers(units, cascade, seedInstances);
+  const cascaded = removeCascadedMembers(
+    context,
+    units,
+    cascadedMembers,
+    effectActions,
+    parentEventId,
+    "EffectExpired",
+  );
 
-  let working = units;
-  let lastEventId = parentEventId;
+  let working = cascaded.units;
+  let lastEventId = cascaded.lastEventId;
 
-  for (const markerInstanceId of orderedInstanceIds) {
+  for (const markerInstanceId of seeds.map((seed) => seed.markerInstanceId)) {
     const holder = working.find((unit) =>
       unit.markerStates.some((marker) => marker.markerInstanceId === markerInstanceId),
     );
@@ -234,6 +246,7 @@ export function reduceMarkerStack(
   targetId: BattleUnitId,
   markerId: MarkerId,
   count: number,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): ReduceMarkerStackResult {
   const target = requireUnit(units, targetId);
@@ -248,6 +261,7 @@ export function reduceMarkerStack(
       context,
       units,
       [{ battleUnitId: targetId, markerInstanceId: existing.markerInstanceId, reason: "REMOVED" }],
+      effectActions,
       parentEventId,
     );
     return { units: result.units, lastEventId: result.lastEventId, changed: true };

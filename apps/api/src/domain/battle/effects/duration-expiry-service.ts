@@ -1,5 +1,6 @@
 import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
-import { collectLinkedGroupCascade } from "../model/applied-effect-linked-group.js";
+import { removeCascadedMembers, orderCascadedOnlyMembers } from "./linked-group-cascade.js";
+import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
@@ -206,6 +207,10 @@ export function expireEffects(
   }
 
   const seedIds = new Set(seeds.map((seed) => seed.effectInstanceId));
+  const seedInstances = {
+    effectInstanceIds: seedIds,
+    markerInstanceIds: NO_MARKER_INSTANCE_IDS,
+  };
   // レビュー再指摘[P2]（PR #209）: Catalogの`linkedEffectGroupId`は同グループ
   // 所属を表すフラットな値で、それ単独では親子の役割を区別しない。以前は
   // 失効理由（`CONSUMPTION`かどうか）から役割を推測していたが、実production
@@ -215,11 +220,15 @@ export function expireEffects(
   // あり、理由ベースの推測では区別できなかった。加えて全メンバーへ対称に
   // カスケードすると、R-EFF-09「子効果だけが消費条件で失効した場合、親効果は
   // 維持する」という非対称な例外を満たせない。`collectLinkedGroupCascade`
-  // （`model/applied-effect-linked-group.ts`）が、Catalogが明示する
+  // （`model/linked-effect-group.ts`）が、Catalogが明示する
   // `linkedEffectGroupRole`（`PARENT`/`CHILD`）を見て、`CHILD`ロールの
   // seedからはカスケードを起こさない（`PARENT`ロール、またはロールを持たない
   // レガシーグループのseedは従来どおり理由を問わずカスケードする）。
-  const cascadeIds = collectLinkedGroupCascade(units, seedIds);
+  //
+  // M7-013（Issue #267）: R-EFF-09第1項に従い、カスケードは`AppliedEffect`同士に
+  // 閉じず、同じ`linkedEffectGroupId`を持つ`MarkerState`（`MarkerRemoved`／
+  // `reason: LINKED_GROUP_CASCADE`）も巻き込む。
+  const cascade = collectLinkedGroupCascade(units, seedInstances);
   const reasonById = new Map<
     EffectInstanceId,
     { reason: EffectExpirationReason; cascaded: boolean }
@@ -228,27 +237,20 @@ export function expireEffects(
     reasonById.set(seed.effectInstanceId, { reason: seed.reason, cascaded: false });
   }
 
-  const cascadedOnlyOrdered: EffectInstanceId[] = [];
-  for (const unit of units) {
-    for (const effect of unit.appliedEffects) {
-      if (cascadeIds.has(effect.effectInstanceId) && !seedIds.has(effect.effectInstanceId)) {
-        cascadedOnlyOrdered.push(effect.effectInstanceId);
-        reasonById.set(effect.effectInstanceId, {
-          reason: "LINKED_GROUP_CASCADE",
-          cascaded: true,
-        });
-      }
-    }
-  }
-  const orderedInstanceIds = [
-    ...cascadedOnlyOrdered,
-    ...seeds.map((seed) => seed.effectInstanceId),
-  ];
+  const cascadedMembers = orderCascadedOnlyMembers(units, cascade, seedInstances);
+  const cascaded = removeCascadedMembers(
+    context,
+    units,
+    cascadedMembers,
+    effectActions,
+    parentEventId,
+    "EffectExpired",
+  );
 
-  let working = units;
-  let lastEventId = parentEventId;
+  let working = cascaded.units;
+  let lastEventId = cascaded.lastEventId;
 
-  for (const effectInstanceId of orderedInstanceIds) {
+  for (const effectInstanceId of seeds.map((seed) => seed.effectInstanceId)) {
     const holder = working.find((unit) =>
       unit.appliedEffects.some((effect) => effect.effectInstanceId === effectInstanceId),
     );

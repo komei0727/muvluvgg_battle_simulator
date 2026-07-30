@@ -201,6 +201,7 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
             reason: "REMOVED",
           },
         ],
+        snapshot.effectActions,
         granted.lastEventId,
       );
       const nextTarget = removed.units.find((u) => u.battleUnitId === target.battleUnitId)!;

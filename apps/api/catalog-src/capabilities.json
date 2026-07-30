@@ -319,7 +319,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type）と、未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_LINKED_GROUP/UNSUPPORTED_MARKER_DURATION、PR #210レビュー[P2]・再レビュー[P2]）。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId`/`sourceSide`のexactly-one unionへ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）をDomain・StateDelta・独立Reducer復元まで通せるようにした。ただしAPI公開（`MarkerStateResponse.sourceUnitId`が必須）は別Capability `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）が担当する。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士・AppliedEffectとのcross-type）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_DURATION、PR #210再レビュー[P2]）。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type、R-EFF-09第1項）はM7-013（Issue #267）が実装し、それまでの拒否（UNSUPPORTED_MARKER_LINKED_GROUP、PR #210レビュー[P2]）を撤去した — production CatalogのTARISA_TROUBLEMAKER_PS1_LINK/AOI_ELEGANT_AS1_KOUYOU_LINKがMarkerをPARENT、AppliedEffectをCHILDとして使う。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId`/`sourceSide`のexactly-one unionへ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）をDomain・StateDelta・独立Reducer復元まで通せるようにした。ただしAPI公開（`MarkerStateResponse.sourceUnitId`が必須）は別Capability `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）が担当する。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -329,7 +329,10 @@
         "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI",
         "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI",
         "ACT_HARRIET_SAGE_AS1_MARKER",
-        "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS"
+        "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS",
+        "ACT_TARISA_TROUBLEMAKER_PS1_MARKER",
+        "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU",
+        "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU"
       ],
       "testCaseIds": [
         "UT-R-EFF-10-001",
@@ -354,7 +357,11 @@
         "IT-MARKER-PROD-002",
         "UT-R-EFF-10-019",
         "UT-R-EFF-10-020",
-        "IT-CAP-MEMORY-DYNAMIC-PROD-007"
+        "IT-CAP-MEMORY-DYNAMIC-PROD-007",
+        "IT-LINKED-GROUP-CROSS-TYPE-PROD-001",
+        "IT-LINKED-GROUP-CROSS-TYPE-PROD-002",
+        "IT-LINKED-GROUP-CROSS-TYPE-PROD-003",
+        "IT-LINKED-GROUP-CROSS-TYPE-PROD-004"
       ]
     }
   },

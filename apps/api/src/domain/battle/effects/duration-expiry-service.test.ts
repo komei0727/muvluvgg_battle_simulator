@@ -6,19 +6,22 @@ import {
 } from "./duration-expiry-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import { EventRecorder } from "../events/event-recorder.js";
+import { toMarkerSnapshot } from "../events/state-delta.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createUnitDefinitionId,
   type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 
 const BASE_COMBAT_STATS: CombatStats = {
@@ -339,6 +342,83 @@ describe("expireEffects", () => {
     expect(expiredEvents[0]!.payload).toMatchObject({
       effectInstanceId: continuousHeal.effectInstanceId,
       reason: "CONSUMPTION",
+      cascaded: false,
+    });
+  });
+
+  it("UT-R-EFF-09-014 (R-EFF-09 cross-type, M7-013): a PARENT AppliedEffect expiring cascades to the MarkerState sharing its linkedEffectGroupId, emitting MarkerRemoved before the parent's EffectExpired", () => {
+    const def = statModDefinition("ACT_LINK");
+    const target = unit("target-1");
+    const parent = effect("parent", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+    });
+    const childMarker: MarkerState = {
+      markerInstanceId: createMarkerInstanceId("marker-child"),
+      markerId: createMarkerId("MARKER_CHILD"),
+      sourceId: target.battleUnitId,
+      targetId: target.battleUnitId,
+      stackCount: 2,
+      stackMax: null,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    };
+    const withBoth = { ...target, appliedEffects: [parent], markerStates: [childMarker] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = expireEffects(
+      context(recorder, rootEventId),
+      [withBoth],
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          effectInstanceId: parent.effectInstanceId,
+          reason: "TIME_LIMIT",
+        },
+      ],
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.appliedEffects).toHaveLength(0);
+    expect(updated.markerStates).toHaveLength(0);
+
+    const cascadeEvents = recorder
+      .getEvents()
+      .filter((ev) => ev.eventType === "MarkerRemoved" || ev.eventType === "EffectExpired");
+    expect(cascadeEvents.map((ev) => ev.eventType)).toEqual(["MarkerRemoved", "EffectExpired"]);
+    expect(cascadeEvents[0]!.payload).toMatchObject({
+      markerInstanceId: childMarker.markerInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      linkedEffectGroupId: "GROUP_A",
+      cascaded: true,
+    });
+    expect(cascadeEvents[0]!.stateDelta).toEqual({
+      units: {
+        [target.battleUnitId]: {
+          markers: {
+            [childMarker.markerInstanceId]: {
+              before: toMarkerSnapshot(childMarker),
+              after: undefined,
+            },
+          },
+        },
+      },
+    });
+    expect(cascadeEvents[1]!.payload).toMatchObject({
+      effectInstanceId: parent.effectInstanceId,
+      reason: "TIME_LIMIT",
       cascaded: false,
     });
   });

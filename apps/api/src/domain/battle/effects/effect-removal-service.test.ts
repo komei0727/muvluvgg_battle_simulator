@@ -3,19 +3,21 @@ import { describe, expect, it } from "vitest";
 import { removeEffects } from "./effect-removal-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createUnitDefinitionId,
   type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 
 const BASE_COMBAT_STATS: CombatStats = {
@@ -325,6 +327,65 @@ describe("removeEffects (R-EFF-02)", () => {
     });
     expect(removed[1]).toMatchObject({
       effectInstanceId: createEffectInstanceId("parent"),
+      reason: "REMOVED",
+      cascaded: false,
+    });
+  });
+  it("UT-R-EFF-09-017 (R-EFF-09 cross-type, M7-013): removing a PARENT AppliedEffect cascades to the MarkerState sharing its linkedEffectGroupId (MarkerRemoved / LINKED_GROUP_CASCADE)", () => {
+    const buffDef = statModDefinition("ACT_ATK_UP");
+    const target = unit("target-1");
+    const parent = effect("parent", target.battleUnitId, buffDef.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "G1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+    });
+    const childMarker: MarkerState = {
+      markerInstanceId: createMarkerInstanceId("marker-child"),
+      markerId: createMarkerId("MARKER_CHILD"),
+      sourceId: target.battleUnitId,
+      targetId: target.battleUnitId,
+      stackCount: 1,
+      stackMax: null,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "G1",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    };
+    const withBoth = { ...target, appliedEffects: [parent], markerStates: [childMarker] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = removeEffects(
+      context(recorder, rootEventId),
+      [withBoth],
+      target.battleUnitId,
+      { categories: ["BUFF"] },
+      new Map([[buffDef.effectActionDefinitionId, buffDef]]),
+      rootEventId,
+    );
+
+    expect(result.units[0]!.appliedEffects).toHaveLength(0);
+    expect(result.units[0]!.markerStates).toHaveLength(0);
+    // R-EFF-02 #3「解除数」はcascade分を含めない — Markerも同様。
+    expect(result.removedCount).toBe(1);
+    const cascadeEvents = recorder
+      .getEvents()
+      .filter((ev) => ev.eventType === "MarkerRemoved" || ev.eventType === "EffectRemoved");
+    expect(cascadeEvents.map((ev) => ev.eventType)).toEqual(["MarkerRemoved", "EffectRemoved"]);
+    expect(cascadeEvents[0]!.payload).toMatchObject({
+      markerInstanceId: childMarker.markerInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      linkedEffectGroupId: "G1",
+      cascaded: true,
+    });
+    expect(cascadeEvents[1]!.payload).toMatchObject({
+      effectInstanceId: parent.effectInstanceId,
       reason: "REMOVED",
       cascaded: false,
     });
