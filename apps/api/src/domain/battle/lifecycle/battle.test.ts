@@ -830,7 +830,7 @@ describe("advanceBattle", () => {
     expect(types.indexOf("CombatStatChanged")).toBeLessThan(types.indexOf("TurnCompleted"));
   });
 
-  it("UT-BATTLE-017 (06_戦闘状態遷移.md TURN_ENDING #8, PR #280 再々レビュー[P1]): resolves a PS that triggers on TurnCompleted before the turn-end resolution scope is finalized", () => {
+  it("UT-BATTLE-018 (06_戦闘状態遷移.md TURN_ENDING #8, PR #280 再々レビュー[P1]): resolves a PS that triggers on TurnCompleted before the turn-end resolution scope is finalized", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_COMPLETED");
     const passiveSkill: SkillDefinition = {

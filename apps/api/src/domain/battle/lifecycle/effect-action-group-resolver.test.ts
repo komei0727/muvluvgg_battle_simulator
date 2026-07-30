@@ -5519,7 +5519,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(recorder.getEvents().some((e) => e.eventType === "MarkerApplied")).toBe(false);
   });
 
-  it("UT-R-EFF-07-011 (R-EFF-07 通知粒度, PR #280 再々レビュー[P1]): EffectConsumptionChanged reaches the PS/Memory chain before the next hit, even when the consumption does not reach 0 (no expiry step)", () => {
+  it("UT-R-EFF-07-014 (R-EFF-07 通知粒度, PR #280 再々レビュー[P1]): EffectConsumptionChanged reaches the PS/Memory chain before the next hit, even when the consumption does not reach 0 (no expiry step)", () => {
     const actor = unit("ACTOR", "ALLY");
     const attack = damageAction("ACT_TWO_HIT", 2);
     const consumptionDefId = createEffectActionDefinitionId("ACT_INCOMING_HIT_BUFF");
@@ -5608,6 +5608,83 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(consumptionIndexes[0]).toBeGreaterThan(damageIndexes[0]!);
     expect(consumptionIndexes[0]).toBeLessThan(damageIndexes[1]!);
     expect(consumptionIndexes[1]).toBeGreaterThan(damageIndexes[1]!);
+  });
+
+  it("UT-R-EFF-07-015 (R-EFF-07 通知粒度, PR #280 再々々レビュー[P1]): consumes matching instances one at a time — the first EffectConsumptionChanged watcher still sees the second instance untouched, and removing it there skips its consumption instead of crashing", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const attack = damageAction("ACT_ONE_HIT", 1);
+    const consumptionDefId = createEffectActionDefinitionId("ACT_INCOMING_HIT_BUFF");
+    const consumptionEffect = (id: string) => ({
+      effectInstanceId: createEffectInstanceId(id),
+      effectActionDefinitionId: consumptionDefId,
+      kindKey: effectKindKeyFromDefinitionId(consumptionDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ENEMY"),
+      targetId: createBattleUnitId("ENEMY"),
+      magnitude: 0,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: null,
+          consumption: { kind: "INCOMING_HIT" as const, maxCount: 3 },
+        },
+        consumptionRemaining: 3,
+      },
+      appliedTurnNumber: 0,
+    });
+    const first = consumptionEffect("incoming-hit-first");
+    const second = consumptionEffect("incoming-hit-second");
+    const enemy = unit("ENEMY", "ENEMY", { appliedEffects: [first, second] });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const { recorder, rootEventId } = seedRecorder();
+
+    let secondRemainingAtFirstEvent: number | undefined;
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      if (event.eventType !== "EffectConsumptionChanged") {
+        return units;
+      }
+      const holder = units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      secondRemainingAtFirstEvent = holder.appliedEffects.find(
+        (effect) => effect.effectInstanceId === second.effectInstanceId,
+      )?.duration.consumptionRemaining;
+      // 1件目の消費を契機に2件目を解除するPS連鎖を模す。
+      return units.map((u) =>
+        u.battleUnitId === enemy.battleUnitId
+          ? {
+              ...u,
+              appliedEffects: u.appliedEffects.filter(
+                (effect) => effect.effectInstanceId !== second.effectInstanceId,
+              ),
+            }
+          : u,
+      );
+    });
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId)],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    // 1件目のイベント観測時、2件目はまだ減算されていない（state変更もstep単位）。
+    expect(secondRemainingAtFirstEvent).toBe(3);
+    // 連鎖で消えた2件目の消費はskipされ、イベントも発行されない。
+    const consumptionEvents = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "EffectConsumptionChanged");
+    expect(consumptionEvents).toHaveLength(1);
+    expect(consumptionEvents[0]!.payload).toMatchObject({
+      effectInstanceId: first.effectInstanceId,
+      before: 3,
+      after: 2,
+    });
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects.map((effect) => effect.effectInstanceId)).toEqual([
+      first.effectInstanceId,
+    ]);
+    expect(target.appliedEffects[0]!.duration.consumptionRemaining).toBe(2);
   });
 
   it("UT-R-EFF-03-016 (maxBlocks + STATUS_BLOCKED self-consumption, production shape ACT_SENKA_CHRISTMAS_PS1_STUN_IMMUNITY): a STATUS immunity with maxBlocks=1 and duration.consumption STATUS_BLOCKED blocks a STUN attempt exactly once, then consumes/expires itself so a second attempt grants the STUN", () => {

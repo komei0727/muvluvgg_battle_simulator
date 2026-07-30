@@ -1805,7 +1805,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-07-007",
       "UT-R-EFF-07-008",
       "UT-R-EFF-07-009",
-      "UT-R-EFF-07-011",
+      "UT-R-EFF-07-014",
+      "UT-R-EFF-07-015",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
@@ -1882,9 +1883,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // PR #280再々レビュー[P1]/[P1]/[P2]: さらに3点。
   // (6) `EffectConsumptionChanged`自身も1イベント=1stepとして`yield`する
   // （残回数が0にならない消費では失効stepが無く、PS/Memory連鎖へ一度も
-  // 渡らなかった。`UT-R-EFF-07-011`が固定）。
+  // 渡らなかった。`UT-R-EFF-07-014`が固定）。再々々レビュー[P1]: state変更も
+  // step単位にした — 一括減算済みの`units`を起点にしていたため最初の観測者が
+  // 未発行分の減算まで見え、かつ先行連鎖が後続対象を解除した場合に
+  // 存在しない効果のsnapshot生成で実行時例外になり得た。対象の決定と適用を
+  // 分け、最新stateへ1インスタンスずつ再評価しながら適用する
+  // （`UT-R-EFF-07-015`が固定）。
   // (7) `TurnCompleted`も`turnEndPassiveRuntime`へ渡してから解決スコープを
-  // 終了する（`06_戦闘状態遷移.md` TURN_ENDING #8、`UT-BATTLE-017`が固定）。
+  // 終了する（`06_戦闘状態遷移.md` TURN_ENDING #8、`UT-BATTLE-018`が固定）。
   // (8) カスケード分とseed分を単一の除去バッチ（`orderGroupRemovals`／
   // `removeGroupMembersSteps`）へ統合し、メンバー固有の`reason`/`cascaded`を
   // 保ったまま一度だけrole順へ整列する — 二段で処理していたため非seedの

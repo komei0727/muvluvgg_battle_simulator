@@ -438,18 +438,36 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
 
   const consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]> =
     function* (ownerUnitId, kind, units, callParentEventId, effectInstanceId) {
-      const consumption = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
-      if (consumption.changes.length === 0) {
+      // PR #280再々レビュー[P1]／再々々レビュー[P1]: 消費対象の「決定」と「適用」を
+      // 分ける。`consumeEffectDurations`は一致する全インスタンスを一括で減算した
+      // `units`を返すため、それを起点にしてイベントだけ1件ずつ発行すると、最初の
+      // `EffectConsumptionChanged`を観測するPS/Memoryが未発行分まで減算済みの状態を
+      // 見てしまう（state変更がstep単位になっていない）。ここでは対象インスタンスの
+      // 決定にだけ使い、実際の減算・イベント発行・`yield`は最新の`workingUnits`へ
+      // 1インスタンスずつ行う（`consumeEffectDurations`の第4引数で対象を1件へ限定
+      // できる — R-HIT-04のNヒット回避自己消費と同じ機構）。
+      const planned = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
+      if (planned.changes.length === 0) {
         return { units, lastEventId: callParentEventId };
       }
-      // PR #280再々レビュー[P1]: `EffectConsumptionChanged`自身も1イベント=1stepとして
-      // `yield`する。以前は失効stepだけを`yield`していたため、残回数が0にならない
-      // 消費（`INCOMING_HIT`の残回数>1、遅延失効する`NEXT_*_ATTACK`など）では
-      // `EffectConsumptionChanged`がPS/Memory連鎖へ一度も渡らなかった。各stepの
-      // 直後にdriverが注入する`units`（連鎖後の状態）を次の消費・失効へ引き継ぐ。
-      let workingUnits = consumption.units;
+      let workingUnits = units;
       let lastEventId = callParentEventId;
-      for (const change of consumption.changes) {
+      const seeds: ExpirationSeed[] = [];
+      for (const plannedChange of planned.changes) {
+        // 先行stepのPS/Memory連鎖が後続の対象を解除・失効させている場合があるため、
+        // 最新の`workingUnits`に対して都度再評価する。既に消えていれば
+        // （`changes`が空）このインスタンスの消費自体を行わない。
+        const applied = consumeEffectDurations(
+          workingUnits,
+          ownerUnitId,
+          kind,
+          plannedChange.effectInstanceId,
+        );
+        const change = applied.changes[0];
+        if (change === undefined) {
+          continue;
+        }
+        workingUnits = applied.units;
         const stepEventsStart = eventContext.recorder.getEvents().length;
         lastEventId = emitEffectConsumptionChangedEvents(
           eventContext,
@@ -464,14 +482,14 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
         if (injected !== undefined) {
           workingUnits = injected;
         }
+        if (change.after === 0) {
+          seeds.push({
+            battleUnitId: change.battleUnitId,
+            effectInstanceId: change.effectInstanceId,
+            reason: "CONSUMPTION",
+          });
+        }
       }
-      const seeds: ExpirationSeed[] = consumption.changes
-        .filter((change) => change.after === 0)
-        .map((change) => ({
-          battleUnitId: change.battleUnitId,
-          effectInstanceId: change.effectInstanceId,
-          reason: "CONSUMPTION",
-        }));
       if (seeds.length === 0) {
         return { units: workingUnits, lastEventId };
       }
