@@ -2,6 +2,7 @@ import {
   notifyRemovalStep,
   removeCascadedMembers,
   orderCascadedOnlyMembers,
+  sortSeedsByCascadeOrder,
 } from "./linked-group-cascade.js";
 import { NO_EFFECT_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -176,7 +177,19 @@ export function removeMarkers(
   let working = cascaded.units;
   let lastEventId = cascaded.lastEventId;
 
-  for (const markerInstanceId of seeds.map((seed) => seed.markerInstanceId)) {
+  // PR #280再レビュー[P2]: seed同士でも「子を先に、親を最後に」を守る。
+  const orderedSeedIds = sortSeedsByCascadeOrder(seeds, (seed) => {
+    for (const unit of units) {
+      for (const marker of unit.markerStates) {
+        if (marker.markerInstanceId === seed.markerInstanceId) {
+          return marker.duration.definition.linkedEffectGroupRole;
+        }
+      }
+    }
+    return undefined;
+  }).map((seed) => seed.markerInstanceId);
+
+  for (const markerInstanceId of orderedSeedIds) {
     const stepEventsStart = context.recorder.getEvents().length;
     const holder = working.find((unit) =>
       unit.markerStates.some((marker) => marker.markerInstanceId === markerInstanceId),

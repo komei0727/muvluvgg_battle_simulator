@@ -1,8 +1,10 @@
 import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
 import {
   notifyRemovalStep,
-  removeCascadedMembers,
+  removeCascadedMembersSteps,
   orderCascadedOnlyMembers,
+  sortSeedsByCascadeOrder,
+  type LinkedGroupCascadeStep,
 } from "./linked-group-cascade.js";
 import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -12,6 +14,7 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectExpirationReason } from "../events/domain-event.js";
 import type { ConsumptionChange, EffectDurationChange } from "../model/applied-effect-duration.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { LinkedEffectGroupRole } from "../../catalog/definitions/duration-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   ActionId,
@@ -199,6 +202,24 @@ export function emitEffectConsumptionChangedEvents(
 }
 
 /**
+ * `units`が保持する`AppliedEffect`インスタンスの`linkedEffectGroupRole`を引く
+ * （見つからない場合はロールなし扱い）。seedのロール順整列に使う。
+ */
+function roleOfEffectInstance(
+  units: readonly BattleUnit[],
+  effectInstanceId: EffectInstanceId,
+): LinkedEffectGroupRole | undefined {
+  for (const unit of units) {
+    for (const effect of unit.appliedEffects) {
+      if (effect.effectInstanceId === effectInstanceId) {
+        return effect.duration.definition.linkedEffectGroupRole;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
  * `08_ドメインイベント.md`「EffectExpiredの順序」/R-EFF-09: 呼び出し側が直接
  * 失効を確定させた`seeds`（時間制限・消費・特殊失効のいずれか）から、同じ
  * `linkedEffectGroupId`を共有する子効果を`collectLinkedGroupCascade`で
@@ -209,13 +230,13 @@ export function emitEffectConsumptionChangedEvents(
  * reason: `EFFECT_EXPIRED`）を呼び、R-EFF-05の次点繰上げを自然に反映する。
  * `seeds`が空の場合は何もせず`parentEventId`をそのまま返す。
  */
-export function expireEffects(
+export function* expireEffectsSteps(
   context: ExpireEffectsContext,
   units: readonly BattleUnit[],
   seeds: readonly ExpirationSeed[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
-): ExpireEffectsResult {
+): Generator<LinkedGroupCascadeStep, ExpireEffectsResult, readonly BattleUnit[] | undefined> {
   if (seeds.length === 0) {
     return { units, lastEventId: parentEventId };
   }
@@ -252,7 +273,7 @@ export function expireEffects(
   }
 
   const cascadedMembers = orderCascadedOnlyMembers(units, cascade, seedInstances);
-  const cascaded = removeCascadedMembers(
+  const cascaded = yield* removeCascadedMembersSteps(
     context,
     units,
     cascadedMembers,
@@ -264,7 +285,13 @@ export function expireEffects(
   let working = cascaded.units;
   let lastEventId = cascaded.lastEventId;
 
-  for (const effectInstanceId of seeds.map((seed) => seed.effectInstanceId)) {
+  // PR #280再レビュー[P2]: seed同士でも「子を先に、親を最後に」を守る
+  // （同じグループのPARENTとCHILDが同時に0になり得る）。
+  const orderedSeedIds = sortSeedsByCascadeOrder(seeds, (seed) =>
+    roleOfEffectInstance(units, seed.effectInstanceId),
+  ).map((seed) => seed.effectInstanceId);
+
+  for (const effectInstanceId of orderedSeedIds) {
     const stepEventsStart = context.recorder.getEvents().length;
     const holder = working.find((unit) =>
       unit.appliedEffects.some((effect) => effect.effectInstanceId === effectInstanceId),
@@ -358,8 +385,37 @@ export function expireEffects(
 
     // PR #280レビュー[P1]: このseedの`EffectExpired`とそれに続く`CombatStatChanged`を、
     // 次のseedへ進む前にPS/Memory連鎖へ通知する（カスケード分と同じ粒度）。
+    // callbackを持たない呼び出し側（DAMAGE pipelineの消費失効など）向けに、
+    // 同じ粒度で`yield`もする（PR #280再レビュー[P1]）。
     working = notifyRemovalStep(context, working, stepEventsStart);
+    const injected = yield {
+      events: context.recorder.getEvents().slice(stepEventsStart),
+      units: working,
+    };
+    if (injected !== undefined) {
+      working = injected;
+    }
   }
 
   return { units: working, lastEventId };
+}
+
+/**
+ * `expireEffectsSteps`をステップ`yield`を使わずに完了まで駆動する薄いwrapper
+ * （`freeze-removal-service.ts`の`removeFreezeEffect`と同じ形）。ステップごとの
+ * PS/Memory通知は`context.onFactEventForPassiveChain`が担う。
+ */
+export function expireEffects(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  seeds: readonly ExpirationSeed[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): ExpireEffectsResult {
+  const steps = expireEffectsSteps(context, units, seeds, effectActions, parentEventId);
+  let step = steps.next();
+  while (!step.done) {
+    step = steps.next(step.value.units);
+  }
+  return step.value;
 }

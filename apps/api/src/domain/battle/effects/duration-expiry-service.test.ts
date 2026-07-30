@@ -423,6 +423,70 @@ describe("expireEffects", () => {
     });
   });
 
+  it("UT-R-EFF-09-021 (R-EFF-09 順序, PR #280 再レビュー[P2]): when a CHILD and its PARENT both become seeds in the same batch, the CHILD expires first regardless of the input order", () => {
+    const def = statModDefinition("ACT_LINK");
+    const target = unit("target-1");
+    // 同じグループのPARENTとCHILDが同一ターンで同時に0になり、`units`/`changes`上は
+    // PARENTが先に並ぶ（= seedsの入力順もPARENTが先）ケース。
+    const parent = effect("parent", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+    });
+    const child = effect("child", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    });
+    const withEffects = { ...target, appliedEffects: [parent, child] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = expireEffects(
+      context(recorder, rootEventId),
+      [withEffects],
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          effectInstanceId: parent.effectInstanceId,
+          reason: "TIME_LIMIT",
+        },
+        {
+          battleUnitId: target.battleUnitId,
+          effectInstanceId: child.effectInstanceId,
+          reason: "TIME_LIMIT",
+        },
+      ],
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.appliedEffects).toHaveLength(0);
+
+    const expiredEvents = recorder.getEvents().filter((ev) => ev.eventType === "EffectExpired");
+    expect(expiredEvents).toHaveLength(2);
+    // どちらも自身の時間制限で失効した`seeds`（cascade分ではない）ため、
+    // `reason`は`TIME_LIMIT`／`cascaded: false`のまま。順序だけがロール順になる。
+    expect(expiredEvents[0]!.payload).toMatchObject({
+      effectInstanceId: child.effectInstanceId,
+      reason: "TIME_LIMIT",
+      cascaded: false,
+    });
+    expect(expiredEvents[1]!.payload).toMatchObject({
+      effectInstanceId: parent.effectInstanceId,
+      reason: "TIME_LIMIT",
+      cascaded: false,
+    });
+  });
+
   it("UT-R-EFF-06-005 (R-EFF-05/06 next-best promotion): promotes the next-strongest non-stackable effect and emits EffectiveEffectChanged", () => {
     const def = statModDefinition("ACT_ATK_UP_UNIQUE");
     const target = unit("target-1");

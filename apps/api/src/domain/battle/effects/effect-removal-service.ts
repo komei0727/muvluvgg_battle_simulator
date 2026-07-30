@@ -4,6 +4,7 @@ import {
   notifyRemovalStep,
   removeCascadedMembers,
   orderCascadedOnlyMembers,
+  sortSeedsByCascadeOrder,
 } from "./linked-group-cascade.js";
 import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -141,9 +142,13 @@ export function removeEffects(
         candidate.duration.definition.linkedEffectGroupRole !== "CHILD",
     );
   };
-  const rootSeedIds = capped
-    .filter((effect) => !hasMatchedParent(effect))
-    .map((effect) => effect.effectInstanceId);
+  // PR #280再レビュー[P2]: root seed同士でも「子を先に、親を最後に」を守る
+  // （親を持たないCHILDと、ロールなし／PARENTのメンバーが同じ解除条件へ
+  // 同時に一致し得る）。
+  const rootSeedIds = sortSeedsByCascadeOrder(
+    capped.filter((effect) => !hasMatchedParent(effect)),
+    (effect) => effect.duration.definition.linkedEffectGroupRole,
+  ).map((effect) => effect.effectInstanceId);
 
   const rootSeedSet = new Set(rootSeedIds);
   const seedInstances = {

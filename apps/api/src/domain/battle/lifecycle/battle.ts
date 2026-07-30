@@ -19,7 +19,7 @@ import {
 } from "../effects/marker-removal-service.js";
 import type { DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { ResourceRecoveryEntry } from "../events/domain-event.js";
+import type { BattleDomainEvent, ResourceRecoveryEntry } from "../events/domain-event.js";
 import { beginNextTurn, createTurnState, isFinalTurn, type TurnState } from "./turn-state.js";
 import type { TurnLimit } from "../model/turn-limit.js";
 import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
@@ -399,23 +399,42 @@ export function advanceBattle(
     },
     [...actionPhase.allyUnits, ...actionPhase.enemyUnits],
   );
-  turnEndPassiveRuntime.onFactEvent(turnCompleting, [
+  let turnEndUnits: readonly BattleUnit[] = turnEndPassiveRuntime.onFactEvent(turnCompleting, [
     ...actionPhase.allyUnits,
     ...actionPhase.enemyUnits,
-  ]);
-  const { units: afterTurnEndPassives } = turnEndPassiveRuntime.finalizeResolutionScope(
-    turnCompleting.eventId,
-  );
-  const allyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter((unit) => unit.side === "ALLY");
-  const enemyUnitsAfterTurnEndPassives = afterTurnEndPassives.filter(
-    (unit) => unit.side === "ENEMY",
-  );
+  ]).units;
+
+  // PR #280再レビュー[P1]: TURN_ENDINGで発生する期間イベント
+  // （`CooldownReduced`／`EffectDurationReduced`／`EffectExpired`／`MarkerUpdated`／
+  // `MarkerRemoved`）も、`08_ドメインイベント.md`「各イベントに対応するPS/Memory
+  // 候補を直ちに解決する」に従い発生順に同じ`turnEndPassiveRuntime`へ通知する。
+  // 以前は`TurnCompleting`のPS連鎖だけを解決して即`finalizeResolutionScope`して
+  // おり、その後の期間イベントはPS/Memory候補が一度も解決されないまま最終state
+  // だけが観測されていた（R-EFF-09の4入口のうちTURN期間満了が抜けていた）。
+  // `finalizeResolutionScope`（`RuntimeCounterReset`）は、これら全ての連鎖が
+  // 終わった後（`06_戦闘状態遷移.md` TURN_ENDING #9「解決スコープ完了」）へ移す。
+  const notifyTurnEndEvents = (
+    units: readonly BattleUnit[],
+    eventsStart: number,
+  ): readonly BattleUnit[] => {
+    let working = units;
+    for (const event of recorder.getEvents().slice(eventsStart)) {
+      working = turnEndPassiveRuntime.onFactEvent(event, working).units;
+    }
+    return working;
+  };
+  /** 除去1件ごとの通知（R-EFF-09カスケードの各ステップ）用。 */
+  const turnEndPassiveChain = (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ): readonly BattleUnit[] => turnEndPassiveRuntime.onFactEvent(event, units).units;
 
   // R-SKL-04 TURN_ENDING #2-4: PS連鎖完了後の現在状態から対象を再取得し、
   // ターン単位クールタイムを全ユニットで1減らす（現在のターンで設定された
   // ものを除く）。
+  const cooldownEventsStart = recorder.getEvents().length;
   const cooldownDecrement = applyTurnCooldownDecrements(
-    afterTurnEndPassives,
+    turnEndUnits,
     nextTurnNumber,
     recorder,
     nextTurnNumber,
@@ -423,24 +442,17 @@ export function advanceBattle(
     turnCompleting.eventId,
     turnCompleting.eventId,
   );
-  const cooldownById = new Map(cooldownDecrement.units.map((u) => [u.battleUnitId, u]));
-  const progressedWithCooldown: Battle = {
-    ...progressed,
-    allyUnits: allyUnitsAfterTurnEndPassives.map((u) => cooldownById.get(u.battleUnitId) ?? u),
-    enemyUnits: enemyUnitsAfterTurnEndPassives.map((u) => cooldownById.get(u.battleUnitId) ?? u),
-  };
+  let lastTurnEndEventId = cooldownDecrement.lastEventId;
+  turnEndUnits = notifyTurnEndEvents(cooldownDecrement.units, cooldownEventsStart);
 
   // `06_戦闘状態遷移.md` TURN_ENDING #5-7 / R-EFF-06: クールタイム減算後、ターン
   // 単位効果の残り回数を全ユニットで1減らし、0になったインスタンスを即時に
   // 失効させる（重複なし最強効果の次点繰上げは`expireEffects`が
   // `recalculateCombatStats`経由で自然に反映する）。
-  const turnDurationDecrement = decrementTurnEffectDurations(
-    [...progressedWithCooldown.allyUnits, ...progressedWithCooldown.enemyUnits],
-    nextTurnNumber,
-  );
-  let lastTurnEndEventId = cooldownDecrement.lastEventId;
-  let unitsAfterEffectDuration = turnDurationDecrement.units;
+  const turnDurationDecrement = decrementTurnEffectDurations(turnEndUnits, nextTurnNumber);
+  turnEndUnits = turnDurationDecrement.units;
   if (turnDurationDecrement.changes.length > 0) {
+    const reducedEventsStart = recorder.getEvents().length;
     lastTurnEndEventId = emitEffectDurationReducedEvents(
       {
         recorder,
@@ -449,10 +461,11 @@ export function advanceBattle(
         resolutionScopeId: turnEndScope,
         rootEventId: turnCompleting.eventId,
       },
-      unitsAfterEffectDuration,
+      turnEndUnits,
       turnDurationDecrement.changes,
       lastTurnEndEventId,
     );
+    turnEndUnits = notifyTurnEndEvents(turnEndUnits, reducedEventsStart);
 
     const seeds: ExpirationSeed[] = turnDurationDecrement.changes
       .filter((change) => change.after === 0)
@@ -469,36 +482,25 @@ export function advanceBattle(
           cycleNumber: 0,
           resolutionScopeId: turnEndScope,
           rootEventId: turnCompleting.eventId,
+          onFactEventForPassiveChain: turnEndPassiveChain,
         },
-        unitsAfterEffectDuration,
+        turnEndUnits,
         seeds,
         battle.definitions.effectActions,
         lastTurnEndEventId,
       );
-      unitsAfterEffectDuration = expiry.units;
+      turnEndUnits = expiry.units;
       lastTurnEndEventId = expiry.lastEventId;
     }
   }
-  const effectDurationById = new Map(unitsAfterEffectDuration.map((u) => [u.battleUnitId, u]));
-  const progressedWithEffectDuration: Battle = {
-    ...progressedWithCooldown,
-    allyUnits: progressedWithCooldown.allyUnits.map(
-      (u) => effectDurationById.get(u.battleUnitId) ?? u,
-    ),
-    enemyUnits: progressedWithCooldown.enemyUnits.map(
-      (u) => effectDurationById.get(u.battleUnitId) ?? u,
-    ),
-  };
 
   // R-EFF-10: `MarkerState`も同じ`DurationDefinition`を再利用するため、
   // ターン単位effect減算の直後、同じ`turnEndScope`でターン単位Markerも
   // 全ユニットで1減らす。
-  const turnMarkerDurationDecrement = decrementTurnMarkerDurations(
-    [...progressedWithEffectDuration.allyUnits, ...progressedWithEffectDuration.enemyUnits],
-    nextTurnNumber,
-  );
-  let unitsAfterMarkerDuration = turnMarkerDurationDecrement.units;
+  const turnMarkerDurationDecrement = decrementTurnMarkerDurations(turnEndUnits, nextTurnNumber);
+  turnEndUnits = turnMarkerDurationDecrement.units;
   if (turnMarkerDurationDecrement.changes.length > 0) {
+    const markerUpdatedEventsStart = recorder.getEvents().length;
     lastTurnEndEventId = emitMarkerDurationChangedEvents(
       {
         recorder,
@@ -507,10 +509,11 @@ export function advanceBattle(
         resolutionScopeId: turnEndScope,
         rootEventId: turnCompleting.eventId,
       },
-      unitsAfterMarkerDuration,
+      turnEndUnits,
       turnMarkerDurationDecrement.changes,
       lastTurnEndEventId,
     );
+    turnEndUnits = notifyTurnEndEvents(turnEndUnits, markerUpdatedEventsStart);
 
     const markerSeeds: MarkerRemovalSeed[] = turnMarkerDurationDecrement.changes
       .filter((change) => change.after === 0)
@@ -527,25 +530,31 @@ export function advanceBattle(
           cycleNumber: 0,
           resolutionScopeId: turnEndScope,
           rootEventId: turnCompleting.eventId,
+          onFactEventForPassiveChain: turnEndPassiveChain,
         },
-        unitsAfterMarkerDuration,
+        turnEndUnits,
         markerSeeds,
         battle.definitions.effectActions,
         lastTurnEndEventId,
       );
-      unitsAfterMarkerDuration = markerRemoval.units;
+      turnEndUnits = markerRemoval.units;
       lastTurnEndEventId = markerRemoval.lastEventId;
     }
   }
-  const markerDurationById = new Map(unitsAfterMarkerDuration.map((u) => [u.battleUnitId, u]));
+
+  // `06_戦闘状態遷移.md` TURN_ENDING #9「解決スコープ完了」: 期間イベントの
+  // PS/Memory連鎖まで解決し終えてからスコープを終了する（`RuntimeCounterReset`）。
+  // 減算だけでイベントを伴わない変化（残り回数が0にならなかったMarker等）は
+  // runtimeへ届いていないため、最新の`turnEndUnits`を明示的に同期して渡す。
+  const { units: afterTurnEndScope } = turnEndPassiveRuntime.finalizeResolutionScope(
+    lastTurnEndEventId,
+    turnEndUnits,
+  );
+
   const progressedWithMarkerDuration: Battle = {
-    ...progressedWithEffectDuration,
-    allyUnits: progressedWithEffectDuration.allyUnits.map(
-      (u) => markerDurationById.get(u.battleUnitId) ?? u,
-    ),
-    enemyUnits: progressedWithEffectDuration.enemyUnits.map(
-      (u) => markerDurationById.get(u.battleUnitId) ?? u,
-    ),
+    ...progressed,
+    allyUnits: afterTurnEndScope.filter((unit) => unit.side === "ALLY"),
+    enemyUnits: afterTurnEndScope.filter((unit) => unit.side === "ENEMY"),
   };
 
   recorder.record({

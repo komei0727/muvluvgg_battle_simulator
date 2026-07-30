@@ -1862,6 +1862,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `PARENT`）を第1キーに変更した（スキーマが禁じていない「同一グループに複数の
   // `PARENT`」で、カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た。
   // `UT-R-EFF-09-019`が固定）。
+  //
+  // PR #280再々レビュー[P1]/[P1]/[P2]: 通知粒度とロール順の適用範囲を3点広げた。
+  // (3) DAMAGE pipelineの消費失効（`DamageEventContext.consumeEffectDuration`／
+  // `finalizeConsumedEffectDurations`）も凍結解除と同じステップ`yield`型の
+  // generatorへ変え（`expireEffectsSteps`）、callbackがあればステップごとに
+  // 同期通知、無ければ1ステップずつyieldしてdriverの更新stateを次の除去へ
+  // 注入するようにした（`UT-R-EFF-09-022`が固定）。
+  // (4) TURN_ENDINGの期間イベント（`EffectDurationReduced`/`EffectExpired`/
+  // `MarkerUpdated`/`MarkerRemoved`）も`turnEndPassiveRuntime`へ発生順に通知し、
+  // `finalizeResolutionScope`をその後（`06_戦闘状態遷移.md` TURN_ENDING #9）へ
+  // 移した（`UT-R-EFF-09-023`が固定）。それまでTURN期間満了のカスケードは
+  // PS/Memory候補が一度も解決されなかった。
+  // (5) ロール順の整列をカスケード対象だけでなく同じ除去バッチの`seeds`へも
+  // 適用した（同じグループの`PARENT`と`CHILD`が同時に0になり得る。
+  // `UT-R-EFF-09-021`が固定）。
   {
     ruleId: "R-EFF-09",
     testCaseIds: [
@@ -1885,6 +1900,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-018",
       "UT-R-EFF-09-019",
       "UT-R-EFF-09-020",
+      "UT-R-EFF-09-021",
+      "UT-R-EFF-09-022",
+      "UT-R-EFF-09-023",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-004",

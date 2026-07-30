@@ -21,6 +21,7 @@ import { recalculateCombatStats } from "../effects/combat-stat-recalculation-ser
 import {
   emitEffectConsumptionChangedEvents,
   expireEffects,
+  expireEffectsSteps,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
 import { consumeEffectDurations } from "../model/applied-effect-duration.js";
@@ -421,6 +422,10 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
   >;
 } {
   const pendingExpirySeeds: ExpirationSeed[] = [];
+  // PR #280再レビュー[P1]: 失効はステップを`yield`する`expireEffectsSteps`へ委譲し、
+  // 通知（またはyield）の粒度は`damage-application-service.ts`の
+  // `driveRemovalSteps`が決める。`onFactEventForPassiveChain`をこの`eventContext`
+  // へ渡すと、そのstep通知とDAMAGE側のstep駆動が二重になるため渡さない。
   const eventContext = {
     recorder: context.recorder,
     turnNumber: context.turnNumber,
@@ -431,55 +436,50 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
     rootEventId: context.rootEventId,
   };
 
-  const consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]> = (
-    ownerUnitId,
-    kind,
-    units,
-    callParentEventId,
-    effectInstanceId,
-  ) => {
-    const consumption = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
-    if (consumption.changes.length === 0) {
-      return { units, lastEventId: callParentEventId };
-    }
-    const lastEventId = emitEffectConsumptionChangedEvents(
-      eventContext,
-      consumption.units,
-      consumption.changes,
-      callParentEventId,
-    );
-    const seeds: ExpirationSeed[] = consumption.changes
-      .filter((change) => change.after === 0)
-      .map((change) => ({
-        battleUnitId: change.battleUnitId,
-        effectInstanceId: change.effectInstanceId,
-        reason: "CONSUMPTION",
-      }));
-    if (seeds.length === 0) {
-      return { units: consumption.units, lastEventId };
-    }
-    if (DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind)) {
-      pendingExpirySeeds.push(...seeds);
-      return { units: consumption.units, lastEventId };
-    }
-    const expiry = expireEffects(
-      eventContext,
-      consumption.units,
-      seeds,
-      context.definitions.effectActions,
-      lastEventId,
-    );
-    return { units: expiry.units, lastEventId: expiry.lastEventId };
-  };
+  const consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]> =
+    function* (ownerUnitId, kind, units, callParentEventId, effectInstanceId) {
+      const consumption = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
+      if (consumption.changes.length === 0) {
+        return { units, lastEventId: callParentEventId };
+      }
+      const lastEventId = emitEffectConsumptionChangedEvents(
+        eventContext,
+        consumption.units,
+        consumption.changes,
+        callParentEventId,
+      );
+      const seeds: ExpirationSeed[] = consumption.changes
+        .filter((change) => change.after === 0)
+        .map((change) => ({
+          battleUnitId: change.battleUnitId,
+          effectInstanceId: change.effectInstanceId,
+          reason: "CONSUMPTION",
+        }));
+      if (seeds.length === 0) {
+        return { units: consumption.units, lastEventId };
+      }
+      if (DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind)) {
+        pendingExpirySeeds.push(...seeds);
+        return { units: consumption.units, lastEventId };
+      }
+      const expiry = yield* expireEffectsSteps(
+        eventContext,
+        consumption.units,
+        seeds,
+        context.definitions.effectActions,
+        lastEventId,
+      );
+      return { units: expiry.units, lastEventId: expiry.lastEventId };
+    };
 
   const finalizeConsumedEffectDurations: NonNullable<
     DamageEventContext["finalizeConsumedEffectDurations"]
-  > = (units, parentEventId) => {
+  > = function* (units, parentEventId) {
     if (pendingExpirySeeds.length === 0) {
       return { units, lastEventId: parentEventId };
     }
     const seeds = pendingExpirySeeds.splice(0, pendingExpirySeeds.length);
-    const expiry = expireEffects(
+    const expiry = yield* expireEffectsSteps(
       eventContext,
       units,
       seeds,
@@ -1005,18 +1005,42 @@ function* resolveOneEffectActionApplication(
       // 対象が保持するSTATUS_BLOCKED消費条件付き効果を消費する
       // （`duration-expiry-service.ts`と同じ「消費0で即時失効」規約）。
       const { consumeEffectDuration } = buildConsumeEffectDurationHooks(context);
-      const consumption = consumeEffectDuration(
+      // PR #280再レビュー[P1]: 消費失効はステップ単位のgeneratorになったため、
+      // ここでも1ステップずつ駆動する — callbackがあればそのステップのイベントを
+      // その場で通知し、無ければ`EFFECT_RESOLVED`としてyieldしてdriverへ委ねる。
+      const consumptionGen = consumeEffectDuration(
         application.targetBattleUnitId,
         "STATUS_BLOCKED",
         box.units,
         rejection.lastEventId,
       );
-      box.units = consumption.units;
+      // 消費より前に記録済みのイベント（`EffectActionStarting`/
+      // `EffectApplicationRejected`）は状態変更前に通知しておく。
       if (context.onFactEventForPassiveChain !== undefined) {
         for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
           box.units = context.onFactEventForPassiveChain(event, box.units);
         }
+        innerEventsStart = context.recorder.getEvents().length;
       }
+      let consumptionStep = consumptionGen.next();
+      while (!consumptionStep.done) {
+        box.units = consumptionStep.value.units;
+        if (context.onFactEventForPassiveChain !== undefined) {
+          for (const event of consumptionStep.value.events) {
+            box.units = context.onFactEventForPassiveChain(event, box.units);
+          }
+          innerEventsStart = context.recorder.getEvents().length;
+        } else {
+          yield {
+            kind: "EFFECT_RESOLVED",
+            events: context.recorder.getEvents().slice(innerEventsStart),
+          };
+          innerEventsStart = context.recorder.getEvents().length;
+        }
+        consumptionStep = consumptionGen.next(box.units);
+      }
+      const consumption = consumptionStep.value;
+      box.units = consumption.units;
       resolvedCount = application.hits.length;
       interruptedCount = 0;
       effectLastEventId = consumption.lastEventId;

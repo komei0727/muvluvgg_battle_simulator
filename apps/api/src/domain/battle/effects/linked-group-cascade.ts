@@ -55,9 +55,10 @@ export interface LinkedGroupCascadeContext {
  * 同じ粒度・同じ手順で通知するための共有ヘルパー。
  *
  * callbackを持たない経路（PS自身のEffectSequence解決が`passive-activation-service.ts`
- * から委譲される経路、およびダメージpipeline内の消費失効フック）は、
- * `freeze-removal-service.ts`の`removeFreezeEffectSteps`と同じくイベント列を
- * driverへ渡す設計であり、そちらの粒度はdriver側が決める。
+ * から委譲される経路）は、`freeze-removal-service.ts`の`removeFreezeEffectSteps`と
+ * 同じく`expireEffectsSteps`が`yield`するステップをdriverへ渡す設計であり、
+ * そちらの粒度はdriver側が決める（PR #280再レビュー[P1]でダメージpipelineの
+ * 消費失効フックもこのステップ型へ移行した）。
  */
 export function notifyRemovalStep(
   context: LinkedGroupCascadeContext,
@@ -114,6 +115,31 @@ function cascadeOrderTier(role: LinkedEffectGroupRole | undefined): number {
     return 0;
   }
   return role === "PARENT" ? 2 : 1;
+}
+
+/**
+ * R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」を、
+ * 同じ除去バッチのseed列（呼び出し側が渡した`ExpirationSeed`／`MarkerRemovalSeed`
+ * ／解除対象`AppliedEffect`）へも適用する。
+ *
+ * PR #280再レビュー[P2]: ロール順の整列を`orderCascadedOnlyMembers`（カスケード分）
+ * だけに適用していたため、同じグループの`PARENT`と`CHILD`が同一ターン／行動で
+ * 同時に0になった場合（どちらもseedになり、カスケード分には含まれない）、
+ * `units`／`changes`の並び次第で`PARENT`の失効イベントが先に発行され得た。
+ *
+ * 安定ソートのため、同じtier内では呼び出し側が渡した順（減算・消費が検出した順）が
+ * そのまま保たれる。
+ */
+export function sortSeedsByCascadeOrder<T>(
+  seeds: readonly T[],
+  roleOf: (seed: T) => LinkedEffectGroupRole | undefined,
+): readonly T[] {
+  if (seeds.length < 2) {
+    return seeds;
+  }
+  return [...seeds].sort(
+    (left, right) => cascadeOrderTier(roleOf(left)) - cascadeOrderTier(roleOf(right)),
+  );
 }
 
 /**

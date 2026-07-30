@@ -13,11 +13,12 @@ import {
   type StatusEffectDetails,
 } from "../model/applied-effect.js";
 import { consumeEffectDurations } from "../model/applied-effect-duration.js";
+import type { MarkerState } from "../model/marker-state.js";
 import {
   emitEffectConsumptionChangedEvents,
-  expireEffects,
+  expireEffectsSteps,
 } from "../effects/duration-expiry-service.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
@@ -25,6 +26,7 @@ import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createSkillDefinitionId,
   createUnitDefinitionId,
   type EffectActionDefinitionId,
@@ -314,7 +316,7 @@ function testConsumeEffectDuration(
   recorder: EventRecorder,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
 ): NonNullable<DamageEventContext["consumeEffectDuration"]> {
-  return (ownerUnitId, kind, units, parentEventId, effectInstanceId) => {
+  return function* (ownerUnitId, kind, units, parentEventId, effectInstanceId) {
     const consumption = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
     if (consumption.changes.length === 0) {
       return { units, lastEventId: parentEventId };
@@ -341,7 +343,7 @@ function testConsumeEffectDuration(
       }));
     let resultUnits = consumption.units;
     if (seeds.length > 0) {
-      const expiry = expireEffects(
+      const expiry = yield* expireEffectsSteps(
         eventContext,
         consumption.units,
         seeds,
@@ -839,6 +841,121 @@ describe("applyDamageAction", () => {
       incomingHitEffect.effectInstanceId,
     );
     expect(updatedTarget.appliedEffects[0]!.duration.consumptionRemaining).toBe(1);
+  });
+
+  it("UT-R-EFF-09-022 (R-EFF-09 cross-type 通知順序, PR #280 再レビュー[P1]): a PARENT effect expiring from an INCOMING_HIT consumption notifies each cascade step in order, so a watcher of the CHILD's EffectExpired still observes the PARENT and its Marker", () => {
+    const parentId = createBattleUnitId("TARGET");
+    // 消費で0になるPARENT効果と、同じグループのCHILD効果／CHILD Marker。
+    const parentEffect: AppliedEffect = {
+      ...consumptionEffect("eff-parent", parentId, "INCOMING_HIT", 1),
+      duration: {
+        definition: {
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "PARENT",
+        },
+        consumptionRemaining: 1,
+      },
+    };
+    const childEffect: AppliedEffect = {
+      ...consumptionEffect("eff-child", parentId, "OUTGOING_HIT", 5),
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    };
+    const childMarker: MarkerState = {
+      markerInstanceId: createMarkerInstanceId("marker-child"),
+      markerId: createMarkerId("MARKER_CHILD"),
+      sourceId: parentId,
+      targetId: parentId,
+      stackCount: 1,
+      stackMax: null,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_A",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    };
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [parentEffect, childEffect],
+      markerStates: [childMarker],
+    };
+    const random = new SequenceRandomSource([]);
+    const baseContext = damageEventContext();
+
+    const observations: {
+      eventType: string;
+      parentEffectPresent: boolean;
+      childMarkerPresent: boolean;
+    }[] = [];
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      random,
+      {
+        ...baseContext,
+        consumeEffectDuration: testConsumeEffectDuration(
+          baseContext.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+        onFactEventForPassiveChain: (event, units) => {
+          const holder = units.find((u) => u.battleUnitId === parentId);
+          observations.push({
+            eventType: event.eventType,
+            parentEffectPresent:
+              holder?.appliedEffects.some(
+                (effect) => effect.effectInstanceId === parentEffect.effectInstanceId,
+              ) ?? false,
+            childMarkerPresent:
+              holder?.markerStates.some(
+                (marker) => marker.markerInstanceId === childMarker.markerInstanceId,
+              ) ?? false,
+          });
+          return units;
+        },
+      },
+    );
+
+    const updatedTarget = result.units.find((u) => u.battleUnitId === parentId)!;
+    expect(updatedTarget.appliedEffects).toHaveLength(0);
+    expect(updatedTarget.markerStates).toHaveLength(0);
+
+    const cascadeObservations = observations.filter(
+      (o) => o.eventType === "EffectExpired" || o.eventType === "MarkerRemoved",
+    );
+    // R-EFF-09: 子`AppliedEffect` → 子`MarkerState` → 親（消費で失効）の順。
+    expect(cascadeObservations.map((o) => o.eventType)).toEqual([
+      "EffectExpired",
+      "MarkerRemoved",
+      "EffectExpired",
+    ]);
+    // 子の`EffectExpired`を観測する時点では、親効果も子Markerもまだ残っている。
+    expect(cascadeObservations[0]).toMatchObject({
+      parentEffectPresent: true,
+      childMarkerPresent: true,
+    });
+    // 子Markerの`MarkerRemoved`時点では親効果だけが残っている。
+    expect(cascadeObservations[1]).toMatchObject({
+      parentEffectPresent: true,
+      childMarkerPresent: false,
+    });
+    // 親の`EffectExpired`時点で全て除去済み。
+    expect(cascadeObservations[2]).toMatchObject({
+      parentEffectPresent: false,
+      childMarkerPresent: false,
+    });
   });
 
   it("UT-R-EFF-07-010 (レビュー修正 PR #209、R-EFF-07/08_ドメインイベント.md UnitBeingAttacked): records a real UnitBeingAttacked event when the target is determined attackable, and consumes NEXT_INCOMING_ATTACK causally after it (not merely before hit judgment)", () => {

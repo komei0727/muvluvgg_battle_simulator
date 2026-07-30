@@ -1093,7 +1093,15 @@ export class PassiveActivationRuntime {
    * （`RuntimeCounterReset`自身がPS/Memory候補を発動させた場合はその候補連鎖・
    * 付随する効果適用まで含めた実際の終端イベント）をそのまま採用する。
    */
-  finalizeResolutionScope(cursor: DomainEventId): ResolutionResult {
+  finalizeResolutionScope(cursor: DomainEventId, units?: readonly BattleUnit[]): ResolutionResult {
+    // PR #280再レビュー[P1]: このruntimeは`onFactEvent`が渡された`units`だけを
+    // 追跡する。イベントを伴わない純粋な状態変化（ターン単位期間の減算など）を
+    // 呼び出し側が挟んだ場合、`this.units`はその分だけ古いため、スコープ終了時に
+    // 最新の`units`を明示的に同期できるようにする（未指定なら従来どおり
+    // `onFactEvent`が最後に受け取った状態から続ける）。
+    if (units !== undefined) {
+      this.units = units;
+    }
     let lastEventId: DomainEventId = cursor;
     let round = 0;
     while (true) {
