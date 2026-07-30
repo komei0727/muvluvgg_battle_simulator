@@ -711,4 +711,87 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
 
     expect(second.appliedEffect.duration.timeLimitRemaining).toBe(2);
   });
+
+  /**
+   * PR #277レビュー[P2]: `statusKind`一致は「再付与時に状態種別単位で1インスタンス
+   * へ集約する状態異常」（`grantStunStatus`のSTUN／`grantFreezeStatus`のFREEZE）
+   * だけの規則である。それ以外の`APPLY_STATUS`は`grantEffect`が常に新規インスタンス
+   * を追加する（R-EFF-01）ため、状態種別で同一視すると別定義の同種ステータスが
+   * 残っているだけで差し替えが誤発動する。特にR-STS-04の暗闇は「複数の暗闇を
+   * 付与順に独立して処理する」と規定されており、状態種別単位の同一視自体が誤り。
+   */
+  function statusRequest(
+    source: BattleUnit,
+    target: BattleUnit,
+    status: StatusKind,
+    definitionId: string,
+  ) {
+    const definition = statusDefinition(status);
+    return {
+      definition: {
+        ...definition,
+        effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
+        payload: { status, duration: REAPPLYING_DURATION },
+      } as EffectActionDefinition,
+      sourceId: source.battleUnitId,
+      targetId: target.battleUnitId,
+      duplicate: true,
+      magnitude: 0,
+      statusKind: status,
+      durationDefinition: REAPPLYING_DURATION,
+    };
+  }
+
+  it.each([{ status: "STEALTH" as const }, { status: "BLIND" as const }])(
+    "UT-R-EFF-12-006: another definition's $status instance is not the same effect, so the base count applies (only STUN/FREEZE aggregate by status kind)",
+    ({ status }) => {
+      const source = unit("source-1");
+      const target = unit("target-1");
+      const { recorder, rootEventId } = seedRecorder();
+      const context = {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      };
+
+      const other = grantEffect(
+        context,
+        [source, target],
+        statusRequest(source, target, status, `ACT_OTHER_${status}`),
+        rootEventId,
+      );
+      const second = grantEffect(
+        context,
+        other.units,
+        statusRequest(source, target, status, `ACT_REAPPLY_${status}`),
+        other.lastEventId,
+      );
+
+      const grantedTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+      expect(grantedTarget.appliedEffects).toHaveLength(2);
+      expect(second.appliedEffect.duration.timeLimitRemaining).toBe(2);
+    },
+  );
+
+  it("UT-R-EFF-12-007: the same non-aggregated APPLY_STATUS definition re-applied matches by kindKey and takes the reapply count", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+    const request = statusRequest(source, target, "STEALTH", "ACT_REAPPLY_STEALTH");
+
+    const first = grantEffect(context, [source, target], request, rootEventId);
+    expect(first.appliedEffect.duration.timeLimitRemaining).toBe(2);
+
+    const second = grantEffect(context, first.units, request, first.lastEventId);
+    expect(second.appliedEffect.duration.timeLimitRemaining).toBe(3);
+  });
 });

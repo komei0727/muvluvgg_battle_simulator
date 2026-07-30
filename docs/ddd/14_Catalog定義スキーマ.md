@@ -1835,7 +1835,7 @@ R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、`M7-014`／Issue #268）: 同じ効�
 
 期間単位（`timeLimit.unit`）とownerは差し替えない。`existingRemaining` の比較が常に同じ期間単位どうしになるようにするためであり、`timeLimit` を持たない（即時効果の）durationへ `reapply` を宣言することはできない。
 
-「同じ効果」は、状態異常は状態種別（R-STS-02が1インスタンスへ集約する単位）、それ以外は `effectActionDefinitionId` で一致させる（付与元スキルは問わない）。一致インスタンスが複数ある場合は残り回数が最大のものと比較する。
+「同じ効果」は、再付与が状態種別単位で1インスタンスへ集約される状態異常（`STUN`＝R-STS-02、`FREEZE`＝R-STS-03）だけを状態種別で、それ以外はすべて `effectActionDefinitionId` で一致させる（前者は付与元スキルを問わない）。`BLIND`（R-STS-04により複数インスタンスを独立処理）・`STEALTH`・`EVASION`・`DAMAGE_IMMUNITY` 等は集約されないため後者に含まれる — 解除・免疫判定の分類（R-STS-01の `STATUS` カテゴリ＝気絶・凍結・暗闇）とは別の区別である。一致インスタンスが複数ある場合は残り回数が最大のものと比較する。
 
 `APPLY_MARKER`（再付与は `stack.policy` が解決する、R-EFF-10）と `APPLY_STATUS` の `status: FREEZE`（再付与は新しい付与内容を一切反映しない、R-STS-03）には宣言できない。宣言しても評価されないため、`catalog-integrity.ts` が `UNSUPPORTED_DYNAMIC_DURATION_REAPPLY` としてCatalogロード時点で拒否する。
 
