@@ -57,7 +57,12 @@
     "payload": {
       "markerId": "MARKER_AOI_ELEGANT_KOUYOU",
       "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
+        "linkedEffectGroupRole": "PARENT"
+      }
     },
     "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
@@ -70,7 +75,12 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.25 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
@@ -87,7 +97,12 @@
         "ratio": 0.375
       },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }

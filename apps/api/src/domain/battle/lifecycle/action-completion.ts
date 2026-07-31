@@ -204,7 +204,9 @@ export function recordActionCompletion(
         reason: "TIME_LIMIT",
       }));
     if (seeds.length > 0) {
-      const expiryEventsStart = recorder.getEvents().length;
+      // PR #280レビュー[P1]: 通知は`expireEffects`が1インスタンスの失効ごとに行う
+      // （カスケードで巻き込まれた子効果・子Markerを含む）。ここでまとめて
+      // 通知すると、子の`EffectExpired`をtriggerにするPSが親の除去済み状態を見る。
       const expiry = expireEffects(
         {
           recorder,
@@ -213,6 +215,9 @@ export function recordActionCompletion(
           actionId: context.actionId,
           resolutionScopeId: context.resolutionScopeId,
           rootEventId: context.rootEventId,
+          ...(context.onFactEventForPassiveChain !== undefined
+            ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+            : {}),
         },
         working,
         seeds,
@@ -221,9 +226,6 @@ export function recordActionCompletion(
       );
       working = expiry.units;
       lastEventId = expiry.lastEventId;
-      for (const event of recorder.getEvents().slice(expiryEventsStart)) {
-        notify(event);
-      }
     }
   }
 
@@ -263,7 +265,9 @@ export function recordActionCompletion(
         reason: "TIME_LIMIT",
       }));
     if (markerSeeds.length > 0) {
-      const markerRemovedEventsStart = recorder.getEvents().length;
+      // PR #280レビュー[P1]: `expireEffects`と同じ理由で、通知は`removeMarkers`が
+      // 1インスタンスの除去ごとに行う（cross-typeカスケードで巻き込まれた
+      // `AppliedEffect`を含む）。
       const markerRemoval = removeMarkers(
         {
           recorder,
@@ -272,16 +276,17 @@ export function recordActionCompletion(
           actionId: context.actionId,
           resolutionScopeId: context.resolutionScopeId,
           rootEventId: context.rootEventId,
+          ...(context.onFactEventForPassiveChain !== undefined
+            ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+            : {}),
         },
         working,
         markerSeeds,
+        context.effectActions,
         lastEventId,
       );
       working = markerRemoval.units;
       lastEventId = markerRemoval.lastEventId;
-      for (const event of recorder.getEvents().slice(markerRemovedEventsStart)) {
-        notify(event);
-      }
     }
   }
 

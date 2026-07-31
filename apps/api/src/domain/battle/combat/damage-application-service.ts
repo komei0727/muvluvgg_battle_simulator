@@ -59,6 +59,12 @@ export interface ApplyDamageActionResult {
   readonly lastEventId: DomainEventId;
 }
 
+/** `applyDamageActionSteps`がyieldする1ステップ（記録済みイベント列と、その時点の`units`）。 */
+export interface DamageStep {
+  readonly events: readonly BattleDomainEvent[];
+  readonly units: readonly BattleUnit[];
+}
+
 /** ヒットイベント（HitConfirmed〜UnitDefeated）が共有する因果関係コンテキスト。全て`ActionStarted`の解決スコープに属する。 */
 export interface DamageEventContext {
   readonly recorder: EventRecorder;
@@ -97,6 +103,12 @@ export interface DamageEventContext {
    * 呼び出し側の実装が`finalizeConsumedEffectDurations`まで遅延させる）。この
    * ヒットの会心・ダメージ計算は、消費し終えた直後の`units`（まだ除去前の
    * combatStats）をそのまま使ってよい。
+   *
+   * PR #280再レビュー[P1]: 凍結解除（`removeFreezeEffect`）と同じくステップを
+   * `yield`するgeneratorを返す。消費で0になったインスタンスの失効はR-EFF-09の
+   * カスケードを伴い、そのカスケード分・seed分の各除去は「次の除去へ進む前に
+   * PS/Memory連鎖へ通知する」必要があるため（まとめて最終stateで通知すると、
+   * 子`EffectExpired`のwatcherが親を既に除去済みとして観測する）。
    */
   readonly consumeEffectDuration?: (
     ownerUnitId: BattleUnitId,
@@ -105,7 +117,11 @@ export interface DamageEventContext {
     parentEventId: DomainEventId,
     /** R-HIT-04: 指定時はこの1インスタンスだけを消費する（Nヒット回避の自己消費）。 */
     effectInstanceId?: EffectInstanceId,
-  ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
+  ) => Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >;
   /**
    * レビュー再々指摘[P1]（PR #209）: `consumeEffectDuration`が遅延させた
    * 消費済みインスタンス（`NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`）を、
@@ -117,7 +133,11 @@ export interface DamageEventContext {
   readonly finalizeConsumedEffectDurations?: (
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
-  ) => { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId };
+  ) => Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >;
   /**
    * R-SKL-08（レビュー再指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
    * が参照する「同じ解決スコープ内の直前DAMAGE結果」を保持する、呼び出し側が
@@ -209,28 +229,67 @@ function findUnit(
  * 消費条件効果を1消費・必要なら失効させる。フック未指定、または該当効果が
  * 無い場合は`workingMap`を変更せず`parentEventId`をそのまま返す。
  */
-function consumeAndExpire(
+function* consumeAndExpire(
   context: DamageEventContext,
   workingMap: Map<BattleUnitId, BattleUnit>,
   ownerUnitId: BattleUnitId,
   kind: ConsumptionKind,
   parentEventId: DomainEventId,
   effectInstanceId?: EffectInstanceId,
-): DomainEventId {
+): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
   if (context.consumeEffectDuration === undefined) {
     return parentEventId;
   }
-  const result = context.consumeEffectDuration(
-    ownerUnitId,
-    kind,
-    Array.from(workingMap.values()),
-    parentEventId,
-    effectInstanceId,
+  const result = yield* driveRemovalSteps(
+    context,
+    workingMap,
+    context.consumeEffectDuration(
+      ownerUnitId,
+      kind,
+      Array.from(workingMap.values()),
+      parentEventId,
+      effectInstanceId,
+    ),
   );
-  for (const unit of result.units) {
+  return result.lastEventId;
+}
+
+/**
+ * PR #280再レビュー[P1]: 除去ステップを`yield`するgenerator（凍結解除・消費失効・
+ * 遅延失効の確定）を、凍結解除と同じ規約で駆動する共通ヘルパー。
+ * `context.onFactEventForPassiveChain`があればステップごとにその場で同期通知し、
+ * 無ければ1ステップずつ`yield`して、driverが更新した`units`を次の除去へ注入する。
+ */
+function* driveRemovalSteps(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  removal: Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >,
+): Generator<
+  DamageStep,
+  { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+  readonly BattleUnit[] | undefined
+> {
+  let step = removal.next();
+  while (!step.done) {
+    if (context.onFactEventForPassiveChain !== undefined) {
+      let stepUnits = step.value.units;
+      for (const event of step.value.events) {
+        stepUnits = context.onFactEventForPassiveChain(event, stepUnits);
+      }
+      step = removal.next(stepUnits);
+    } else {
+      const injected = yield { events: step.value.events, units: step.value.units };
+      step = removal.next(injected);
+    }
+  }
+  for (const unit of step.value.units) {
     workingMap.set(unit.battleUnitId, unit);
   }
-  return result.lastEventId;
+  return step.value;
 }
 
 /** `08_ドメインイベント.md`の一般的な流儀: 記録済みの新規イベントをPS即時連鎖フックへ順に転送する。 */
@@ -411,26 +470,27 @@ export function* applyDamageActionSteps(
       },
     });
     lastEventId = unitBeingAttacked.eventId;
-    lastEventId = consumeAndExpire(
+    // PR #280再レビュー[P1]: `UnitBeingAttacked`は消費失効より前に記録されている
+    // ため、状態を書き換える前にここで通知する。消費失効自身の通知は
+    // `consumeAndExpire`が除去1件ごとに行う（またはcallback未指定なら`yield`する）。
+    notifyNewEvents(context, working, unitBeingAttackedEventsStart);
+    lastEventId = yield* consumeAndExpire(
       context,
       working,
       target.battleUnitId,
       "NEXT_INCOMING_ATTACK",
       lastEventId,
     );
-    notifyNewEvents(context, working, unitBeingAttackedEventsStart);
 
     // R-EFF-07: `NEXT_OUTGOING_ATTACK`は攻撃者が命中判定に到達した時点
     // （MISS/命中を問わない）で消費する。専用のドメインイベントは持たない。
-    const judgmentEventsStart = context.recorder.getEvents().length;
-    lastEventId = consumeAndExpire(
+    lastEventId = yield* consumeAndExpire(
       context,
       working,
       currentAttacker.battleUnitId,
       "NEXT_OUTGOING_ATTACK",
       lastEventId,
     );
-    notifyNewEvents(context, working, judgmentEventsStart);
 
     // レビュー再指摘 PR #209[P1]: `UnitBeingAttacked`／`NEXT_OUTGOING_ATTACK`消費が
     // 発火したPS連鎖は`working`を書き換え得る（対象を回復・戦闘不能にする等）。
@@ -504,7 +564,13 @@ export function* applyDamageActionSteps(
       // はこの消費で数える）。R-EFF-07の一般規則（命中確定で消費）に対する
       // 本ルール固有の例外のため、同じ対象が持つ他の`INCOMING_HIT`消費効果を
       // 巻き込まないよう、消費対象をこのインスタンスへ限定する。
-      lastEventId = consumeAndExpire(
+      // R-SKL-01/02（レビュー指摘[P1]）: `EvasionActivated`もFACTイベントとして
+      // PS/Memoryの即時連鎖の契機になり得るため、次のヒットへ進む前に通知する
+      // （`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`と同じ扱い）。
+      // PR #280再レビュー[P1]: 消費で発生した`EffectConsumptionChanged`/
+      // `EffectExpired`は一括ではなく`consumeAndExpire`が除去1件ごとに通知する。
+      notifyNewEvents(context, working, evasionEventsStart);
+      lastEventId = yield* consumeAndExpire(
         context,
         working,
         targetAfterTiming.battleUnitId,
@@ -512,11 +578,6 @@ export function* applyDamageActionSteps(
         lastEventId,
         evasion.evadedByEffectInstanceId,
       );
-      // R-SKL-01/02（レビュー指摘[P1]）: `EvasionActivated`もFACTイベントとして
-      // PS/Memoryの即時連鎖の契機になり得るため、次のヒットへ進む前に通知する
-      // （`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`と同じ扱い）。消費で発生した
-      // `EffectConsumptionChanged`/`EffectExpired`も同じ一括通知に含める。
-      notifyNewEvents(context, working, evasionEventsStart);
       // R-SKL-08: MISSも結果種別を持つ直前結果として記録する（R-SKL-08本文）。
       // 有効な定義のもとで通常発生し得る実行時の結果であり、後続Formulaの
       // 参照を例外終了させてはならないため0として記録する（`recordDamageResult`
@@ -908,22 +969,21 @@ export function* applyDamageActionSteps(
     // — Nヒット回避は自身が回避した被ヒットでだけ消費するため、確率判定に
     // 失敗した回避や必中で発動しなかった回避が残数を失ってはならない
     // （PR #275レビュー[P1]）。
-    const hitEventsStart = context.recorder.getEvents().length;
-    lastEventId = consumeAndExpire(
+    // PR #280再レビュー[P1]: 通知は`consumeAndExpire`が除去1件ごとに行う。
+    lastEventId = yield* consumeAndExpire(
       context,
       working,
       attackerAfterTiming.battleUnitId,
       "OUTGOING_HIT",
       lastEventId,
     );
-    lastEventId = consumeAndExpire(
+    lastEventId = yield* consumeAndExpire(
       context,
       working,
       targetAfterTiming.battleUnitId,
       "INCOMING_HIT",
       lastEventId,
     );
-    notifyNewEvents(context, working, hitEventsStart);
 
     outcomes.push({
       targetBattleUnitId: hit.targetBattleUnitId,
@@ -941,16 +1001,14 @@ export function* applyDamageActionSteps(
   // 中断（使用者の戦闘不能）でループを抜けた場合も、既に消費済みの分は
   // ここで確定させる。
   if (context.finalizeConsumedEffectDurations !== undefined) {
-    const finalizeEventsStart = context.recorder.getEvents().length;
-    const finalized = context.finalizeConsumedEffectDurations(
-      Array.from(working.values()),
-      lastEventId,
+    // PR #280再レビュー[P1]: 遅延させた失効の確定も、除去1件ごとに通知（または
+    // callback未指定なら`yield`）する。
+    const finalized = yield* driveRemovalSteps(
+      context,
+      working,
+      context.finalizeConsumedEffectDurations(Array.from(working.values()), lastEventId),
     );
-    for (const unit of finalized.units) {
-      working.set(unit.battleUnitId, unit);
-    }
     lastEventId = finalized.lastEventId;
-    notifyNewEvents(context, working, finalizeEventsStart);
   }
 
   return {

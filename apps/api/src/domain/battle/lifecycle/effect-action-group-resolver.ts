@@ -21,6 +21,7 @@ import { recalculateCombatStats } from "../effects/combat-stat-recalculation-ser
 import {
   emitEffectConsumptionChangedEvents,
   expireEffects,
+  expireEffectsSteps,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
 import { consumeEffectDurations } from "../model/applied-effect-duration.js";
@@ -421,6 +422,10 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
   >;
 } {
   const pendingExpirySeeds: ExpirationSeed[] = [];
+  // PR #280再レビュー[P1]: 失効はステップを`yield`する`expireEffectsSteps`へ委譲し、
+  // 通知（またはyield）の粒度は`damage-application-service.ts`の
+  // `driveRemovalSteps`が決める。`onFactEventForPassiveChain`をこの`eventContext`
+  // へ渡すと、そのstep通知とDAMAGE側のstep駆動が二重になるため渡さない。
   const eventContext = {
     recorder: context.recorder,
     turnNumber: context.turnNumber,
@@ -431,55 +436,85 @@ function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
     rootEventId: context.rootEventId,
   };
 
-  const consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]> = (
-    ownerUnitId,
-    kind,
-    units,
-    callParentEventId,
-    effectInstanceId,
-  ) => {
-    const consumption = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
-    if (consumption.changes.length === 0) {
-      return { units, lastEventId: callParentEventId };
-    }
-    const lastEventId = emitEffectConsumptionChangedEvents(
-      eventContext,
-      consumption.units,
-      consumption.changes,
-      callParentEventId,
-    );
-    const seeds: ExpirationSeed[] = consumption.changes
-      .filter((change) => change.after === 0)
-      .map((change) => ({
-        battleUnitId: change.battleUnitId,
-        effectInstanceId: change.effectInstanceId,
-        reason: "CONSUMPTION",
-      }));
-    if (seeds.length === 0) {
-      return { units: consumption.units, lastEventId };
-    }
-    if (DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind)) {
-      pendingExpirySeeds.push(...seeds);
-      return { units: consumption.units, lastEventId };
-    }
-    const expiry = expireEffects(
-      eventContext,
-      consumption.units,
-      seeds,
-      context.definitions.effectActions,
-      lastEventId,
-    );
-    return { units: expiry.units, lastEventId: expiry.lastEventId };
-  };
+  const consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]> =
+    function* (ownerUnitId, kind, units, callParentEventId, effectInstanceId) {
+      // PR #280再々レビュー[P1]／再々々レビュー[P1]: 消費対象の「決定」と「適用」を
+      // 分ける。`consumeEffectDurations`は一致する全インスタンスを一括で減算した
+      // `units`を返すため、それを起点にしてイベントだけ1件ずつ発行すると、最初の
+      // `EffectConsumptionChanged`を観測するPS/Memoryが未発行分まで減算済みの状態を
+      // 見てしまう（state変更がstep単位になっていない）。ここでは対象インスタンスの
+      // 決定にだけ使い、実際の減算・イベント発行・`yield`は最新の`workingUnits`へ
+      // 1インスタンスずつ行う（`consumeEffectDurations`の第4引数で対象を1件へ限定
+      // できる — R-HIT-04のNヒット回避自己消費と同じ機構）。
+      const planned = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
+      if (planned.changes.length === 0) {
+        return { units, lastEventId: callParentEventId };
+      }
+      let workingUnits = units;
+      let lastEventId = callParentEventId;
+      const seeds: ExpirationSeed[] = [];
+      for (const plannedChange of planned.changes) {
+        // 先行stepのPS/Memory連鎖が後続の対象を解除・失効させている場合があるため、
+        // 最新の`workingUnits`に対して都度再評価する。既に消えていれば
+        // （`changes`が空）このインスタンスの消費自体を行わない。
+        const applied = consumeEffectDurations(
+          workingUnits,
+          ownerUnitId,
+          kind,
+          plannedChange.effectInstanceId,
+        );
+        const change = applied.changes[0];
+        if (change === undefined) {
+          continue;
+        }
+        workingUnits = applied.units;
+        const stepEventsStart = eventContext.recorder.getEvents().length;
+        lastEventId = emitEffectConsumptionChangedEvents(
+          eventContext,
+          workingUnits,
+          [change],
+          lastEventId,
+        );
+        const injected = yield {
+          events: eventContext.recorder.getEvents().slice(stepEventsStart),
+          units: workingUnits,
+        };
+        if (injected !== undefined) {
+          workingUnits = injected;
+        }
+        if (change.after === 0) {
+          seeds.push({
+            battleUnitId: change.battleUnitId,
+            effectInstanceId: change.effectInstanceId,
+            reason: "CONSUMPTION",
+          });
+        }
+      }
+      if (seeds.length === 0) {
+        return { units: workingUnits, lastEventId };
+      }
+      if (DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind)) {
+        pendingExpirySeeds.push(...seeds);
+        return { units: workingUnits, lastEventId };
+      }
+      const expiry = yield* expireEffectsSteps(
+        eventContext,
+        workingUnits,
+        seeds,
+        context.definitions.effectActions,
+        lastEventId,
+      );
+      return { units: expiry.units, lastEventId: expiry.lastEventId };
+    };
 
   const finalizeConsumedEffectDurations: NonNullable<
     DamageEventContext["finalizeConsumedEffectDurations"]
-  > = (units, parentEventId) => {
+  > = function* (units, parentEventId) {
     if (pendingExpirySeeds.length === 0) {
       return { units, lastEventId: parentEventId };
     }
     const seeds = pendingExpirySeeds.splice(0, pendingExpirySeeds.length);
-    const expiry = expireEffects(
+    const expiry = yield* expireEffectsSteps(
       eventContext,
       units,
       seeds,
@@ -1005,18 +1040,42 @@ function* resolveOneEffectActionApplication(
       // 対象が保持するSTATUS_BLOCKED消費条件付き効果を消費する
       // （`duration-expiry-service.ts`と同じ「消費0で即時失効」規約）。
       const { consumeEffectDuration } = buildConsumeEffectDurationHooks(context);
-      const consumption = consumeEffectDuration(
+      // PR #280再レビュー[P1]: 消費失効はステップ単位のgeneratorになったため、
+      // ここでも1ステップずつ駆動する — callbackがあればそのステップのイベントを
+      // その場で通知し、無ければ`EFFECT_RESOLVED`としてyieldしてdriverへ委ねる。
+      const consumptionGen = consumeEffectDuration(
         application.targetBattleUnitId,
         "STATUS_BLOCKED",
         box.units,
         rejection.lastEventId,
       );
-      box.units = consumption.units;
+      // 消費より前に記録済みのイベント（`EffectActionStarting`/
+      // `EffectApplicationRejected`）は状態変更前に通知しておく。
       if (context.onFactEventForPassiveChain !== undefined) {
         for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
           box.units = context.onFactEventForPassiveChain(event, box.units);
         }
+        innerEventsStart = context.recorder.getEvents().length;
       }
+      let consumptionStep = consumptionGen.next();
+      while (!consumptionStep.done) {
+        box.units = consumptionStep.value.units;
+        if (context.onFactEventForPassiveChain !== undefined) {
+          for (const event of consumptionStep.value.events) {
+            box.units = context.onFactEventForPassiveChain(event, box.units);
+          }
+          innerEventsStart = context.recorder.getEvents().length;
+        } else {
+          yield {
+            kind: "EFFECT_RESOLVED",
+            events: context.recorder.getEvents().slice(innerEventsStart),
+          };
+          innerEventsStart = context.recorder.getEvents().length;
+        }
+        consumptionStep = consumptionGen.next(box.units);
+      }
+      const consumption = consumptionStep.value;
+      box.units = consumption.units;
       resolvedCount = application.hits.length;
       interruptedCount = 0;
       effectLastEventId = consumption.lastEventId;
@@ -1269,10 +1328,14 @@ function* resolveOneEffectActionApplication(
     // R-EFF-10「Marker の解除は既存の REMOVE_MARKER（markerId 指定）を使う」
     // （`14_Catalog定義スキーマ.md`）: 対象が指定Markerを所持していない場合は
     // no-op（`COOLDOWN_MANIPULATION`のREADY skillと同じ扱い、resultKind: SKIPPED）。
-    const target = requireUnit(box.units, application.targetBattleUnitId);
-    const existingMarker = target.markerStates.find(
-      (marker) => marker.markerId === effectAction.payload.markerId,
-    );
+    // PR #280レビュー[P1]: R-EFF-09のカスケードは1インスタンスの除去ごとに
+    // PS/Memory連鎖へ通知する必要がある（子の`EffectExpired`をtriggerにするPSが
+    // 親Markerを既に除去済みとして観測しないように）。`removeMarkers`/
+    // `reduceMarkerStack`へcallbackを渡し、そこで通知済みになった分は
+    // `innerEventsStart`を前進させて下の一括通知から除く（`applyDamageActionSteps`
+    // の凍結カスケードと同じ二重処理防止）。callback未指定（PS自身の
+    // EffectSequence解決）の経路では従来どおり呼び出し側の`innerEvents`が
+    // driverへ一括で渡す。
     const removalContext = {
       recorder: context.recorder,
       turnNumber: context.turnNumber,
@@ -1281,7 +1344,25 @@ function* resolveOneEffectActionApplication(
       skillUseId: context.skillUseId,
       resolutionScopeId: context.actionScope,
       rootEventId: context.rootEventId,
+      ...(context.onFactEventForPassiveChain !== undefined
+        ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+        : {}),
     };
+    // callbackを渡す場合、除去より前に記録済みのイベント（`EffectActionStarting`）は
+    // 状態を書き換える前に通知しておく — 除去内部の通知より後にすると、
+    // 発行順（starting → 除去）と連鎖解決順が食い違う。
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+      innerEventsStart = context.recorder.getEvents().length;
+    }
+    // 所持判定は先行イベントのPS連鎖を反映した`box.units`から取る — 上の通知で
+    // 対象のMarkerが既に解除されていた場合、この解除はno-op（SKIPPED）になる。
+    const target = requireUnit(box.units, application.targetBattleUnitId);
+    const existingMarker = target.markerStates.find(
+      (marker) => marker.markerId === effectAction.payload.markerId,
+    );
     if (existingMarker === undefined) {
       effectLastEventId = starting.eventId;
       resultKind = "SKIPPED";
@@ -1293,11 +1374,15 @@ function* resolveOneEffectActionApplication(
         application.targetBattleUnitId,
         effectAction.payload.markerId,
         effectAction.payload.count,
+        context.definitions.effectActions,
         starting.eventId,
       );
       box.units = reduction.units;
       effectLastEventId = reduction.lastEventId;
       resultKind = reduction.changed ? "APPLIED" : "SKIPPED";
+      if (context.onFactEventForPassiveChain !== undefined) {
+        innerEventsStart = context.recorder.getEvents().length;
+      }
     } else {
       const removalResult = removeMarkers(
         removalContext,
@@ -1309,11 +1394,15 @@ function* resolveOneEffectActionApplication(
             reason: "REMOVED",
           },
         ],
+        context.definitions.effectActions,
         starting.eventId,
       );
       box.units = removalResult.units;
       effectLastEventId = removalResult.lastEventId;
       resultKind = "APPLIED";
+      if (context.onFactEventForPassiveChain !== undefined) {
+        innerEventsStart = context.recorder.getEvents().length;
+      }
     }
     if (context.onFactEventForPassiveChain !== undefined) {
       for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
@@ -1343,6 +1432,15 @@ function* resolveOneEffectActionApplication(
         `REMOVE_EFFECTS categories ${unsupportedCategories.join("/")} are not yet supported by this resolver — shield/subunit runtime state is owned by DMG-004/DMG-005 (still open, #242). M7-001 wires BUFF/DEBUFF/STATUS/DAMAGE_MOD/SPECIFIC_EFFECT removal only`,
       );
     }
+    // PR #280レビュー[P1]: REMOVE_MARKER分岐と同じ理由で、除去より前に記録済みの
+    // `EffectActionStarting`を先に通知し、以降のインスタンス単位の通知は
+    // `removeEffects`内部（R-EFF-09カスケード分＋seed分）へ委ねる。
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+        box.units = context.onFactEventForPassiveChain(event, box.units);
+      }
+      innerEventsStart = context.recorder.getEvents().length;
+    }
     const removal = removeEffects(
       {
         recorder: context.recorder,
@@ -1352,6 +1450,9 @@ function* resolveOneEffectActionApplication(
         skillUseId: context.skillUseId,
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
+        ...(context.onFactEventForPassiveChain !== undefined
+          ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+          : {}),
       },
       box.units,
       application.targetBattleUnitId,
@@ -1369,9 +1470,7 @@ function* resolveOneEffectActionApplication(
     );
     box.units = removal.units;
     if (context.onFactEventForPassiveChain !== undefined) {
-      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
-        box.units = context.onFactEventForPassiveChain(event, box.units);
-      }
+      innerEventsStart = context.recorder.getEvents().length;
     }
     resolvedCount = application.hits.length;
     interruptedCount = 0;
@@ -2966,6 +3065,9 @@ export function* resolveEffectSequencePlan(
   // driverに子PS連鎖の処理を委ねる。`box`は共有可変オブジェクトのため、
   // yieldで一時停止している間にdriverが`box.units`を書き換えれば、
   // resume後の後続処理は自然に最新の`units`を参照する。
+  // PR #280レビュー[P1]: callbackを持つ経路では、通知は`expireEffects`が
+  // 1インスタンスの失効ごとに行う（R-EFF-09カスケードで巻き込まれた
+  // 子効果・子Markerを含む）。callback未指定の経路は上記のとおりdriverへ委ねる。
   if (plan.stealthConsumptions.length > 0) {
     const innerEventsStart = context.recorder.getEvents().length;
     const expiry = expireEffects(
@@ -2977,6 +3079,9 @@ export function* resolveEffectSequencePlan(
         skillUseId: context.skillUseId,
         resolutionScopeId: context.actionScope,
         rootEventId: context.rootEventId,
+        ...(context.onFactEventForPassiveChain !== undefined
+          ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+          : {}),
       },
       box.units,
       plan.stealthConsumptions.map((consumption) => ({
@@ -2989,11 +3094,7 @@ export function* resolveEffectSequencePlan(
     );
     box.units = expiry.units;
     lastEventId = expiry.lastEventId;
-    if (context.onFactEventForPassiveChain !== undefined) {
-      for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
-        box.units = context.onFactEventForPassiveChain(event, box.units);
-      }
-    } else {
+    if (context.onFactEventForPassiveChain === undefined) {
       const innerEvents = context.recorder.getEvents().slice(innerEventsStart);
       if (innerEvents.length > 0) {
         yield { kind: "EFFECT_RESOLVED", events: innerEvents };

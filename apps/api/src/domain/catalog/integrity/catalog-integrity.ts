@@ -54,7 +54,6 @@ export const VIOLATION_RULES = [
   "EVENT_CATEGORY_MISMATCH",
   "UNOWNED_SKILL_REFERENCE",
   "MISSING_REQUIRED_CAPABILITY",
-  "UNSUPPORTED_MARKER_LINKED_GROUP",
   "UNSUPPORTED_MARKER_DURATION",
   "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
   "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
@@ -1606,7 +1605,7 @@ function validateEffectAction(
 
 /**
  * PRレビュー指摘[P1]（PR #256、Issue #184）: `EffectActionDefinition`が持つ
- * `FormulaDefinition`をkind横断で取り出す。`durationOf`/`linkedEffectGroupIdOf`と
+ * `FormulaDefinition`をkind横断で取り出す。`durationOf`と
  * 同じ網羅的`switch`とし、新しいkindの追加時にこの関数の更新漏れをコンパイル
  * エラーとして検出する。
  */
@@ -1672,7 +1671,9 @@ function referencesSumDamageResult(formula: FormulaDefinition): boolean {
  * `DurationDefinition`を運ぶkindだけ値を返す（`APPLY_MARKER`を含む）。
  * EFF-005/Issue #162: `AppliedEffect`スコープのRuntimeCounter（`counterUpdates`）
  * 宣言に`CAP_EFFECT_RUNTIME_COUNTER`を要求する検証のために、`duration`本体を
- * kindを問わず取り出す。`linkedEffectGroupIdOf`と同じ網羅的`switch`。
+ * kindを問わず取り出す。網羅的な`switch`とし、新しいkindが
+ * `effect-action-definition.ts`へ追加された際にこの関数の更新漏れをコンパイル
+ * エラーとして検出する。
  */
 function durationOf(effectAction: EffectActionDefinition): DurationDefinition | undefined {
   switch (effectAction.kind) {
@@ -1705,92 +1706,6 @@ function durationOf(effectAction: EffectActionDefinition): DurationDefinition | 
     default: {
       const exhaustive: never = effectAction;
       throw new Error(`unhandled EffectActionDefinition kind: ${JSON.stringify(exhaustive)}`);
-    }
-  }
-}
-
-/**
- * `linkedEffectGroupId`を持つ`DurationDefinition`を運ぶkindだけ値を返す
- * `undefined`は「このkindはDurationを持たない」または「Durationはあるが
- * `linkedEffectGroupId`がnull」を表す。`isMarker`は`APPLY_MARKER`（`MarkerState`
- * を生成する）かどうかを表し、それ以外のDuration保持kindはすべて`AppliedEffect`
- * を生成する（`05_ドメインモデル.md`「AppliedEffect」参照）。網羅的な`switch`とし、
- * 新しいkindが`effect-action-definition.ts`へ追加された際にこの関数の更新漏れを
- * コンパイルエラーとして検出する。
- */
-function linkedEffectGroupIdOf(
-  effectAction: EffectActionDefinition,
-): { readonly groupId: string; readonly isMarker: boolean } | undefined {
-  switch (effectAction.kind) {
-    case "APPLY_CONTINUOUS_HEAL":
-    case "APPLY_CONTINUOUS_DAMAGE":
-    case "APPLY_STAT_MOD":
-    case "APPLY_DAMAGE_MOD":
-    case "APPLY_HEALING_MOD":
-    case "MODIFY_RESOURCE_CAPACITY":
-    case "APPLY_STATUS":
-    case "APPLY_SHIELD":
-    case "EFFECT_IMMUNITY":
-    case "APPLY_DEATH_SURVIVAL":
-    case "APPLY_TARGET_REDIRECT":
-    case "APPLY_COVER":
-    case "APPLY_REFLECT":
-    case "APPLY_ATTACK_DAMAGE_BONUS":
-    case "APPLY_RESOURCE_GAIN_MOD":
-    case "APPLY_HEALING_LINK": {
-      const groupId = effectAction.payload.duration.linkedEffectGroupId;
-      return groupId === null ? undefined : { groupId, isMarker: false };
-    }
-    case "APPLY_MARKER": {
-      const groupId = effectAction.payload.duration.linkedEffectGroupId;
-      return groupId === null ? undefined : { groupId, isMarker: true };
-    }
-    case "DAMAGE":
-    case "HEAL":
-    case "MODIFY_RESOURCE":
-    case "REMOVE_EFFECTS":
-    case "REMOVE_MARKER":
-    case "APPLY_SUBUNIT":
-    case "COOLDOWN_MANIPULATION":
-      return undefined;
-    default: {
-      const exhaustive: never = effectAction;
-      throw new Error(`unhandled EffectActionDefinition kind: ${JSON.stringify(exhaustive)}`);
-    }
-  }
-}
-
-/**
- * PR #210再レビュー[P2]: R-EFF-09は同じ`linkedEffectGroupId`を持つ`AppliedEffect`と
- * `MarkerState`を同一の親子連動グループとして扱う契約だが、EFF-004時点の
- * `collectMarkerLinkedGroupCascade`（`marker-linked-group.ts`）は`MarkerState`
- * 同士のカスケードだけを実装している（`AppliedEffect`をまたぐカスケードは
- * 利用するproduction Marker定義が現れるまで対象外）。Marker同士のグループは
- * 実装済みのため拒否しない — 同じ`linkedEffectGroupId`が`APPLY_MARKER`と
- * それ以外のDuration保持kindの両方で使われている場合（cross-type）だけを
- * Catalogロード時点で明示的に拒否し、preflightを通過した定義が実際には
- * カスケードされない状態を防ぐ。単一Definitionだけでは判定できないため、
- * 全`EffectActionDefinition`が出揃った後にCatalog全体を横断して検証する。
- */
-function validateMarkerLinkedGroupCascadeSupport(
-  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
-  violations: CatalogIntegrityViolation[],
-): void {
-  const nonMarkerGroupIds = new Set<string>();
-  for (const effectAction of effectActions.values()) {
-    const info = linkedEffectGroupIdOf(effectAction);
-    if (info !== undefined && !info.isMarker) {
-      nonMarkerGroupIds.add(info.groupId);
-    }
-  }
-  for (const effectAction of effectActions.values()) {
-    const info = linkedEffectGroupIdOf(effectAction);
-    if (info !== undefined && info.isMarker && nonMarkerGroupIds.has(info.groupId)) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "UNSUPPORTED_MARKER_LINKED_GROUP",
-        message: `APPLY_MARKER.duration.linkedEffectGroupId "${info.groupId}" is shared with a non-Marker EffectActionDefinition: the AppliedEffect<->MarkerState cross-type linkedEffectGroup cascade (R-EFF-09) is not implemented (marker-linked-group.ts only cascades Marker-to-Marker)`,
-      });
     }
   }
 }
@@ -2187,7 +2102,6 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
   for (const effectAction of effectActions.values()) {
     validateEffectAction(effectAction, effectActions, skills, capabilities, violations);
   }
-  validateMarkerLinkedGroupCascadeSupport(effectActions, violations);
   for (const skill of skills.values()) {
     validateSkill(skill, effectActions, capabilities, violations);
   }

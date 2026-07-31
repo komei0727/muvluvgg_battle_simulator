@@ -208,7 +208,9 @@
         "timeLimit": {
           "unit": "BATTLE",
           "count": 1
-        }
+        },
+        "linkedEffectGroupId": "TARISA_TROUBLEMAKER_PS1_LINK",
+        "linkedEffectGroupRole": "PARENT"
       }
     },
     "requiredCapabilities": ["CAP_MARKER"],
@@ -235,7 +237,9 @@
         "timeLimit": {
           "unit": "BATTLE",
           "count": 1
-        }
+        },
+        "linkedEffectGroupId": "TARISA_TROUBLEMAKER_PS1_LINK",
+        "linkedEffectGroupRole": "CHILD"
       }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],

@@ -1,5 +1,10 @@
 import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
-import { collectLinkedGroupCascade } from "../model/applied-effect-linked-group.js";
+import {
+  cascadedOnlyRemovals,
+  orderGroupRemovals,
+  removeGroupMembersSteps,
+} from "./linked-group-cascade.js";
+import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
@@ -93,144 +98,115 @@ export function* removeFreezeEffectSteps(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): Generator<RemoveFreezeStep, RemoveFreezeResult, readonly BattleUnit[] | undefined> {
-  const cascadeIds = collectLinkedGroupCascade(units, new Set([freezeEffectInstanceId]));
-  // R-EFF-09「子を先に、親を最後に」: `collectLinkedGroupCascade`はseed自身も
-  // 含む集合を返すため、凍結自身を末尾へ回し、残り（カスケードで見つかった
-  // 子効果）を先に処理する。
-  const cascadedOnlyIds = [...cascadeIds].filter((id) => id !== freezeEffectInstanceId);
-  const orderedInstanceIds = [...cascadedOnlyIds, freezeEffectInstanceId];
+  const seedInstances = {
+    effectInstanceIds: new Set([freezeEffectInstanceId]),
+    markerInstanceIds: NO_MARKER_INSTANCE_IDS,
+  };
+  const cascade = collectLinkedGroupCascade(units, seedInstances);
+  // R-EFF-09「子を先に、親を最後に」: カスケードで見つかった子（`AppliedEffect`と、
+  // M7-013で加わった同グループの`MarkerState`）を共有実装で先に処理し、凍結自身は
+  // そのあとで`FreezeRemoved`として除去する。
+  const cascadeSteps = removeGroupMembersSteps(
+    context,
+    units,
+    orderGroupRemovals(units, cascadedOnlyRemovals(cascade, seedInstances)),
+    effectActions,
+    parentEventId,
+    "EffectExpired",
+  );
+  const cascaded = yield* cascadeSteps;
 
-  let working = units;
-  let lastEventId = parentEventId;
+  let working = cascaded.units;
+  let lastEventId = cascaded.lastEventId;
 
-  for (const effectInstanceId of orderedInstanceIds) {
-    const holder = working.find((unit) =>
-      unit.appliedEffects.some((effect) => effect.effectInstanceId === effectInstanceId),
-    );
-    if (holder === undefined) {
-      // Already removed earlier in this same cascade batch.
-      continue;
-    }
-    const stepEventsStart = context.recorder.getEvents().length;
-    const target = requireUnit(working, holder.battleUnitId);
-    const targetEffect = target.appliedEffects.find(
-      (effect) => effect.effectInstanceId === effectInstanceId,
-    )!;
-    const wasEffective = isEffectiveNow(target, effectInstanceId);
+  const holder = working.find((unit) =>
+    unit.appliedEffects.some((effect) => effect.effectInstanceId === freezeEffectInstanceId),
+  );
+  if (holder === undefined) {
+    // Already removed earlier in this same cascade batch.
+    return { units: working, lastEventId };
+  }
+  const stepEventsStart = context.recorder.getEvents().length;
+  const target = requireUnit(working, holder.battleUnitId);
+  const targetEffect = target.appliedEffects.find(
+    (effect) => effect.effectInstanceId === freezeEffectInstanceId,
+  )!;
+  const wasEffective = isEffectiveNow(target, freezeEffectInstanceId);
 
-    const beforeRemovalUnits = working;
-    working = working.map((unit) =>
-      unit.battleUnitId === target.battleUnitId
-        ? {
-            ...unit,
-            appliedEffects: unit.appliedEffects.filter(
-              (effect) => effect.effectInstanceId !== effectInstanceId,
-            ),
-          }
-        : unit,
-    );
+  const beforeRemovalUnits = working;
+  working = working.map((unit) =>
+    unit.battleUnitId === target.battleUnitId
+      ? {
+          ...unit,
+          appliedEffects: unit.appliedEffects.filter(
+            (effect) => effect.effectInstanceId !== freezeEffectInstanceId,
+          ),
+        }
+      : unit,
+  );
 
-    const isFreezeItself = effectInstanceId === freezeEffectInstanceId;
-    const recorded = isFreezeItself
-      ? context.recorder.record({
-          eventType: "FreezeRemoved",
-          category: "FACT",
-          turnNumber: context.turnNumber,
-          cycleNumber: context.cycleNumber,
-          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-          ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-          resolutionScopeId: context.resolutionScopeId,
-          parentEventId: lastEventId,
-          rootEventId: context.rootEventId,
-          sourceUnitId: target.battleUnitId,
-          targetUnitIds: [target.battleUnitId],
-          payload: {
-            effectInstanceId,
-            battleUnitId: target.battleUnitId,
-            triggeringDamage,
-          },
-          stateDelta: {
-            units: {
-              [target.battleUnitId]: {
-                effects: {
-                  [effectInstanceId]: {
-                    before: toEffectSnapshot(targetEffect, wasEffective),
-                    after: undefined,
-                  },
-                },
-              },
+  const recorded = context.recorder.record({
+    eventType: "FreezeRemoved",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+    resolutionScopeId: context.resolutionScopeId,
+    parentEventId: lastEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: target.battleUnitId,
+    targetUnitIds: [target.battleUnitId],
+    payload: {
+      effectInstanceId: freezeEffectInstanceId,
+      battleUnitId: target.battleUnitId,
+      triggeringDamage,
+    },
+    stateDelta: {
+      units: {
+        [target.battleUnitId]: {
+          effects: {
+            [freezeEffectInstanceId]: {
+              before: toEffectSnapshot(targetEffect, wasEffective),
+              after: undefined,
             },
           },
-        })
-      : context.recorder.record({
-          eventType: "EffectExpired",
-          category: "FACT",
-          turnNumber: context.turnNumber,
-          cycleNumber: context.cycleNumber,
-          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-          ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-          resolutionScopeId: context.resolutionScopeId,
-          parentEventId: lastEventId,
-          rootEventId: context.rootEventId,
-          sourceUnitId: target.battleUnitId,
-          targetUnitIds: [target.battleUnitId],
-          payload: {
-            effectInstanceId,
-            battleUnitId: target.battleUnitId,
-            effectActionDefinitionId: targetEffect.effectActionDefinitionId,
-            kindKey: targetEffect.kindKey,
-            reason: "LINKED_GROUP_CASCADE",
-            linkedEffectGroupId: targetEffect.duration.definition.linkedEffectGroupId,
-            cascaded: true,
-          },
-          stateDelta: {
-            units: {
-              [target.battleUnitId]: {
-                effects: {
-                  [effectInstanceId]: {
-                    before: toEffectSnapshot(targetEffect, wasEffective),
-                    after: undefined,
-                  },
-                },
-              },
-            },
-          },
-        });
-    lastEventId = recorded.eventId;
-
-    const recalculation = recalculateCombatStats(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-        resolutionScopeId: context.resolutionScopeId,
-        rootEventId: context.rootEventId,
+        },
       },
-      beforeRemovalUnits,
-      working,
-      target.battleUnitId,
-      effectActions,
-      lastEventId,
-      "EFFECT_EXPIRED",
-    );
-    working = recalculation.units;
-    lastEventId = recalculation.lastEventId;
+    },
+  });
+  lastEventId = recorded.eventId;
 
-    // PRレビュー再指摘[P2]: このカスケードステップの`EffectExpired`/`FreezeRemoved`
-    // とそれに続く`CombatStatChanged`を、次のステップへ進む前に`yield`する —
-    // まとめて最後に通知すると、最初のステップをtriggerにするPSが既に後続
-    // ステップまで完了した状態を見てしまう。呼び出し側が`.next()`へ渡す値は、
-    // このyield中にPS連鎖が変化させた最新の`units`（このステップの`working`を
-    // 基点にする — 呼び出し側は必ず何らかの値を渡し返す設計）。
-    const injected = yield {
-      events: context.recorder.getEvents().slice(stepEventsStart),
-      units: working,
-    };
-    if (injected !== undefined) {
-      working = injected;
-    }
+  const recalculation = recalculateCombatStats(
+    {
+      recorder: context.recorder,
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+      resolutionScopeId: context.resolutionScopeId,
+      rootEventId: context.rootEventId,
+    },
+    beforeRemovalUnits,
+    working,
+    target.battleUnitId,
+    effectActions,
+    lastEventId,
+    "EFFECT_EXPIRED",
+  );
+  working = recalculation.units;
+  lastEventId = recalculation.lastEventId;
+
+  // PRレビュー再指摘[P2]: 凍結自身の`FreezeRemoved`とそれに続く`CombatStatChanged`も
+  // カスケードの各ステップと同じ粒度で`yield`する — まとめて最後に通知すると、
+  // 最初のステップをtriggerにするPSが既に後続ステップまで完了した状態を見てしまう。
+  // 呼び出し側が`.next()`へ渡す値は、このyield中にPS連鎖が変化させた最新の`units`。
+  const injected = yield {
+    events: context.recorder.getEvents().slice(stepEventsStart),
+    units: working,
+  };
+  if (injected !== undefined) {
+    working = injected;
   }
 
   return { units: working, lastEventId };

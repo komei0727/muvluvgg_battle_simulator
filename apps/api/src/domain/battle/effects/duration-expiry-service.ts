@@ -1,10 +1,16 @@
-import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
-import { collectLinkedGroupCascade } from "../model/applied-effect-linked-group.js";
+import {
+  cascadedOnlyRemovals,
+  orderGroupRemovals,
+  removeGroupMembersSteps,
+  type LinkedGroupCascadeStep,
+  type LinkedGroupRemoval,
+} from "./linked-group-cascade.js";
+import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { EffectExpirationReason } from "../events/domain-event.js";
+import type { BattleDomainEvent, EffectExpirationReason } from "../events/domain-event.js";
 import type { ConsumptionChange, EffectDurationChange } from "../model/applied-effect-duration.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -25,6 +31,16 @@ export interface ExpireEffectsContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
+   * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
+   * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 /**
@@ -194,18 +210,22 @@ export function emitEffectConsumptionChangedEvents(
  * reason: `EFFECT_EXPIRED`）を呼び、R-EFF-05の次点繰上げを自然に反映する。
  * `seeds`が空の場合は何もせず`parentEventId`をそのまま返す。
  */
-export function expireEffects(
+export function* expireEffectsSteps(
   context: ExpireEffectsContext,
   units: readonly BattleUnit[],
   seeds: readonly ExpirationSeed[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
-): ExpireEffectsResult {
+): Generator<LinkedGroupCascadeStep, ExpireEffectsResult, readonly BattleUnit[] | undefined> {
   if (seeds.length === 0) {
     return { units, lastEventId: parentEventId };
   }
 
   const seedIds = new Set(seeds.map((seed) => seed.effectInstanceId));
+  const seedInstances = {
+    effectInstanceIds: seedIds,
+    markerInstanceIds: NO_MARKER_INSTANCE_IDS,
+  };
   // レビュー再指摘[P2]（PR #209）: Catalogの`linkedEffectGroupId`は同グループ
   // 所属を表すフラットな値で、それ単独では親子の役割を区別しない。以前は
   // 失効理由（`CONSUMPTION`かどうか）から役割を推測していたが、実production
@@ -215,130 +235,59 @@ export function expireEffects(
   // あり、理由ベースの推測では区別できなかった。加えて全メンバーへ対称に
   // カスケードすると、R-EFF-09「子効果だけが消費条件で失効した場合、親効果は
   // 維持する」という非対称な例外を満たせない。`collectLinkedGroupCascade`
-  // （`model/applied-effect-linked-group.ts`）が、Catalogが明示する
+  // （`model/linked-effect-group.ts`）が、Catalogが明示する
   // `linkedEffectGroupRole`（`PARENT`/`CHILD`）を見て、`CHILD`ロールの
   // seedからはカスケードを起こさない（`PARENT`ロール、またはロールを持たない
   // レガシーグループのseedは従来どおり理由を問わずカスケードする）。
-  const cascadeIds = collectLinkedGroupCascade(units, seedIds);
-  const reasonById = new Map<
-    EffectInstanceId,
-    { reason: EffectExpirationReason; cascaded: boolean }
-  >();
-  for (const seed of seeds) {
-    reasonById.set(seed.effectInstanceId, { reason: seed.reason, cascaded: false });
+  //
+  // M7-013（Issue #267）: R-EFF-09第1項に従い、カスケードは`AppliedEffect`同士に
+  // 閉じず、同じ`linkedEffectGroupId`を持つ`MarkerState`（`MarkerRemoved`／
+  // `reason: LINKED_GROUP_CASCADE`）も巻き込む。
+  const cascade = collectLinkedGroupCascade(units, seedInstances);
+
+  // PR #280再々レビュー[P2]: カスケード分とseed分を単一の除去バッチとして扱い、
+  // メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順（`CHILD`→
+  // ロールなし→`PARENT`）へ整列する。二段（cascade→seed）で処理すると、
+  // 同一グループに複数`PARENT`がある定義で非seedの`PARENT`がseedの`CHILD`より
+  // 先に失効し得た。
+  const removals = orderGroupRemovals(units, [
+    ...cascadedOnlyRemovals(cascade, seedInstances),
+    ...seeds.map(
+      (seed): LinkedGroupRemoval => ({
+        member: { kind: "EFFECT", effectInstanceId: seed.effectInstanceId },
+        reason: seed.reason,
+        cascaded: false,
+      }),
+    ),
+  ]);
+  const removed = yield* removeGroupMembersSteps(
+    context,
+    units,
+    removals,
+    effectActions,
+    parentEventId,
+    "EffectExpired",
+  );
+
+  return removed;
+}
+
+/**
+ * `expireEffectsSteps`をステップ`yield`を使わずに完了まで駆動する薄いwrapper
+ * （`freeze-removal-service.ts`の`removeFreezeEffect`と同じ形）。ステップごとの
+ * PS/Memory通知は`context.onFactEventForPassiveChain`が担う。
+ */
+export function expireEffects(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  seeds: readonly ExpirationSeed[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): ExpireEffectsResult {
+  const steps = expireEffectsSteps(context, units, seeds, effectActions, parentEventId);
+  let step = steps.next();
+  while (!step.done) {
+    step = steps.next(step.value.units);
   }
-
-  const cascadedOnlyOrdered: EffectInstanceId[] = [];
-  for (const unit of units) {
-    for (const effect of unit.appliedEffects) {
-      if (cascadeIds.has(effect.effectInstanceId) && !seedIds.has(effect.effectInstanceId)) {
-        cascadedOnlyOrdered.push(effect.effectInstanceId);
-        reasonById.set(effect.effectInstanceId, {
-          reason: "LINKED_GROUP_CASCADE",
-          cascaded: true,
-        });
-      }
-    }
-  }
-  const orderedInstanceIds = [
-    ...cascadedOnlyOrdered,
-    ...seeds.map((seed) => seed.effectInstanceId),
-  ];
-
-  let working = units;
-  let lastEventId = parentEventId;
-
-  for (const effectInstanceId of orderedInstanceIds) {
-    const holder = working.find((unit) =>
-      unit.appliedEffects.some((effect) => effect.effectInstanceId === effectInstanceId),
-    );
-    if (holder === undefined) {
-      // Already removed by an earlier step in this same batch (e.g. a
-      // duplicate seed/cascade reference) — nothing left to expire.
-      continue;
-    }
-    const target = requireUnit(working, holder.battleUnitId);
-    const targetEffect = target.appliedEffects.find(
-      (effect) => effect.effectInstanceId === effectInstanceId,
-    )!;
-    const wasEffective = selectEffectiveInstances(
-      target.appliedEffects.map((effect) => ({
-        effectInstanceId: effect.effectInstanceId,
-        kindKey: effect.kindKey,
-        duplicate: effect.duplicate,
-        magnitude: effect.magnitude,
-      })),
-    ).has(effectInstanceId);
-
-    const beforeRemovalUnits = working;
-    working = working.map((unit) =>
-      unit.battleUnitId === target.battleUnitId
-        ? {
-            ...unit,
-            appliedEffects: unit.appliedEffects.filter(
-              (effect) => effect.effectInstanceId !== effectInstanceId,
-            ),
-          }
-        : unit,
-    );
-
-    const info = reasonById.get(effectInstanceId)!;
-    const expired = context.recorder.record({
-      eventType: "EffectExpired",
-      category: "FACT",
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-      resolutionScopeId: context.resolutionScopeId,
-      parentEventId: lastEventId,
-      rootEventId: context.rootEventId,
-      sourceUnitId: target.battleUnitId,
-      targetUnitIds: [target.battleUnitId],
-      payload: {
-        effectInstanceId,
-        battleUnitId: target.battleUnitId,
-        effectActionDefinitionId: targetEffect.effectActionDefinitionId,
-        kindKey: targetEffect.kindKey,
-        reason: info.reason,
-        linkedEffectGroupId: targetEffect.duration.definition.linkedEffectGroupId,
-        cascaded: info.cascaded,
-      },
-      stateDelta: {
-        units: {
-          [target.battleUnitId]: {
-            effects: {
-              [effectInstanceId]: {
-                before: toEffectSnapshot(targetEffect, wasEffective),
-                after: undefined,
-              },
-            },
-          },
-        },
-      },
-    });
-    lastEventId = expired.eventId;
-
-    const recalculation = recalculateCombatStats(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-        resolutionScopeId: context.resolutionScopeId,
-        rootEventId: context.rootEventId,
-      },
-      beforeRemovalUnits,
-      working,
-      target.battleUnitId,
-      effectActions,
-      lastEventId,
-      "EFFECT_EXPIRED",
-    );
-    working = recalculation.units;
-    lastEventId = recalculation.lastEventId;
-  }
-
-  return { units: working, lastEventId };
+  return step.value;
 }

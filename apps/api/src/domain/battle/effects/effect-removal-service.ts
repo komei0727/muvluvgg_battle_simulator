@@ -1,19 +1,21 @@
 import { effectCategoriesOf } from "./effect-category-classifier.js";
-import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
-import { collectLinkedGroupCascade } from "../model/applied-effect-linked-group.js";
-import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
+import {
+  cascadedOnlyRemovals,
+  orderGroupRemovals,
+  removeGroupMembers,
+  type LinkedGroupRemoval,
+} from "./linked-group-cascade.js";
+import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
-import { toEffectSnapshot } from "../events/state-delta.js";
 import type { AppliedEffect } from "../model/applied-effect.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { EffectRemovalReason } from "../events/domain-event.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectImmunityCategory } from "../../catalog/definitions/catalog-enums.js";
 import type {
   ActionId,
   DomainEventId,
-  EffectInstanceId,
   ResolutionScopeId,
   SkillUseId,
 } from "../../shared/event-ids.js";
@@ -27,6 +29,16 @@ export interface RemoveEffectsContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
+   * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
+   * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 /**
@@ -126,126 +138,39 @@ export function removeEffects(
         candidate.duration.definition.linkedEffectGroupRole !== "CHILD",
     );
   };
-  const rootSeedIds = capped
-    .filter((effect) => !hasMatchedParent(effect))
-    .map((effect) => effect.effectInstanceId);
-
-  const rootSeedSet = new Set(rootSeedIds);
-  const cascadeIds = collectLinkedGroupCascade(units, rootSeedSet);
-  const reasonById = new Map<
-    EffectInstanceId,
-    { reason: EffectRemovalReason; cascaded: boolean }
-  >();
-  for (const id of rootSeedIds) {
-    reasonById.set(id, { reason: "REMOVED", cascaded: false });
-  }
-  const cascadedOnlyOrdered: EffectInstanceId[] = [];
-  for (const unit of units) {
-    for (const effect of unit.appliedEffects) {
-      if (cascadeIds.has(effect.effectInstanceId) && !rootSeedSet.has(effect.effectInstanceId)) {
-        cascadedOnlyOrdered.push(effect.effectInstanceId);
-        reasonById.set(effect.effectInstanceId, {
-          reason: "LINKED_GROUP_CASCADE",
-          cascaded: true,
-        });
-      }
-    }
-  }
-  const orderedInstanceIds = [...cascadedOnlyOrdered, ...rootSeedIds];
-
-  let working = units;
-  let lastEventId = parentEventId;
-
-  for (const effectInstanceId of orderedInstanceIds) {
-    const holder = working.find((unit) =>
-      unit.appliedEffects.some((effect) => effect.effectInstanceId === effectInstanceId),
-    );
-    if (holder === undefined) {
-      continue;
-    }
-    const holderUnit = requireUnit(working, holder.battleUnitId);
-    const targetEffect = holderUnit.appliedEffects.find(
-      (effect) => effect.effectInstanceId === effectInstanceId,
-    )!;
-    const wasEffective = selectEffectiveInstances(
-      holderUnit.appliedEffects.map((effect) => ({
-        effectInstanceId: effect.effectInstanceId,
-        kindKey: effect.kindKey,
-        duplicate: effect.duplicate,
-        magnitude: effect.magnitude,
-      })),
-    ).has(effectInstanceId);
-
-    const beforeRemovalUnits = working;
-    working = working.map((unit) =>
-      unit.battleUnitId === holderUnit.battleUnitId
-        ? {
-            ...unit,
-            appliedEffects: unit.appliedEffects.filter(
-              (effect) => effect.effectInstanceId !== effectInstanceId,
-            ),
-          }
-        : unit,
-    );
-
-    const info = reasonById.get(effectInstanceId)!;
-    const removed = context.recorder.record({
-      eventType: "EffectRemoved",
-      category: "FACT",
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-      resolutionScopeId: context.resolutionScopeId,
-      parentEventId: lastEventId,
-      rootEventId: context.rootEventId,
-      sourceUnitId: holderUnit.battleUnitId,
-      targetUnitIds: [holderUnit.battleUnitId],
-      payload: {
-        effectInstanceId,
-        battleUnitId: holderUnit.battleUnitId,
-        effectActionDefinitionId: targetEffect.effectActionDefinitionId,
-        kindKey: targetEffect.kindKey,
-        reason: info.reason,
-        linkedEffectGroupId: targetEffect.duration.definition.linkedEffectGroupId,
-        cascaded: info.cascaded,
-      },
-      stateDelta: {
-        units: {
-          [holderUnit.battleUnitId]: {
-            effects: {
-              [effectInstanceId]: {
-                before: toEffectSnapshot(targetEffect, wasEffective),
-                after: undefined,
-              },
-            },
-          },
-        },
-      },
-    });
-    lastEventId = removed.eventId;
-
-    const recalculation = recalculateCombatStats(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-        resolutionScopeId: context.resolutionScopeId,
-        rootEventId: context.rootEventId,
-      },
-      beforeRemovalUnits,
-      working,
-      holderUnit.battleUnitId,
-      effectActions,
-      lastEventId,
-      "EFFECT_REMOVED",
-    );
-    working = recalculation.units;
-    lastEventId = recalculation.lastEventId;
-  }
+  const rootSeeds = capped.filter((effect) => !hasMatchedParent(effect));
+  const rootSeedSet = new Set(rootSeeds.map((effect) => effect.effectInstanceId));
+  const seedInstances = {
+    effectInstanceIds: rootSeedSet,
+    markerInstanceIds: NO_MARKER_INSTANCE_IDS,
+  };
+  // M7-013（Issue #267）: R-EFF-09第1項に従い、解除した親効果と同じ
+  // `linkedEffectGroupId`を持つ`MarkerState`も連動解除する（`MarkerRemoved`／
+  // `reason: LINKED_GROUP_CASCADE`）。カスケード分の`AppliedEffect`は解除起点に
+  // 連なるため`EffectRemoved`で表す（`EffectRemovalReason`）。
+  //
+  // PR #280再々レビュー[P2]: カスケード分とroot seed分を単一の除去バッチとして
+  // 扱い、メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順へ整列する。
+  const cascade = collectLinkedGroupCascade(units, seedInstances);
+  const removals = orderGroupRemovals(units, [
+    ...cascadedOnlyRemovals(cascade, seedInstances),
+    ...rootSeeds.map(
+      (effect): LinkedGroupRemoval => ({
+        member: { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
+        reason: "REMOVED",
+        cascaded: false,
+      }),
+    ),
+  ]);
+  const removed = removeGroupMembers(
+    context,
+    units,
+    removals,
+    effectActions,
+    parentEventId,
+    "EffectRemoved",
+  );
 
   // 「解除数」は直接一致で解除したインスタンス数（cascadeで巻き込んだ子効果は含めない）。
-  return { units: working, lastEventId, removedCount: capped.length };
+  return { units: removed.units, lastEventId: removed.lastEventId, removedCount: capped.length };
 }

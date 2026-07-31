@@ -1,10 +1,18 @@
-import { collectMarkerLinkedGroupCascade } from "../model/marker-linked-group.js";
+import {
+  cascadedOnlyRemovals,
+  notifyRemovalStep,
+  orderGroupRemovals,
+  removeGroupMembers,
+  type LinkedGroupRemoval,
+} from "./linked-group-cascade.js";
+import { NO_EFFECT_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { MarkerRemovalReason } from "../events/domain-event.js";
+import type { BattleDomainEvent, MarkerRemovalReason } from "../events/domain-event.js";
 import type { MarkerDurationChange } from "../model/marker-duration.js";
-import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { EffectActionDefinitionId, MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   ActionId,
   DomainEventId,
@@ -22,6 +30,16 @@ export interface RemoveMarkersContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
+   * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
+   * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 /**
@@ -107,16 +125,23 @@ export interface RemoveMarkersResult {
 /**
  * R-EFF-10「Markerが0スタックになった場合は解除」/R-EFF-09: `seeds`（明示的な
  * `REMOVE_MARKER`、または時間制限が0になったMarker）から、同じ`linkedEffectGroupId`
- * を共有する未除去のMarkerを`collectMarkerLinkedGroupCascade`でカスケードし、
+ * を共有する未除去のメンバーを`collectLinkedGroupCascade`でカスケードし、
  * `MarkerRemoved`をインスタンスごとに発行してから対象を除去する。`duration-
  * expiry-service.ts`の`expireEffects`と同じ順序規約（子を先に、親を最後に）。
- * `AppliedEffect`をまたぐカスケード（R-EFF-09の完全な範囲）は
- * `marker-linked-group.ts`のコメントのとおり本Issueの対象外。
+ *
+ * M7-013（Issue #267）: カスケードはR-EFF-09第1項が規定するとおり`MarkerState`
+ * 同士に閉じず、同じ`linkedEffectGroupId`を持つ`AppliedEffect`（`EffectExpired`
+ * ／`reason: LINKED_GROUP_CASCADE`）も巻き込む — production Catalogの
+ * `MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT`（負けん気→攻撃力バフ）・
+ * `MARKER_AOI_ELEGANT_KOUYOU`（高揚→会心率デバフ／継続ダメージ）がこの向きを
+ * 使う。カスケードされた`AppliedEffect`の除去はCombatStat再計算を伴うため
+ * `effectActions`を要求する（`expireEffects`と同じ引数位置）。
  */
 export function removeMarkers(
   context: RemoveMarkersContext,
   units: readonly BattleUnit[],
   seeds: readonly MarkerRemovalSeed[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): RemoveMarkersResult {
   if (seeds.length === 0) {
@@ -124,7 +149,11 @@ export function removeMarkers(
   }
 
   const seedIds = new Set(seeds.map((seed) => seed.markerInstanceId));
-  const cascadeIds = collectMarkerLinkedGroupCascade(units, seedIds);
+  const seedInstances = {
+    effectInstanceIds: NO_EFFECT_INSTANCE_IDS,
+    markerInstanceIds: seedIds,
+  };
+  const cascade = collectLinkedGroupCascade(units, seedInstances);
   const reasonById = new Map<
     MarkerInstanceId,
     { reason: MarkerRemovalReason; cascaded: boolean }
@@ -133,84 +162,27 @@ export function removeMarkers(
     reasonById.set(seed.markerInstanceId, { reason: seed.reason, cascaded: false });
   }
 
-  const cascadedOnlyOrdered: MarkerInstanceId[] = [];
-  for (const unit of units) {
-    for (const marker of unit.markerStates) {
-      if (cascadeIds.has(marker.markerInstanceId) && !seedIds.has(marker.markerInstanceId)) {
-        cascadedOnlyOrdered.push(marker.markerInstanceId);
-        reasonById.set(marker.markerInstanceId, { reason: "LINKED_GROUP_CASCADE", cascaded: true });
-      }
-    }
-  }
-  const orderedInstanceIds = [
-    ...cascadedOnlyOrdered,
-    ...seeds.map((seed) => seed.markerInstanceId),
-  ];
-
-  let working = units;
-  let lastEventId = parentEventId;
-
-  for (const markerInstanceId of orderedInstanceIds) {
-    const holder = working.find((unit) =>
-      unit.markerStates.some((marker) => marker.markerInstanceId === markerInstanceId),
-    );
-    if (holder === undefined) {
-      continue;
-    }
-    const target = requireUnit(working, holder.battleUnitId);
-    const targetMarker = target.markerStates.find(
-      (marker) => marker.markerInstanceId === markerInstanceId,
-    )!;
-
-    working = working.map((unit) =>
-      unit.battleUnitId === target.battleUnitId
-        ? {
-            ...unit,
-            markerStates: unit.markerStates.filter(
-              (marker) => marker.markerInstanceId !== markerInstanceId,
-            ),
-          }
-        : unit,
-    );
-
-    const info = reasonById.get(markerInstanceId)!;
-    const removed = context.recorder.record({
-      eventType: "MarkerRemoved",
-      category: "FACT",
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-      resolutionScopeId: context.resolutionScopeId,
-      parentEventId: lastEventId,
-      rootEventId: context.rootEventId,
-      sourceUnitId: target.battleUnitId,
-      targetUnitIds: [target.battleUnitId],
-      payload: {
-        markerInstanceId,
-        markerId: targetMarker.markerId,
-        targetUnitId: target.battleUnitId,
-        reason: info.reason,
-        linkedEffectGroupId: targetMarker.duration.definition.linkedEffectGroupId,
-        cascaded: info.cascaded,
-      },
-      stateDelta: {
-        units: {
-          [target.battleUnitId]: {
-            markers: {
-              [markerInstanceId]: {
-                before: toMarkerSnapshot(targetMarker),
-                after: undefined,
-              },
-            },
-          },
-        },
-      },
-    });
-    lastEventId = removed.eventId;
-  }
-
-  return { units: working, lastEventId };
+  // PR #280再々レビュー[P2]: カスケード分とseed分を単一の除去バッチとして扱い、
+  // メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順（`CHILD`→
+  // ロールなし→`PARENT`）へ整列する（`duration-expiry-service.ts`と同じ形）。
+  const removals = orderGroupRemovals(units, [
+    ...cascadedOnlyRemovals(cascade, seedInstances),
+    ...seeds.map(
+      (seed): LinkedGroupRemoval => ({
+        member: { kind: "MARKER", markerInstanceId: seed.markerInstanceId },
+        reason: seed.reason,
+        cascaded: false,
+      }),
+    ),
+  ]);
+  return removeGroupMembers(
+    context,
+    units,
+    removals,
+    effectActions,
+    parentEventId,
+    "EffectExpired",
+  );
 }
 
 export interface ReduceMarkerStackResult {
@@ -234,6 +206,7 @@ export function reduceMarkerStack(
   targetId: BattleUnitId,
   markerId: MarkerId,
   count: number,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): ReduceMarkerStackResult {
   const target = requireUnit(units, targetId);
@@ -248,11 +221,13 @@ export function reduceMarkerStack(
       context,
       units,
       [{ battleUnitId: targetId, markerInstanceId: existing.markerInstanceId, reason: "REMOVED" }],
+      effectActions,
       parentEventId,
     );
     return { units: result.units, lastEventId: result.lastEventId, changed: true };
   }
 
+  const stackReductionEventsStart = context.recorder.getEvents().length;
   const nextMarker = { ...existing, stackCount: stackAfter };
   const nextUnits = units.map((unit) =>
     unit.battleUnitId === targetId
@@ -299,5 +274,13 @@ export function reduceMarkerStack(
       },
     },
   });
-  return { units: nextUnits, lastEventId: updated.eventId, changed: true };
+  // PR #280レビュー[P1]: `removeMarkers`経路と同じ粒度で、スタック減算だけの
+  // `MarkerUpdated`もその場でPS/Memory連鎖へ通知する（呼び出し側が
+  // 「除去は内部で通知済み」を前提にイベント列を切り詰めるため、
+  // ここで通知しないとこの1件が連鎖から落ちる）。
+  return {
+    units: notifyRemovalStep(context, nextUnits, stackReductionEventsStart),
+    lastEventId: updated.eventId,
+    changed: true,
+  };
 }

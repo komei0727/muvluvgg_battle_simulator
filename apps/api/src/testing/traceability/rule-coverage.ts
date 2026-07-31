@@ -1805,6 +1805,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-07-007",
       "UT-R-EFF-07-008",
       "UT-R-EFF-07-009",
+      "UT-R-EFF-07-014",
+      "UT-R-EFF-07-015",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
@@ -1828,41 +1830,124 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
   // R-EFF-09: linkedEffectGroupの親子連動カスケード。EFF-003（Issue #159）が
-  // `AppliedEffect`同士（`applied-effect-linked-group.ts`、
-  // `duration-expiry-service.ts`の子優先順序）を、EFF-004（Issue #160）が
-  // `MarkerState`同士（`marker-linked-group.ts`）を実装し、
-  // `UT-R-EFF-09-001`〜`006`と`IT-CAP-COMPLEX-EXPIRATION-PROD-004`
+  // `AppliedEffect`同士、EFF-004（Issue #160）が`MarkerState`同士を種別ごとに
+  // 実装し、`UT-R-EFF-09-001`〜`008`と`IT-CAP-COMPLEX-EXPIRATION-PROD-004`
   // （UNIT_HARRIET_SAGEの実`linkedEffectGroupId` `HARRIET_CURSE_LINK`）が
-  // 検証している。
+  // 検証していた。
   //
   // M7-010（Issue #177、監査）: しかしR-EFF-09の第1項「同じ
   // `linkedEffectGroupId`を持つ`AppliedEffect`**と**`MarkerState`は親子連動
-  // グループとして扱う」は未実装であり、`catalog-integrity.ts`の
-  // `validateMarkerLinkedGroupCascadeSupport`が該当Catalog定義を
-  // `UNSUPPORTED_MARKER_LINKED_GROUP`としてロード時点で拒否している。
+  // グループとして扱う」は未実装で、`catalog-integrity.ts`が該当Catalog定義を
+  // `UNSUPPORTED_MARKER_LINKED_GROUP`としてロード時点で拒否していたため、
   // 「SchemaやMapperが定義を受理するだけでは完了としない」
-  // （`17_残作業対応表.md`「更新手順」）に照らすと完了計上は過大であり、
-  // 実際に当該規定を必要とするproduction Catalog行が2行残っている
-  // （`LINKED_EFFECT_GROUP_CROSS_TYPE`）。上記の既存テストは残存する事実だが、
-  // ルールCoverage上は未完了へ戻し、M7-013（Issue #267）へ割り当てる —
-  // R-EFF-05と同じ運用（実ライフサイクル到達不能な部分がある間は
-  // `testCaseIds`を空にし、根拠をこのコメントへ残す）。
-  { ruleId: "R-EFF-09", testCaseIds: [], kinds: [] },
+  // （`17_残作業対応表.md`「更新手順」）に照らして未完了へ戻した。
+  //
+  // M7-013（Issue #267）: そのcross-typeカスケードを実装して完了させた。
+  // 種別ごとに分かれていた2つの収集関数を`model/linked-effect-group.ts`の
+  // `collectLinkedGroupCascade`（`AppliedEffect`と`MarkerState`を同じBFSへ載せ、
+  // `linkedEffectGroupRole`の`CHILD`例外も種別を問わず適用する）へ統合し、
+  // カスケード分の除去・イベント発行を`effects/linked-group-cascade.ts`へ
+  // 共通化して、失効（`expireEffects`）・解除（`removeEffects`）・Marker除去
+  // （`removeMarkers`/`reduceMarkerStack`）・凍結解除（`removeFreezeEffectSteps`）の
+  // 4経路すべてを同じ実装へ配線した。`catalog-integrity.ts`の拒否も撤去し、
+  // production Catalogの2グループ（`TARISA_TROUBLEMAKER_PS1_LINK`／
+  // `AOI_ELEGANT_AS1_KOUYOU_LINK`）を近似なしへ更新した。
+  //
+  // PR #280レビュー[P1]/[P2]: カスケードの通知粒度と失効順を2点修正した。
+  // (1) 1インスタンスの除去ごとにPS/Memoryの即時連鎖へ通知する
+  // （`notifyRemovalStep`。まとめて最後に通知すると、子の`EffectExpired`を
+  // triggerにするPSがイベント順ではまだ存在する親Marker／親効果を除去済みとして
+  // 観測し、`08_ドメインイベント.md`の「各イベントに対応するPS/Memory候補を
+  // 直ちに解決する」契約を破る。`UT-R-EFF-09-020`／
+  // `IT-LINKED-GROUP-CROSS-TYPE-PROD-005`が固定）。
+  // (2) カスケード対象の並びを`linkedEffectGroupRole`（`CHILD`→ロールなし→
+  // `PARENT`）を第1キーに変更した（スキーマが禁じていない「同一グループに複数の
+  // `PARENT`」で、カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た。
+  // `UT-R-EFF-09-019`が固定）。
+  //
+  // PR #280再々レビュー[P1]/[P1]/[P2]: 通知粒度とロール順の適用範囲を3点広げた。
+  // (3) DAMAGE pipelineの消費失効（`DamageEventContext.consumeEffectDuration`／
+  // `finalizeConsumedEffectDurations`）も凍結解除と同じステップ`yield`型の
+  // generatorへ変え（`expireEffectsSteps`）、callbackがあればステップごとに
+  // 同期通知、無ければ1ステップずつyieldしてdriverの更新stateを次の除去へ
+  // 注入するようにした（`UT-R-EFF-09-022`が固定）。
+  // (4) TURN_ENDINGの期間イベント（`EffectDurationReduced`/`EffectExpired`/
+  // `MarkerUpdated`/`MarkerRemoved`）も`turnEndPassiveRuntime`へ発生順に通知し、
+  // `finalizeResolutionScope`をその後（`06_戦闘状態遷移.md` TURN_ENDING #9）へ
+  // 移した（`UT-R-EFF-09-023`が固定）。それまでTURN期間満了のカスケードは
+  // PS/Memory候補が一度も解決されなかった。
+  // (5) ロール順の整列をカスケード対象だけでなく同じ除去バッチの`seeds`へも
+  // 適用した（同じグループの`PARENT`と`CHILD`が同時に0になり得る。
+  // `UT-R-EFF-09-021`が固定）。
+  //
+  // PR #280再々レビュー[P1]/[P1]/[P2]: さらに3点。
+  // (6) `EffectConsumptionChanged`自身も1イベント=1stepとして`yield`する
+  // （残回数が0にならない消費では失効stepが無く、PS/Memory連鎖へ一度も
+  // 渡らなかった。`UT-R-EFF-07-014`が固定）。再々々レビュー[P1]: state変更も
+  // step単位にした — 一括減算済みの`units`を起点にしていたため最初の観測者が
+  // 未発行分の減算まで見え、かつ先行連鎖が後続対象を解除した場合に
+  // 存在しない効果のsnapshot生成で実行時例外になり得た。対象の決定と適用を
+  // 分け、最新stateへ1インスタンスずつ再評価しながら適用する
+  // （`UT-R-EFF-07-015`が固定）。
+  // (7) `TurnCompleted`も`turnEndPassiveRuntime`へ渡してから解決スコープを
+  // 終了する（`06_戦闘状態遷移.md` TURN_ENDING #8、`UT-BATTLE-018`が固定）。
+  // (8) カスケード分とseed分を単一の除去バッチ（`orderGroupRemovals`／
+  // `removeGroupMembersSteps`）へ統合し、メンバー固有の`reason`/`cascaded`を
+  // 保ったまま一度だけrole順へ整列する — 二段で処理していたため非seedの
+  // `PARENT`がseedの`CHILD`より先に失効し得た（`UT-R-EFF-09-024`が固定）。
+  {
+    ruleId: "R-EFF-09",
+    testCaseIds: [
+      "UT-R-EFF-09-001",
+      "UT-R-EFF-09-002",
+      "UT-R-EFF-09-003",
+      "UT-R-EFF-09-004",
+      "UT-R-EFF-09-005",
+      "UT-R-EFF-09-006",
+      "UT-R-EFF-09-007",
+      "UT-R-EFF-09-008",
+      "UT-R-EFF-09-009",
+      "UT-R-EFF-09-010",
+      "UT-R-EFF-09-011",
+      "UT-R-EFF-09-012",
+      "UT-R-EFF-09-013",
+      "UT-R-EFF-09-014",
+      "UT-R-EFF-09-015",
+      "UT-R-EFF-09-016",
+      "UT-R-EFF-09-017",
+      "UT-R-EFF-09-018",
+      "UT-R-EFF-09-019",
+      "UT-R-EFF-09-020",
+      "UT-R-EFF-09-021",
+      "UT-R-EFF-09-022",
+      "UT-R-EFF-09-023",
+      "UT-R-EFF-09-024",
+      "UT-R-EFF-10-010",
+      "UT-R-EFF-10-011",
+      "IT-CAP-COMPLEX-EXPIRATION-PROD-004",
+      "IT-LINKED-GROUP-CROSS-TYPE-PROD-001",
+      "IT-LINKED-GROUP-CROSS-TYPE-PROD-002",
+      "IT-LINKED-GROUP-CROSS-TYPE-PROD-003",
+      "IT-LINKED-GROUP-CROSS-TYPE-PROD-004",
+      "IT-LINKED-GROUP-CROSS-TYPE-PROD-005",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // R-EFF-10: EFF-004（Issue #160）。ADD/KEEP_EXISTING/REFRESH/REPLACEの4方針、
   // stack.max clamp・0未満禁止（`marker-apply-service.ts`）、明示的
-  // `REMOVE_MARKER`とlinkedEffectGroupカスケード（`MarkerState`同士、
-  // `marker-removal-service.ts`/`marker-linked-group.ts`）、ACTION/TURN単位
+  // `REMOVE_MARKER`とlinkedEffectGroupカスケード
+  // （`marker-removal-service.ts`/`model/linked-effect-group.ts`）、ACTION/TURN単位
   // Duration失効（`marker-duration.ts`、`action-completion.ts`/`battle.ts`への
   // 実ライフサイクル配線）を実装した。`MARKER_COUNT_SCALE`Formula評価
   // （`CAP_MARKER_STACK_FORMULA`）はcontext付きFormulaEvaluatorを要するため
   // RES-001（Issue #175）のスコープ、`TARGET_HAS_MARKER`Condition評価は
   // RES-004（Issue #171）、`HAS_MARKER`TargetSelector評価はTGT-002
   // （Issue #169）のスコープとして残す。`AppliedEffect`をまたぐlinkedEffectGroup
-  // カスケード（cross-type）は未実装であり、`catalog-integrity.ts`が同じ
-  // `linkedEffectGroupId`を`APPLY_MARKER`と非Marker種別の両方が使う組合せを
-  // Catalogロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_LINKED_GROUP`、
-  // PR #210再レビュー[P2]）。Marker同士のグループは実装済みのため拒否しない。
-  // 同様に、schema上は許容されるが未実装のMarker Duration機構（`consumption`、
+  // カスケード（cross-type、R-EFF-09第1項）はM7-013（Issue #267）が実装し、
+  // それまで`catalog-integrity.ts`が`UNSUPPORTED_MARKER_LINKED_GROUP`として
+  // 拒否していた組合せ（同じ`linkedEffectGroupId`を`APPLY_MARKER`と非Marker種別の
+  // 両方が使う）を受理できるようにした（拒否自体も撤去した）。
+  // 一方、schema上は許容されるが未実装のMarker Duration機構（`consumption`、
   // `expiration`、`HIT`/`SKILL_USE`単位の`timeLimit`）も同じCatalog integrity
   // パスで`UNSUPPORTED_MARKER_DURATION`として拒否する（PR #210再レビュー[P2]）。
   // API応答（`BattleUnitStateResponse.markers`/`UnitStateDeltaResponse.markers`、
