@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 45,
-      "implemented": 28
+      "implemented": 29
     }
   },
   "tasks": [
@@ -115,7 +115,7 @@
     { "taskId": "M7-014", "issue": 268, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-015", "issue": 269, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-016", "issue": 270, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-017", "issue": 271, "phase": 2, "milestone": "M7", "status": "OPEN" },
+    { "taskId": "M7-017", "issue": 271, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-018", "issue": 272, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-019", "issue": 273, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-020", "issue": 279, "phase": 2, "milestone": "M7", "status": "CLOSED" },
@@ -240,7 +240,7 @@
         "capabilityId": "CAP_DAMAGE_MOD",
         "blockedUnits": 54,
         "blockedMemories": 13,
-        "exclusivelyBlockedUnits": 19,
+        "exclusivelyBlockedUnits": 20,
         "exclusivelyBlockedMemories": 13
       },
       {
@@ -315,13 +315,6 @@
       },
       {
         "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",
-        "blockedUnits": 1,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_RESOURCE_DISTRIBUTE",
         "blockedUnits": 1,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 0,

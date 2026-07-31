@@ -4342,6 +4342,165 @@ describe("applyEffectActionGroups", () => {
         units: { [actor.battleUnitId]: { hp: { before: 100, after: 90 } } },
       });
     });
+
+    it("UT-R-ACTN-02-019 (full stack, DISTRIBUTE): one total EX amount is split evenly across every target of the same EffectAction in the step instead of granting each target the full amount", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY_2", "ALLY");
+      const distribute = modifyResourceAction("ACT_EX_DISTRIBUTE", {
+        resource: "EX_GAUGE",
+        operation: "DISTRIBUTE",
+        formula: { kind: "CONSTANT", value: 8 },
+        bounds: { min: 0, max: "CURRENT_MAX" },
+      });
+      const effectActions = new Map([[distribute.effectActionDefinitionId, distribute]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan = distributePlan(actor, ally, distribute, false);
+
+      const result = applyEffectActionGroups(plan, [actor, ally], context);
+
+      for (const target of [actor, ally]) {
+        expect(
+          result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentExtraGauge,
+        ).toBe(4);
+      }
+      const changes = recorder.getEvents().filter((e) => e.eventType === "ResourceChanged");
+      expect(changes).toHaveLength(2);
+      expect(changes[0]!.stateDelta).toEqual({
+        units: { [actor.battleUnitId]: { extraGauge: { before: 0, after: 4 } } },
+      });
+    });
+
+    it("UT-R-ACTN-02-020 (BOUNDARY): a target that is already defeated when the distributing MODIFY_RESOURCE starts is excluded from the share count, so the surviving target still receives the whole total", () => {
+      const actor = unit("ACTOR", "ALLY");
+      // The EffectStepStarting chain can leave a planned target defeated. The
+      // EffectAction is then SKIPPED for it, so it must not consume a share.
+      const deadAlly = unit("ALLY_DEAD", "ALLY", { currentHp: 0 });
+      const distribute = modifyResourceAction("ACT_EX_DISTRIBUTE", {
+        resource: "EX_GAUGE",
+        operation: "DISTRIBUTE",
+        formula: { kind: "CONSTANT", value: 8 },
+        bounds: { min: 0, max: "CURRENT_MAX" },
+      });
+      const effectActions = new Map([[distribute.effectActionDefinitionId, distribute]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan = distributePlan(actor, deadAlly, distribute, false);
+
+      const result = applyEffectActionGroups(plan, [actor, deadAlly], context);
+
+      expect(
+        result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentExtraGauge,
+      ).toBe(8);
+      expect(
+        result.units.find((u) => u.battleUnitId === deadAlly.battleUnitId)!.currentExtraGauge,
+      ).toBe(0);
+      expect(recorder.getEvents().filter((e) => e.eventType === "ResourceChanged")).toHaveLength(1);
+    });
+
+    it("UT-R-ACTN-02-021 (BOUNDARY): a defeated target selected with includeDefeated stays in the share count, because unlike HEAL a MODIFY_RESOURCE really does apply to it", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const deadAlly = unit("ALLY_DEAD", "ALLY", { currentHp: 0 });
+      const distribute = modifyResourceAction("ACT_EX_DISTRIBUTE", {
+        resource: "EX_GAUGE",
+        operation: "DISTRIBUTE",
+        formula: { kind: "CONSTANT", value: 8 },
+        bounds: { min: 0, max: "CURRENT_MAX" },
+      });
+      const effectActions = new Map([[distribute.effectActionDefinitionId, distribute]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan = distributePlan(actor, deadAlly, distribute, true);
+
+      const result = applyEffectActionGroups(plan, [actor, deadAlly], context);
+
+      // Both targets receive a share, so the total really is divided by 2.
+      expect(
+        result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentExtraGauge,
+      ).toBe(4);
+      expect(
+        result.units.find((u) => u.battleUnitId === deadAlly.battleUnitId)!.currentExtraGauge,
+      ).toBe(4);
+      expect(recorder.getEvents().filter((e) => e.eventType === "ResourceChanged")).toHaveLength(2);
+    });
+
+    it("UT-R-ACTN-02-022 (PRレビュー[P2] PR #282): a step that references the same DISTRIBUTE EffectAction twice distributes one total per reference, not one total shared by both references", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY_2", "ALLY");
+      const distribute = modifyResourceAction("ACT_EX_DISTRIBUTE", {
+        resource: "EX_GAUGE",
+        operation: "DISTRIBUTE",
+        formula: { kind: "CONSTANT", value: 8 },
+        bounds: { min: 0, max: "CURRENT_MAX" },
+      });
+      const effectActions = new Map([[distribute.effectActionDefinitionId, distribute]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan = distributePlan(actor, ally, distribute, false, 2);
+
+      const result = applyEffectActionGroups(plan, [actor, ally], context);
+
+      // R-SKL-06 #4: 各`EffectActionReference`は独立して適用される。参照ごとに
+      // 総量8を対象2体へ等分（各4）するため、対象は4を2回受け取り+8になる。
+      // 4 application全体を1つの分配として数えると各対象+4にしかならない。
+      for (const target of [actor, ally]) {
+        expect(
+          result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentExtraGauge,
+        ).toBe(8);
+      }
+      expect(recorder.getEvents().filter((e) => e.eventType === "ResourceChanged")).toHaveLength(4);
+    });
+
+    /**
+     * 1つのACTION stepで、同じEffectActionを`referenceCount`回参照し、
+     * actorとotherの2対象へ適用する計画。`skill-resolution-service.ts`の
+     * `buildApplications`と同じ「対象ごとに`actions`を定義順で並べる」順序で
+     * applicationを並べる。
+     */
+    function distributePlan(
+      actor: BattleUnit,
+      other: BattleUnit,
+      action: EffectActionDefinition,
+      includeDefeated: boolean,
+      referenceCount = 1,
+    ): EffectSequencePlan {
+      const step = singleActionStep(0, true, actor.battleUnitId, action.effectActionDefinitionId);
+      if (step.planKind !== "ACTION_PLAN") {
+        throw new Error("singleActionStep must produce an ACTION_PLAN");
+      }
+      const applicationFor = (
+        target: BattleUnit,
+        hitIndex: number,
+      ): (typeof step.applications)[number] => ({
+        targetBattleUnitId: target.battleUnitId,
+        effectActionDefinitionId: action.effectActionDefinitionId,
+        includeDefeated: target.battleUnitId === actor.battleUnitId ? false : includeDefeated,
+        hits: [
+          {
+            targetBattleUnitId: target.battleUnitId,
+            effectActionDefinitionId: action.effectActionDefinitionId,
+            hitIndex,
+          },
+        ],
+      });
+      const references = Array.from({ length: referenceCount }, () => ({
+        effectActionDefinitionId: action.effectActionDefinitionId,
+      }));
+      return {
+        stealthConsumptions: [],
+        steps: [
+          {
+            ...step,
+            actions: references,
+            applications: [actor, other].flatMap((target) =>
+              references.map((_, index) => applicationFor(target, index + 1)),
+            ),
+          },
+        ],
+        targetUnitIds: [actor.battleUnitId, other.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+    }
   });
 
   describe("HEAL / APPLY_HEALING_MOD / APPLY_CONTINUOUS_HEAL (R-HEAL-01〜03, M7-005 Issue #184)", () => {
@@ -4803,6 +4962,75 @@ describe("applyEffectActionGroups", () => {
         distributionShareCount: 1,
         healAmount: 60,
       });
+    });
+
+    it("UT-R-HEAL-01-017 (PRレビュー[P2] PR #282): a step that references the same distributing HEAL twice splits one total per reference, so each target is healed once per reference", () => {
+      const actor = unit("ACTOR", "ALLY", { currentHp: 10 });
+      const ally = unit("ALLY_2", "ALLY", { currentHp: 10 });
+      const heal: EffectActionDefinition = {
+        kind: "HEAL",
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL_SHARED"),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          formula: { kind: "SKILL_POWER", power: 3 },
+          overheal: "DISCARD",
+          distribution: "EVEN",
+        },
+      };
+      const effectActions = new Map([[heal.effectActionDefinitionId, heal]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const step = singleActionStep(0, true, actor.battleUnitId, heal.effectActionDefinitionId);
+      if (step.planKind !== "ACTION_PLAN") {
+        throw new Error("singleActionStep must produce an ACTION_PLAN");
+      }
+      const references = [
+        { effectActionDefinitionId: heal.effectActionDefinitionId },
+        { effectActionDefinitionId: heal.effectActionDefinitionId },
+      ];
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          {
+            ...step,
+            actions: references,
+            // `buildApplications`と同じ「対象ごとに`actions`を定義順で並べる」順序。
+            applications: [actor, ally].flatMap((target) =>
+              references.map((_, index) => ({
+                targetBattleUnitId: target.battleUnitId,
+                effectActionDefinitionId: heal.effectActionDefinitionId,
+                includeDefeated: false,
+                hits: [
+                  {
+                    targetBattleUnitId: target.battleUnitId,
+                    effectActionDefinitionId: heal.effectActionDefinitionId,
+                    hitIndex: index + 1,
+                  },
+                ],
+              })),
+            ),
+          },
+        ],
+        targetUnitIds: [actor.battleUnitId, ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, ally], context);
+
+      // attack 20 * power 3 = 60 を参照ごとに2対象へ等分（各30）。対象は30を2回
+      // 受け取り10 + 60 = 70になる。4 applicationを1つの分配として数えると
+      // 各回15、合計40にしかならない。
+      for (const target of [actor, ally]) {
+        expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(
+          70,
+        );
+      }
+      const healEvents = recorder.getEvents().filter((e) => e.eventType === "HealApplied");
+      expect(healEvents).toHaveLength(4);
+      for (const event of healEvents) {
+        expect(event.payload).toMatchObject({ distributionShareCount: 2, healAmount: 30 });
+      }
     });
 
     it("UT-R-SKL-08-020 (full stack, G-10/RES-003A Issue #257): a HEAL referencing SUM_DAMAGE_RECEIVED reads every DAMAGE result this EffectSequence inflicted on the healer itself — neither the healer's larger dealt sum nor its single most recent received result", () => {
