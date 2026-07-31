@@ -3,6 +3,8 @@ import {
   notifyRemovalStep,
   orderGroupRemovals,
   removeGroupMembers,
+  removeGroupMembersSteps,
+  type LinkedGroupCascadeStep,
   type LinkedGroupRemoval,
 } from "./linked-group-cascade.js";
 import { NO_EFFECT_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
@@ -147,25 +149,31 @@ export function removeMarkers(
   if (seeds.length === 0) {
     return { units, lastEventId: parentEventId };
   }
+  return removeGroupMembers(
+    context,
+    units,
+    orderMarkerRemovalBatch(units, seeds),
+    effectActions,
+    parentEventId,
+    "EffectExpired",
+  );
+}
 
-  const seedIds = new Set(seeds.map((seed) => seed.markerInstanceId));
+/**
+ * PR #280再々レビュー[P2]: カスケード分とseed分を単一の除去バッチとして扱い、
+ * メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順（`CHILD`→
+ * ロールなし→`PARENT`）へ整列する（`duration-expiry-service.ts`と同じ形）。
+ */
+function orderMarkerRemovalBatch(
+  units: readonly BattleUnit[],
+  seeds: readonly MarkerRemovalSeed[],
+): readonly LinkedGroupRemoval[] {
   const seedInstances = {
     effectInstanceIds: NO_EFFECT_INSTANCE_IDS,
-    markerInstanceIds: seedIds,
+    markerInstanceIds: new Set(seeds.map((seed) => seed.markerInstanceId)),
   };
   const cascade = collectLinkedGroupCascade(units, seedInstances);
-  const reasonById = new Map<
-    MarkerInstanceId,
-    { reason: MarkerRemovalReason; cascaded: boolean }
-  >();
-  for (const seed of seeds) {
-    reasonById.set(seed.markerInstanceId, { reason: seed.reason, cascaded: false });
-  }
-
-  // PR #280再々レビュー[P2]: カスケード分とseed分を単一の除去バッチとして扱い、
-  // メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順（`CHILD`→
-  // ロールなし→`PARENT`）へ整列する（`duration-expiry-service.ts`と同じ形）。
-  const removals = orderGroupRemovals(units, [
+  return orderGroupRemovals(units, [
     ...cascadedOnlyRemovals(cascade, seedInstances),
     ...seeds.map(
       (seed): LinkedGroupRemoval => ({
@@ -175,10 +183,35 @@ export function removeMarkers(
       }),
     ),
   ]);
-  return removeGroupMembers(
+}
+
+/**
+ * `duration-expiry-service.ts`の`expireEffectsSteps`と同じ役割のMarker版:
+ * `removeMarkers`と同じ除去バッチを、1メンバーの除去ごとに`yield`する
+ * generatorとして返す。
+ *
+ * PR #281レビュー[P2]（M7-020、Issue #279）: `onFactEventForPassiveChain`を
+ * 使えない呼び出し側（進行中の`resolvePassiveChain`の内側 — 新しい
+ * `resolvePassiveChain`を起こすとguard/stackを上書きしてしまう）が、
+ * R-EFF-09の「各インスタンスの失効イベントは次のインスタンスへ進む前に
+ * PS/Memoryの即時連鎖へ渡す」契約を満たすために必要になる。呼び出し側は
+ * 各yieldの直後にそのステップのイベントを解決し、`.next(updatedUnits)`で
+ * 連鎖による外部変化を次のステップへ注入する。
+ */
+export function* removeMarkersSteps(
+  context: RemoveMarkersContext,
+  units: readonly BattleUnit[],
+  seeds: readonly MarkerRemovalSeed[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): Generator<LinkedGroupCascadeStep, RemoveMarkersResult, readonly BattleUnit[] | undefined> {
+  if (seeds.length === 0) {
+    return { units, lastEventId: parentEventId };
+  }
+  return yield* removeGroupMembersSteps(
     context,
     units,
-    removals,
+    orderMarkerRemovalBatch(units, seeds),
     effectActions,
     parentEventId,
     "EffectExpired",

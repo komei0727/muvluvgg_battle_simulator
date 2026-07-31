@@ -1590,11 +1590,16 @@ const markerUpdatedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `SOURCE_DEFEATED`はMarker固有の解除契機（`duration.removeOnSourceDefeated`、
+ * R-EFF-10／M7-020／Issue #279）で、`EFFECT_EXPIRATION_REASON_ENUM`には現れない。
+ */
 const MARKER_REMOVAL_REASON_ENUM = [
   "REMOVED",
   "TIME_LIMIT",
   "CONSUMPTION",
   "EXPIRATION_CONDITION",
+  "SOURCE_DEFEATED",
   "LINKED_GROUP_CASCADE",
 ] as const;
 

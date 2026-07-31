@@ -58,6 +58,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
   "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
   "UNSUPPORTED_DYNAMIC_DURATION_REAPPLY",
+  "UNSUPPORTED_SOURCE_DEFEATED_REMOVAL",
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
@@ -1566,6 +1567,24 @@ function validateEffectAction(
         violations,
       );
     }
+  }
+  // R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: 付与者の
+  // 戦闘不能による解除は`marker-source-defeat-service.ts`が`MarkerState.sourceId`
+  // （直近の付与者）を見て判定する。`AppliedEffect`側には同じ判定を行う失効機構が
+  // 無いため（`expiration.conditions`にもユニットの戦闘不能を判定するkindが
+  // 存在しない）、`APPLY_MARKER`以外へ宣言すると「付与自体は成功するのに付与者が
+  // 倒れても何も起きない」silent partial implementationになる。他の
+  // `UNSUPPORTED_*`と同じくCatalogロード時点で拒否する。
+  const sourceDefeatedDuration = durationOf(effectAction);
+  if (
+    sourceDefeatedDuration?.removeOnSourceDefeated === true &&
+    effectAction.kind !== "APPLY_MARKER"
+  ) {
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "UNSUPPORTED_SOURCE_DEFEATED_REMOVAL",
+      message: `duration.removeOnSourceDefeated is only supported on APPLY_MARKER (R-EFF-10, M7-020): AppliedEffect has no source-defeat expiration mechanism, received kind "${effectAction.kind}"`,
+    });
   }
   // R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 再付与時の動的
   // 期間を解決するのは`resolveDurationOnReapply`（`effect-grant-service.ts`）を

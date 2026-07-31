@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 47
+      "incompleteConversionRows": 46
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -118,7 +118,7 @@
     { "taskId": "M7-017", "issue": 271, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-018", "issue": 272, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-019", "issue": 273, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-020", "issue": 279, "phase": 2, "milestone": "M7", "status": "OPEN" },
+    { "taskId": "M7-020", "issue": 279, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "DMG-001", "issue": 195, "phase": 3, "milestone": "M8", "status": "OPEN" },
     { "taskId": "DMG-002", "issue": 192, "phase": 3, "milestone": "M8", "status": "OPEN" },
     { "taskId": "DMG-003", "issue": 196, "phase": 3, "milestone": "M8", "status": "OPEN" },
@@ -167,12 +167,6 @@
       "theme": "REMOVE_EFFECTS_CATEGORY_GAP",
       "rowCount": 2,
       "taskId": "M7-001A"
-    },
-    {
-      "milestone": "M7",
-      "theme": "MARKER_REMOVAL_ON_SOURCE_DEATH",
-      "rowCount": 1,
-      "taskId": "M7-020"
     },
     {
       "milestone": "M8",

@@ -15,11 +15,13 @@ import {
 } from "./effect-action-group-resolver.js";
 import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
+import { findMarkersRemovedOnSourceDefeat } from "./marker-source-defeat-service.js";
 import {
   emitEffectDurationReducedEvents,
   expireEffects,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
+import { removeMarkers, removeMarkersSteps } from "../effects/marker-removal-service.js";
 import {
   decrementSkillUseEffectDurations,
   reapplySkillUseDurationDecrement,
@@ -375,6 +377,13 @@ export class PassiveActivationRuntime {
         ? { resolutionPhase: this.context.resolutionPhase }
         : {}),
       applyExpirationConditions: (event) => this.applyExpirationConditionsForChain(event),
+      // M7-020（Issue #279）: R-EFF-08と同じく「関連するドメインイベント発行後、
+      // PS/Memory候補の抽出前」に評価する独立した機構。`resolveEvent`側では
+      // `applyExpirationConditions`の直後に呼ばれる（トップレベルの`onFactEvent`と
+      // 同じ順序）。PR #281レビュー[P2]によりイベント配列を返す形ではなく
+      // `resolveChild`形をとる（R-EFF-09の逐次通知契約を満たすため）。
+      applyMarkerSourceDefeatRemovals: (event, resolveChild) =>
+        this.applyMarkerSourceDefeatRemovalsForChain(event, resolveChild),
       applyEffectRuntimeCounterUpdates: (event, resolveChild) =>
         this.applyEffectRuntimeCounterUpdates(event, (recorded) =>
           resolveChild(this.toTriggerEvent(recorded)),
@@ -929,6 +938,14 @@ export class PassiveActivationRuntime {
     // 上限を共有する）。
     this.units = this.applyExpirationConditions(event, nextDepth);
 
+    // R-EFF-10（M7-020、Issue #279）: 付与者の戦闘不能によるMarker解除も、R-EFF-08と
+    // 同じ「関連するドメインイベント発行後、PS/Memory候補の抽出前」で評価する。
+    // R-EFF-08の後に置くのは、`expiration.conditions`を持つ`AppliedEffect`が
+    // 同じ`UnitDefeated`を観測する既存の順序を変えないため（両者は独立した機構で、
+    // どちらが先でも解除結果自体は変わらない — 先行する側が発行したイベントは
+    // 後続側の評価前に`onFactEvent`へ再帰して完全に解決される）。
+    this.units = this.applyMarkerSourceDefeatRemovals(event, nextDepth);
+
     // レビュー再指摘[P2]（PR #209）: 上記はトップレベルの`event`しかカバーせず、
     // PS連鎖の内部（`activatePassiveCandidate`が直接yieldする`PassiveActivated`・
     // `EffectActionStarting`等）は`onFactEvent`を経由しないため見落とされていた。
@@ -1000,6 +1017,50 @@ export class PassiveActivationRuntime {
   }
 
   /**
+   * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: `event`が
+   * `UnitDefeated`のとき、`duration.removeOnSourceDefeated`を宣言し付与者が
+   * その戦闘不能ユニットであるMarkerを即時に解除する（トップレベルの
+   * `onFactEvent`専用、`applyExpirationConditions`と同じ形・同じ制約）。
+   *
+   * 解除は`removeMarkers`へ流し込むため、同じ`linkedEffectGroupId`を持つ子効果は
+   * R-EFF-09のcross-typeカスケードが自動で巻き込む（`ACT_AOI_ELEGANT_AS1_KOUYOU_
+   * CRIT_DOWN`／`..._DOT`）。`onFactEventForPassiveChain`を渡すことで、1インスタンス
+   * の除去ごとに（カスケード分もseed分も）PS/Memoryの即時連鎖へ通知する
+   * （R-EFF-09、PR #280レビュー[P1]）。
+   */
+  private applyMarkerSourceDefeatRemovals(
+    event: BattleDomainEvent,
+    depth: number,
+  ): readonly BattleUnit[] {
+    const seeds = findMarkersRemovedOnSourceDefeat(this.units, event);
+    if (seeds.length === 0) {
+      return this.units;
+    }
+    if (depth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+      throw new ExecutionGuardExceededError(
+        `removeOnSourceDefeated self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
+      );
+    }
+    const removal = removeMarkers(
+      {
+        recorder: this.context.recorder,
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        resolutionScopeId: this.context.resolutionScopeId,
+        rootEventId: this.context.rootEventId,
+        onFactEventForPassiveChain: (newEvent, unitsForChain) =>
+          this.onFactEvent(newEvent, unitsForChain, depth).units,
+      },
+      this.units,
+      seeds,
+      this.context.definitions.effectActions,
+      event.eventId,
+    );
+    return removal.units;
+  }
+
+  /**
    * R-EFF-08: `event`に対して`expiration.conditions`が成立した効果インスタンスを
    * 即時に失効させ、新たに発行されたイベント（`EffectExpired`・
    * `CombatStatChanged`等）を`TriggerCandidateEvent`として返す。`resolveEvent`
@@ -1054,6 +1115,77 @@ export class PassiveActivationRuntime {
         .getEvents()
         .slice(eventsStart)
         .map((newEvent) => this.toTriggerEvent(newEvent));
+    } finally {
+      this.expirationConditionDepth -= 1;
+    }
+  }
+
+  /**
+   * R-EFF-10（M7-020、Issue #279）: `applyMarkerSourceDefeatRemovals`の
+   * PS連鎖内部版。`applyExpirationConditionsForChain`と同じ理由で必要になる —
+   * PSのEffectSequenceが与えたダメージによる`UnitDefeated`は`onFactEvent`を
+   * 経由しないため（`UT-R-EFF-11-017`と同じ経路）、トップレベル側の配線だけでは
+   * 「PSがとどめを刺した付与者のMarkerが解除されない」取りこぼしになる
+   * （`UT-R-EFF-10-033`が固定）。
+   *
+   * PR #281レビュー[P2]: `applyExpirationConditionsForChain`のように「全メンバーを
+   * 除去してからイベント配列を返す」形にはできない。Marker解除はR-EFF-09の
+   * カスケードでlinked group全体を巻き込むため、その形では最初の子`EffectExpired`
+   * をPS/Memoryへ渡す時点で親Markerが既に消えており、R-EFF-09「各インスタンスの
+   * 失効イベントは次のインスタンスへ進む前にPS/Memoryの即時連鎖へ渡す」に反する
+   * （親Markerを条件にするPS/Memoryが、同じ`UnitDefeated`でもトップレベル経路では
+   * 発動しこの経路では発動しない差を生む。`UT-R-EFF-10-034`が固定）。
+   * `removeMarkersSteps`を1メンバーずつ駆動し、各ステップのイベントを
+   * `resolveChild`（＝`resolveEvent`自身への再帰、進行中のguard/stackを維持する）で
+   * 完全に解決してから`.next()`で次のメンバーへ進む。`this.onFactEvent`は呼ばない
+   * （`applyExpirationConditionsForChain`と同じ制約 — 新しい`resolvePassiveChain`を
+   * 起こすと進行中のguard/stackを上書きしてしまう）。
+   */
+  private applyMarkerSourceDefeatRemovalsForChain(
+    event: TriggerCandidateEvent,
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ): PassiveChainLimitViolationReason | undefined {
+    const seeds = findMarkersRemovedOnSourceDefeat(this.units, event);
+    if (seeds.length === 0) {
+      return undefined;
+    }
+    this.expirationConditionDepth += 1;
+    try {
+      if (this.expirationConditionDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+        throw new ExecutionGuardExceededError(
+          `removeOnSourceDefeated self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
+        );
+      }
+      const steps = removeMarkersSteps(
+        {
+          recorder: this.context.recorder,
+          turnNumber: this.context.turnNumber,
+          cycleNumber: this.context.cycleNumber,
+          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+          resolutionScopeId: this.context.resolutionScopeId,
+          rootEventId: this.context.rootEventId,
+        },
+        this.units,
+        seeds,
+        this.context.definitions.effectActions,
+        this.eventIdOf(event),
+      );
+      let step = steps.next();
+      while (!step.done) {
+        // このステップ分の除去は`this.units`へ即時反映してから候補解決へ渡す
+        // （解決中のPS/Memoryが最新の状態を観測できるようにする）。
+        this.units = step.value.units;
+        for (const recorded of step.value.events) {
+          const violation = resolveChild(this.toTriggerEvent(recorded));
+          if (violation !== undefined) {
+            return violation;
+          }
+        }
+        // 候補解決が`this.units`を書き換えた分を次のステップの起点へ注入する。
+        step = steps.next(this.units);
+      }
+      this.units = step.value.units;
+      return undefined;
     } finally {
       this.expirationConditionDepth -= 1;
     }

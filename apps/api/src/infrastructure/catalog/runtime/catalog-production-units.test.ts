@@ -190,7 +190,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Neither Tarisa nor Aoi is among the 10 promoted units here and no
     // `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
     // expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-30.8");
+    // Bumped again by M7-020 (Issue #279, MARKER_REMOVAL_ON_SOURCE_DEATH):
+    // `ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU` now declares
+    // `duration.removeOnSourceDefeated: true` (R-EFF-10), so 「高揚」 is released
+    // the moment its granter is defeated and R-EFF-09 cascades its CHILD
+    // effects away. Aoi is not among the 10 promoted units here and no
+    // `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
+    // expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-31.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

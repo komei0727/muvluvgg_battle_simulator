@@ -359,4 +359,50 @@ describe("DurationDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-DUR-027 (R-EFF-10 M7-020 Issue #279): maps removeOnSourceDefeated=true", () => {
+    const result = createDurationDefinition(
+      { timeLimit: { unit: "BATTLE", count: 1 }, removeOnSourceDefeated: true },
+      "duration",
+      undefined,
+    );
+    expect(result).toEqual({
+      timeLimit: { unit: "BATTLE", count: 1 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+      removeOnSourceDefeated: true,
+    });
+  });
+
+  it("UT-CAT-DUR-028 (R-EFF-10 M7-020 Issue #279): omits removeOnSourceDefeated when not declared", () => {
+    const result = createDurationDefinition(
+      { timeLimit: { unit: "BATTLE", count: 1 } },
+      "duration",
+      undefined,
+    );
+    expect(result.removeOnSourceDefeated).toBeUndefined();
+    expect(Object.hasOwn(result, "removeOnSourceDefeated")).toBe(false);
+  });
+
+  it("UT-CAT-DUR-029 (R-EFF-10 M7-020 Issue #279): rejects a non-boolean removeOnSourceDefeated", () => {
+    expect(() =>
+      createDurationDefinition(
+        {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          removeOnSourceDefeated: "true" as unknown as boolean,
+        },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-030 (R-EFF-10 M7-020 Issue #279): keeps an explicit removeOnSourceDefeated=false", () => {
+    const result = createDurationDefinition(
+      { timeLimit: { unit: "BATTLE", count: 1 }, removeOnSourceDefeated: false },
+      "duration",
+      undefined,
+    );
+    expect(result.removeOnSourceDefeated).toBe(false);
+  });
 });

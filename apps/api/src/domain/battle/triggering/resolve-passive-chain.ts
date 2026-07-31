@@ -181,6 +181,31 @@ export interface PassiveChainDependencies {
     event: TriggerCandidateEvent,
   ) => readonly TriggerCandidateEvent[];
   /**
+   * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）:
+   * `duration.removeOnSourceDefeated`を宣言したMarkerを、その付与者が戦闘不能に
+   * なった`UnitDefeated`に対して解除する。`applyExpirationConditions`（R-EFF-08）
+   * と同じ理由でPS連鎖内部の各イベントへも届ける必要がある — PS自身の
+   * EffectSequenceが与えたダメージによる`UnitDefeated`は`onFactEvent`を経由
+   * しないため。
+   *
+   * PR #281レビュー[P2]: `applyExpirationConditions`のようにイベント配列を
+   * まとめて返す形にはできない。Marker解除はR-EFF-09のカスケードで
+   * linked group全体（子`AppliedEffect`→親`MarkerState`）を巻き込むため、
+   * 全メンバーを除去してから配列を返すと、最初の子`EffectExpired`をPS/Memoryへ
+   * 渡す時点で親Markerが既に消えている。R-EFF-09「各インスタンスの失効イベント
+   * （と、それに続くCombatStat再計算）は、次のインスタンスへ進む前にPS/Memoryの
+   * 即時連鎖へ渡す」に反し、親Markerを条件にするPS/Memoryが同じ`UnitDefeated`でも
+   * トップレベル経路では発動しPS連鎖内部経路では発動しない、という差を生む。
+   * そのため`applyEffectRuntimeCounterUpdates`と同じ`resolveChild`形にし、
+   * 1メンバーの除去を記録するたびにその候補連鎖を完全に解決してから次のメンバーへ
+   * 進む。`resolveChild`が返すviolationはそのまま返し、以降のメンバーは処理しない。
+   * 未指定、または該当なしの場合は`undefined`を返す契約とする。
+   */
+  readonly applyMarkerSourceDefeatRemovals?: (
+    event: TriggerCandidateEvent,
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ) => PassiveChainLimitViolationReason | undefined;
+  /**
    * PR #211レビュー[P1]: `R-EFF-11`（`AppliedEffect`スコープ、EFF-005/Issue #162）の
    * `counterUpdates`更新も、`applyExpirationConditions`と同じ理由で
    * トップレベルの`event`だけでなくPS連鎖内部の各イベント（PS自身がyieldする
@@ -353,6 +378,19 @@ function resolveEvent(
       if (violation !== undefined) {
         return violation;
       }
+    }
+  }
+
+  // M7-020（Issue #279）: R-EFF-10の付与者戦闘不能によるMarker解除。R-EFF-08の
+  // 後に呼ぶ（トップレベルの`onFactEvent`と同じ順序）。PR #281レビュー[P2]:
+  // 除去は1メンバーずつ`resolveChild`で候補連鎖を完全に解決してから次へ進む
+  // （`deps.applyMarkerSourceDefeatRemovals`のコメント参照）。
+  if (deps.applyMarkerSourceDefeatRemovals !== undefined) {
+    const violation = deps.applyMarkerSourceDefeatRemovals(event, (child) =>
+      resolveEvent(child, state, deps),
+    );
+    if (violation !== undefined) {
+      return violation;
     }
   }
 
