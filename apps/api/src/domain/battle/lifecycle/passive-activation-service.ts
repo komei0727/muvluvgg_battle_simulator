@@ -21,7 +21,7 @@ import {
   expireEffects,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
-import { removeMarkers } from "../effects/marker-removal-service.js";
+import { removeMarkers, removeMarkersSteps } from "../effects/marker-removal-service.js";
 import {
   decrementSkillUseEffectDurations,
   reapplySkillUseDurationDecrement,
@@ -376,14 +376,14 @@ export class PassiveActivationRuntime {
       ...(this.context.resolutionPhase !== undefined
         ? { resolutionPhase: this.context.resolutionPhase }
         : {}),
-      // R-EFF-08と、M7-020（Issue #279）が追加したR-EFF-10の付与者戦闘不能解除は、
-      // どちらも「関連するドメインイベント発行後、PS/Memory候補の抽出前」に評価する
-      // 独立した機構であり、`resolveEvent`側の同じ1フックを共有する
-      // （トップレベルの`onFactEvent`と同じ順序 — R-EFF-08が先）。
-      applyExpirationConditions: (event) => [
-        ...this.applyExpirationConditionsForChain(event),
-        ...this.applyMarkerSourceDefeatRemovalsForChain(event),
-      ],
+      applyExpirationConditions: (event) => this.applyExpirationConditionsForChain(event),
+      // M7-020（Issue #279）: R-EFF-08と同じく「関連するドメインイベント発行後、
+      // PS/Memory候補の抽出前」に評価する独立した機構。`resolveEvent`側では
+      // `applyExpirationConditions`の直後に呼ばれる（トップレベルの`onFactEvent`と
+      // 同じ順序）。PR #281レビュー[P2]によりイベント配列を返す形ではなく
+      // `resolveChild`形をとる（R-EFF-09の逐次通知契約を満たすため）。
+      applyMarkerSourceDefeatRemovals: (event, resolveChild) =>
+        this.applyMarkerSourceDefeatRemovalsForChain(event, resolveChild),
       applyEffectRuntimeCounterUpdates: (event, resolveChild) =>
         this.applyEffectRuntimeCounterUpdates(event, (recorded) =>
           resolveChild(this.toTriggerEvent(recorded)),
@@ -1126,17 +1126,28 @@ export class PassiveActivationRuntime {
    * PSのEffectSequenceが与えたダメージによる`UnitDefeated`は`onFactEvent`を
    * 経由しないため（`UT-R-EFF-11-017`と同じ経路）、トップレベル側の配線だけでは
    * 「PSがとどめを刺した付与者のMarkerが解除されない」取りこぼしになる
-   * （`UT-R-EFF-10-033`が固定）。`applyExpirationConditionsForChain`と同じく
-   * `this.onFactEvent`は呼ばず、発行されたイベントを`TriggerCandidateEvent`として
-   * 返して`resolveEvent`へ委ねる（`removeMarkers`へ
-   * `onFactEventForPassiveChain`を渡さないのはこのため）。
+   * （`UT-R-EFF-10-033`が固定）。
+   *
+   * PR #281レビュー[P2]: `applyExpirationConditionsForChain`のように「全メンバーを
+   * 除去してからイベント配列を返す」形にはできない。Marker解除はR-EFF-09の
+   * カスケードでlinked group全体を巻き込むため、その形では最初の子`EffectExpired`
+   * をPS/Memoryへ渡す時点で親Markerが既に消えており、R-EFF-09「各インスタンスの
+   * 失効イベントは次のインスタンスへ進む前にPS/Memoryの即時連鎖へ渡す」に反する
+   * （親Markerを条件にするPS/Memoryが、同じ`UnitDefeated`でもトップレベル経路では
+   * 発動しこの経路では発動しない差を生む。`UT-R-EFF-10-034`が固定）。
+   * `removeMarkersSteps`を1メンバーずつ駆動し、各ステップのイベントを
+   * `resolveChild`（＝`resolveEvent`自身への再帰、進行中のguard/stackを維持する）で
+   * 完全に解決してから`.next()`で次のメンバーへ進む。`this.onFactEvent`は呼ばない
+   * （`applyExpirationConditionsForChain`と同じ制約 — 新しい`resolvePassiveChain`を
+   * 起こすと進行中のguard/stackを上書きしてしまう）。
    */
   private applyMarkerSourceDefeatRemovalsForChain(
     event: TriggerCandidateEvent,
-  ): readonly TriggerCandidateEvent[] {
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ): PassiveChainLimitViolationReason | undefined {
     const seeds = findMarkersRemovedOnSourceDefeat(this.units, event);
     if (seeds.length === 0) {
-      return [];
+      return undefined;
     }
     this.expirationConditionDepth += 1;
     try {
@@ -1145,8 +1156,7 @@ export class PassiveActivationRuntime {
           `removeOnSourceDefeated self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
         );
       }
-      const eventsStart = this.context.recorder.getEvents().length;
-      const removal = removeMarkers(
+      const steps = removeMarkersSteps(
         {
           recorder: this.context.recorder,
           turnNumber: this.context.turnNumber,
@@ -1160,11 +1170,22 @@ export class PassiveActivationRuntime {
         this.context.definitions.effectActions,
         this.eventIdOf(event),
       );
-      this.units = removal.units;
-      return this.context.recorder
-        .getEvents()
-        .slice(eventsStart)
-        .map((newEvent) => this.toTriggerEvent(newEvent));
+      let step = steps.next();
+      while (!step.done) {
+        // このステップ分の除去は`this.units`へ即時反映してから候補解決へ渡す
+        // （解決中のPS/Memoryが最新の状態を観測できるようにする）。
+        this.units = step.value.units;
+        for (const recorded of step.value.events) {
+          const violation = resolveChild(this.toTriggerEvent(recorded));
+          if (violation !== undefined) {
+            return violation;
+          }
+        }
+        // 候補解決が`this.units`を書き換えた分を次のステップの起点へ注入する。
+        step = steps.next(this.units);
+      }
+      this.units = step.value.units;
+      return undefined;
     } finally {
       this.expirationConditionDepth -= 1;
     }

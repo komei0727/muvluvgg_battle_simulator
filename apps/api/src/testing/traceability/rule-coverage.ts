@@ -1932,7 +1932,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-005",
       // M7-020（Issue #279）: 付与者戦闘不能によるMarker解除も、他の3経路と同じく
       // 単一の除去バッチとしてR-EFF-09のcross-typeカスケード・role順を通る。
+      // PR #281レビュー[P2]: PS連鎖内部経路でも「各インスタンスの失効イベントは
+      // 次のインスタンスへ進む前にPS/Memoryの即時連鎖へ渡す」を満たす
+      // （`removeMarkersSteps`＋`resolveChild`、`UT-R-EFF-10-034`が固定）。
       "UT-R-EFF-10-030",
+      "UT-R-EFF-10-034",
       "IT-MARKER-SOURCE-DEFEAT-PROD-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
@@ -2006,11 +2010,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-10-028",
       "UT-R-EFF-10-029",
       // M7-020: 実ライフサイクル配線（カスケード連動・評価タイミング・不成立・
-      // PS連鎖内部の`UnitDefeated`）
+      // PS連鎖内部の`UnitDefeated`・PS連鎖内部での逐次通知）
       "UT-R-EFF-10-030",
       "UT-R-EFF-10-031",
       "UT-R-EFF-10-032",
       "UT-R-EFF-10-033",
+      "UT-R-EFF-10-034",
       // M7-020: Catalog schema（`removeOnSourceDefeated`のマッピングと検証）
       "UT-CAT-DUR-027",
       "UT-CAT-DUR-028",

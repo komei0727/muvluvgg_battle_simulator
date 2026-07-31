@@ -3549,6 +3549,135 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         cascaded: false,
       });
     });
+
+    it("UT-R-EFF-10-034 (R-EFF-09 逐次通知, PR #281 レビュー[P2]): inside the PS chain too, a PS triggered by the cascaded CHILD's EffectExpired still observes the parent Marker (it is removed only after that candidate resolves)", () => {
+      const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_ATTACKER");
+      const victimUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_VICTIM");
+      const attackDamage = damageEffectAction("ACT_KOUYOU_SEQ_ATTACK_DAMAGE");
+      const enemyBindingId = createTargetBindingId("TGT_KOUYOU_SEQ_ENEMY");
+      const attackSkill = passiveSkillOf("SKL_PS_KOUYOU_SEQ_ATTACK", {
+        ppCost: 1,
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            {
+              targetBindingId: enemyBindingId,
+              selector: {
+                kind: "SELECT",
+                side: "ENEMY",
+                count: "ALL",
+                filters: [],
+                order: ["DEFAULT"],
+                includeDefeated: false,
+              },
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: enemyBindingId },
+              actions: [{ effectActionDefinitionId: attackDamage.effectActionDefinitionId }],
+            },
+          ],
+        },
+      });
+      // Marker保持者自身が持つPS。子効果の`EffectExpired`をtriggerにし、
+      // 「その時点で親Markerをまだ持っていること」をactivationConditionにする。
+      // 除去をバッチで行うと、この候補解決時にはMarkerが既に消えていて発動しない。
+      const watcherSkill: SkillDefinition = {
+        ...passiveSkillOf("SKL_PS_KOUYOU_WATCHER", {
+          ppCost: 0,
+          triggers: [
+            {
+              eventType: "EffectExpired",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "SELF",
+              condition: { kind: "TRUE" },
+            },
+          ],
+        }),
+        activationCondition: {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "SELF" },
+          markerId: createMarkerId("MARKER_KOUYOU"),
+        },
+      };
+      const attacker = unit("ATTACKER", "ALLY", {
+        unitDefinitionId: attackerUnitDefinitionId,
+        currentPp: 3,
+        attack: 100,
+      });
+      const granter = unit("GRANTER", "ENEMY", {
+        unitDefinitionId: victimUnitDefinitionId,
+        maximumHp: 1,
+        currentHp: 1,
+      });
+      const holder = unit("HOLDER", "ALLY", {
+        unitDefinitionId: holderUnitDefinitionId,
+        currentPp: 3,
+      });
+      const holderWithKouyou: BattleUnit = {
+        ...holder,
+        markerStates: [kouyouMarker(granter.battleUnitId, holder.battleUnitId)],
+        appliedEffects: [critDownEffect(granter.battleUnitId, holder.battleUnitId)],
+      };
+      const definitions = definitionsOf(
+        definitionsWith(
+          [attackerUnitDefinitionId, [attackSkill.skillDefinitionId]],
+          [victimUnitDefinitionId, []],
+          [holderUnitDefinitionId, [watcherSkill.skillDefinitionId]],
+        ),
+        new Map([
+          [attackSkill.skillDefinitionId, attackSkill],
+          [watcherSkill.skillDefinitionId, watcherSkill],
+        ]),
+        new Map([
+          [CRIT_DOWN_ID, critDownDefinition()],
+          [attackDamage.effectActionDefinitionId, attackDamage],
+        ]),
+      );
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      const turnStarted = recordTurnStarted(recorder);
+      const runtime = new PassiveActivationRuntime(
+        contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+        [attacker, granter, holderWithKouyou],
+      );
+
+      const updatedUnits = runtime.onFactEvent(turnStarted, [
+        attacker,
+        granter,
+        holderWithKouyou,
+      ]).units;
+
+      const events = recorder.getEvents();
+      const eventTypes = events.map((e) => e.eventType);
+      // 前提: 子効果の`EffectExpired`と親の`MarkerRemoved`がこの順に発行されている。
+      const childExpiredIndex = eventTypes.indexOf("EffectExpired");
+      const markerRemovedIndex = eventTypes.indexOf("MarkerRemoved");
+      expect(childExpiredIndex).toBeGreaterThanOrEqual(0);
+      expect(markerRemovedIndex).toBeGreaterThan(childExpiredIndex);
+
+      // 本題: 子の`EffectExpired`を観測したPSが、親Markerをまだ所持している状態で
+      // 発動し、その`PassiveActivated`が親の`MarkerRemoved`より前に来る。
+      const watcherActivated = events.find(
+        (e) =>
+          e.eventType === "PassiveActivated" &&
+          (e.payload as { readonly skillDefinitionId?: string }).skillDefinitionId ===
+            watcherSkill.skillDefinitionId,
+      );
+      expect(watcherActivated).toBeDefined();
+      expect(eventTypes.indexOf(watcherActivated!.eventType)).toBeLessThan(markerRemovedIndex);
+
+      // 最終状態ではMarkerも子効果も残らない。
+      const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updatedHolder.markerStates).toHaveLength(0);
+      expect(
+        updatedHolder.appliedEffects.filter((e) => e.effectActionDefinitionId === CRIT_DOWN_ID),
+      ).toHaveLength(0);
+    });
   });
 
   describe("RuntimeCounter APPLIED_EFFECT scope (R-EFF-11, EFF-005/Issue #162)", () => {
