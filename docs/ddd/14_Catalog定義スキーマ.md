@@ -1804,17 +1804,23 @@ duration:
       op: EQ
       value: 1
     count: 2
+  removeOnSourceDefeated: false
 ```
 
-| フィールド              | 型          | 必須 | 制約                                                                                                              |
-| ----------------------- | ----------- | ---- | ----------------------------------------------------------------------------------------------------------------- |
-| `timeLimit`             | object      | —    | 省略時は即時効果                                                                                                  |
-| `consumption`           | object      | —    | 消費型効果                                                                                                        |
-| `expiration`            | object      | —    | 特殊失効                                                                                                          |
-| `dispellable`           | boolean     | —    | 省略時 true                                                                                                       |
-| `linkedEffectGroupId`   | string/null | —    | 親子連動                                                                                                          |
-| `linkedEffectGroupRole` | enum        | —    | `PARENT` / `CHILD`。`linkedEffectGroupId`必須。省略時は理由を問わずグループ全体へ対称にカスケードするレガシー扱い |
-| `reapply`               | object      | —    | 再付与時の動的期間（R-EFF-12）。`timeLimit`必須                                                                   |
+| フィールド               | 型          | 必須 | 制約                                                                                                              |
+| ------------------------ | ----------- | ---- | ----------------------------------------------------------------------------------------------------------------- |
+| `timeLimit`              | object      | —    | 省略時は即時効果                                                                                                  |
+| `consumption`            | object      | —    | 消費型効果                                                                                                        |
+| `expiration`             | object      | —    | 特殊失効                                                                                                          |
+| `dispellable`            | boolean     | —    | 省略時 true                                                                                                       |
+| `linkedEffectGroupId`    | string/null | —    | 親子連動                                                                                                          |
+| `linkedEffectGroupRole`  | enum        | —    | `PARENT` / `CHILD`。`linkedEffectGroupId`必須。省略時は理由を問わずグループ全体へ対称にカスケードするレガシー扱い |
+| `reapply`                | object      | —    | 再付与時の動的期間（R-EFF-12）。`timeLimit`必須                                                                   |
+| `removeOnSourceDefeated` | boolean     | —    | 付与者の戦闘不能で解除（R-EFF-10）。`APPLY_MARKER`専用。省略時は宣言なし扱い                                      |
+
+`removeOnSourceDefeated`（R-EFF-10、`MARKER_REMOVAL_ON_SOURCE_DEATH`、`M7-020`／Issue #279）: `true`を宣言したMarkerは、付与者（`MarkerState.sourceId` ＝直近の付与者）が戦闘不能になった時点でスタック数を問わず解除され、`MarkerRemoved`（`reason: SOURCE_DEFEATED`）を発行する。同じ`linkedEffectGroupId`を持つ子効果はR-EFF-09のカスケードで連動して失効する。production Catalogの例は`ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU`（「「高揚」は付与者が倒れると同時に解除される」）。
+
+`APPLY_MARKER`以外の`EffectActionDefinition`の`duration`へ宣言した場合はCatalogロード時点で拒否する（`UNSUPPORTED_SOURCE_DEFEATED_REMOVAL`）— `AppliedEffect`には付与者の戦闘不能を判定する失効機構が無く（`ConditionDefinition`にもユニットの戦闘不能を判定するkindが存在しない）、宣言しても「付与自体は成功するのに付与者が倒れても何も起きない」silent partial implementationになるため。`expiration.conditions`（R-EFF-08）ではなく専用フィールドにしたのは、Marker側のexpiration機構自体が未実装（`UNSUPPORTED_MARKER_DURATION`）であり、Condition表現を導入すると同機構ごと実装する必要があるためである。
 
 `linkedEffectGroupRole`（R-EFF-09）: `linkedEffectGroupId`が同じメンバー間のカスケード方向を明示する。`PARENT`が失効すると理由を問わず同グループ全体（他の`PARENT`・`CHILD`）へカスケードするが、`CHILD`が単独で失効してもカスケードしない（「子効果だけが消費条件で失効した場合、親効果は維持する」）。どちらのメンバーも`linkedEffectGroupRole`を持たないグループは従来どおり対称にカスケードする。
 

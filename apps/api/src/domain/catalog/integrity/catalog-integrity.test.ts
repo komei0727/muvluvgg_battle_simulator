@@ -1944,6 +1944,80 @@ describe("buildCatalogIndex", () => {
     }
   });
 
+  it("UT-R-EFF-10-021 (R-EFF-10 M7-020 Issue #279): accepts duration.removeOnSourceDefeated on APPLY_MARKER", () => {
+    const markerWithSourceDefeatRemoval = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_SOURCE_DEFEAT",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_TEST",
+          stack: { policy: "ADD", max: null },
+          duration: {
+            dispellable: true,
+            linkedEffectGroupId: null,
+            timeLimit: { unit: "BATTLE", count: 1 },
+            removeOnSourceDefeated: true,
+          },
+        },
+        requiredCapabilities: ["CAP_MARKER"],
+      },
+      "effectAction",
+    );
+
+    const defs = baseDefinitions();
+    const index = buildCatalogIndex({
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_SOURCE_DEFEAT")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, markerWithSourceDefeatRemoval],
+      capabilities: [capability("CAP_MARKER")],
+    });
+
+    expect(index.effectActions.get("ACT_MARKER_SOURCE_DEFEAT" as never)).toBeDefined();
+  });
+
+  it("UT-R-EFF-10-022 (R-EFF-10 M7-020 Issue #279): rejects duration.removeOnSourceDefeated on a non-APPLY_MARKER kind, since only MarkerState carries the granter identity that the removal trigger reads", () => {
+    const statModWithSourceDefeatRemoval = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_STAT_MOD_SOURCE_DEFEAT",
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "FIXED",
+          formula: { kind: "CONSTANT", value: 20 },
+          stacking: { mode: "STACKABLE" },
+          duration: {
+            timeLimit: { unit: "TURN", count: 2 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+            removeOnSourceDefeated: true,
+          },
+        },
+        requiredCapabilities: ["CAP_STAT_MOD"],
+      },
+      "effectAction",
+    );
+
+    const defs = baseDefinitions();
+    try {
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD_SOURCE_DEFEAT")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, statModWithSourceDefeatRemoval],
+        capabilities: [capability("CAP_MARKER"), capability("CAP_STAT_MOD")],
+      });
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations
+          .filter((v) => v.rule === "UNSUPPORTED_SOURCE_DEFEATED_REMOVAL")
+          .map((v) => v.targetId),
+      ).toEqual(["ACT_STAT_MOD_SOURCE_DEFEAT"]);
+    }
+  });
+
   it("UT-CAT-IDX-021: rejects a production definition that uses a schema-unsupported Capability", () => {
     const defs = baseDefinitions();
     const schemaPlanned = createCapabilityDefinition({

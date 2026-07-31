@@ -145,18 +145,33 @@ export interface LinkedGroupRemoval {
 }
 
 /**
- * `EffectExpired`が運べる理由へ狭める。`REMOVED`は`EffectRemoved`固有の理由で
- * あり（`domain-event.ts`の`EffectRemovalReason`）、`effectEventType`が
- * `EffectExpired`の呼び出し（期間満了・消費・特殊失効・凍結解除）が渡すことは
- * ないため、到達したら呼び出し側の配線ミスとして明確に失敗させる。
+ * `EffectExpired`が運べる理由の閉じたリスト。`MarkerRemovalReason`のうち、
+ * `REMOVED`は`EffectRemoved`固有の理由であり（`domain-event.ts`の
+ * `EffectRemovalReason`）、`SOURCE_DEFEATED`は`MarkerState`だけが持つ解除契機
+ * （M7-020、Issue #279）であるため含まない。
+ */
+const EFFECT_EXPIRATION_REASONS: readonly EffectExpirationReason[] = [
+  "TIME_LIMIT",
+  "CONSUMPTION",
+  "EXPIRATION_CONDITION",
+  "LINKED_GROUP_CASCADE",
+];
+
+/**
+ * `EffectExpired`が運べる理由へ狭める。`effectEventType`が`EffectExpired`の
+ * 呼び出し（期間満了・消費・特殊失効・凍結解除）が上記以外を渡すことはないため、
+ * 到達したら呼び出し側の配線ミスとして明確に失敗させる。除外リストではなく
+ * 許可リストで判定するのは、`MarkerRemovalReason`へMarker固有の理由が増えても
+ * 自動的に拒否側へ落ちるようにするため。
  */
 function asEffectExpirationReason(reason: MarkerRemovalReason): EffectExpirationReason {
-  if (reason === "REMOVED") {
+  const allowed = EFFECT_EXPIRATION_REASONS.find((candidate) => candidate === reason);
+  if (allowed === undefined) {
     throw new Error(
-      'EffectExpired cannot carry reason "REMOVED" — an EffectExpired batch received a REMOVED seed (only EffectRemoved represents active removal, domain-event.ts)',
+      `EffectExpired cannot carry reason "${reason}" — only MarkerState carries REMOVED (active removal) and SOURCE_DEFEATED (granter defeated, R-EFF-10 M7-020); see domain-event.ts`,
     );
   }
-  return reason;
+  return allowed;
 }
 
 /** `EffectRemoved`が運べる理由へ狭める（`asEffectExpirationReason`と対）。 */

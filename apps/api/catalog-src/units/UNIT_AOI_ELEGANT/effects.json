@@ -61,7 +61,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "removeOnSourceDefeated": true
       }
     },
     "requiredCapabilities": ["CAP_MARKER"],

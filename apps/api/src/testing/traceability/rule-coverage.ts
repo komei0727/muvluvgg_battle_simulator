@@ -1930,6 +1930,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-003",
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-004",
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-005",
+      // M7-020（Issue #279）: 付与者戦闘不能によるMarker解除も、他の3経路と同じく
+      // 単一の除去バッチとしてR-EFF-09のcross-typeカスケード・role順を通る。
+      "UT-R-EFF-10-030",
+      "IT-MARKER-SOURCE-DEFEAT-PROD-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -1954,6 +1958,19 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `markers`はv1後方互換のため任意プロパティとして追加）と、独立Reducer復元の
   // 一致判定（`simulation-result-assembler.ts`の`unitSnapshotsEqual`）へも
   // Markerを反映した（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。
+  // M7-020（Issue #279、`MARKER_REMOVAL_ON_SOURCE_DEATH`）: 付与者
+  // （`MarkerState.sourceId`）の戦闘不能を解除契機として宣言する
+  // `DurationDefinition.removeOnSourceDefeated`（`APPLY_MARKER`専用）を追加した。
+  // 抽出は`lifecycle/marker-source-defeat-service.ts`、実ライフサイクル配線は
+  // `passive-activation-service.ts`のトップレベル（`applyMarkerSourceDefeatRemovals`）
+  // とPS連鎖内部（`applyMarkerSourceDefeatRemovalsForChain`、PSのEffectSequenceが
+  // 与えたダメージによる`UnitDefeated`は`onFactEvent`を経由しないため）の2経路。
+  // 評価タイミングはR-EFF-08と同じ「関連イベント発行後、PS/Memory候補抽出前」で、
+  // 解除は`removeMarkers`へ流し込むためR-EFF-09のcross-typeカスケードが子効果を
+  // そのまま巻き込む。非`APPLY_MARKER`への宣言は`catalog-integrity.ts`が
+  // `UNSUPPORTED_SOURCE_DEFEATED_REMOVAL`として拒否する（`UT-R-EFF-10-022`）。
+  // production Catalogの`ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU`（「高揚」）が
+  // `IT-MARKER-SOURCE-DEFEAT-PROD-001/002/003`で検証される。
   {
     ruleId: "R-EFF-10",
     testCaseIds: [
@@ -1977,9 +1994,34 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-10-018",
       "UT-R-EFF-10-019",
       "UT-R-EFF-10-020",
+      // M7-020（Issue #279）: Catalog受理・拒否
+      "UT-R-EFF-10-021",
+      "UT-R-EFF-10-022",
+      // M7-020: 対象抽出（成立・不成立・境界）
+      "UT-R-EFF-10-023",
+      "UT-R-EFF-10-024",
+      "UT-R-EFF-10-025",
+      "UT-R-EFF-10-026",
+      "UT-R-EFF-10-027",
+      "UT-R-EFF-10-028",
+      "UT-R-EFF-10-029",
+      // M7-020: 実ライフサイクル配線（カスケード連動・評価タイミング・不成立・
+      // PS連鎖内部の`UnitDefeated`）
+      "UT-R-EFF-10-030",
+      "UT-R-EFF-10-031",
+      "UT-R-EFF-10-032",
+      "UT-R-EFF-10-033",
+      // M7-020: Catalog schema（`removeOnSourceDefeated`のマッピングと検証）
+      "UT-CAT-DUR-027",
+      "UT-CAT-DUR-028",
+      "UT-CAT-DUR-029",
+      "UT-CAT-DUR-030",
       "IT-CAP-MEMORY-DYNAMIC-PROD-007",
       "IT-MARKER-PROD-001",
       "IT-MARKER-PROD-002",
+      "IT-MARKER-SOURCE-DEFEAT-PROD-001",
+      "IT-MARKER-SOURCE-DEFEAT-PROD-002",
+      "IT-MARKER-SOURCE-DEFEAT-PROD-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
