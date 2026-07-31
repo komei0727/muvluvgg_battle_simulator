@@ -2189,15 +2189,44 @@ function* resolveActionApplications(
   // より少なくなる。そのため分母は事前に固定せず、そのEffectActionの最初の
   // applicationを解決する直前に、その時点の`box.units`から実際に適用される対象
   // （戦闘不能でない、または`includeDefeated`が明示されている）だけを数えて確定
-  // する。一度確定した分母はそのEffectActionの残りのapplicationでも再利用する
+  // する。一度確定した分母はその分配グループの残りのapplicationでも再利用する
   // — 分配は「1つの総量を分け合う」意味であり、application ごとに分母が変わると
   // 合計が総量と一致しなくなるため。
-  const shareCountByDefinitionId = new Map<EffectActionDefinitionId, number>();
-  const resolveShareCount = (definitionId: EffectActionDefinitionId): number => {
-    const cached = shareCountByDefinitionId.get(definitionId);
+  //
+  // PRレビュー指摘[P2]（PR #282）: 分配グループはEffectActionDefinition IDでは
+  // なく`step.actions`内の**参照ごと**に分ける。R-SKL-06 #4は同じEffectAction
+  // Definitionを1つのACTION stepから複数回参照でき、各参照が定義順に独立して
+  // 適用されることを認めている（production例: `SKL_OLGA_VETERAN_PS1`/`PS2`が
+  // SUBUNIT actionを3回参照する）。ID単位でまとめると、参照2回×対象2体の
+  // 4 applicationが1つの総量を分け合うことになり、参照ごとに総量を配る本来の
+  // 意味より各対象の受取量が少なくなる。
+  //
+  // `buildApplications`（`skill-resolution-service.ts`）は対象ごとに
+  // `step.actions`を定義順で並べるため、同一対象ブロック内での同一IDの出現順が
+  // そのまま`actions`内の参照番号になる。これを分配グループのキーにする。
+  const shareGroupKeys = ((): readonly string[] => {
+    const keys: string[] = [];
+    let currentTargetId: BattleUnitId | undefined;
+    let ordinals = new Map<EffectActionDefinitionId, number>();
+    for (const application of applications) {
+      if (application.targetBattleUnitId !== currentTargetId) {
+        currentTargetId = application.targetBattleUnitId;
+        ordinals = new Map();
+      }
+      const ordinal = ordinals.get(application.effectActionDefinitionId) ?? 0;
+      ordinals.set(application.effectActionDefinitionId, ordinal + 1);
+      keys.push(`${application.effectActionDefinitionId}#${ordinal}`);
+    }
+    return keys;
+  })();
+  const shareCountByGroup = new Map<string, number>();
+  const resolveShareCount = (applicationIndex: number): number => {
+    const groupKey = shareGroupKeys[applicationIndex]!;
+    const cached = shareCountByGroup.get(groupKey);
     if (cached !== undefined) {
       return cached;
     }
+    const definitionId = applications[applicationIndex]!.effectActionDefinitionId;
     // 再レビュー指摘[P2]（PR #256）: `includeDefeated`は戦闘不能者を選択集合へ
     // 含める指定だが、R-HEAL-01は蘇生規則を持たず`applyOneHeal`は戦闘不能の対象へ
     // 一切回復しない（`undefined`を返し`HealApplied`も発行しない）。分配の分母は
@@ -2212,8 +2241,8 @@ function* resolveActionApplications(
     const distributesToDefeatedTargets =
       context.definitions.effectActions.get(definitionId)?.kind === "MODIFY_RESOURCE";
     const count = applications.filter(
-      (candidate) =>
-        candidate.effectActionDefinitionId === definitionId &&
+      (candidate, candidateIndex) =>
+        shareGroupKeys[candidateIndex] === groupKey &&
         ((distributesToDefeatedTargets && candidate.includeDefeated) ||
           !isDefeated(requireUnit(box.units, candidate.targetBattleUnitId))),
     ).length;
@@ -2221,7 +2250,7 @@ function* resolveActionApplications(
     // これを呼ぶため、その対象自身が数に含まれ`count >= 1`が成り立つ。0での
     // 除算を構造的に防ぐため、それでも0になった場合は1へ丸める。
     const shareCount = Math.max(1, count);
-    shareCountByDefinitionId.set(definitionId, shareCount);
+    shareCountByGroup.set(groupKey, shareCount);
     return shareCount;
   };
 
@@ -2244,7 +2273,7 @@ function* resolveActionApplications(
       box,
       context,
       lastEventId,
-      resolveShareCount(application.effectActionDefinitionId),
+      resolveShareCount(index),
     );
     lastEventId = applied.lastEventId;
     resolvedCount += applied.resolvedCount;

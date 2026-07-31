@@ -229,6 +229,7 @@
         "UT-R-HEAL-01-003",
         "UT-R-HEAL-01-007",
         "UT-R-HEAL-01-008",
+        "UT-R-HEAL-01-017",
         "UT-R-HEAL-02-002"
       ]
     }
@@ -506,7 +507,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-017",
-    "description": "MODIFY_RESOURCEのoperation: DISTRIBUTE（対象間のリソース分配）。M7-002（Issue #185）は`CAP_RESOURCE_MUTATION`でADD/SET/SET_TO_MAXのみを実装しDISTRIBUTEを見送っていたが、M7-017（Issue #271）が`resource-modification-service.ts`へ実装した。Formula評価結果を「対象間で分け合う総量」とみなし、`distributionShareCount`（同一EffectStep内でこのEffectActionが実際に適用される対象数、`effect-action-group-resolver.ts`の`resolveActionApplications`が算出）で等分した取り分を`ADD`と同じ規約（`bounds`∩`[0, currentMax]`、R-NUM-02の1回切り捨て）で現在値へ加算する。`HEAL`の`payload.distribution: \"EVEN\"`（M7-005/Issue #184）のリソース版であり、分母の定義だけが異なる — `HEAL`は蘇生規則を持たないため戦闘不能の対象を常に除外するが、`MODIFY_RESOURCE`は`includeDefeated`が明示された戦闘不能の対象へ実際に適用されるためそれを分母に残す。`UNIT_SUIRAN_CHAOS`の`SKL_SUIRAN_CHAOS_EX`「自身が消費したEXゲージを、自身を除く味方全体に分配して加算する」を近似なしで解決する。DISTRIBUTE使用箇所は引き続き本CapabilityをrequiredCapabilitiesへ明示宣言する（`catalog-integrity.ts`のMISSING_REQUIRED_CAPABILITY検証、`CAP_COOLDOWN_MANIPULATION`/`CAP_STAT_MOD`と同じ運用）。",
+    "description": "MODIFY_RESOURCEのoperation: DISTRIBUTE（対象間のリソース分配）。M7-002（Issue #185）は`CAP_RESOURCE_MUTATION`でADD/SET/SET_TO_MAXのみを実装しDISTRIBUTEを見送っていたが、M7-017（Issue #271）が`resource-modification-service.ts`へ実装した。Formula評価結果を「対象間で分け合う総量」とみなし、`distributionShareCount`（同一EffectStep内でこのEffectAction**参照**が実際に適用される対象数、`effect-action-group-resolver.ts`の`resolveActionApplications`が算出。R-SKL-06 #4に従い同じEffectActionを複数回参照した場合は参照ごとに独立した分配になる）で等分した取り分を`ADD`と同じ規約（`bounds`∩`[0, currentMax]`、R-NUM-02の1回切り捨て）で現在値へ加算する。`HEAL`の`payload.distribution: \"EVEN\"`（M7-005/Issue #184）のリソース版であり、分母の定義だけが異なる — `HEAL`は蘇生規則を持たないため戦闘不能の対象を常に除外するが、`MODIFY_RESOURCE`は`includeDefeated`が明示された戦闘不能の対象へ実際に適用されるためそれを分母に残す。`UNIT_SUIRAN_CHAOS`の`SKL_SUIRAN_CHAOS_EX`「自身が消費したEXゲージを、自身を除く味方全体に分配して加算する」を近似なしで解決する。DISTRIBUTE使用箇所は引き続き本CapabilityをrequiredCapabilitiesへ明示宣言する（`catalog-integrity.ts`のMISSING_REQUIRED_CAPABILITY検証、`CAP_COOLDOWN_MANIPULATION`/`CAP_STAT_MOD`と同じ運用）。",
     "verification": {
       "productionDefinitionIds": ["ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE"],
       "testCaseIds": [
@@ -517,6 +518,7 @@
         "UT-R-ACTN-02-019",
         "UT-R-ACTN-02-020",
         "UT-R-ACTN-02-021",
+        "UT-R-ACTN-02-022",
         "IT-CAP-RESOURCE-DISTRIBUTE-PROD-001",
         "IT-CAP-RESOURCE-DISTRIBUTE-PROD-002"
       ]
