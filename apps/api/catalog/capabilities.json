@@ -504,10 +504,23 @@
   {
     "capabilityId": "CAP_RESOURCE_DISTRIBUTE",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-017",
-    "description": "MODIFY_RESOURCEのoperation: DISTRIBUTE（対象間のリソース分配）。M7-002（Issue #185）は`CAP_RESOURCE_MUTATION`でADD/SET/SET_TO_MAXのみを実装し、DISTRIBUTEは複数対象への分配ロジックが未設計のため見送った（production使用は`UNIT_SUIRAN_CHAOS`の`ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE`の1件のみ）。`resource-modification-service.ts`はDISTRIBUTE指定時に`DomainValidationError`を投げる実行時backstopを持つが、PRレビュー指摘（PR #254）を受け、`CAP_RESOURCE_MUTATION`のIMPLEMENTED状態がDISTRIBUTEまで安全であるかのように誤読されないよう、DISTRIBUTE使用箇所には本CapabilityをrequiredCapabilitiesへ明示宣言させる（`catalog-integrity.ts`のMISSING_REQUIRED_CAPABILITY検証）。実装するときは別Issueとして着手する。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "MODIFY_RESOURCEのoperation: DISTRIBUTE（対象間のリソース分配）。M7-002（Issue #185）は`CAP_RESOURCE_MUTATION`でADD/SET/SET_TO_MAXのみを実装しDISTRIBUTEを見送っていたが、M7-017（Issue #271）が`resource-modification-service.ts`へ実装した。Formula評価結果を「対象間で分け合う総量」とみなし、`distributionShareCount`（同一EffectStep内でこのEffectActionが実際に適用される対象数、`effect-action-group-resolver.ts`の`resolveActionApplications`が算出）で等分した取り分を`ADD`と同じ規約（`bounds`∩`[0, currentMax]`、R-NUM-02の1回切り捨て）で現在値へ加算する。`HEAL`の`payload.distribution: \"EVEN\"`（M7-005/Issue #184）のリソース版であり、分母の定義だけが異なる — `HEAL`は蘇生規則を持たないため戦闘不能の対象を常に除外するが、`MODIFY_RESOURCE`は`includeDefeated`が明示された戦闘不能の対象へ実際に適用されるためそれを分母に残す。`UNIT_SUIRAN_CHAOS`の`SKL_SUIRAN_CHAOS_EX`「自身が消費したEXゲージを、自身を除く味方全体に分配して加算する」を近似なしで解決する。DISTRIBUTE使用箇所は引き続き本CapabilityをrequiredCapabilitiesへ明示宣言する（`catalog-integrity.ts`のMISSING_REQUIRED_CAPABILITY検証、`CAP_COOLDOWN_MANIPULATION`/`CAP_STAT_MOD`と同じ運用）。",
+    "verification": {
+      "productionDefinitionIds": ["ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE"],
+      "testCaseIds": [
+        "UT-R-ACTN-02-015",
+        "UT-R-ACTN-02-016",
+        "UT-R-ACTN-02-017",
+        "UT-R-ACTN-02-018",
+        "UT-R-ACTN-02-019",
+        "UT-R-ACTN-02-020",
+        "UT-R-ACTN-02-021",
+        "IT-CAP-RESOURCE-DISTRIBUTE-PROD-001",
+        "IT-CAP-RESOURCE-DISTRIBUTE-PROD-002"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_RESOURCE_GAIN_MOD",
@@ -538,7 +551,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-002",
-    "description": "AP / PP / EX / HP操作（MODIFY_RESOURCE）。M7-002（Issue #185）がADD/SET/SET_TO_MAXの3操作を`effect-action-group-resolver.ts`（`resource-modification-service.ts`）へ実配線した（`operation: DISTRIBUTE`は対象間分配ロジックが未設計のため引き続き未実装、production使用は`UNIT_SUIRAN_CHAOS`の1件のみで本Issueのスコープ外）。HP_DIRECT_COST（`resource: HP`、防御力・会心などの通常ダメージ処理を経由しない直接消費）を新設し、`UNIT_SUIRAN_CASINO`/`UNIT_LILY_HERO`/`UNIT_OLGA_VETERAN`/`UNIT_MAO_COMMITTEE`の自己コストを近似なしへ変換した。",
+    "description": "AP / PP / EX / HP操作（MODIFY_RESOURCE）。M7-002（Issue #185）がADD/SET/SET_TO_MAXの3操作を`effect-action-group-resolver.ts`（`resource-modification-service.ts`）へ実配線した（残る`operation: DISTRIBUTE`はM7-017/Issue #271が`CAP_RESOURCE_DISTRIBUTE`として実装した）。HP_DIRECT_COST（`resource: HP`、防御力・会心などの通常ダメージ処理を経由しない直接消費）を新設し、`UNIT_SUIRAN_CASINO`/`UNIT_LILY_HERO`/`UNIT_OLGA_VETERAN`/`UNIT_MAO_COMMITTEE`の自己コストを近似なしへ変換した。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_SUIRAN_CASINO_AS2_HP_COST",
@@ -552,7 +565,6 @@
         "UT-R-ACTN-02-003",
         "UT-R-ACTN-02-004",
         "UT-R-ACTN-02-005",
-        "UT-R-ACTN-02-006",
         "UT-R-ACTN-02-007",
         "UT-R-ACTN-02-008",
         "UT-R-ACTN-02-009",

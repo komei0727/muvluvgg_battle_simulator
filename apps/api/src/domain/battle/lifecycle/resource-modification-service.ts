@@ -93,9 +93,12 @@ function withUpdatedResource(unit: BattleUnit, resource: ResourceKind, value: nu
  * 0以上かつ現在最大値以下に丸める」＋M7-002（Issue #185、HP_DIRECT_COST）:
  * `resource: HP`を対象にでき、防御力・会心などの通常ダメージ処理
  * （`combat/damage-application-service.ts`）を経由せずHPを直接増減する。
- * `operation: DISTRIBUTE`（対象間で分配）は未実装 — production利用は1件のみ
- * （`UNIT_SUIRAN_CHAOS`、本Issueのスコープ外）で、複数対象への分配ロジックは
- * 別途設計が必要なため、明確な`DomainValidationError`で拒否する。
+ * M7-017（Issue #271、`CAP_RESOURCE_DISTRIBUTE`）: `operation: DISTRIBUTE`は
+ * Formula評価結果を「対象間で分け合う総量」とみなし、`distributionShareCount`
+ * （同一EffectStep内でこのEffectActionが実際に適用される対象数、
+ * `effect-action-group-resolver.ts`が算出）で等分した値を`ADD`と同じ規約で
+ * 現在値へ加算する。`HEAL`の`payload.distribution: "EVEN"`（M7-005、Issue #184）
+ * のリソース版であり、端数は対象ごとに1回だけ切り捨てる（R-NUM-02）。
  * `RESOURCE_GAIN_MOD`（`APPLY_RESOURCE_GAIN_MOD`）は「リソース獲得量」
  * （R-ACT-03のAP/PP消費起因のEXゲージ増加）だけを対象にし、`MODIFY_RESOURCE`
  * には適用しない（`baseDelta`は常に`delta`と一致する）。
@@ -106,11 +109,17 @@ export function applyModifyResourceAction(
   action: Extract<EffectActionDefinition, { kind: "MODIFY_RESOURCE" }>,
   units: readonly BattleUnit[],
   context: ModifyResourceEventContext,
+  /**
+   * M7-017（Issue #271）: `operation: DISTRIBUTE`のときだけ使う分配数。
+   * 既定の1は「分配相手が自分だけ」＝総量をそのまま加算する意味になる。
+   * `HEAL`の`distributionShareCount`（`heal-application-service.ts`）と同じ契約。
+   */
+  distributionShareCount = 1,
 ): ApplyModifyResourceActionResult {
-  if (action.payload.operation === "DISTRIBUTE") {
+  if (!Number.isInteger(distributionShareCount) || distributionShareCount < 1) {
     throw new DomainValidationError(
-      "effectAction.payload.operation",
-      'MODIFY_RESOURCE operation "DISTRIBUTE" is not yet supported (M7-002/Issue #185 scope: ADD/SET/SET_TO_MAX only)',
+      "distributionShareCount",
+      `must be a positive integer, received ${distributionShareCount}`,
     );
   }
 
@@ -158,7 +167,16 @@ export function applyModifyResourceAction(
                   }
                 : {}),
             });
-            return action.payload.operation === "ADD" ? before + formulaResult : formulaResult;
+            if (action.payload.operation === "ADD") {
+              return before + formulaResult;
+            }
+            // M7-017（Issue #271）: DISTRIBUTEはFormula結果を総量として等分し、
+            // その取り分を現在値へ加算する。切り捨てはこの直後の`after`算出で
+            // 一度だけ行う（R-NUM-02）。
+            if (action.payload.operation === "DISTRIBUTE") {
+              return before + formulaResult / distributionShareCount;
+            }
+            return formulaResult;
           })();
 
     const authoredMin = action.payload.bounds?.min ?? 0;

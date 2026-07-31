@@ -1761,6 +1761,10 @@ function* resolveOneEffectActionApplication(
     // R-ACTN-02＋M7-002（Issue #185、HP_DIRECT_COST）: AP/PP/EX_GAUGEの一回限りの
     // 加減算に加え、`resource: HP`で防御力・会心などの通常ダメージ処理を経由せず
     // HPを直接増減する（`UNIT_SUIRAN_CASINO`等の自己コスト）。
+    // M7-017（Issue #271、`CAP_RESOURCE_DISTRIBUTE`）: `operation: DISTRIBUTE`は
+    // `HEAL`の`distribution: "EVEN"`と同じ`distributionShareCount`（同一EffectStep
+    // 内でこのEffectActionが実際に適用される対象数、呼び出し元の
+    // `resolveActionApplications`が算出）で総量を等分する。
     const modifyResult = applyModifyResourceAction(
       application.hits,
       requireActorUnit(context, box),
@@ -1784,6 +1788,7 @@ function* resolveOneEffectActionApplication(
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),
       },
+      distributionShareCount,
     );
     box.units = modifyResult.units;
     resolvedCount = modifyResult.resolvedCount;
@@ -2175,6 +2180,7 @@ function* resolveActionApplications(
   // HEAL_DISTRIBUTE（M7-005、Issue #184）: `HEAL`の`payload.distribution: "EVEN"`は
   // 「総回復量を対象数で等分する」ため、同じEffectActionが適用される対象数を
   // 分母にする。applicationは対象1体につき1件のため件数がそのまま分配数になる。
+  // M7-017（Issue #271）: `MODIFY_RESOURCE`の`operation: DISTRIBUTE`も同じ分母を使う。
   //
   // PRレビュー指摘[P2]（PR #256）: 事前計画されたapplication件数をそのまま使うと、
   // `EffectStepStarting`起点のPS連鎖で戦闘不能になった対象（`resolveOneEffect
@@ -2195,12 +2201,21 @@ function* resolveActionApplications(
     // 再レビュー指摘[P2]（PR #256）: `includeDefeated`は戦闘不能者を選択集合へ
     // 含める指定だが、R-HEAL-01は蘇生規則を持たず`applyOneHeal`は戦闘不能の対象へ
     // 一切回復しない（`undefined`を返し`HealApplied`も発行しない）。分配の分母は
-    // 「実際に回復を受け取る対象数」でなければならないため、`includeDefeated`の
-    // 有無にかかわらず戦闘不能者を除外する。
+    // 「実際に効果を受け取る対象数」でなければならないため、`HEAL`は
+    // `includeDefeated`の有無にかかわらず戦闘不能者を除外する。
+    //
+    // M7-017（Issue #271）: `MODIFY_RESOURCE`はこれと異なり、`includeDefeated`が
+    // 明示された戦闘不能の対象へも実際に適用される（R-ACTN-01 #2の共通契約に従い、
+    // `resolveOneEffectActionApplication`が`SKIPPED`にするのは明示指定が**ない**
+    // 場合だけ）。同じ「実際に受け取る対象数」という定義から、こちらでは
+    // `includeDefeated`の対象を分母に残す。
+    const distributesToDefeatedTargets =
+      context.definitions.effectActions.get(definitionId)?.kind === "MODIFY_RESOURCE";
     const count = applications.filter(
       (candidate) =>
         candidate.effectActionDefinitionId === definitionId &&
-        !isDefeated(requireUnit(box.units, candidate.targetBattleUnitId)),
+        ((distributesToDefeatedTargets && candidate.includeDefeated) ||
+          !isDefeated(requireUnit(box.units, candidate.targetBattleUnitId))),
     ).length;
     // 呼び出し元は「今まさに適用しようとしている application」の解決直前にだけ
     // これを呼ぶため、その対象自身が数に含まれ`count >= 1`が成り立つ。0での

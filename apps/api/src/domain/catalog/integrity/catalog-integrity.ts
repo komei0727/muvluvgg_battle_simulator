@@ -1416,14 +1416,14 @@ function validateEffectAction(
       });
     }
   }
-  // PRレビュー指摘[P2]（PR #254、Issue #185）: `CAP_RESOURCE_MUTATION`は
-  // ADD/SET/SET_TO_MAXを実装済みだが`operation: DISTRIBUTE`（対象間分配）は
-  // 未実装のまま`resource-modification-service.ts`が`DomainValidationError`を
-  // 投げる実行時backstopしか持たない。`CAP_RESOURCE_MUTATION`のIMPLEMENTED状態は
-  // Catalog契約上「安全に見える」ため、`COOLDOWN_MANIPULATION`/`APPLY_STAT_MOD`と
-  // 同じ「宣言漏れ自体を拒否する」パターンで、DISTRIBUTE使用時は未実装専用の
-  // `CAP_RESOURCE_DISTRIBUTE`（PLANNED）を必須宣言させ、Catalogロード時点で
-  // 明示的に検出できるようにする。
+  // PRレビュー指摘[P2]（PR #254、Issue #185）で、`CAP_RESOURCE_MUTATION`
+  // （ADD/SET/SET_TO_MAX）のIMPLEMENTED状態が未実装の`operation: DISTRIBUTE`
+  // まで安全であるかのように誤読されないよう、DISTRIBUTE使用箇所には専用の
+  // `CAP_RESOURCE_DISTRIBUTE`を必須宣言させた。M7-017（Issue #271）で
+  // `CAP_RESOURCE_DISTRIBUTE`はIMPLEMENTEDになったが、宣言そのものは
+  // `COOLDOWN_MANIPULATION`/`APPLY_STAT_MOD`（同じくIMPLEMENTED）と同じ
+  // 「宣言漏れ自体を拒否する」パターンで引き続き強制する — 分配セマンティクスを
+  // 使う定義がCatalog上で常に自己申告され、Capability台帳から追跡できる状態を保つ。
   if (effectAction.kind === "MODIFY_RESOURCE" && effectAction.payload.operation === "DISTRIBUTE") {
     if (!effectAction.requiredCapabilities.some((id) => id === "CAP_RESOURCE_DISTRIBUTE")) {
       violations.push({

@@ -197,7 +197,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // effects away. Aoi is not among the 10 promoted units here and no
     // `runtimeStatus` flipped, so `unitCount`/violation/`selectable`
     // expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-31.1");
+    // Bumped again by M7-017 (Issue #271, CAP_RESOURCE_DISTRIBUTE): the
+    // Capability flipped to `IMPLEMENTED`, but its only production declarer
+    // (`UNIT_SUIRAN_CHAOS`) is not among the 10 promoted units here and stays
+    // non-selectable through `CAP_DAMAGE_MOD`, so `unitCount`/violation/
+    // `selectable` expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-07-31.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
