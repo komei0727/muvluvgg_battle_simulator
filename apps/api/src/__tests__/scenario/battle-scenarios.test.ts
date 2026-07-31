@@ -145,6 +145,7 @@ describe("battle scenarios (harness)", () => {
         "UNIT_BEING_ATTACKED",
         "HIT_CONFIRMED",
         "CRITICAL_CHECK_RESOLVED",
+        "DAMAGE_WILL_BE_APPLIED",
         "DAMAGE_CALCULATED",
         "HIT_POINT_REDUCED",
         "DAMAGE_APPLIED",

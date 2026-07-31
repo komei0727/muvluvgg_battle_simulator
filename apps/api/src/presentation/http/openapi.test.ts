@@ -862,6 +862,7 @@ describe("OpenAPI document", () => {
       BlindnessCheckResolved: true,
       SkillMissed: true,
       CriticalCheckResolved: true,
+      DamageWillBeApplied: true,
       DamageCalculated: true,
       HitPointReduced: true,
       DamageApplied: true,

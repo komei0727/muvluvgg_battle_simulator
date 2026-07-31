@@ -457,6 +457,40 @@ const criticalCheckResolvedDetailsSchema = {
 
 const DAMAGE_TYPE_ENUM = ["PHYSICAL", "EN"] as const;
 
+/**
+ * `DamageWillBeApplied`（R-DMG-05 #4、DMG-001／Issue #195）。命中・会心の確定後、
+ * ダメージ計算より前に発行する`TIMING`イベント。R-DMG-04の集計済みDamageModifier
+ * 倍率は`DMG-002`（Issue #192）がここへ追加する。
+ */
+const damageWillBeAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "skillDefinitionId",
+    "effectActionDefinitionId",
+    "hitIndex",
+    "targetUnitId",
+    "damageType",
+    "isCritical",
+    "criticalMultiplier",
+    "defenseIgnoreRate",
+    "shieldIgnoreRate",
+    "damageReductionIgnoreRate",
+  ],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+    damageType: { type: "string", enum: DAMAGE_TYPE_ENUM },
+    isCritical: { type: "boolean" },
+    criticalMultiplier: { type: "number" },
+    defenseIgnoreRate: { type: "number" },
+    shieldIgnoreRate: { type: "number" },
+    damageReductionIgnoreRate: { type: "number" },
+  },
+} as const;
+
 const damageCalculatedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1658,6 +1692,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   BLINDNESS_CHECK_RESOLVED: blindnessCheckResolvedDetailsSchema,
   SKILL_MISSED: skillMissedDetailsSchema,
   CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
+  DAMAGE_WILL_BE_APPLIED: damageWillBeAppliedDetailsSchema,
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,

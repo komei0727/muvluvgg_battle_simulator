@@ -119,7 +119,7 @@
     { "taskId": "M7-018", "issue": 272, "phase": 2, "milestone": "M7", "status": "CLOSED" },
     { "taskId": "M7-019", "issue": 273, "phase": 2, "milestone": "M7", "status": "OPEN" },
     { "taskId": "M7-020", "issue": 279, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "DMG-001", "issue": 195, "phase": 3, "milestone": "M8", "status": "OPEN" },
+    { "taskId": "DMG-001", "issue": 195, "phase": 3, "milestone": "M8", "status": "CLOSED" },
     { "taskId": "DMG-002", "issue": 192, "phase": 3, "milestone": "M8", "status": "OPEN" },
     { "taskId": "DMG-003", "issue": 196, "phase": 3, "milestone": "M8", "status": "OPEN" },
     { "taskId": "DMG-004", "issue": 194, "phase": 3, "milestone": "M8", "status": "OPEN" },
@@ -141,13 +141,13 @@
   ],
   "ruleAssignments": [
     { "taskId": "M7-019", "ruleIds": ["R-TGT-06"] },
-    { "taskId": "DMG-001", "ruleIds": ["R-SKL-03", "R-ACTN-02", "R-DMG-05"] },
     { "taskId": "DMG-006", "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"] },
     { "taskId": "DMG-002", "ruleIds": ["R-DMG-03", "R-DMG-04"] },
-    { "taskId": "DMG-004", "ruleIds": ["R-SHD-01", "R-SHD-02", "R-SHD-03"] },
+    { "taskId": "DMG-004", "ruleIds": ["R-SHD-01", "R-SHD-02", "R-SHD-03", "R-SKL-03"] },
     { "taskId": "DMG-005", "ruleIds": ["R-SUB-01", "R-SUB-02"] },
     { "taskId": "DMG-007", "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"] },
-    { "taskId": "DMG-008", "ruleIds": ["R-DOT-01", "R-DOT-02", "R-DOT-03", "R-DOT-04"] }
+    { "taskId": "DMG-008", "ruleIds": ["R-DOT-01", "R-DOT-02", "R-DOT-03", "R-DOT-04"] },
+    { "taskId": "DMG-011", "ruleIds": ["R-ACTN-02", "R-DMG-05"] }
   ],
   "conversionThemeAssignments": [
     {
