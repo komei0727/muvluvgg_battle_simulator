@@ -4,6 +4,7 @@ import type {
   DamageModifierState,
   EffectImmunityState,
   HealingLinkState,
+  ShieldState,
   StatusEffectDetails,
 } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
@@ -104,6 +105,14 @@ export interface EffectSnapshot {
    * 実戦闘と別の倍率を出してしまうため、`healingLink`と同じ理由で同一性比較へ含める。
    */
   readonly damageModifier?: DamageModifierState;
+  /**
+   * DMG-004（Issue #194、R-SHD-01）: `APPLY_SHIELD`由来の効果だけが持つ。
+   * `remaining`はヒットごとの吸収（`ShieldConsumed`）と行動ごとの漸減で変化するため、
+   * `damageModifier`と同じ理由で同一性比較へ含める — これが無いと独立Reducerで
+   * 復元した状態のシールドプールが実戦闘と食い違い、以後のダメージ振り分けが
+   * 再現しない。
+   */
+  readonly shield?: ShieldState;
   readonly duration?: {
     readonly unit: "ACTION" | "TURN" | "SKILL_USE";
     readonly remaining: number;
@@ -154,6 +163,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
       : {}),
     ...(effect.healingLink !== undefined ? { healingLink: effect.healingLink } : {}),
     ...(effect.damageModifier !== undefined ? { damageModifier: effect.damageModifier } : {}),
+    ...(effect.shield !== undefined ? { shield: effect.shield } : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
       ? { consumptionRemaining: effect.duration.consumptionRemaining }

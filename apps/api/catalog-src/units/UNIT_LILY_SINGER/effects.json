@@ -112,7 +112,13 @@
         "source": { "kind": "SKILL_SOURCE" },
         "ratio": 0.25
       },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "shieldType": "EN",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "LILY_SINGER_PS2_LINK",
+        "linkedEffectGroupRole": "PARENT"
+      }
     },
     "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
@@ -125,7 +131,12 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "LILY_SINGER_PS2_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }

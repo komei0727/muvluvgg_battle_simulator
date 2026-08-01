@@ -5,6 +5,7 @@ import {
   type CooldownMap,
 } from "../model/cooldown-state.js";
 import { decrementActionEffectDurations } from "../model/applied-effect-duration.js";
+import { decayActionShields, emitShieldConsumedEvents } from "../combat/shield-policy.js";
 import { decrementActionMarkerDurations } from "../model/marker-duration.js";
 import {
   emitEffectDurationReducedEvents,
@@ -221,6 +222,65 @@ export function recordActionCompletion(
         },
         working,
         seeds,
+        context.effectActions,
+        lastEventId,
+      );
+      working = expiry.units;
+      lastEventId = expiry.lastEventId;
+    }
+  }
+
+  // `SHIELD_DECAY_OVER_TIME`（DMG-004、Issue #194、R-SHD-01）: 行動単位期間の減算と
+  // 同じCOMPLETINGタイミングで、`APPLY_SHIELD.decay`を宣言したシールドの残量を
+  // 段階的に減らす。減少そのものは`ShieldConsumed`（`reason: DECAY`）で表し、
+  // 0になったインスタンスは`TIME_LIMIT`と同じ経路（`expireEffects`）で
+  // `reason: SHIELD_DEPLETED`として失効させる — R-EFF-09のlinkedEffectGroup
+  // カスケードとCombatStat再計算をシールド固有の経路へ二重実装しないため。
+  const shieldDecay = decayActionShields(working, context.actorId);
+  if (shieldDecay.changes.length > 0) {
+    working = shieldDecay.units;
+    const decayEventsStart = recorder.getEvents().length;
+    // 漸減は保持者ごとに独立して起きうる（`decay.owner: BATTLE`/`EFFECT_SOURCE`）
+    // ため、変化を保持者単位へまとめてから発行する。
+    for (const holderId of [...new Set(shieldDecay.changes.map((change) => change.battleUnitId))]) {
+      lastEventId = emitShieldConsumedEvents(
+        {
+          recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+        },
+        requireUnit(working, holderId),
+        shieldDecay.changes.filter((change) => change.battleUnitId === holderId),
+        "DECAY",
+        lastEventId,
+      );
+    }
+    for (const event of recorder.getEvents().slice(decayEventsStart)) {
+      notify(event);
+    }
+
+    if (shieldDecay.depleted.length > 0) {
+      const expiry = expireEffects(
+        {
+          recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+          ...(context.onFactEventForPassiveChain !== undefined
+            ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+            : {}),
+        },
+        working,
+        shieldDecay.depleted.map((entry) => ({
+          battleUnitId: entry.battleUnitId,
+          effectInstanceId: entry.effectInstanceId,
+          reason: "SHIELD_DEPLETED" as const,
+        })),
         context.effectActions,
         lastEventId,
       );

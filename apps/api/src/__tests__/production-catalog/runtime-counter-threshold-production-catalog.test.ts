@@ -425,6 +425,11 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
           hitIndex: 1,
           targetUnitId: owner.battleUnitId,
           calculatedDamage: hitPointDamage,
+          // DMG-004（Issue #194、R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
+          hpDirectDamage: 0,
+          typedShieldAbsorbed: 0,
+          untypedShieldAbsorbed: 0,
+          discardedDamage: 0,
           hitPointDamage,
           hpBefore,
           hpAfter: hpBefore - hitPointDamage,

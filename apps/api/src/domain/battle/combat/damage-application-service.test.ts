@@ -2308,7 +2308,7 @@ describe("applyDamageAction hit-level damage event order (DMG-001, Issue #195)",
     ).toBe(0);
   });
 
-  it("UT-R-SKL-03-001 (R-SKL-03「使用者が途中で戦闘不能になった場合、残りのヒットを中断する」+ R-DMG-05 #4 再検証, DMG-001/Issue #195): a PS reacting to the first hit's DamageWillBeApplied that defeats the attacker interrupts every remaining hit", () => {
+  it("UT-R-SKL-03-002 (R-SKL-03「使用者が途中で戦闘不能になった場合、残りのヒットを中断する」+ R-DMG-05 #4 再検証, DMG-001/Issue #195): a PS reacting to the first hit's DamageWillBeApplied that defeats the attacker interrupts every remaining hit", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 500 });
     const random = new SequenceRandomSource([]);
@@ -2373,5 +2373,233 @@ describe("applyDamageAction hit-level damage event order (DMG-001, Issue #195)",
     expect(
       result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
     ).toBe(99);
+  });
+});
+
+describe("applyDamageAction shield absorption (DMG-004, Issue #194, R-SHD-01/02/03)", () => {
+  function shieldEffect(
+    id: string,
+    holderId: string,
+    amount: number,
+    shieldType: "PHYSICAL" | "EN" | null,
+  ): AppliedEffect {
+    const definitionId = createEffectActionDefinitionId(`ACT_SHIELD_${id}`);
+    return {
+      effectInstanceId: createEffectInstanceId(id),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      targetId: createBattleUnitId(holderId),
+      magnitude: amount,
+      shield: { shieldType, remaining: amount },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  function shieldedTarget(
+    shields: readonly AppliedEffect[],
+    overrides: { defense?: number } = {},
+  ): BattleUnit {
+    const target = unit("TARGET", "ENEMY", { defense: overrides.defense ?? 10 });
+    return { ...target, appliedEffects: shields };
+  }
+
+  it("UT-R-SHD-02-004: absorbs the hit with the matching typed shield before the untyped shield and HP", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 40 });
+    // finalDamage = 40 - 10 = 30
+    const target = shieldedTarget([
+      shieldEffect("SHIELD_TYPED", "TARGET", 20, "PHYSICAL"),
+      shieldEffect("SHIELD_UNTYPED", "TARGET", 5, null),
+    ]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
+    expect(updated.currentHp).toBe(95);
+    // R-SHD-01第3項: 使い切った2インスタンスは`SHIELD_DEPLETED`で失効している。
+    expect(updated.appliedEffects).toEqual([]);
+
+    const consumed = context.recorder
+      .getEvents()
+      .filter((event) => event.eventType === "ShieldConsumed");
+    expect(consumed.map((event) => event.payload)).toEqual([
+      expect.objectContaining({ shieldType: "PHYSICAL", before: 20, after: 0, absorbed: 20 }),
+      expect.objectContaining({ shieldType: null, before: 5, after: 0, absorbed: 5 }),
+    ]);
+
+    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    expect(applied.payload).toMatchObject({
+      calculatedDamage: 30,
+      hpDirectDamage: 0,
+      typedShieldAbsorbed: 20,
+      untypedShieldAbsorbed: 5,
+      discardedDamage: 0,
+      hitPointDamage: 5,
+    });
+  });
+
+  it("UT-R-SHD-02-005: leaves a typed shield of a different type untouched", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 40 });
+    const target = shieldedTarget([shieldEffect("SHIELD_EN", "TARGET", 100, "EN")]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
+    expect(updated.currentHp).toBe(70);
+    expect(updated.appliedEffects[0]!.shield!.remaining).toBe(100);
+    expect(context.recorder.getEvents().some((e) => e.eventType === "ShieldConsumed")).toBe(false);
+  });
+
+  it("UT-R-SHD-03-003: discards the overflow that would take HP below zero and reports it", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 210 });
+    // finalDamage = 210 - 10 = 200, shield 50 -> HP damage 150, HP is 100
+    const target = shieldedTarget([shieldEffect("SHIELD_UNTYPED", "TARGET", 50, null)]);
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    expect(applied.payload).toMatchObject({
+      calculatedDamage: 200,
+      untypedShieldAbsorbed: 50,
+      hitPointDamage: 100,
+      discardedDamage: 50,
+      hpAfter: 0,
+      defeated: true,
+    });
+  });
+
+  it("UT-R-SHD-02-006: sends the shieldIgnoreRate share straight to HP", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 50 });
+    // finalDamage = 50 - 10 = 40, shieldIgnoreRate 0.5 -> 20 direct to HP
+    const target = shieldedTarget([shieldEffect("SHIELD_UNTYPED", "TARGET", 100, null)]);
+    const action = damageAction("PREVENTED");
+    const piercingAction = {
+      ...action,
+      payload: {
+        ...action.payload,
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0.5, damageReductionIgnoreRate: 0 },
+      },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      piercingAction,
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
+    expect(updated.currentHp).toBe(80);
+    expect(updated.appliedEffects[0]!.shield!.remaining).toBe(80);
+    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    expect(applied.payload).toMatchObject({
+      hpDirectDamage: 20,
+      untypedShieldAbsorbed: 20,
+      hitPointDamage: 20,
+    });
+  });
+
+  it("UT-R-SHD-01-005: expires a shield instance whose remaining amount reaches zero", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 40 });
+    const target = shieldedTarget([shieldEffect("SHIELD_UNTYPED", "TARGET", 10, null)]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // `context.expireDepletedShields`未注入のfallbackでも、枯渇したインスタンスは除去される。
+    const updated = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
+    expect(updated.appliedEffects).toEqual([]);
+    const expired = context.recorder.getEvents().find((e) => e.eventType === "EffectExpired")!;
+    expect(expired.payload).toMatchObject({
+      effectInstanceId: createEffectInstanceId("SHIELD_UNTYPED"),
+      reason: "SHIELD_DEPLETED",
+    });
+  });
+
+  it("UT-R-SKL-03-003 (R-SKL-03「ヒットごとに命中判定・会心判定・シールド・HP適用を解決する」): each hit of a multi-hit action resolves shield absorption on its own, draining the pool progressively", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    // finalDamage = 30 - 10 = 20 per hit, shield 50 -> 20 / 20 / 10 absorbed.
+    const target = shieldedTarget([shieldEffect("SHIELD_UNTYPED", "TARGET", 50, null)]);
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET", 2), hit("TARGET", 3)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(result.hits.map((outcome) => outcome.applied)).toEqual([true, true, true]);
+    const consumed = context.recorder
+      .getEvents()
+      .filter((event) => event.eventType === "ShieldConsumed");
+    expect(consumed.map((event) => (event.payload as { absorbed: number }).absorbed)).toEqual([
+      20, 20, 10,
+    ]);
+    const updated = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
+    // 3ヒット目でシールドを使い切り、超過分の10だけがHPへ通る。
+    expect(updated.currentHp).toBe(90);
+    expect(updated.appliedEffects).toEqual([]);
+  });
+
+  it("UT-R-SHD-01-006: keeps events and state unchanged for a target that holds no shield", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 40 });
+    const target = unit("TARGET", "ENEMY");
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(context.recorder.getEvents().some((e) => e.eventType === "ShieldConsumed")).toBe(false);
+    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    expect(applied.payload).toMatchObject({
+      typedShieldAbsorbed: 0,
+      untypedShieldAbsorbed: 0,
+      hitPointDamage: 30,
+      discardedDamage: 0,
+    });
   });
 });

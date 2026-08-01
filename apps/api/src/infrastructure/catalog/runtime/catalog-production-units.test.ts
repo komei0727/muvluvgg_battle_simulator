@@ -210,7 +210,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // gating only by accident stay blocked by their real blocker. None of the
     // 10 units promoted here changed definition, so `unitCount`/violation/
     // `selectable` expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-08-01.2");
+    expect(catalog.catalogRevision).toBe("2026-08-01.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

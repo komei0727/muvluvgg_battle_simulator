@@ -13,6 +13,7 @@ import type { DurationDefinition } from "../../catalog/definitions/duration-defi
 import type {
   DamageModConditionDefinition,
   DamageThreshold,
+  ShieldDecayDefinition,
   StatusKind,
 } from "../../catalog/definitions/effect-action-payload.js";
 import type { RuntimeCounterMap } from "./runtime-counter-state.js";
@@ -78,6 +79,30 @@ export interface DamageModifierState {
   readonly damageType: DamageType | null;
   /** 省略時は無条件。指定時は`damage-modifier-policy.ts`がヒットごとに評価する。 */
   readonly condition?: DamageModConditionDefinition;
+}
+
+/**
+ * R-SHD-01（DMG-004、Issue #194、`APPLY_SHIELD`由来の付与だけが持つ）: この効果
+ * インスタンスが保持するシールドプールの区分と残量。`05_ドメインモデル.md`
+ * 「ShieldState」は物理・EN・タイプなしの3プールを持つ集約状態として書かれて
+ * いるが、実体はここ（インスタンスごとの残量）に置く — R-SHD-01第3項「個別
+ * 消滅条件を持つ付与元は`AppliedEffect`として保持し、有効な合計値を算出する」
+ * のとおり、プール自体はインスタンス集合からの導出値（`shield-policy.ts`の
+ * `shieldPoolsOf`）である。
+ *
+ * 付与時の最大値は`AppliedEffect.magnitude`（`APPLY_STAT_MOD`と同じ「付与時
+ * snapshot」規約。R-NUM-02によりFormula結果は付与直前に切り捨て済みの非負整数）で、
+ * `remaining`はそこから吸収・漸減で減っていく残量である。`isAttackDamageBonus`／
+ * `damageModifier`と同じ理由でインスタンス自身が持つ — `combat/`はCatalogの
+ * `effectActions`マップを引けない（`domain/battle/combat`のmodule境界）。
+ */
+export interface ShieldState {
+  /** `null`はタイプなしシールド（あらゆるダメージタイプを吸収する）。 */
+  readonly shieldType: DamageType | null;
+  /** 現在の残量。0以上、`magnitude`以下。 */
+  readonly remaining: number;
+  /** `SHIELD_DECAY_OVER_TIME`: 宣言がある場合だけ持つ、行動ごとの漸減。 */
+  readonly decay?: ShieldDecayDefinition;
 }
 
 /**
@@ -232,6 +257,8 @@ export interface AppliedEffect {
   readonly healingLink?: HealingLinkState;
   /** R-DMG-04（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD`由来の付与だけが持つ。 */
   readonly damageModifier?: DamageModifierState;
+  /** R-SHD-01（DMG-004、Issue #194）: `APPLY_SHIELD`由来の付与だけが持つ。 */
+  readonly shield?: ShieldState;
   readonly duration: EffectDurationState;
   /** 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。 */
   readonly snapshot?: Readonly<Record<string, number>>;

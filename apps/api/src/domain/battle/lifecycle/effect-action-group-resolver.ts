@@ -10,6 +10,7 @@ import { grantEffect, isStackLimitReached } from "../effects/effect-grant-servic
 import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
 import { removeFreezeEffectSteps } from "../effects/freeze-removal-service.js";
+import { truncateFraction } from "../model/resource-gauge.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { removeMarkers, reduceMarkerStack } from "../effects/marker-removal-service.js";
 import { removeEffects } from "../effects/effect-removal-service.js";
@@ -724,6 +725,31 @@ function* resolveOneEffectActionApplication(
             targetUnitId,
             freezeEffectInstanceId,
             triggeringDamage,
+            context.definitions.effectActions,
+            parentEventId,
+          ),
+        // R-SHD-01第3項＋R-EFF-09（DMG-004、Issue #194）: 枯渇したシールドの失効も
+        // `removeFreezeEffect`とまったく同じ理由でここから注入する。`expireEffectsSteps`
+        // をそのまま使うため、`linkedEffectGroupId`カスケード（production例:
+        // `LILY_SINGER_PS2_LINK`「シールドの消滅と共に攻撃力バフも消滅する」）と
+        // CombatStat再計算は他の失効契機と完全に同じ経路をたどる。
+        expireDepletedShields: (targetUnitId, depletedEffectInstanceIds, units, parentEventId) =>
+          expireEffectsSteps(
+            {
+              recorder: context.recorder,
+              turnNumber: context.turnNumber,
+              cycleNumber: context.cycleNumber,
+              ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+              skillUseId: context.skillUseId,
+              resolutionScopeId: context.actionScope,
+              rootEventId: context.rootEventId,
+            },
+            units,
+            depletedEffectInstanceIds.map((effectInstanceId) => ({
+              battleUnitId: targetUnitId,
+              effectInstanceId,
+              reason: "SHIELD_DEPLETED" as const,
+            })),
             context.definitions.effectActions,
             parentEventId,
           ),
@@ -1982,6 +2008,112 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_SHIELD") {
+    // R-SHD-01（DMG-004、Issue #194）: HPとは別枠の吸収プールを`AppliedEffect`として
+    // 付与する（R-ACTN-03）。`APPLY_STAT_MOD`と同じ評価規約で`formula`を付与時点に
+    // 一度だけ評価し、R-NUM-02「シールド付与量は適用直前に小数部分を切り捨てる」に
+    // 従って整数化した値を最大値（`magnitude`）と初期残量（`shield.remaining`）の
+    // 両方に置く。負のFormula結果は吸収プールとして意味を持たないため0へ丸める
+    // （`heal-application-service.ts`のR-HEAL-01 #5と同じ規約）。
+    // 重複規則はR-EFF-01の一般規則どおり常に新規インスタンス（`duplicate: true`）—
+    // R-SHD-01「同じタイプのシールド付与値を加算する」はプール合計側の規則であり、
+    // インスタンスの統合ではない。CombatStatsには影響しないため再計算は呼ばない。
+    const actor = findActorUnit(context, box);
+    const magnitude = Math.max(
+      0,
+      truncateFraction(
+        evaluateFormula(effectAction.payload.formula, {
+          ...(actor !== undefined ? { skillSource: actor } : {}),
+          ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
+          target: requireUnit(box.units, application.targetBattleUnitId),
+          allUnits: box.units,
+          ...(actor !== undefined
+            ? {
+                lastResults: damageResultsFor(
+                  context.damageResults,
+                  actor.battleUnitId,
+                  context.skillUseId,
+                ),
+              }
+            : {}),
+        }),
+      ),
+    );
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          definition: effectAction,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          shield: {
+            shieldType: effectAction.payload.shieldType ?? null,
+            remaining: magnitude,
+            ...(effectAction.payload.decay !== undefined
+              ? { decay: effectAction.payload.decay }
+              : {}),
+          },
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else if (effectAction.kind === "APPLY_HEALING_LINK") {
     // R-HEAL-04（M7-005-HEAL-LINK、Issue #229、production例:
     // `SKL_ELENA_MOODMAKER_AS1`「対象が得られる回復効果を100%自身に転送する」）:
@@ -2075,7 +2207,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_HEALING_LINK" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_HEALING_LINK"/"APPLY_SHIELD" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

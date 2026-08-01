@@ -5,6 +5,7 @@ import {
   type DamageModifierState,
   type EffectImmunityState,
   type HealingLinkState,
+  type ShieldState,
   type StatusEffectDetails,
 } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -68,6 +69,8 @@ export interface GrantEffectRequest {
   readonly healingLink?: HealingLinkState;
   /** DMG-002（Issue #192、R-DMG-04）: `APPLY_DAMAGE_MOD`由来の付与だけが持つ。 */
   readonly damageModifier?: DamageModifierState;
+  /** DMG-004（Issue #194、R-SHD-01）: `APPLY_SHIELD`由来の付与だけが持つ。 */
+  readonly shield?: ShieldState;
   readonly durationDefinition: DurationDefinition;
   readonly snapshot?: Readonly<Record<string, number>>;
 }
@@ -231,6 +234,7 @@ export function grantEffect(
       : {}),
     ...(request.healingLink !== undefined ? { healingLink: request.healingLink } : {}),
     ...(request.damageModifier !== undefined ? { damageModifier: request.damageModifier } : {}),
+    ...(request.shield !== undefined ? { shield: request.shield } : {}),
     duration: buildInitialDurationState(durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,

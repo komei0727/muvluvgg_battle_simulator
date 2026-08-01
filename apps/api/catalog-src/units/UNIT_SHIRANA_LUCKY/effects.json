@@ -15,7 +15,8 @@
         "source": { "kind": "SKILL_SOURCE" },
         "ratio": 1.0
       },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 4 } }
+      "decay": { "unit": "ACTION", "ratio": 0.25 },
+      "duration": { "dispellable": true }
     },
     "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }

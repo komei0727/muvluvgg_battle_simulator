@@ -1643,6 +1643,71 @@ describe("EffectActionDefinition", () => {
     }
   });
 
+  // DMG-004（Issue #194、R-SHD-01）: shieldType（省略時タイプなし）と
+  // SHIELD_DECAY_OVER_TIMEのdecay宣言。
+  it("UT-CAT-ACT-087: maps APPLY_SHIELD shieldType and decay, defaulting shieldType to untyped", () => {
+    const typed = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SHIELD_EN",
+        kind: "APPLY_SHIELD",
+        payload: {
+          formula: { kind: "CONSTANT", value: 100 },
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+          shieldType: "EN",
+          decay: { unit: "ACTION", ratio: 0.25 },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(typed.kind).toBe("APPLY_SHIELD");
+    if (typed.kind === "APPLY_SHIELD") {
+      expect(typed.payload.shieldType).toBe("EN");
+      expect(typed.payload.decay).toEqual({ unit: "ACTION", ratio: 0.25 });
+    }
+
+    const untyped = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SHIELD_UNTYPED",
+        kind: "APPLY_SHIELD",
+        payload: {
+          formula: { kind: "CONSTANT", value: 100 },
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    if (untyped.kind === "APPLY_SHIELD") {
+      expect(untyped.payload.shieldType).toBeUndefined();
+      expect(untyped.payload.decay).toBeUndefined();
+    }
+  });
+
+  it("UT-CAT-ACT-088: rejects APPLY_SHIELD decay with an unsupported unit or a non-positive ratio", () => {
+    for (const decay of [
+      { unit: "TURN", ratio: 0.25 },
+      { unit: "ACTION", ratio: 0 },
+      { unit: "ACTION", ratio: 1.5 },
+    ]) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_SHIELD_1",
+            kind: "APPLY_SHIELD",
+            payload: {
+              formula: { kind: "CONSTANT", value: 100 },
+              duration: { timeLimit: { unit: "ACTION", count: 2 } },
+              decay,
+            },
+            requiredCapabilities: [],
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
   it("UT-CAT-ACT-053: rejects APPLY_SHIELD when duration is omitted", () => {
     expect(() =>
       createEffectActionDefinition(

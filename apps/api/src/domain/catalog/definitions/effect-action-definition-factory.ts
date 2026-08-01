@@ -40,6 +40,7 @@ import {
   STATUS_KINDS,
   type DamageModConditionDefinition,
   type DamageThreshold,
+  type ShieldDecayDefinition,
   type StatModStackingMode,
 } from "./effect-action-payload.js";
 import {
@@ -59,9 +60,12 @@ import {
   assertKnownKeys,
   assertNonEmptyArray,
   assertNullableInteger,
+  assertRange,
 } from "../../shared/validate.js";
 
 const DAMAGE_TYPES = ["PHYSICAL", "EN"] as const;
+/** `ShieldDecayDefinition.owner`は`DurationTimeLimit.owner`と同じ値集合を共有する。 */
+const SHIELD_DECAY_OWNERS = ["EFFECT_TARGET", "EFFECT_SOURCE", "BATTLE"] as const;
 const CRITICAL_MODES = ["NORMAL", "GUARANTEED", "PREVENTED"] as const;
 const ACCURACY_MODES = ["NORMAL", "GUARANTEED"] as const;
 const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE", "HP"] as const;
@@ -131,7 +135,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "damageAmplificationOnBreak",
     "damageThreshold",
   ],
-  APPLY_SHIELD: ["formula", "duration"],
+  APPLY_SHIELD: ["formula", "duration", "shieldType", "decay"],
   REMOVE_EFFECTS: ["categories", "effectActionDefinitionIds", "maxRemovals"],
   EFFECT_IMMUNITY: [
     "categories",
@@ -232,6 +236,33 @@ const DAMAGE_MOD_CONDITION_ALLOWED_KEYS: Record<
 };
 
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
+
+const SHIELD_DECAY_ALLOWED_KEYS = ["unit", "ratio", "owner"] as const;
+const SHIELD_DECAY_UNITS = ["ACTION"] as const;
+
+/**
+ * `SHIELD_DECAY_OVER_TIME`（DMG-004、Issue #194、R-SHD-01）: `APPLY_SHIELD.decay`を
+ * 検証して`ShieldDecayDefinition`へ写す。`unit`は`ACTION`だけを許可し、`ratio`は
+ * 「付与時最大値に対する1行動あたりの減少割合」として`0 < ratio <= 1`へ制限する
+ * （0は漸減しないことと区別できず、1超は最大値以上を1回で削るため意味を持たない）。
+ * `owner`は`DurationTimeLimit.owner`と同じ値集合・同じ既定を共有する。
+ */
+function createShieldDecay(input: unknown, path: string): ShieldDecayDefinition {
+  const raw = requireField(input as Record<string, unknown> | undefined, path);
+  assertKnownKeys(raw, SHIELD_DECAY_ALLOWED_KEYS, path);
+  const unit = requireField(raw["unit"] as string | undefined, `${path}.unit`);
+  assertEnumValue(unit, SHIELD_DECAY_UNITS, `${path}.unit`);
+  const ratio = requireField(raw["ratio"] as number | undefined, `${path}.ratio`);
+  assertRange(ratio, `${path}.ratio`, { min: 0, max: 1 });
+  if (ratio === 0) {
+    throw new DomainValidationError(`${path}.ratio`, "must be greater than 0");
+  }
+  const owner = raw["owner"] as string | undefined;
+  if (owner !== undefined) {
+    assertEnumValue(owner, SHIELD_DECAY_OWNERS, `${path}.owner`);
+  }
+  return { unit, ratio, ...(owner !== undefined ? { owner } : {}) };
+}
 
 /**
  * `DYNAMIC_DAMAGE_MOD_CONDITION`（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD.condition`を
@@ -772,11 +803,21 @@ function createPayload(
       return { kind: "APPLY_STATUS", payload: result };
     }
     case "APPLY_SHIELD": {
+      // DMG-004（Issue #194、R-SHD-01）: `shieldType`省略時はタイプなしシールド
+      // （`ApplyShieldPayload.shieldType`のコメント参照）。
+      const shieldTypeRaw = payload["shieldType"] as string | undefined;
+      if (shieldTypeRaw !== undefined) {
+        assertEnumValue(shieldTypeRaw, DAMAGE_TYPES, `${path}.shieldType`);
+      }
       return {
         kind: "APPLY_SHIELD",
         payload: {
           formula: createFormulaField(payload, "formula", path),
           duration: createDurationField(payload, path),
+          ...(shieldTypeRaw !== undefined ? { shieldType: shieldTypeRaw } : {}),
+          ...(payload["decay"] !== undefined
+            ? { decay: createShieldDecay(payload["decay"], `${path}.decay`) }
+            : {}),
         },
       };
     }
