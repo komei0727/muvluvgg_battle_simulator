@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 113,
-      "completed": 93,
-      "remaining": 20
+      "completed": 97,
+      "remaining": 16
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 32
+      "incompleteConversionRows": 30
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 46,
-      "implemented": 30
+      "implemented": 31
     }
   },
   "tasks": [
@@ -421,7 +421,7 @@
       "issue": 194,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "DMG-005",
@@ -539,10 +539,6 @@
       "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"]
     },
     {
-      "taskId": "DMG-004",
-      "ruleIds": ["R-SHD-01", "R-SHD-02", "R-SHD-03", "R-SKL-03"]
-    },
-    {
       "taskId": "DMG-005",
       "ruleIds": ["R-SUB-01", "R-SUB-02"]
     },
@@ -616,12 +612,6 @@
     },
     {
       "milestone": "M8",
-      "theme": "SHIELD_DECAY_OVER_TIME",
-      "rowCount": 1,
-      "taskId": "DMG-004"
-    },
-    {
-      "milestone": "M8",
       "theme": "SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF",
       "rowCount": 1,
       "taskId": "DMG-005"
@@ -631,12 +621,6 @@
       "theme": "TEMP_PIERCING_GRANT",
       "rowCount": 1,
       "taskId": "DMG-003"
-    },
-    {
-      "milestone": "M8",
-      "theme": "LINKED_EFFECT_GROUP_SHIELD",
-      "rowCount": 1,
-      "taskId": "DMG-004"
     },
     {
       "milestone": "M9",
@@ -651,7 +635,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 22,
+      "selectableProductionUnits": 32,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -669,7 +653,7 @@
         "capabilityId": "CAP_CONTINUOUS_DAMAGE",
         "blockedUnits": 19,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 11,
+        "exclusivelyBlockedUnits": 13,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -683,14 +667,14 @@
         "capabilityId": "CAP_CRITICAL_CONTROL",
         "blockedUnits": 6,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 3,
+        "exclusivelyBlockedUnits": 4,
         "exclusivelyBlockedMemories": 0
       },
       {
         "capabilityId": "CAP_DEATH_SURVIVAL",
         "blockedUnits": 6,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedUnits": 2,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -719,13 +703,6 @@
         "blockedUnits": 1,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_SHIELD",
-        "blockedUnits": 18,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 10,
         "exclusivelyBlockedMemories": 0
       },
       {

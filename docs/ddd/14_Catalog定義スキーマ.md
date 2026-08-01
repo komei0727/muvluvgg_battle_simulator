@@ -1273,7 +1273,7 @@ payload:
 
 M7-001（Issue #181）で `BUFF`（`REMOVE_BUFF_CATEGORY`）・`SHIELD`・`SUBUNIT`（`REMOVE_EFFECTS_CATEGORY_GAP`）を `categories` へ追加した。バフ/デバフ判定は R-EFF-05「バフは正の効果量、デバフは弱化量」に従い符号付き効果量から導き、状態異常（`STATUS`）は R-STS-01 により `DEBUFF` も兼ねる（`effect-category-classifier.ts`）。解除優先順が定義されていない場合の既定は付与順の古い順とする（R-EFF-02 #3）。
 
-`SHIELD`/`SUBUNIT` はシールド/サブユニットの実行時状態が未モデル化（`CAP_SHIELD`=DMG-004、`CAP_SUBUNIT`=DMG-005、いずれも`runtimeStatus: PLANNED`、Issue #242）。`categories` へこれらを指定する `REMOVE_EFFECTS` は、対応する Capability（`SHIELD`→`CAP_SHIELD`、`SUBUNIT`→`CAP_SUBUNIT`）を `requiredCapabilities` へ宣言すること（`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体をCatalogロード時点で拒否する」パターン）。宣言してさえいれば、その Capability が `PLANNED` のままでも Catalog 自体は正しくロードできる — 実際の拒否は、そのUnit/Memoryが選択された時点で `SimulationPreflightValidator` が `UNSUPPORTED_RULE` として行う（`09_アプリケーション設計.md`）。`MARKER`（Catalogロード時点の即時拒否、直前の段落）とは異なり、SHIELD/SUBUNITは「将来実装される」性質のため、Catalog全体のロードを失敗させてはならない。
+`SUBUNIT` はサブユニットの実行時状態が未モデル化（`CAP_SUBUNIT`=DMG-005、`runtimeStatus: PLANNED`、Issue #242）。`SHIELD` は DMG-004（Issue #194）が `CAP_SHIELD` を `IMPLEMENTED` にしたため実行時状態を持つ（`AppliedEffect.shield`）が、下の宣言規則自体は両カテゴリで変わらない。`categories` へこれらを指定する `REMOVE_EFFECTS` は、対応する Capability（`SHIELD`→`CAP_SHIELD`、`SUBUNIT`→`CAP_SUBUNIT`）を `requiredCapabilities` へ宣言すること（`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体をCatalogロード時点で拒否する」パターン）。宣言してさえいれば、その Capability が `PLANNED` のままでも Catalog 自体は正しくロードできる — 実際の拒否は、そのUnit/Memoryが選択された時点で `SimulationPreflightValidator` が `UNSUPPORTED_RULE` として行う（`09_アプリケーション設計.md`）。`MARKER`（Catalogロード時点の即時拒否、直前の段落）とは異なり、SHIELD/SUBUNITは「将来実装される」性質のため、Catalog全体のロードを失敗させてはならない。
 
 `REMOVE_EFFECTS` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_REMOVE_EFFECTS` を含めること。Battle Engineが未実装のkindは、Capabilityで隔離しないと preflight（`SimulationPreflightValidator`、`09_アプリケーション設計.md`）を素通りしてしまう。
 
@@ -1411,12 +1411,35 @@ payload:
     dispellable: true
 ```
 
-| フィールド | 型                 | 制約                                                             |
-| ---------- | ------------------ | ---------------------------------------------------------------- |
-| `formula`  | FormulaDefinition  | シールド量                                                       |
-| `duration` | DurationDefinition | シールドの残量が尽きる前でも失効しうる（`timeLimit` 経過で消滅） |
+| フィールド   | 型                      | 制約                                                             |
+| ------------ | ----------------------- | ---------------------------------------------------------------- |
+| `formula`    | FormulaDefinition       | シールド量。R-NUM-02により付与直前に切り捨てて整数化する         |
+| `duration`   | DurationDefinition      | シールドの残量が尽きる前でも失効しうる（`timeLimit` 経過で消滅） |
+| `shieldType` | enum（`PHYSICAL`/`EN`） | 省略時はタイプなしシールド。DMG-004（Issue #194）で追加          |
+| `decay`      | ShieldDecayDefinition   | 省略時は漸減しない。DMG-004（Issue #194）で追加                  |
 
 `APPLY_SHIELD` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_SHIELD` を含めること。理由は `REMOVE_EFFECTS` と同じ（Battle Engine未実装のkindをpreflightで隔離するため）。
+
+#### shieldType（DMG-004、Issue #194）
+
+R-SHD-01 のタイプ別プールを表す。`PHYSICAL`/`EN` を指定したシールドは同じダメージタイプのヒットだけを吸収し（R-SHD-02「対応しないタイプありシールドへダメージを適用しない」）、省略した場合はあらゆるダメージタイプを吸収するタイプなしシールドになる。production Catalog でタイプを明示するのは `ACT_LILY_SINGER_PS2_SHIELD`（raw原文「ENシールド」）だけである。
+
+#### ShieldDecayDefinition（`SHIELD_DECAY_OVER_TIME`、DMG-004、Issue #194）
+
+```yaml
+decay:
+  unit: ACTION
+  ratio: 0.25
+  owner: EFFECT_TARGET # 省略可
+```
+
+| フィールド | 型                                       | 制約                                                                       |
+| ---------- | ---------------------------------------- | -------------------------------------------------------------------------- |
+| `unit`     | enum（`ACTION` のみ）                    | 現状 `ACTION` だけを許可する                                               |
+| `ratio`    | number                                   | `0 < ratio <= 1`。**付与時最大値**に対する1行動あたりの減少割合            |
+| `owner`    | enum（`DurationTimeLimit.owner` と同じ） | 省略時 `EFFECT_TARGET`。「誰の行動で減らすか」を R-EFF-04 と同じ規約で解決 |
+
+raw原文の例は `SKL_SHIRANA_LUCKY_EX`（薄暮の宵火）「シールドは1行動に付き最大値の25%減少する」。基準はその時点の残量ではなく付与時最大値であるため等差で減り、`ratio: 0.25` なら4行動でちょうど枯渇する。減少そのものは `ShieldConsumed`（`reason: DECAY`）として記録し、0になったインスタンスは `EffectExpired`（`reason: SHIELD_DEPLETED`）で失効する — 失効経路は時間制限（`TIME_LIMIT`）と共有するため、R-EFF-09 の `linkedEffectGroupId` カスケードと CombatStat 再計算も同じ振る舞いになる。
 
 ### APPLY_SUBUNIT
 
@@ -2182,7 +2205,7 @@ RES-004後続（Issue #227）で、`ConditionDefinition.kind: TARGET_SET_COUNT`�
 | `CAP_RESOLUTION_BRANCH_REPEAT`     | `RES-003`    | BRANCH / REPEATと直前結果                                                                                                                                                                                                                                                                                                                                                                       |
 | `CAP_RESOURCE_CAPACITY_MOD`        | `M7-002`     | 最大APなどの上限変更                                                                                                                                                                                                                                                                                                                                                                            |
 | `CAP_RESOURCE_MUTATION`            | `M7-002`     | AP / PP / EX 操作                                                                                                                                                                                                                                                                                                                                                                               |
-| `CAP_SHIELD`                       | `DMG-004`    | シールド付与                                                                                                                                                                                                                                                                                                                                                                                    |
+| `CAP_SHIELD`                       | `DMG-004`    | シールド付与（R-SHD-01〜03、DMG-004／Issue #194で`IMPLEMENTED`）                                                                                                                                                                                                                                                                                                                                |
 | `CAP_SKILL_RUNTIME_COUNTER`        | `M6-RC-001`  | SkillRuntimeスコープの発動回数・累計条件                                                                                                                                                                                                                                                                                                                                                        |
 | `CAP_SPECIFIC_IMMUNITY`            | `M7-001B`    | 個別状態異常無効（`EFFECT_IMMUNITY.statusKinds`、R-EFF-03、Issue #243で実装済み）                                                                                                                                                                                                                                                                                                               |
 | `CAP_STATUS_EFFECT_KIND`           | `M7-018`     | `APPLY_STATUS`の`status`がSTEALTH以外の場合の実効処理（R-STS-01〜04・R-HIT-02・R-HIT-04・R-HIT-05・R-DMG-02）。resolverは`status`自体の許可リストで判定し、`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`だけが未対応として残る（`CAP_CRITICAL_CONTROL`／DMG-003）。宣言しているproduction行は`UNIT_LAYLA_ENTREPRENEUR`のEX/PS1の2行（M7-001B、Issue #243）で、Issue #272で両方とも解決可能になった |

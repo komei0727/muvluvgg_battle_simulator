@@ -543,6 +543,29 @@ const damageCalculatedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `ShieldConsumed`（DMG-004、Issue #194、R-SHD-01〜03）。シールド値を減らした直後に、
+ * 減らしたプール単位で発行する。`reason: DAMAGE_ABSORPTION`（R-SHD-02のダメージ吸収）
+ * だけが`effectActionDefinitionId`/`hitIndex`を持ち、`DECAY`
+ * （`SHIELD_DECAY_OVER_TIME`の行動ごとの漸減）は特定のヒットに属さないため持たない。
+ * `shieldType`の`null`はタイプなしシールドプールを表す。
+ */
+const shieldConsumedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "reason", "shieldType", "before", "after", "absorbed"],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    battleUnitId: { type: "string" },
+    reason: { type: "string", enum: ["DAMAGE_ABSORPTION", "DECAY"] },
+    shieldType: { type: ["string", "null"], enum: [...DAMAGE_TYPE_ENUM, null] },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+    absorbed: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 /** `HitPointReduced`（RES-005、Issue #172）。HPを減らした後、`DamageCalculated`と`DamageApplied`の間に発行する。 */
 const hitPointReducedDetailsSchema = {
   type: "object",
@@ -573,6 +596,10 @@ const damageAppliedDetailsSchema = {
     "hitIndex",
     "targetUnitId",
     "calculatedDamage",
+    "hpDirectDamage",
+    "typedShieldAbsorbed",
+    "untypedShieldAbsorbed",
+    "discardedDamage",
     "hitPointDamage",
     "hpBefore",
     "hpAfter",
@@ -583,6 +610,11 @@ const damageAppliedDetailsSchema = {
     hitIndex: { type: "integer", minimum: 0 },
     targetUnitId: { type: "string" },
     calculatedDamage: { type: "integer", minimum: 0 },
+    // DMG-004（Issue #194、R-SHD-02/03）: 適用先ごとの内訳。
+    hpDirectDamage: { type: "integer", minimum: 0 },
+    typedShieldAbsorbed: { type: "integer", minimum: 0 },
+    untypedShieldAbsorbed: { type: "integer", minimum: 0 },
+    discardedDamage: { type: "integer", minimum: 0 },
     hitPointDamage: { type: "integer", minimum: 0 },
     hpBefore: { type: "integer", minimum: 0 },
     hpAfter: { type: "integer", minimum: 0 },
@@ -1707,6 +1739,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   CRITICAL_CHECK_RESOLVED: criticalCheckResolvedDetailsSchema,
   DAMAGE_WILL_BE_APPLIED: damageWillBeAppliedDetailsSchema,
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
+  SHIELD_CONSUMED: shieldConsumedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
   HEAL_APPLIED: healAppliedDetailsSchema,

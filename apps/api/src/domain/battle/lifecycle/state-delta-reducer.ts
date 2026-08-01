@@ -143,6 +143,25 @@ function sameDamageModifierState(
 }
 
 /**
+ * R-SHD-01（DMG-004、Issue #194）: `APPLY_SHIELD`由来の効果だけが持つプール区分・
+ * 残量・漸減宣言を`sameDamageModifierState`と同じ理由で構造比較する。`decay`は
+ * Catalog由来の固定値だがインスタンスへ焼き込まれるため、欠落を検出できるよう
+ * フィールド単位で比較する。
+ */
+function sameShieldState(a: EffectSnapshot["shield"], b: EffectSnapshot["shield"]): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.shieldType === b.shieldType &&
+    a.remaining === b.remaining &&
+    a.decay?.unit === b.decay?.unit &&
+    a.decay?.ratio === b.decay?.ratio &&
+    a.decay?.owner === b.decay?.owner
+  );
+}
+
+/**
  * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
  * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
  * 単位の構造比較を行う。
@@ -178,7 +197,8 @@ export function sameEffectSnapshot(
     sameStatusDetails(a.statusDetails, b.statusDetails) &&
     a.isAttackDamageBonus === b.isAttackDamageBonus &&
     sameHealingLinkState(a.healingLink, b.healingLink) &&
-    sameDamageModifierState(a.damageModifier, b.damageModifier)
+    sameDamageModifierState(a.damageModifier, b.damageModifier) &&
+    sameShieldState(a.shield, b.shield)
   );
 }
 

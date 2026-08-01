@@ -5,6 +5,12 @@ import {
   type CooldownMap,
 } from "../model/cooldown-state.js";
 import { decrementActionEffectDurations } from "../model/applied-effect-duration.js";
+import {
+  decayActionShields,
+  emitShieldConsumed,
+  shieldDecayHolders,
+  shieldDecayPools,
+} from "../combat/shield-policy.js";
 import { decrementActionMarkerDurations } from "../model/marker-duration.js";
 import {
   emitEffectDurationReducedEvents,
@@ -226,6 +232,74 @@ export function recordActionCompletion(
       );
       working = expiry.units;
       lastEventId = expiry.lastEventId;
+    }
+  }
+
+  // `SHIELD_DECAY_OVER_TIME`（DMG-004、Issue #194、R-SHD-01）: 行動単位期間の減算と
+  // 同じCOMPLETINGタイミングで、`APPLY_SHIELD.decay`を宣言したシールドの残量を
+  // 段階的に減らす。減少そのものは`ShieldConsumed`（`reason: DECAY`）で表し、
+  // 0になったインスタンスは`TIME_LIMIT`と同じ経路（`expireEffects`）で
+  // `reason: SHIELD_DEPLETED`として失効させる — R-EFF-09のlinkedEffectGroup
+  // カスケードとCombatStat再計算をシールド固有の経路へ二重実装しないため。
+  //
+  // PRレビュー[P1]: 保持者→プールの単位で「減少→`ShieldConsumed`→PS/Memory即時
+  // 連鎖→枯渇分の失効」を完了させてから次へ進む。`decay.owner`が`BATTLE`/
+  // `EFFECT_SOURCE`の場合は1回の行動完了で複数の保持者が同時に漸減しうるため、
+  // まとめて変更してから通知すると、先頭の`ShieldConsumed`に反応するPSが
+  // 他の保持者まで変更済みの状態を観測してしまう。
+  for (const holderId of shieldDecayHolders(working, context.actorId)) {
+    // プールの並びは保持者ごとに先に確定させ、実際の減少量だけをそのつど最新の
+    // `working`から求める（`shieldDecayPools`のコメント参照）。
+    for (const shieldType of shieldDecayPools(working, context.actorId, holderId)) {
+      const decay = decayActionShields(working, context.actorId, holderId, shieldType);
+      if (decay.change === undefined) {
+        continue;
+      }
+      working = decay.units;
+      const decayEventsStart = recorder.getEvents().length;
+      lastEventId = emitShieldConsumed(
+        {
+          recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+        },
+        requireUnit(working, holderId),
+        decay.change,
+        "DECAY",
+        lastEventId,
+      );
+      for (const event of recorder.getEvents().slice(decayEventsStart)) {
+        notify(event);
+      }
+
+      if (decay.change.depletedEffectInstanceIds.length > 0) {
+        const expiry = expireEffects(
+          {
+            recorder,
+            turnNumber: context.turnNumber,
+            cycleNumber: context.cycleNumber,
+            actionId: context.actionId,
+            resolutionScopeId: context.resolutionScopeId,
+            rootEventId: context.rootEventId,
+            ...(context.onFactEventForPassiveChain !== undefined
+              ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+              : {}),
+          },
+          working,
+          decay.change.depletedEffectInstanceIds.map((effectInstanceId) => ({
+            battleUnitId: holderId,
+            effectInstanceId,
+            reason: "SHIELD_DEPLETED" as const,
+          })),
+          context.effectActions,
+          lastEventId,
+        );
+        working = expiry.units;
+        lastEventId = expiry.lastEventId;
+      }
     }
   }
 

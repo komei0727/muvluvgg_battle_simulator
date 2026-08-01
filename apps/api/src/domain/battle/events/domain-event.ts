@@ -357,12 +357,39 @@ export interface BattleDomainEventPayloadMap {
     readonly damageType: DamageType;
   };
   /**
+   * `08_ドメインイベント.md`「ダメージイベント」ShieldConsumed（DMG-004、
+   * Issue #194、R-SHD-01〜03）: シールド値を減らした直後に、減らしたプール単位で
+   * 発行する`FACT`。1ヒットが物理/ENのタイプありプールとタイプなしプールの
+   * 両方を消費した場合は2件発行する（R-SHD-02の適用順のまま）。
+   *
+   * `reason`はこの減少の契機を区別する。
+   * - `DAMAGE_ABSORPTION`: R-SHD-02のダメージ吸収。`hitIndex`を持つ
+   * - `DECAY`: `SHIELD_DECAY_OVER_TIME`（`APPLY_SHIELD.decay`）による行動ごとの
+   *   漸減。特定のヒットに属さないため`hitIndex`を持たない
+   *
+   * `stateDelta`は減少した各`AppliedEffect.shield.remaining`の変化を持つ
+   * （プール自体はインスタンス集合からの導出値であり、独立Reducerが復元するのは
+   * インスタンス側である）。残量が0になったインスタンスの失効自体は、続く
+   * `EffectExpired`（`reason: SHIELD_DEPLETED`）が別途表す。
+   */
+  readonly ShieldConsumed: {
+    readonly effectActionDefinitionId?: EffectActionDefinitionId;
+    readonly hitIndex?: number;
+    readonly battleUnitId: BattleUnitId;
+    readonly reason: ShieldConsumptionReason;
+    /** `null`はタイプなしシールドプール。 */
+    readonly shieldType: DamageType | null;
+    readonly before: number;
+    readonly after: number;
+    readonly absorbed: number;
+  };
+  /**
    * `08_ドメインイベント.md`「HitPointReduced」: HPを減らした後に発行する
    * `FACT`（RES-005、Issue #172）。R-DMG-05の並び上は`DamageCalculated`と
-   * `DamageApplied`の間 — シールド・サブユニット吸収（M8未実装のため現状は
-   * 常にHPへ直接適用）を経てHPが確定した直後を表す。HP変化のStateDeltaは
-   * このイベントが持つ（`DamageApplied`はもう持たない — 同じdeltaを両方の
-   * イベントへ付けると独立Reducer復元が二重適用でエラーになるため）。
+   * `DamageApplied`の間 — シールド吸収（`ShieldConsumed`、DMG-004／Issue #194）を
+   * 経てHPが確定した直後を表す（サブユニット吸収はDMG-005で加わる）。HP変化の
+   * StateDeltaはこのイベントが持つ（`DamageApplied`はもう持たない — 同じdeltaを
+   * 両方のイベントへ付けると独立Reducer復元が二重適用でエラーになるため）。
    */
   readonly HitPointReduced: {
     readonly effectActionDefinitionId: EffectActionDefinitionId;
@@ -377,6 +404,23 @@ export interface BattleDomainEventPayloadMap {
     readonly hitIndex: number;
     readonly targetUnitId: BattleUnitId;
     readonly calculatedDamage: number;
+    /**
+     * DMG-004（Issue #194、R-SHD-02 #1）: `shieldIgnoreRate`分としてシールドを
+     * 迂回しHPへ直接向かった量。`hitPointDamage`の内訳であり、独立した適用先では
+     * ない（`shield-policy.ts`）。
+     */
+    readonly hpDirectDamage: number;
+    /** DMG-004（R-SHD-02 #2）: ダメージタイプに対応するタイプありシールドの吸収量。 */
+    readonly typedShieldAbsorbed: number;
+    /** DMG-004（R-SHD-02 #3）: タイプなしシールドの吸収量。 */
+    readonly untypedShieldAbsorbed: number;
+    /**
+     * DMG-004（R-SHD-03第2項）: HPを0未満にしないために破棄した超過分。
+     * `08_ドメインイベント.md`の不変条件#6は
+     * `typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage + discardedDamage
+     * === calculatedDamage`として成立する（HPクランプで消えた分をこの項が説明する）。
+     */
+    readonly discardedDamage: number;
     readonly hitPointDamage: number;
     readonly hpBefore: number;
     readonly hpAfter: number;
@@ -916,7 +960,16 @@ export type EffectExpirationReason =
   | "TIME_LIMIT"
   | "CONSUMPTION"
   | "EXPIRATION_CONDITION"
+  /**
+   * R-SHD-01第3項（DMG-004、Issue #194）: シールドの残量が0になったことによる
+   * 「個別消滅条件」。時間制限（`TIME_LIMIT`）でも`DurationDefinition.consumption`
+   * （`CONSUMPTION`）でもない、シールド固有の失効契機である。
+   */
+  | "SHIELD_DEPLETED"
   | "LINKED_GROUP_CASCADE";
+
+/** `ShieldConsumed.reason`: シールド残量が減った契機（DMG-004、Issue #194）。 */
+export type ShieldConsumptionReason = "DAMAGE_ABSORPTION" | "DECAY";
 
 /**
  * `07_戦闘ルール詳細.md` R-EFF-10: `MarkerState`が除去された理由。`REMOVED`は
@@ -935,6 +988,16 @@ export type MarkerRemovalReason =
   | "CONSUMPTION"
   | "EXPIRATION_CONDITION"
   | "SOURCE_DEFEATED"
+  /**
+   * `SOURCE_DEFEATED`と対になるAppliedEffect固有の契機（DMG-004、Issue #194、
+   * R-SHD-01）。`MarkerState`はシールド残量を持たないため`MarkerRemoved`が
+   * この理由を直接運ぶことはなく、シールド失効に連動して解除されるMarkerは
+   * R-EFF-09どおり`LINKED_GROUP_CASCADE`を運ぶ。この型が
+   * `EffectExpirationReason`・`EffectRemovalReason`・Marker固有理由の和である
+   * という契約（`linked-group-cascade.ts`の`LinkedGroupRemoval.reason`）を
+   * 保つために列挙する。
+   */
+  | "SHIELD_DEPLETED"
   | "LINKED_GROUP_CASCADE";
 
 /**

@@ -595,10 +595,17 @@
   {
     "capabilityId": "CAP_SHIELD",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-004",
-    "description": "シールド付与",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "シールド付与（R-SHD-01〜03）。DMG-004（Issue #194）がHPとは別枠の吸収プールを実ライフサイクルへ配線した。effect-action-group-resolver.tsがAPPLY_SHIELDをAppliedEffect（AppliedEffect.shield）として付与し、combat/shield-policy.tsが物理/EN/タイプなしの3プールを集計する。damage-application-service.tsは確定した1ヒットをshieldIgnoreRate分→ダメージタイプに対応するタイプありシールド→タイプなしシールド→HPの順（R-SHD-02）へ振り分け、プール単位のShieldConsumed（reason: DAMAGE_ABSORPTION）とDamageAppliedの内訳（hpDirectDamage/typedShieldAbsorbed/untypedShieldAbsorbed/discardedDamage）でR-SHD-03の超過破棄と保存則を説明する。残量が0になったインスタンスはEffectExpired（reason: SHIELD_DEPLETED、R-SHD-01第3項の個別消滅条件）としてexpireEffectsSteps経由で失効し、R-EFF-09のlinkedEffectGroupカスケードとCombatStat再計算は他の失効契機と同じ経路をたどる（ACT_LILY_SINGER_PS2_SHIELD／LILY_SINGER_PS2_LINKが「シールドの消滅と共に攻撃力バフも消滅する」を近似なしで表す）。payloadにはshieldType（省略時タイプなし、ACT_LILY_SINGER_PS2_SHIELDのENシールドだけが明示する）とdecay（SHIELD_DECAY_OVER_TIME、ACT_SHIRANA_LUCKY_EX_SHIELDの「1行動に付き最大値の25%減少」）を追加した。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_LILY_SINGER_PS2_SHIELD",
+        "ACT_SHIRANA_LUCKY_EX_SHIELD",
+        "ACT_AOI_GUARDIAN_AS1_SHIELD"
+      ],
+      "testCaseIds": ["IT-CAP-SHIELD-PROD-001", "IT-CAP-SHIELD-PROD-002", "IT-CAP-SHIELD-PROD-003"]
+    }
   },
   {
     "capabilityId": "CAP_SKILL_RUNTIME_COUNTER",

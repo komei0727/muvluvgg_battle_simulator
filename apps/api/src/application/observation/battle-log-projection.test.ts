@@ -169,6 +169,11 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
       hitIndex: 1,
       targetUnitId: "enemy:1" as never,
       calculatedDamage: 10,
+      // DMG-004（Issue #194、R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
+      hpDirectDamage: 0,
+      typedShieldAbsorbed: 0,
+      untypedShieldAbsorbed: 0,
+      discardedDamage: 0,
       hitPointDamage: 10,
       hpBefore: 10,
       hpAfter: 0,

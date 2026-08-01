@@ -369,3 +369,133 @@ describe("recordActionCompletion", () => {
   // `passive-activation-service.test.ts`'s `onFactEvent` describe block for
   // the equivalent coverage.
 });
+
+describe("shield decay ordering at COMPLETING (DMG-004, Issue #194, PRレビュー再指摘[P1])", () => {
+  const DECAY = { unit: "ACTION" as const, ratio: 0.5 };
+
+  function shieldOn(
+    holderId: string,
+    id: string,
+    amount: number,
+    shieldType: "PHYSICAL" | "EN" | null,
+  ): AppliedEffect {
+    const definitionId = createEffectActionDefinitionId(`ACT_SHIELD_${id}`);
+    return {
+      effectInstanceId: createEffectInstanceId(id),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      targetId: createBattleUnitId(holderId),
+      magnitude: amount,
+      shield: { shieldType, remaining: amount, decay: DECAY },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  function holderWith(shields: readonly AppliedEffect[]): BattleUnit {
+    return { ...plainUnit("U1"), appliedEffects: shields };
+  }
+
+  function seededRecorder() {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    return { recorder, seed };
+  }
+
+  it("UT-R-SHD-01-016: the first pool's ShieldConsumed observes the holder's later pools still untouched", () => {
+    const { recorder, seed } = seededRecorder();
+    const holder = holderWith([
+      shieldOn("U1", "SHIELD_EN", 80, "EN"),
+      shieldOn("U1", "SHIELD_UNTYPED", 40, null),
+    ]);
+
+    const observed: { readonly shieldType: unknown; readonly remaining: readonly number[] }[] = [];
+    recordActionCompletion(
+      recorder,
+      {
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorId: holder.battleUnitId,
+        effectActions: new Map(),
+        onFactEventForPassiveChain: (event, units) => {
+          if (event.eventType === "ShieldConsumed") {
+            observed.push({
+              shieldType: (event.payload as { shieldType: unknown }).shieldType,
+              remaining: units[0]!.appliedEffects.map((effect) => effect.shield!.remaining),
+            });
+          }
+          return units;
+        },
+      },
+      "AS",
+      seed.eventId,
+      [holder],
+    );
+
+    // R-SHD-02の適用順と同じ並び（タイプあり→タイプなし）で1プールずつ解決する。
+    expect(observed.map((entry) => entry.shieldType)).toEqual(["EN", null]);
+    // ENプールの通知時点では、タイプなしプール（40）はまだ手つかず。
+    expect(observed[0]!.remaining).toEqual([40, 40]);
+    expect(observed[1]!.remaining).toEqual([40, 20]);
+  });
+
+  it("UT-R-SHD-01-017: a chain reacting to the first pool's ShieldConsumed still sees its own change applied to the later pool", () => {
+    const { recorder, seed } = seededRecorder();
+    const holder = holderWith([
+      shieldOn("U1", "SHIELD_EN", 80, "EN"),
+      shieldOn("U1", "SHIELD_UNTYPED", 40, null),
+    ]);
+
+    // ENプールの`ShieldConsumed`に反応して、後続のタイプなしシールドを解除する
+    // PSを模す。後続プールの解決はこの変更後の状態から行われる必要がある。
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorId: holder.battleUnitId,
+        effectActions: new Map(),
+        onFactEventForPassiveChain: (event, units) => {
+          if (
+            event.eventType === "ShieldConsumed" &&
+            (event.payload as { shieldType: unknown }).shieldType === "EN"
+          ) {
+            return units.map((unit) => ({
+              ...unit,
+              appliedEffects: unit.appliedEffects.filter(
+                (effect) => effect.effectInstanceId !== createEffectInstanceId("SHIELD_UNTYPED"),
+              ),
+            }));
+          }
+          return units;
+        },
+      },
+      "AS",
+      seed.eventId,
+      [holder],
+    );
+
+    // 連鎖が解除したインスタンスは、後続プールの解決対象から消えている
+    // （古い差分を握ったまま存在しないインスタンスを参照して落ちない）。
+    const consumed = recorder.getEvents().filter((event) => event.eventType === "ShieldConsumed");
+    expect(consumed).toHaveLength(1);
+    expect(consumed[0]!.payload).toMatchObject({ shieldType: "EN" });
+    expect(result.units[0]!.appliedEffects.map((effect) => effect.effectInstanceId)).toEqual([
+      createEffectInstanceId("SHIELD_EN"),
+    ]);
+  });
+});

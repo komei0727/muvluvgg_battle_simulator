@@ -5,6 +5,7 @@ import type {
   AccuracyMode,
   DamageModDirection,
   DamageType,
+  DurationOwner,
   EffectImmunityCategory,
   MarkerStackPolicy,
   OverhealPolicy,
@@ -347,10 +348,45 @@ export interface EffectImmunityPayload {
   readonly maxBlocks: number | null;
 }
 
-/** G-08 (Issue #44): a damage-absorbing pool separate from HP. */
+/**
+ * `SHIELD_DECAY_OVER_TIME`（DMG-004、Issue #194、R-SHD-01）: シールド残量が時間
+ * 経過で段階的に減る宣言。raw原文の例は`SKL_SHIRANA_LUCKY_EX`（薄暮の宵火）
+ * 「シールドは1行動に付き最大値の25%減少する」＝ `{ unit: "ACTION", ratio: 0.25 }`。
+ *
+ * 減少量は**付与時に確定した最大値**（`AppliedEffect.magnitude`）に対する割合で
+ * あり、その時点の残量に対する割合ではない — 原文が「最大値の25%」と明示して
+ * いるためで、等差で減る（4行動で枯渇する）ことがこの宣言の意味になる。
+ *
+ * `owner`は`DurationTimeLimit.owner`と同じ意味・同じ既定（省略時は
+ * `EFFECT_TARGET`＝シールド保持者自身の行動終了時に減らす）を持ち、減算契機も
+ * R-EFF-04の行動単位効果と同じCOMPLETINGタイミングを共有する。`unit`は現状
+ * `ACTION`だけを許可する（production Catalogに他単位の漸減が存在せず、
+ * 検証できない単位を宣言可能にしない）。
+ */
+export interface ShieldDecayDefinition {
+  readonly unit: "ACTION";
+  /** 付与時最大値に対する1単位あたりの減少割合（0 < ratio <= 1）。 */
+  readonly ratio: number;
+  readonly owner?: DurationOwner;
+}
+
+/**
+ * G-08 (Issue #44): a damage-absorbing pool separate from HP.
+ *
+ * DMG-004（Issue #194、R-SHD-01）: `shieldType`はこのシールドが属するプールを
+ * 表す。省略時はタイプなしシールド（あらゆるダメージタイプを吸収する）で、
+ * `PHYSICAL`/`EN`を指定した場合は同じダメージタイプのヒットだけを吸収する
+ * （R-SHD-02「対応しないタイプありシールドへダメージを適用しない」）。
+ * production Catalogでタイプを明示するのは`ACT_LILY_SINGER_PS2_SHIELD`
+ * （raw原文「ENシールド」）だけで、他はすべてタイプなしである。
+ */
 export interface ApplyShieldPayload {
   readonly formula: FormulaDefinition;
   readonly duration: DurationDefinition;
+  /** 省略時はタイプなしシールド。 */
+  readonly shieldType?: DamageType;
+  /** `SHIELD_DECAY_OVER_TIME`: 省略時は漸減しない。 */
+  readonly decay?: ShieldDecayDefinition;
 }
 
 /**

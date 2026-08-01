@@ -175,19 +175,37 @@ function damageEffectAction(
  * 拒否する」回帰テスト（UT-ACTION-PHASE-004）の題材を`APPLY_SHIELD`
  * （`CAP_SHIELD`は`PLANNED`、DMG-004/Issue #188）へ差し替える。
  */
-function shieldEffectAction(id: string): EffectActionDefinition {
+function shieldEffectAction(id: string, amount = 10): EffectActionDefinition {
   return {
     kind: "APPLY_SHIELD",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
     requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
-      formula: { kind: "CONSTANT", value: 10 },
+      formula: { kind: "CONSTANT", value: amount },
       duration: {
         timeLimit: { unit: "ACTION", count: 1 },
         dispellable: true,
         linkedEffectGroupId: null,
       },
+    },
+  };
+}
+
+/**
+ * DMG-005（`CAP_SUBUNIT`、`runtimeStatus: PLANNED`）: この resolver がまだ実装
+ * していないEffectAction kind。DMG-004（Issue #194）が`APPLY_SHIELD`を実装した
+ * ため、「未実装kindは明確に失敗する」ことを確かめる証跡をこちらへ移した。
+ */
+function subUnitEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "APPLY_SUBUNIT",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      durability: { formula: { kind: "CONSTANT", value: 10 } },
+      additionalDamage: { formula: { kind: "CONSTANT", value: 5 } },
     },
   };
 }
@@ -1581,16 +1599,16 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-004: throws when a resolved plan targets an EffectAction kind this resolver does not implement yet (APPLY_SHIELD, CAP_SHIELD PLANNED)", () => {
-    const unitDefinitionId = createUnitDefinitionId("UNIT_SHIELDER");
+  it("UT-ACTION-PHASE-004: throws when a resolved plan targets an EffectAction kind this resolver does not implement yet (APPLY_SUBUNIT, CAP_SUBUNIT PLANNED)", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SUBUNITER");
     const ally = unit("ALLY_1", "ALLY", {
-      unitDefinitionId: "UNIT_SHIELDER",
+      unitDefinitionId: "UNIT_SUBUNITER",
       limits: { maximumAp: 1 },
     });
     const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
-    const effectAction = shieldEffectAction("ACT_SHIELD");
+    const effectAction = subUnitEffectAction("ACT_SUBUNIT");
     const definitions = definitionsOf(
-      new Map([[unitDefinitionId, [attackSkill("ACT_SHIELD", 1)]]]),
+      new Map([[unitDefinitionId, [attackSkill("ACT_SUBUNIT", 1)]]]),
       new Map([[effectAction.effectActionDefinitionId, effectAction]]),
     );
     const random = new SequenceRandomSource([]);
@@ -1608,6 +1626,81 @@ describe("resolveActionPhase", () => {
         ctx.turnScopeParentEventId,
       ),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-SHD-01-010 (DMG-004, Issue #194): grants APPLY_SHIELD as an AppliedEffect carrying an untyped pool through the real action lifecycle", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SHIELDER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SHIELDER",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const effectAction = shieldEffectAction("ACT_SHIELD");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_SHIELD", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const shielded = result.enemyUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(shielded.appliedEffects).toHaveLength(1);
+    expect(shielded.appliedEffects[0]!.shield).toEqual({ shieldType: null, remaining: 10 });
+    expect(shielded.appliedEffects[0]!.magnitude).toBe(10);
+  });
+
+  it("UT-R-SHD-01-014 (PRレビュー[P2], R-SHD-01第3項): a shield whose granted amount truncates to zero expires immediately instead of lingering as a zero-remaining instance", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SHIELDER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SHIELDER",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    // Formula結果が0.5 → R-NUM-02の切り捨てで0になる（負値も同じ扱い）。
+    const effectAction = shieldEffectAction("ACT_SHIELD", 0.5);
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_SHIELD", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const shielded = result.enemyUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    // 残量0のインスタンスは残さない（吸収も漸減も`remaining <= 0`を対象外にするため、
+    // 残すと期間満了まで枯渇契機が訪れずlinked groupごと居座る）。
+    expect(shielded.appliedEffects).toEqual([]);
+
+    // 監査証跡としての`EffectApplied`は発行し、直後に`SHIELD_DEPLETED`で失効させる。
+    const events = ctx.recorder.getEvents();
+    const applied = events.find((event) => event.eventType === "EffectApplied")!;
+    expect(applied.payload).toMatchObject({ magnitude: 0 });
+    const expired = events.find((event) => event.eventType === "EffectExpired")!;
+    expect(expired.payload).toMatchObject({
+      effectInstanceId: (applied.payload as { effectInstanceId: string }).effectInstanceId,
+      reason: "SHIELD_DEPLETED",
+      cascaded: false,
+    });
+    expect(events.indexOf(applied)).toBeLessThan(events.indexOf(expired));
   });
 
   it("UT-ACTION-PHASE-005 (R-ACT-01 #5 / R-ACT-03 EX行): a reserved EX skill consumes the full EX gauge (not AP) and applies DAMAGE to the target", () => {

@@ -1,5 +1,6 @@
 import { ApplicationError } from "../contracts/application-error.js";
 import { STATUS_AILMENT_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
+import { shieldPoolsOf } from "../../domain/battle/combat/shield-policy.js";
 import type { BattleLogEvent } from "../observation/battle-log-event.js";
 import type { StateTransition } from "../observation/battle-observation.js";
 import type {
@@ -240,9 +241,10 @@ function toUnitStateResponseBody(
       affinityBonus: toPercentagePoints(snapshot.combatStats.affinityBonus),
       criticalDamageBonus: toPercentagePoints(snapshot.combatStats.criticalDamageBonus),
     },
-    // `10_API設計.md`「BattleUnitStateResponse」: シールド・サブユニットは
-    // M7〜M8で実装されるまでDomainに存在せず、常に空/ゼロが事実。
-    shields: { physical: 0, energy: 0, untyped: 0 },
+    // `10_API設計.md`「ShieldStateResponse」: タイプ別プールは`APPLY_SHIELD`由来の
+    // 効果インスタンス（R-SHD-01第3項）からの導出値であり、実体を別に持たない
+    // （DMG-004、Issue #194）。サブユニットはDMG-005まで空が事実。
+    shields: shieldPoolsOf(snapshot.effects ?? []),
     subUnits: [],
     effects: (snapshot.effects ?? []).map(toEffectStateResponseBody),
     markers: (snapshot.markers ?? []).map(toMarkerStateResponseBody),

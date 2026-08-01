@@ -20,10 +20,11 @@ import { toEffectSnapshot } from "../events/state-delta.js";
 import { resolveEffectiveAccuracyMode, resolveEvasion } from "./hit-policy.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
+import { absorbFromShieldPool, emitShieldConsumed, shieldBypassedDamage } from "./shield-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
-import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
+import type { ConsumptionKind, DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
@@ -193,6 +194,29 @@ export interface DamageEventContext {
     targetUnitId: BattleUnitId,
     freezeEffectInstanceId: EffectInstanceId,
     triggeringDamage: number,
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >;
+  /**
+   * R-SHD-01第3項「個別消滅条件」（DMG-004、Issue #194）: 残量が0になった
+   * シールドインスタンスを`EffectExpired`（`reason: SHIELD_DEPLETED`）として
+   * 失効させ、R-EFF-09の`linkedEffectGroupId`カスケード（production例:
+   * `SKL_LILY_SINGER_PS2`「シールドの消滅と共に攻撃力バフも消滅する」）と
+   * CombatStat再計算まで行う完全な処理。`removeFreezeEffect`とまったく同じ理由
+   * （`combat/`は`effects/`へ依存できない、module境界）で呼び出し側
+   * （`lifecycle/`）が注入し、同じ「除去1件ごとに`yield`する」規約を持つ。
+   *
+   * 未指定の場合は`AppliedEffect`を直接filterし`EffectExpired`だけを発行する
+   * 簡易版へfallbackする（カスケード・CombatStat再計算は行わない —
+   * `removeFreezeEffect`のfallbackと同じ、hookを用意しない単体テスト用の最小動作）。
+   */
+  readonly expireDepletedShields?: (
+    targetUnitId: BattleUnitId,
+    depletedEffectInstanceIds: readonly EffectInstanceId[],
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
   ) => Generator<
@@ -448,6 +472,112 @@ function* fallbackRemoveFreezeEffectSteps(
     units: updatedUnits,
   };
   return { units: injected ?? updatedUnits, lastEventId: freezeRemoved.eventId };
+}
+
+/**
+ * R-SHD-01第3項（個別消滅条件）: 残量が0になったシールドを失効させる。
+ * `context.expireDepletedShields`（呼び出し側が注入する完全版）があればそれへ、
+ * 無ければ`fallbackExpireDepletedShieldSteps`へ委譲する。
+ */
+function expireDepletedShieldSteps(
+  context: DamageEventContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  depletedEffectInstanceIds: readonly EffectInstanceId[],
+  parentEventId: DomainEventId,
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+  readonly BattleUnit[] | undefined
+> {
+  return context.expireDepletedShields !== undefined
+    ? context.expireDepletedShields(targetUnitId, depletedEffectInstanceIds, units, parentEventId)
+    : fallbackExpireDepletedShieldSteps(
+        context,
+        units,
+        targetUnitId,
+        depletedEffectInstanceIds,
+        parentEventId,
+      );
+}
+
+/**
+ * `context.expireDepletedShields`未指定時のfallback。`fallbackRemoveFreezeEffectSteps`
+ * とまったく同じ役割・同じ制限（R-EFF-09カスケードもCombatStat再計算も行わない）
+ * を持つ、単体テスト向けの最小動作。production経路
+ * （`effect-action-group-resolver.ts`）は常にhookを注入する。
+ */
+function* fallbackExpireDepletedShieldSteps(
+  context: DamageEventContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  depletedEffectInstanceIds: readonly EffectInstanceId[],
+  parentEventId: DomainEventId,
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+  readonly BattleUnit[] | undefined
+> {
+  let working = units;
+  let lastEventId = parentEventId;
+  for (const effectInstanceId of depletedEffectInstanceIds) {
+    const holder = working.find((unit) => unit.battleUnitId === targetUnitId);
+    const expiring = holder?.appliedEffects.find(
+      (effect) => effect.effectInstanceId === effectInstanceId,
+    );
+    if (expiring === undefined) {
+      continue;
+    }
+    const eventsStart = context.recorder.getEvents().length;
+    const expired = context.recorder.record({
+      eventType: "EffectExpired",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: targetUnitId,
+      targetUnitIds: [targetUnitId],
+      payload: {
+        effectInstanceId,
+        battleUnitId: targetUnitId,
+        effectActionDefinitionId: expiring.effectActionDefinitionId,
+        kindKey: expiring.kindKey,
+        reason: "SHIELD_DEPLETED",
+        linkedEffectGroupId: expiring.duration.definition.linkedEffectGroupId,
+        cascaded: false,
+      },
+      stateDelta: {
+        units: {
+          [targetUnitId]: {
+            effects: {
+              [effectInstanceId]: { before: toEffectSnapshot(expiring, true), after: undefined },
+            },
+          },
+        },
+      },
+    });
+    working = working.map((unit) =>
+      unit.battleUnitId === targetUnitId
+        ? {
+            ...unit,
+            appliedEffects: unit.appliedEffects.filter(
+              (effect) => effect.effectInstanceId !== effectInstanceId,
+            ),
+          }
+        : unit,
+    );
+    lastEventId = expired.eventId;
+    const injected = yield {
+      events: context.recorder.getEvents().slice(eventsStart),
+      units: working,
+    };
+    working = injected ?? working;
+  }
+  return { units: working, lastEventId };
 }
 
 /**
@@ -1100,14 +1230,100 @@ export function* applyDamageActionSteps(
     // `targetBeforeDamage`のスナップショット後にPS連鎖が介在し得るのは、上の
     // 凍結解除通知だけ（`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`の連鎖は
     // 既に反映済み）。HPはこの通知後の最新状態から起点にする。
-    const targetBeforeHp = working.get(targetBeforeDamage.battleUnitId) ?? targetBeforeDamage;
-    const hpBefore = targetBeforeHp.currentHp;
-    const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
+    const targetBeforeShields = working.get(targetBeforeDamage.battleUnitId) ?? targetBeforeDamage;
+
+    // R-SHD-02（DMG-004、Issue #194）: 確定したダメージを`shieldIgnoreRate`分→
+    // タイプありシールド→タイプなしシールド→（サブユニットはDMG-005）→HPの順へ
+    // 振り分ける。`08_ドメインイベント.md`「ダメージイベント」の並び
+    // （`DamageCalculated`→`ShieldConsumed`→`HitPointReduced`→`DamageApplied`）
+    // どおり、シールドの減少はHP適用より前に記録する。
+    //
+    // PRレビュー[P1]: プールごとに「減少→`ShieldConsumed`→PS/Memory即時連鎖の
+    // 解決→枯渇分の`EffectExpired`とR-EFF-09カスケード」を完了させてから次の
+    // プール・HPへ進む。まとめて吸収してから通知すると、タイプありプールの
+    // `ShieldConsumed`に反応するPSが「まだ未処理のはずのタイプなしプールとHPまで
+    // 変更済み」の状態を観測し、`DamageApplied`に反応するPSが残量0のシールドと
+    // そのlinked groupをまだ有効として観測してしまう（`ShieldConsumed`は
+    // `catalog-event-types.ts`でFACT triggerとして許可されている）。
+    const hpDirectDamage = shieldBypassedDamage(
+      damageResult.finalDamage,
+      damageAction.payload.piercing.shieldIgnoreRate,
+    );
+    const absorbedByPool = new Map<DamageType | null, number>();
+    let poolDamage = damageResult.finalDamage - hpDirectDamage;
+    // 「対応しないタイプありシールドへダメージを適用しない」（R-SHD-02末尾）ため、
+    // このヒットの`damageType`と一致するタイプありプールと、タイプなしプールだけを
+    // この順に走査する。
+    for (const shieldType of [damageAction.payload.damageType, null] as const) {
+      if (poolDamage <= 0) {
+        break;
+      }
+      // 直前のプールの連鎖が残量・保持者を変え得るため、そのつど最新状態から取り直す。
+      const holder = working.get(targetBeforeDamage.battleUnitId);
+      if (holder === undefined) {
+        break;
+      }
+      const absorption = absorbFromShieldPool(holder, poolDamage, shieldType);
+      if (absorption.change === undefined) {
+        continue;
+      }
+      const holderAfterPool: BattleUnit = { ...holder, appliedEffects: absorption.appliedEffects };
+      working.set(targetBeforeDamage.battleUnitId, holderAfterPool);
+      poolDamage -= absorption.absorbed;
+      absorbedByPool.set(shieldType, absorption.absorbed);
+
+      const consumedEventsStart = context.recorder.getEvents().length;
+      lastEventIdBeforeHp = emitShieldConsumed(
+        context,
+        holderAfterPool,
+        absorption.change,
+        "DAMAGE_ABSORPTION",
+        lastEventIdBeforeHp,
+        {
+          effectActionDefinitionId: damageAction.effectActionDefinitionId,
+          hitIndex: hit.hitIndex,
+        },
+      );
+      yield* notifyOrYieldNewEvents(context, working, consumedEventsStart);
+
+      // R-SHD-01第3項（個別消滅条件）: このプールで使い切ったインスタンスを、
+      // 次のプール・HPへ進む前に失効させる。
+      if (absorption.change.depletedEffectInstanceIds.length > 0) {
+        const expiry = yield* driveRemovalSteps(
+          context,
+          working,
+          expireDepletedShieldSteps(
+            context,
+            Array.from(working.values()),
+            targetBeforeDamage.battleUnitId,
+            absorption.change.depletedEffectInstanceIds,
+            lastEventIdBeforeHp,
+          ),
+        );
+        lastEventIdBeforeHp = expiry.lastEventId;
+      }
+    }
+    const typedShieldAbsorbed = absorbedByPool.get(damageAction.payload.damageType) ?? 0;
+    const untypedShieldAbsorbed = absorbedByPool.get(null) ?? 0;
+
+    // シールド連鎖（`ShieldConsumed`/`EffectExpired`）の解決後の最新状態からHPを起点にする。
+    const targetAfterShields = working.get(targetBeforeDamage.battleUnitId) ?? targetBeforeShields;
+    const shieldAbsorbedTotal = typedShieldAbsorbed + untypedShieldAbsorbed;
+
+    const hpBefore = targetAfterShields.currentHp;
+    // R-SHD-02 #5: シールドを通り抜けた残りがHPへ向かう（`hpDirectDamage`を含む）。
+    const hitPointDamage = damageResult.finalDamage - shieldAbsorbedTotal;
+    const hpAfter = Math.max(0, hpBefore - hitPointDamage);
+    // R-SHD-03第2項「HPを0未満にせず、超過分を破棄する」。
+    const discardedDamage = hitPointDamage - (hpBefore - hpAfter);
     const updatedTarget: BattleUnit = {
-      ...targetBeforeHp,
+      ...targetAfterShields,
       // R-NUM-02: `combatStats.maximumHp`は全精度（R-STA-01/R-NUM-01）で保持されるため、
       // HPゲージへ渡す境界で最大値を0方向へ切り捨てて整数化する。
-      currentHp: createHitPoint(hpAfter, truncateFraction(targetBeforeHp.combatStats.maximumHp)),
+      currentHp: createHitPoint(
+        hpAfter,
+        truncateFraction(targetAfterShields.combatStats.maximumHp),
+      ),
     };
     working.set(targetBeforeDamage.battleUnitId, updatedTarget);
     // R-SKL-08（レビュー再指摘[P1]、PR #214）: `context.damageResults`
@@ -1173,6 +1389,13 @@ export function* applyDamageActionSteps(
         hitIndex: hit.hitIndex,
         targetUnitId: hit.targetBattleUnitId,
         calculatedDamage: damageResult.finalDamage,
+        // R-SHD-02/03（DMG-004、Issue #194）: 適用先ごとの内訳。
+        // `typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage +
+        // discardedDamage === calculatedDamage`（`08_ドメインイベント.md`不変条件#6）。
+        hpDirectDamage,
+        typedShieldAbsorbed,
+        untypedShieldAbsorbed,
+        discardedDamage,
         hitPointDamage: hpBefore - hpAfter,
         hpBefore,
         hpAfter,
@@ -1200,10 +1423,10 @@ export function* applyDamageActionSteps(
     // ケースでHP 0→0の遷移にもかかわらず`UnitDefeated`を再発行してしまう
     // （子PS自身のDAMAGE解決が既に1回発行済み）。
     lastEventId = damageApplied.eventId;
-    // `FreezeRemoved`（と、あればそのカスケード）はこのヒットのHP適用より前に
-    // 既に`notifyNewEvents`で連鎖通知済みのため、ここでは含めない。
+    // `FreezeRemoved`（と、あればそのカスケード）と`ShieldConsumed`（およびその
+    // 枯渇失効）は、このヒットのHP適用より前に既に連鎖通知済みのため含めない。
     const factEvents: BattleDomainEvent[] = [hitPointReduced, damageApplied];
-    if (!isDefeated(targetBeforeHp) && isDefeated(updatedTarget)) {
+    if (!isDefeated(targetAfterShields) && isDefeated(updatedTarget)) {
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",

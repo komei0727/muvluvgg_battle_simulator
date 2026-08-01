@@ -604,7 +604,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-SKL-02-001", "UT-R-SKL-06-011", "UT-R-HEAL-04-019"],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
-  { ruleId: "R-SKL-03", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-SKL-03",
+    testCaseIds: [
+      "UT-R-SKL-03-001",
+      "UT-R-SKL-03-002",
+      "UT-R-SKL-03-003",
+      "UT-DAMAGE-APPLICATION-003",
+      "UT-DAMAGE-APPLICATION-007",
+      "UT-DAMAGE-APPLICATION-008",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
   {
     ruleId: "R-SKL-04",
     testCaseIds: [
@@ -1506,9 +1517,60 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // SHD: シールド
-  { ruleId: "R-SHD-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-SHD-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-SHD-03", testCaseIds: [], kinds: [] },
+  {
+    ruleId: "R-SHD-01",
+    testCaseIds: [
+      "UT-R-SHD-01-001",
+      "UT-R-SHD-01-002",
+      "UT-R-SHD-01-003",
+      "UT-R-SHD-01-004",
+      "UT-R-SHD-01-005",
+      "UT-R-SHD-01-006",
+      "UT-R-SHD-01-007",
+      "UT-R-SHD-01-008",
+      "UT-R-SHD-01-009",
+      "UT-R-SHD-01-010",
+      "UT-R-SHD-01-011",
+      "UT-R-SHD-01-012",
+      "UT-R-SHD-01-013",
+      "UT-R-SHD-01-014",
+      "UT-R-SHD-01-015",
+      "UT-R-SHD-01-016",
+      "UT-R-SHD-01-017",
+      "UT-R-SHD-01-018",
+      "UT-R-SHD-01-019",
+      "UT-R-SHD-01-020",
+      "UT-R-SHD-01-021",
+      "IT-CAP-SHIELD-PROD-002",
+      "IT-CAP-SHIELD-PROD-003",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
+  {
+    ruleId: "R-SHD-02",
+    testCaseIds: [
+      "UT-R-SHD-02-001",
+      "UT-R-SHD-02-002",
+      "UT-R-SHD-02-003",
+      "UT-R-SHD-02-004",
+      "UT-R-SHD-02-005",
+      "UT-R-SHD-02-006",
+      "UT-R-SHD-02-007",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
+  {
+    ruleId: "R-SHD-03",
+    testCaseIds: [
+      "UT-R-SHD-03-001",
+      "UT-R-SHD-03-002",
+      "UT-R-SHD-03-003",
+      "PROP-SHD-03-001",
+      "PROP-SHD-03-002",
+      "IT-CAP-SHIELD-PROD-001",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
+  },
 
   // SUB: サブユニット
   { ruleId: "R-SUB-01", testCaseIds: [], kinds: [] },
