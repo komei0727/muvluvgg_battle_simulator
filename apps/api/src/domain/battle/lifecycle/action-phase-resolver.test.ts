@@ -1000,6 +1000,174 @@ describe("resolveActionPhase", () => {
     expect(result.result).toBeUndefined();
   });
 
+  it("UT-R-DMG-05-007 (PR #283再レビュー[P1], R-DMG-05 #2/#3): an AS DAMAGE's own HitConfirmed and CriticalCheckResolved reach the PS chain, so a PS triggered by them activates during the real AS path (production例: SKL_LAYLA_ENTREPRENEUR_PS2 / SKL_EVIE_KYONSHI_PS1 / SKL_SAYA_BUNNY_PS1)", () => {
+    const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_CRIT_ATTACKER");
+    const observerUnitDefinitionId = createUnitDefinitionId("UNIT_CRIT_OBSERVER");
+    const attackAction = damageEffectAction("ACT_CRIT_ATTACK", "GUARANTEED");
+    const buffActionId = createEffectActionDefinitionId("ACT_CRIT_OBSERVER_BUFF");
+    const buffAction = statModEffectAction("ACT_CRIT_OBSERVER_BUFF", "ATTACK", "FIXED", 5);
+
+    const observerPassiveOf = (
+      skillDefinitionId: string,
+      eventType: "HitConfirmed" | "CriticalCheckResolved",
+    ): SkillDefinition => ({
+      skillDefinitionId: createSkillDefinitionId(skillDefinitionId),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType,
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      // `SKL_LAYLA_ENTREPRENEUR_PS2`と同じ形のSKILL_RUNTIME counter — PS発動とは
+      // 別機構だが、同じ`PassiveActivationRuntime.onFactEvent`経由で検出されるため
+      // 原因イベントが連鎖へ届かないと同様に更新されない。
+      counterUpdates:
+        eventType === "CriticalCheckResolved"
+          ? [
+              {
+                kind: "INCREMENT",
+                counter: createRuntimeCounterId("CRIT_TRIGGER_COUNT"),
+                scope: "SKILL_RUNTIME",
+                trigger: {
+                  eventType,
+                  category: "FACT",
+                  sourceSelector: "ANY",
+                  targetSelector: "ANY",
+                  condition: { kind: "TRUE" },
+                },
+                amount: 1,
+              },
+            ]
+          : [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: buffActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: eventType, tags: [] },
+    });
+    const onHitConfirmed = observerPassiveOf("SKL_PS_ON_HIT_CONFIRMED", "HitConfirmed");
+    const onCriticalCheckResolved = observerPassiveOf(
+      "SKL_PS_ON_CRITICAL_CHECK_RESOLVED",
+      "CriticalCheckResolved",
+    );
+
+    const attacker = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CRIT_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 1 },
+    });
+    const observer = {
+      ...unit("ALLY_2", "ALLY", {
+        unitDefinitionId: "UNIT_CRIT_OBSERVER",
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 10,
+      maximumHp: 500,
+      limits: { maximumAp: 0 },
+    });
+
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(observerUnitDefinitionId, {
+      ...unitDefinitions.get(observerUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [
+        onHitConfirmed.skillDefinitionId,
+        onCriticalCheckResolved.skillDefinitionId,
+      ],
+    });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([
+        [attackerUnitDefinitionId, [attackSkill("ACT_CRIT_ATTACK", 1)]],
+      ]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [attackAction.effectActionDefinitionId, attackAction],
+        [buffActionId, buffAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([
+        [onHitConfirmed.skillDefinitionId, onHitConfirmed],
+        [onCriticalCheckResolved.skillDefinitionId, onCriticalCheckResolved],
+      ]),
+    };
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [attacker, observer],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const events = ctx.recorder.getEvents();
+    const activatedFor = (skill: SkillDefinition): (typeof events)[number] | undefined =>
+      events.find(
+        (event) =>
+          event.eventType === "PassiveActivated" &&
+          (event.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            skill.skillDefinitionId,
+      );
+
+    const hitConfirmed = events.find((event) => event.eventType === "HitConfirmed")!;
+    const criticalCheckResolved = events.find(
+      (event) => event.eventType === "CriticalCheckResolved",
+    )!;
+    expect(
+      activatedFor(onHitConfirmed),
+      "a PS triggered by the DAMAGE's own HitConfirmed must activate on the AS path",
+    ).toBeDefined();
+    expect(activatedFor(onHitConfirmed)!.payload).toMatchObject({
+      triggerEventId: hitConfirmed.eventId,
+    });
+    expect(
+      activatedFor(onCriticalCheckResolved),
+      "a PS triggered by the DAMAGE's own CriticalCheckResolved must activate on the AS path",
+    ).toBeDefined();
+    expect(activatedFor(onCriticalCheckResolved)!.payload).toMatchObject({
+      triggerEventId: criticalCheckResolved.eventId,
+    });
+    // Laylaの`SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT`と同じSKILL_RUNTIME counter。
+    expect(
+      events.find(
+        (event) =>
+          event.eventType === "RuntimeCounterChanged" &&
+          (event.payload as { counter: string }).counter ===
+            createRuntimeCounterId("CRIT_TRIGGER_COUNT"),
+      ),
+      "a SKILL_RUNTIME counter keyed off CriticalCheckResolved must update on the AS path",
+    ).toBeDefined();
+  });
+
   it("UT-R-ACT-03-005: an AS use increases the EX gauge by the same amount as the AP consumed", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {

@@ -310,6 +310,41 @@ function notifyNewEvents(
 }
 
 /**
+ * PR #283再レビュー[P1]: 1ヒットの内部イベント（`UnitBeingAttacked`・
+ * `EvasionActivated`・`HitConfirmed`・`CriticalCheckResolved`・
+ * `DamageWillBeApplied`）を、記録直後にPS/Memory即時連鎖へ届けて次の判定へ進む前に
+ * 解決し切るための共通ヘルパー。凍結解除・消費失効（`driveRemovalSteps`）と同じ
+ * 2経路の規約を持つ。
+ *
+ * - `context.onFactEventForPassiveChain`あり（AS/EX・チャージ解放）: その場で
+ *   同期通知する。この経路では`effect-action-group-resolver.ts`の`innerEvents`が
+ *   常に空になるため、ここで通知しないイベントはPS/Memory連鎖へ一度も届かない
+ *   （`CriticalCheckResolved`をtriggerにするproduction PSが実戦闘で発動しない、
+ *   という形で顕在化していた）。
+ * - 未指定（PS/Memory自身のEffectSequence解決）: 1ステップ`yield`し、driver
+ *   （`resolveOneEffectActionApplication`）が子連鎖を解決して更新した`units`を
+ *   `.next()`で注入する。これが無いとEffectAction完了時まで連鎖が遅れ、
+ *   TIMINGイベントの再検証契機を過ぎてしまう。
+ */
+function* notifyOrYieldNewEvents(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  eventsStart: number,
+): Generator<DamageStep, void, readonly BattleUnit[] | undefined> {
+  if (context.onFactEventForPassiveChain !== undefined) {
+    notifyNewEvents(context, workingMap, eventsStart);
+    return;
+  }
+  const injected = yield {
+    events: context.recorder.getEvents().slice(eventsStart),
+    units: Array.from(workingMap.values()),
+  };
+  for (const unit of injected ?? []) {
+    workingMap.set(unit.battleUnitId, unit);
+  }
+}
+
+/**
  * `context.removeFreezeEffect`未指定時のfallback。`AppliedEffect`を直接filterし
  * `FreezeRemoved`だけを発行する — R-EFF-09のlinkedEffectGroupカスケードも
  * CombatStat再計算も行わない（`combat/`は`effects/`へ依存できないため、
@@ -400,19 +435,20 @@ function* fallbackRemoveFreezeEffectSteps(
  * 対象が戦闘不能になればこのヒットを適用せず、使用者が戦闘不能になれば残りのヒットを
  * すべて中断する（`UnitBeingAttacked`後の再検証と同じ規約）。
  *
- * `context.onFactEventForPassiveChain`未指定（PS/Memory自身のEffectSequence解決）
- * の場合、即時解決を要求する契機だけを`yield`し、driver
- * （`effect-action-group-resolver.ts`の`resolveOneEffectActionApplication`）が
- * 子連鎖を解決して更新した`units`を`.next()`で注入する。対象は次の2つ。
+ * 1ヒットが発行する内部イベントは、記録直後にPS/Memory即時連鎖へ届けて次の判定へ
+ * 進む前に解決し切る（`notifyOrYieldNewEvents`、PR #283再レビュー[P1]）。
+ * `UnitBeingAttacked`・`EvasionActivated`・`HitConfirmed`・`CriticalCheckResolved`・
+ * `DamageWillBeApplied`が対象で、消費失効・凍結解除カスケードは`consumeAndExpire`／
+ * `driveRemovalSteps`が除去1件ごとに同じ規約で解決する。解決経路は2通り。
  *
- * - 凍結解除のlinkedEffectGroupカスケードの各ステップ（PRレビュー再々指摘[P2]、
- *   Issue #183）と、消費失効・遅延失効の各除去（PR #280再レビュー[P1]）
- * - `DamageWillBeApplied`（PR #283レビュー[P1]、R-DMG-05 #4）— TIMINGイベントの
- *   連鎖は、この解決自身のダメージ計算より前に完了していなければならない
+ * - `context.onFactEventForPassiveChain`あり（AS/EX・チャージ解放）: その場で
+ *   同期通知する。この経路では`effect-action-group-resolver.ts`の`innerEvents`が
+ *   常に空になるため、ここで通知しないイベントは連鎖へ一度も届かない
+ * - 未指定（PS/Memory自身のEffectSequence解決）: 1ステップ`yield`し、driver
+ *   （`resolveOneEffectActionApplication`）が子連鎖を解決して更新した`units`を
+ *   `.next()`で注入する
  *
- * それ以外の内部イベントは従来どおり`notifyNewEvents`/コールバックのみで通知する。
- * callbackが指定されている経路（AS/EX・チャージ解放）では、いずれもその場で
- * 同期的に通知するため`yield`しない。`applyDamageAction`（下の同期wrapper）は
+ * `applyDamageAction`（下の同期wrapper）は
  * `yield`された値を読み捨てるため、連鎖driverを持たない呼び出し元・テストでは
  * 従来どおりの振る舞いになる。
  */
@@ -490,7 +526,10 @@ export function* applyDamageActionSteps(
     // PR #280再レビュー[P1]: `UnitBeingAttacked`は消費失効より前に記録されている
     // ため、状態を書き換える前にここで通知する。消費失効自身の通知は
     // `consumeAndExpire`が除去1件ごとに行う（またはcallback未指定なら`yield`する）。
-    notifyNewEvents(context, working, unitBeingAttackedEventsStart);
+    // PR #283再レビュー[P1]: これもTIMINGイベントであり、下の再検証
+    // （`attackerAfterTiming`/`targetAfterTiming`）はその連鎖の結果を見るためのもの。
+    // callback未指定の経路でも連鎖をここで解決し切る必要がある。
+    yield* notifyOrYieldNewEvents(context, working, unitBeingAttackedEventsStart);
     lastEventId = yield* consumeAndExpire(
       context,
       working,
@@ -586,7 +625,7 @@ export function* applyDamageActionSteps(
       // （`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`と同じ扱い）。
       // PR #280再レビュー[P1]: 消費で発生した`EffectConsumptionChanged`/
       // `EffectExpired`は一括ではなく`consumeAndExpire`が除去1件ごとに通知する。
-      notifyNewEvents(context, working, evasionEventsStart);
+      yield* notifyOrYieldNewEvents(context, working, evasionEventsStart);
       lastEventId = yield* consumeAndExpire(
         context,
         working,
@@ -609,6 +648,7 @@ export function* applyDamageActionSteps(
       continue;
     }
 
+    const hitConfirmedEventsStart = context.recorder.getEvents().length;
     const hitConfirmed = context.recorder.record({
       eventType: "HitConfirmed",
       category: "FACT",
@@ -629,13 +669,27 @@ export function* applyDamageActionSteps(
       },
     });
 
+    // PR #283再レビュー[P1]: R-DMG-05 #2「命中判定」の結果である`HitConfirmed`は、
+    // #3「会心判定」へ進む前に連鎖を解決し切る。callbackありの経路では
+    // `effect-action-group-resolver.ts`の`innerEvents`が常に空になるため、ここで
+    // 通知しないとPS/Memoryへ一度も届かない。
+    yield* notifyOrYieldNewEvents(context, working, hitConfirmedEventsStart);
+
+    // 会心判定は上の連鎖を反映した最新の使用者状態から行う（連鎖が会心率・会心
+    // ダメージのバフを付与・失効させ得るため）。
+    const attackerBeforeCritical = findUnit(
+      working,
+      attacker.battleUnitId,
+      "attacker.battleUnitId",
+    );
     const critical = resolveCritical(
       damageAction.payload.critical.mode,
-      createPercentage(attackerAfterTiming.combatStats.criticalRate),
-      attackerAfterTiming.combatStats.criticalDamageBonus,
+      createPercentage(attackerBeforeCritical.combatStats.criticalRate),
+      attackerBeforeCritical.combatStats.criticalDamageBonus,
       random,
     );
 
+    const criticalCheckResolvedEventsStart = context.recorder.getEvents().length;
     const criticalCheckResolved = context.recorder.record({
       eventType: "CriticalCheckResolved",
       category: "FACT",
@@ -655,6 +709,11 @@ export function* applyDamageActionSteps(
         result: critical.isCritical,
       },
     });
+    // PR #283再レビュー[P1]: `CriticalCheckResolved`をtriggerにするproduction PSが
+    // 実在する（`SKL_LAYLA_ENTREPRENEUR_PS2`／`SKL_EVIE_KYONSHI_PS1`／
+    // `SKL_SAYA_BUNNY_PS1`／`SKL_SENKA_CHRISTMAS_PS2`）。`HitConfirmed`と同じく、
+    // 次のイベント（`DamageWillBeApplied`）へ進む前にここで連鎖を解決する。
+    yield* notifyOrYieldNewEvents(context, working, criticalCheckResolvedEventsStart);
 
     // R-DMG-05 #4（DMG-001、Issue #195）: 命中・会心の確定後、ダメージ計算より前に
     // `DamageWillBeApplied`（TIMING）を発行する。`08_ドメインイベント.md`の
@@ -688,26 +747,12 @@ export function* applyDamageActionSteps(
       },
     });
     lastEventId = damageWillBeApplied.eventId;
-    // PR #283レビュー[P1]: 連鎖の解決経路は凍結解除・消費失効と同じ2通りで、
-    // 「callbackがあれば同期通知、無ければ`yield`」の両方を満たす必要がある。
-    // `notifyNewEvents`だけではPS/Memory自身のEffectSequence解決
-    // （`onFactEventForPassiveChain`未指定）でこのTIMINGイベントの連鎖が
-    // ダメージ計算より後（`effect-action-group-resolver.ts`が`innerEvents`として
-    // EffectAction完了時にまとめて処理する時点）まで遅れ、「TIMINGイベント後に
-    // 親処理の前提を再検証する」契約を破っていた — その経路ではここで解決を
-    // 一時停止し、driver（`resolveOneEffectActionApplication`）が子連鎖を解決して
-    // 更新した`units`を取り込んでから計算を再開する。
-    if (context.onFactEventForPassiveChain !== undefined) {
-      notifyNewEvents(context, working, willBeAppliedEventsStart);
-    } else {
-      const injected = yield {
-        events: context.recorder.getEvents().slice(willBeAppliedEventsStart),
-        units: Array.from(working.values()),
-      };
-      for (const unit of injected ?? []) {
-        working.set(unit.battleUnitId, unit);
-      }
-    }
+    // PR #283レビュー[P1]: PS/Memory自身のEffectSequence解決
+    // （`onFactEventForPassiveChain`未指定）では、`notifyNewEvents`だけだと
+    // このTIMINGイベントの連鎖がダメージ計算より後（`effect-action-group-
+    // resolver.ts`が`innerEvents`としてEffectAction完了時にまとめて処理する時点）
+    // まで遅れ、「TIMINGイベント後に親処理の前提を再検証する」契約を破っていた。
+    yield* notifyOrYieldNewEvents(context, working, willBeAppliedEventsStart);
 
     // R-SKL-01/R-SKL-03: 上の連鎖が使用者を戦闘不能にしたなら、このヒットを含む
     // 残りのヒットをすべて中断する（`UnitBeingAttacked`後の再検証と同じ規約）。

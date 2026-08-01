@@ -747,11 +747,16 @@ describe("applyDamageAction", () => {
     // attackable before hit judgment, damage calculation, or defeat.
     // `HitPointReduced` (RES-005, Issue #172) reaches the hook right before
     // `DamageApplied` — it's the fact of the HP change itself.
-    // `DamageWillBeApplied` (R-DMG-05 #4, DMG-001/Issue #195) reaches the hook
-    // between them: it is a TIMING event whose chain may still cancel or
-    // re-shape this hit, so it must be delivered before damage is calculated.
+    // `HitConfirmed`/`CriticalCheckResolved` (PR #283 re-review [P1]) and
+    // `DamageWillBeApplied` (R-DMG-05 #4, DMG-001/Issue #195) reach the hook in
+    // R-DMG-05 order, each right after it is recorded: this callback path is the
+    // ONLY delivery route for them (`effect-action-group-resolver.ts` leaves
+    // `innerEvents` empty whenever the callback is supplied), and the chain of
+    // each may still cancel or re-shape this hit before damage is calculated.
     expect(seenEventTypes).toEqual([
       "UnitBeingAttacked",
+      "HitConfirmed",
+      "CriticalCheckResolved",
       "DamageWillBeApplied",
       "HitPointReduced",
       "DamageApplied",
