@@ -41,7 +41,10 @@ import type {
   EffectStepDefinition,
   RandomBranchMode,
 } from "../../catalog/definitions/effect-sequence.js";
-import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
+import type {
+  ContinuousDamageKind,
+  StatusKind,
+} from "../../catalog/definitions/effect-action-payload.js";
 
 /**
  * `08_ドメインイベント.md`「イベントの分類」。M3〜M5はFACT/TIMINGだけを使い、
@@ -364,6 +367,9 @@ export interface BattleDomainEventPayloadMap {
    *
    * `reason`はこの減少の契機を区別する。
    * - `DAMAGE_ABSORPTION`: R-SHD-02のダメージ吸収。`hitIndex`を持つ
+   * - `CONTINUOUS_DAMAGE_ABSORPTION`: R-DOT-02の固定継続ダメージ吸収（DMG-008、
+   *   Issue #189）。特定のヒットに属さないため`hitIndex`を持たない。炎上・毒は
+   *   そもそもシールドで受けないため（R-SUB-01）この理由では発行されない
    * - `DECAY`: `SHIELD_DECAY_OVER_TIME`（`APPLY_SHIELD.decay`）による行動ごとの
    *   漸減。特定のヒットに属さないため`hitIndex`を持たない
    *
@@ -486,6 +492,93 @@ export interface BattleDomainEventPayloadMap {
     readonly discardedAmount: number;
     readonly hpBefore: number;
     readonly hpAfter: number;
+  };
+  /**
+   * `08_ドメインイベント.md`「継続ダメージイベント」（DMG-008、Issue #189、
+   * R-DOT-01〜04）: 継続ダメージ1インスタンスの発生を適用し終えた直後に発行する
+   * `FACT`。HP変化のStateDeltaはこのイベントが持つ（`HitPointReduced`／
+   * `HealApplied`と同じ規約 — 1つのHP変化を2つのイベントへ付けると独立Reducer
+   * 復元が二重適用でエラーになる）。
+   *
+   * 攻撃ダメージ（`DamageApplied`）と別のイベント種別にするのは、継続ダメージが
+   * 攻撃ダメージと区別される必要がある規則が複数あるためである。
+   * - R-DOT-01「ダメージ軽減・増加、属性相性の影響を受けない」（`DamageCalculated`
+   *   payloadの会心倍率・実効防御力・与/被ダメージ倍率がそもそも存在しない）
+   * - R-STS-03「解除対象となるダメージは新たに攻撃スキルによってダメージを受けた
+   *   ときに限り、炎上や毒などによるダメージ…では解除されません」（凍結解除の契機に
+   *   ならない）
+   * - `hitIndex`（1つのDAMAGE EffectAction内のヒット番号）を持たない
+   *
+   * 継続回復が`HealApplied`を即時回復と共有する（M7-005）のと非対称だが、
+   * これは即時回復とR-HEAL-01の手順を共有する継続回復と違い、継続ダメージが
+   * R-DMG-01〜05のダメージpipelineをまったく通らないためである。
+   */
+  readonly ContinuousDamageApplied: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    /** R-DOT-02/03/04: 固定継続ダメージ／炎上／毒の別。 */
+    readonly continuousDamageKind: ContinuousDamageKind;
+    readonly damageType: DamageType;
+    /** 保持者（＝ダメージを受ける対象）。 */
+    readonly targetUnitId: BattleUnitId;
+    /** R-DOT-01: 付与時に記録した付与者攻撃力。付与者の以後の状態・生死に影響されない。 */
+    readonly snapshotAttack: number;
+    /**
+     * 種別ごとの素の算出値（切り捨て・最低1ダメージ・炎上2倍の適用前）。
+     * `FIXED`/`BURN`は付与時に評価済みの固定量、`POISON`は発火時点の
+     * `現在HP × 毒効果率`である。
+     */
+    readonly formulaResult: number;
+    /** R-DOT-03: 対象が炎上を3つ保持している場合`2`、それ以外は`1`。 */
+    readonly burnStackMultiplier: number;
+    /** R-DOT-04: `上限ダメージ = 付与時攻撃力 × 100%`で頭打ちになった場合`true`。 */
+    readonly cappedBySnapshotAttack: boolean;
+    /** R-DOT-01: 小数部分を切り捨て、1未満を1へ引き上げた最終ダメージ。 */
+    readonly calculatedDamage: number;
+    /** R-DOT-02: タイプありシールド吸収量。`BURN`/`POISON`は常に0（R-SUB-01）。 */
+    readonly typedShieldAbsorbed: number;
+    /** R-DOT-02: タイプなしシールド吸収量。`BURN`/`POISON`は常に0。 */
+    readonly untypedShieldAbsorbed: number;
+    /** R-SHD-03第2項と同じ、HPを0未満にしないために破棄した超過分。 */
+    readonly discardedDamage: number;
+    readonly hitPointDamage: number;
+    readonly hpBefore: number;
+    readonly hpAfter: number;
+    readonly defeated: boolean;
+  };
+  /**
+   * `08_ドメインイベント.md`「EffectMerged」（DMG-008、Issue #189、R-DOT-04）:
+   * 毒など固有規則で既存効果へ統合した直後に発行する`FACT`。R-DOT-04
+   * 「効果期間は長い方、効果量は大きい方を引き継いだ一つの毒を残す。期間と効果量は
+   * 別々の付与元から採用できる」の採用結果を、統合前後の効果量・残り期間として運ぶ。
+   * `EffectApplied`は発行しない — 新規インスタンスを追加しないためである。
+   */
+  readonly EffectMerged: {
+    /** 統合先（残る）インスタンス。既存インスタンスのIDをそのまま維持する。 */
+    readonly effectInstanceId: EffectInstanceId;
+    readonly battleUnitId: BattleUnitId;
+    /** 統合後に採用した効果量側の`EffectActionDefinitionId`。 */
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly reason: "POISON_REAPPLY";
+    readonly magnitudeBefore: number;
+    readonly magnitudeAfter: number;
+    readonly snapshotAttackBefore: number;
+    readonly snapshotAttackAfter: number;
+    /**
+     * R-DOT-04「効果量は大きい方」の採用判断に使った、統合時点の対象HPで評価した
+     * 1回あたり毒ダメージ（`min(現在HP × 効果率, 付与時攻撃力)`）。`magnitude*`は
+     * 各インスタンスが自分の付与時点で評価した保存値であり評価時点が揃わないため、
+     * この2値が無いとログから採否の理由を再現できない（PRレビュー[P1]）。
+     *
+     * R-DOT-01の切り捨て・最低1ダメージを適用する**前**の値であり、整数とは限らず
+     * 1未満にもなりうる（再レビュー[P2]）— R-DOT-04が比較尺度とする「効果量」は
+     * 丸め前の毒ダメージであり、丸めは発生時にR-DOT-01が最終結果へ適用する別規則
+     * だからである。実際に与えるダメージは`ContinuousDamageApplied.calculatedDamage`。
+     */
+    readonly tickDamageBefore: number;
+    readonly tickDamageAfter: number;
+    readonly remainingBefore: number;
+    readonly remainingAfter: number;
   };
   readonly UnitDefeated: {
     readonly unitId: BattleUnitId;
@@ -969,7 +1062,10 @@ export type EffectExpirationReason =
   | "LINKED_GROUP_CASCADE";
 
 /** `ShieldConsumed.reason`: シールド残量が減った契機（DMG-004、Issue #194）。 */
-export type ShieldConsumptionReason = "DAMAGE_ABSORPTION" | "DECAY";
+export type ShieldConsumptionReason =
+  | "DAMAGE_ABSORPTION"
+  | "CONTINUOUS_DAMAGE_ABSORPTION"
+  | "DECAY";
 
 /**
  * `07_戦闘ルール詳細.md` R-EFF-10: `MarkerState`が除去された理由。`REMOVED`は

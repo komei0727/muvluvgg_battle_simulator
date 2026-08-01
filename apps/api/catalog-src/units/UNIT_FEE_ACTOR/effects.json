@@ -10,6 +10,7 @@
     "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",

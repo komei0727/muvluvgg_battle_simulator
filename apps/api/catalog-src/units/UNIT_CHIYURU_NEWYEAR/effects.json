@@ -10,6 +10,7 @@
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },

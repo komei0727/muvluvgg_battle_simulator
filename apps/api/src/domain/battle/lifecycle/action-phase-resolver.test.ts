@@ -842,6 +842,124 @@ describe("resolveActionPhase", () => {
     expect(passiveActivated!.payload).toMatchObject({ triggerEventId: healApplied.eventId });
   });
 
+  it("UT-R-DOT-01-005 (DMG-008 Issue #189, full stack): a held APPLY_CONTINUOUS_DAMAGE damages its owner at the owner's own ActionStarted, and the ContinuousDamageApplied StateDelta reconstructs the same HP through the independent Reducer", () => {
+    const dotDefId = createEffectActionDefinitionId("ACT_DOT");
+    const dotDef: EffectActionDefinition = {
+      effectActionDefinitionId: dotDefId,
+      kind: "APPLY_CONTINUOUS_DAMAGE",
+      payload: {
+        continuousDamageKind: "FIXED",
+        damageType: "PHYSICAL",
+        formula: {
+          kind: "STAT_RATIO",
+          source: { kind: "SKILL_SOURCE" },
+          stat: "ATTACK",
+          ratio: 0.3,
+        },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+    };
+    // R-DOT-01: 付与時の付与者攻撃力（100）× 30% = 30 を付与時に焼き込んである。
+    const dotEffect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("dot-1"),
+      effectActionDefinitionId: dotDefId,
+      kindKey: effectKindKeyFromDefinitionId(dotDefId),
+      duplicate: true,
+      sourceId: createBattleUnitId("ENEMY_1"),
+      targetId: createBattleUnitId("ALLY_1"),
+      magnitude: 30,
+      continuousDamage: { continuousDamageKind: "FIXED", damageType: "PHYSICAL" },
+      snapshot: { sourceAttack: 100 },
+      duration: {
+        definition: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+        timeLimitRemaining: 2,
+      },
+      appliedTurnNumber: 1,
+    };
+    const ally = {
+      ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 }, maximumHp: 100, currentHp: 80 }),
+      appliedEffects: [dotEffect],
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const random = new SequenceRandomSource([]);
+    const definitions = definitionsOf(new Map(), new Map([[dotDefId, dotDef]]));
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    // 使えるASが無いので待機するが、継続ダメージは保持者自身のActionStartedで発生する。
+    expect(result.allyUnits[0]!.currentHp).toBe(50);
+
+    const applied = ctx.recorder
+      .getEvents()
+      .find(
+        (e): e is Extract<typeof e, { eventType: "ContinuousDamageApplied" }> =>
+          e.eventType === "ContinuousDamageApplied",
+      )!;
+    expect(applied.payload).toMatchObject({
+      effectActionDefinitionId: dotDefId,
+      continuousDamageKind: "FIXED",
+      targetUnitId: ally.battleUnitId,
+      snapshotAttack: 100,
+      calculatedDamage: 30,
+      hitPointDamage: 30,
+      hpBefore: 80,
+      hpAfter: 50,
+      defeated: false,
+    });
+    // 攻撃ダメージとは別種別のイベントとして記録する（R-STS-03の区別）。
+    expect(ctx.recorder.getEvents().some((e) => e.eventType === "DamageApplied")).toBe(false);
+
+    const restored = reduceStateDeltas(
+      {
+        status: "RUNNING",
+        currentTurn: 1,
+        units: {
+          [ally.battleUnitId]: {
+            ap: 1,
+            pp: 3,
+            hp: 80,
+            extraGauge: 0,
+            combatStats: ally.combatStats,
+            effects: [toEffectSnapshot(dotEffect, true)],
+          },
+          [enemy.battleUnitId]: {
+            ap: 0,
+            pp: 3,
+            hp: 100,
+            extraGauge: 0,
+            combatStats: enemy.combatStats,
+          },
+        },
+      },
+      ctx.recorder
+        .getEvents()
+        .filter((e) => e.stateDelta !== undefined)
+        .map((e) => e.stateDelta!),
+    );
+    expect(restored.units[ally.battleUnitId]!.hp).toBe(50);
+  });
+
   it("UT-R-HEAL-03-006 (再レビュー[P2] PR #256, START_EVENT #4): when a PS chained off the start-of-action HealApplied defeats the actor, the action body is skipped and the action proceeds straight to COMPLETING", () => {
     const hotDefId = createEffectActionDefinitionId("ACT_HOT");
     const hotDef: EffectActionDefinition = {

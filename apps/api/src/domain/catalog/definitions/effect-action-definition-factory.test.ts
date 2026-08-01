@@ -1299,6 +1299,7 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_BURN_1",
         kind: "APPLY_CONTINUOUS_DAMAGE",
         payload: {
+          continuousDamageKind: "BURN",
           damageType: "PHYSICAL",
           formula: {
             kind: "STAT_RATIO",
@@ -1316,6 +1317,7 @@ describe("EffectActionDefinition", () => {
     expect(result.kind).toBe("APPLY_CONTINUOUS_DAMAGE");
     if (result.kind === "APPLY_CONTINUOUS_DAMAGE") {
       expect(result.payload.damageType).toBe("PHYSICAL");
+      expect(result.payload.continuousDamageKind).toBe("BURN");
       expect(result.payload.timing).toEqual({
         eventType: "ActionStarted",
         targetSelector: "EFFECT_OWNER",
@@ -1330,12 +1332,77 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_BURN_1",
           kind: "APPLY_CONTINUOUS_DAMAGE",
           payload: {
+            continuousDamageKind: "BURN",
             damageType: "FIRE",
             formula: { kind: "CONSTANT", value: 1 },
             timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
             duration: {},
           },
           requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  // R-DOT-02/03/04（DMG-008、Issue #189）: 固定継続ダメージ・炎上・毒はそれぞれ
+  // 別のダメージ算出・重複・シールド適用規則を持つため、Catalog上で判別できる
+  // 必要がある（`continuousDamageKind`）。
+  it("UT-CAT-ACT-089: maps APPLY_CONTINUOUS_DAMAGE continuousDamageKind POISON", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_POISON_1",
+        kind: "APPLY_CONTINUOUS_DAMAGE",
+        payload: {
+          continuousDamageKind: "POISON",
+          damageType: "PHYSICAL",
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+          timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+        },
+        requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_CONTINUOUS_DAMAGE");
+    if (result.kind === "APPLY_CONTINUOUS_DAMAGE") {
+      expect(result.payload.continuousDamageKind).toBe("POISON");
+    }
+  });
+
+  it("UT-CAT-ACT-090: rejects APPLY_CONTINUOUS_DAMAGE without continuousDamageKind", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_BURN_1",
+          kind: "APPLY_CONTINUOUS_DAMAGE",
+          payload: {
+            damageType: "PHYSICAL",
+            formula: { kind: "CONSTANT", value: 1 },
+            timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+          },
+          requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-091: rejects APPLY_CONTINUOUS_DAMAGE with an unknown continuousDamageKind", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_BURN_1",
+          kind: "APPLY_CONTINUOUS_DAMAGE",
+          payload: {
+            continuousDamageKind: "BLEED",
+            damageType: "PHYSICAL",
+            formula: { kind: "CONSTANT", value: 1 },
+            timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+          },
+          requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
         },
         "effectAction",
       ),

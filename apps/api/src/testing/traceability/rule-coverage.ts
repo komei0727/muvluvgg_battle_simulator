@@ -1587,10 +1587,58 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-LNK-03", testCaseIds: [], kinds: [] },
 
   // DOT: 継続ダメージ
-  { ruleId: "R-DOT-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-DOT-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-DOT-03", testCaseIds: [], kinds: [] },
-  { ruleId: "R-DOT-04", testCaseIds: [], kinds: [] },
+  // DMG-008（Issue #189）: 継続ダメージ・炎上・毒を実ライフサイクルへ配線した。
+  {
+    ruleId: "R-DOT-01",
+    testCaseIds: [
+      "UT-R-DOT-01-001",
+      "UT-R-DOT-01-002",
+      "UT-R-DOT-01-003",
+      "UT-R-DOT-01-004",
+      "UT-R-DOT-01-005",
+      "UT-R-DOT-01-006",
+      "IT-CAP-CONTINUOUS-DAMAGE-PROD-001",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
+  },
+  {
+    ruleId: "R-DOT-02",
+    testCaseIds: [
+      "UT-R-DOT-02-001",
+      "UT-R-DOT-02-002",
+      "UT-R-DOT-01-005",
+      "IT-CAP-CONTINUOUS-DAMAGE-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
+  {
+    ruleId: "R-DOT-03",
+    testCaseIds: [
+      "UT-R-DOT-03-001",
+      "UT-R-DOT-03-002",
+      "UT-R-DOT-03-003",
+      "IT-CAP-CONTINUOUS-DAMAGE-PROD-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+  {
+    ruleId: "R-DOT-04",
+    testCaseIds: [
+      "UT-R-DOT-04-001",
+      "UT-R-DOT-04-002",
+      "UT-R-DOT-04-003",
+      "UT-R-DOT-04-004",
+      "UT-R-DOT-04-005",
+      "UT-R-DOT-04-006",
+      "UT-R-DOT-04-007",
+      "UT-R-DOT-04-008",
+      "UT-R-DOT-04-009",
+      "UT-R-DOT-04-010",
+      "UT-R-DOT-04-011",
+      "IT-CAP-CONTINUOUS-DAMAGE-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
 
   // STS: 状態異常
   {

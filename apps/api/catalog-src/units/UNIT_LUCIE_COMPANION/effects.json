@@ -26,6 +26,7 @@
     "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.2 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
@@ -125,6 +126,7 @@
     "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_DAMAGE",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",

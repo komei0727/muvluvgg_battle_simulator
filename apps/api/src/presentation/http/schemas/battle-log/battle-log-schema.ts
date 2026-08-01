@@ -558,7 +558,10 @@ const shieldConsumedDetailsSchema = {
     effectActionDefinitionId: { type: "string" },
     hitIndex: { type: "integer", minimum: 0 },
     battleUnitId: { type: "string" },
-    reason: { type: "string", enum: ["DAMAGE_ABSORPTION", "DECAY"] },
+    reason: {
+      type: "string",
+      enum: ["DAMAGE_ABSORPTION", "CONTINUOUS_DAMAGE_ABSORPTION", "DECAY"],
+    },
     shieldType: { type: ["string", "null"], enum: [...DAMAGE_TYPE_ENUM, null] },
     before: { type: "integer", minimum: 0 },
     after: { type: "integer", minimum: 0 },
@@ -682,6 +685,93 @@ const healingTransferredDetailsSchema = {
     discardedAmount: { type: "integer", minimum: 0 },
     hpBefore: { type: "integer", minimum: 0 },
     hpAfter: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+/**
+ * `ContinuousDamageApplied`（DMG-008、Issue #189、R-DOT-01〜04）。継続ダメージ
+ * 1インスタンスの発生を適用した直後に発行する。攻撃ダメージ（`DAMAGE_APPLIED`）とは
+ * 別種別であり、会心・貫通・与被ダメージ補正のフィールドを持たない（R-DOT-01
+ * 「ダメージ軽減・増加、属性相性の影響を受けない」）。
+ */
+const continuousDamageAppliedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "effectActionDefinitionId",
+    "continuousDamageKind",
+    "damageType",
+    "targetUnitId",
+    "snapshotAttack",
+    "formulaResult",
+    "burnStackMultiplier",
+    "cappedBySnapshotAttack",
+    "calculatedDamage",
+    "typedShieldAbsorbed",
+    "untypedShieldAbsorbed",
+    "discardedDamage",
+    "hitPointDamage",
+    "hpBefore",
+    "hpAfter",
+    "defeated",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    continuousDamageKind: { type: "string", enum: ["FIXED", "BURN", "POISON"] },
+    damageType: { type: "string", enum: ["PHYSICAL", "EN"] },
+    targetUnitId: { type: "string" },
+    snapshotAttack: { type: "number", minimum: 0 },
+    formulaResult: { type: "number" },
+    burnStackMultiplier: { type: "number", minimum: 1 },
+    cappedBySnapshotAttack: { type: "boolean" },
+    calculatedDamage: { type: "integer", minimum: 1 },
+    typedShieldAbsorbed: { type: "integer", minimum: 0 },
+    untypedShieldAbsorbed: { type: "integer", minimum: 0 },
+    discardedDamage: { type: "integer", minimum: 0 },
+    hitPointDamage: { type: "integer", minimum: 0 },
+    hpBefore: { type: "integer", minimum: 0 },
+    hpAfter: { type: "integer", minimum: 0 },
+    defeated: { type: "boolean" },
+  },
+} as const;
+
+/**
+ * `EffectMerged`（DMG-008、Issue #189、R-DOT-04）。毒など固有規則で既存効果へ
+ * 統合した直後に発行する。統合先インスタンスのIDは維持されるため、`EffectApplied`は
+ * 発行されない。
+ */
+const effectMergedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "battleUnitId",
+    "effectActionDefinitionId",
+    "reason",
+    "magnitudeBefore",
+    "magnitudeAfter",
+    "snapshotAttackBefore",
+    "snapshotAttackAfter",
+    "tickDamageBefore",
+    "tickDamageAfter",
+    "remainingBefore",
+    "remainingAfter",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    battleUnitId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    reason: { type: "string", enum: ["POISON_REAPPLY"] },
+    magnitudeBefore: { type: "number" },
+    magnitudeAfter: { type: "number" },
+    snapshotAttackBefore: { type: "number", minimum: 0 },
+    snapshotAttackAfter: { type: "number", minimum: 0 },
+    tickDamageBefore: { type: "number", minimum: 0 },
+    tickDamageAfter: { type: "number", minimum: 0 },
+    remainingBefore: { type: "integer", minimum: 0 },
+    remainingAfter: { type: "integer", minimum: 0 },
   },
 } as const;
 
@@ -1744,6 +1834,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
   HEAL_APPLIED: healAppliedDetailsSchema,
   HEALING_TRANSFERRED: healingTransferredDetailsSchema,
+  CONTINUOUS_DAMAGE_APPLIED: continuousDamageAppliedDetailsSchema,
   UNIT_DEFEATED: unitDefeatedDetailsSchema,
   ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
   ACTION_COMPLETED: actorEffectiveActionDetailsSchema,
@@ -1770,6 +1861,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   RUNTIME_COUNTER_CHANGED: runtimeCounterChangedDetailsSchema,
   RUNTIME_COUNTER_RESET: runtimeCounterResetDetailsSchema,
   EFFECT_APPLIED: effectAppliedDetailsSchema,
+  EFFECT_MERGED: effectMergedDetailsSchema,
   EFFECT_APPLICATION_REJECTED: effectApplicationRejectedDetailsSchema,
   EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
   COMBAT_STAT_CHANGED: combatStatChangedDetailsSchema,

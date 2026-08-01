@@ -82,6 +82,7 @@
     "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },

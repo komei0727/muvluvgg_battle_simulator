@@ -75,10 +75,21 @@
   {
     "capabilityId": "CAP_CONTINUOUS_DAMAGE",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-008",
-    "description": "継続ダメージ(DoT)",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "継続ダメージ(DoT)（R-DOT-01〜04）。DMG-008（Issue #189）が実ライフサイクルへ配線した。effect-action-group-resolver.tsがAPPLY_CONTINUOUS_DAMAGEをAppliedEffect（AppliedEffect.continuousDamage＋snapshot.sourceAttack）として付与し、continuous-damage-service.tsが保持者自身のActionStartedで発生させる（continuous-heal-service.tsの走査を共有し、継続回復と継続ダメージを付与順のまま1回で解決する — 06_戦闘状態遷移.mdのSTART_EVENT #2「定義順に解決する」）。payloadへ追加したcontinuousDamageKind（FIXED/BURN/POISON）が3規則を判別する。FIXED（R-DOT-02）は付与時攻撃力から算出した固定ダメージをタイプありシールド→タイプなしシールド→HPの順（R-SHD-02と同じ経路、reason: CONTINUOUS_DAMAGE_ABSORPTION）で適用する。BURN（R-DOT-03）は種別単位で最大3インスタンスまで付与を受け付け（4つ目はSKIPPED）、3つ保持時は各インスタンスのダメージを切り捨て前に2倍する（Q-EFF-06「合計値を後から2倍にはしない」）。POISON（R-DOT-04）は発火のたびに現在HP×毒効果率を評価し直して付与時攻撃力×100%で頭打ちにし、再付与は既存インスタンスへ統合する（EffectMerged／reason: POISON_REAPPLY、期間は長い方・効果量は大きい方をそれぞれ独立に採用する）。BURN/POISONはシールドとサブユニットで受けない（R-SUB-01）。付与者攻撃力はR-DOT-01/Q-EFF-07どおり付与時snapshotであり、付与後の攻撃力変化・付与者の戦闘不能に影響されない。発生はDamageAppliedではなく専用のContinuousDamageAppliedとして記録する — R-STS-03「解除対象となるダメージは新たに攻撃スキルによってダメージを受けたときに限り、炎上や毒などによるダメージでは解除されません」が両者の区別を要求するためである。effect-category-classifier.tsはAPPLY_CONTINUOUS_DAMAGEを常にDEBUFFへ分類する（magnitudeが正のダメージ量のため、符号由来の既定分岐のままではデバフ解除が炎上・毒へ届かない）。timingはActionStarted/EFFECT_OWNER以外をCatalogロード時点で拒否する（UNSUPPORTED_CONTINUOUS_DAMAGE_TIMING）。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_SENKA_SCHEMER_AS1_BURN",
+        "ACT_LUCIE_COMPANION_EX_POISON",
+        "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF"
+      ],
+      "testCaseIds": [
+        "IT-CAP-CONTINUOUS-DAMAGE-PROD-001",
+        "IT-CAP-CONTINUOUS-DAMAGE-PROD-002",
+        "IT-CAP-CONTINUOUS-DAMAGE-PROD-003"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_CONTINUOUS_HEAL",

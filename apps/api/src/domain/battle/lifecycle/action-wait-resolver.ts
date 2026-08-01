@@ -16,7 +16,13 @@ import {
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
-import type { ActionId, DomainEventId, ResolutionScopeId } from "../../shared/event-ids.js";
+import { expireEffectsSteps } from "../effects/duration-expiry-service.js";
+import type {
+  ActionId,
+  DomainEventId,
+  EffectInstanceId,
+  ResolutionScopeId,
+} from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { RandomSource } from "../../ports/random-source.js";
@@ -193,7 +199,41 @@ export function resolveWait(
   const continuousHeal = fireContinuousHealsOnActionStart(
     working,
     actorId,
-    { ...resourceChangeContext, effectActions: definitions.effectActions },
+    {
+      ...resourceChangeContext,
+      effectActions: definitions.effectActions,
+      // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
+      // 固定継続ダメージがシールドを枯渇させた場合の失効（R-SHD-01第3項）は、
+      // `effect-action-group-resolver.ts`のヒット処理とまったく同じ
+      // `expireEffectsSteps`経由で行う（R-EFF-09カスケードとCombatStat再計算を共有する）。
+      continuousDamage: {
+        effectActions: definitions.effectActions,
+        expireDepletedShields: (
+          targetUnitId: BattleUnitId,
+          depletedEffectInstanceIds: readonly EffectInstanceId[],
+          unitsForExpiry: readonly BattleUnit[],
+          expiryParentEventId: DomainEventId,
+        ) =>
+          expireEffectsSteps(
+            {
+              recorder,
+              turnNumber,
+              cycleNumber,
+              actionId,
+              resolutionScopeId: actionScope,
+              rootEventId: actionStarted.eventId,
+            },
+            unitsForExpiry,
+            depletedEffectInstanceIds.map((effectInstanceId) => ({
+              battleUnitId: targetUnitId,
+              effectInstanceId,
+              reason: "SHIELD_DEPLETED" as const,
+            })),
+            definitions.effectActions,
+            expiryParentEventId,
+          ),
+      },
+    },
     lastEventId,
     (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
   );

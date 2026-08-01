@@ -13,6 +13,7 @@
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",

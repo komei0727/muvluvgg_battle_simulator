@@ -56,6 +56,7 @@ export const VIOLATION_RULES = [
   "MISSING_REQUIRED_CAPABILITY",
   "UNSUPPORTED_MARKER_DURATION",
   "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
+  "UNSUPPORTED_CONTINUOUS_DAMAGE_TIMING",
   "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
   "UNSUPPORTED_DYNAMIC_DURATION_REAPPLY",
   "UNSUPPORTED_SOURCE_DEFEATED_REMOVAL",
@@ -1479,6 +1480,23 @@ function validateEffectAction(
         targetId: effectAction.effectActionDefinitionId,
         rule: "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
         message: `APPLY_CONTINUOUS_HEAL only implements timing {eventType: "ActionStarted", targetSelector: "EFFECT_OWNER"} (R-HEAL-03, M7-005), received {eventType: "${timing.eventType}", targetSelector: "${timing.targetSelector}"}`,
+      });
+    }
+  }
+  // R-DOT-01（DMG-008、Issue #189）「付与対象の行動開始時に発生する」: 継続ダメージが
+  // 発生するのは保持者自身の`ActionStarted`だけである。`timing`はスキーマ上任意の
+  // 文字列を取れるため、他の組み合わせを指定した定義は`CAP_CONTINUOUS_DAMAGE`
+  // （IMPLEMENTED）を宣言していても「`EffectApplied`として成功するが一度も
+  // ダメージを与えない」silent partial implementationになる。
+  // `APPLY_CONTINUOUS_HEAL`（`UNSUPPORTED_CONTINUOUS_HEAL_TIMING`）と同じく、
+  // Catalogロード時点で拒否する。
+  if (effectAction.kind === "APPLY_CONTINUOUS_DAMAGE") {
+    const timing = effectAction.payload.timing;
+    if (timing.eventType !== "ActionStarted" || timing.targetSelector !== "EFFECT_OWNER") {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "UNSUPPORTED_CONTINUOUS_DAMAGE_TIMING",
+        message: `APPLY_CONTINUOUS_DAMAGE only implements timing {eventType: "ActionStarted", targetSelector: "EFFECT_OWNER"} (R-DOT-01, DMG-008), received {eventType: "${timing.eventType}", targetSelector: "${timing.targetSelector}"}`,
       });
     }
   }

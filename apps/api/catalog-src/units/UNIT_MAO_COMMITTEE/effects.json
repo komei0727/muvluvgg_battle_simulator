@@ -125,6 +125,7 @@
     "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",

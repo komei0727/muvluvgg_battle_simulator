@@ -95,6 +95,7 @@
     "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -241,6 +242,7 @@
     "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",

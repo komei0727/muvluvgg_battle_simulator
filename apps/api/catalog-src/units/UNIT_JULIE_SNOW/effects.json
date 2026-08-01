@@ -128,6 +128,7 @@
     "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -225,6 +226,7 @@
     "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",

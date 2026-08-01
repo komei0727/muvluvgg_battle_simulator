@@ -30,6 +30,7 @@ import {
   type EffectActionPayload,
 } from "./effect-action-definition.js";
 import {
+  CONTINUOUS_DAMAGE_KINDS,
   COOLDOWN_MANIPULATION_OPERATIONS,
   DAMAGE_MOD_STATE_FIELDS,
   DAMAGE_MOD_UNIT_REFERENCES,
@@ -120,7 +121,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   ],
   HEAL: ["formula", "overheal", "distribution"],
   APPLY_CONTINUOUS_HEAL: ["formula", "timing", "duration"],
-  APPLY_CONTINUOUS_DAMAGE: ["damageType", "formula", "timing", "duration"],
+  APPLY_CONTINUOUS_DAMAGE: ["continuousDamageKind", "damageType", "formula", "timing", "duration"],
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
   APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "condition", "stacking", "duration"],
   APPLY_HEALING_MOD: ["direction", "formula", "stacking", "duration"],
@@ -568,6 +569,17 @@ function createPayload(
       };
     }
     case "APPLY_CONTINUOUS_DAMAGE": {
+      // R-DOT-02〜04（DMG-008、Issue #189）: 固定継続ダメージ／炎上／毒は算出式も
+      // 重複規則もシールド適用可否も異なるため、種別を必須fieldとして受け取る。
+      const continuousDamageKind = requireField(
+        payload["continuousDamageKind"] as string | undefined,
+        `${path}.continuousDamageKind`,
+      );
+      assertEnumValue(
+        continuousDamageKind,
+        CONTINUOUS_DAMAGE_KINDS,
+        `${path}.continuousDamageKind`,
+      );
       const damageType = requireField(
         payload["damageType"] as string | undefined,
         `${path}.damageType`,
@@ -583,6 +595,7 @@ function createPayload(
       return {
         kind: "APPLY_CONTINUOUS_DAMAGE",
         payload: {
+          continuousDamageKind,
           damageType,
           formula: createFormulaField(payload, "formula", path),
           timing: { eventType, targetSelector },

@@ -106,8 +106,35 @@ export interface ApplyContinuousHealPayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * R-DOT-02〜04（DMG-008、Issue #189）: 継続ダメージの種別。同じ
+ * `APPLY_CONTINUOUS_DAMAGE`でもダメージ算出・重複規則・シールド適用可否が
+ * 種別ごとに異なるため、Catalog側で判別できる必要がある。
+ *
+ * - `FIXED`（R-DOT-02 固定継続ダメージ）: スナップショット攻撃力と効果定義の
+ *   倍率から固定ダメージを算出し、対応するタイプありシールド→タイプなし
+ *   シールド→HPの順で適用する。
+ * - `BURN`（R-DOT-03 炎上）: `FIXED`と同じ固定ダメージ算出に、最大3つまでの
+ *   重複と「3つ保持時は各インスタンスのダメージをそれぞれ2倍」が加わる。
+ * - `POISON`（R-DOT-04 毒）: `現在HP × 効果率`を`付与時攻撃力 × 100%`で上限した
+ *   割合ダメージ。再付与は既存インスタンスへ統合する。
+ *
+ * `BURN`／`POISON`はシールドとサブユニットで受けない（R-SUB-01「毒、炎上など、
+ * 通常シールドで受けられないダメージ」、R-LNK-02「元ダメージが毒・炎上など
+ * シールド対象外なら」）。シールドを適用するのは`FIXED`だけである（R-DOT-02）。
+ *
+ * 省略を許さない（`UNSUPPORTED_*`ではなく必須fieldとする）のは、既定値を置くと
+ * 「炎上として書いたつもりの定義が固定継続ダメージとして黙って別規則で解決される」
+ * 近似が復活するためである。
+ */
+export const CONTINUOUS_DAMAGE_KINDS = ["FIXED", "BURN", "POISON"] as const;
+
+export type ContinuousDamageKind = (typeof CONTINUOUS_DAMAGE_KINDS)[number];
+
 /** G-02 (Issue #44): the DAMAGE-direction counterpart of `APPLY_CONTINUOUS_HEAL`. */
 export interface ApplyContinuousDamagePayload {
+  /** R-DOT-02〜04（DMG-008、Issue #189）: 固定継続ダメージ／炎上／毒の判別子。 */
+  readonly continuousDamageKind: ContinuousDamageKind;
   readonly damageType: DamageType;
   readonly formula: FormulaDefinition;
   readonly timing: { readonly eventType: string; readonly targetSelector: string };

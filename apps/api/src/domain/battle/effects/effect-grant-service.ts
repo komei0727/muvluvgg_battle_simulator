@@ -2,6 +2,7 @@ import {
   buildInitialDurationState,
   effectKindKeyFromDefinitionId,
   type AppliedEffect,
+  type ContinuousDamageState,
   type DamageModifierState,
   type EffectImmunityState,
   type HealingLinkState,
@@ -71,6 +72,8 @@ export interface GrantEffectRequest {
   readonly damageModifier?: DamageModifierState;
   /** DMG-004（Issue #194、R-SHD-01）: `APPLY_SHIELD`由来の付与だけが持つ。 */
   readonly shield?: ShieldState;
+  /** DMG-008（Issue #189、R-DOT-01〜04）: `APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ。 */
+  readonly continuousDamage?: ContinuousDamageState;
   readonly durationDefinition: DurationDefinition;
   readonly snapshot?: Readonly<Record<string, number>>;
 }
@@ -235,6 +238,9 @@ export function grantEffect(
     ...(request.healingLink !== undefined ? { healingLink: request.healingLink } : {}),
     ...(request.damageModifier !== undefined ? { damageModifier: request.damageModifier } : {}),
     ...(request.shield !== undefined ? { shield: request.shield } : {}),
+    ...(request.continuousDamage !== undefined
+      ? { continuousDamage: request.continuousDamage }
+      : {}),
     duration: buildInitialDurationState(durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,

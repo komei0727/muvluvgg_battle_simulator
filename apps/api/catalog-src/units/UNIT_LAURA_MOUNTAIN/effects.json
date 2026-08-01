@@ -104,6 +104,7 @@
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",

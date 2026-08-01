@@ -11,6 +11,7 @@ import type {
 } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type {
+  ContinuousDamageKind,
   DamageModConditionDefinition,
   DamageThreshold,
   ShieldDecayDefinition,
@@ -104,6 +105,28 @@ export interface ShieldState {
   /** `SHIELD_DECAY_OVER_TIME`: 宣言がある場合だけ持つ、行動ごとの漸減。 */
   readonly decay?: ShieldDecayDefinition;
 }
+
+/**
+ * R-DOT-01〜04（DMG-008、Issue #189、`APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ）:
+ * この効果インスタンスが発生させる継続ダメージの種別とダメージタイプ。
+ *
+ * 種別をインスタンス自身に持たせるのは、判定側がCatalogの`effectActions`マップを
+ * 引かずに済ませる必要があるためである（`shield`/`damageModifier`と同じ理由）。
+ * - R-DOT-03「最大3つまで保持する」の重複数は、保持者が持つ**全ての**炎上
+ *   インスタンスを定義をまたいで数える（`EffectKindKey`単位ではない）
+ * - R-DOT-04の再付与統合は、既存インスタンスが毒かどうかを付与の前に判定する
+ *
+ * 付与時攻撃力のスナップショット（R-DOT-01）は`AppliedEffect.snapshot.sourceAttack`
+ * が持つ（`05_ドメインモデル.md`「継続ダメージでは、付与時の付与者攻撃力を
+ * スナップショットとして保持する」）。
+ */
+export interface ContinuousDamageState {
+  readonly continuousDamageKind: ContinuousDamageKind;
+  readonly damageType: DamageType;
+}
+
+/** R-DOT-01: `AppliedEffect.snapshot`が継続ダメージの付与時攻撃力へ使うキー。 */
+export const CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY = "sourceAttack";
 
 /**
  * `07_戦闘ルール詳細.md` R-STA-03: 重複なし効果を同種としてグループ化する鍵
@@ -259,8 +282,15 @@ export interface AppliedEffect {
   readonly damageModifier?: DamageModifierState;
   /** R-SHD-01（DMG-004、Issue #194）: `APPLY_SHIELD`由来の付与だけが持つ。 */
   readonly shield?: ShieldState;
+  /** R-DOT-01〜04（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ。 */
+  readonly continuousDamage?: ContinuousDamageState;
   readonly duration: EffectDurationState;
-  /** 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。 */
+  /**
+   * 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。
+   * R-DOT-01（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の付与は
+   * `CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY`（`sourceAttack`）へ付与者の攻撃力を
+   * 記録し、以後は付与者の攻撃力変化・戦闘不能に影響されずこの値で計算する。
+   */
   readonly snapshot?: Readonly<Record<string, number>>;
   /**
    * `10_API設計.md`「EffectStateResponse」の`appliedTurnNumber`/`appliedActionId`。
