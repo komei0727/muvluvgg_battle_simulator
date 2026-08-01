@@ -949,6 +949,7 @@ describe("OpenAPI document", () => {
       EffectApplicationRejected: true,
       EffectiveEffectChanged: true,
       CombatStatChanged: true,
+      ResourceCapacityChanged: true,
       EffectDurationReduced: true,
       StunDurationChanged: true,
       FreezeRemoved: true,

@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 113,
-      "completed": 103,
-      "remaining": 10
+      "completed": 104,
+      "remaining": 9
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 47,
-      "implemented": 37
+      "implemented": 38
     }
   },
   "tasks": [
@@ -253,7 +253,7 @@
       "issue": 255,
       "phase": 2,
       "milestone": "M7",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "M7-003",
@@ -536,7 +536,7 @@
     },
     {
       "taskId": "DMG-006",
-      "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"]
+      "ruleIds": ["R-INT-01", "R-INT-02", "R-INT-03"]
     },
     {
       "taskId": "DMG-007",
@@ -622,7 +622,7 @@
         "capabilityId": "CAP_DEATH_SURVIVAL",
         "blockedUnits": 6,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 4,
+        "exclusivelyBlockedUnits": 5,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -637,13 +637,6 @@
         "blockedUnits": 3,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 2,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",
-        "blockedUnits": 1,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
         "exclusivelyBlockedMemories": 0
       },
       {

@@ -35,8 +35,26 @@ function initialState(): BattleStateSnapshot {
     status: "READY",
     currentTurn: 0,
     units: {
-      [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS },
-      [UNIT_B]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS },
+      [UNIT_A]: {
+        hp: 100,
+        ap: 0,
+        pp: 0,
+        extraGauge: 0,
+        maximumAp: 3,
+        maximumPp: 3,
+        maximumExtraGauge: 10,
+        combatStats: COMBAT_STATS,
+      },
+      [UNIT_B]: {
+        hp: 100,
+        ap: 0,
+        pp: 0,
+        extraGauge: 0,
+        maximumAp: 3,
+        maximumPp: 3,
+        maximumExtraGauge: 10,
+        combatStats: COMBAT_STATS,
+      },
     },
   };
 }
@@ -69,6 +87,9 @@ describe("applyStateDelta", () => {
       ap: 0,
       pp: 0,
       extraGauge: 0,
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 10,
       combatStats: COMBAT_STATS,
     });
     expect(next.units[UNIT_B]).toEqual({
@@ -76,6 +97,9 @@ describe("applyStateDelta", () => {
       ap: 0,
       pp: 0,
       extraGauge: 0,
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 10,
       combatStats: COMBAT_STATS,
     });
   });
@@ -991,8 +1015,26 @@ describe("reduceStateDeltas", () => {
       status: "COMPLETED",
       currentTurn: 1,
       units: {
-        [UNIT_A]: { hp: 100, ap: 2, pp: 3, extraGauge: 0, combatStats: COMBAT_STATS },
-        [UNIT_B]: { hp: 80, ap: 3, pp: 3, extraGauge: 0, combatStats: COMBAT_STATS },
+        [UNIT_A]: {
+          hp: 100,
+          ap: 2,
+          pp: 3,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+        [UNIT_B]: {
+          hp: 80,
+          ap: 3,
+          pp: 3,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
       },
     });
   });

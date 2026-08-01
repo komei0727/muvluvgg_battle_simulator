@@ -1674,6 +1674,25 @@ const combatStatChangedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `ResourceCapacityChanged`（G-09、M7-002A／Issue #255）。`MODIFY_RESOURCE_CAPACITY`
+ * 由来のAppliedEffectの付与・失効・解除でAP/PP/EXゲージの最大値が実際に変わった時だけ
+ * 発行する。`resource: HP`の上限は`MAXIMUM_HP` CombatStatであり`COMBAT_STAT_CHANGED`が
+ * 表すため、この`resource`はゲージ3種（`RESOURCE_KIND_ENUM`）だけを取る。
+ */
+const resourceCapacityChangedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["battleUnitId", "resource", "before", "after", "reason"],
+  properties: {
+    battleUnitId: { type: "string" },
+    resource: { type: "string", enum: RESOURCE_KIND_ENUM },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+    reason: { type: "string", enum: COMBAT_STAT_CHANGE_REASON_ENUM },
+  },
+} as const;
+
 /** `EffectDurationReduced`（R-EFF-04/06、EFF-003。TGT-004フェーズ1/Issue #167でSKILL_USE単位を追加）。行動・ターン・スキル使用単位効果の残り回数を1減らすたびに発行する。 */
 export const effectDurationReducedDetailsSchema = {
   type: "object",
@@ -1963,6 +1982,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   EFFECT_APPLICATION_REJECTED: effectApplicationRejectedDetailsSchema,
   EFFECTIVE_EFFECT_CHANGED: effectiveEffectChangedDetailsSchema,
   COMBAT_STAT_CHANGED: combatStatChangedDetailsSchema,
+  RESOURCE_CAPACITY_CHANGED: resourceCapacityChangedDetailsSchema,
   EFFECT_DURATION_REDUCED: effectDurationReducedDetailsSchema,
   STUN_DURATION_CHANGED: stunDurationChangedDetailsSchema,
   FREEZE_REMOVED: freezeRemovedDetailsSchema,

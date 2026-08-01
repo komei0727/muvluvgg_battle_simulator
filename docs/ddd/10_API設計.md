@@ -733,7 +733,13 @@ actionQueue: {
 UnitStateDeltaResponse {
   combatStatus?: ValueChange
   hp?: ValueChange
+  hpMaximum?: ValueChange
   resources?: {
+    ap?: ValueChange
+    pp?: ValueChange
+    extraGauge?: ValueChange
+  }
+  resourceMaximums?: {
     ap?: ValueChange
     pp?: ValueChange
     extraGauge?: ValueChange
@@ -751,6 +757,12 @@ UnitStateDeltaResponse {
   charge?: ValueChange
 }
 ```
+
+`resources` は `BattleUnitStateResponse.resources.{ap,pp,extraGauge}.current`（現在値）の差分、`resourceMaximums` は同じゲージの `.maximum`（上限）の差分であり、互いに独立に変化する（G-09／M7-002A・Issue #255、`MODIFY_RESOURCE_CAPACITY`）。
+
+HPも同じく `hp`（`hp.current` の差分）と `hpMaximum`（`hp.maximum` の差分）に分かれる。Domain側ではHP上限は `MAXIMUM_HP` 戦闘中ステータス（`stateDelta.combatStats.maximumHp`）だが、`CombatStatsResponse` は `maximumHp` を持たず `hp.maximum` が公開上の置き場所であるため、差分も同じ場所へ運ぶ。`APPLY_STAT_MOD(MAXIMUM_HP)` と `MODIFY_RESOURCE_CAPACITY(resource: HP)` の両方がこの差分を生む。
+
+`combatStats` は `BattleUnitStateResponse.combatStats` と同じキー集合だけを持ち、`maximumHp` は含まない（`hpMaximum` が運ぶ）。`criticalRate` / `affinityBonus` / `criticalDamageBonus` は `CombatStatsResponse` と同じくパーセントポイントで表す — 差分だけを比率のまま返すと、クライアントが `ValueChange.before` を現在値と突き合わせられない。
 
 `EntityCollectionDelta` は次の形式とする。
 

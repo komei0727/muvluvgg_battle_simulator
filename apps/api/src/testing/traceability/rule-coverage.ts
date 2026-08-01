@@ -1332,7 +1332,46 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
   { ruleId: "R-ACTN-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-ACTN-03", testCaseIds: [], kinds: [] },
+  // M7-002A（Issue #255、`CAP_RESOURCE_CAPACITY_MOD`／G-09）で、R-ACTN-03
+  // 「継続状態の付与」に初めて機械検証を登録した。`MODIFY_RESOURCE_CAPACITY`は
+  // 「付与後、影響するステータス…を再評価する」（同ルール第4項）のリソース上限版で
+  // あり、付与・失効・解除のたびに不変の基準から上限を再合成する
+  // （`resource-capacity-recalculation-service.ts`）。`APPLY_STAT_MOD`等の
+  // `AppliedEffect`保持そのものは引き続きR-EFF-01/R-STA-04側の台帳が担う。
+  {
+    ruleId: "R-ACTN-03",
+    testCaseIds: [
+      // 上限の再合成（純粋関数）: 基準・ADD合算・SET後勝ち・R-EFF-05の有効性・
+      // 0未満clamp・R-NUM-02切り捨て・HPだけCombatStat側へ合流。
+      "UT-R-ACTN-03-001",
+      "UT-R-ACTN-03-002",
+      "UT-R-ACTN-03-003",
+      "UT-R-ACTN-03-004",
+      "UT-R-ACTN-03-005",
+      "UT-R-ACTN-03-006",
+      "UT-R-ACTN-03-007",
+      "UT-R-ACTN-03-008",
+      "UT-R-ACTN-03-009",
+      // R-STA-04の再計算フックへの配線: `ResourceCapacityChanged`・変化なしでの
+      // 無発行・失効時の基準復帰と現在値clamp・HP上限低下での`UnitDefeated`。
+      "UT-R-ACTN-03-010",
+      "UT-R-ACTN-03-011",
+      "UT-R-ACTN-03-012",
+      "UT-R-ACTN-03-013",
+      "UT-R-ACTN-03-014",
+      // 実resolver経由の付与と、`EFFECT_IMMUNITY`による付与拒否。
+      "UT-R-ACTN-03-015",
+      "UT-R-ACTN-03-016",
+      // Catalogロード時点の`CAP_RESOURCE_CAPACITY_MOD`宣言必須。
+      "UT-R-ACTN-03-017",
+      "UT-R-ACTN-03-018",
+      // 実production定義（`ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP`）の実ライフサイクル。
+      "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-001",
+      "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-002",
+      "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
 
   // HIT: 命中
   {

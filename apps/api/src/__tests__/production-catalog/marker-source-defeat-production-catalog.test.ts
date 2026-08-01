@@ -171,6 +171,9 @@ function snapshotOf(unit: BattleUnit): BattleStateSnapshot["units"][BattleUnitId
     ap: unit.currentAp,
     pp: unit.currentPp,
     extraGauge: unit.currentExtraGauge,
+    maximumAp: unit.maximumAp,
+    maximumPp: unit.maximumPp,
+    maximumExtraGauge: unit.maximumExtraGauge,
     combatStats: unit.combatStats,
     ...(unit.appliedEffects.length > 0
       ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }

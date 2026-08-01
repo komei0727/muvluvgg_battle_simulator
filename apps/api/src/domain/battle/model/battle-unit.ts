@@ -50,10 +50,25 @@ export interface BattleUnit {
   readonly currentAp: number;
   readonly currentPp: number;
   readonly currentExtraGauge: number;
-  /** Fixed for the whole battle (`UnitDefinition.baseStats`/`extraGaugeMaximum`); carried on the unit so later turns can recover without re-consulting the Catalog. */
+  /**
+   * 現在有効な上限（G-09、M7-002A/Issue #255）。`MODIFY_RESOURCE_CAPACITY`の
+   * `AppliedEffect`が1件も無い間は`baseMaximumAp`等と同値であり、付与・失効・解除の
+   * たびに`baseMaximum*`から再合成し直す（`resource-capacity-recalculation-service.ts`）。
+   * `combatStats`と`baseCombatStats`の関係（R-STA-04）をリソース上限へそのまま
+   * 写したもの。
+   */
   readonly maximumAp: number;
   readonly maximumPp: number;
   readonly maximumExtraGauge: number;
+  /**
+   * Fixed for the whole battle (`UnitDefinition.baseStats`/`extraGaugeMaximum`);
+   * carried on the unit so later turns can recover without re-consulting the Catalog.
+   * `baseCombatStats`と同じ理由で不変な再合成の基準を別に持つ — 直前の`maximumAp`を
+   * 新しい基準にすると上限変更の付与順に結果が依存し、失効時に基準へ戻せない。
+   */
+  readonly baseMaximumAp: number;
+  readonly baseMaximumPp: number;
+  readonly baseMaximumExtraGauge: number;
   /** R-SKL-04: スキルごとのクールタイム状態。SkillDefinitionIdをキーとする。 */
   readonly cooldowns: CooldownMap;
   /** R-SKL-05: 発動待ちのチャージ。同時に1つだけ持てる。 */
@@ -113,6 +128,9 @@ export function createBattleUnit(
     maximumAp: limits.maximumAp,
     maximumPp: limits.maximumPp,
     maximumExtraGauge: limits.maximumExtraGauge,
+    baseMaximumAp: limits.maximumAp,
+    baseMaximumPp: limits.maximumPp,
+    baseMaximumExtraGauge: limits.maximumExtraGauge,
     cooldowns: {},
     appliedEffects: [],
     markerStates: [],

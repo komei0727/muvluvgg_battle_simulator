@@ -336,12 +336,34 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
     const finalState = {
       status: "RUNNING" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 0,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
 
     const result = assembleSimulationResult({
@@ -396,7 +418,18 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
     const finalState = {
       status: "RUNNING" as const,
@@ -407,6 +440,9 @@ describe("assembleSimulationResult", () => {
           ap: 1,
           pp: 0,
           extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
           cooldowns: { [skillDefinitionId]: { unit: "ACTION" as const, remaining: 1 } },
         },
@@ -451,7 +487,18 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
     // The recorded delta sets remaining to 2, but this finalState (wrongly)
     // claims 3 — a state-changing event's stateDelta silently dropped the real
@@ -465,6 +512,9 @@ describe("assembleSimulationResult", () => {
           ap: 1,
           pp: 0,
           extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
           cooldowns: { [skillDefinitionId]: { unit: "ACTION" as const, remaining: 3 } },
         },
@@ -526,7 +576,18 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
     // Claims a different setActionId than the one the delta actually recorded.
     const finalState = {
@@ -538,6 +599,9 @@ describe("assembleSimulationResult", () => {
           ap: 1,
           pp: 0,
           extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
           cooldowns: {
             [skillDefinitionId]: {
@@ -624,7 +688,18 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
     // The recorded delta grants an effect with magnitude 20, but this
     // finalState (wrongly) claims no effects at all — a state-changing
@@ -632,7 +707,18 @@ describe("assembleSimulationResult", () => {
     const finalState = {
       status: "RUNNING" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
 
     let error: unknown;
@@ -702,7 +788,18 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
     // The recorded delta grants a Marker with stackCount 1, but this
     // finalState (wrongly) claims no markers at all — a state-changing
@@ -710,7 +807,18 @@ describe("assembleSimulationResult", () => {
     const finalState = {
       status: "RUNNING" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
 
     let error: unknown;
@@ -780,7 +888,18 @@ describe("assembleSimulationResult", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 1, pp: 0, extraGauge: 0, combatStats: COMBAT_STATS } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 1,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats: COMBAT_STATS,
+        },
+      },
     };
     // The restored Marker has stackCount 1 (from the recorded delta above),
     // but this finalState (wrongly) claims stackCount 2 — a duplicate or
@@ -794,6 +913,9 @@ describe("assembleSimulationResult", () => {
           ap: 1,
           pp: 0,
           extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
           markers: [
             { markerInstanceId, markerId, sourceUnitId: UNIT_A, stackCount: 2, stackMax: null },

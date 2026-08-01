@@ -397,6 +397,21 @@ function applyUnitDelta(
   if (delta.extraGauge !== undefined) {
     assertBeforeMatches(`${path}.extraGauge`, unit.extraGauge, delta.extraGauge);
   }
+  // G-09（M7-002A／Issue #255）: `ResourceCapacityChanged`が単独で所有する上限差分。
+  // 現在値（`ap`等）とは独立に変化するため別キーとして検証・適用する。
+  if (delta.maximumAp !== undefined) {
+    assertBeforeMatches(`${path}.maximumAp`, unit.maximumAp, delta.maximumAp);
+  }
+  if (delta.maximumPp !== undefined) {
+    assertBeforeMatches(`${path}.maximumPp`, unit.maximumPp, delta.maximumPp);
+  }
+  if (delta.maximumExtraGauge !== undefined) {
+    assertBeforeMatches(
+      `${path}.maximumExtraGauge`,
+      unit.maximumExtraGauge,
+      delta.maximumExtraGauge,
+    );
+  }
   const cooldowns = applyCooldownDeltas(`${path}.cooldowns`, unit.cooldowns, delta.cooldowns);
   if (delta.charge !== undefined) {
     assertChargeBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
@@ -446,6 +461,9 @@ function applyUnitDelta(
     ap: delta.ap?.after ?? unit.ap,
     pp: delta.pp?.after ?? unit.pp,
     extraGauge: delta.extraGauge?.after ?? unit.extraGauge,
+    maximumAp: delta.maximumAp?.after ?? unit.maximumAp,
+    maximumPp: delta.maximumPp?.after ?? unit.maximumPp,
+    maximumExtraGauge: delta.maximumExtraGauge?.after ?? unit.maximumExtraGauge,
     combatStats,
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),

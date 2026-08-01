@@ -246,7 +246,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // サイクル検証（`IT-CAP-CHARGE-RESTRICTION-PROD-001`〜`005`）を登録した。
     // ここで昇格した10 Unitの定義は変わらないため期待値は据え置き
     // （新たにselectableになるのは`UNIT_MIRIAM_MAGE`・`UNIT_SIENA_OFFSTAGE`）。
-    expect(catalog.catalogRevision).toBe("2026-08-02.1");
+    // Bumped again by M7-002A (Issue #255): `CAP_RESOURCE_CAPACITY_MOD`を
+    // `IMPLEMENTED`へ更新し、`verification`へ`ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP`の
+    // 実ライフサイクル検証（`IT-CAP-RESOURCE-CAPACITY-MOD-PROD-001`〜`003`）を
+    // 登録した。`UNIT_FLUTE_VAMPIRE`は`CAP_DEATH_SURVIVAL`（#188）で非selectableの
+    // ままであり、昇格10 Unitの定義・selectable集合はどちらも変わらない。
+    expect(catalog.catalogRevision).toBe("2026-08-02.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

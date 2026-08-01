@@ -892,6 +892,26 @@ function modifyResourceDistributeAction(
   );
 }
 
+function modifyResourceCapacityAction(
+  id: string,
+  requiredCapabilities: readonly string[] = ["CAP_RESOURCE_CAPACITY_MOD"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "MODIFY_RESOURCE_CAPACITY",
+      payload: {
+        resource: "AP",
+        operation: "ADD",
+        formula: { kind: "CONSTANT", value: 1 },
+        duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function sumDamageHealAction(
   id: string,
   requiredCapabilities: readonly string[] = ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
@@ -1855,6 +1875,44 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_DISTRIBUTE",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-ACTN-03-017 (G-09, M7-002A Issue #255): accepts a MODIFY_RESOURCE_CAPACITY that declares the required CAP_RESOURCE_CAPACITY_MOD capability", () => {
+    const defs = baseDefinitions();
+    const withCapacity: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MAX_AP_UP")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, modifyResourceCapacityAction("ACT_MAX_AP_UP")],
+      capabilities: [capability("CAP_RESOURCE_CAPACITY_MOD")],
+    };
+
+    const index = buildCatalogIndex(withCapacity);
+
+    expect(index.effectActions.get("ACT_MAX_AP_UP" as never)).toBeDefined();
+  });
+
+  it("UT-R-ACTN-03-018 (G-09, M7-002A Issue #255): rejects a MODIFY_RESOURCE_CAPACITY missing the required CAP_RESOURCE_CAPACITY_MOD capability, so an undeclared capacity change is caught at Catalog load time", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MAX_AP_UP")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, modifyResourceCapacityAction("ACT_MAX_AP_UP", [])],
+      capabilities: [capability("CAP_RESOURCE_CAPACITY_MOD")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_MAX_AP_UP",
         ),
       ).toBe(true);
     }

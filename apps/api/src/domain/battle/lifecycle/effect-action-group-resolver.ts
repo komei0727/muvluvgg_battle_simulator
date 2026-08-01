@@ -1815,6 +1815,121 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "MODIFY_RESOURCE_CAPACITY") {
+    // G-09（`14_Catalog定義スキーマ.md`「MODIFY_RESOURCE_CAPACITY」、M7-002A／
+    // Issue #255、`CAP_RESOURCE_CAPACITY_MOD`）: `MODIFY_RESOURCE`が現在値の
+    // 一回限りの加減算であるのに対し、こちらは**上限そのもの**を`duration`の間
+    // 変える継続効果（R-ACTN-03）。`APPLY_STAT_MOD`と同じ評価規約で`formula`を
+    // 付与時点に一度だけ評価し、結果を`magnitude`へ保持したうえで、
+    // `recalculateCombatStats`（R-STA-04の再計算フック）が`baseMaximum*`から
+    // 上限を再合成する（`resource-capacity-recalculation-service.ts`）。
+    // 失効・解除時も同じフックを通るため、上限は明示的な巻き戻し処理なしに
+    // 基準へ戻る。
+    // `payload`に`stacking`を持たない（`14_Catalog定義スキーマ.md`）ため、
+    // `APPLY_RESOURCE_GAIN_MOD`と同じく常に重複あり（`duplicate: true`）で付与する。
+    const actor = findActorUnit(context, box);
+    const magnitude = evaluateFormula(effectAction.payload.formula, {
+      ...(actor !== undefined ? { skillSource: actor } : {}),
+      ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
+      target: requireUnit(box.units, application.targetBattleUnitId),
+      allUnits: box.units,
+      ...(actor !== undefined
+        ? {
+            lastResults: damageResultsFor(
+              context.damageResults,
+              actor.battleUnitId,
+              context.skillUseId,
+            ),
+          }
+        : {}),
+    });
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const beforeGrantUnits = box.units;
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          definition: effectAction,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      const recalculation = recalculateCombatStats(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        beforeGrantUnits,
+        box.units,
+        application.targetBattleUnitId,
+        context.definitions.effectActions,
+        grantResult.lastEventId,
+        "EFFECT_APPLIED",
+      );
+      box.units = recalculation.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = recalculation.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else if (effectAction.kind === "MODIFY_RESOURCE") {
     // R-ACTN-02＋M7-002（Issue #185、HP_DIRECT_COST）: AP/PP/EX_GAUGEの一回限りの
     // 加減算に加え、`resource: HP`で防御力・会心などの通常ダメージ処理を経由せず
@@ -2487,7 +2602,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE_CAPACITY"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
