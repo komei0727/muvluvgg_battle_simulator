@@ -234,7 +234,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `IT-CAP-TATIANA-OMEN-PROD-001`〜`005`（`SKL_TATIANA_SAGE_EX`の「凶兆」
     // しきい値分岐の実ライフサイクル検証）を追加した。Unit・Skill・Effectの
     // 定義自体は変えていないため期待値は据え置き。
-    expect(catalog.catalogRevision).toBe("2026-08-01.9");
+    // Bumped again by M7-015 (Issue #269): `CAP_MARKER_STACK_FORMULA`を
+    // `IMPLEMENTED`へ更新し、`verification`へ`MARKER_COUNT_SCALE`の実ライフ
+    // サイクル検証（`IT-CAP-MARKER-STACK-PROD-001`〜`006`）を登録した。
+    // Unit・Skill・Effectの定義自体は変えていないため期待値は据え置き。
+    expect(catalog.catalogRevision).toBe("2026-08-01.10");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
