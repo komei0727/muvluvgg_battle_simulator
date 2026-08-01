@@ -702,7 +702,7 @@ describe("applyStateDelta", () => {
     expect(removed.units[UNIT_B]!.effects ?? []).toEqual([]);
   });
 
-  it("UT-R-EFF-01-055 (DMG-002、Issue #192、R-DMG-04): an APPLY_DAMAGE_MOD delta round-trips its direction, damageType and dynamic condition through the independent Reducer", () => {
+  it("UT-R-DMG-04-014 (DMG-002、Issue #192、R-DMG-04): an APPLY_DAMAGE_MOD delta round-trips its direction, damageType and dynamic condition through the independent Reducer", () => {
     const damageMod: EffectSnapshot = {
       effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
       effectDefinitionId: "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
@@ -736,7 +736,7 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_B]!.effects).toEqual([damageMod]);
   });
 
-  it("UT-R-EFF-01-056 (DMG-002、Issue #192): a delta whose before.damageModifier disagrees with the stored one is rejected instead of silently accepted", () => {
+  it("UT-R-DMG-04-015 (DMG-002、Issue #192): a delta whose before.damageModifier disagrees with the stored one is rejected instead of silently accepted", () => {
     const damageMod: EffectSnapshot = {
       effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
       effectDefinitionId: "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD",
