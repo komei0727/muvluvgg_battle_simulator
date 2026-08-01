@@ -1001,6 +1001,15 @@ interface AbsorptionBeforeHitPoints {
   readonly untypedShieldAbsorbed: number;
   /** R-SHD-02 #4／R-SUB-01: サブユニットの吸収量。 */
   readonly subUnitAbsorbed: number;
+  /**
+   * PR #289再レビュー[P2]: 吸収イベント（`ShieldConsumed`/`SubUnitDamaged`）の
+   * PS/Memory連鎖が前提を崩したため、残りの吸収先へ進まずに打ち切ったことを表す。
+   * `INTERRUPT`は使用者の戦闘不能（R-SKL-01「使用者が戦闘不能になった場合、未解決
+   * 効果を中断する」）、`SKIP`は対象の戦闘不能（R-ACTN-01 #2）。どちらの場合も
+   * 呼び出し側はHP適用と`HitPointReduced`以降のイベントへ進んではならない —
+   * 既に解決した吸収だけを残してこのヒットを終える。
+   */
+  readonly interruption: "NONE" | "INTERRUPT" | "SKIP";
   readonly lastEventId: DomainEventId;
 }
 
@@ -1043,17 +1052,24 @@ function* absorbBeforeHitPointsSteps(
   const absorbedByPool = new Map<DamageType | null, number>();
   let remaining = poolDamage;
   let lastEventId = parentEventId;
+  let interruption: AbsorptionBeforeHitPoints["interruption"] = "NONE";
   /**
    * PR #289レビュー[P2]（DMG-005、Issue #190）: `ShieldConsumed`/`SubUnitDamaged`起点の
    * PS/Memory即時連鎖は`working`を書き換え得る（攻撃者・対象を戦闘不能にする等）。
    * R-SKL-01/R-SKL-03の中断契約に従い、連鎖の解決後は毎回この判定を通してから
-   * 次の吸収先へ進む。ここで打ち切った残ダメージは`applyConfirmedDamageSteps`が
-   * HPへ向ける（対象が既にHP0なら`discardedDamage`として破棄され、
-   * `08_ドメインイベント.md`不変条件#6はそのまま成立する）。
+   * 次の吸収先へ進む。
+   *
+   * PR #289再レビュー[P2]: 打ち切った事実を戻り値へ載せる。以前は残ダメージを
+   * そのままHPへ向けていたため、「使用者が戦闘不能になった後もそのヒットのHP適用だけは
+   * 続く」というR-SKL-01違反が残っていた。
    */
   const absorptionInterrupted = (): boolean => {
     const revalidation = revalidateHit(context, working, attackerUnitId, targetUnitId);
-    return revalidation.kind !== "CONTINUE";
+    if (revalidation.kind === "CONTINUE") {
+      return false;
+    }
+    interruption = revalidation.kind;
+    return true;
   };
   // 「対応しないタイプありシールドへダメージを適用しない」（R-SHD-02末尾）ため、
   // このヒットの`damageType`と一致するタイプありプールと、タイプなしプールだけを
@@ -1111,6 +1127,7 @@ function* absorbBeforeHitPointsSteps(
         typedShieldAbsorbed: absorbedByPool.get(damageType) ?? 0,
         untypedShieldAbsorbed: absorbedByPool.get(null) ?? 0,
         subUnitAbsorbed: 0,
+        interruption,
         lastEventId,
       };
     }
@@ -1173,9 +1190,19 @@ function* absorbBeforeHitPointsSteps(
     typedShieldAbsorbed: absorbedByPool.get(damageType) ?? 0,
     untypedShieldAbsorbed: absorbedByPool.get(null) ?? 0,
     subUnitAbsorbed,
+    interruption,
     lastEventId,
   };
 }
+
+/**
+ * `applyConfirmedDamageSteps`の結果。`APPLIED`以外は吸収の途中でPS/Memory連鎖が前提を
+ * 崩したことを表し、`INTERRUPT`（使用者の戦闘不能）は残りのヒットも中断させる。
+ */
+type ConfirmedDamageApplication = {
+  readonly kind: "APPLIED" | "INTERRUPT" | "SKIP";
+  readonly lastEventId: DomainEventId;
+};
 
 /**
  * R-DMG-05 #6〜#8 ＋ R-SHD-02/R-SUB-01: 確定した1ヒットのダメージ量を実際に適用する
@@ -1197,7 +1224,7 @@ function* applyConfirmedDamageSteps(
   >,
   finalDamage: number,
   parentEventId: DomainEventId,
-): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
   let lastEventId = parentEventId;
   const targetBeforeAbsorption = findUnit(working, targetUnitId, "hits[].targetBattleUnitId");
 
@@ -1213,6 +1240,17 @@ function* applyConfirmedDamageSteps(
     { effectActionDefinitionId: profile.effectActionDefinitionId, hitIndex: profile.hitIndex },
   );
   lastEventId = absorption.lastEventId;
+  if (absorption.interruption !== "NONE") {
+    // PR #289再レビュー[P2]: 吸収イベントの連鎖が使用者を戦闘不能にした
+    // （R-SKL-01「未解決効果を中断する」）、または対象を戦闘不能にした
+    // （R-ACTN-01 #2）場合、このヒットはHPへ到達しない。既に解決した吸収
+    // （`ShieldConsumed`/`SubUnitDamaged`が自身のStateDeltaで記録済み）はそのまま残し、
+    // `HitPointReduced`以降のイベントは発行しない。
+    // R-SKL-08: 確定した`DamageApplied`を持たないヒットは、他の不成立ヒットと同じく
+    // 直前結果へ0を記録する（以前の成功結果を透けて見せないため）。
+    recordDamageResult(context.damageResults, attackerUnitId, targetUnitId, 0, context.skillUseId);
+    return { kind: absorption.interruption, lastEventId };
+  }
 
   // 吸収の連鎖（`ShieldConsumed`/`SubUnitDamaged`/`EffectExpired`）の解決後の
   // 最新状態からHPを起点にする。
@@ -1370,7 +1408,7 @@ function* applyConfirmedDamageSteps(
     "INCOMING_HIT",
     lastEventId,
   );
-  return lastEventId;
+  return { kind: "APPLIED", lastEventId };
 }
 
 /**
@@ -1532,19 +1570,46 @@ function* applyOneSubUnitAdditionalDamageSteps(
   const owner = observation.attacker;
   const target = observation.target;
 
-  const preTruncationDamage = evaluateFormula(
+  const formulaContext = {
+    skillSource: owner,
+    target,
+    allUnits: Array.from(working.values()),
+    subUnitProviderAttack: source.providerAttack,
+  };
+  const formulaResult = evaluateFormula(
     source.additionalDamage.formula,
-    {
-      skillSource: owner,
-      target,
-      allUnits: Array.from(working.values()),
-      subUnitProviderAttack: source.providerAttack,
-    },
+    formulaContext,
     "subUnit.additionalDamage.formula",
   );
+  // R-DMG-04（DMG-002、Issue #192）: 与／被ダメージ補正は「攻撃側／防御側に有効な
+  // `APPLY_DAMAGE_MOD`を集計する」規則であり、ダメージの出どころを限定していない。
+  // R-DOT-01が継続ダメージについて「ダメージ軽減・増加、属性相性の影響を受けない」と
+  // 明示的に除外しているのに対し、R-SUB-02が除外するのは防御力減衰だけであるため、
+  // 1ヒットとして扱う追加ダメージにはこの補正が乗る。
+  //
+  // PR #289再レビュー[P2]: 以前は`DamageWillBeApplied`（`observeHitSteps`が集計）が
+  // 実際の倍率を通知しながら`DamageCalculated`は常に1で計算しており、公開イベントと
+  // `EVENT_PAYLOAD`条件が「実際には適用されない補正」を観測していた。集計は
+  // R-DMG-04末尾どおり`DamageWillBeApplied`の連鎖解決**後**にやり直す。
+  const damageModifierMultipliers = composeDamageModifiers({
+    attacker: owner,
+    defender: target,
+    damageType: profile.damageType,
+    damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
+  });
   // Q-DMG-01「ダメージ計算の途中では丸めず、最終結果で小数部分を切り捨てる」＋
-  // R-DMG-02 #1/#3「最低1ダメージ」。
-  const finalDamage = Math.max(1, Math.floor(preTruncationDamage));
+  // R-DMG-02 #1/#3「最低1ダメージ」。属性相性（`attributeMultiplier`）と会心倍率が
+  // 1のままなのは、R-SUB-02の計算式がそれらの項を持たないためである（`calculateDamage`の
+  // 基本ダメージ式自体を経由しない）。
+  const preTruncationDamage =
+    formulaResult *
+    damageModifierMultipliers.outgoingMultiplier *
+    damageModifierMultipliers.incomingMultiplier;
+  const truncatedDamage = Math.max(1, Math.floor(preTruncationDamage));
+  // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: 通常ヒットと同じく、
+  // 切り捨て後の値を「incoming raw damage」として対象の有効なDAMAGE_IMMUNITYを判定する。
+  const damageImmunity = resolveDamageImmunity(target, truncatedDamage, formulaContext);
+  const finalDamage = damageImmunity.nullified ? 1 : truncatedDamage;
 
   const damageCalculated = context.recorder.record({
     eventType: "DamageCalculated",
@@ -1571,13 +1636,12 @@ function* applyOneSubUnitAdditionalDamageSteps(
       defenseIgnoreRate: profile.piercing.defenseIgnoreRate,
       shieldIgnoreRate: profile.piercing.shieldIgnoreRate,
       damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
-      // `DamageCalculated.skillPower`はFormula評価結果そのもの。追加ダメージでは
-      // それが（丸め前の）ダメージ量そのものになる。
-      skillPower: preTruncationDamage,
+      // `DamageCalculated.skillPower`はFormula評価結果そのもの（補正適用前）。
+      skillPower: formulaResult,
       attributeMultiplier: 1,
       criticalMultiplier: observation.critical.multiplier,
-      outgoingDamageMultiplier: 1,
-      incomingDamageMultiplier: 1,
+      outgoingDamageMultiplier: damageModifierMultipliers.outgoingMultiplier,
+      incomingDamageMultiplier: damageModifierMultipliers.incomingMultiplier,
       actionDamageMultiplier: 1,
       preTruncationDamage,
       finalDamage,
@@ -1585,7 +1649,7 @@ function* applyOneSubUnitAdditionalDamageSteps(
     },
   });
 
-  let lastEventId = yield* applyConfirmedDamageSteps(
+  const application = yield* applyConfirmedDamageSteps(
     context,
     working,
     owner.battleUnitId,
@@ -1594,13 +1658,27 @@ function* applyOneSubUnitAdditionalDamageSteps(
     finalDamage,
     damageCalculated.eventId,
   );
+  let lastEventId = application.lastEventId;
+  if (application.kind !== "APPLIED") {
+    return lastEventId;
+  }
 
   // R-SUB-02第3項「追加デバフが定義されている場合も対象ごとに適用する」。
   // 追加ダメージの適用が完了した後に付与する — デバフ（例:
   // `SKL_SHIRANA_SORA_AS1`の行動速度-20）が対象のCombatStatを変える前に、この
   // 追加ダメージ自身の計算を終えておくためである。
+  //
+  // PR #289再レビュー[P2]: 付与の直前に前提を再検証する。この追加ダメージ自身が
+  // 対象を倒した場合や、`DamageApplied`/`UnitDefeated`の連鎖が使用者を倒した場合、
+  // 付与フックは通常のEffectAction解決（`effect-action-group-resolver.ts`の
+  // R-ACTN-01 #2判定）を経由せず直接`grantEffect`まで進むため、ここで止めないと
+  // 戦闘不能な対象へデバフが残り、R-SKL-01の中断契約にも反する。
   const debuff = source.additionalDamage.debuff;
   if (debuff !== undefined && context.grantSubUnitAdditionalDamageDebuff !== undefined) {
+    const beforeDebuff = revalidateHit(context, working, owner.battleUnitId, target.battleUnitId);
+    if (beforeDebuff.kind !== "CONTINUE") {
+      return lastEventId;
+    }
     const granted = yield* driveRemovalSteps(
       context,
       working,
@@ -1948,7 +2026,7 @@ export function* applyDamageActionSteps(
     // R-DMG-05 #6〜#8: 確定したダメージ量の適用（吸収先への振り分け→HP→
     // `HitPointReduced`→`DamageApplied`→`UnitDefeated`→連鎖→R-EFF-07のヒット消費）も、
     // サブユニット追加ダメージ（R-SUB-02）と共有する`applyConfirmedDamageSteps`が行う。
-    lastEventId = yield* applyConfirmedDamageSteps(
+    const application = yield* applyConfirmedDamageSteps(
       context,
       working,
       attackerBeforeDamage.battleUnitId,
@@ -1962,6 +2040,19 @@ export function* applyDamageActionSteps(
       damageResult.finalDamage,
       lastEventIdBeforeHp,
     );
+    lastEventId = application.lastEventId;
+    // PR #289再レビュー[P2]: 吸収の連鎖が使用者を戦闘不能にしたなら、このヒットの
+    // HP適用ごと中断して残りのヒットも解決しない（R-SKL-01/R-SKL-03）。対象側の
+    // 戦闘不能はこのヒットだけを不成立にする（R-ACTN-01 #2）。
+    if (application.kind === "INTERRUPT") {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+    if (application.kind === "SKIP") {
+      outcomes.push(skip(hit));
+      continue;
+    }
 
     outcomes.push({
       targetBattleUnitId: hit.targetBattleUnitId,

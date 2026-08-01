@@ -3486,6 +3486,120 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03, PR #289
     expect(updatedTarget.currentHp).toBe(1000);
   });
 
+  it("UT-R-SUB-02-014 (R-DMG-04, PR #289再レビュー[P2]): the additional damage applies the same damage modifiers it advertises in DamageWillBeApplied", () => {
+    const context = damageEventContext();
+    const attacker = attackerHoldingSubUnit();
+    const baseTarget = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    // 被ダメージ-50%のデバフ（R-DMG-04、`direction: INCOMING`）を対象へ持たせる。
+    const incomingHalf: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("DMG_MOD"),
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_DMG_MOD"),
+      kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_DMG_MOD")),
+      duplicate: true,
+      targetId: createBattleUnitId("TARGET"),
+      magnitude: -0.5,
+      categories: ["DAMAGE_MOD"],
+      damageModifier: { direction: "INCOMING", damageType: null },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const target: BattleUnit = { ...baseTarget, appliedEffects: [incomingHalf] };
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const additionalCalculated = context.recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "DamageCalculated" &&
+          (event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+            SUBUNIT_DEFINITION_ID,
+      );
+    expect(additionalCalculated).toHaveLength(1);
+    // 所持者30 + 付与者100×0.5 - 防御10 = 70、被ダメージ-50%で 35。
+    expect(additionalCalculated[0]!.payload).toMatchObject({
+      skillPower: 70,
+      incomingDamageMultiplier: 0.5,
+      outgoingDamageMultiplier: 1,
+      preTruncationDamage: 35,
+      finalDamage: 35,
+    });
+
+    // 公開イベントの整合: `DamageWillBeApplied`のsnapshotと確定値が一致する。
+    const additionalWillBeApplied = context.recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "DamageWillBeApplied" &&
+          (event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+            SUBUNIT_DEFINITION_ID,
+      );
+    expect(additionalWillBeApplied[0]!.payload).toMatchObject({
+      incomingDamageMultiplier: 0.5,
+      outgoingDamageMultiplier: 1,
+    });
+  });
+
+  it("UT-R-SUB-02-015 (R-ACTN-01 #2, PR #289再レビュー[P2]): no accompanying debuff is granted when the additional damage defeats the target", () => {
+    const granted: string[] = [];
+    const base = damageEventContext();
+    const context: DamageEventContext = {
+      ...base,
+      grantSubUnitAdditionalDamageDebuff: function* (
+        targetUnitId,
+        debuffEffectActionDefinitionId,
+        _ownerUnitId,
+        units,
+        parentEventId,
+      ) {
+        granted.push(`${targetUnitId}:${debuffEffectActionDefinitionId}`);
+        const injected = yield { events: [], units };
+        return { units: injected ?? units, lastEventId: parentEventId };
+      },
+    };
+    const withDebuff: AppliedEffect = {
+      ...subUnitEffect("ATTACKER"),
+      subUnit: {
+        durability: 50,
+        additionalDamage: {
+          ...ADDITIONAL_DAMAGE,
+          debuff: { effectActionDefinitionId: createEffectActionDefinitionId("ACT_SPEED_DOWN") },
+        },
+      },
+    };
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const attackerWithSubUnit: BattleUnit = { ...attacker, appliedEffects: [withDebuff] };
+    // 通常ヒット(20)では死なず、追加ダメージ(70)で戦闘不能になるHPにする。
+    const baseTarget = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 50 });
+    const target: BattleUnit = {
+      ...baseTarget,
+      currentHp: createHitPoint(50, baseTarget.combatStats.maximumHp),
+    };
+
+    const result = applyDamageAction(
+      attackerWithSubUnit,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attackerWithSubUnit, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(updatedTarget.currentHp).toBe(0);
+    // 追加ダメージ自身が対象を倒したので、付随デバフは付与しない。
+    expect(granted).toEqual([]);
+  });
+
   it("UT-R-SUB-01-011 (R-SKL-01/R-SKL-03, PR #289レビュー[P2]): a SubUnitDamaged chain that defeats the attacker stops the remaining absorption", () => {
     const context = damageEventContext();
     const attacker = unit("ATTACKER", "ALLY", { attack: 200, maximumHp: 100 });
@@ -3537,15 +3651,15 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03, PR #289
         (e) => e.effectInstanceId === createEffectInstanceId("SUB_B"),
       )?.subUnit?.durability,
     ).toBe(10);
-    // 中断しても保存則は崩れない（吸収しなかった分はHP/超過破棄が引き受ける）。
-    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
-    const payload = applied.payload as unknown as Record<string, number>;
-    expect(
-      payload["typedShieldAbsorbed"]! +
-        payload["untypedShieldAbsorbed"]! +
-        payload["subUnitAbsorbed"]! +
-        payload["hitPointDamage"]! +
-        payload["discardedDamage"]!,
-    ).toBe(payload["calculatedDamage"]);
+    // PR #289再レビュー[P2]: 使用者が戦闘不能になった時点で「未解決効果を中断する」
+    // （R-SKL-01）。解決済みの吸収（1体目の`SubUnitDamaged`）だけが残り、HP適用と
+    // `HitPointReduced`以降のイベントは発行されない。
+    expect(context.recorder.getEvents().filter((e) => e.eventType === "HitPointReduced")).toEqual(
+      [],
+    );
+    expect(context.recorder.getEvents().filter((e) => e.eventType === "DamageApplied")).toEqual([]);
+    expect(updatedTarget.currentHp).toBe(1000);
+    expect(result.interruptedCount).toBe(1);
+    expect(result.hits.map((outcome) => outcome.applied)).toEqual([false]);
   });
 });
