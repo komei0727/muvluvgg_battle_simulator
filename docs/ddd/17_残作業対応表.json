@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 47,
-      "implemented": 36
+      "implemented": 37
     }
   },
   "tasks": [
@@ -597,20 +597,13 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 51,
+      "selectableProductionUnits": 53,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
       "selectableMemories": 31
     },
     "blockingCapabilities": [
-      {
-        "capabilityId": "CAP_CHARGE_RESTRICTION",
-        "blockedUnits": 2,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 2,
-        "exclusivelyBlockedMemories": 0
-      },
       {
         "capabilityId": "CAP_COVER_DAMAGE",
         "blockedUnits": 3,

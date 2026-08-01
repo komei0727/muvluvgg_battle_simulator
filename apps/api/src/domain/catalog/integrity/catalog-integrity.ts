@@ -215,6 +215,7 @@ const TRIGGER_CONTEXT_TARGET_KINDS = new Set(["TRIGGER_SOURCE", "TRIGGER_TARGET"
 const LAST_RESULT_TARGET_KINDS = new Set(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"]);
 type RuntimeStructuralCapabilityId =
   | "CAP_ACTION_ACTIVATION_CONDITION"
+  | "CAP_CHARGE_RESTRICTION"
   | "CAP_PASSIVE_ACTIVATION_CONDITION"
   | "CAP_EFFECT_RUNTIME_COUNTER"
   | "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"
@@ -1365,6 +1366,23 @@ function validateSkill(
       skill.resolution.chargeRelease.steps,
       effectActions,
       skill.skillDefinitionId,
+      violations,
+    );
+  }
+  // M7-016（Issue #270）: `resolution.kind: CHARGE`はチャージ状態そのものを作る
+  // 唯一の定義形であり、チャージ中はR-HIT-02/R-HIT-04の回避効果が発動せず
+  // （`hit-policy.ts`の`resolveEvasion`）、R-PS-04で所有者のPS候補も破棄される
+  // （`passive-trigger-matcher.ts`/`reconfirm-passive-candidate.ts`）。この制限は
+  // Catalog定義側に固有の目印を持たないため、`CAP_MARKER_STACK_FORMULA`と同じ
+  // 「宣言漏れ自体を拒否する」パターンで`CAP_CHARGE_RESTRICTION`の宣言を必須にし、
+  // Capability→production定義の追跡可能性を保つ（`checkRequiredCapabilities`は
+  // 列挙済みCapabilityの存在有無しか見ないため、宣言漏れは素通りしてしまう）。
+  if (skill.resolution.kind === "CHARGE") {
+    requireRuntimeCapability(
+      skill.skillDefinitionId,
+      skill.requiredCapabilities,
+      "CAP_CHARGE_RESTRICTION",
+      "a CHARGE resolution (evasion and passive skills are suppressed while the charge is pending)",
       violations,
     );
   }

@@ -241,7 +241,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 監査時点の値から本PR後の実測（`UNIT_CHIYURU_NEWYEAR`・`UNIT_FEE_BATH`が
     // selectable）へ訂正した分。Unit・Skill・Effectの定義自体は変えていない
     // ため期待値は据え置き。
-    expect(catalog.catalogRevision).toBe("2026-08-01.11");
+    // Bumped again by M7-016 (Issue #270): `CAP_CHARGE_RESTRICTION`を
+    // `IMPLEMENTED`へ更新し、`verification`へチャージ中の回避・PS制限の実ライフ
+    // サイクル検証（`IT-CAP-CHARGE-RESTRICTION-PROD-001`〜`005`）を登録した。
+    // ここで昇格した10 Unitの定義は変わらないため期待値は据え置き
+    // （新たにselectableになるのは`UNIT_MIRIAM_MAGE`・`UNIT_SIENA_OFFSTAGE`）。
+    expect(catalog.catalogRevision).toBe("2026-08-02.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

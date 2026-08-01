@@ -124,7 +124,9 @@ function chargeSkill(id: string): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities: [],
+    // M7-016（Issue #270）: `resolution.kind: CHARGE`は`CAP_CHARGE_RESTRICTION`の
+    // 宣言が必須（`catalog-integrity.ts`の`validateSkill`）。
+    requiredCapabilities: ["CAP_CHARGE_RESTRICTION"],
     metadata: { displayName: "Charge" },
   });
 }
@@ -229,6 +231,8 @@ function capability(id: string, status = "IMPLEMENTED"): CapabilityDefinition {
     CAP_MEMORY: "MEM_001",
     CAP_MEMORY_TRIGGERED_EFFECT: "MEM_001",
     CAP_MEMORY_ACTION: "ACT_DAMAGE_MEMORY",
+    // M7-016（Issue #270）: `resolution.kind: CHARGE`が宣言必須にしたCapability。
+    CAP_CHARGE_RESTRICTION: "SKL_CHARGE",
   };
   const evidenceDefinitionId = evidenceDefinitionIds[id];
   return createCapabilityDefinition({
@@ -282,7 +286,7 @@ describe("InMemoryBattleCatalog.loadSnapshot", () => {
         damageAction("ACT_DAMAGE_AS"),
       ],
       memories: [],
-      capabilities: [],
+      capabilities: [capability("CAP_CHARGE_RESTRICTION")],
     };
     const catalog = new InMemoryBattleCatalog("rev-1", buildCatalogIndex(defs));
     const snapshot = catalog.loadSnapshot(["UNIT_001" as never], []);
