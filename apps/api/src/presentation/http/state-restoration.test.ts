@@ -10,6 +10,7 @@ import type {
   BattleUnitStateResponseBody,
   ChargeStateResponseBody,
   CooldownStateResponseBody,
+  EffectStateResponseBody,
   MarkerStateResponseBody,
   StateTransitionResponseBody,
   UnitStateDeltaResponseBody,
@@ -167,6 +168,51 @@ function markerEffectAction(id: string): EffectActionDefinition {
   };
 }
 
+/**
+ * G-09（M7-002A・Issue #255、PR #294レビュー[P1]）: `resource: HP`の上限変更。
+ * HPゲージの上限は`MAXIMUM_HP` CombatStatそのもののため、差分は
+ * `stateDelta.combatStats.maximumHp`（公開レスポンスでは`hpMaximum`）として出る。
+ * 自分自身へ`ADD +500`する形にして、`hp.maximum`だけが動くシナリオにする。
+ */
+function hpCapacityEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "MODIFY_RESOURCE_CAPACITY",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [createCapabilityId("CAP_RESOURCE_CAPACITY_MOD")],
+    metadata: { tags: [] },
+    payload: {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: 500 },
+      duration: {
+        dispellable: false,
+        linkedEffectGroupId: null,
+        timeLimit: { unit: "BATTLE", count: 1 },
+      },
+    },
+  };
+}
+
+/** `attackSkill`のSELF版。上限変更を自分自身へ適用する。 */
+function selfTargetedSkill(id: string, effectActionId: string): SkillDefinition {
+  return {
+    ...attackSkill(id, effectActionId),
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+        },
+      ],
+    },
+  };
+}
+
 class FakeBattleCatalog implements BattleCatalog {
   private readonly units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>;
   private readonly skills: ReadonlyMap<ReturnType<typeof createSkillDefinitionId>, SkillDefinition>;
@@ -281,6 +327,34 @@ function applyMarkersDelta(
   return next;
 }
 
+/**
+ * `applyMarkersDelta`と同じ`EntityCollectionDelta`規約の`effects`版（R-EFF-01）。
+ * PR #294レビュー[P1]の`MODIFY_RESOURCE_CAPACITY`シナリオが、この復元経路を通る
+ * 最初のHTTPシナリオになった（従来のシナリオはMarkerとHP/リソースだけを動かして
+ * いたため、`effects`差分が落ちていても復元一致検証を素通りしていた）。
+ */
+function applyEffectsDelta(
+  current: readonly EffectStateResponseBody[] | undefined,
+  delta: UnitStateDeltaResponseBody["effects"],
+): readonly EffectStateResponseBody[] {
+  if (delta === undefined) {
+    return current ?? [];
+  }
+  let next = [...(current ?? [])];
+  for (const entry of delta.added) {
+    next = [...next, entry as EffectStateResponseBody];
+  }
+  for (const entry of delta.updated) {
+    next = next.map((effect) =>
+      effect.effectInstanceId === entry.id ? (entry.after as EffectStateResponseBody) : effect,
+    );
+  }
+  for (const entry of delta.removed) {
+    next = next.filter((effect) => effect.effectInstanceId !== entry.id);
+  }
+  return next;
+}
+
 /** `10_API設計.md`「UnitStateDeltaResponse.charge」(`ValueChange`)を適用する。`after: null`はチャージ終了(省略)を表す。 */
 function applyChargeDelta(
   current: ChargeStateResponseBody | undefined,
@@ -325,6 +399,31 @@ function applyResourceDelta(
   };
 }
 
+/**
+ * R-STA-04（PR #294レビュー[P1]）: `10_API設計.md`「UnitStateDeltaResponse.combatStats」を
+ * `BattleUnitStateResponse.combatStats`へ適用する。`hp`/`resources`と同じ
+ * 「`before`が現在値と一致すること」を要求し、キーごとに検証する。`maximumHp`は
+ * このオブジェクトに現れない（`hpMaximum`が`hp.maximum`として運ぶ）。
+ */
+function applyCombatStatsDelta(
+  current: BattleUnitStateResponseBody["combatStats"],
+  delta: UnitStateDeltaResponseBody["combatStats"],
+  path: string,
+): BattleUnitStateResponseBody["combatStats"] {
+  if (delta === undefined) {
+    return current;
+  }
+  const next: Record<string, number> = { ...current };
+  for (const [stat, change] of Object.entries(delta)) {
+    next[stat] = applyValueChange(
+      (current as unknown as Record<string, number>)[stat]!,
+      change,
+      `${path}.${stat}`,
+    );
+  }
+  return next as unknown as BattleUnitStateResponseBody["combatStats"];
+}
+
 function applyDelta(
   state: BattleStateResponseBody,
   transition: StateTransitionResponseBody,
@@ -359,10 +458,15 @@ function applyDelta(
         unitDelta.combatStatus !== undefined
           ? applyValueChange(unit.combatStatus, unitDelta.combatStatus, `${path}.combatStatus`)
           : unit.combatStatus,
-      hp:
-        unitDelta.hp !== undefined
-          ? { ...unit.hp, current: applyValueChange(unit.hp.current, unitDelta.hp, `${path}.hp`) }
-          : unit.hp,
+      // R-STA-04（PR #294レビュー[P1]）: HPは現在値（`hp`）と上限（`hpMaximum` —
+      // Domain側では`MAXIMUM_HP` CombatStatの差分）を独立した`ValueChange`として
+      // 受け取る。AP/PP/EXの`resources`/`resourceMaximums`と同じ規約。
+      hp: applyResourceDelta(unit.hp, unitDelta.hp, unitDelta.hpMaximum, `${path}.hp`),
+      combatStats: applyCombatStatsDelta(
+        unit.combatStats,
+        unitDelta.combatStats,
+        `${path}.combatStats`,
+      ),
       resources: {
         ap: applyResourceDelta(
           unit.resources.ap,
@@ -385,6 +489,7 @@ function applyDelta(
       },
       cooldowns: applyCooldownsDelta(unit.cooldowns, unitDelta.cooldowns),
       markers: applyMarkersDelta(unit.markers, unitDelta.markers),
+      effects: applyEffectsDelta(unit.effects, unitDelta.effects),
       ...(charge !== undefined ? { charge } : {}),
     };
   });
@@ -918,6 +1023,95 @@ async function runRuntimeCounterThresholdScenario(): Promise<BattleSimulationRes
   }
 }
 
+/**
+ * G-09（M7-002A・Issue #255、PR #294レビュー[P1]）: `MODIFY_RESOURCE_CAPACITY`
+ * （`resource: HP`）を実HTTPパイプライン（`SimulateBattleUseCase` → Response Mapper →
+ * `stateTransitions`）経由で解決し、`finalState.units[].hp.maximum`と
+ * `stateTransitions[].delta.units[].hpMaximum`の両方を実際に埋めるシナリオ。
+ */
+async function runHpCapacityScenario(): Promise<BattleSimulationResponseBody> {
+  const skillId = "SKL_MAX_HP_UP";
+  const effectActionId = "ACT_MAX_HP_UP";
+  const actorUnit: UnitDefinition = {
+    ...unitDefinition("UNIT_CAPACITY_ACTOR"),
+    baseStats: {
+      ...unitDefinition("UNIT_CAPACITY_ACTOR").baseStats,
+      maximumAp: 1,
+      maximumHp: 1000,
+    },
+    activeSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+  };
+  const enemyUnit: UnitDefinition = unitDefinition("UNIT_CAPACITY_ENEMY");
+  const units = new Map([
+    [createUnitDefinitionId("UNIT_CAPACITY_ACTOR"), actorUnit],
+    [createUnitDefinitionId("UNIT_CAPACITY_ENEMY"), enemyUnit],
+  ]);
+  const skills = new Map([
+    [createSkillDefinitionId(skillId), selfTargetedSkill(skillId, effectActionId)],
+    [createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")],
+  ]);
+  const effectActions = new Map([
+    [createEffectActionDefinitionId(effectActionId), hpCapacityEffectAction(effectActionId)],
+  ]);
+  const capabilities = new Map([
+    [
+      createCapabilityId("CAP_RESOURCE_CAPACITY_MOD"),
+      createCapabilityDefinition({
+        capabilityId: "CAP_RESOURCE_CAPACITY_MOD",
+        schemaStatus: "SUPPORTED",
+        runtimeStatus: "IMPLEMENTED",
+        implementationTaskId: "M7-002A",
+        description: "d",
+        verification: {
+          productionDefinitionIds: [effectActionId],
+          testCaseIds: ["API-STATE-RESTORE-010"],
+        },
+      }),
+    ],
+  ]);
+
+  const useCase: SimulateBattleUseCasePort = {
+    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
+      Promise.resolve(
+        new SimulateBattleUseCase({
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions, capabilities),
+          battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+          randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
+          clock: new ManualClock(Date.now()),
+        }).execute(toSimulateBattleCommand(request), context),
+      ),
+  };
+  const app: FastifyInstance = await buildServer(useCase);
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [
+            { unitDefinitionId: "UNIT_CAPACITY_ACTOR", position: { column: 0, row: "FRONT" } },
+          ],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [
+            { unitDefinitionId: "UNIT_CAPACITY_ENEMY", position: { column: 0, row: "FRONT" } },
+          ],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 1,
+      },
+    });
+    if (response.statusCode !== 200) {
+      throw new Error(`expected 200, got ${response.statusCode}: ${response.body}`);
+    }
+    return response.json<BattleSimulationResponseBody>();
+  } finally {
+    await app.close();
+  }
+}
+
 /** `action-phase-resolver.test.ts`のchargeSkillと同形（R-SKL-05）: 発動はチャージ開始とは別行動、`cooldown`は開始行動へ設定される。 */
 function chargeSkill(id: string, effectActionId: string): SkillDefinition {
   return {
@@ -1144,6 +1338,42 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(markedEnemy?.hp.current).toBeLessThan(markedEnemy!.hp.maximum);
     expect(unmarkedEnemy?.markers ?? []).toHaveLength(0);
     expect(unmarkedEnemy?.hp.current).toBe(unmarkedEnemy!.hp.maximum);
+
+    const reconstructed = reconstructFinalState(body);
+    expect(reconstructed).toEqual(body.finalState);
+
+    const ajv = new Ajv({ strict: false });
+    const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
+    expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
+  });
+
+  it("API-STATE-RESTORE-010 (G-09, M7-002A Issue #255, PR #294レビュー[P1]): a real MODIFY_RESOURCE_CAPACITY(resource: HP) raises hp.maximum through the full HTTP pipeline, and reconstructedFinalState built from stateTransitions alone (hpMaximum included) equals finalState", async () => {
+    const body = await runHpCapacityScenario();
+
+    // Sanity: この経路が本当にHP上限を動かしている — 動いていなければ、下の復元は
+    // 差分が1件も無いまま自明に成功してしまう（レビュー[P1]が指摘した欠落は、
+    // まさに「差分が出ないので気づけない」形だった）。
+    const actorFinal = body.finalState.units.find(
+      (u) => u.unitDefinitionId === "UNIT_CAPACITY_ACTOR",
+    );
+    const actorInitial = body.initialState.units.find(
+      (u) => u.unitDefinitionId === "UNIT_CAPACITY_ACTOR",
+    );
+    expect(actorInitial?.hp.maximum).toBe(1000);
+    expect(actorFinal?.hp.maximum).toBe(1500);
+    // 上限が上がっただけでは現在値は追随しない（R-ACT-04）。
+    expect(actorFinal?.hp.current).toBe(1000);
+
+    const combatStatChanged = body.events.find((e) => e.type === "COMBAT_STAT_CHANGED");
+    expect(combatStatChanged).toBeDefined();
+    // AP/PP/EXと違い、HP上限は`ResourceCapacityChanged`ではなく`CombatStatChanged`が
+    // 差分を所有する（`08_ドメインイベント.md`「複合処理と状態差分の所有」）。
+    expect(body.events.some((e) => e.type === "RESOURCE_CAPACITY_CHANGED")).toBe(false);
+    expect(
+      body.stateTransitions.some((t) =>
+        Object.values(t.delta.units ?? {}).some((u) => u.hpMaximum !== undefined),
+      ),
+    ).toBe(true);
 
     const reconstructed = reconstructFinalState(body);
     expect(reconstructed).toEqual(body.finalState);

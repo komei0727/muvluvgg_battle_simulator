@@ -494,6 +494,10 @@ const unitStateDeltaResponseSchema = {
   properties: {
     combatStatus: valueChangeStringSchema,
     hp: valueChangeNumberSchema,
+    // R-STA-04: HP上限（`MAXIMUM_HP` CombatStat）の差分。公開レスポンスはHP上限を
+    // `combatStats`ではなく`hp.maximum`として持つため、差分も分けて運ぶ
+    // （PR #294レビュー[P1]）。
+    hpMaximum: valueChangeNumberSchema,
     resources: {
       type: "object",
       additionalProperties: false,
@@ -513,7 +517,21 @@ const unitStateDeltaResponseSchema = {
         extraGauge: valueChangeNumberSchema,
       },
     },
-    combatStats: { type: "object", additionalProperties: valueChangeNumberSchema },
+    // `BattleUnitStateResponse.combatStats`と同じキー集合だけを許す。`maximumHp`は
+    // `CombatStatsResponse`に無く`hpMaximum`が運ぶため、ここへ紛れ込ませない
+    // （`additionalProperties`を開けていると、適用先の無いキーを黙って通してしまう）。
+    combatStats: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        attack: valueChangeNumberSchema,
+        defense: valueChangeNumberSchema,
+        criticalRate: valueChangeNumberSchema,
+        actionSpeed: valueChangeNumberSchema,
+        affinityBonus: valueChangeNumberSchema,
+        criticalDamageBonus: valueChangeNumberSchema,
+      },
+    },
     shields: { type: "object", additionalProperties: valueChangeNumberSchema },
     subUnits: entityCollectionDeltaResponseSchema,
     effects: entityCollectionDeltaResponseSchema,

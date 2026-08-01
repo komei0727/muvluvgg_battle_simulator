@@ -483,6 +483,58 @@ function toEffectEntityCollectionDeltaResponseBody(
 }
 
 /**
+ * `10_API設計.md`「CombatStatsResponse」がパーセントポイントで返すstat
+ * （`toUnitStateResponseBody`で`toPercentagePoints`を通しているもの）。差分側も
+ * 同じ単位で出さないと、クライアントは`ValueChange.before`を現在値と
+ * 突き合わせられず、`stateTransitions`だけからの復元が成立しない。
+ */
+const PERCENTAGE_POINT_COMBAT_STATS: ReadonlySet<string> = new Set([
+  "criticalRate",
+  "affinityBonus",
+  "criticalDamageBonus",
+]);
+
+/**
+ * R-STA-04: `CombatStatChanged`が持つ`stateDelta.combatStats`を公開レスポンスへ
+ * 変換する。`maximumHp`だけは`BattleUnitStateResponse`上の置き場所が
+ * `combatStats`ではなく`hp.maximum`（`CombatStatsResponse`は`maximumHp`を持たない）
+ * のため、`hpMaximum`として分けて運ぶ。
+ *
+ * PR #294レビュー[P1]: この変換自体が欠けており、`combatStats`差分は公開
+ * レスポンスへ一切現れていなかった。`APPLY_STAT_MOD(MAXIMUM_HP)`や
+ * `MODIFY_RESOURCE_CAPACITY(resource: HP)`（G-09／M7-002A・Issue #255）でHP上限が
+ * 動くシナリオでは、`initialState` + `stateTransitions`から`hp.maximum`を復元できず
+ * `10_API設計.md`「差分の適用」の`reconstructedFinalState === finalState`契約を
+ * 満たせない。
+ */
+function toCombatStatsDeltaResponseBody(delta: UnitStateDelta["combatStats"]): {
+  readonly hpMaximum?: ValueChangeBody<number>;
+  readonly combatStats?: Readonly<Record<string, ValueChangeBody<number>>>;
+} {
+  if (delta === undefined) {
+    return {};
+  }
+  const combatStats: Record<string, ValueChangeBody<number>> = {};
+  let hpMaximum: ValueChangeBody<number> | undefined;
+  for (const [field, change] of Object.entries(delta) as [string, ValueChangeBody<number>][]) {
+    if (field === "maximumHp") {
+      hpMaximum = change;
+      continue;
+    }
+    combatStats[field] = PERCENTAGE_POINT_COMBAT_STATS.has(field)
+      ? {
+          before: toPercentagePoints(change.before),
+          after: toPercentagePoints(change.after),
+        }
+      : change;
+  }
+  return {
+    ...(hpMaximum !== undefined ? { hpMaximum } : {}),
+    ...(Object.keys(combatStats).length > 0 ? { combatStats } : {}),
+  };
+}
+
+/**
  * `08_ドメインイベント.md`のフラットな`hp`/`ap`/`pp`/`extraGauge`を、
  * `10_API設計.md`「UnitStateDeltaResponse」の`hp`/`resources.{ap,pp,extraGauge}`
  * 形へ組み替える。`hp`が0を跨ぐ変化を伴う場合は、Domainが明示的には記録しない
@@ -523,11 +575,14 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
   const markers = toMarkerEntityCollectionDeltaResponseBody(delta.markers);
   const effects = toEffectEntityCollectionDeltaResponseBody(delta.effects);
   const charge = toChargeValueChangeResponseBody(delta.charge);
+  const { hpMaximum, combatStats } = toCombatStatsDeltaResponseBody(delta.combatStats);
 
   return {
     ...(delta.hp !== undefined ? { hp: delta.hp } : {}),
+    ...(hpMaximum !== undefined ? { hpMaximum } : {}),
     ...(resources !== undefined ? { resources } : {}),
     ...(resourceMaximums !== undefined ? { resourceMaximums } : {}),
+    ...(combatStats !== undefined ? { combatStats } : {}),
     ...(combatStatus !== undefined ? { combatStatus } : {}),
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(markers !== undefined ? { markers } : {}),
