@@ -564,6 +564,14 @@ export interface BattleDomainEventPayloadMap {
     readonly magnitudeAfter: number;
     readonly snapshotAttackBefore: number;
     readonly snapshotAttackAfter: number;
+    /**
+     * R-DOT-04「効果量は大きい方」の採用判断に使った、統合時点の対象HPで評価した
+     * 1回あたり毒ダメージ（`min(現在HP × 効果率, 付与時攻撃力)`）。`magnitude*`は
+     * 各インスタンスが自分の付与時点で評価した保存値であり評価時点が揃わないため、
+     * この2値が無いとログから採否の理由を再現できない（PRレビュー[P1]）。
+     */
+    readonly tickDamageBefore: number;
+    readonly tickDamageAfter: number;
     readonly remainingBefore: number;
     readonly remainingAfter: number;
   };

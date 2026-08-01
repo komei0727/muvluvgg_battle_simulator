@@ -7,8 +7,10 @@ import {
   type DamageEventContext,
 } from "../combat/damage-application-service.js";
 import { grantEffect, isStackLimitReached } from "../effects/effect-grant-service.js";
-import { grantPoisonContinuousDamage } from "../effects/poison-grant-service.js";
-import { isBurnStackLimitReached } from "./continuous-damage-service.js";
+import {
+  grantPoisonContinuousDamage,
+  isBurnStackLimitReached,
+} from "./continuous-damage-service.js";
 import { CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY } from "../model/applied-effect.js";
 import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
@@ -2234,7 +2236,13 @@ function* resolveOneEffectActionApplication(
       // 既定に対する固有規則の上書き）。
       const grantResult =
         effectAction.payload.continuousDamageKind === "POISON"
-          ? grantPoisonContinuousDamage(grantContext, box.units, grantRequest, starting.eventId)
+          ? grantPoisonContinuousDamage(
+              grantContext,
+              box.units,
+              grantRequest,
+              context.definitions.effectActions,
+              starting.eventId,
+            )
           : grantEffect(grantContext, box.units, grantRequest, starting.eventId);
       const changed = grantResult.lastEventId !== starting.eventId;
       box.units = grantResult.units;

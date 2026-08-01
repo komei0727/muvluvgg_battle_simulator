@@ -1632,6 +1632,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DOT-04-006",
       "UT-R-DOT-04-007",
       "UT-R-DOT-04-008",
+      "UT-R-DOT-04-009",
+      "UT-R-DOT-04-010",
       "IT-CAP-CONTINUOUS-DAMAGE-PROD-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],

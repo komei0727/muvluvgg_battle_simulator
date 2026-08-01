@@ -6732,8 +6732,13 @@ describe("APPLY_CONTINUOUS_DAMAGE (R-DOT-01〜04, DMG-008 Issue #189)", () => {
     target: BattleUnit,
     recorder: EventRecorder,
     rootEventId: string,
+    // R-DOT-04の統合は既存インスタンスの定義もCatalogから引くため、production経路と
+    // 同じく「その戦闘に登場する全定義」を渡せるようにする。
+    known: readonly EffectActionDefinition[] = [],
   ): EffectActionGroupsResult {
-    const effectActions = new Map([[definition.effectActionDefinitionId, definition]]);
+    const effectActions = new Map(
+      [...known, definition].map((d) => [d.effectActionDefinitionId, d]),
+    );
     const plan: EffectSequencePlan = {
       stealthConsumptions: [],
       steps: [singleActionStep(0, true, target.battleUnitId, definition.effectActionDefinitionId)],
@@ -6821,22 +6826,11 @@ describe("APPLY_CONTINUOUS_DAMAGE (R-DOT-01〜04, DMG-008 Issue #189)", () => {
     const target = unit("TARGET", "ENEMY");
     const { recorder, rootEventId } = seedRecorder();
 
-    const first = applyOnce(
-      continuousDamage("ACT_POISON_A", "POISON", 0.1, 1),
-      [actor, target],
-      actor,
-      target,
-      recorder,
-      rootEventId,
-    );
-    const second = applyOnce(
-      continuousDamage("ACT_POISON_B", "POISON", 0.2, 4),
-      first.units,
-      actor,
-      target,
-      recorder,
-      rootEventId,
-    );
+    const weak = continuousDamage("ACT_POISON_A", "POISON", 0.1, 1);
+    const strong = continuousDamage("ACT_POISON_B", "POISON", 0.2, 4);
+
+    const first = applyOnce(weak, [actor, target], actor, target, recorder, rootEventId, [strong]);
+    const second = applyOnce(strong, first.units, actor, target, recorder, rootEventId, [weak]);
 
     const effects = second.units.find(
       (u) => u.battleUnitId === target.battleUnitId,

@@ -1,8 +1,16 @@
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import {
   CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY,
+  effectKindKeyFromDefinitionId,
   type AppliedEffect,
 } from "../model/applied-effect.js";
+import {
+  grantEffect,
+  type GrantEffectContext,
+  type GrantEffectRequest,
+} from "../effects/effect-grant-service.js";
+import { toEffectSnapshot } from "../events/state-delta.js";
+import { DomainValidationError } from "../../shared/errors.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import { evaluateFormula } from "../skill/formula-evaluator.js";
 import { absorbFromShieldPool, emitShieldConsumed } from "../combat/shield-policy.js";
@@ -12,6 +20,8 @@ import type { EffectActionDefinition } from "../../catalog/definitions/effect-ac
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { ContinuousDamageKind } from "../../catalog/definitions/effect-action-payload.js";
+import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
+import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type {
   ActionId,
@@ -119,6 +129,51 @@ export interface ContinuousDamageAmount {
 }
 
 /**
+ * R-DOT-04 の毒ダメージ1回分。
+ *
+ * ```text
+ * 割合ダメージ = 現在HP × 毒効果率
+ * 上限ダメージ = 付与時攻撃力 × 100%
+ * 毒ダメージ = min(割合ダメージ, 上限ダメージ)
+ * ```
+ *
+ * 発火時（`calculateContinuousDamage`）と再付与の統合判定
+ * （`grantPoisonContinuousDamage` の「効果量は大きい方」）が同じ実装を共有する。
+ * 統合判定は候補ごとに`formula`と`snapshotAttack`が違うだけで、`holder`（＝現在HP）は
+ * 共通であるため、この関数を同じ`holder`で2回呼べば同じ土俵の比較になる
+ * （PRレビュー[P1]: 保存済みの`magnitude`同士を比べると、各インスタンスが自分の
+ * 付与時点のHPで評価した値を比べることになり、R-DOT-04の大小関係が逆転しうる）。
+ */
+export function calculatePoisonTickDamage(
+  formula: FormulaDefinition,
+  snapshotAttack: number,
+  holder: BattleUnit,
+  granter: BattleUnit | undefined,
+  sourceSide: Side | undefined,
+  units: readonly BattleUnit[],
+): ContinuousDamageAmount {
+  const ratioDamage = evaluateFormula(
+    formula,
+    {
+      ...(granter !== undefined ? { skillSource: granter } : {}),
+      ...(sourceSide !== undefined ? { sourceSide } : {}),
+      target: holder,
+      allUnits: units,
+    },
+    "continuousDamageFormula",
+  );
+  const cap = snapshotAttack * POISON_DAMAGE_CAP_RATE;
+  const cappedBySnapshotAttack = ratioDamage > cap;
+  const capped = cappedBySnapshotAttack ? cap : ratioDamage;
+  return {
+    formulaResult: ratioDamage,
+    burnStackMultiplier: 1,
+    cappedBySnapshotAttack,
+    calculatedDamage: Math.max(1, truncateFraction(capped)),
+  };
+}
+
+/**
  * R-DOT-01〜04: 1つの継続ダメージインスタンスが今回発生させるダメージ量を求める。
  *
  * - `FIXED`/`BURN`（R-DOT-02/03）: 付与時に評価済みの固定量（`AppliedEffect.magnitude`）
@@ -128,9 +183,8 @@ export interface ContinuousDamageAmount {
  * - `BURN`（R-DOT-03）: 対象が炎上を3つ保持しているなら2倍する。「2倍処理は各
  *   インスタンスの最終結果を算出する前に適用し、合計値を後から2倍にしない」ため、
  *   切り捨て前の値へ掛ける。
- * - `POISON`（R-DOT-04）: `現在HP × 毒効果率`を発火のたびに評価し直し
- *   （`CURRENT_HP_RATIO`は発火時点の対象HPを参照する必要がある）、
- *   `付与時攻撃力 × 100%`で頭打ちにする。
+ * - `POISON`（R-DOT-04）: `現在HP × 毒効果率`を発火のたびに評価し直す
+ *   （`CURRENT_HP_RATIO`は発火時点の対象HPを参照する必要がある）。
  *
  * 最後にR-DOT-01「各継続ダメージの最終結果で小数部分を切り捨て、ダメージが1未満なら
  * 最低1とする」を適用する。ダメージ軽減・増加、属性相性、会心は一切適用しない。
@@ -143,28 +197,16 @@ export function calculateContinuousDamage(
   units: readonly BattleUnit[],
 ): ContinuousDamageAmount {
   const kind = definition.payload.continuousDamageKind;
-  const snapshotAttack = snapshotAttackOf(effect);
 
   if (kind === "POISON") {
-    const ratioDamage = evaluateFormula(
+    return calculatePoisonTickDamage(
       definition.payload.formula,
-      {
-        ...(granter !== undefined ? { skillSource: granter } : {}),
-        ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
-        target: holder,
-        allUnits: units,
-      },
-      "continuousDamageFormula",
+      snapshotAttackOf(effect),
+      holder,
+      granter,
+      effect.sourceSide,
+      units,
     );
-    const cap = snapshotAttack * POISON_DAMAGE_CAP_RATE;
-    const cappedBySnapshotAttack = ratioDamage > cap;
-    const capped = cappedBySnapshotAttack ? cap : ratioDamage;
-    return {
-      formulaResult: ratioDamage,
-      burnStackMultiplier: 1,
-      cappedBySnapshotAttack,
-      calculatedDamage: Math.max(1, truncateFraction(capped)),
-    };
   }
 
   const burnStackMultiplier =
@@ -389,4 +431,213 @@ export function applyOneContinuousDamage(
   notify(factEventsStart);
 
   return { units: working, lastEventId };
+}
+
+export interface GrantPoisonResult {
+  readonly units: readonly BattleUnit[];
+  readonly appliedEffect: AppliedEffect;
+  readonly lastEventId: DomainEventId;
+}
+
+/** R-DOT-04の統合で「効果量」として一組で採用する、毒ダメージを決める2値と採用元。 */
+interface PoisonMagnitudeCandidate {
+  readonly effectActionDefinitionId: EffectActionDefinitionId;
+  readonly formula: FormulaDefinition;
+  /** 付与時に評価した割合ダメージ（`現在HP × 毒効果率`）。監査用の保存値。 */
+  readonly magnitude: number;
+  /** R-DOT-01の付与時攻撃力＝R-DOT-04の上限ダメージ。 */
+  readonly snapshotAttack: number;
+  readonly sourceId?: BattleUnitId;
+  readonly sourceSide?: Side;
+}
+
+/**
+ * R-DOT-04「既存の毒へ再付与した場合、効果期間は長い方、効果量は大きい方を
+ * 引き継いだ一つの毒を残す。期間と効果量は別々の付与元から採用できる」。
+ *
+ * `grantStunStatus`（R-STS-02）と同じく、Q-EFF-10の既定「再付与は常に新規
+ * インスタンスを追加する」を毒固有の規則で上書きし、既存インスタンスを更新する。
+ * 気絶と違い比較軸が2つあるため、期間と効果量をそれぞれ独立に採用し、両方とも
+ * 既存側が勝った場合だけ変化なし（イベントを発行しない）とする。
+ *
+ * PRレビュー[P1]: 「効果量」の比較は、両候補を**この統合時点の対象HP**で評価し直した
+ * 1回あたり毒ダメージ（`calculatePoisonTickDamage`＝`min(現在HP × 効果率, 付与時攻撃力)`）
+ * で行う。保存済みの`AppliedEffect.magnitude`同士を比べると、各インスタンスが自分の
+ * 付与時点のHPで評価した値を比べることになり、大小関係が逆転しうる — 例えばHP 1000で
+ * 10%毒（保存値100）を受けた後、HP 300で20%毒（保存値60）を受けると保存値では10%毒が
+ * 残るが、次回tickの実ダメージは30対60で20%毒の方が大きい。10%毒と20%毒はどちらも
+ * production Catalogに実在するため、この取り違えは実戦闘で起こりうる。
+ *
+ * 割合と上限は同じ付与元から来た一組として採用する — R-DOT-04が別々の付与元から
+ * 採用してよいと述べているのは「期間」と「効果量」の2つであり、効果量を構成する
+ * 割合と上限をさらに分解して混ぜてよいとは述べていない。
+ *
+ * 「既存の毒」は保持者が持つ毒インスタンス全体から探す（`EffectKindKey`単位では
+ * ない）— R-DOT-04は付与元スキルを限定しておらず、別スキル由来の毒との統合も
+ * 対象だからである。R-DOT-04の統合により毒は常に高々1つしか存在しない。
+ *
+ * 本関数が`effects/`ではなく`lifecycle/`に居るのは、この比較が発火時とまったく同じ
+ * 毒ダメージ計算を必要とするためである（`effects/`は`lifecycle/`へ依存できないため、
+ * `effects/`側に置くと計算が二重定義になり両者が乖離しうる）。気絶・凍結の付与
+ * サービスが`effects/`に居るのは、それらの再付与判定が残り回数の比較だけで済み、
+ * ダメージ計算を必要としないからである。
+ */
+export function grantPoisonContinuousDamage(
+  context: GrantEffectContext,
+  units: readonly BattleUnit[],
+  request: GrantEffectRequest,
+  /** 既存インスタンスの毒効果率（`formula`）を引くためのCatalog参照。 */
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): GrantPoisonResult {
+  const target = requireUnit(units, request.targetId);
+  const existing = target.appliedEffects.find(
+    (effect) => effect.continuousDamage?.continuousDamageKind === "POISON",
+  );
+  // 既存の毒が無ければ、R-EFF-01の一般規則どおり新規インスタンスを足す。
+  if (existing === undefined) {
+    return grantEffect(context, units, request, parentEventId);
+  }
+
+  // 既存インスタンスの毒効果率は統合判定に必須である。`AppliedEffect`は同じ
+  // `effectActions`から解決した定義でしか作られないため、production経路では
+  // 常に引ける。引けない場合はCatalogとの不整合であり、黙って2つ目の毒を足すと
+  // R-DOT-04「一つの毒を残す」を破るため、明確な例外で停止する。
+  const existingDefinition = effectActions.get(existing.effectActionDefinitionId);
+  if (existingDefinition === undefined || existingDefinition.kind !== "APPLY_CONTINUOUS_DAMAGE") {
+    throw new DomainValidationError(
+      "existing.effectActionDefinitionId",
+      `R-DOT-04 poison merge requires the existing instance's APPLY_CONTINUOUS_DAMAGE definition, but "${existing.effectActionDefinitionId}" is not in the Catalog`,
+    );
+  }
+
+  const existingCandidate: PoisonMagnitudeCandidate = {
+    effectActionDefinitionId: existing.effectActionDefinitionId,
+    formula: existingDefinition.payload.formula,
+    magnitude: existing.magnitude,
+    snapshotAttack: snapshotAttackOf(existing),
+    ...(existing.sourceId !== undefined ? { sourceId: existing.sourceId } : {}),
+    ...(existing.sourceSide !== undefined ? { sourceSide: existing.sourceSide } : {}),
+  };
+  const incomingCandidate: PoisonMagnitudeCandidate = {
+    effectActionDefinitionId: request.definition.effectActionDefinitionId,
+    formula:
+      request.definition.kind === "APPLY_CONTINUOUS_DAMAGE"
+        ? request.definition.payload.formula
+        : existingDefinition.payload.formula,
+    magnitude: request.magnitude,
+    snapshotAttack: request.snapshot?.[CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY] ?? 0,
+    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
+  };
+
+  // 両候補を「この統合時点の対象HP」で評価する。`holder`が共通なので同じ土俵になる。
+  const tickOf = (candidate: PoisonMagnitudeCandidate): ContinuousDamageAmount =>
+    calculatePoisonTickDamage(
+      candidate.formula,
+      candidate.snapshotAttack,
+      target,
+      units.find((unit) => unit.battleUnitId === candidate.sourceId),
+      candidate.sourceSide,
+      units,
+    );
+  const existingTick = tickOf(existingCandidate);
+  const incomingTick = tickOf(incomingCandidate);
+  const takeIncomingMagnitude = incomingTick.calculatedDamage > existingTick.calculatedDamage;
+
+  const existingRemaining = existing.duration.timeLimitRemaining ?? 0;
+  const incomingRemaining = request.durationDefinition.timeLimit?.count ?? 0;
+  const takeIncomingDuration = incomingRemaining > existingRemaining;
+
+  if (!takeIncomingMagnitude && !takeIncomingDuration) {
+    // `marker-apply-service.ts`のKEEP_EXISTINGと同じ「変化が無ければイベントを
+    // 発行しない」規約。呼び出し側は`resultKind: SKIPPED`として記録する。
+    return { units, appliedEffect: existing, lastEventId: parentEventId };
+  }
+
+  const adopted = takeIncomingMagnitude ? incomingCandidate : existingCandidate;
+  const adoptedTick = takeIncomingMagnitude ? incomingTick : existingTick;
+  // 効果量側の採用元は、割合を決める効果定義と付与者・付与時攻撃力を一組で運ぶ。
+  // 付与者はどちらか一方だけを持つ（R-MEM-04）ため、差し替える場合は
+  // `sourceId`/`sourceSide`の両方を採用元のものへ入れ替える。
+  const { sourceId: _sourceId, sourceSide: _sourceSide, ...existingWithoutSource } = existing;
+  const nextEffect: AppliedEffect = {
+    ...existingWithoutSource,
+    effectActionDefinitionId: adopted.effectActionDefinitionId,
+    kindKey: effectKindKeyFromDefinitionId(adopted.effectActionDefinitionId),
+    ...(adopted.sourceId !== undefined ? { sourceId: adopted.sourceId } : {}),
+    ...(adopted.sourceSide !== undefined ? { sourceSide: adopted.sourceSide } : {}),
+    // 保存する`magnitude`も統合時点で評価し直した割合ダメージへ揃える。これにより
+    // `AppliedEffect.magnitude`は常に「直近の付与／統合時点で評価した割合ダメージ」を
+    // 意味し、監査値として候補間で比較可能な基準を保つ。
+    magnitude: adoptedTick.formulaResult,
+    snapshot: { [CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY]: adopted.snapshotAttack },
+    duration: takeIncomingDuration
+      ? {
+          ...existing.duration,
+          definition: request.durationDefinition,
+          timeLimitRemaining: incomingRemaining,
+          // R-EFF-04の初回減算除外は「今この行動で付与された」ことを表すため、
+          // 期間を差し替えた側の付与時点（＝この行動）で更新する。
+          ...(context.actionId !== undefined ? { grantedActionId: context.actionId } : {}),
+          grantedTurnNumber: context.turnNumber,
+        }
+      : existing.duration,
+  };
+
+  const nextUnits = units.map((unit) =>
+    unit.battleUnitId === request.targetId
+      ? {
+          ...unit,
+          appliedEffects: unit.appliedEffects.map((effect) =>
+            effect.effectInstanceId === existing.effectInstanceId ? nextEffect : effect,
+          ),
+        }
+      : unit,
+  );
+
+  const merged = context.recorder.record({
+    eventType: "EffectMerged",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+    resolutionScopeId: context.resolutionScopeId,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
+    targetUnitIds: [request.targetId],
+    payload: {
+      effectInstanceId: existing.effectInstanceId,
+      battleUnitId: request.targetId,
+      effectActionDefinitionId: nextEffect.effectActionDefinitionId,
+      reason: "POISON_REAPPLY",
+      magnitudeBefore: existing.magnitude,
+      magnitudeAfter: nextEffect.magnitude,
+      snapshotAttackBefore: existingCandidate.snapshotAttack,
+      snapshotAttackAfter: adopted.snapshotAttack,
+      // 採用判断の基準そのもの。保存値（`magnitude*`）は評価時点が候補ごとに
+      // 異なりうるため、これが無いとログから採否の理由を再現できない。
+      tickDamageBefore: existingTick.calculatedDamage,
+      tickDamageAfter: adoptedTick.calculatedDamage,
+      remainingBefore: existingRemaining,
+      remainingAfter: nextEffect.duration.timeLimitRemaining ?? 0,
+    },
+    stateDelta: {
+      units: {
+        [request.targetId]: {
+          effects: {
+            [existing.effectInstanceId]: {
+              before: toEffectSnapshot(existing, true),
+              after: toEffectSnapshot(nextEffect, true),
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return { units: nextUnits, appliedEffect: nextEffect, lastEventId: merged.eventId };
 }
