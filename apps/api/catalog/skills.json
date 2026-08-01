@@ -10953,6 +10953,7 @@
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [
+            { "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT" },
             { "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_ATK_UP" },
             { "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_SUBUNIT" },
             { "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_SUBUNIT" },
@@ -15097,6 +15098,7 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
+            { "effectActionDefinitionId": "ACT_YUI_HEIR_EX_REMOVE_SHIELD" },
             { "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DEF_DOWN" },
             { "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DAMAGE" }
           ]

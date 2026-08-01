@@ -224,7 +224,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `additionalDamage.damageType`/`debuff`を追加し、SHIRANA_SORA/OLGA_VETERAN/
     // NADYA_SUCCESSORの各サブユニット定義を近似なしへ更新した。ここで昇格した
     // 10 Unitの定義は変わらないため期待値は据え置き。
-    expect(catalog.catalogRevision).toBe("2026-08-01.7");
+    // Bumped again by M7-001A (Issue #242, REMOVE_EFFECTS_CATEGORY_GAP):
+    // `REMOVE_EFFECTS`のSHIELD/SUBUNITカテゴリを実行時に有効化し、YUI_HEIR EX
+    // （敵単体のシールド全解除）とOLGA_VETERAN PS1（自身のシールド・サブユニット
+    // 全解除）を近似なしへ更新した。ここで昇格した10 Unitの定義は変わらないため
+    // 期待値は据え置き。
+    expect(catalog.catalogRevision).toBe("2026-08-01.8");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -525,7 +525,7 @@ describe("runPreflight", () => {
     }
   });
 
-  it("UT-PREFLIGHT-012 (M7-001, Issue #181, 再々レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a selected Skill uses REMOVE_EFFECTS with the SHIELD category (CAP_SHIELD is PLANNED, DMG-004) — proves REMOVE_EFFECTS_CATEGORY_GAP is rejected per-selection, not by failing the whole Catalog load", () => {
+  it("UT-PREFLIGHT-012 (M7-001, Issue #181, 再々レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a selected Skill uses REMOVE_EFFECTS with the SHIELD category while CAP_SHIELD is PLANNED (synthetic Catalog; production CAP_SHIELD is IMPLEMENTED since DMG-004) — proves such a gap is rejected per-selection, not by failing the whole Catalog load", () => {
     const capabilityId = createCapabilityId("CAP_SHIELD");
     const cmd = command({
       allyFormation: {

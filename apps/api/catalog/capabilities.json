@@ -477,7 +477,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001",
-    "description": "REMOVE_EFFECTS による効果解除（R-EFF-02、M7-001）。categories （BUFF/DEBUFF/STATUS/DAMAGE_MOD/SPECIFIC_EFFECT）ごとの一致抽出（effect-category-classifier.ts）・maxRemovals による解除件数上限・付与順優先・R-EFF-09 linkedEffectGroup カスケード・EffectRemoved/StateDelta/CombatStat 再計算（effect-removal-service.ts）と実ライフサイクル配線（effect-action-group-resolver.ts の REMOVE_EFFECTS branch）。REMOVE_MARKER の count による部分スタック解除も本タスクで配線した。SHIELD/SUBUNIT カテゴリはシールド/サブユニットの実行時状態が未モデル化（DMG-004/DMG-005）のため実行時に明示的に拒否する。状態異常種別限定免疫（R-EFF-03、CAP_SPECIFIC_IMMUNITY）は本タスク対象外。M7-001C（Issue #244）で Noel PS2・Shouka EX/AS3・Senka PS2 の `REMOVE_BUFF_CATEGORY` 近似（Marker付与等）を categories:[\"BUFF\"] へ変換した。",
+    "description": "REMOVE_EFFECTS による効果解除（R-EFF-02、M7-001）。categories （BUFF/DEBUFF/STATUS/DAMAGE_MOD/SHIELD/SUBUNIT/SPECIFIC_EFFECT）ごとの一致抽出（effect-category-classifier.ts）・maxRemovals による解除件数上限・付与順優先・R-EFF-09 linkedEffectGroup カスケード・EffectRemoved/StateDelta/CombatStat 再計算（effect-removal-service.ts）と実ライフサイクル配線（effect-action-group-resolver.ts の REMOVE_EFFECTS branch）。REMOVE_MARKER の count による部分スタック解除も本タスクで配線した。状態異常種別限定免疫（R-EFF-03、CAP_SPECIFIC_IMMUNITY）は本タスク対象外。M7-001C（Issue #244）で Noel PS2・Shouka EX/AS3・Senka PS2 の `REMOVE_BUFF_CATEGORY` 近似（Marker付与等）を categories:[\"BUFF\"] へ変換した。M7-001A（Issue #242、`REMOVE_EFFECTS_CATEGORY_GAP`）で SHIELD/SUBUNIT カテゴリの実行時拒否を解除した — DMG-004（CAP_SHIELD）/DMG-005（CAP_SUBUNIT）がシールド・サブユニットを AppliedEffect.shield／AppliedEffect.subUnit として実行時状態にしたため、プール（shield-policy.ts）も耐久力（sub-unit-policy.ts）もインスタンス集合からの導出値であり、インスタンス除去がそのまま解除になる。Yui EX（敵単体のシールド全解除）・Olga PS1（自身のシールドとサブユニット全解除）を近似なしへ更新した。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_MIHIME_SNIPER_PS1_REMOVE_DEBUFF",
@@ -486,7 +486,9 @@
         "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF",
         "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF",
         "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF",
-        "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF"
+        "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
+        "ACT_YUI_HEIR_EX_REMOVE_SHIELD",
+        "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT"
       ],
       "testCaseIds": [
         "UT-R-EFF-02-011",
@@ -494,13 +496,18 @@
         "UT-R-EFF-02-020",
         "UT-R-EFF-02-021",
         "UT-R-EFF-02-022",
+        "UT-R-EFF-02-023",
+        "UT-R-EFF-02-024",
+        "UT-R-EFF-02-025",
         "IT-REMOVE-EFFECTS-PROD-001",
         "IT-REMOVE-EFFECTS-PROD-002",
         "IT-REMOVE-EFFECTS-PROD-003",
         "IT-REMOVE-EFFECTS-PROD-004",
         "IT-REMOVE-EFFECTS-PROD-005",
         "IT-REMOVE-EFFECTS-PROD-006",
-        "IT-REMOVE-EFFECTS-PROD-007"
+        "IT-REMOVE-EFFECTS-PROD-007",
+        "IT-REMOVE-EFFECTS-PROD-008",
+        "IT-REMOVE-EFFECTS-PROD-009"
       ]
     }
   },

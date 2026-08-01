@@ -164,6 +164,59 @@ describe("effectCategoriesOf", () => {
     expect(new Set(categories)).toEqual(new Set(["DAMAGE_MOD", "BUFF"]));
   });
 
+  // M7-001A（Issue #242、`REMOVE_EFFECTS_CATEGORY_GAP`）: シールド／サブユニットは
+  // 保持者にとって有利な効果であり`magnitude`（付与時の最大値・最大耐久力）は常に
+  // 非負のため、符号から導く既定の分岐に落ちると`BUFF`として分類される。そうなると
+  // 「バフを解除する」`REMOVE_EFFECTS`（`ACT_MAO_COMMITTEE_PS2_CLEANSE`等）が
+  // シールド・サブユニットまで巻き込み、逆に`categories: ["SHIELD"]`
+  // （`ACT_YUI_HEIR_EX_REMOVE_SHIELD`）は何も解除できなくなる。定義kindから固定で
+  // 決めることを実state（`AppliedEffect.shield`/`.subUnit`を持つ付与）の
+  // `magnitude`に対して固定する。
+  it("UT-R-EFF-02-024 (M7-001A, Issue #242): classifies APPLY_SHIELD as SHIELD only — never BUFF, even though a shield's magnitude is positive", () => {
+    const shieldDefinition = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SHIELD",
+        kind: "APPLY_SHIELD",
+        payload: {
+          formula: { kind: "CONSTANT", value: 120 },
+          shieldType: "EN",
+          duration: { dispellable: true },
+        },
+        requiredCapabilities: ["CAP_SHIELD"],
+      },
+      "effectAction",
+    );
+    const categories = effectCategoriesOf(effect({ magnitude: 120 }), shieldDefinition);
+    expect([...categories]).toEqual(["SHIELD"]);
+  });
+
+  it("UT-R-EFF-02-025 (M7-001A, Issue #242): classifies APPLY_SUBUNIT as SUBUNIT only — never BUFF, even though a sub-unit's magnitude is positive", () => {
+    const subUnitDefinition = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SUBUNIT",
+        kind: "APPLY_SUBUNIT",
+        payload: {
+          durability: { formula: { kind: "CONSTANT", value: 80 } },
+          additionalDamage: {
+            formula: {
+              kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+              ownerAttack: "CURRENT_ATTACK",
+              providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+              skillMultiplier: 0.106,
+              targetDefense: "TARGET_CURRENT_DEFENSE",
+            },
+            damageType: "EN",
+          },
+          duration: { dispellable: true, timeLimit: { unit: "ACTION", count: 2 } },
+        },
+        requiredCapabilities: ["CAP_SUBUNIT"],
+      },
+      "effectAction",
+    );
+    const categories = effectCategoriesOf(effect({ magnitude: 80 }), subUnitDefinition);
+    expect([...categories]).toEqual(["SUBUNIT"]);
+  });
+
   it("UT-R-EFF-03-001 (M7-001B, Issue #243): classifies APPLY_MARKER as MARKER, for EFFECT_IMMUNITY block-candidate classification", () => {
     const markerDefinition = createEffectActionDefinition(
       {

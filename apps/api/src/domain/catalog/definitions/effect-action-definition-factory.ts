@@ -846,15 +846,15 @@ function createPayload(
             'REMOVE_EFFECTS does not support the "MARKER" category — use REMOVE_MARKER (markerId) for marker removal',
           );
         }
-        // M7-001（Issue #181、再々レビュー[P2]）: SHIELD/SUBUNITはシールド/サブユニットの
-        // 実行時状態が未モデル化（DMG-004/DMG-005、#242）なため、選択されたUnit/Memory
-        // グラフに対してのみ`UNSUPPORTED_RULE`とすべきで、Catalog全体のロードを
-        // 失敗させてはならない（`09_アプリケーション設計.md`のCapability契約）。
-        // そのためFactoryでは拒否せず、schema上は有効な値のまま通す。実際の拒否は
-        // `catalog-integrity.ts`が要求する`CAP_SHIELD`/`CAP_SUBUNIT`宣言
-        // （いずれも`PLANNED`）を経由し、`SimulationPreflightValidator`が選択時に
-        // `UNSUPPORTED_RULE`とする。resolver側の実行時ガードは、Factoryを迂回した
-        // 直接構築に対するdefense-in-depthとして別途存在する。
+        // M7-001A（Issue #242、`REMOVE_EFFECTS_CATEGORY_GAP`）: SHIELD/SUBUNITは
+        // DMG-004（`CAP_SHIELD`）/DMG-005（`CAP_SUBUNIT`）が実行時状態
+        // （`AppliedEffect.shield`/`AppliedEffect.subUnit`）を持つようになったため、
+        // 他のカテゴリと同じく無条件で受理する（`effect-action-group-resolver.ts`の
+        // REMOVE_EFFECTS branchが`effect-removal-service.ts`へそのまま渡す）。
+        // `catalog-integrity.ts`は引き続き対応する`CAP_SHIELD`/`CAP_SUBUNIT`宣言を
+        // 必須にする — 解除対象の実行時状態を持つCapabilityへの依存自体は残るためで、
+        // 未実装へ差し戻された場合に`SimulationPreflightValidator`が選択時
+        // `UNSUPPORTED_RULE`として拒否できる形を保つ。
       }
       const typedCategories = (categories ?? []) as readonly EffectImmunityCategory[];
       const result: {
