@@ -116,6 +116,7 @@ function contextFor(
     readonly triggerSourceUnitId: ReturnType<typeof createBattleUnitId>;
     readonly triggerTargetUnitIds: readonly ReturnType<typeof createBattleUnitId>[];
   },
+  onFactEventForPassiveChain?: EffectActionGroupContext["onFactEventForPassiveChain"],
 ): EffectActionGroupContext {
   return {
     definitions,
@@ -130,6 +131,7 @@ function contextFor(
     parentEventId: rootEventId as never,
     skillDefinitionId: createSkillDefinitionId(skillId),
     ...(trigger ?? {}),
+    ...(onFactEventForPassiveChain !== undefined ? { onFactEventForPassiveChain } : {}),
   };
 }
 
@@ -148,9 +150,13 @@ function completedTargetsFor(
     .flatMap((e) => (e.payload as { targetUnitIds: readonly string[] }).targetUnitIds);
 }
 
-function loadSkill(unitDefinitionId: string, skillDefinitionId: string) {
+function loadSkill(
+  unitDefinitionId: string,
+  skillDefinitionId: string,
+  alsoLoadUnitIds: readonly string[] = [],
+) {
   const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-    [unitDefinitionId as never],
+    [unitDefinitionId, ...alsoLoadUnitIds] as never,
     [],
   );
   const skill = snapshot.skills.get(skillDefinitionId as never);
@@ -225,20 +231,27 @@ describe("production Catalog TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, M7-001E
     expect(run(false)).toEqual([]);
   });
 
-  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-002: SKL_FLUTE_INFLUENCER_PS2 heals the boosted amount and cleanses only a debuffed trigger target (raw「対象の味方にデバフがかけられていた場合、回復量が100%増加し、デバフをすべて解除する」)", () => {
+  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-002: SKL_FLUTE_INFLUENCER_PS2 always heals the base amount and adds the same amount again (＋100%) plus a cleanse only for a debuffed trigger target", () => {
     const skillId = "SKL_FLUTE_INFLUENCER_PS2";
-    const { skill, snapshot } = loadSkill("UNIT_FLUTE_INFLUENCER", skillId);
-    const boosted = snapshot.effectActions.get("ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED" as never);
-    const plain = snapshot.effectActions.get("ACT_FLUTE_INFLUENCER_PS2_HEAL" as never);
-    // 「回復量が100%増加」= 威力55 → 110。近似ではなく倍の`SKILL_POWER`で表す。
-    expect(boosted?.kind === "HEAL" && boosted.payload.formula).toMatchObject({
-      kind: "SKILL_POWER",
-      power: 1.1,
-    });
-    expect(plain?.kind === "HEAL" && plain.payload.formula).toMatchObject({
+    // 解除が実際に効くことまで見るため、実在のデバフ定義
+    // （`ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN`）も同じsnapshotへ載せる —
+    // `REMOVE_EFFECTS`はCatalog定義から分類を導くため、合成IDの効果は一致しない。
+    const { skill, snapshot } = loadSkill("UNIT_FLUTE_INFLUENCER", skillId, [
+      "UNIT_DOROTHEA_PIONEER",
+    ]);
+    const heal = snapshot.effectActions.get("ACT_FLUTE_INFLUENCER_PS2_HEAL" as never);
+    expect(heal?.kind === "HEAL" && heal.payload.formula).toMatchObject({
       kind: "SKILL_POWER",
       power: 0.55,
     });
+    // PR #287レビュー[P2]: 相補的な`targetCondition`を持つ2 stepにすると、先行stepの
+    // PS/Memory連鎖が対象の状態を変えた場合に通常版と強化版の両方が実行されうる。
+    // raw原文どおり「基本回復は無条件、増加分だけが条件付き」の加算形にして、
+    // 条件付きstepを1つだけにする（分岐の選択が二重評価されえない構造）。
+    const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
+    expect(
+      steps.map((step) => (step.kind === "ACTION" ? step.targetCondition.kind : step.kind)),
+    ).toEqual(["TRUE", "TARGET_HAS_EFFECT"]);
 
     const actor = unitOf("actor", "ALLY", "UNIT_FLUTE_INFLUENCER" as never, {
       column: "LEFT",
@@ -253,7 +266,17 @@ describe("production Catalog TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, M7-001E
         { currentHp: 100 },
       );
       const wounded = debuffed
-        ? { ...base, appliedEffects: [heldEffect(base, "atkdown", ["DEBUFF"])] }
+        ? {
+            ...base,
+            appliedEffects: [
+              {
+                ...heldEffect(base, "defdown", ["DEBUFF"], { statModStat: "DEFENSE" }),
+                effectActionDefinitionId: createEffectActionDefinitionId(
+                  "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN",
+                ),
+              },
+            ],
+          }
         : base;
       const allUnits = [actor, wounded];
       const definitions = definitionsOf(snapshot, skillId, skill);
@@ -263,31 +286,41 @@ describe("production Catalog TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, M7-001E
       };
       const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions, trigger);
       const { recorder, rootEventId } = seedRecorder();
-      applyEffectActionGroups(
+      const result = applyEffectActionGroups(
         plan,
         allUnits,
         contextFor(actor, skillId, definitions, recorder, rootEventId, trigger),
       );
-      return recorder;
+      return { recorder, units: result.units };
     };
 
+    // デバフ有り: 基本回復 + 増加分の2回（合計＝威力55の2倍）とデバフ解除。
     const withDebuff = run(true);
-    expect(completedTargetsFor(withDebuff, "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED")).toEqual([
+    expect(completedTargetsFor(withDebuff.recorder, "ACT_FLUTE_INFLUENCER_PS2_HEAL")).toEqual([
+      "ally-hurt",
       "ally-hurt",
     ]);
-    expect(completedTargetsFor(withDebuff, "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF")).toEqual([
-      "ally-hurt",
-    ]);
-    expect(completedTargetsFor(withDebuff, "ACT_FLUTE_INFLUENCER_PS2_HEAL")).toEqual([]);
+    expect(
+      completedTargetsFor(withDebuff.recorder, "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF"),
+    ).toEqual(["ally-hurt"]);
+    expect(
+      withDebuff.units.find((unit) => unit.battleUnitId === "ally-hurt")?.appliedEffects,
+    ).toEqual([]);
 
+    // デバフ無し: 基本回復だけ。回復量はちょうど半分になる。
     const withoutDebuff = run(false);
-    expect(completedTargetsFor(withoutDebuff, "ACT_FLUTE_INFLUENCER_PS2_HEAL")).toEqual([
+    expect(completedTargetsFor(withoutDebuff.recorder, "ACT_FLUTE_INFLUENCER_PS2_HEAL")).toEqual([
       "ally-hurt",
     ]);
-    expect(completedTargetsFor(withoutDebuff, "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED")).toEqual([]);
-    expect(completedTargetsFor(withoutDebuff, "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF")).toEqual(
-      [],
-    );
+    expect(
+      completedTargetsFor(withoutDebuff.recorder, "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF"),
+    ).toEqual([]);
+
+    const healedHp = (units: readonly BattleUnit[]): number =>
+      (units.find((unit) => unit.battleUnitId === "ally-hurt")?.currentHp ?? 0) - 100;
+    // 「回復量が100%増加」: 加算形でも合計は厳密に2倍になる。
+    expect(healedHp(withoutDebuff.units)).toBeGreaterThan(0);
+    expect(healedHp(withDebuff.units)).toBe(2 * healedHp(withoutDebuff.units));
   });
 
   it("IT-CAP-TARGET-EFFECT-QUERY-PROD-003: SKL_MAIA_LAZY_AS1 shields every ally except herself only when the struck enemy holds a buff (raw「対象がバフ状態にあった場合、自身を除く味方全体にシールドを付与する」)", () => {
@@ -435,5 +468,60 @@ describe("production Catalog TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, M7-001E
     expect(completedTargetsFor(attackDebuffed, "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF")).toEqual([
       "enemy",
     ]);
+  });
+
+  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-006 (PR #287レビュー[P2]): a PS chain that strips the queried effect mid-resolution cannot make both the boosted and the plain damage run — the branch is decided once", () => {
+    // 相補的な`targetCondition`を持つ2つのACTION stepにすると、それぞれのstepが
+    // 自分の`EffectStepStarting`とそこから生じるPS/Memory連鎖の**後**に最新stateで
+    // 評価されるため、強化版を適用した直後に連鎖が炎上を解除すると
+    // `NOT(TARGET_HAS_EFFECT BURN)`も成立して通常版まで走ってしまう。単一BRANCHは
+    // 分岐の選択を一度だけ確定するため、この経路が構造的に存在しない。
+    const skillId = "SKL_NOEL_RUMBLE_AS1";
+    const { skill, snapshot } = loadSkill("UNIT_NOEL_RUMBLE", skillId);
+    const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
+    expect(steps.map((step) => step.kind)).toEqual(["BRANCH"]);
+
+    const actor = unitOf("actor", "ALLY", "UNIT_NOEL_RUMBLE" as never, {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    const base = unitOf("enemy", "ENEMY", "UNIT_TEST_ENEMY" as never, {
+      column: "CENTER",
+      row: "FRONT",
+    });
+    const burning = {
+      ...base,
+      appliedEffects: [
+        heldEffect(base, "burn", ["DEBUFF"], {
+          continuousDamage: { continuousDamageKind: "BURN", damageType: "PHYSICAL" },
+        }),
+      ],
+    };
+    const allUnits = [actor, burning];
+    const definitions = definitionsOf(snapshot, skillId, skill);
+    const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions);
+    const { recorder, rootEventId } = seedRecorder();
+
+    // 強化ダメージが着弾した瞬間に、PS連鎖が炎上を解除した状況を模す。
+    const stripBurnOnDamage = (
+      event: { readonly eventType: string },
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] =>
+      event.eventType === "DamageApplied"
+        ? units.map((unit) =>
+            unit.battleUnitId === "enemy" ? { ...unit, appliedEffects: [] } : unit,
+          )
+        : units;
+
+    applyEffectActionGroups(
+      plan,
+      allUnits,
+      contextFor(actor, skillId, definitions, recorder, rootEventId, undefined, stripBurnOnDamage),
+    );
+
+    expect(completedTargetsFor(recorder, "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING")).toEqual([
+      "enemy",
+    ]);
+    expect(completedTargetsFor(recorder, "ACT_NOEL_RUMBLE_AS1_DAMAGE")).toEqual([]);
   });
 });

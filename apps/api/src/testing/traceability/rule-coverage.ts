@@ -792,6 +792,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `SKL_SHOUKA_SCHEMER_AS3`の「対象の攻撃力がデバフ」は`statKinds`で、
   // `SKL_CHIYURU_MAZE_AS1`/`SKL_NOEL_RUMBLE_AS1`の毒・炎上は`continuousDamageKinds`で
   // 絞り込む — どちらも無ければ「何らかのデバフ」への近似が残っていた。
+  // PR #287レビュー[P2]: 当初は「条件」と「NOT(条件)」を2つのACTION stepへ分けていたが、
+  // `targetCondition`は各stepのPS/Memory連鎖の後に再評価されるため、強化版の適用中に
+  // 条件が崩れると通常版まで走る欠陥があった（`IT-CAP-TARGET-EFFECT-QUERY-PROD-006`が
+  // 旧構造で実際に両方の実行を検出する）。分岐の選択は`BRANCH`で一度だけ確定させ、
+  // BRANCHで参照できない`TRIGGER_TARGET`（`SKL_FLUTE_INFLUENCER_PS2`）は
+  // 「基本回復は無条件、増加分だけ条件付き」の加算形にした。AS/EXの`activationCondition`も
+  // BRANCHと同じ「高々1体」制約が実行時に効くため、`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`
+  // でCatalogロード時点から同じ制約を課す（`UT-CAT-IDX-092`〜`094`）。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -1848,6 +1856,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-TARGET-EFFECT-QUERY-PROD-003",
       "IT-CAP-TARGET-EFFECT-QUERY-PROD-004",
       "IT-CAP-TARGET-EFFECT-QUERY-PROD-005",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-006",
+      "UT-CAT-IDX-092",
+      "UT-CAT-IDX-093",
+      "UT-CAT-IDX-094",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

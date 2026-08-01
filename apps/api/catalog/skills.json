@@ -3627,14 +3627,6 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_TARGET" },
-          "targetCondition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
-              "target": { "kind": "TRIGGER_TARGET" },
-              "categories": ["DEBUFF"]
-            }
-          },
           "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL" }]
         },
         {
@@ -3646,7 +3638,7 @@
             "categories": ["DEBUFF"]
           },
           "actions": [
-            { "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED" },
+            { "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL" },
             { "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF" }
           ]
         }
@@ -10751,35 +10743,37 @@
       ],
       "steps": [
         {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "targetCondition": {
+          "kind": "BRANCH",
+          "condition": {
             "kind": "TARGET_HAS_EFFECT",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "categories": ["DEBUFF"],
             "continuousDamageKinds": ["BURN"]
           },
-          "actions": [{ "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING" }]
-        },
-        {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "targetCondition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
+          "thenSteps": [
+            {
+              "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "categories": ["DEBUFF"],
-              "continuousDamageKinds": ["BURN"]
+              "actions": [{ "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING" }]
             }
-          },
-          "actions": [{ "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE" }]
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE" }]
+            }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_EFFECT_QUERY", "CAP_EFFECT_STEP_CONDITION"],
+    "requiredCapabilities": [
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "クラッシュラッシュ", "tags": [] }
   },
   {
@@ -13317,31 +13311,29 @@
       ],
       "steps": [
         {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "targetCondition": {
+          "kind": "BRANCH",
+          "condition": {
             "kind": "TARGET_HAS_EFFECT",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "categories": ["DEBUFF"],
             "statKinds": ["ATTACK"]
           },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF" }
-          ]
-        },
-        {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "targetCondition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
+          "thenSteps": [
+            {
+              "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "categories": ["DEBUFF"],
-              "statKinds": ["ATTACK"]
+              "actions": [
+                { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF" }
+              ]
             }
-          },
-          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE" }]
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE" }]
+            }
+          ]
         },
         {
           "kind": "ACTION",
@@ -13355,7 +13347,8 @@
     "requiredCapabilities": [
       "CAP_REMOVE_EFFECTS",
       "CAP_TARGET_EFFECT_QUERY",
-      "CAP_EFFECT_STEP_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": { "displayName": "インクリメントアタック", "tags": [] }
   },

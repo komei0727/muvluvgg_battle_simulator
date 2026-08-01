@@ -270,16 +270,6 @@
           "target": {
             "kind": "TRIGGER_TARGET"
           },
-          "targetCondition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
-              "target": {
-                "kind": "TRIGGER_TARGET"
-              },
-              "categories": ["DEBUFF"]
-            }
-          },
           "actions": [
             {
               "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL"
@@ -300,7 +290,7 @@
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED"
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL"
             },
             {
               "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF"

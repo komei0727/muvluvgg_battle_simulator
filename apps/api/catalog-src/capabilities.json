@@ -996,7 +996,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001E",
-    "description": "`ConditionDefinition.TARGET_HAS_EFFECT`（M7-001E、Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）。「対象が何らかのバフ／デバフ／状態異常を保持しているか」をR-EFF-02/03の分類軸（`EffectImmunityCategory`のうち`MARKER`/`SPECIFIC_EFFECT`を除く）で照会し、`continuousDamageKinds`（毒・炎上）と`statKinds`（攻撃力デバフ等）で絞り込む。分類元は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込み、`EffectApplied.payload`・`EffectSnapshot`・独立Reducerが同じ値を運ぶ。評価スコープはACTIONの`targetCondition`（対象ごと）・BRANCHの`condition`（高々1体、`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証）・AS/EXの`activationCondition`・PSのtrigger/activationConditionで、`stepCondition`からは`TARGET_STATE`と同じ理由で除外する。",
+    "description": "`ConditionDefinition.TARGET_HAS_EFFECT`（M7-001E、Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）。「対象が何らかのバフ／デバフ／状態異常を保持しているか」をR-EFF-02/03の分類軸（`EffectImmunityCategory`のうち`MARKER`/`SPECIFIC_EFFECT`を除く）で照会し、`continuousDamageKinds`（毒・炎上）と`statKinds`（攻撃力デバフ等）で絞り込む。分類元は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込み、`EffectApplied.payload`・`EffectSnapshot`・独立Reducerが同じ値を運ぶ。評価スコープはACTIONの`targetCondition`（対象ごと）・BRANCHの`condition`（高々1体、`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証）・AS/EXの`activationCondition`・PSのtrigger/activationConditionで、`stepCondition`からは`TARGET_STATE`と同じ理由で除外する。PR #287レビュー[P2]: 相補的な条件を2つのACTION stepへ分けると、各`targetCondition`がそのstepのPS/Memory連鎖の後に再評価されるため通常版と強化版の両方が実行されうる。分岐の選択は`BRANCH`で一度だけ確定させ（`SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`）、BRANCHで参照できない`TRIGGER_TARGET`では基本効果を無条件・増加分だけを条件付きにする加算形をとる（`SKL_FLUTE_INFLUENCER_PS2`）。AS/EXの`activationCondition`はBRANCHと同じ「高々1体」制約が実行時に効くため、`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`でCatalogロード時点から同じ制約を課す。",
     "verification": {
       "productionDefinitionIds": [
         "SKL_CHIYURU_MAZE_AS1",
@@ -1021,7 +1021,8 @@
         "IT-CAP-TARGET-EFFECT-QUERY-PROD-002",
         "IT-CAP-TARGET-EFFECT-QUERY-PROD-003",
         "IT-CAP-TARGET-EFFECT-QUERY-PROD-004",
-        "IT-CAP-TARGET-EFFECT-QUERY-PROD-005"
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-005",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-006"
       ]
     }
   }

@@ -131,21 +131,6 @@
     }
   },
   {
-    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED",
-    "kind": "HEAL",
-    "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.1
-      },
-      "overheal": "DISCARD"
-    },
-    "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": {
-      "tags": []
-    }
-  },
-  {
     "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF",
     "kind": "REMOVE_EFFECTS",
     "payload": {

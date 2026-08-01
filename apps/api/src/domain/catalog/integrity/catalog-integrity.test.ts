@@ -2693,6 +2693,161 @@ describe("buildCatalogIndex", () => {
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
 
+    /**
+     * PR #287レビュー[P2]（Issue #248）: AS/EXの`activationCondition`は
+     * `evaluateActivationCondition`（`lifecycle/activation-condition-evaluator.ts`）が
+     * 解決済みbindingを`TargetSetResolver`として渡して評価するため、BRANCHと
+     * まったく同じ「高々1体」制約が実行時に効く。Catalogロード側にこの制約が
+     * 無いと、`count: "ALL"`のbindingを参照する定義が正常にロードされたまま
+     * 行動選択中に`DomainValidationError`で落ちる。
+     */
+    function activationConditionSkill(
+      condition: ConditionDefinitionInput,
+      selector: TargetSelectorDefinitionInput,
+      skillType: "AS" | "EX" | "PS" = "AS",
+    ): SkillDefinition {
+      return createSkillDefinition({
+        skillDefinitionId:
+          skillType === "EX" ? "SKL_EX1" : skillType === "PS" ? "SKL_PS1" : "SKL_AS1",
+        skillType,
+        cost: {
+          resource: skillType === "EX" ? "EX_GAUGE" : skillType === "PS" ? "PP" : "AP",
+          amount: 1,
+        },
+        activationCondition: condition,
+        ...(skillType === "PS"
+          ? {
+              triggers: [
+                {
+                  eventType: "DamageApplied",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                },
+              ],
+            }
+          : {}),
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [{ targetBindingId: "TGT_OTHER", selector }],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        requiredCapabilities:
+          skillType === "PS"
+            ? ["CAP_PASSIVE_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"]
+            : ["CAP_ACTION_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"],
+        metadata: { displayName: "Activation condition scope AS" },
+      });
+    }
+
+    const ACTIVATION_CAPABILITIES = [
+      capability("CAP_ACTION_ACTIVATION_CONDITION"),
+      capability("CAP_TARGET_EFFECT_QUERY"),
+    ];
+
+    it("UT-CAT-IDX-092 (PR #287レビュー[P2], Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
+      const defs = baseDefinitions();
+      const skill = activationConditionSkill(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          categories: ["DEBUFF"],
+        },
+        { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
+      );
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [skill, exSkill("SKL_EX1", 7)],
+          capabilities: ACTIVATION_CAPABILITIES,
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-093 (PR #287レビュー[P2], Issue #248): applies the same rule to TARGET_STATE/TARGET_HAS_MARKER, which share the AS/EX activationCondition evaluation path", () => {
+      const defs = baseDefinitions();
+      const multiSelector: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: "ALL",
+        order: ["DEFAULT"],
+      };
+      for (const condition of [
+        {
+          kind: "TARGET_STATE",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          field: "IS_ALIVE",
+          op: "EQ",
+          value: true,
+        },
+        {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          markerId: "MARKER_TEST",
+        },
+      ] satisfies ConditionDefinitionInput[]) {
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [activationConditionSkill(condition, multiSelector), exSkill("SKL_EX1", 7)],
+            capabilities: ACTIVATION_CAPABILITIES,
+          }),
+        ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
+      }
+    });
+
+    it("UT-CAT-IDX-094 (PR #287レビュー[P2], Issue #248): accepts a count:1 BINDING (and leaves PS activationCondition alone, which quantifies existentially over the resolved ids)", () => {
+      const defs = baseDefinitions();
+      const singleSelector: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        order: ["DEFAULT"],
+      };
+      const multiSelector: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: "ALL",
+        order: ["DEFAULT"],
+      };
+      const condition: ConditionDefinitionInput = {
+        kind: "TARGET_HAS_EFFECT",
+        target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+        categories: ["DEBUFF"],
+      };
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [activationConditionSkill(condition, singleSelector), exSkill("SKL_EX1", 7)],
+          capabilities: ACTIVATION_CAPABILITIES,
+        }),
+      ).not.toThrow();
+      // PSの`activationCondition`は`evaluateTriggerCondition`が解決済みid集合へ
+      // 存在量化するため、複数対象でも実行時に落ちない — この規則の対象外。
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            activationConditionSkill(condition, singleSelector),
+            activationConditionSkill(condition, multiSelector, "PS"),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: [
+            ...ACTIVATION_CAPABILITIES,
+            capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
+          ],
+        }),
+      ).not.toThrow();
+    });
+
     it("UT-CAT-IDX-070（PRレビュー[P2]再指摘）: accepts a BRANCH condition referencing a BINDING whose fallback chain is entirely count:1 (every reachable path resolves to at most one unit)", () => {
       const defs = baseDefinitions();
       const skill = branchConditionSkill(

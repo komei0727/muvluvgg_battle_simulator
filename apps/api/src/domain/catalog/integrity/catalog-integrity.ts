@@ -63,6 +63,7 @@ export const VIOLATION_RULES = [
   "MISSING_PRECEDING_RESULT",
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
+  "ACTIVATION_CONDITION_UNBOUNDED_REFERENCE",
   "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
   "MEMORY_REQUIRES_SOURCE_UNIT",
 ] as const;
@@ -666,6 +667,47 @@ function collectBranchTargetStateUnboundedReferencePaths(
   return paths;
 }
 
+/**
+ * PR #287レビュー[P2]（Issue #248）: AS/EXの`activationCondition`は
+ * `evaluateActivationCondition`（`lifecycle/activation-condition-evaluator.ts`）が
+ * 解決済みbindingを`TargetSetResolver`として渡して`evaluateEffectStepCondition`で
+ * 評価するため、BRANCHの`condition`とまったく同じ「高々1体」制約が実行時に効く
+ * （量化規則を発明せずに済む範囲へ意図的に限定している）。この制約がCatalogロード
+ * 側に無いと、`count: "ALL"`のbindingを参照する定義が正常にロードされたまま行動
+ * 選択中に`DomainValidationError`で落ちるため、BRANCHと同じ規則をここでも課す。
+ *
+ * PSの`activationCondition`は`evaluateTriggerCondition`（`triggering/`）が解決
+ * した`BattleUnitId`集合へ存在量化するため複数対象でも評価でき、この規則の対象外
+ * とする（そもそも`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`しか解決しない）。
+ */
+function validateActivationConditionUnboundedReference(
+  skill: SkillDefinition,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const activationCondition = skill.activationCondition;
+  if (activationCondition === undefined || skill.skillType === "PS") {
+    return;
+  }
+  const bindingSelectors = new Map<string, TargetSelectorDefinition>(
+    (skill.resolution.kind === "CHARGE"
+      ? [...skill.resolution.targetBindings, ...skill.resolution.chargeRelease.targetBindings]
+      : skill.resolution.targetBindings
+    ).map((binding) => [binding.targetBindingId, binding.selector]),
+  );
+  for (const { reference, path } of collectTargetStateOrMarkerReferences(
+    activationCondition,
+    "activationCondition",
+  )) {
+    if (!targetReferenceIsSingleUnit(reference, bindingSelectors)) {
+      violations.push({
+        targetId: skill.skillDefinitionId,
+        rule: "ACTIVATION_CONDITION_UNBOUNDED_REFERENCE",
+        message: `${path}: an AS/EX activationCondition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF or a BINDING whose selector has kind SELECT and count 1 are supported — action-selection evaluation has no per-target context to quantify over multiple units, PR #287レビュー[P2] Issue #248)`,
+      });
+    }
+  }
+}
+
 function validateBranchTargetStateUnboundedReference(
   sequence: EffectSequence,
   ownerId: string,
@@ -1259,6 +1301,7 @@ function validateSkill(
     validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
     validateBranchTargetStateUnboundedReference(sequence, skill.skillDefinitionId, violations);
   }
+  validateActivationConditionUnboundedReference(skill, violations);
   const runtimeTriggers = [
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),

@@ -187,12 +187,8 @@
       ],
       "steps": [
         {
-          "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "targetCondition": {
+          "kind": "BRANCH",
+          "condition": {
             "kind": "TARGET_HAS_EFFECT",
             "target": {
               "kind": "BINDING",
@@ -201,33 +197,32 @@
             "categories": ["DEBUFF"],
             "statKinds": ["ATTACK"]
           },
-          "actions": [
+          "thenSteps": [
             {
-              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF"
-            }
-          ]
-        },
-        {
-          "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "targetCondition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
+              "kind": "ACTION",
               "target": {
                 "kind": "BINDING",
                 "targetBindingId": "TGT_PRIMARY"
               },
-              "categories": ["DEBUFF"],
-              "statKinds": ["ATTACK"]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF"
+                }
+              ]
             }
-          },
-          "actions": [
+          ],
+          "elseSteps": [
             {
-              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE"
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE"
+                }
+              ]
             }
           ]
         },
@@ -253,7 +248,8 @@
     "requiredCapabilities": [
       "CAP_REMOVE_EFFECTS",
       "CAP_TARGET_EFFECT_QUERY",
-      "CAP_EFFECT_STEP_CONDITION"
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
     "metadata": {
       "displayName": "インクリメントアタック",
