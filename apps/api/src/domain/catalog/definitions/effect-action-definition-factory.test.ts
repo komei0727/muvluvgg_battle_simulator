@@ -856,12 +856,126 @@ describe("EffectActionDefinition", () => {
               targetDefense: "TARGET_CURRENT_DEFENSE",
             },
           },
+          duration: { dispellable: true },
         },
         requiredCapabilities: [],
       },
       "effectAction",
     );
     expect(result.kind).toBe("APPLY_SUBUNIT");
+  });
+
+  it("UT-CAT-ACT-092: maps APPLY_SUBUNIT duration so the subunit can expire on its own (SUBUNIT_DURATION)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SUBUNIT_1",
+        kind: "APPLY_SUBUNIT",
+        payload: {
+          durability: { formula: { kind: "CONSTANT", value: 100 } },
+          additionalDamage: {
+            formula: {
+              kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+              ownerAttack: "CURRENT_ATTACK",
+              providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+              skillMultiplier: 0.5,
+              targetDefense: "TARGET_CURRENT_DEFENSE",
+            },
+          },
+          duration: { timeLimit: { unit: "ACTION", count: 3 }, dispellable: true },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_SUBUNIT");
+    if (result.kind === "APPLY_SUBUNIT") {
+      expect(result.payload.duration.timeLimit).toEqual({ unit: "ACTION", count: 3 });
+    }
+  });
+
+  it("UT-CAT-ACT-093: rejects APPLY_SUBUNIT without duration", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_SUBUNIT_1",
+          kind: "APPLY_SUBUNIT",
+          payload: {
+            durability: { formula: { kind: "CONSTANT", value: 100 } },
+            additionalDamage: {
+              formula: {
+                kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+                ownerAttack: "CURRENT_ATTACK",
+                providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+                skillMultiplier: 0.5,
+                targetDefense: "TARGET_CURRENT_DEFENSE",
+              },
+            },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-094: maps APPLY_SUBUNIT additionalDamage damageType and debuff (SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SUBUNIT_1",
+        kind: "APPLY_SUBUNIT",
+        payload: {
+          durability: { formula: { kind: "CONSTANT", value: 100 } },
+          additionalDamage: {
+            formula: {
+              kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+              ownerAttack: "CURRENT_ATTACK",
+              providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+              skillMultiplier: 0.5,
+              targetDefense: "TARGET_CURRENT_DEFENSE",
+            },
+            damageType: "EN",
+            debuff: { effectActionDefinitionId: "ACT_SPEED_DOWN" },
+          },
+          duration: { dispellable: true },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_SUBUNIT");
+    if (result.kind === "APPLY_SUBUNIT") {
+      expect(result.payload.additionalDamage.damageType).toBe("EN");
+      expect(result.payload.additionalDamage.debuff).toEqual({
+        effectActionDefinitionId: "ACT_SPEED_DOWN",
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-095: rejects APPLY_SUBUNIT additionalDamage with an unknown damageType", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_SUBUNIT_1",
+          kind: "APPLY_SUBUNIT",
+          payload: {
+            durability: { formula: { kind: "CONSTANT", value: 100 } },
+            additionalDamage: {
+              formula: {
+                kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+                ownerAttack: "CURRENT_ATTACK",
+                providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+                skillMultiplier: 0.5,
+                targetDefense: "TARGET_CURRENT_DEFENSE",
+              },
+              damageType: "FIRE",
+            },
+            duration: { dispellable: true },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-ACT-033: rejects EFFECT_IMMUNITY with SPECIFIC_EFFECT but no effectActionDefinitionIds", () => {

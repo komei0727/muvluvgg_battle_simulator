@@ -311,7 +311,7 @@ describe("evaluateFormula", () => {
     expect(() => evaluateFormula(formula, context())).toThrow(DomainValidationError);
   });
 
-  it("UT-R-NUM-04-021: SUBUNIT_ADDITIONAL_DAMAGE throws (SubUnit runtime state is not implemented yet)", () => {
+  it("UT-R-NUM-04-021: SUBUNIT_ADDITIONAL_DAMAGE throws without the provider attack snapshot in the context", () => {
     const formula: FormulaDefinition = {
       kind: "SUBUNIT_ADDITIONAL_DAMAGE",
       ownerAttack: "CURRENT_ATTACK",
@@ -320,6 +320,33 @@ describe("evaluateFormula", () => {
       targetDefense: "TARGET_CURRENT_DEFENSE",
     };
     expect(() => evaluateFormula(formula, context())).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-SUB-02-001: SUBUNIT_ADDITIONAL_DAMAGE is ownerAttack + providerSnapshotAttack * skillMultiplier - targetDefense", () => {
+    const formula: FormulaDefinition = {
+      kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+      ownerAttack: "CURRENT_ATTACK",
+      providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+      skillMultiplier: 0.5,
+      targetDefense: "TARGET_CURRENT_DEFENSE",
+    };
+    // 所持者の現在攻撃力50 + 付与者の付与時攻撃力200 × 0.5 - 対象の現在防御力20 = 130
+    expect(evaluateFormula(formula, context({ subUnitProviderAttack: 200 }))).toBe(130);
+  });
+
+  it("UT-R-SUB-02-002: SUBUNIT_ADDITIONAL_DAMAGE keeps fractional results (R-NUM-02 rounding belongs to the applier)", () => {
+    const formula: FormulaDefinition = {
+      kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+      ownerAttack: "CURRENT_ATTACK",
+      providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+      skillMultiplier: 0.312,
+      targetDefense: "TARGET_CURRENT_DEFENSE",
+    };
+    // 50 + 101 × 0.312 - 20 = 61.512
+    expect(evaluateFormula(formula, context({ subUnitProviderAttack: 101 }))).toBeCloseTo(
+      61.512,
+      10,
+    );
   });
 
   it("UT-R-NUM-04-022: SUM composes child Formula results without any intermediate rounding", () => {

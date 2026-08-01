@@ -796,6 +796,39 @@ function statModAction(
   );
 }
 
+/** DMG-005（Issue #190、R-SUB-01/02）: `APPLY_SUBUNIT`のfixture。 */
+function subunitAction(
+  id: string,
+  options: { readonly debuffId?: string } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_SUBUNIT",
+      payload: {
+        durability: {
+          formula: { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: 0.25 },
+        },
+        additionalDamage: {
+          formula: {
+            kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+            ownerAttack: "CURRENT_ATTACK",
+            providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+            skillMultiplier: 0.3,
+            targetDefense: "TARGET_CURRENT_DEFENSE",
+          },
+          ...(options.debuffId !== undefined
+            ? { debuff: { effectActionDefinitionId: options.debuffId } }
+            : {}),
+        },
+        duration: { timeLimit: { unit: "ACTION", count: 3 }, dispellable: true },
+      },
+      requiredCapabilities: ["CAP_SUBUNIT"],
+    },
+    "effectAction",
+  );
+}
+
 function modifyResourceDistributeAction(
   id: string,
   requiredCapabilities: readonly string[] = ["CAP_RESOURCE_MUTATION", "CAP_RESOURCE_DISTRIBUTE"],
@@ -1409,6 +1442,69 @@ describe("buildCatalogIndex", () => {
     const index = buildCatalogIndex(withCapability);
 
     expect(index.effectActions.get("ACT_REMOVE_SUBUNIT" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-098 (DMG-005, Issue #190, R-SUB-02): rejects an APPLY_SUBUNIT whose additionalDamage.debuff references a missing EffectActionDefinition", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        subunitAction("ACT_SUBUNIT_DANGLING", { debuffId: "ACT_MISSING_DEBUFF" }),
+      ],
+      capabilities: [capability("CAP_SUBUNIT")],
+    };
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "DANGLING_REFERENCE" && v.targetId === "ACT_SUBUNIT_DANGLING",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-099 (DMG-005, Issue #190, R-SUB-02): rejects an APPLY_SUBUNIT whose additionalDamage.debuff references a non-APPLY_STAT_MOD EffectAction", () => {
+    const defs = baseDefinitions();
+    const withNonGrantable: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        subunitAction("ACT_SUBUNIT_BAD_DEBUFF", { debuffId: "ACT_DAMAGE_1" }),
+      ],
+      capabilities: [capability("CAP_SUBUNIT")],
+    };
+    try {
+      buildCatalogIndex(withNonGrantable);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "TYPE_MISMATCH" && v.targetId === "ACT_SUBUNIT_BAD_DEBUFF",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-100 (DMG-005, Issue #190, R-SUB-02): accepts an APPLY_SUBUNIT whose additionalDamage.debuff references a grantable EffectAction", () => {
+    const defs = baseDefinitions();
+    const withDebuff: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        statModAction("ACT_SPEED_DOWN"),
+        subunitAction("ACT_SUBUNIT_WITH_DEBUFF", { debuffId: "ACT_SPEED_DOWN" }),
+      ],
+      capabilities: [capability("CAP_SUBUNIT"), capability("CAP_STAT_MOD")],
+    };
+
+    const index = buildCatalogIndex(withDebuff);
+
+    expect(index.effectActions.get("ACT_SUBUNIT_WITH_DEBUFF" as never)).toBeDefined();
   });
 
   it("UT-CAT-IDX-075 (Issue #181, 再々々レビュー[P2]): rejects ANY REMOVE_EFFECTS missing CAP_REMOVE_EFFECTS, regardless of categories (e.g. STATUS, which needs no other capability)", () => {

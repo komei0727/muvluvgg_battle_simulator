@@ -8,6 +8,7 @@ import {
   type HealingLinkState,
   type ShieldState,
   type StatusEffectDetails,
+  type SubUnitState,
 } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -72,6 +73,8 @@ export interface GrantEffectRequest {
   readonly damageModifier?: DamageModifierState;
   /** DMG-004（Issue #194、R-SHD-01）: `APPLY_SHIELD`由来の付与だけが持つ。 */
   readonly shield?: ShieldState;
+  /** DMG-005（Issue #190、R-SUB-01/02）: `APPLY_SUBUNIT`由来の付与だけが持つ。 */
+  readonly subUnit?: SubUnitState;
   /** DMG-008（Issue #189、R-DOT-01〜04）: `APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ。 */
   readonly continuousDamage?: ContinuousDamageState;
   readonly durationDefinition: DurationDefinition;
@@ -252,6 +255,7 @@ export function grantEffect(
     ...(request.healingLink !== undefined ? { healingLink: request.healingLink } : {}),
     ...(request.damageModifier !== undefined ? { damageModifier: request.damageModifier } : {}),
     ...(request.shield !== undefined ? { shield: request.shield } : {}),
+    ...(request.subUnit !== undefined ? { subUnit: request.subUnit } : {}),
     ...(request.continuousDamage !== undefined
       ? { continuousDamage: request.continuousDamage }
       : {}),

@@ -8,7 +8,11 @@ import {
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
-import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import {
+  effectKindKeyFromDefinitionId,
+  SUBUNIT_PROVIDER_ATTACK_KEY,
+  type AppliedEffect,
+} from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -6853,5 +6857,117 @@ describe("APPLY_CONTINUOUS_DAMAGE (R-DOT-01〜04, DMG-008 Issue #189)", () => {
     expect(effects[0]!.duration.timeLimitRemaining).toBe(4);
     expect(recorder.getEvents().filter((e) => e.eventType === "EffectMerged")).toHaveLength(1);
     expect(recorder.getEvents().filter((e) => e.eventType === "EffectApplied")).toHaveLength(1);
+  });
+});
+
+/**
+ * PR #289再々レビュー[P2]（DMG-005、Issue #190）: R-SUB-02のサブユニット追加ヒットは
+ * `application.hits`に含まれないため、その解決中に使用者が戦闘不能になっても
+ * `interruptedCount`は0のままになる。中断が`ApplyDamageActionResult.interrupted`として
+ * 外側へ伝わり、`EffectActionCompleted`が`INTERRUPTED`になって後続stepへ進まないことを、
+ * 実resolver経路で固定する。
+ */
+describe("sub-unit additional damage interruption (R-SUB-02 / R-SKL-01, PR #289 再々レビュー)", () => {
+  const OWNER_SUBUNIT_ID = createEffectActionDefinitionId("ACT_OWNER_SUBUNIT");
+  const TARGET_SUBUNIT_ID = createEffectActionDefinitionId("ACT_TARGET_SUBUNIT");
+
+  function subUnitEffect(
+    instanceId: string,
+    definitionId: EffectActionDefinition["effectActionDefinitionId"],
+    holderId: BattleUnit["battleUnitId"],
+    durability: number,
+  ): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId(instanceId),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      targetId: holderId,
+      magnitude: durability,
+      categories: ["SUBUNIT"],
+      subUnit: {
+        durability,
+        additionalDamage: {
+          formula: {
+            kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+            ownerAttack: "CURRENT_ATTACK",
+            providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+            skillMultiplier: 0.5,
+            targetDefense: "TARGET_CURRENT_DEFENSE",
+          },
+        },
+      },
+      snapshot: { [SUBUNIT_PROVIDER_ATTACK_KEY]: 100 },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  it("UT-R-SUB-02-016: a SubUnitDamaged chain that defeats the actor during the additional hit reports INTERRUPTED and never starts the next step", () => {
+    const actorBase = unit("ACTOR", "ALLY");
+    // 使用者がサブユニットを持つので、通常ヒットの後に追加ヒットが1回発生する。
+    const actor: BattleUnit = {
+      ...actorBase,
+      appliedEffects: [subUnitEffect("OWNER_SUB", OWNER_SUBUNIT_ID, actorBase.battleUnitId, 50)],
+    };
+    // 対象もサブユニットを持つので、追加ヒットが`SubUnitDamaged`を発行する。
+    // 耐久力200のサブユニットが通常ヒット(10)も追加ヒット(20 + 100×0.5 - 10 = 60)も
+    // 吸収しきるため、対象は戦闘不能にならず中断要因が使用者側だけに絞られる。
+    const enemyBase = unit("ENEMY", "ENEMY");
+    const enemy: BattleUnit = {
+      ...enemyBase,
+      appliedEffects: [subUnitEffect("TARGET_SUB", TARGET_SUBUNIT_ID, enemyBase.battleUnitId, 200)],
+    };
+    const attack = damageAction("ACT_ATTACK");
+    const second = damageAction("ACT_SECOND");
+    const effectActions = new Map([
+      [attack.effectActionDefinitionId, attack],
+      [second.effectActionDefinitionId, second],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    // 追加ヒット（`effectActionDefinitionId`が使用者のサブユニット定義）の
+    // `SubUnitDamaged`にだけ反応して使用者を倒す。通常ヒット側の`SubUnitDamaged`
+    // （`ACT_ATTACK`）では発火しないため、中断は追加ヒットの最中に起きる。
+    const context = contextFor(actor, effectActions, recorder, rootEventId, (event, units) => {
+      if (
+        event.eventType !== "SubUnitDamaged" ||
+        event.payload.effectActionDefinitionId !== OWNER_SUBUNIT_ID
+      ) {
+        return units;
+      }
+      return units.map((u) =>
+        u.battleUnitId === actor.battleUnitId ? { ...u, currentHp: createHitPoint(0, 100) } : u,
+      );
+    });
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        singleActionStep(0, true, enemy.battleUnitId, attack.effectActionDefinitionId),
+        singleActionStep(1, true, enemy.battleUnitId, second.effectActionDefinitionId),
+      ],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    // 追加ヒットの`SubUnitDamaged`連鎖が使用者を倒したので、この解決は中断扱いになる。
+    expect(result.outcome.status).toBe("INTERRUPTED");
+    const completed = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "EffectActionCompleted")
+      .map((e) => e.payload.resultKind);
+    expect(completed).toEqual(["INTERRUPTED"]);
+    // 後続stepのEffectActionは一度も開始されない（R-SKL-01「未解決効果を中断する」）。
+    expect(
+      recorder
+        .getEvents()
+        .some(
+          (e) =>
+            e.eventType === "EffectActionStarting" &&
+            e.payload.effectActionDefinitionId === second.effectActionDefinitionId,
+        ),
+    ).toBe(false);
+    expect(recorder.getEvents().filter((e) => e.eventType === "EffectStepCompleted")).toEqual([]);
   });
 });

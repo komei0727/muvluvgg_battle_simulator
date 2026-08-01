@@ -390,10 +390,44 @@ export interface BattleDomainEventPayloadMap {
     readonly absorbed: number;
   };
   /**
+   * `08_ドメインイベント.md`「ダメージイベント」SubUnitDamaged（DMG-005、
+   * Issue #190、R-SUB-01）: サブユニットの耐久力を減らした直後に、減らした
+   * **インスタンス単位**で発行する`FACT`。1ヒットが複数のサブユニットを削った
+   * 場合はその数だけ発行する（付与順のまま）。
+   *
+   * インスタンス単位なのは`ShieldConsumed`（プール単位）との意図的な違いである —
+   * シールドはR-SHD-01でプール合計として振る舞うが、サブユニットはR-SUB-01第3項
+   * 「内部状態は通常シールドと分ける」と`10_API設計.md`「SubUnitStateResponse」の
+   * とおり、消費順と固有効果を持つ個別の状態だからである。
+   *
+   * `reason`はこの減少の契機を区別する。
+   * - `DAMAGE_ABSORPTION`: R-SUB-01のダメージ吸収。`hitIndex`を持つ
+   * - `CONTINUOUS_DAMAGE_ABSORPTION`: R-DOT-02の固定継続ダメージ吸収。特定の
+   *   ヒットに属さないため`hitIndex`を持たない。炎上・毒はR-SUB-01第2項により
+   *   そもそもサブユニットで受けないため、この理由では発行されない
+   *
+   * `stateDelta`は減った`AppliedEffect.subUnit.durability`の変化を持つ。耐久力が
+   * 0になったインスタンスの失効自体は、続く`EffectExpired`
+   * （`reason: SUBUNIT_DEPLETED`）が別途表す。
+   */
+  readonly SubUnitDamaged: {
+    readonly effectActionDefinitionId?: EffectActionDefinitionId;
+    readonly hitIndex?: number;
+    readonly battleUnitId: BattleUnitId;
+    readonly effectInstanceId: EffectInstanceId;
+    /** このサブユニットを付与した`APPLY_SUBUNIT`の定義ID（`10_API設計.md`の`subUnitDefinitionId`）。 */
+    readonly subUnitDefinitionId: EffectActionDefinitionId;
+    readonly reason: SubUnitDamageReason;
+    readonly before: number;
+    readonly after: number;
+    readonly absorbed: number;
+  };
+  /**
    * `08_ドメインイベント.md`「HitPointReduced」: HPを減らした後に発行する
    * `FACT`（RES-005、Issue #172）。R-DMG-05の並び上は`DamageCalculated`と
-   * `DamageApplied`の間 — シールド吸収（`ShieldConsumed`、DMG-004／Issue #194）を
-   * 経てHPが確定した直後を表す（サブユニット吸収はDMG-005で加わる）。HP変化の
+   * `DamageApplied`の間 — シールド吸収（`ShieldConsumed`、DMG-004／Issue #194）と
+   * サブユニット吸収（`SubUnitDamaged`、DMG-005／Issue #190）を経てHPが確定した
+   * 直後を表す。HP変化の
    * StateDeltaはこのイベントが持つ（`DamageApplied`はもう持たない — 同じdeltaを
    * 両方のイベントへ付けると独立Reducer復元が二重適用でエラーになるため）。
    */
@@ -420,11 +454,14 @@ export interface BattleDomainEventPayloadMap {
     readonly typedShieldAbsorbed: number;
     /** DMG-004（R-SHD-02 #3）: タイプなしシールドの吸収量。 */
     readonly untypedShieldAbsorbed: number;
+    /** DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニットの吸収量。 */
+    readonly subUnitAbsorbed: number;
     /**
      * DMG-004（R-SHD-03第2項）: HPを0未満にしないために破棄した超過分。
      * `08_ドメインイベント.md`の不変条件#6は
-     * `typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage + discardedDamage
-     * === calculatedDamage`として成立する（HPクランプで消えた分をこの項が説明する）。
+     * `typedShieldAbsorbed + untypedShieldAbsorbed + subUnitAbsorbed + hitPointDamage
+     * + discardedDamage === calculatedDamage`として成立する（HPクランプで消えた分を
+     * この項が説明する）。
      */
     readonly discardedDamage: number;
     readonly hitPointDamage: number;
@@ -1059,6 +1096,11 @@ export type EffectExpirationReason =
    * （`CONSUMPTION`）でもない、シールド固有の失効契機である。
    */
   | "SHIELD_DEPLETED"
+  /**
+   * R-SUB-01（DMG-005、Issue #190）: サブユニットの耐久力が0になったことによる
+   * 個別消滅条件。`SHIELD_DEPLETED`と同じ位置づけで、サブユニット固有の失効契機。
+   */
+  | "SUBUNIT_DEPLETED"
   | "LINKED_GROUP_CASCADE";
 
 /** `ShieldConsumed.reason`: シールド残量が減った契機（DMG-004、Issue #194）。 */
@@ -1066,6 +1108,14 @@ export type ShieldConsumptionReason =
   | "DAMAGE_ABSORPTION"
   | "CONTINUOUS_DAMAGE_ABSORPTION"
   | "DECAY";
+
+/**
+ * `SubUnitDamaged.reason`: サブユニットの耐久力が減った契機（DMG-005、Issue #190）。
+ * `ShieldConsumptionReason`から`DECAY`を除いた集合である — 耐久力の漸減に当たる
+ * 宣言（`APPLY_SHIELD.decay`相当）はR-SUB-01にもCatalog schemaにも存在せず、
+ * サブユニットは吸収と存続期間（`APPLY_SUBUNIT.duration`）だけで消える。
+ */
+export type SubUnitDamageReason = "DAMAGE_ABSORPTION" | "CONTINUOUS_DAMAGE_ABSORPTION";
 
 /**
  * `07_戦闘ルール詳細.md` R-EFF-10: `MarkerState`が除去された理由。`REMOVED`は
@@ -1094,6 +1144,8 @@ export type MarkerRemovalReason =
    * 保つために列挙する。
    */
   | "SHIELD_DEPLETED"
+  /** `SHIELD_DEPLETED`とまったく同じ理由で列挙する、サブユニット固有の契機（DMG-005、Issue #190、R-SUB-01）。 */
+  | "SUBUNIT_DEPLETED"
   | "LINKED_GROUP_CASCADE";
 
 /**

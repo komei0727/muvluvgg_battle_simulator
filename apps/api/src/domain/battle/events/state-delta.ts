@@ -7,6 +7,7 @@ import type {
   HealingLinkState,
   ShieldState,
   StatusEffectDetails,
+  SubUnitState,
 } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
@@ -116,6 +117,14 @@ export interface EffectSnapshot {
    */
   readonly shield?: ShieldState;
   /**
+   * DMG-005（Issue #190、R-SUB-01/02）: `APPLY_SUBUNIT`由来の効果だけが持つ
+   * 残耐久力と追加ダメージ定義。`durability`はヒットごとの吸収（`SubUnitDamaged`）で
+   * 変化し、`additionalDamage`は所持者の攻撃へ加わる追加ヒットの内容を決めるため、
+   * `shield`と同じ理由で同一性比較へ含める — これが無いと独立Reducerで復元した
+   * 状態のサブユニット吸収と追加ダメージが実戦闘と食い違う。
+   */
+  readonly subUnit?: SubUnitState;
+  /**
    * DMG-008（Issue #189、R-DOT-01〜04）: `APPLY_CONTINUOUS_DAMAGE`由来の効果だけが
    * 持つ種別・ダメージタイプ。種別が復元されないと、独立Reducerで復元した状態の
    * 炎上重複数（R-DOT-03）と毒の再付与統合（R-DOT-04）が実戦闘と食い違うため、
@@ -195,6 +204,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     ...(effect.healingLink !== undefined ? { healingLink: effect.healingLink } : {}),
     ...(effect.damageModifier !== undefined ? { damageModifier: effect.damageModifier } : {}),
     ...(effect.shield !== undefined ? { shield: effect.shield } : {}),
+    ...(effect.subUnit !== undefined ? { subUnit: effect.subUnit } : {}),
     ...(effect.continuousDamage !== undefined ? { continuousDamage: effect.continuousDamage } : {}),
     categories: effect.categories,
     ...(effect.statModStat !== undefined ? { statModStat: effect.statModStat } : {}),

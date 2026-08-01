@@ -1,5 +1,6 @@
 import { ApplicationError } from "../contracts/application-error.js";
 import { shieldPoolsOf } from "../../domain/battle/combat/shield-policy.js";
+import { subUnitInstances } from "../../domain/battle/combat/sub-unit-policy.js";
 import type { BattleLogEvent } from "../observation/battle-log-event.js";
 import type { StateTransition } from "../observation/battle-observation.js";
 import type {
@@ -13,6 +14,7 @@ import type {
   EffectStateResponseBody,
   EntityCollectionDeltaResponseBody,
   MarkerStateResponseBody,
+  SubUnitStateResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
 } from "../contracts/response.js";
@@ -181,6 +183,23 @@ function toEffectStateResponseBody(effect: EffectSnapshot): EffectStateResponseB
 }
 
 /**
+ * `10_API設計.md`「SubUnitStateResponse」（DMG-005、Issue #190）: `APPLY_SUBUNIT`
+ * 由来の効果インスタンスを、消費順（付与順）のまま1件ずつ返す。`durability`の
+ * `maximum`は付与時の最大耐久力（`EffectSnapshot.magnitude`）、`current`は吸収で
+ * 減った残量（`subUnit.durability`）である。
+ */
+function toSubUnitStateResponseBody(effect: EffectSnapshot): SubUnitStateResponseBody {
+  return {
+    subUnitInstanceId: effect.effectInstanceId,
+    subUnitDefinitionId: effect.effectDefinitionId,
+    ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
+    durability: { current: effect.subUnit!.durability, maximum: effect.magnitude },
+    appliedTurnNumber: effect.appliedTurnNumber,
+    ...(effect.appliedActionId !== undefined ? { appliedActionId: effect.appliedActionId } : {}),
+  };
+}
+
+/**
  * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1]):
  * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`は直近の付与者を表す
  * 監査用の値）。
@@ -250,9 +269,14 @@ function toUnitStateResponseBody(
     },
     // `10_API設計.md`「ShieldStateResponse」: タイプ別プールは`APPLY_SHIELD`由来の
     // 効果インスタンス（R-SHD-01第3項）からの導出値であり、実体を別に持たない
-    // （DMG-004、Issue #194）。サブユニットはDMG-005まで空が事実。
+    // （DMG-004、Issue #194）。
     shields: shieldPoolsOf(snapshot.effects ?? []),
-    subUnits: [],
+    // `10_API設計.md`「SubUnitStateResponse」（DMG-005、Issue #190、R-SUB-01第3項）:
+    // サブユニットは「消費順と固有効果を追跡するためインスタンスごとに返す」ため、
+    // `shields`のようなプール合計へは合算せず`APPLY_SUBUNIT`由来の効果インスタンスを
+    // そのまま並べる。耐久力が0のインスタンスは失効済み（`SUBUNIT_DEPLETED`）として
+    // 除外する（`subUnitInstances`と同じ規約）。
+    subUnits: subUnitInstances(snapshot.effects ?? []).map(toSubUnitStateResponseBody),
     effects: (snapshot.effects ?? []).map(toEffectStateResponseBody),
     markers: (snapshot.markers ?? []).map(toMarkerStateResponseBody),
     cooldowns: toCooldownStateResponseBodies(snapshot.cooldowns),

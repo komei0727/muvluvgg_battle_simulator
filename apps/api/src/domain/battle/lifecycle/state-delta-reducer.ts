@@ -162,6 +162,23 @@ function sameShieldState(a: EffectSnapshot["shield"], b: EffectSnapshot["shield"
 }
 
 /**
+ * R-SUB-01/02（DMG-005、Issue #190）: `APPLY_SUBUNIT`由来の効果だけが持つ残耐久力と
+ * 追加ダメージ定義を`sameShieldState`と同じ理由で構造比較する。`additionalDamage`は
+ * Catalog由来の決定的なプレーン値（Formula・ダメージタイプ・デバフ参照）であり
+ * `deepFreeze`済みでキー順も安定しているため、`sameDamageModifierState`の`condition`と
+ * 同じく`JSON.stringify`で比較する。
+ */
+function sameSubUnitState(a: EffectSnapshot["subUnit"], b: EffectSnapshot["subUnit"]): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.durability === b.durability &&
+    JSON.stringify(a.additionalDamage) === JSON.stringify(b.additionalDamage)
+  );
+}
+
+/**
  * R-DOT-01〜04（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の効果だけが
  * 持つ種別・ダメージタイプを`sameShieldState`と同じ理由で構造比較する。
  */
@@ -236,6 +253,7 @@ export function sameEffectSnapshot(
     sameHealingLinkState(a.healingLink, b.healingLink) &&
     sameDamageModifierState(a.damageModifier, b.damageModifier) &&
     sameShieldState(a.shield, b.shield) &&
+    sameSubUnitState(a.subUnit, b.subUnit) &&
     sameContinuousDamageState(a.continuousDamage, b.continuousDamage) &&
     sameCategories(a.categories, b.categories) &&
     a.statModStat === b.statModStat &&

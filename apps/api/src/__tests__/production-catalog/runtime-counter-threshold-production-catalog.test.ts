@@ -429,6 +429,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
           hpDirectDamage: 0,
           typedShieldAbsorbed: 0,
           untypedShieldAbsorbed: 0,
+          subUnitAbsorbed: 0,
           discardedDamage: 0,
           hitPointDamage,
           hpBefore,

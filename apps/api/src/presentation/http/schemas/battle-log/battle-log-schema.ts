@@ -569,6 +569,40 @@ const shieldConsumedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `SubUnitDamaged`（DMG-005、Issue #190、R-SUB-01）。サブユニットの耐久力を減らした
+ * 直後に、減らした**インスタンス単位**で発行する（`ShieldConsumed`のプール単位とは
+ * 異なる — R-SUB-01第3項「内部状態は通常シールドと分ける」）。`reason:
+ * DAMAGE_ABSORPTION`だけが`effectActionDefinitionId`/`hitIndex`を持つ。
+ */
+const subUnitDamagedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "battleUnitId",
+    "effectInstanceId",
+    "subUnitDefinitionId",
+    "reason",
+    "before",
+    "after",
+    "absorbed",
+  ],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    battleUnitId: { type: "string" },
+    effectInstanceId: { type: "string" },
+    subUnitDefinitionId: { type: "string" },
+    reason: {
+      type: "string",
+      enum: ["DAMAGE_ABSORPTION", "CONTINUOUS_DAMAGE_ABSORPTION"],
+    },
+    before: { type: "integer", minimum: 0 },
+    after: { type: "integer", minimum: 0 },
+    absorbed: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 /** `HitPointReduced`（RES-005、Issue #172）。HPを減らした後、`DamageCalculated`と`DamageApplied`の間に発行する。 */
 const hitPointReducedDetailsSchema = {
   type: "object",
@@ -617,6 +651,18 @@ const damageAppliedDetailsSchema = {
     hpDirectDamage: { type: "integer", minimum: 0 },
     typedShieldAbsorbed: { type: "integer", minimum: 0 },
     untypedShieldAbsorbed: { type: "integer", minimum: 0 },
+    /*
+     * DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
+     *
+     * PRレビュー[P1]（#289）: `required`へは入れない。`10_API設計.md`「バージョニング」が
+     * 後方互換な追加として認めるのは**任意プロパティの追加**だけであり、`schemaVersion`が
+     * 1のまま既存イベントのdetailsへ必須項目を足すと、`additionalProperties: false`の
+     * v1 schemaを保持する厳密なデコーダを壊す（`markers`をv1のまま任意で足したのと
+     * 同じ扱い、`response.ts`の`BattleUnitStateResponseBody.markers`参照）。
+     * Domain側の`DamageApplied.payload`では必須であり、Response Mapperも常に値を
+     * 設定するため、実際の応答から欠落することはない。
+     */
+    subUnitAbsorbed: { type: "integer", minimum: 0 },
     discardedDamage: { type: "integer", minimum: 0 },
     hitPointDamage: { type: "integer", minimum: 0 },
     hpBefore: { type: "integer", minimum: 0 },
@@ -729,6 +775,18 @@ const continuousDamageAppliedDetailsSchema = {
     calculatedDamage: { type: "integer", minimum: 1 },
     typedShieldAbsorbed: { type: "integer", minimum: 0 },
     untypedShieldAbsorbed: { type: "integer", minimum: 0 },
+    /*
+     * DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
+     *
+     * PRレビュー[P1]（#289）: `required`へは入れない。`10_API設計.md`「バージョニング」が
+     * 後方互換な追加として認めるのは**任意プロパティの追加**だけであり、`schemaVersion`が
+     * 1のまま既存イベントのdetailsへ必須項目を足すと、`additionalProperties: false`の
+     * v1 schemaを保持する厳密なデコーダを壊す（`markers`をv1のまま任意で足したのと
+     * 同じ扱い、`response.ts`の`BattleUnitStateResponseBody.markers`参照）。
+     * Domain側の`DamageApplied.payload`では必須であり、Response Mapperも常に値を
+     * 設定するため、実際の応答から欠落することはない。
+     */
+    subUnitAbsorbed: { type: "integer", minimum: 0 },
     discardedDamage: { type: "integer", minimum: 0 },
     hitPointDamage: { type: "integer", minimum: 0 },
     hpBefore: { type: "integer", minimum: 0 },
@@ -1674,6 +1732,13 @@ const EFFECT_EXPIRATION_REASON_ENUM = [
   "TIME_LIMIT",
   "CONSUMPTION",
   "EXPIRATION_CONDITION",
+  // R-SHD-01第3項（DMG-004、Issue #194）／R-SUB-01（DMG-005、Issue #190）の個別
+  // 消滅条件。`domain-event.ts`の`EffectExpirationReason`が持つ値をこの公開enumが
+  // 落としていると、シールド枯渇・サブユニット枯渇による失効ログがschema検証で
+  // 弾かれる（DMG-005で`SUBUNIT_DEPLETED`を追加するのに合わせ、DMG-004時点で
+  // 追加漏れだった`SHIELD_DEPLETED`もここで揃える）。
+  "SHIELD_DEPLETED",
+  "SUBUNIT_DEPLETED",
   "LINKED_GROUP_CASCADE",
 ] as const;
 
@@ -1799,6 +1864,8 @@ const MARKER_REMOVAL_REASON_ENUM = [
   "CONSUMPTION",
   "EXPIRATION_CONDITION",
   "SOURCE_DEFEATED",
+  "SHIELD_DEPLETED",
+  "SUBUNIT_DEPLETED",
   "LINKED_GROUP_CASCADE",
 ] as const;
 
@@ -1860,6 +1927,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   DAMAGE_WILL_BE_APPLIED: damageWillBeAppliedDetailsSchema,
   DAMAGE_CALCULATED: damageCalculatedDetailsSchema,
   SHIELD_CONSUMED: shieldConsumedDetailsSchema,
+  SUB_UNIT_DAMAGED: subUnitDamagedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
   HEAL_APPLIED: healAppliedDetailsSchema,

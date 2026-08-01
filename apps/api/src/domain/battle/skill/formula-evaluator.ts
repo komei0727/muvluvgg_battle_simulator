@@ -48,6 +48,16 @@ export interface FormulaEvaluationContext {
    * `damageResultsFor`が`DamageResultRegistry`から組み立てる。
    */
   readonly lastResults?: Readonly<Partial<Record<LastResultReference, number>>>;
+  /**
+   * R-SUB-02（DMG-005、Issue #190）: `SUBUNIT_ADDITIONAL_DAMAGE.providerAttack:
+   * SOURCE_SNAPSHOT_ATTACK`が参照する、サブユニット**付与者**の付与時点攻撃力。
+   * 実体は`AppliedEffect.snapshot[SUBUNIT_PROVIDER_ATTACK_KEY]`（継続ダメージの
+   * `sourceAttack`と同じ「付与時snapshot」規約）で、追加ダメージを解決する
+   * `sub-unit-policy.ts`がインスタンスごとにここへ載せる。`skillSource`は
+   * 追加ダメージを発生させた**所持者**（`ownerAttack: CURRENT_ATTACK`）であり
+   * 付与者とは別のユニットになり得るため、両者を混同しないよう別fieldにする。
+   */
+  readonly subUnitProviderAttack?: number;
 }
 
 function resolveSourceUnit(
@@ -290,8 +300,9 @@ export function recordDamageResult(
  * R-NUM-04のFormulaEvaluator: `FormulaDefinition`を状態変更なしに数値へ評価する。
  * `SUM`/`MIN`/`MAX`/`CLAMP`は子Formulaの評価結果を丸めずに合成する
  * （このファイル自身がどこにも`Math.round`/`Math.floor`を持たないことで保証する
- * — 整数化（R-NUM-02）は適用側の責務）。`SUBUNIT_ADDITIONAL_DAMAGE`は
- * SubUnitの実行時状態を前提とするため未対応とする（DMG-005、Issue #190）。
+ * — 整数化（R-NUM-02）は適用側の責務）。`SUBUNIT_ADDITIONAL_DAMAGE`（R-SUB-02、
+ * DMG-005、Issue #190）は`context.subUnitProviderAttack`（付与者の付与時攻撃力
+ * snapshot）を要求し、`skillSource`をサブユニット所持者として扱う。
  */
 export function evaluateFormula(
   formula: FormulaDefinition,
@@ -303,11 +314,31 @@ export function evaluateFormula(
       return formula.value;
     case "SKILL_POWER":
       return formula.power;
-    case "SUBUNIT_ADDITIONAL_DAMAGE":
-      throw new DomainValidationError(
-        path,
-        'kind "SUBUNIT_ADDITIONAL_DAMAGE" requires SubUnit runtime state that is not implemented yet (DMG-005, Issue #190)',
+    case "SUBUNIT_ADDITIONAL_DAMAGE": {
+      // R-SUB-02: `追加ダメージ = サブユニット所持者の攻撃力 + 付与者の攻撃力 ×
+      // スキル倍率 - 対象の防御力`。「追加ダメージでは通常の防御力減衰を行わない」
+      // （R-SUB-02末尾）ため、この式は`damage-calculator.ts`の防御力減衰
+      // （`defenseIgnoreRate`込みの実効防御）を経由せず、対象の現在防御力を
+      // そのまま差し引く。最終切り捨てと最低1ダメージは適用側の責務である
+      // （このファイルはどこでも丸めない）。
+      if (context.skillSource === undefined) {
+        throw new DomainValidationError(
+          path,
+          'kind "SUBUNIT_ADDITIONAL_DAMAGE" requires the SubUnit holder as skillSource (ownerAttack: CURRENT_ATTACK)',
+        );
+      }
+      if (context.subUnitProviderAttack === undefined) {
+        throw new DomainValidationError(
+          path,
+          'kind "SUBUNIT_ADDITIONAL_DAMAGE" requires subUnitProviderAttack in the evaluation context (providerAttack: SOURCE_SNAPSHOT_ATTACK)',
+        );
+      }
+      return (
+        context.skillSource.combatStats.attack +
+        context.subUnitProviderAttack * formula.skillMultiplier -
+        context.target.combatStats.defense
       );
+    }
     case "STAT_RATIO": {
       const source = resolveSourceUnit(formula.source, context, `${path}.source`);
       return statValue(source, formula.stat) * formula.ratio;

@@ -553,6 +553,8 @@ describe("OpenAPI document", () => {
         hpDirectDamage: 0,
         typedShieldAbsorbed: 0,
         untypedShieldAbsorbed: 0,
+        // DMG-005（Issue #190、R-SUB-01）: サブユニット未所持の対象の内訳。
+        subUnitAbsorbed: 0,
         discardedDamage: 0,
         hitPointDamage: 10,
         hpBefore: 20,
@@ -837,6 +839,47 @@ describe("OpenAPI document", () => {
     expect(validate(withModulo(1.5))).toBe(false);
   });
 
+  it("API-OPENAPI-008 (PR #289レビュー[P1], DMG-005/Issue #190): DAMAGE_APPLIED keeps subUnitAbsorbed optional so a strict v1 decoder built before DMG-005 still validates", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "DAMAGE_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: [],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const v1Details = {
+      effectActionDefinitionId: "ACT_1",
+      hitIndex: 0,
+      targetUnitId: "enemy:1",
+      calculatedDamage: 10,
+      hpDirectDamage: 0,
+      typedShieldAbsorbed: 0,
+      untypedShieldAbsorbed: 0,
+      discardedDamage: 0,
+      hitPointDamage: 10,
+      hpBefore: 20,
+      hpAfter: 10,
+      defeated: false,
+    };
+
+    // `10_API設計.md`「バージョニング」: `schemaVersion`が1のまま既存イベントのdetailsへ
+    // 必須項目を足すことは後方互換な変更ではない。DMG-005の`subUnitAbsorbed`は任意項目
+    // として追加してあるため、それを知らないv1 payloadも通る。
+    expect(validate({ ...base, details: v1Details }), JSON.stringify(validate.errors)).toBe(true);
+    // Response Mapperは常に値を設定するため、付いていても当然通る。
+    expect(
+      validate({ ...base, details: { ...v1Details, subUnitAbsorbed: 3 } }),
+      JSON.stringify(validate.errors),
+    ).toBe(true);
+  });
+
   it("API-OPENAPI-005 (regression: M5 review [P1] found COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // A mapped type over `BattleDomainEventType` forces a compile error (missing
     // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event
@@ -870,6 +913,7 @@ describe("OpenAPI document", () => {
       DamageWillBeApplied: true,
       DamageCalculated: true,
       ShieldConsumed: true,
+      SubUnitDamaged: true,
       HitPointReduced: true,
       DamageApplied: true,
       HealApplied: true,

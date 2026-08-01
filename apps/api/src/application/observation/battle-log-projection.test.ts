@@ -173,6 +173,7 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
       hpDirectDamage: 0,
       typedShieldAbsorbed: 0,
       untypedShieldAbsorbed: 0,
+      subUnitAbsorbed: 0,
       discardedDamage: 0,
       hitPointDamage: 10,
       hpBefore: 10,

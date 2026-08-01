@@ -1444,6 +1444,34 @@ function validateEffectAction(
       }
     }
   }
+  // R-SUB-02第3項（DMG-005、Issue #190、`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`）:
+  // 追加デバフは別のEffectActionDefinitionへの参照として書く。参照先が存在しない
+  // 定義はロード時点で拒否し（`EFFECT_IMMUNITY`/`REMOVE_EFFECTS`の
+  // `effectActionDefinitionIds`と同じ`DANGLING_REFERENCE`）、`APPLY_STAT_MOD`以外を
+  // 指す定義も拒否する — 追加デバフの付与を実装しているのは
+  // `effect-action-group-resolver.ts`の`grantSubUnitAdditionalDamageDebuffSteps`
+  // だけで、その経路が扱えるのは`APPLY_STAT_MOD`（付与＋CombatStat再計算）である。
+  // 対応kindが増えたときはこの検証と同時に広げ、Catalogが受理する形と実行できる形を
+  // ずらさない（`MARKER`カテゴリのREMOVE_EFFECTSと同じ「黙ってno-opにしない」方針）。
+  if (effectAction.kind === "APPLY_SUBUNIT") {
+    const debuff = effectAction.payload.additionalDamage.debuff;
+    if (debuff !== undefined) {
+      const referenced = effectActions.get(debuff.effectActionDefinitionId);
+      if (referenced === undefined) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "DANGLING_REFERENCE",
+          message: `APPLY_SUBUNIT payload.additionalDamage.debuff references undefined EffectActionDefinition "${debuff.effectActionDefinitionId}"`,
+        });
+      } else if (referenced.kind !== "APPLY_STAT_MOD") {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "TYPE_MISMATCH",
+          message: `APPLY_SUBUNIT payload.additionalDamage.debuff must reference an APPLY_STAT_MOD EffectActionDefinition, but "${debuff.effectActionDefinitionId}" is a ${referenced.kind}`,
+        });
+      }
+    }
+  }
   // M7-001（Issue #181、再々レビュー[P2]）: REMOVE_EFFECTSのSHIELD/SUBUNITカテゴリは
   // シールド/サブユニットの実行時状態が未モデル化（`CAP_SHIELD`=DMG-004、
   // `CAP_SUBUNIT`=DMG-005、いずれも`PLANNED`、#242）。`COOLDOWN_MANIPULATION`/
@@ -1859,13 +1887,15 @@ function durationOf(effectAction: EffectActionDefinition): DurationDefinition | 
     case "APPLY_ATTACK_DAMAGE_BONUS":
     case "APPLY_RESOURCE_GAIN_MOD":
     case "APPLY_HEALING_LINK":
+    case "APPLY_SUBUNIT":
+      // `APPLY_SUBUNIT`は`SUBUNIT_DURATION`（DMG-005、Issue #190）でサブユニット自身も
+      // 存続期間を持つ継続効果になった（`ApplySubunitPayload.duration`）。
       return effectAction.payload.duration;
     case "DAMAGE":
     case "HEAL":
     case "MODIFY_RESOURCE":
     case "REMOVE_EFFECTS":
     case "REMOVE_MARKER":
-    case "APPLY_SUBUNIT":
     case "COOLDOWN_MANIPULATION":
       return undefined;
     default: {

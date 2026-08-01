@@ -549,7 +549,7 @@ SubUnitStateResponse {
 }
 ```
 
-サブユニットは同じ表示用シールド合計へ含まれる場合でも、消費順と固有効果を追跡するためインスタンスごとに返す。
+サブユニットは同じ表示用シールド合計へ含まれる場合でも、消費順と固有効果を追跡するためインスタンスごとに返す。`DMG-005`（Issue #190）で `APPLY_SUBUNIT` 由来の効果インスタンス（`AppliedEffect.subUnit`）へ配線した — `durability.maximum` は付与時の最大耐久力、`durability.current` は吸収で減った残量である。耐久力が0になったインスタンスは `EffectExpired`（`reason: SUBUNIT_DEPLETED`）で失効するため、この配列には現れない。
 
 ### CooldownStateResponse
 

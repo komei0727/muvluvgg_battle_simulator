@@ -151,8 +151,8 @@ export function fireContinuousHealsOnActionStart(
           resolutionScopeId: context.resolutionScopeId,
           rootEventId: context.rootEventId,
           effectActions: context.effectActions,
-          ...(context.continuousDamage.expireDepletedShields !== undefined
-            ? { expireDepletedShields: context.continuousDamage.expireDepletedShields }
+          ...(context.continuousDamage.expireDepletedAbsorbers !== undefined
+            ? { expireDepletedAbsorbers: context.continuousDamage.expireDepletedAbsorbers }
             : {}),
         },
         lastEventId,

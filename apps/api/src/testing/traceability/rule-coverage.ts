@@ -1630,8 +1630,51 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // SUB: サブユニット
-  { ruleId: "R-SUB-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-SUB-02", testCaseIds: [], kinds: [] },
+  // DMG-005（Issue #190）: サブユニットの耐久力・吸収順・追加ダメージ・追加デバフを
+  // 実ライフサイクルへ配線した。
+  {
+    ruleId: "R-SUB-01",
+    testCaseIds: [
+      "UT-R-SUB-01-001",
+      "UT-R-SUB-01-002",
+      "UT-R-SUB-01-003",
+      "UT-R-SUB-01-004",
+      "UT-R-SUB-01-005",
+      "UT-R-SUB-01-006",
+      "UT-R-SUB-01-007",
+      "UT-R-SUB-01-008",
+      "UT-R-SUB-01-009",
+      "UT-R-SUB-01-010",
+      "UT-R-SUB-01-011",
+      "IT-CAP-SUBUNIT-PROD-001",
+      "IT-CAP-SUBUNIT-PROD-003",
+      "IT-CAP-SUBUNIT-PROD-004",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
+  {
+    ruleId: "R-SUB-02",
+    testCaseIds: [
+      "UT-R-SUB-02-001",
+      "UT-R-SUB-02-002",
+      "UT-R-SUB-02-003",
+      "UT-R-SUB-02-004",
+      "UT-R-SUB-02-005",
+      "UT-R-SUB-02-006",
+      "UT-R-SUB-02-007",
+      "UT-R-SUB-02-008",
+      "UT-R-SUB-02-009",
+      "UT-R-SUB-02-010",
+      "UT-R-SUB-02-011",
+      "UT-R-SUB-02-012",
+      "UT-R-SUB-02-013",
+      "UT-R-SUB-02-014",
+      "UT-R-SUB-02-015",
+      "UT-R-SUB-02-016",
+      "IT-CAP-SUBUNIT-PROD-002",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
+  },
 
   // INT: 防御介入
   { ruleId: "R-INT-01", testCaseIds: [], kinds: [] },

@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 113,
-      "completed": 101,
-      "remaining": 12
+      "completed": 103,
+      "remaining": 10
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 24
+      "incompleteConversionRows": 20
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 47,
-      "implemented": 34
+      "implemented": 35
     }
   },
   "tasks": [
@@ -428,7 +428,7 @@
       "issue": 190,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "DMG-006",
@@ -539,10 +539,6 @@
       "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"]
     },
     {
-      "taskId": "DMG-005",
-      "ruleIds": ["R-SUB-01", "R-SUB-02"]
-    },
-    {
       "taskId": "DMG-007",
       "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"]
     },
@@ -578,12 +574,6 @@
     },
     {
       "milestone": "M8",
-      "theme": "SUBUNIT_DURATION",
-      "rowCount": 3,
-      "taskId": "DMG-005"
-    },
-    {
-      "milestone": "M8",
       "theme": "CONFUSION_OR_DAMAGE_TO_HEAL",
       "rowCount": 2,
       "taskId": "DMG-009"
@@ -593,12 +583,6 @@
       "theme": "REFLECT_DAMAGE",
       "rowCount": 1,
       "taskId": "DMG-006"
-    },
-    {
-      "milestone": "M8",
-      "theme": "SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF",
-      "rowCount": 1,
-      "taskId": "DMG-005"
     },
     {
       "milestone": "M8",
@@ -619,7 +603,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 47,
+      "selectableProductionUnits": 49,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -651,7 +635,7 @@
         "capabilityId": "CAP_DEATH_SURVIVAL",
         "blockedUnits": 6,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 3,
+        "exclusivelyBlockedUnits": 4,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -680,13 +664,6 @@
         "blockedUnits": 1,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_SUBUNIT",
-        "blockedUnits": 3,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 2,
         "exclusivelyBlockedMemories": 0
       },
       {

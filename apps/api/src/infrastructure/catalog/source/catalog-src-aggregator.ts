@@ -155,6 +155,17 @@ function verifyEffectOwnership(
 ): void {
   const referenced = new Set<string>();
   collectEffectActionReferences(referenceSource, referenced);
+  // R-SUB-02第3項（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`、DMG-005、Issue #190）:
+  // EffectAction同士の参照（`APPLY_SUBUNIT.payload.additionalDamage.debuff`）も
+  // 「このオーナーが使っている」根拠として数える。skills.json/triggeredEffectsから
+  // 直接は指されないが、同じユニットの別EffectActionからは指されている定義を
+  // 未参照として拒否しないため。`payload`だけを走査するのは、定義自身の
+  // `effectActionDefinitionId`（トップレベル）を自己参照として数えないためである。
+  for (const effect of effects) {
+    if (effect !== null && typeof effect === "object") {
+      collectEffectActionReferences((effect as Record<string, unknown>).payload, referenced);
+    }
+  }
   const ownIds = effects.map((e) => stringField(e, "effectActionDefinitionId"));
   const ownSet = new Set(ownIds);
   const missing = [...referenced].filter((id) => !ownSet.has(id));
