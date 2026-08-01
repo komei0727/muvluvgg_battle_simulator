@@ -26,6 +26,9 @@ import type { Side } from "../../domain/shared/side.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import { toEffectSnapshot } from "../../domain/battle/events/state-delta.js";
 
 /**
  * M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`、`CAP_TARGET_EFFECT_QUERY`）:
@@ -91,6 +94,39 @@ function heldEffect(
     appliedTurnNumber: 1,
     ...extra,
   };
+}
+
+/** 実行前の`BattleStateSnapshot`（独立Reducer復元の起点）。 */
+function initialSnapshotFor(units: readonly BattleUnit[]): BattleStateSnapshot {
+  return {
+    status: "RUNNING",
+    currentTurn: 1,
+    units: Object.fromEntries(
+      units.map((unit) => [
+        unit.battleUnitId,
+        {
+          hp: unit.currentHp,
+          ap: unit.currentAp,
+          pp: unit.currentPp,
+          extraGauge: unit.currentExtraGauge,
+          combatStats: unit.combatStats,
+          ...(unit.appliedEffects.length > 0
+            ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
+            : {}),
+        },
+      ]),
+    ),
+  };
+}
+
+/** 記録された`stateDelta`だけを独立Reducerへ流し、最終状態を再構成する。 */
+function reconstruct(initial: BattleStateSnapshot, recorder: EventRecorder): BattleStateSnapshot {
+  return reduceStateDeltas(
+    initial,
+    recorder
+      .getEvents()
+      .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+  );
 }
 
 function seedRecorder(): { recorder: EventRecorder; rootEventId: string } {
@@ -523,5 +559,226 @@ describe("production Catalog TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, M7-001E
       "enemy",
     ]);
     expect(completedTargetsFor(recorder, "ACT_NOEL_RUMBLE_AS1_DAMAGE")).toEqual([]);
+  });
+
+  /**
+   * RES-004-STATUS-CONDITION（Issue #224、`AOE_PER_TARGET_CONDITION`）:
+   * 「対象が状態異常にある場合」という総称の照会。`01_ユビキタス言語.md`「状態異常」
+   * が定義する5種のうち炎上・毒は`APPLY_CONTINUOUS_DAMAGE`、気絶・凍結・暗闇は
+   * `APPLY_STATUS`として保持されるが、Catalogは種別を列挙せず`categories: ["STATUS"]`
+   * だけを書く — 分類は`effect-category-classifier.ts`ただ1つが担うためである。
+   */
+  const statusAilment = (
+    holder: BattleUnit,
+    id: string,
+    extra: Partial<AppliedEffect>,
+  ): AppliedEffect => heldEffect(holder, id, ["STATUS", "DEBUFF"], extra);
+
+  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-007: SKL_CHIYURU_MAZE_EX stuns and damage-amplifies exactly the AOE targets that hold a 状態異常, poison included (raw「敵全体に威力117で攻撃する。対象が状態異常にある場合、1行動分の気絶を付与し、一度だけ対象の受ける被ダメージを100%増加させるデバフを付与する」)", () => {
+    const skillId = "SKL_CHIYURU_MAZE_EX";
+    const { skill, snapshot } = loadSkill("UNIT_CHIYURU_MAZE", skillId);
+    const stun = snapshot.effectActions.get("ACT_CHIYURU_MAZE_EX_STUN" as never);
+    const damageTakenUp = snapshot.effectActions.get(
+      "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP" as never,
+    );
+    expect(stun?.kind === "APPLY_STATUS" && stun.payload).toMatchObject({
+      status: "STUN",
+      duration: { timeLimit: { unit: "ACTION", count: 1 } },
+    });
+    // 「一度だけ…被ダメージを100%増加させる（重複可）」= 次の被攻撃1回で消費、重複可。
+    expect(damageTakenUp?.kind === "APPLY_DAMAGE_MOD" && damageTakenUp.payload).toMatchObject({
+      direction: "INCOMING",
+      formula: { kind: "CONSTANT", value: 1 },
+      stacking: { mode: "STACKABLE" },
+      duration: { consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 } },
+    });
+
+    const actor = unitOf("actor", "ALLY", "UNIT_CHIYURU_MAZE" as never, {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    // 敵全体4体を、状態異常の保持形が異なる組み合わせで並べる（複数対象混在）。
+    const poisonedBase = unitOf("enemy-poisoned", "ENEMY", "UNIT_TEST_ENEMY" as never, {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    const stunnedBase = unitOf("enemy-stunned", "ENEMY", "UNIT_TEST_ENEMY" as never, {
+      column: "CENTER",
+      row: "FRONT",
+    });
+    const statDebuffedBase = unitOf("enemy-statdebuff", "ENEMY", "UNIT_TEST_ENEMY" as never, {
+      column: "RIGHT",
+      row: "FRONT",
+    });
+    const cleanEnemy = unitOf("enemy-clean", "ENEMY", "UNIT_TEST_ENEMY" as never, {
+      column: "CENTER",
+      row: "BACK",
+    });
+    const poisoned = {
+      ...poisonedBase,
+      appliedEffects: [
+        {
+          ...statusAilment(poisonedBase, "poison", {
+            continuousDamage: { continuousDamageKind: "POISON", damageType: "PHYSICAL" },
+            snapshot: { sourceAttack: 20 },
+          }),
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_CHIYURU_MAZE_AS1_POISON"),
+        },
+      ],
+    };
+    const stunned = {
+      ...stunnedBase,
+      appliedEffects: [statusAilment(stunnedBase, "stun", { statusKind: "STUN" })],
+    };
+    // 状態異常ではない通常のデバフだけを持つ対象は不成立（`DEBUFF`への近似ではない）。
+    const statDebuffed = {
+      ...statDebuffedBase,
+      appliedEffects: [
+        heldEffect(statDebuffedBase, "defdown", ["DEBUFF"], { statModStat: "DEFENSE" }),
+      ],
+    };
+
+    const allUnits = [actor, poisoned, stunned, statDebuffed, cleanEnemy];
+    const definitions = definitionsOf(snapshot, skillId, skill);
+    const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions);
+    const { recorder, rootEventId } = seedRecorder();
+    const result = applyEffectActionGroups(
+      plan,
+      allUnits,
+      contextFor(actor, skillId, definitions, recorder, rootEventId),
+    );
+
+    // 攻撃自体は敵全体へ入る。
+    expect([...completedTargetsFor(recorder, "ACT_CHIYURU_MAZE_EX_DAMAGE")].sort()).toEqual([
+      "enemy-clean",
+      "enemy-poisoned",
+      "enemy-statdebuff",
+      "enemy-stunned",
+    ]);
+    // 条件付きの2効果は状態異常を持つ対象だけへ入る。
+    for (const actionId of ["ACT_CHIYURU_MAZE_EX_STUN", "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP"]) {
+      expect([...completedTargetsFor(recorder, actionId)].sort()).toEqual([
+        "enemy-poisoned",
+        "enemy-stunned",
+      ]);
+    }
+
+    // Domain Event（`EffectApplied`）・StateDelta・独立Reducer復元:
+    // `stateDelta`だけから再構成した最終状態が、集約側の`appliedEffects`と一致する。
+    const reconstructed = reconstruct(initialSnapshotFor(allUnits), recorder);
+    const grantedBy = (ids: readonly string[]): readonly string[] =>
+      [...ids].filter((id) => id.startsWith("ACT_CHIYURU_MAZE_EX_")).sort();
+    const restoredIds = (unitId: string): readonly string[] =>
+      grantedBy(
+        (reconstructed.units[unitId as never]?.effects ?? []).map(
+          (effect) => effect.effectDefinitionId,
+        ),
+      );
+    for (const enemy of [poisoned, stunned, statDebuffed, cleanEnemy]) {
+      const aggregate = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      expect(restoredIds(enemy.battleUnitId)).toEqual(
+        grantedBy(aggregate.appliedEffects.map((effect) => effect.effectActionDefinitionId)),
+      );
+      expect(reconstructed.units[enemy.battleUnitId]?.hp).toBe(aggregate.currentHp);
+    }
+    expect(restoredIds(poisoned.battleUnitId)).toEqual([
+      "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP",
+      "ACT_CHIYURU_MAZE_EX_STUN",
+    ]);
+    expect(restoredIds(cleanEnemy.battleUnitId)).toEqual([]);
+  });
+
+  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-008: SKL_MERU_FLATSPIN_AS2's 状態異常 branch fires for a poisoned target too, not only for STUN/FREEZE/BLIND (raw「対象が状態異常だった場合、さらに威力62.4で追加攻撃する」)", () => {
+    const skillId = "SKL_MERU_FLATSPIN_AS2";
+    const { skill, snapshot } = loadSkill("UNIT_MERU_FLATSPIN", skillId);
+
+    const actor = unitOf("actor", "ALLY", "UNIT_MERU_FLATSPIN" as never, {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    const run = (held: "poison" | "stun" | "statDebuff" | "none"): readonly string[] => {
+      const base = unitOf("enemy", "ENEMY", "UNIT_TEST_ENEMY" as never, {
+        column: "CENTER",
+        row: "FRONT",
+      });
+      const appliedEffects: readonly AppliedEffect[] =
+        held === "poison"
+          ? [
+              statusAilment(base, "poison", {
+                continuousDamage: { continuousDamageKind: "POISON", damageType: "PHYSICAL" },
+              }),
+            ]
+          : held === "stun"
+            ? [statusAilment(base, "stun", { statusKind: "STUN" })]
+            : held === "statDebuff"
+              ? [heldEffect(base, "atkdown", ["DEBUFF"], { statModStat: "ATTACK" })]
+              : [];
+      const target = { ...base, appliedEffects };
+      const allUnits = [actor, target];
+      const definitions = definitionsOf(snapshot, skillId, skill);
+      const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      applyEffectActionGroups(
+        plan,
+        allUnits,
+        contextFor(actor, skillId, definitions, recorder, rootEventId),
+      );
+      return completedTargetsFor(recorder, "ACT_MERU_FLATSPIN_AS2_DAMAGE_EXTRA");
+    };
+
+    // M7-001Eの3項OR（気絶・凍結・暗闇）では毒が漏れていた。ここが本Issueの解消点。
+    expect(run("poison")).toEqual(["enemy"]);
+    expect(run("stun")).toEqual(["enemy"]);
+    // 状態異常ではないデバフ・無状態では不成立（「何らかのデバフ」への近似ではない）。
+    expect(run("statDebuff")).toEqual([]);
+    expect(run("none")).toEqual([]);
+  });
+
+  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-009: SKL_NANAE_COMMANDER_PS1 cleanses her own debuffs when she is burning, evaluated on the state left by the preceding step (raw「自身が状態異常だった場合、自身にかけられたデバフを全て解除する」)", () => {
+    const skillId = "SKL_NANAE_COMMANDER_PS1";
+    // 解除が実際に効くことまで見るため、実在のデバフ定義も同じsnapshotへ載せる。
+    const { skill, snapshot } = loadSkill("UNIT_NANAE_COMMANDER", skillId, [
+      "UNIT_DOROTHEA_PIONEER",
+    ]);
+
+    const run = (burning: boolean) => {
+      const base = unitOf(
+        "actor",
+        "ALLY",
+        "UNIT_NANAE_COMMANDER" as never,
+        { column: "CENTER", row: "FRONT" },
+        { currentHp: 500 },
+      );
+      const debuff = {
+        ...heldEffect(base, "defdown", ["DEBUFF"], { statModStat: "DEFENSE" }),
+        effectActionDefinitionId: createEffectActionDefinitionId(
+          "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN",
+        ),
+      };
+      const actor = {
+        ...base,
+        appliedEffects: burning
+          ? [
+              debuff,
+              statusAilment(base, "burn", {
+                continuousDamage: { continuousDamageKind: "BURN", damageType: "PHYSICAL" },
+              }),
+            ]
+          : [debuff],
+      };
+      const allUnits = [actor];
+      const definitions = definitionsOf(snapshot, skillId, skill);
+      const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      applyEffectActionGroups(
+        plan,
+        allUnits,
+        contextFor(actor, skillId, definitions, recorder, rootEventId),
+      );
+      return completedTargetsFor(recorder, "ACT_NANAE_COMMANDER_PS1_CLEANSE");
+    };
+
+    expect(run(true)).toEqual(["actor"]);
+    expect(run(false)).toEqual([]);
   });
 });

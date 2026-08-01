@@ -13,6 +13,23 @@ import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js"
 import { createMarkerInstanceId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import type { EffectSnapshot } from "../../domain/battle/events/state-delta.js";
 import { STATUS_AILMENT_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
+import type { EffectImmunityCategory } from "../../domain/catalog/definitions/catalog-enums.js";
+import { effectCategoriesOf } from "../../domain/battle/effects/effect-category-classifier.js";
+import { createEffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition-factory.js";
+import type { StatusKind } from "../../domain/catalog/definitions/effect-action-payload.js";
+
+/** `APPLY_STATUS`の実定義（`effectCategoriesOf`へ渡す分類入力）。 */
+function statusDefinition(status: StatusKind) {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: `ACT_TEST_${status}`,
+      kind: "APPLY_STATUS",
+      payload: { status, duration: { timeLimit: { unit: "ACTION", count: 1 } } },
+      requiredCapabilities: [],
+    },
+    "effectAction",
+  );
+}
 
 const BATTLE_ID = createBattleId("battle-1");
 const ALLY_ID = createBattleUnitId("ally:1");
@@ -372,7 +389,12 @@ describe("toBattleSimulationResponseBody", () => {
               duplicate: false,
               isEffective: true,
               magnitude: 0,
-              categories: ["BUFF"],
+              // PR #288レビュー[P1]: `categories`は手書きせず、Domainの唯一の
+              // 分類元へ実際に通した値を載せる（以前は`["BUFF"]`という、この
+              // statusKindではありえない値のままでも通っていた）。
+              categories: [
+                ...effectCategoriesOf({ magnitude: 0, statusKind }, statusDefinition(statusKind)),
+              ],
               statusKind,
               appliedTurnNumber: 1,
             })),
@@ -429,6 +451,59 @@ describe("toBattleSimulationResponseBody", () => {
     const effects = toBattleSimulationResponseBody(withStatMods).finalState.units[0]!.effects;
 
     expect(effects.map((effect) => effect.category)).toEqual(["BUFF", "DEBUFF"]);
+    expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
+  });
+
+  it("API-RESP-012G (PR #288レビュー[P1]): classifies continuous damage from the Domain categories, so a positive-magnitude 毒/炎上 is STATUS_ABNORMALITY and 固定継続ダメージ is DEBUFF, not BUFF", () => {
+    // `APPLY_CONTINUOUS_DAMAGE`は`statusKind`を持たず`magnitude`（ダメージ量）が
+    // 正値のため、符号だけで分類すると毒・炎上・固定継続ダメージがすべて`BUFF`に
+    // なる。R-EFF-02/R-STS-01の分類（`AppliedEffect.categories`）を正本にする。
+    const base = baseResult();
+    const dot = (
+      index: number,
+      definitionId: string,
+      categories: readonly EffectImmunityCategory[],
+      continuousDamageKind: "POISON" | "BURN" | "FIXED",
+    ) => ({
+      effectInstanceId: createEffectInstanceId(`battle-1:effect:${index}`),
+      effectDefinitionId: definitionId,
+      sourceUnitId: ENEMY_ID,
+      kindKey: definitionId,
+      duplicate: false,
+      isEffective: true,
+      // 継続ダメージ量は常に正値 — ここが符号ベース分類の破綻点だった。
+      magnitude: 120,
+      categories,
+      continuousDamage: { continuousDamageKind, damageType: "PHYSICAL" as const },
+      appliedTurnNumber: 1,
+    });
+    const withContinuousDamage = baseResult({
+      finalState: {
+        ...base.finalState,
+        units: {
+          ...base.finalState.units,
+          [ALLY_ID]: {
+            ...base.finalState.units[ALLY_ID]!,
+            effects: [
+              dot(1, "ACT_TEST_POISON", ["DEBUFF", "STATUS"], "POISON"),
+              dot(2, "ACT_TEST_BURN", ["DEBUFF", "STATUS"], "BURN"),
+              // 固定継続ダメージは名前付きの状態異常ではないため`DEBUFF`止まり。
+              dot(3, "ACT_TEST_FIXED_DOT", ["DEBUFF"], "FIXED"),
+            ],
+          },
+        },
+      },
+    });
+
+    const effects =
+      toBattleSimulationResponseBody(withContinuousDamage).finalState.units[0]!.effects;
+
+    expect(effects.map((effect) => effect.category)).toEqual([
+      "STATUS_ABNORMALITY",
+      "STATUS_ABNORMALITY",
+      "DEBUFF",
+    ]);
+    // `statusKind`は`APPLY_STATUS`由来の効果だけが持つ。継続ダメージは持たない。
     expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
   });
 

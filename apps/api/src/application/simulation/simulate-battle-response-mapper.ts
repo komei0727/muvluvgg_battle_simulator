@@ -1,5 +1,4 @@
 import { ApplicationError } from "../contracts/application-error.js";
-import { STATUS_AILMENT_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
 import { shieldPoolsOf } from "../../domain/battle/combat/shield-policy.js";
 import type { BattleLogEvent } from "../observation/battle-log-event.js";
 import type { StateTransition } from "../observation/battle-observation.js";
@@ -127,23 +126,31 @@ function toChargeStateResponseBody(
   };
 }
 
-const STATUS_AILMENT_KIND_SET: ReadonlySet<string> = new Set<string>(STATUS_AILMENT_KINDS);
-
 /**
  * `10_API設計.md`「EffectStateResponse.category」。R-STS-01「状態異常はデバフの
- * 一種とする」に従い、`STATUS_AILMENT_KINDS`（気絶・凍結・暗闇）の`APPLY_STATUS`
- * だけを`STATUS_ABNORMALITY`とする。`STEALTH`/`EVASION`/`DAMAGE_IMMUNITY`等の
- * 残りの`APPLY_STATUS`は対象自身にとって有利であり、Domainの
- * `effect-category-classifier.ts`（R-EFF-02/03の解除・免疫判定の正本）も`BUFF`
- * として扱うため、ここでも`BUFF`を返す（PR #264レビュー[P1]: `statusKind`の
- * 有無だけで分類すると、有利な状態がAPI上だけ状態異常になりDomain分類と
- * 矛盾する）。`statusKind`を持たない効果は従来どおり効果量の符号で分類する。
+ * 一種とする」に従い、状態異常だけを`STATUS_ABNORMALITY`として区別して返す。
+ *
+ * 分類は`EffectSnapshot.categories`——`effect-category-classifier.ts`
+ * （R-EFF-02/03の解除・免疫判定の正本）が付与時点に確定し、`EffectApplied`・
+ * `BattleUnitSnapshot`・独立Reducerが同じ値を運ぶ——だけを読む。
+ *
+ * PR #288レビュー[P1]（RES-004-STATUS-CONDITION、Issue #224）: 以前は
+ * `statusKind`の有無で分岐し、持たない効果を`magnitude`の符号で分類していた。
+ * `APPLY_CONTINUOUS_DAMAGE`は`statusKind`を持たず`magnitude`（ダメージ量）が
+ * 正値のため、毒・炎上・固定継続ダメージがすべて公開API上だけ`BUFF`になり、
+ * Domain分類（毒・炎上＝`STATUS`+`DEBUFF`、固定＝`DEBUFF`）と矛盾していた。
+ * 符号から導き直すのをやめ、分類元を1つに保つ。
+ *
+ * `STEALTH`/`EVASION`/`DAMAGE_IMMUNITY`等の対象自身に有利な`APPLY_STATUS`が
+ * `BUFF`になること（PR #264レビュー[P1]）は`categories`側が`["BUFF"]`を返すため
+ * 変わらない。`SHIELD`/`SUBUNIT`のように極性を持たない分類も、デバフでない以上
+ * 従来どおり`BUFF`へ落ちる。
  */
 function effectCategoryOf(effect: EffectSnapshot): string {
-  if (effect.statusKind !== undefined) {
-    return STATUS_AILMENT_KIND_SET.has(effect.statusKind) ? "STATUS_ABNORMALITY" : "BUFF";
+  if (effect.categories.includes("STATUS")) {
+    return "STATUS_ABNORMALITY";
   }
-  return effect.magnitude >= 0 ? "BUFF" : "DEBUFF";
+  return effect.categories.includes("DEBUFF") ? "DEBUFF" : "BUFF";
 }
 
 /**

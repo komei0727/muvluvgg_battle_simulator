@@ -1,5 +1,9 @@
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
-import type { EffectImmunityCategory } from "../../catalog/definitions/catalog-enums.js";
+import {
+  STATUS_AILMENT_CONTINUOUS_DAMAGE_KINDS,
+  type ContinuousDamageKind,
+  type EffectImmunityCategory,
+} from "../../catalog/definitions/catalog-enums.js";
 import {
   STATUS_AILMENT_KINDS,
   type StatusKind,
@@ -17,6 +21,14 @@ import type { AppliedEffect } from "../model/applied-effect.js";
  * ため、catalog側を正本にしてここが再利用する）。
  */
 const STATUS_AILMENT_KIND_SET: ReadonlySet<StatusKind> = new Set<StatusKind>(STATUS_AILMENT_KINDS);
+
+/**
+ * RES-004-STATUS-CONDITION（Issue #224）: `APPLY_CONTINUOUS_DAMAGE`のうち`STATUS`
+ * カテゴリの対象になる種別（炎上・毒）。`STATUS_AILMENT_KINDS`（`APPLY_STATUS`側）と
+ * 同じ理由でCatalog側（`catalog-enums.ts`）を正本とし、ここが再利用する。
+ */
+const STATUS_AILMENT_CONTINUOUS_DAMAGE_KIND_SET: ReadonlySet<ContinuousDamageKind> =
+  new Set<ContinuousDamageKind>(STATUS_AILMENT_CONTINUOUS_DAMAGE_KINDS);
 
 /**
  * R-EFF-02 #2「バフ、デバフ、状態異常、シールドなど一致する効果を抽出する」:
@@ -64,11 +76,18 @@ export function effectCategoriesOf(
       // デバフ解除（`REMOVE_EFFECTS` の `categories: ["DEBUFF"]`）が炎上・毒を
       // 解除できなくなる。`APPLY_SHIELD`等と同じく定義kindから固定で決める。
       //
-      // `STATUS`は付けない — R-STS-01の状態異常解除・状態異常無効が対象とする
-      // 「状態異常として定義された効果」は`STATUS_AILMENT_KINDS`（気絶・凍結・
-      // 暗闇）であり、炎上・毒を状態異常として扱うかはR-DOT-01〜04が規定して
-      // いないためである（`EFFECT_IMMUNITY_STATUS_GRANULARITY`テーマの範囲）。
-      return new Set<EffectImmunityCategory>(["DEBUFF"]);
+      // RES-004-STATUS-CONDITION（Issue #224）: 炎上・毒には`STATUS`も付ける。
+      // M7-001E（Issue #248）時点では「炎上・毒を状態異常として扱うかはR-DOT-01〜04が
+      // 規定していない」として保留していたが、`01_ユビキタス言語.md`「状態異常」と
+      // `戦闘システム.md`「3. 状態異常について」がどちらも炎上・毒を定義された状態異常
+      // として列挙しているため、R-STS-01の状態異常解除・状態異常無効、および
+      // `TARGET_HAS_EFFECT.categories: ["STATUS"]`による「対象が状態異常にある場合」の
+      // 照会（`SKL_CHIYURU_MAZE_EX`等）はこれらを含めなければならない。どの種別が
+      // 状態異常かは`STATUS_AILMENT_CONTINUOUS_DAMAGE_KINDS`を正本にする（`FIXED`は
+      // 名前付きの状態異常ではないため従来どおり`DEBUFF`だけ）。
+      return STATUS_AILMENT_CONTINUOUS_DAMAGE_KIND_SET.has(definition.payload.continuousDamageKind)
+        ? new Set<EffectImmunityCategory>(["STATUS", "DEBUFF"])
+        : new Set<EffectImmunityCategory>(["DEBUFF"]);
     case "APPLY_DAMAGE_MOD":
       return new Set<EffectImmunityCategory>(["DAMAGE_MOD", polarity]);
     case "APPLY_SHIELD":

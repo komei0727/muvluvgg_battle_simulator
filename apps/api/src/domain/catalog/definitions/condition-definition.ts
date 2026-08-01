@@ -1,4 +1,8 @@
-import { CONTINUOUS_DAMAGE_KINDS, STAT_KINDS } from "./catalog-enums.js";
+import {
+  CONTINUOUS_DAMAGE_KINDS,
+  STAT_KINDS,
+  STATUS_AILMENT_CONTINUOUS_DAMAGE_KINDS,
+} from "./catalog-enums.js";
 import type {
   ComparisonOperator,
   ContinuousDamageKind,
@@ -117,17 +121,37 @@ export const TARGET_HAS_EFFECT_CATEGORIES = [
 export type TargetHasEffectCategory = (typeof TARGET_HAS_EFFECT_CATEGORIES)[number];
 
 /**
- * `continuousDamageKinds`（`APPLY_CONTINUOUS_DAMAGE`は常に`DEBUFF`）／`statKinds`
- * （`APPLY_STAT_MOD`は符号で`BUFF`/`DEBUFF`）は、`categories`がその分類を含んで
- * いなければ実行時に一切一致しない。`EFFECT_IMMUNITY.statusKinds`（M7-001B、
- * Issue #243）と同じ理由で、そうした「黙って効かない定義」をロード時に拒否する。
+ * `continuousDamageKinds`（`APPLY_CONTINUOUS_DAMAGE`は`DEBUFF`、うち炎上・毒は
+ * `STATUS`も持つ）／`statKinds`（`APPLY_STAT_MOD`は符号で`BUFF`/`DEBUFF`）は、
+ * `categories`がその分類を含んでいなければ実行時に一切一致しない。
+ * `EFFECT_IMMUNITY.statusKinds`（M7-001B、Issue #243）と同じ理由で、そうした
+ * 「黙って効かない定義」をロード時に拒否する。
+ *
+ * RES-004-STATUS-CONDITION（Issue #224）: 炎上・毒が`STATUS`にも分類されるように
+ * なった（`effect-category-classifier.ts`）ため、「状態異常のうち毒だけ」という
+ * 照会は到達可能になった。
+ *
+ * PR #288レビュー[P2]: ただし判定はフィールド単位ではなく**値ごと**に行う。
+ * `APPLY_CONTINUOUS_DAMAGE`が`STATUS`になるのは炎上・毒だけで、`FIXED`（固定継続
+ * ダメージ）は名前付きの状態異常ではないため`DEBUFF`にしか分類されない（R-STS-01）。
+ * 「`categories`が`STATUS`を含んでいればフィールドごと許可」にすると、実行時に
+ * 絶対一致しない`categories: ["STATUS"]` + `continuousDamageKinds: ["FIXED"]`が
+ * 通ってしまい、このファイル自身の契約に反する。どの種別が状態異常かは
+ * `STATUS_AILMENT_CONTINUOUS_DAMAGE_KINDS`（`catalog-enums.ts`、
+ * `effect-category-classifier.ts`と共有する唯一の正本）から導く。
  */
-const NARROWING_REACHABLE_CATEGORIES: Readonly<
-  Record<"continuousDamageKinds" | "statKinds", readonly TargetHasEffectCategory[]>
-> = {
-  continuousDamageKinds: ["DEBUFF"],
-  statKinds: ["BUFF", "DEBUFF"],
-};
+function reachableCategoriesOf(
+  field: "continuousDamageKinds" | "statKinds",
+  value: string,
+): readonly TargetHasEffectCategory[] {
+  if (field === "statKinds") {
+    // `APPLY_STAT_MOD`は符号で`BUFF`/`DEBUFF`のどちらにもなるため、statごとの差はない。
+    return ["BUFF", "DEBUFF"];
+  }
+  return STATUS_AILMENT_CONTINUOUS_DAMAGE_KINDS.some((ailment) => ailment === value)
+    ? ["DEBUFF", "STATUS"]
+    : ["DEBUFF"];
+}
 
 /**
  * R-SKL-06（CAP_EFFECT_STEP_CONDITION_SCOPE、Issue #230 RES-004-CONDITION-SCOPE）:
@@ -403,7 +427,7 @@ function createOperator(input: ConditionDefinitionInput, path: string): Comparis
 /**
  * `TARGET_HAS_EFFECT`の絞り込みfield（`continuousDamageKinds`/`statKinds`）を
  * 検証して、指定がある場合だけ持つ部分オブジェクトを返す。空配列と未知値のほか、
- * `categories`から到達できない組み合わせ（`NARROWING_REACHABLE_CATEGORIES`）も拒否する。
+ * `categories`から到達できない値（`reachableCategoriesOf`）も拒否する。
  */
 function createNarrowing<Field extends "continuousDamageKinds" | "statKinds", Value extends string>(
   input: ConditionDefinitionInput,
@@ -416,14 +440,17 @@ function createNarrowing<Field extends "continuousDamageKinds" | "statKinds", Va
   if (values === undefined) {
     return {};
   }
-  if (!NARROWING_REACHABLE_CATEGORIES[field].some((category) => categories.includes(category))) {
-    throw new DomainValidationError(
-      `${path}.${field}`,
-      `must not be set unless "categories" includes one of ${NARROWING_REACHABLE_CATEGORIES[field].join("/")} (it would otherwise never match at evaluation time)`,
-    );
-  }
   assertNonEmptyArray(values, `${path}.${field}`);
-  values.forEach((value, i) => assertEnumValue(value, allowedValues, `${path}.${field}[${i}]`));
+  values.forEach((value, i) => {
+    assertEnumValue(value, allowedValues, `${path}.${field}[${i}]`);
+    const reachable = reachableCategoriesOf(field, value);
+    if (!reachable.some((category) => categories.includes(category))) {
+      throw new DomainValidationError(
+        `${path}.${field}[${i}]`,
+        `"${value}" is only ever classified as ${reachable.join("/")}, so it can never match the queried "categories" (${categories.join("/")}) at evaluation time`,
+      );
+    }
+  });
   return { [field]: values as readonly Value[] } as { readonly [K in Field]?: readonly Value[] };
 }
 

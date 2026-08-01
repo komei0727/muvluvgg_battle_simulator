@@ -25,8 +25,13 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 import { buildInitialMarkerState } from "../model/marker-state.js";
 import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
-import type { EffectImmunityCategory } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  ContinuousDamageKind,
+  EffectImmunityCategory,
+} from "../../catalog/definitions/catalog-enums.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { effectCategoriesOf } from "../effects/effect-category-classifier.js";
+import { createEffectActionDefinition } from "../../catalog/definitions/effect-action-definition-factory.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -910,6 +915,90 @@ describe("evaluateEffectStepCondition", () => {
     it("UT-R-SKL-06-063: without either an EffectStepTargetContext or a TargetSetResolver throws instead of silently returning false", () => {
       expect(() => evaluateEffectStepCondition(HAS_DEBUFF)).toThrow(DomainValidationError);
     });
+
+    /**
+     * RES-004-STATUS-CONDITION（Issue #224）: 「対象が状態異常にある場合」
+     * （`SKL_CHIYURU_MAZE_EX`）をAOEの対象ごとに評価する。分類は手書きせず
+     * `effectCategoriesOf`（唯一の分類元）に通した値をそのまま`AppliedEffect`へ
+     * 載せることで、Catalog定義kind→分類→照会の経路全体を固定する。
+     */
+    it("UT-R-SKL-06-067 (RES-004-STATUS-CONDITION, Issue #224): a STATUS query matches poison and burn holders as well as APPLY_STATUS ailments, across a mixed AOE target set", () => {
+      const hasStatusAilment: ConditionDefinition = {
+        kind: "TARGET_HAS_EFFECT",
+        target: STEP_TARGET,
+        categories: ["STATUS"],
+      };
+      const continuousDamageEffect = (id: string, kind: ContinuousDamageKind): AppliedEffect => ({
+        ...effect(id, [
+          ...effectCategoriesOf(
+            { magnitude: 100 },
+            createEffectActionDefinition(
+              {
+                effectActionDefinitionId: `ACT_${id.toUpperCase()}`,
+                kind: "APPLY_CONTINUOUS_DAMAGE",
+                payload: {
+                  continuousDamageKind: kind,
+                  damageType: "PHYSICAL",
+                  formula: { kind: "CONSTANT", value: 100 },
+                  timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+                  duration: { timeLimit: { unit: "ACTION", count: 3 } },
+                },
+                requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
+              },
+              "effectAction",
+            ),
+          ),
+        ]),
+        continuousDamage: { continuousDamageKind: kind, damageType: "PHYSICAL" },
+      });
+
+      const poisoned = unit("t1", "UNIT_A", {
+        appliedEffects: [continuousDamageEffect("e1", "POISON")],
+      });
+      const burning = unit("t2", "UNIT_A", {
+        appliedEffects: [continuousDamageEffect("e2", "BURN")],
+      });
+      const stunned = unit("t3", "UNIT_A", {
+        appliedEffects: [{ ...effect("e3", ["DEBUFF", "STATUS"]), statusKind: "STUN" }],
+      });
+      // 固定継続ダメージは名前付きの状態異常ではないため一致しない（分類は`DEBUFF`のみ）。
+      const fixedDot = unit("t4", "UNIT_A", {
+        appliedEffects: [continuousDamageEffect("e4", "FIXED")],
+      });
+      // 通常のstatデバフだけを持つ対象も、状態異常ではないため一致しない。
+      const statDebuffed = unit("t5", "UNIT_A", { appliedEffects: [effect("e5", ["DEBUFF"])] });
+      const clean = unit("t6", "UNIT_A");
+
+      expect(
+        [poisoned, burning, stunned, fixedDot, statDebuffed, clean].map((current) =>
+          evaluateEffectStepCondition(hasStatusAilment, undefined, contextFor(current)),
+        ),
+      ).toEqual([true, true, true, false, false, false]);
+    });
+
+    it("UT-R-SKL-06-068 (RES-004-STATUS-CONDITION, Issue #224): a STATUS query reads the latest state, so a poison cleansed since planning no longer matches", () => {
+      const hasStatusAilment: ConditionDefinition = {
+        kind: "TARGET_HAS_EFFECT",
+        target: STEP_TARGET,
+        categories: ["STATUS"],
+      };
+      const poisoned = unit("t1", "UNIT_A", {
+        appliedEffects: [
+          {
+            ...effect("e1", ["DEBUFF", "STATUS"], 100),
+            continuousDamage: { continuousDamageKind: "POISON", damageType: "PHYSICAL" },
+          },
+        ],
+      });
+      const cleansed = { ...poisoned, appliedEffects: [] };
+
+      expect(evaluateEffectStepCondition(hasStatusAilment, undefined, contextFor(poisoned))).toBe(
+        true,
+      );
+      expect(evaluateEffectStepCondition(hasStatusAilment, undefined, contextFor(cleansed))).toBe(
+        false,
+      );
+    });
   });
 
   /**
@@ -951,7 +1040,12 @@ describe("evaluateEffectStepCondition", () => {
       );
     });
 
-    it("UT-R-SKL-06-065: HAS_STATUS in step-wide (BRANCH) scope reads the resolved unit, matching UNIT_MERU_FLATSPIN's OR of STUN/FREEZE/BLIND", () => {
+    // RES-004-STATUS-CONDITION（Issue #224）: このORは「対象が状態異常か」という
+    // 総称の表現としては使わなくなった（炎上・毒を取りこぼすため、production定義は
+    // `TARGET_HAS_EFFECT.categories: ["STATUS"]`へ移した）。`HAS_STATUS`自体は
+    // R-EFF-02の照会粒度#2「個別の状態異常種別を保持しているか」を担い続けるため、
+    // step-wideスコープでの評価規約をここで固定する。
+    it("UT-R-SKL-06-065: HAS_STATUS in step-wide (BRANCH) scope reads the resolved unit, quantifying over the statuses it holds", () => {
       const blinded = unit("t1", "UNIT_A", {
         appliedEffects: [{ ...effect("e1", ["DEBUFF", "STATUS"]), statusKind: "BLIND" }],
       });

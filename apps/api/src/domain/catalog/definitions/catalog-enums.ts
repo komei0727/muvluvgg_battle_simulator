@@ -61,6 +61,26 @@ export const CONTINUOUS_DAMAGE_KINDS = ["FIXED", "BURN", "POISON"] as const;
 export type ContinuousDamageKind = (typeof CONTINUOUS_DAMAGE_KINDS)[number];
 
 /**
+ * RES-004-STATUS-CONDITION（Issue #224）: `CONTINUOUS_DAMAGE_KINDS`のうち、
+ * `01_ユビキタス言語.md`「状態異常」（「特殊な振る舞いを持つデバフ。気絶、炎上、毒、
+ * 凍結、暗闇が定義されている」）および`戦闘システム.md`「3. 状態異常について」が
+ * **状態異常として定義している**種別。R-STS-01「状態異常解除・状態異常無効は、
+ * 状態異常として定義された効果だけを対象とする」の判定対象になる。
+ *
+ * `FIXED`（固定継続ダメージ）は含めない — どちらの正本も名前付きの状態異常として
+ * 定義しておらず、`R-DOT-02`のシールド適用可否も炎上・毒とは異なる。
+ *
+ * `APPLY_STATUS`側の対応物は`effect-action-payload.ts`の`STATUS_AILMENT_KINDS`
+ * （気絶・凍結・暗闇）であり、この2つで「定義された状態異常」5種を過不足なく覆う。
+ * `effect-category-classifier.ts`が両方を読んで`AppliedEffect.categories`へ`STATUS`を
+ * 焼き込むため、実行時の状態異常判定の分類元はその1関数だけになる。
+ */
+export const STATUS_AILMENT_CONTINUOUS_DAMAGE_KINDS = [
+  "BURN",
+  "POISON",
+] as const satisfies readonly ContinuousDamageKind[];
+
+/**
  * Subset of `StatKind` that `FormationBonus` and `PositionAptitudePolicy`
  * operate over (excludes `AFFINITY_BONUS`, which is copied through from
  * `BaseStats` unmodified per R-ATR-02).

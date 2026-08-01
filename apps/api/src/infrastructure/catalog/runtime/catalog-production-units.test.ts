@@ -215,7 +215,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `CAP_TARGET_EFFECT_QUERY`と対象5行（CHIYURU/FLUTE/MAIA/NOEL/SHOUKA）の
     // 近似解消が入った。ここで昇格した10 Unitの定義は変わらないため
     // `unitCount`/violation/`selectable`の期待値は据え置き。
-    expect(catalog.catalogRevision).toBe("2026-08-01.5");
+    // Bumped again by RES-004-STATUS-CONDITION (Issue #224, AOE_PER_TARGET_CONDITION):
+    // 炎上・毒を`STATUS`へ分類し、`SKL_CHIYURU_MAZE_EX`のAOE対象別条件と
+    // MERU/NANAEの総称「状態異常」照会を`TARGET_HAS_EFFECT`へ統一した。
+    // ここで昇格した10 Unitの定義は変わらないため期待値は据え置き。
+    expect(catalog.catalogRevision).toBe("2026-08-01.6");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -1913,7 +1913,9 @@ resolution:
 
 `UNIT_TYPE` / `ROLE` はCatalogの`UnitDefinition`を参照して解決する（M7-001E、Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）。ACTION step条件・BRANCH条件では`EffectStepTargetContext.unitDefinitions`が、PSのtrigger／`activationCondition`では`RuntimeCounterLookupContext.unitDefinitions`（`passive-trigger-matcher.ts`が候補検出へ、`reconfirm-passive-candidate.ts`が発動直前再確認へ、同じ参照表を渡す）が正本になる。参照表を渡さない呼び出しでこれらの`field`へ到達した場合は、黙って不成立にせず`DomainValidationError`で隔離する。
 
-`HAS_STATUS` は「対象が保持している`APPLY_STATUS`由来の状態種別のいずれかが`op`/`value`に一致するか」という**存在量化**として評価する — 対象は気絶と暗闇を同時に保持しうるため、他の`field`のように単一値へは解決しない。production定義（`SKL_MERU_FLATSPIN_AS1`〜`AS3`、`SKL_NANAE_COMMANDER_PS1`）は`op: EQ`のORで「何らかの状態異常か」を表す。
+`HAS_STATUS` は「対象が保持している`APPLY_STATUS`由来の状態種別のいずれかが`op`/`value`に一致するか」という**存在量化**として評価する — 対象は気絶と暗闇を同時に保持しうるため、他の`field`のように単一値へは解決しない。
+
+`HAS_STATUS`が担うのは**個別の状態異常種別**（「対象が気絶している場合」等、R-EFF-02の照会粒度#2）だけである。「対象が状態異常にある場合」という**総称**を`op: EQ`のORで書いてはならない（`RES-004-STATUS-CONDITION`／Issue #224）— `APPLY_STATUS`由来の種別しか見ないため、同じく状態異常である炎上・毒（`APPLY_CONTINUOUS_DAMAGE`）を必ず取りこぼす。総称は`TARGET_HAS_EFFECT`の`categories: ["STATUS"]`で表す。M7-001Eがこの形で書いた4定義（`SKL_MERU_FLATSPIN_AS1`〜`AS3`・`SKL_NANAE_COMMANDER_PS1`）はIssue #224が移設済みで、`HAS_STATUS`の現行production利用は0件である。
 
 ### TARGET_HAS_EFFECT
 
@@ -1928,14 +1930,25 @@ condition:
   statKinds: [ATTACK]
 ```
 
-| フィールド              | 型       | 必須 | 制約                                                                                 |
-| ----------------------- | -------- | ---- | ------------------------------------------------------------------------------------ |
-| `target`                | object   | ✓    | `TargetReference`                                                                    |
-| `categories`            | string[] | ✓    | 1件以上。`BUFF` / `DEBUFF` / `STATUS` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT`          |
-| `continuousDamageKinds` | string[] | —    | 1件以上。`FIXED` / `BURN` / `POISON`。`categories`が`DEBUFF`を含む場合だけ指定できる |
-| `statKinds`             | string[] | —    | 1件以上。`StatKind`。`categories`が`BUFF`または`DEBUFF`を含む場合だけ指定できる      |
+| フィールド              | 型       | 必須 | 制約                                                                                     |
+| ----------------------- | -------- | ---- | ---------------------------------------------------------------------------------------- |
+| `target`                | object   | ✓    | `TargetReference`                                                                        |
+| `categories`            | string[] | ✓    | 1件以上。`BUFF` / `DEBUFF` / `STATUS` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT`              |
+| `continuousDamageKinds` | string[] | —    | 1件以上。`FIXED` / `BURN` / `POISON`。**値ごと**に到達可能な`categories`が異なる（下表） |
+| `statKinds`             | string[] | —    | 1件以上。`StatKind`。`categories`が`BUFF`または`DEBUFF`を含む場合だけ指定できる          |
 
 判定は「`categories`のいずれかに一致する`AppliedEffect`を対象が1つ以上保持している」ことであり、絞り込み（`continuousDamageKinds`／`statKinds`）はその一致へANDで重ねる。到達できない組み合わせ（例: `categories: [SHIELD]`に`statKinds`）はCatalogロード時点で拒否する — `EFFECT_IMMUNITY.statusKinds`と同じく「schemaは通るが実行時に一切一致しない定義」を作らせないためである。
+
+`continuousDamageKinds`の到達可能性は**フィールド単位ではなく値単位**で判定する（PR #288レビュー[P2]）。`APPLY_CONTINUOUS_DAMAGE`は常に`DEBUFF`だが、`STATUS`になるのは`R-STS-01`が状態異常として定義する炎上・毒だけであり、固定継続ダメージ（`FIXED`）は名前付きの状態異常ではないためである。
+
+| 値                | 実行時に分類されるcategory | 指定できる`categories`                     |
+| ----------------- | -------------------------- | ------------------------------------------ |
+| `FIXED`           | `DEBUFF`                   | `DEBUFF`を含むこと                         |
+| `BURN` / `POISON` | `DEBUFF` + `STATUS`        | `DEBUFF`または`STATUS`のいずれかを含むこと |
+
+したがって`categories: [STATUS]` + `continuousDamageKinds: [FIXED]`は実行時に絶対一致しないためロード時に拒否する。`[POISON, FIXED]`のように到達可能な値と不能な値を混ぜた指定も、`FIXED`側が黙って無効になるため同じく拒否する（エラーの`path`は`...continuousDamageKinds[i]`と値単位で示す）。
+
+`categories: ["STATUS"]`は「対象が状態異常にある場合」という**総称**の照会であり、`R-STS-01`が定める5種（気絶・凍結・暗闇＝`APPLY_STATUS`、炎上・毒＝`APPLY_CONTINUOUS_DAMAGE`）すべてに一致する（`RES-004-STATUS-CONDITION`／Issue #224）。Catalog側で種別を列挙してはならない — 列挙は必ず取りこぼしうる近似になる。個別種別を問う場合だけ`continuousDamageKinds`（毒・炎上）や`TARGET_STATE.field: HAS_STATUS`（気絶・凍結・暗闇）で明示的に絞り込む。production例: `SKL_CHIYURU_MAZE_EX`（AOEの`targetCondition`。条件成立対象だけへ気絶と被ダメージ増デバフを適用する）、`SKL_MERU_FLATSPIN_AS1`〜`AS3`・`SKL_NANAE_COMMANDER_PS1`（BRANCH）。
 
 `MARKER`と`SPECIFIC_EFFECT`は`categories`に指定できない。`MarkerState`は`AppliedEffect`ではなく`TARGET_HAS_MARKER`が照会し、`SPECIFIC_EFFECT`は分類軸ではなく`effectActionDefinitionId`の直接一致だからである。
 

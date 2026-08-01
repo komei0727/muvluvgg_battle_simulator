@@ -588,10 +588,10 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
   });
 
   it("UT-CAT-COND-042: rejects a narrowing filter that its categories can never reach", () => {
-    // `continuousDamageKinds`は`APPLY_CONTINUOUS_DAMAGE`（常に`DEBUFF`）だけが、
-    // `statKinds`は`APPLY_STAT_MOD`（符号で`BUFF`/`DEBUFF`）だけが持つ。`STATUS`や
-    // `SHIELD`だけを問い合わせる条件へ重ねると実行時に一切一致しない「黙って効かない
-    // 定義」になるため、`EFFECT_IMMUNITY.statusKinds`と同じ理由でロード時に拒否する。
+    // `continuousDamageKinds`は`APPLY_CONTINUOUS_DAMAGE`（`DEBUFF`、うち炎上・毒は
+    // `STATUS`も）だけが、`statKinds`は`APPLY_STAT_MOD`（符号で`BUFF`/`DEBUFF`）だけが
+    // 持つ。`SHIELD`だけを問い合わせる条件へ重ねると実行時に一切一致しない「黙って
+    // 効かない定義」になるため、`EFFECT_IMMUNITY.statusKinds`と同じ理由でロード時に拒否する。
     for (const narrowing of [{ continuousDamageKinds: ["POISON"] }, { statKinds: ["ATTACK"] }]) {
       expect(() =>
         createConditionDefinition(
@@ -606,6 +606,78 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
         ),
       ).toThrow(DomainValidationError);
     }
+  });
+
+  it("UT-CAT-COND-044 (RES-004-STATUS-CONDITION, Issue #224): accepts continuousDamageKinds under categories STATUS", () => {
+    // 炎上・毒は`STATUS`にも分類されるようになった（`effect-category-classifier.ts`）
+    // ため、「状態異常のうち毒だけ」という照会は実行時に到達可能であり、
+    // `NARROWING_REACHABLE_CATEGORIES`は`STATUS`も到達元として認めなければならない。
+    expect(
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["STATUS"],
+          continuousDamageKinds: ["POISON"],
+        },
+        "condition",
+        undefined,
+      ),
+    ).toEqual({
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "SELF" },
+      categories: ["STATUS"],
+      continuousDamageKinds: ["POISON"],
+    });
+  });
+
+  it("UT-CAT-COND-045 (PR #288レビュー[P2]): rejects a continuousDamageKind that the queried categories can never reach, value by value", () => {
+    // `STATUS`が到達元になるのは炎上・毒だけで、`FIXED`（固定継続ダメージ）は
+    // `DEBUFF`にしか分類されない（R-STS-01「状態異常として定義された効果」）。
+    // フィールド単位で「`STATUS`があればOK」にすると、実行時に一切一致しない
+    // `STATUS`+`FIXED`が通ってしまうため、値ごとに到達可能性を検証する。
+    for (const continuousDamageKinds of [["FIXED"], ["POISON", "FIXED"]]) {
+      expect(() =>
+        createConditionDefinition(
+          {
+            kind: "TARGET_HAS_EFFECT",
+            target: { kind: "SELF" },
+            categories: ["STATUS"],
+            continuousDamageKinds,
+          },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+
+    // `DEBUFF`側からは`FIXED`も到達できる（`SKL_CHIYURU_MAZE_AS1`と同じ形）。
+    expect(
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["DEBUFF"],
+          continuousDamageKinds: ["FIXED", "POISON"],
+        },
+        "condition",
+        undefined,
+      ),
+    ).toMatchObject({ continuousDamageKinds: ["FIXED", "POISON"] });
+
+    // 両方を問い合わせる場合も、`DEBUFF`が到達元になるので`FIXED`は受理される。
+    expect(
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["DEBUFF", "STATUS"],
+          continuousDamageKinds: ["FIXED"],
+        },
+        "condition",
+        undefined,
+      ),
+    ).toMatchObject({ continuousDamageKinds: ["FIXED"] });
   });
 
   it("UT-CAT-COND-043: rejects a typo'd sibling key and a BINDING target outside the declared scope", () => {

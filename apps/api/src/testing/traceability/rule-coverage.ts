@@ -885,7 +885,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-064",
       "UT-R-SKL-06-065",
       "UT-R-SKL-06-066",
-      "IT-CAP-TARGET-STATE-FIELD-PROD-001",
+      // RES-004-STATUS-CONDITION（Issue #224）: 「対象が状態異常にある場合」を
+      // 単一の分類元（`AppliedEffect.categories`の`STATUS`）で照会し、AOEの
+      // 対象ごとに評価する（`SKL_CHIYURU_MAZE_EX`）。
+      "UT-R-SKL-06-067",
+      "UT-R-SKL-06-068",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-007",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-008",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-009",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -1705,6 +1712,19 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-013",
       "UT-R-EFF-03-017",
       "UT-R-STS-01-001",
+      // RES-004-STATUS-CONDITION（Issue #224）: 「状態異常として定義された効果」は
+      // `01_ユビキタス言語.md`が列挙する5種であり、`APPLY_STATUS`の気絶・凍結・暗闇に
+      // 加えて`APPLY_CONTINUOUS_DAMAGE`の炎上・毒も`STATUS`へ分類する（固定継続
+      // ダメージは名前付きの状態異常ではないため対象外）。
+      "UT-R-EFF-02-007",
+      "UT-R-EFF-02-008",
+      "UT-R-EFF-02-009",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-007",
+      // PR #288レビュー[P1]: 公開API（`EffectStateResponse.category`）も同じ分類元
+      // （`EffectSnapshot.categories`）を読む。継続ダメージは`magnitude`が正値のため、
+      // 符号から導くと毒・炎上がAPI上だけ`BUFF`になりR-STS-01と矛盾していた。
+      // API層の証跡は`simulate-battle-response-mapper.test.ts`の`API-RESP-012G`
+      // （台帳が集計する`UT`/`IT`等の接頭辞を持たないためIDとしては挙げない）。
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -1833,6 +1853,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-004",
       "UT-R-EFF-02-005",
       "UT-R-EFF-02-006",
+      "UT-R-EFF-02-007",
+      "UT-R-EFF-02-008",
+      "UT-R-EFF-02-009",
       "UT-R-EFF-02-010",
       "UT-R-EFF-02-011",
       "UT-R-EFF-02-012",

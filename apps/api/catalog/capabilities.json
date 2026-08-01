@@ -933,21 +933,15 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001E",
-    "description": "`ConditionDefinition.TARGET_STATE`のうち、`BattleUnit`だけからは解決できない`field`（`UNIT_TYPE`／`ROLE`はCatalogの`UnitDefinition`参照、`HAS_STATUS`は対象が保持する`APPLY_STATUS`由来の状態種別の照会）。DMG-002（Issue #192）が`CAP_DAMAGE_MOD`を`IMPLEMENTED`にした際、これらを使うUNIT_LUCIE_MAID・UNIT_MERU_FLATSPIN・UNIT_SHIRANA_SORAが`CAP_DAMAGE_MOD`だけを理由に非selectableだったことが判明したため（golden battle層が実戦闘の失敗として検出した）、実際のブロッカーを表す本Capabilityを新設して宣言漏れを埋めた。M7-001E（Issue #248）で実装した: `HAS_STATUS`は`AppliedEffect.statusKind`に対する存在量化として（対象は気絶と暗闇を同時に保持しうるため単一値へ解決しない）ACTION step条件・BRANCH条件の両方で評価し、`UNIT_TYPE`/`ROLE`はtrigger条件でも`RuntimeCounterLookupContext.unitDefinitions`（`passive-trigger-matcher.ts`／`reconfirm-passive-candidate.ts`が候補検出と再確認へ同じ参照表を渡す）から解決する。",
+    "description": "`ConditionDefinition.TARGET_STATE`のうち、`BattleUnit`だけからは解決できない`field`（`UNIT_TYPE`／`ROLE`はCatalogの`UnitDefinition`参照、`HAS_STATUS`は対象が保持する`APPLY_STATUS`由来の状態種別の照会）。DMG-002（Issue #192）が`CAP_DAMAGE_MOD`を`IMPLEMENTED`にした際、これらを使うUNIT_LUCIE_MAID・UNIT_MERU_FLATSPIN・UNIT_SHIRANA_SORAが`CAP_DAMAGE_MOD`だけを理由に非selectableだったことが判明したため（golden battle層が実戦闘の失敗として検出した）、実際のブロッカーを表す本Capabilityを新設して宣言漏れを埋めた。M7-001E（Issue #248）で実装した: `HAS_STATUS`は`AppliedEffect.statusKind`に対する存在量化として（対象は気絶と暗闇を同時に保持しうるため単一値へ解決しない）ACTION step条件・BRANCH条件の両方で評価し、`UNIT_TYPE`/`ROLE`はtrigger条件でも`RuntimeCounterLookupContext.unitDefinitions`（`passive-trigger-matcher.ts`／`reconfirm-passive-candidate.ts`が候補検出と再確認へ同じ参照表を渡す）から解決する。RES-004-STATUS-CONDITION（Issue #224）: `HAS_STATUS`を使っていたproduction 4定義（`SKL_MERU_FLATSPIN_AS1`/`AS2`/`AS3`・`SKL_NANAE_COMMANDER_PS1`）はいずれもraw原文が「対象が状態異常だった場合」という総称であり、気絶・凍結・暗闇の3項ORでは毒・炎上を取りこぼす近似だった。分類元を`effect-category-classifier.ts`ただ1つへ統一した結果、これらは`TARGET_HAS_EFFECT.categories: [\"STATUS\"]`（`CAP_TARGET_EFFECT_QUERY`）へ移り、`HAS_STATUS`の現行production利用は0件になった。`HAS_STATUS`はR-EFF-02の照会粒度#2「個別の状態異常種別（気絶・凍結・暗闇など）を保持しているか」を担うfieldとして引き続きschema・評価器・Unitテストで維持する（総称の「状態異常」照会とは別の粒度）。",
     "verification": {
-      "productionDefinitionIds": [
-        "SKL_CHIYURU_MAZE_PS2",
-        "SKL_LUCIE_MAID_PS1",
-        "SKL_MERU_FLATSPIN_AS1",
-        "SKL_NANAE_COMMANDER_PS1"
-      ],
+      "productionDefinitionIds": ["SKL_CHIYURU_MAZE_PS2", "SKL_LUCIE_MAID_PS1"],
       "testCaseIds": [
         "UT-R-SKL-06-064",
         "UT-R-SKL-06-065",
         "UT-R-SKL-06-066",
         "UT-R-PS-01-059",
         "UT-R-PS-01-055",
-        "IT-CAP-TARGET-STATE-FIELD-PROD-001",
         "IT-CAP-TARGET-STATE-FIELD-PROD-002"
       ]
     }
@@ -957,12 +951,17 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001E",
-    "description": "`ConditionDefinition.TARGET_HAS_EFFECT`（M7-001E、Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）。「対象が何らかのバフ／デバフ／状態異常を保持しているか」をR-EFF-02/03の分類軸（`EffectImmunityCategory`のうち`MARKER`/`SPECIFIC_EFFECT`を除く）で照会し、`continuousDamageKinds`（毒・炎上）と`statKinds`（攻撃力デバフ等）で絞り込む。分類元は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込み、`EffectApplied.payload`・`EffectSnapshot`・独立Reducerが同じ値を運ぶ。評価スコープはACTIONの`targetCondition`（対象ごと）・BRANCHの`condition`（高々1体、`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証）・AS/EXの`activationCondition`・PSのtrigger/activationConditionで、`stepCondition`からは`TARGET_STATE`と同じ理由で除外する。PR #287レビュー[P2]: 相補的な条件を2つのACTION stepへ分けると、各`targetCondition`がそのstepのPS/Memory連鎖の後に再評価されるため通常版と強化版の両方が実行されうる。分岐の選択は`BRANCH`で一度だけ確定させ（`SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`）、BRANCHで参照できない`TRIGGER_TARGET`では基本効果を無条件・増加分だけを条件付きにする加算形をとる（`SKL_FLUTE_INFLUENCER_PS2`）。`activationCondition`のCatalog契約は評価器の契約と一致させる: 参照kindはskill typeごとに（AS/EXは`SELF`/`BINDING`、PSは`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`）`ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE`で、対象数はAS/EXだけへ`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`で制約する（PSは存在量化するため対象外）。CHARGEでは行動選択時に解決される開始側`targetBindings`だけを検証対象にする。",
+    "description": "`ConditionDefinition.TARGET_HAS_EFFECT`（M7-001E、Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）。「対象が何らかのバフ／デバフ／状態異常を保持しているか」をR-EFF-02/03の分類軸（`EffectImmunityCategory`のうち`MARKER`/`SPECIFIC_EFFECT`を除く）で照会し、`continuousDamageKinds`（毒・炎上）と`statKinds`（攻撃力デバフ等）で絞り込む。分類元は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込み、`EffectApplied.payload`・`EffectSnapshot`・独立Reducerが同じ値を運ぶ。評価スコープはACTIONの`targetCondition`（対象ごと）・BRANCHの`condition`（高々1体、`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証）・AS/EXの`activationCondition`・PSのtrigger/activationConditionで、`stepCondition`からは`TARGET_STATE`と同じ理由で除外する。PR #287レビュー[P2]: 相補的な条件を2つのACTION stepへ分けると、各`targetCondition`がそのstepのPS/Memory連鎖の後に再評価されるため通常版と強化版の両方が実行されうる。分岐の選択は`BRANCH`で一度だけ確定させ（`SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`）、BRANCHで参照できない`TRIGGER_TARGET`では基本効果を無条件・増加分だけを条件付きにする加算形をとる（`SKL_FLUTE_INFLUENCER_PS2`）。`activationCondition`のCatalog契約は評価器の契約と一致させる: 参照kindはskill typeごとに（AS/EXは`SELF`/`BINDING`、PSは`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`）`ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE`で、対象数はAS/EXだけへ`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`で制約する（PSは存在量化するため対象外）。CHARGEでは行動選択時に解決される開始側`targetBindings`だけを検証対象にする。RES-004-STATUS-CONDITION（Issue #224、`AOE_PER_TARGET_CONDITION`）: 「対象が状態異常にある場合」という総称の照会を`categories: [\"STATUS\"]`単体で表せるようにした — `01_ユビキタス言語.md`「状態異常」が定義する5種（気絶・凍結・暗闇＝`APPLY_STATUS`、炎上・毒＝`APPLY_CONTINUOUS_DAMAGE`）を`effect-category-classifier.ts`が漏れなく`STATUS`へ分類するため、Catalog側は種別を列挙しない。`SKL_CHIYURU_MAZE_EX`はこれをAOE（敵全体）の`targetCondition`として使い、条件成立対象にだけ気絶と被ダメージ増デバフを適用する。`SKL_MERU_FLATSPIN_AS1`/`AS2`/`AS3`・`SKL_NANAE_COMMANDER_PS1`はM7-001Eが`HAS_STATUS`の3項ORで近似していた同じ総称照会をここへ寄せた。",
     "verification": {
       "productionDefinitionIds": [
         "SKL_CHIYURU_MAZE_AS1",
+        "SKL_CHIYURU_MAZE_EX",
         "SKL_FLUTE_INFLUENCER_PS2",
         "SKL_MAIA_LAZY_AS1",
+        "SKL_MERU_FLATSPIN_AS1",
+        "SKL_MERU_FLATSPIN_AS2",
+        "SKL_MERU_FLATSPIN_AS3",
+        "SKL_NANAE_COMMANDER_PS1",
         "SKL_NOEL_RUMBLE_AS1",
         "SKL_SHOUKA_SCHEMER_AS3"
       ],
@@ -984,6 +983,13 @@
         "IT-CAP-TARGET-EFFECT-QUERY-PROD-004",
         "IT-CAP-TARGET-EFFECT-QUERY-PROD-005",
         "IT-CAP-TARGET-EFFECT-QUERY-PROD-006",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-007",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-008",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-009",
+        "UT-R-SKL-06-067",
+        "UT-R-SKL-06-068",
+        "UT-CAT-COND-044",
+        "UT-CAT-COND-045",
         "UT-CAT-IDX-095",
         "UT-CAT-IDX-096",
         "UT-CAT-IDX-097"
