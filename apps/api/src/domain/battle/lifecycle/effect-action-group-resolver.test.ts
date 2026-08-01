@@ -6,6 +6,7 @@ import {
   type EffectActionGroupsResult,
 } from "./effect-action-group-resolver.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { createHitPoint } from "../model/resource-gauge.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
@@ -6583,5 +6584,114 @@ describe("zero-amount shield sweep (DMG-004, Issue #194, PRレビュー再指摘
     expect(
       step.value.units.find((u) => u.battleUnitId === ally.battleUnitId)!.appliedEffects,
     ).toEqual([]);
+  });
+});
+
+describe("zero-amount shield sweep on interruption (DMG-004, PRレビュー再々指摘[P2])", () => {
+  it("UT-R-SHD-01-021: an interruption BETWEEN steps still expires a zero-amount shield granted by an earlier step", () => {
+    // step 0: 残量0シールドを味方へ付与 → 最後のEffectActionで使用者へ自己ダメージ
+    //         （致死）。step 0自体は最後のapplicationまで到達するため完了扱いになる。
+    // step 1: 未解決のまま残る → 次のループ先頭の`isActorDefeated`で中断する。
+    // この経路も掃除を通らなければ、残量0シールドが`EffectExpired`なしで永続する。
+    const actor = unit("ACTOR", "ALLY", {
+      currentHp: createHitPoint(5, 100),
+    });
+    const ally = unit("ALLY_2", "ALLY");
+    const zeroShield: EffectActionDefinition = {
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SHIELD_ZERO"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: 0 },
+        duration: {
+          timeLimit: { unit: "TURN", count: 5 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const selfDamage = damageAction("ACT_SELF_DAMAGE");
+    const laterAction = statModAction("ACT_LATER");
+    const effectActions = new Map([
+      [zeroShield.effectActionDefinitionId, zeroShield],
+      [selfDamage.effectActionDefinitionId, selfDamage],
+      [laterAction.effectActionDefinitionId, laterAction],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        {
+          planKind: "ACTION_PLAN",
+          stepIndex: 0,
+          stepKind: "ACTION",
+          conditionKind: "TRUE",
+          satisfied: true,
+          actions: [
+            { effectActionDefinitionId: zeroShield.effectActionDefinitionId },
+            { effectActionDefinitionId: selfDamage.effectActionDefinitionId },
+          ],
+          applications: [
+            {
+              targetBattleUnitId: ally.battleUnitId,
+              effectActionDefinitionId: zeroShield.effectActionDefinitionId,
+              includeDefeated: false,
+              hits: [
+                {
+                  targetBattleUnitId: ally.battleUnitId,
+                  effectActionDefinitionId: zeroShield.effectActionDefinitionId,
+                  hitIndex: 1,
+                },
+              ],
+            },
+            {
+              targetBattleUnitId: actor.battleUnitId,
+              effectActionDefinitionId: selfDamage.effectActionDefinitionId,
+              includeDefeated: false,
+              hits: [
+                {
+                  targetBattleUnitId: actor.battleUnitId,
+                  effectActionDefinitionId: selfDamage.effectActionDefinitionId,
+                  hitIndex: 1,
+                },
+              ],
+            },
+          ],
+        },
+        singleActionStep(1, true, ally.battleUnitId, laterAction.effectActionDefinitionId),
+      ],
+      targetUnitIds: [ally.battleUnitId, actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, ally], context);
+
+    // step間で中断したことを確かめる（step 0は完了、step 1は未着手）。
+    // `unresolvedEffectCount: 0`が、step内の中断ではなくループ先頭の
+    // `isActorDefeated`分岐を通ったことの証跡になる（step内で中断した場合は
+    // 残りのヒット数が入る）。
+    expect(result.outcome).toMatchObject({
+      status: "INTERRUPTED",
+      reason: "ACTOR_DEFEATED",
+      unresolvedEffectCount: 0,
+    });
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(0);
+    expect(recorder.getEvents().filter((e) => e.eventType === "EffectStepCompleted")).toHaveLength(
+      1,
+    );
+
+    // 中断経路でも残量0シールドは掃除される。
+    const expired = recorder.getEvents().filter((event) => event.eventType === "EffectExpired");
+    expect(expired).toHaveLength(1);
+    expect(expired[0]!.payload).toMatchObject({
+      effectActionDefinitionId: "ACT_SHIELD_ZERO",
+      reason: "SHIELD_DEPLETED",
+    });
+    expect(result.units.find((u) => u.battleUnitId === ally.battleUnitId)!.appliedEffects).toEqual(
+      [],
+    );
   });
 });

@@ -3383,17 +3383,18 @@ export function* resolveEffectSequencePlan(
     }
   }
 
+  // 中断で抜けた場合の未解決数。`undefined`なら最後まで解決し切ったことを表す。
+  // PRレビュー再々指摘[P2]: 中断の`return`を分岐ごとに書くと、step間で中断した
+  // 経路（前のstepの最後のEffectActionで使用者が戦闘不能になり、後続stepが
+  // 残っている場合）だけ`sweepDepletedShields`を通らず、残量0シールドが
+  // `EffectExpired`なしで永続していた。全ての終了経路が必ず掃除を通るよう、
+  // ループからは`break`だけで抜けて後始末と`return`を1か所に集約する。
+  let interruptedUnresolvedCount: number | undefined;
+
   for (const step of plan.steps) {
     if (isActorDefeated(context, box)) {
-      return {
-        units: box.units,
-        outcome: {
-          status: "INTERRUPTED",
-          reason: "ACTOR_DEFEATED",
-          resolvedEffectCount: resolvedCount,
-          unresolvedEffectCount: 0,
-        },
-      };
+      interruptedUnresolvedCount = 0;
+      break;
     }
 
     const result: { readonly lastEventId: DomainEventId; readonly walkResult: StepWalkResult } =
@@ -3423,23 +3424,27 @@ export function* resolveEffectSequencePlan(
     resolvedCount += result.walkResult.resolvedCount;
 
     if (result.walkResult.interrupted) {
-      // 中断でも、既に付与済みの残量0シールドは掃除する（付与自体は確定済みの
-      // 状態変更であり、R-SKL-01の「解決済みの効果を巻き戻さない」に反しない）。
-      yield* sweepDepletedShields(box, context, lastEventId);
-      return {
+      interruptedUnresolvedCount = result.walkResult.unresolvedCount;
+      break;
+    }
+  }
+
+  // 正常終了・中断のどちらでも掃除する。付与自体は確定済みの状態変更であり、
+  // 残量0のまま残せば期間満了まで居座る（R-SKL-01「解決済みの効果を巻き戻さない」
+  // には反しない — 巻き戻しではなく、成立済みの個別消滅条件の実行である）。
+  yield* sweepDepletedShields(box, context, lastEventId);
+
+  return interruptedUnresolvedCount !== undefined
+    ? {
         units: box.units,
         outcome: {
           status: "INTERRUPTED",
           reason: "ACTOR_DEFEATED",
           resolvedEffectCount: resolvedCount,
-          unresolvedEffectCount: result.walkResult.unresolvedCount,
+          unresolvedEffectCount: interruptedUnresolvedCount,
         },
-      };
-    }
-  }
-
-  yield* sweepDepletedShields(box, context, lastEventId);
-  return { units: box.units, outcome: { status: "COMPLETED", resolvedEffectCount: resolvedCount } };
+      }
+    : { units: box.units, outcome: { status: "COMPLETED", resolvedEffectCount: resolvedCount } };
 }
 
 /**
