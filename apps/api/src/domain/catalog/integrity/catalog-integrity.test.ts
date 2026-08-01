@@ -231,6 +231,49 @@ function asSkill(id: string, targetActionId: string): SkillDefinition {
   });
 }
 
+/**
+ * M7-016（Issue #270）: `resolution.kind: CHARGE`の最小スキル。開始側・解放側とも
+ * 敵1体を対象にし、`CAP_CHARGE_RESTRICTION`宣言の有無だけを切り替えられる。
+ */
+function chargeSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 2 },
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [
+        {
+          targetBindingId: "TGT_START",
+          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+        },
+      ],
+      // M7-016（Issue #270 レビュー[P1]）: CHARGE開始側は効果を解決しないため
+      // `steps`は常に空でなければならない。
+      steps: [],
+      chargeRelease: {
+        targetBindings: [
+          {
+            targetBindingId: "TGT_RELEASE",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "BINDING", targetBindingId: "TGT_RELEASE" },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+          },
+        ],
+      },
+    },
+    cooldown: { unit: "ACTION", count: 2 },
+    traits: {},
+    requiredCapabilities,
+    metadata: { displayName: "Charge AS" },
+  });
+}
+
 function branchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
@@ -1548,6 +1591,40 @@ describe("buildCatalogIndex", () => {
     const index = buildCatalogIndex(withDebuff);
 
     expect(index.effectActions.get("ACT_SUBUNIT_WITH_DEBUFF" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-101 (M7-016, Issue #270, R-SKL-05/R-HIT-02/R-PS-04): rejects a resolution.kind CHARGE skill that does not declare CAP_CHARGE_RESTRICTION", () => {
+    const defs = baseDefinitions();
+    const withUndeclaredCharge: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, chargeSkill("SKL_CHARGE_1", [])],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_CHARGE_1"] })],
+    };
+    try {
+      buildCatalogIndex(withUndeclaredCharge);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "SKL_CHARGE_1",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-102 (M7-016, Issue #270, R-SKL-05/R-HIT-02/R-PS-04): accepts a resolution.kind CHARGE skill that declares CAP_CHARGE_RESTRICTION", () => {
+    const defs = baseDefinitions();
+    const withDeclaredCharge: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, chargeSkill("SKL_CHARGE_1", ["CAP_CHARGE_RESTRICTION"])],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_CHARGE_1"] })],
+      capabilities: [capability("CAP_CHARGE_RESTRICTION")],
+    };
+
+    const index = buildCatalogIndex(withDeclaredCharge);
+
+    expect(index.skills.get("SKL_CHARGE_1" as never)).toBeDefined();
   });
 
   it("UT-CAT-IDX-075 (Issue #181, 再々々レビュー[P2]): rejects ANY REMOVE_EFFECTS missing CAP_REMOVE_EFFECTS, regardless of categories (e.g. STATUS, which needs no other capability)", () => {
@@ -2935,6 +3012,7 @@ describe("buildCatalogIndex", () => {
     const ACTIVATION_CAPABILITIES = [
       capability("CAP_ACTION_ACTIVATION_CONDITION"),
       capability("CAP_TARGET_EFFECT_QUERY"),
+      capability("CAP_CHARGE_RESTRICTION"),
     ];
 
     it("UT-CAT-IDX-092 (PR #287レビュー[P2], Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
@@ -3113,13 +3191,9 @@ describe("buildCatalogIndex", () => {
           resolution: {
             kind: "CHARGE",
             targetBindings: [{ targetBindingId: "TGT_START", selector: startSelector }],
-            steps: [
-              {
-                kind: "ACTION",
-                target: { kind: "BINDING", targetBindingId: "TGT_START" },
-                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-              },
-            ],
+            // M7-016（Issue #270 レビュー[P1]）: 開始側`steps`は空。`targetBindings`は
+            // `activationCondition`のスコープとして引き続き意味を持つ。
+            steps: [],
             chargeRelease: {
               targetBindings: [{ targetBindingId: releaseBindingId, selector: releaseSelector }],
               steps: [
@@ -3133,7 +3207,13 @@ describe("buildCatalogIndex", () => {
           },
           cooldown: { unit: "ACTION", count: 1 },
           traits: {},
-          requiredCapabilities: ["CAP_ACTION_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"],
+          // M7-016（Issue #270）: `resolution.kind: CHARGE`は`CAP_CHARGE_RESTRICTION`
+          // の宣言が必須（`validateSkill`）。
+          requiredCapabilities: [
+            "CAP_ACTION_ACTIVATION_CONDITION",
+            "CAP_TARGET_EFFECT_QUERY",
+            "CAP_CHARGE_RESTRICTION",
+          ],
           metadata: { displayName: "Charge activation condition AS" },
         });
       const startSelector: TargetSelectorDefinitionInput = {

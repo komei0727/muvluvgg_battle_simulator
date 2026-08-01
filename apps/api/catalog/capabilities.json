@@ -45,10 +45,26 @@
   {
     "capabilityId": "CAP_CHARGE_RESTRICTION",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-016",
-    "description": "チャージ中の回避/PS制限。M7-003（Issue #180）は気絶・凍結と行動可能判定・Charge連携を実装したが、チャージ中の回避・PS制限そのものは実装せずcloseした。M7-010（Issue #177、監査）で所有者不在を検出し、完了境界（対象Rule IDを含む）の確定ごとM7-016（Issue #270）へ引き継いだ。production使用はSKL_MIRIAM_MAGE_AS2・SKL_SIENA_OFFSTAGE_AS1（いずれもresolution.kind: CHARGE）の2件で、この2ユニットの非selectable要因の一つだが、排他的なブロッカーではない（UNIT_MIRIAM_MAGEはCAP_CONTINUOUS_DAMAGE/CAP_DAMAGE_MOD、UNIT_SIENA_OFFSTAGEはCAP_DAMAGE_MODでも非selectableのままで、本Capabilityの完了だけではどちらもselectableにならない）。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "チャージ中の回避/PS制限（M7-016、Issue #270）: 完了境界はR-HIT-02「対象がチャージ中なら自身の回避効果を発動させない」・R-HIT-04（Nヒット回避もチャージ中は不発で、発動しなかった被ヒットでは自身の被ヒット消費を減らさない）・R-PS-04「所有者がチャージ中でない」の3件で、いずれもチャージ状態（R-SKL-05）が続く間だけ働く。回避側は`hit-policy.ts`の`resolveEvasion`がEVASION/HIT_EVASIONの走査前に`target.charge`で打ち切り、PS側は`passive-trigger-matcher.ts`が候補判定（R-PS-01）で所有者を除外し、`reconfirm-passive-candidate.ts`が発動直前確認（R-PS-04）で`OWNER_CHARGING`として破棄する（候補検出後にチャージが始まった場合を拾うため両方に置く）。production使用はSKL_MIRIAM_MAGE_AS2・SKL_SIENA_OFFSTAGE_AS1（いずれもresolution.kind: CHARGE）の2件で、実`catalog/`無改変のまま実`resolveChargeStart`／`resolveChargeRelease`へ通して検証した（IT-CAP-CHARGE-RESTRICTION-PROD-001〜005）。M7-003（Issue #180）は気絶・凍結と行動可能判定・Charge連携までで本制限を検証せずcloseし、M7-010（Issue #177、監査）が所有者不在として本Taskへ引き継いでいた。`resolution.kind: CHARGE`は宣言漏れを検出できる目印を持たないため、catalog-integrity.tsで本Capabilityの宣言自体を必須にしている（UT-CAT-IDX-101/102）。あわせてPR #293レビュー[P1]で、CHARGE開始側のトップレベル`steps`を必ず空とする制約をDTOのJSON SchemaとDomainのcreateResolutionの両方へ入れ、対象2定義から実行時に一度も適用されない`ACT_MIRIAM_MAGE_AS2_CHARGE_MARKER`／`ACT_SIENA_OFFSTAGE_AS1_CHARGE_MARKER`（「チャージ中」を`charge`状態と重複して表す変換由来の`APPLY_MARKER`。raw原文に対応表現は無く、どのConditionからも参照されていなかった）を除去した。`06_戦闘状態遷移.md`「チャージ開始」#1〜6と`R-SKL-05`は効果解決の手順を持たず、`resolveChargeStart`も開始側stepを解決しないため、Catalog契約をruntimeへ揃えた側が正しい（IT-CAP-CHARGE-RESTRICTION-PROD-006・UT-CAT-SKL-029/030・UT-INFRA-SCHEMA-012/013）。",
+    "verification": {
+      "productionDefinitionIds": ["SKL_MIRIAM_MAGE_AS2", "SKL_SIENA_OFFSTAGE_AS1"],
+      "testCaseIds": [
+        "IT-CAP-CHARGE-RESTRICTION-PROD-001",
+        "IT-CAP-CHARGE-RESTRICTION-PROD-002",
+        "IT-CAP-CHARGE-RESTRICTION-PROD-003",
+        "IT-CAP-CHARGE-RESTRICTION-PROD-004",
+        "IT-CAP-CHARGE-RESTRICTION-PROD-005",
+        "IT-CAP-CHARGE-RESTRICTION-PROD-006",
+        "UT-CAT-IDX-101",
+        "UT-CAT-IDX-102",
+        "UT-CAT-SKL-029",
+        "UT-CAT-SKL-030",
+        "UT-INFRA-SCHEMA-012",
+        "UT-INFRA-SCHEMA-013"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_COMPLEX_EXPIRATION",

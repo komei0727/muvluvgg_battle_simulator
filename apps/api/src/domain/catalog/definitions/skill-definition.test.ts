@@ -165,13 +165,7 @@ describe("SkillDefinition", () => {
       resolution: {
         kind: "CHARGE",
         targetBindings: [],
-        steps: [
-          {
-            kind: "ACTION",
-            target: { kind: "SELF" },
-            actions: [{ effectActionDefinitionId: "ACT_MARKER_CHARGING" }],
-          },
-        ],
+        steps: [],
         chargeRelease: {
           targetBindings: [
             {
@@ -203,6 +197,20 @@ describe("SkillDefinition", () => {
         resolution: {
           kind: "CHARGE",
           targetBindings: [],
+          steps: [],
+        },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-029 (M7-016, Issue #270 review [P1]): rejects steps declared on a CHARGE skill's own top-level (start) EffectSequence for the same reason as counterUpdates — resolveChargeStart never resolves them, so accepting them would silently drop the declared EffectActions", () => {
+    const input = minimalAsInput();
+    expect(() =>
+      createSkillDefinition({
+        ...input,
+        resolution: {
+          kind: "CHARGE",
+          targetBindings: [],
           steps: [
             {
               kind: "ACTION",
@@ -210,9 +218,49 @@ describe("SkillDefinition", () => {
               actions: [{ effectActionDefinitionId: "ACT_MARKER_CHARGING" }],
             },
           ],
+          chargeRelease: {
+            targetBindings: [],
+            steps: [
+              {
+                kind: "ACTION",
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_EN_21200" }],
+              },
+            ],
+          },
         },
       }),
     ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-SKL-030 (M7-016, Issue #270 review [P1]): keeps the CHARGE start-side targetBindings, which the AS/EX activationCondition is scoped to even though no start-side step resolves", () => {
+    const input = minimalAsInput();
+    const result = createSkillDefinition({
+      ...input,
+      resolution: {
+        kind: "CHARGE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_START",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1 },
+          },
+        ],
+        steps: [],
+        chargeRelease: {
+          targetBindings: [],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_EN_21200" }],
+            },
+          ],
+        },
+      },
+    });
+    expect(result.resolution.kind).toBe("CHARGE");
+    expect(result.resolution.targetBindings).toHaveLength(1);
+    expect(result.resolution.steps).toEqual([]);
   });
 
   it("UT-CAT-SKL-028 (PR #213 review [P1]): rejects counterUpdates declared on a CHARGE skill's own top-level (start) EffectSequence, since it never resolves at runtime (only chargeRelease.counterUpdates is honored)", () => {

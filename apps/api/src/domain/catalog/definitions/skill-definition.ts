@@ -252,7 +252,9 @@ function createResolution(
     return { kind: "IMMEDIATE", ...sequence };
   }
   if (input.kind === "CHARGE") {
-    const sequence = createEffectSequence(createSequenceInput(input), path);
+    const sequence = createEffectSequence(createSequenceInput(input), path, {
+      allowEmptySteps: true,
+    });
     // PR #213レビュー[P1]: CHARGE開始側のトップレベルEffectSequence（`steps`/
     // `targetBindings`）は`action-charge-resolver.ts`の`resolveChargeStart`が
     // 一度も解決しない（`applyEffectActionGroups`を呼ばず、`charge`状態設定と
@@ -265,6 +267,21 @@ function createResolution(
       throw new DomainValidationError(
         `${path}.counterUpdates`,
         "is not supported on a CHARGE skill's own top-level EffectSequence (it never resolves at runtime; declare counterUpdates on chargeRelease instead)",
+      );
+    }
+    // M7-016（Issue #270 レビュー[P1]）: `steps`にもまったく同じ理由が当てはまる。
+    // `06_戦闘状態遷移.md`「チャージ開始」#1〜6はコスト消費・クールタイム設定・
+    // チャージ状態化・`ChargeStarted`発行・PS解決・行動完了だけを規定し、効果解決の
+    // 手順を持たない（`R-SKL-05`も同じ）。開始側に`steps`を宣言できてしまうと、
+    // そこに置いた`EffectAction`が対応するDomain Event・StateDeltaごと黙って
+    // 欠落する。`counterUpdates`と同様にロード時点で拒否し、Catalog契約とruntimeを
+    // 一致させる。開始側は`targetBindings`だけを持つ空sequenceになる — AS/EXの
+    // `activationCondition`は開始側bindingにスコープされるため（PR #287、
+    // `UT-CAT-IDX-097`）、`targetBindings`自体は引き続き意味を持つ。
+    if (sequence.steps.length > 0) {
+      throw new DomainValidationError(
+        `${path}.steps`,
+        "is not supported on a CHARGE skill's own top-level EffectSequence (resolveChargeStart never resolves it; declare the EffectActions on chargeRelease instead)",
       );
     }
     if (input.chargeRelease === undefined) {

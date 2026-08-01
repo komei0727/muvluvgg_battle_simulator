@@ -99,13 +99,9 @@ function chargeSkill(id: string): SkillDefinition {
     cost: { resource: "AP", amount: 1 },
     resolution: {
       kind: "CHARGE",
-      steps: [
-        {
-          kind: "ACTION",
-          target: { kind: "SELF" },
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_CHARGE_START" }],
-        },
-      ],
+      // M7-016（Issue #270 レビュー[P1]）: CHARGE開始側は`resolveChargeStart`が
+      // 一つも解決しないため`steps`は常に空。EffectActionは`chargeRelease`だけが持つ。
+      steps: [],
       chargeRelease: {
         targetBindings: [
           {
@@ -124,7 +120,9 @@ function chargeSkill(id: string): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities: [],
+    // M7-016（Issue #270）: `resolution.kind: CHARGE`は`CAP_CHARGE_RESTRICTION`の
+    // 宣言が必須（`catalog-integrity.ts`の`validateSkill`）。
+    requiredCapabilities: ["CAP_CHARGE_RESTRICTION"],
     metadata: { displayName: "Charge" },
   });
 }
@@ -229,6 +227,8 @@ function capability(id: string, status = "IMPLEMENTED"): CapabilityDefinition {
     CAP_MEMORY: "MEM_001",
     CAP_MEMORY_TRIGGERED_EFFECT: "MEM_001",
     CAP_MEMORY_ACTION: "ACT_DAMAGE_MEMORY",
+    // M7-016（Issue #270）: `resolution.kind: CHARGE`が宣言必須にしたCapability。
+    CAP_CHARGE_RESTRICTION: "SKL_CHARGE",
   };
   const evidenceDefinitionId = evidenceDefinitionIds[id];
   return createCapabilityDefinition({
@@ -272,21 +272,16 @@ describe("InMemoryBattleCatalog.loadSnapshot", () => {
     );
   });
 
-  it("includes both the CHARGE step and chargeRelease step EffectActions for a charge Skill", () => {
+  it("includes the chargeRelease step EffectActions for a charge Skill (M7-016, Issue #270 review [P1]: the CHARGE start side carries no steps, so chargeRelease is the only source)", () => {
     const defs: CatalogDefinitions = {
       units: [unit("UNIT_001", { active: ["SKL_CHARGE"] })],
       skills: [chargeSkill("SKL_CHARGE"), exSkill("SKL_EX1", 7)],
-      effectActions: [
-        damageAction("ACT_DAMAGE_CHARGE_START"),
-        damageAction("ACT_DAMAGE_CHARGE_RELEASE"),
-        damageAction("ACT_DAMAGE_AS"),
-      ],
+      effectActions: [damageAction("ACT_DAMAGE_CHARGE_RELEASE"), damageAction("ACT_DAMAGE_AS")],
       memories: [],
-      capabilities: [],
+      capabilities: [capability("CAP_CHARGE_RESTRICTION")],
     };
     const catalog = new InMemoryBattleCatalog("rev-1", buildCatalogIndex(defs));
     const snapshot = catalog.loadSnapshot(["UNIT_001" as never], []);
-    expect(snapshot.effectActions.has("ACT_DAMAGE_CHARGE_START" as never)).toBe(true);
     expect(snapshot.effectActions.has("ACT_DAMAGE_CHARGE_RELEASE" as never)).toBe(true);
   });
 

@@ -364,7 +364,22 @@ export interface EffectSequenceInput {
 
 const EFFECT_SEQUENCE_ALLOWED_KEYS = ["targetBindings", "steps", "counterUpdates"] as const;
 
-export function createEffectSequence(input: EffectSequenceInput, path: string): EffectSequence {
+export interface CreateEffectSequenceOptions {
+  /**
+   * M7-016（Issue #270 レビュー[P1]）: `steps`が空のEffectSequenceを許可する。
+   * CHARGE開始側のトップレベルEffectSequenceだけが使う — `resolveChargeStart`は
+   * 一つもstepを解決しないため、開始側は`targetBindings`（AS/EXの
+   * `activationCondition`のスコープ、`catalog-integrity.ts`の
+   * `validateActivationConditionReferences`）だけを持つ空sequenceになる。
+   */
+  readonly allowEmptySteps?: boolean;
+}
+
+export function createEffectSequence(
+  input: EffectSequenceInput,
+  path: string,
+  options: CreateEffectSequenceOptions = {},
+): EffectSequence {
   assertKnownKeys(input, EFFECT_SEQUENCE_ALLOWED_KEYS, path);
   if (input.targetBindings !== undefined) {
     assertArray(input.targetBindings, `${path}.targetBindings`);
@@ -398,7 +413,11 @@ export function createEffectSequence(input: EffectSequenceInput, path: string): 
     ),
   }));
 
-  assertNonEmptyArray(input.steps, `${path}.steps`);
+  if (options.allowEmptySteps === true) {
+    assertArray(input.steps, `${path}.steps`);
+  } else {
+    assertNonEmptyArray(input.steps, `${path}.steps`);
+  }
   const steps = input.steps.map((s, i) =>
     createEffectStepDefinition(s, `${path}.steps[${i}]`, scope),
   );

@@ -72,17 +72,6 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS2_CHARGE_MARKER",
-    "kind": "APPLY_MARKER",
-    "payload": {
-      "markerId": "MARKER_MIRIAM_MAGE_CHARGING",
-      "stack": { "policy": "REPLACE", "max": 1 },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 1 } }
-    },
-    "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
-  },
-  {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS2_FREEZE",
     "kind": "APPLY_STATUS",
     "payload": {
