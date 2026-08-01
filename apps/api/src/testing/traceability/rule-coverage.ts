@@ -1720,6 +1720,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-008",
       "UT-R-EFF-02-009",
       "IT-CAP-TARGET-EFFECT-QUERY-PROD-007",
+      // PR #288レビュー[P1]: 公開API（`EffectStateResponse.category`）も同じ分類元
+      // （`EffectSnapshot.categories`）を読む。継続ダメージは`magnitude`が正値のため、
+      // 符号から導くと毒・炎上がAPI上だけ`BUFF`になりR-STS-01と矛盾していた。
+      // API層の証跡は`simulate-battle-response-mapper.test.ts`の`API-RESP-012G`
+      // （台帳が集計する`UT`/`IT`等の接頭辞を持たないためIDとしては挙げない）。
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
