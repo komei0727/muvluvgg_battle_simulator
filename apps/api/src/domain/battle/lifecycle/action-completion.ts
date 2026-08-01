@@ -9,6 +9,7 @@ import {
   decayActionShields,
   emitShieldConsumed,
   shieldDecayHolders,
+  shieldDecayPools,
 } from "../combat/shield-policy.js";
 import { decrementActionMarkerDurations } from "../model/marker-duration.js";
 import {
@@ -247,12 +248,14 @@ export function recordActionCompletion(
   // まとめて変更してから通知すると、先頭の`ShieldConsumed`に反応するPSが
   // 他の保持者まで変更済みの状態を観測してしまう。
   for (const holderId of shieldDecayHolders(working, context.actorId)) {
-    const decay = decayActionShields(working, context.actorId, holderId);
-    if (decay.changes.length === 0) {
-      continue;
-    }
-    working = decay.units;
-    for (const change of decay.changes) {
+    // プールの並びは保持者ごとに先に確定させ、実際の減少量だけをそのつど最新の
+    // `working`から求める（`shieldDecayPools`のコメント参照）。
+    for (const shieldType of shieldDecayPools(working, context.actorId, holderId)) {
+      const decay = decayActionShields(working, context.actorId, holderId, shieldType);
+      if (decay.change === undefined) {
+        continue;
+      }
+      working = decay.units;
       const decayEventsStart = recorder.getEvents().length;
       lastEventId = emitShieldConsumed(
         {
@@ -264,7 +267,7 @@ export function recordActionCompletion(
           rootEventId: context.rootEventId,
         },
         requireUnit(working, holderId),
-        change,
+        decay.change,
         "DECAY",
         lastEventId,
       );
@@ -272,7 +275,7 @@ export function recordActionCompletion(
         notify(event);
       }
 
-      if (change.depletedEffectInstanceIds.length > 0) {
+      if (decay.change.depletedEffectInstanceIds.length > 0) {
         const expiry = expireEffects(
           {
             recorder,
@@ -286,7 +289,7 @@ export function recordActionCompletion(
               : {}),
           },
           working,
-          change.depletedEffectInstanceIds.map((effectInstanceId) => ({
+          decay.change.depletedEffectInstanceIds.map((effectInstanceId) => ({
             battleUnitId: holderId,
             effectInstanceId,
             reason: "SHIELD_DEPLETED" as const,

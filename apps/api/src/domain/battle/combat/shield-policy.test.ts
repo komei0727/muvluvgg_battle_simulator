@@ -4,6 +4,7 @@ import {
   decayActionShields,
   shieldBypassedDamage,
   shieldDecayHolders,
+  shieldDecayPools,
   shieldPoolsOf,
 } from "./shield-policy.js";
 import type { AppliedEffect, ShieldState } from "../model/applied-effect.js";
@@ -181,15 +182,16 @@ describe("shield decay over time (SHIELD_DECAY_OVER_TIME, DMG-004)", () => {
 
   it("UT-R-SHD-01-007: reduces the remaining amount by the declared ratio of the granted maximum on the holder's action", () => {
     const holder = unitWithShields([shieldEffect(100, { shieldType: null, decay })]);
-    const first = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId);
-    expect(first.changes).toEqual([
-      expect.objectContaining({ shieldType: null, poolBefore: 100, poolAfter: 75, absorbed: 25 }),
-    ]);
+    const first = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId, null);
+    expect(first.change).toMatchObject({
+      shieldType: null,
+      poolBefore: 100,
+      poolAfter: 75,
+      absorbed: 25,
+    });
     // 減少量は「その時点の残量」ではなく付与時最大値に対する割合なので、等差で減る。
-    const second = decayActionShields(first.units, holder.battleUnitId, holder.battleUnitId);
-    expect(second.changes[0]).toEqual(
-      expect.objectContaining({ poolBefore: 75, poolAfter: 50, absorbed: 25 }),
-    );
+    const second = decayActionShields(first.units, holder.battleUnitId, holder.battleUnitId, null);
+    expect(second.change).toMatchObject({ poolBefore: 75, poolAfter: 50, absorbed: 25 });
   });
 
   it("UT-R-SHD-01-008: depletes at the ratio's reciprocal and reports the instance as depleted", () => {
@@ -198,15 +200,13 @@ describe("shield decay over time (SHIELD_DECAY_OVER_TIME, DMG-004)", () => {
     ];
     const holderId = units[0]!.battleUnitId;
     for (let i = 0; i < 3; i++) {
-      const step = decayActionShields(units, holderId, holderId);
-      expect(step.changes[0]!.depletedEffectInstanceIds).toEqual([]);
+      const step = decayActionShields(units, holderId, holderId, null);
+      expect(step.change!.depletedEffectInstanceIds).toEqual([]);
       units = step.units;
     }
-    const last = decayActionShields(units, holderId, holderId);
-    expect(last.changes[0]).toEqual(
-      expect.objectContaining({ poolBefore: 25, poolAfter: 0, absorbed: 25 }),
-    );
-    expect(last.changes[0]!.depletedEffectInstanceIds).toHaveLength(1);
+    const last = decayActionShields(units, holderId, holderId, null);
+    expect(last.change).toMatchObject({ poolBefore: 25, poolAfter: 0, absorbed: 25 });
+    expect(last.change!.depletedEffectInstanceIds).toHaveLength(1);
   });
 
   it("UT-R-SHD-01-009: leaves shields without a decay declaration, and other units' actions, untouched", () => {
@@ -216,27 +216,47 @@ describe("shield decay over time (SHIELD_DECAY_OVER_TIME, DMG-004)", () => {
     ]);
     const other = createBattleUnitId("ally:2");
     expect(shieldDecayHolders([holder], other)).toEqual([]);
-    expect(decayActionShields([holder], other, holder.battleUnitId).changes).toEqual([]);
+    expect(shieldDecayPools([holder], other, holder.battleUnitId)).toEqual([]);
+    expect(decayActionShields([holder], other, holder.battleUnitId, "EN").change).toBeUndefined();
 
     expect(shieldDecayHolders([holder], holder.battleUnitId)).toEqual([holder.battleUnitId]);
-    const result = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId);
-    expect(result.changes).toHaveLength(1);
-    expect(result.changes[0]!.shieldType).toBe("EN");
-    // 漸減しないタイプなしシールドはプール合計にも変化として現れない。
+    // 漸減対象は`EN`プールだけ（タイプなしは`decay`宣言を持たない）。
+    expect(shieldDecayPools([holder], holder.battleUnitId, holder.battleUnitId)).toEqual(["EN"]);
+    const result = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId, "EN");
+    expect(result.change!.shieldType).toBe("EN");
     expect(shieldPoolsOf(result.units[0]!.appliedEffects).untyped).toBe(100);
   });
 
-  it("UT-R-SHD-01-012 (PRレビュー[P1]): reports one pool-total change per pool, including same-pool instances that do not decay", () => {
+  it("UT-R-SHD-01-012 (PRレビュー[P1]): reports the whole pool total per pool, including same-pool instances that do not decay", () => {
     const holder = unitWithShields([
       shieldEffect(100, { shieldType: null }),
       shieldEffect(40, { shieldType: null, decay }),
       shieldEffect(80, { shieldType: "EN", decay }),
     ]);
-    const result = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId);
-    // R-SHD-02の適用順と同じ並び（タイプあり→タイプなし）で発行できるよう整列する。
-    expect(result.changes.map((change) => change.shieldType)).toEqual(["EN", null]);
+    // R-SHD-02の適用順と同じ並び（タイプあり→タイプなし）で解決する。
+    expect(shieldDecayPools([holder], holder.battleUnitId, holder.battleUnitId)).toEqual([
+      "EN",
+      null,
+    ]);
+
+    const en = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId, "EN");
+    expect(en.change).toMatchObject({ poolBefore: 80, poolAfter: 60, absorbed: 20 });
     // タイプなしプールは 140 のうち漸減対象は40だけ（10減る）で、プール前後値は 140 → 130。
-    expect(result.changes[1]).toMatchObject({ poolBefore: 140, poolAfter: 130, absorbed: 10 });
-    expect(result.changes[0]).toMatchObject({ poolBefore: 80, poolAfter: 60, absorbed: 20 });
+    const untyped = decayActionShields(en.units, holder.battleUnitId, holder.battleUnitId, null);
+    expect(untyped.change).toMatchObject({ poolBefore: 140, poolAfter: 130, absorbed: 10 });
+  });
+
+  it("UT-R-SHD-01-015 (PRレビュー再指摘[P1]): decaying one pool leaves the holder's other decaying pools untouched", () => {
+    const holder = unitWithShields([
+      shieldEffect(80, { shieldType: "EN", decay }),
+      shieldEffect(40, { shieldType: null, decay }),
+    ]);
+    const en = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId, "EN");
+    // 先行プールを解決した時点で、後続のタイプなしプールはまだ手つかず。
+    expect(shieldPoolsOf(en.units[0]!.appliedEffects)).toEqual({
+      physical: 0,
+      energy: 60,
+      untyped: 40,
+    });
   });
 });

@@ -293,13 +293,13 @@ function resolveDecayOwnerUnitId(effect: AppliedEffect): BattleUnitId | "BATTLE"
 
 export interface ShieldDecayResult {
   readonly units: readonly BattleUnit[];
-  /** 変化したプールごとの差分。空なら漸減対象が無かったことを表す。 */
-  readonly changes: readonly ShieldPoolChange[];
+  /** 変化したプールの差分。漸減対象が無ければ`undefined`。 */
+  readonly change?: ShieldPoolChange;
 }
 
 /**
  * `SHIELD_DECAY_OVER_TIME`（DMG-004、Issue #194、R-SHD-01）: `actingUnitId`が1つの
- * 行動を完了したとき、`holderUnitId`が保持するシールドの漸減を解決する。
+ * 行動を完了したとき、`holderUnitId`が保持する`shieldType`プールの漸減を解決する。
  * `decay.owner`が解決するユニットが`actingUnitId`と一致する（`BATTLE`はどの
  * ユニットの行動でも一致する）インスタンスの残量を
  * `切り捨て(付与時最大値 × decay.ratio)`だけ減らす。raw原文の例は
@@ -310,10 +310,14 @@ export interface ShieldDecayResult {
  * R-NUM-02の一般規約どおり切り捨てるが、`ratio > 0`なら最低1は減らす — 切り捨てで
  * 0になると漸減が永久に進まず、`decay`の宣言が無意味になるため。
  *
- * PRレビュー[P1]: 保持者を1体ずつ受け取るのは、`ShieldConsumed`（`reason: DECAY`）
- * の発行と枯渇分の失効を保持者ごとに完了させてから次の保持者へ進むためである
- * （`decay.owner`が`BATTLE`/`EFFECT_SOURCE`の場合、1回の行動完了で複数の保持者が
- * 同時に漸減しうる）。対象となる保持者の列挙は`shieldDecayHolders`が行う。
+ * PRレビュー再指摘[P1]: 保持者ではなく**保持者×プール**を1回の単位にする。
+ * 保持者の全プールをまとめて減らしてから順にイベントを発行すると、最初の
+ * `ShieldConsumed`の時点で後続プールも既に漸減済みになり、`08_ドメインイベント.md`
+ * の「保持者→プールの単位で、減少→通知→失効を完了してから次へ進む」契約を
+ * 満たせない。加えて、最初のイベントのPS/Memory連鎖が後続プールの効果を解除すると
+ * 事前に集めた差分が古くなり、`emitShieldConsumed`が存在しないインスタンスを
+ * 参照して失敗し得る。呼び出し側は`shieldDecayPools`で得た並びに沿って、
+ * そのつど最新の`units`からこの関数を呼び直す。
  *
  * `decrementActionEffectDurations`と同じく、0になったインスタンスをこの関数自身は
  * 除去しない（`EffectExpired`発行・除去・カスケードは呼び出し側の責務）。
@@ -325,26 +329,21 @@ export function decayActionShields(
   units: readonly BattleUnit[],
   actingUnitId: BattleUnitId,
   holderUnitId: BattleUnitId,
+  shieldType: DamageType | null,
 ): ShieldDecayResult {
   const holder = units.find((unit) => unit.battleUnitId === holderUnitId);
   if (holder === undefined) {
-    return { units, changes: [] };
+    return { units };
   }
   // プール合計（`ShieldConsumed.before`）は、漸減しないインスタンスも含めた
   // 変化前の総量である（PRレビュー[P1]）。
-  const poolBefore = new Map<DamageType | null, number>();
-  for (const effect of shieldInstances(holder.appliedEffects)) {
-    const shieldType = effect.shield!.shieldType;
-    poolBefore.set(shieldType, (poolBefore.get(shieldType) ?? 0) + effect.shield!.remaining);
-  }
-
-  const byPool = new Map<
-    DamageType | null,
-    { instances: ShieldInstanceChange[]; depleted: EffectInstanceId[]; absorbed: number }
-  >();
+  const poolBefore = poolTotalOf(holder.appliedEffects, shieldType);
+  const instances: ShieldInstanceChange[] = [];
+  const depleted: EffectInstanceId[] = [];
+  let absorbed = 0;
   const nextEffects = holder.appliedEffects.map((effect) => {
     const shield = effect.shield;
-    if (shield?.decay === undefined || shield.remaining <= 0) {
+    if (shield?.decay === undefined || shield.remaining <= 0 || shield.shieldType !== shieldType) {
       return effect;
     }
     const owner = resolveDecayOwnerUnitId(effect);
@@ -353,42 +352,30 @@ export function decayActionShields(
     }
     const step = Math.max(1, truncateFraction(effect.magnitude * shield.decay.ratio));
     const after = Math.max(0, shield.remaining - step);
-    const pool = byPool.get(shield.shieldType) ?? { instances: [], depleted: [], absorbed: 0 };
-    pool.instances.push({
-      effectInstanceId: effect.effectInstanceId,
-      before: shield.remaining,
-      after,
-    });
-    pool.absorbed += shield.remaining - after;
+    instances.push({ effectInstanceId: effect.effectInstanceId, before: shield.remaining, after });
+    absorbed += shield.remaining - after;
     if (after === 0) {
-      pool.depleted.push(effect.effectInstanceId);
+      depleted.push(effect.effectInstanceId);
     }
-    byPool.set(shield.shieldType, pool);
     return { ...effect, shield: { ...shield, remaining: after } };
   });
 
-  if (byPool.size === 0) {
-    return { units, changes: [] };
+  if (instances.length === 0) {
+    return { units };
   }
-  // R-SHD-02の適用順と同じ並び（タイプあり→タイプなし）でイベントを発行できるよう、
-  // タイプなしプールを常に最後へ置く（`Map`の挿入順は付与順に依存するため）。
-  const changes: ShieldPoolChange[] = [...byPool.entries()]
-    .sort((a, b) => (a[0] === null ? 1 : 0) - (b[0] === null ? 1 : 0))
-    .map(([shieldType, pool]) => ({
-      battleUnitId: holderUnitId,
-      shieldType,
-      poolBefore: poolBefore.get(shieldType) ?? 0,
-      poolAfter: (poolBefore.get(shieldType) ?? 0) - pool.absorbed,
-      absorbed: pool.absorbed,
-      instances: pool.instances,
-      depletedEffectInstanceIds: pool.depleted,
-    }));
-
   return {
     units: units.map((unit) =>
       unit.battleUnitId === holderUnitId ? { ...unit, appliedEffects: nextEffects } : unit,
     ),
-    changes,
+    change: {
+      battleUnitId: holderUnitId,
+      shieldType,
+      poolBefore,
+      poolAfter: poolBefore - absorbed,
+      absorbed,
+      instances,
+      depletedEffectInstanceIds: depleted,
+    },
   };
 }
 
@@ -402,15 +389,43 @@ export function shieldDecayHolders(
   actingUnitId: BattleUnitId,
 ): readonly BattleUnitId[] {
   return units
-    .filter((unit) =>
-      unit.appliedEffects.some((effect) => {
-        const shield = effect.shield;
-        if (shield?.decay === undefined || shield.remaining <= 0) {
-          return false;
-        }
-        const owner = resolveDecayOwnerUnitId(effect);
-        return owner === "BATTLE" || owner === actingUnitId;
-      }),
-    )
+    .filter((unit) => decayablePoolsOf(unit, actingUnitId).length > 0)
     .map((unit) => unit.battleUnitId);
+}
+
+/**
+ * `holderUnitId`が持つ漸減対象プールを、R-SHD-02の適用順と同じ並び
+ * （タイプあり→タイプなし）で列挙する。呼び出し側はこの並びを**先に確定させて**
+ * から1プールずつ解決する — 解決中のPS/Memory連鎖が新しいシールドを付与しても、
+ * 同じ行動完了で連鎖的に漸減が増えないようにするため（列挙は固定、各プールの
+ * 実際の減少量だけがそのつど最新状態から決まる）。
+ */
+export function shieldDecayPools(
+  units: readonly BattleUnit[],
+  actingUnitId: BattleUnitId,
+  holderUnitId: BattleUnitId,
+): readonly (DamageType | null)[] {
+  const holder = units.find((unit) => unit.battleUnitId === holderUnitId);
+  return holder === undefined ? [] : decayablePoolsOf(holder, actingUnitId);
+}
+
+function decayablePoolsOf(
+  holder: BattleUnit,
+  actingUnitId: BattleUnitId,
+): readonly (DamageType | null)[] {
+  const pools: (DamageType | null)[] = [];
+  for (const effect of holder.appliedEffects) {
+    const shield = effect.shield;
+    if (shield?.decay === undefined || shield.remaining <= 0) {
+      continue;
+    }
+    const owner = resolveDecayOwnerUnitId(effect);
+    if (owner !== "BATTLE" && owner !== actingUnitId) {
+      continue;
+    }
+    if (!pools.includes(shield.shieldType)) {
+      pools.push(shield.shieldType);
+    }
+  }
+  return pools.sort((a, b) => (a === null ? 1 : 0) - (b === null ? 1 : 0));
 }

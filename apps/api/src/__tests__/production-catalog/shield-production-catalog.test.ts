@@ -237,9 +237,9 @@ describe("production Catalog APPLY_SHIELD (CAP_SHIELD, DMG-004 Issue #194)", () 
     const steps: number[] = [];
     let lastDepleted: readonly EffectInstanceId[] = [];
     for (let i = 0; i < 4; i++) {
-      const decayed = decayActionShields(units, holder.battleUnitId, holder.battleUnitId);
+      const decayed = decayActionShields(units, holder.battleUnitId, holder.battleUnitId, null);
       units = decayed.units;
-      lastDepleted = decayed.changes[0]!.depletedEffectInstanceIds;
+      lastDepleted = decayed.change!.depletedEffectInstanceIds;
       steps.push(shieldPoolsOf(units[0]!.appliedEffects).untyped);
       // 3行動目まではまだ残っており、個別消滅の対象にならない。
       if (i < 3) {

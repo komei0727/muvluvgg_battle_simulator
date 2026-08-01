@@ -2108,45 +2108,22 @@ function* resolveOneEffectActionApplication(
         for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
           box.units = context.onFactEventForPassiveChain(event, box.units);
         }
-        // 下の`expireEffects`が自身で除去1件ごとに通知するため、ここまでで
-        // 通知済みの分を捕捉範囲から外して二重通知を避ける。
-        innerEventsStart = context.recorder.getEvents().length;
       }
       effectLastEventId = grantResult.lastEventId;
       // R-SHD-01第3項（PRレビュー[P2]）: Formula結果が負値・0、または切り捨てで0に
       // なった付与は、残量0のインスタンスとして永続してしまう（吸収も漸減も
       // `remaining <= 0`を対象外にするため、期間満了まで枯渇契機が訪れない）。
-      // 「残量が0になったインスタンスは即時失効させる」に従い、付与直後に
-      // `SHIELD_DEPLETED`として失効させる — `EffectApplied`自体は監査証跡として
-      // 発行し、linked group（`LILY_SINGER_PS2_LINK`等）も同じ経路でカスケードする。
-      if (magnitude <= 0) {
-        const expiry = expireEffects(
-          {
-            recorder: context.recorder,
-            turnNumber: context.turnNumber,
-            cycleNumber: context.cycleNumber,
-            ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-            skillUseId: context.skillUseId,
-            resolutionScopeId: context.actionScope,
-            rootEventId: context.rootEventId,
-            ...(context.onFactEventForPassiveChain !== undefined
-              ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
-              : {}),
-          },
-          box.units,
-          [
-            {
-              battleUnitId: application.targetBattleUnitId,
-              effectInstanceId: grantResult.appliedEffect.effectInstanceId,
-              reason: "SHIELD_DEPLETED",
-            },
-          ],
-          context.definitions.effectActions,
-          effectLastEventId,
-        );
-        box.units = expiry.units;
-        effectLastEventId = expiry.lastEventId;
-      }
+      // 「残量が0になったインスタンスは即時失効させる」に従って失効させるが、
+      // 実際の失効はこのEffectActionの中では行わず、EffectSequence解決の最後
+      // （`sweepDepletedShields`）まで遅らせる。PRレビュー再指摘[P2]の2点による。
+      //
+      // - この時点ではまだ同じACTION stepの後続EffectActionが付与するCHILDが
+      //   存在せず、R-EFF-09のカスケードで収集できない（production例:
+      //   `SKL_LILY_SINGER_PS2`は`SHIELD`(PARENT)→`ATK_UP`(CHILD)の定義順）。
+      //   ここで失効させると、後から付与されたCHILDだけがグループの親を失って残る
+      // - PS/Memory自身のEffectSequence解決（`onFactEventForPassiveChain`未指定）
+      //   では`EffectApplied`をdriverへ`yield`する前に同期失効まで進んでしまい、
+      //   `EffectApplied`を契機とするPS/Memoryが付与直後の状態を観測できない
       resolvedCount = application.hits.length;
       interruptedCount = 0;
       resultKind = "APPLIED";
@@ -3192,6 +3169,78 @@ function* resolveStepDefinitionList(
  * 行ってはならない — 後者は各呼び出しがstack/depth/effectsResolvedを
  * ゼロから開始してしまい、Guardが実効的にnesting全体を見なくなる。
  */
+/**
+ * R-SHD-01第3項（DMG-004、Issue #194、PRレビュー再指摘[P2]）: このEffectSequence
+ * 解決で残量0のまま残ったシールドを、解決の最後に`SHIELD_DEPLETED`として失効させる。
+ *
+ * 対象になるのは付与時点で既に0だったシールド（Formula結果が負値・0、または
+ * R-NUM-02の切り捨てで0）だけである — 吸収で枯渇した分は
+ * `damage-application-service.ts`がプールごとにその場で失効させ、漸減で枯渇した分は
+ * `action-completion.ts`が同じくその場で失効させるため、ここへは到達しない。
+ *
+ * 付与直後ではなく解決の最後に行うのは次の2点による。
+ *
+ * - R-EFF-09のカスケードは「その時点で存在するメンバー」しか収集できない。
+ *   production例`SKL_LILY_SINGER_PS2`は同じACTION stepで`SHIELD`(PARENT)→
+ *   `ATK_UP`(CHILD)の順に付与するため、付与直後に親を失効させるとCHILDがまだ
+ *   存在せず、後から付与されたCHILDだけが親を失って残ってしまう
+ * - PS/Memory自身のEffectSequence解決（`onFactEventForPassiveChain`未指定）では、
+ *   `EffectApplied`はEffectAction完了時に`EFFECT_RESOLVED`としてdriverへ渡る。
+ *   付与と同じEffectAction内で同期失効まで進めると、`EffectApplied`を契機とする
+ *   PS/Memoryが「付与直後（シールドが存在する）」状態を一度も観測できない
+ *
+ * `stealthConsumptions`の失効（この関数の少し上）と同じ2経路の規約を持つ:
+ * callbackがあればそれが除去1件ごとに通知し、無ければイベント列を
+ * `EFFECT_RESOLVED`としてyieldしてdriverへ委ねる。
+ */
+function* sweepDepletedShields(
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  parentEventId: DomainEventId,
+): Generator<EffectResolutionStep, DomainEventId, void> {
+  const seeds = box.units.flatMap((unit) =>
+    unit.appliedEffects
+      .filter((effect) => effect.shield !== undefined && effect.shield.remaining <= 0)
+      .map((effect) => ({
+        battleUnitId: unit.battleUnitId,
+        effectInstanceId: effect.effectInstanceId,
+        reason: "SHIELD_DEPLETED" as const,
+      })),
+  );
+  if (seeds.length === 0) {
+    return parentEventId;
+  }
+  // 除去1件ごとに`EFFECT_RESOLVED`として`yield`し、driver
+  // （AS/EX・チャージ解放は`applyEffectActionGroups`、PS/Memory自身の解決は
+  // `passive-activation-service.ts`の`driveActivation`）に即時連鎖の解決を委ねる。
+  // `expireEffects`（同期wrapper）はステップを読み捨てるだけで通知しないため、
+  // ここでcallbackを渡しても連鎖は起きず、driverの`units`も更新されない。
+  const steps = expireEffectsSteps(
+    {
+      recorder: context.recorder,
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.actionScope,
+      rootEventId: context.rootEventId,
+    },
+    box.units,
+    seeds,
+    context.definitions.effectActions,
+    parentEventId,
+  );
+  let step = steps.next();
+  while (!step.done) {
+    // driverが`box.units`を書き換える前に、このステップ時点の状態を反映しておく。
+    box.units = step.value.units;
+    yield { kind: "EFFECT_RESOLVED", events: step.value.events };
+    step = steps.next(box.units);
+  }
+  box.units = step.value.units;
+  return step.value.lastEventId;
+}
+
 export function* resolveEffectSequencePlan(
   plan: EffectSequencePlan,
   box: UnitsBox,
@@ -3374,6 +3423,9 @@ export function* resolveEffectSequencePlan(
     resolvedCount += result.walkResult.resolvedCount;
 
     if (result.walkResult.interrupted) {
+      // 中断でも、既に付与済みの残量0シールドは掃除する（付与自体は確定済みの
+      // 状態変更であり、R-SKL-01の「解決済みの効果を巻き戻さない」に反しない）。
+      yield* sweepDepletedShields(box, context, lastEventId);
       return {
         units: box.units,
         outcome: {
@@ -3386,6 +3438,7 @@ export function* resolveEffectSequencePlan(
     }
   }
 
+  yield* sweepDepletedShields(box, context, lastEventId);
   return { units: box.units, outcome: { status: "COMPLETED", resolvedEffectCount: resolvedCount } };
 }
 

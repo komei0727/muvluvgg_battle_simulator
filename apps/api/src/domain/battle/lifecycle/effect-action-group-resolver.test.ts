@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyEffectActionGroups,
+  resolveEffectSequencePlan,
   type EffectActionGroupContext,
   type EffectActionGroupsResult,
 } from "./effect-action-group-resolver.js";
@@ -6398,5 +6399,189 @@ describe("APPLY_DAMAGE_MOD (R-DMG-03, R-DMG-04, DMG-002 Issue #192)", () => {
     const calculated = recorder.getEvents().find((e) => e.eventType === "DamageCalculated")!;
     expect(calculated.payload).toMatchObject({ incomingDamageMultiplier: 1, finalDamage: 10 });
     expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(90);
+  });
+});
+
+describe("zero-amount shield sweep (DMG-004, Issue #194, PRレビュー再指摘[P2])", () => {
+  function shieldAction(
+    id: string,
+    amount: number,
+    linked?: { readonly groupId: string; readonly role: "PARENT" | "CHILD" },
+  ): EffectActionDefinition {
+    return {
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: amount },
+        duration: {
+          timeLimit: { unit: "TURN", count: 5 },
+          dispellable: true,
+          linkedEffectGroupId: linked?.groupId ?? null,
+          ...(linked !== undefined ? { linkedEffectGroupRole: linked.role } : {}),
+        },
+      },
+    };
+  }
+
+  function linkedStatModAction(id: string, groupId: string): EffectActionDefinition {
+    return {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        stat: "ATTACK",
+        valueType: "RATIO",
+        formula: { kind: "CONSTANT", value: 0.15 },
+        stacking: { mode: "STACKABLE", max: null },
+        duration: {
+          timeLimit: { unit: "TURN", count: 5 },
+          dispellable: false,
+          linkedEffectGroupId: groupId,
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    };
+  }
+
+  /** `SKL_LILY_SINGER_PS2`と同じ「同一ACTION stepでPARENT→CHILDの順に付与する」形。 */
+  function parentChildPlan(
+    targetId: BattleUnit["battleUnitId"],
+    parentId: EffectActionDefinition["effectActionDefinitionId"],
+    childId: EffectActionDefinition["effectActionDefinitionId"],
+  ): EffectSequencePlan {
+    const actions = [{ effectActionDefinitionId: parentId }, { effectActionDefinitionId: childId }];
+    return {
+      stealthConsumptions: [],
+      steps: [
+        {
+          planKind: "ACTION_PLAN",
+          stepIndex: 0,
+          stepKind: "ACTION",
+          conditionKind: "TRUE",
+          satisfied: true,
+          actions,
+          applications: [parentId, childId].map((effectActionDefinitionId) => ({
+            targetBattleUnitId: targetId,
+            effectActionDefinitionId,
+            includeDefeated: false,
+            hits: [{ targetBattleUnitId: targetId, effectActionDefinitionId, hitIndex: 1 }],
+          })),
+        },
+      ],
+      targetUnitIds: [targetId],
+      resolvedBindings: new Map(),
+    };
+  }
+
+  it("UT-R-SHD-01-018: a zero-amount PARENT shield takes its later-granted CHILD with it, instead of leaving the group orphaned", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const ally = unit("ALLY_2", "ALLY");
+    // Formula結果0 → R-NUM-02の切り捨てで残量0。CHILDは同じstepの後続actionが付与する。
+    const parent = shieldAction("ACT_SHIELD_ZERO", 0, { groupId: "GRP", role: "PARENT" });
+    const child = linkedStatModAction("ACT_ATK_UP", "GRP");
+    const effectActions = new Map([
+      [parent.effectActionDefinitionId, parent],
+      [child.effectActionDefinitionId, child],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+    const result = applyEffectActionGroups(
+      parentChildPlan(
+        ally.battleUnitId,
+        parent.effectActionDefinitionId,
+        child.effectActionDefinitionId,
+      ),
+      [actor, ally],
+      context,
+    );
+
+    // グループ全体が残らない（親も子も）。
+    const target = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+    expect(target.appliedEffects).toEqual([]);
+
+    const expired = recorder.getEvents().filter((event) => event.eventType === "EffectExpired");
+    // R-EFF-09「子を先に、親を最後に」。
+    expect(
+      expired.map(
+        (event) => (event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId,
+      ),
+    ).toEqual(["ACT_ATK_UP", "ACT_SHIELD_ZERO"]);
+    expect(expired.map((event) => (event.payload as { reason: string }).reason)).toEqual([
+      "LINKED_GROUP_CASCADE",
+      "SHIELD_DEPLETED",
+    ]);
+  });
+
+  it("UT-R-SHD-01-019: a positive-amount shield is left alone by the sweep", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const ally = unit("ALLY_2", "ALLY");
+    const parent = shieldAction("ACT_SHIELD_OK", 30, { groupId: "GRP", role: "PARENT" });
+    const child = linkedStatModAction("ACT_ATK_UP", "GRP");
+    const effectActions = new Map([
+      [parent.effectActionDefinitionId, parent],
+      [child.effectActionDefinitionId, child],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+
+    const result = applyEffectActionGroups(
+      parentChildPlan(
+        ally.battleUnitId,
+        parent.effectActionDefinitionId,
+        child.effectActionDefinitionId,
+      ),
+      [actor, ally],
+      context,
+    );
+
+    const target = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(2);
+    expect(recorder.getEvents().some((event) => event.eventType === "EffectExpired")).toBe(false);
+  });
+
+  it("UT-R-SHD-01-020: on the PS/Memory path (no onFactEventForPassiveChain) EffectApplied is yielded to the driver while the shield still exists, before the expiry step", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const ally = unit("ALLY_2", "ALLY");
+    const shield = shieldAction("ACT_SHIELD_ZERO", 0);
+    const effectActions = new Map([[shield.effectActionDefinitionId, shield]]);
+    const { recorder, rootEventId } = seedRecorder();
+    // callback未指定＝PS/Memory自身のEffectSequence解決の経路。
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, ally.battleUnitId, shield.effectActionDefinitionId)],
+      targetUnitIds: [ally.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    // driverを模して、yieldされたステップごとにその時点の`box.units`を観測する。
+    const box = { units: [actor, ally] as readonly BattleUnit[] };
+    const observed: { readonly events: readonly string[]; readonly shields: number }[] = [];
+    const generator = resolveEffectSequencePlan(plan, box, context);
+    let step = generator.next();
+    while (!step.done) {
+      const events = step.value.kind === "TIMING_EVENT" ? [step.value.event] : step.value.events;
+      observed.push({
+        events: events.map((event) => event.eventType),
+        shields: (box.units.find((u) => u.battleUnitId === ally.battleUnitId)?.appliedEffects ?? [])
+          .length,
+      });
+      step = generator.next();
+    }
+
+    const appliedStep = observed.findIndex((entry) => entry.events.includes("EffectApplied"));
+    const expiredStep = observed.findIndex((entry) => entry.events.includes("EffectExpired"));
+    expect(appliedStep).toBeGreaterThanOrEqual(0);
+    // 失効は別ステップとして後から届く（同じステップに畳み込まれない）。
+    expect(expiredStep).toBeGreaterThan(appliedStep);
+    // `EffectApplied`をdriverが受け取る時点では、まだシールドが存在する。
+    expect(observed[appliedStep]!.shields).toBe(1);
+    expect(
+      step.value.units.find((u) => u.battleUnitId === ally.battleUnitId)!.appliedEffects,
+    ).toEqual([]);
   });
 });
