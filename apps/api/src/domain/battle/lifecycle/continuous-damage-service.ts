@@ -125,6 +125,18 @@ export interface ContinuousDamageAmount {
   readonly formulaResult: number;
   readonly burnStackMultiplier: number;
   readonly cappedBySnapshotAttack: boolean;
+  /**
+   * R-DOT-01の切り捨て・最低1ダメージを適用する**前**の値。炎上の2倍（R-DOT-03）と
+   * 毒の上限（R-DOT-04）は適用済みである。
+   *
+   * R-DOT-04の「効果量」はこの丸め前の値を指す（`毒ダメージ = min(割合ダメージ,
+   * 上限ダメージ)`）— 切り捨てと最低1ダメージはR-DOT-01が「各継続ダメージの
+   * 最終結果」へ適用する別の共通規則であり、効果量の定義には入らない。
+   * したがって再付与の統合判定（`grantPoisonContinuousDamage`）はこの値で比較する
+   * （PR #286再レビュー[P2]: `calculatedDamage`で比べると、最低1へ丸められる
+   * 小さな値どうしが同値に潰れて大小関係が失われる）。
+   */
+  readonly preTruncationDamage: number;
   readonly calculatedDamage: number;
 }
 
@@ -169,6 +181,7 @@ export function calculatePoisonTickDamage(
     formulaResult: ratioDamage,
     burnStackMultiplier: 1,
     cappedBySnapshotAttack,
+    preTruncationDamage: capped,
     calculatedDamage: Math.max(1, truncateFraction(capped)),
   };
 }
@@ -213,11 +226,13 @@ export function calculateContinuousDamage(
     kind === "BURN" && countBurnInstances(holder) >= MAX_BURN_INSTANCES
       ? BURN_TRIPLE_STACK_MULTIPLIER
       : 1;
+  const preTruncationDamage = effect.magnitude * burnStackMultiplier;
   return {
     formulaResult: effect.magnitude,
     burnStackMultiplier,
     cappedBySnapshotAttack: false,
-    calculatedDamage: Math.max(1, truncateFraction(effect.magnitude * burnStackMultiplier)),
+    preTruncationDamage,
+    calculatedDamage: Math.max(1, truncateFraction(preTruncationDamage)),
   };
 }
 
@@ -543,7 +558,11 @@ export function grantPoisonContinuousDamage(
     );
   const existingTick = tickOf(existingCandidate);
   const incomingTick = tickOf(incomingCandidate);
-  const takeIncomingMagnitude = incomingTick.calculatedDamage > existingTick.calculatedDamage;
+  // R-DOT-04の「効果量」＝上限適用後・切り捨て前の毒ダメージで比較する
+  // （PR #286再レビュー[P2]）。`calculatedDamage`（R-DOT-01の切り捨て・最低1適用後）で
+  // 比べると、例えば現在HP 9での10%毒(0.9)と20%毒(1.8)がどちらも1へ丸められて同値に
+  // なり、本来採用すべき20%毒が採られない。HPが回復した後の発生量に差が出る。
+  const takeIncomingMagnitude = incomingTick.preTruncationDamage > existingTick.preTruncationDamage;
 
   const existingRemaining = existing.duration.timeLimitRemaining ?? 0;
   const incomingRemaining = request.durationDefinition.timeLimit?.count ?? 0;
@@ -618,10 +637,11 @@ export function grantPoisonContinuousDamage(
       magnitudeAfter: nextEffect.magnitude,
       snapshotAttackBefore: existingCandidate.snapshotAttack,
       snapshotAttackAfter: adopted.snapshotAttack,
-      // 採用判断の基準そのもの。保存値（`magnitude*`）は評価時点が候補ごとに
-      // 異なりうるため、これが無いとログから採否の理由を再現できない。
-      tickDamageBefore: existingTick.calculatedDamage,
-      tickDamageAfter: adoptedTick.calculatedDamage,
+      // 採用判断の基準そのもの（上限適用後・切り捨て前）。保存値（`magnitude*`）は
+      // 評価時点が候補ごとに異なりうるため、これが無いとログから採否の理由を
+      // 再現できない。実際に与えるダメージはこれをR-DOT-01で丸めた値になる。
+      tickDamageBefore: existingTick.preTruncationDamage,
+      tickDamageAfter: adoptedTick.preTruncationDamage,
       remainingBefore: existingRemaining,
       remainingAfter: nextEffect.duration.timeLimitRemaining ?? 0,
     },

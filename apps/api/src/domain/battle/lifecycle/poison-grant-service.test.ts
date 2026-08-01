@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { grantPoisonContinuousDamage } from "./continuous-damage-service.js";
+import {
+  calculateContinuousDamage,
+  grantPoisonContinuousDamage,
+} from "./continuous-damage-service.js";
 import type { GrantEffectContext, GrantEffectRequest } from "../effects/effect-grant-service.js";
 import { CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY } from "../model/applied-effect.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
@@ -82,7 +85,11 @@ function poisonDuration(count: number): DurationDefinition {
   return { timeLimit: { unit: "ACTION", count }, dispellable: true, linkedEffectGroupId: null };
 }
 
-function poisonDefinition(id: string, ratio: number, count: number): EffectActionDefinition {
+function poisonDefinition(
+  id: string,
+  ratio: number,
+  count: number,
+): Extract<EffectActionDefinition, { kind: "APPLY_CONTINUOUS_DAMAGE" }> {
   return {
     kind: "APPLY_CONTINUOUS_DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
@@ -357,5 +364,52 @@ describe("grantPoisonContinuousDamage (R-DOT-04, DMG-008 Issue #189)", () => {
     // HP 300での実効値は60対30。既存が勝ち、期間も同じなので何も変わらない。
     expect(second.units).toBe(damagedUnits);
     expect(recorder.getEvents()).toHaveLength(eventsBefore);
+  });
+
+  it("UT-R-DOT-04-011 (boundary, PR #286再レビュー[P2]): the magnitude comparison happens before R-DOT-01 rounding, so a 20% poison still displaces a 10% poison when both would deal the minimum 1 damage", () => {
+    const { recorder, rootEventId } = seedRecorder();
+    const tenPercent = poisonDefinition("ACT_POISON_A", 0.1, 2);
+    const twentyPercent = poisonDefinition("ACT_POISON_B", 0.2, 2);
+    const effectActions = effectActionsOf(tenPercent, twentyPercent);
+
+    // 現在HP 9まで削られた対象。上限（付与時攻撃力）は十分高く、判断を分けるのは
+    // 割合ダメージだけになる。10%毒は0.9、20%毒は1.8であり効果量は20%毒の方が大きい。
+    const first = grantPoisonContinuousDamage(
+      contextOf(recorder, rootEventId),
+      [unit("source-1"), unit("target-1", 9)],
+      poisonRequest(tenPercent, "target-1", "source-1", 0.9, 1000, 2),
+      effectActions,
+      rootEventId,
+    );
+    const second = grantPoisonContinuousDamage(
+      contextOf(recorder, rootEventId),
+      first.units,
+      poisonRequest(twentyPercent, "target-1", "source-2", 1.8, 1000, 2),
+      effectActions,
+      rootEventId,
+    );
+
+    // R-DOT-01の切り捨て・最低1を先に適用すると 0.9→1 と 1.8→1 が同値に潰れ、
+    // 10%毒が残ってしまう。効果量は丸め前で比較しなければならない。
+    const merged = second.units.find((u) => u.battleUnitId === createBattleUnitId("target-1"))!
+      .appliedEffects[0]!;
+    expect(merged.effectActionDefinitionId).toBe(createEffectActionDefinitionId("ACT_POISON_B"));
+    expect(merged.magnitude).toBeCloseTo(1.8);
+
+    const mergedEvent = recorder.getEvents().find((e) => e.eventType === "EffectMerged")!;
+    const payload = mergedEvent.payload as { tickDamageBefore: number; tickDamageAfter: number };
+    // 比較基準は丸め前の値なので、1未満・非整数のまま記録される。
+    expect(payload.tickDamageBefore).toBeCloseTo(0.9);
+    expect(payload.tickDamageAfter).toBeCloseTo(1.8);
+
+    // どちらの候補でも、この時点で実際に与えるダメージはR-DOT-01の最低1で同じ1になる。
+    // 差が現れるのは対象のHPが回復した後である（10%なら10、20%なら20）。
+    const healed = second.units.map((u) =>
+      u.battleUnitId === createBattleUnitId("target-1") ? unitWithPoison(u, 100) : u,
+    );
+    const holder = healed.find((u) => u.battleUnitId === createBattleUnitId("target-1"))!;
+    expect(
+      calculateContinuousDamage(merged, twentyPercent, holder, undefined, healed).calculatedDamage,
+    ).toBe(20);
   });
 });

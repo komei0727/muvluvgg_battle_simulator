@@ -569,6 +569,11 @@ export interface BattleDomainEventPayloadMap {
      * 1回あたり毒ダメージ（`min(現在HP × 効果率, 付与時攻撃力)`）。`magnitude*`は
      * 各インスタンスが自分の付与時点で評価した保存値であり評価時点が揃わないため、
      * この2値が無いとログから採否の理由を再現できない（PRレビュー[P1]）。
+     *
+     * R-DOT-01の切り捨て・最低1ダメージを適用する**前**の値であり、整数とは限らず
+     * 1未満にもなりうる（再レビュー[P2]）— R-DOT-04が比較尺度とする「効果量」は
+     * 丸め前の毒ダメージであり、丸めは発生時にR-DOT-01が最終結果へ適用する別規則
+     * だからである。実際に与えるダメージは`ContinuousDamageApplied.calculatedDamage`。
      */
     readonly tickDamageBefore: number;
     readonly tickDamageAfter: number;
