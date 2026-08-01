@@ -3278,3 +3278,274 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
     expect(context.recorder.getEvents().filter((e) => e.eventType === "DamageApplied")).toEqual([]);
   });
 });
+
+/**
+ * PR #289レビュー[P1][P2]（DMG-005、Issue #190）: サブユニット追加ダメージが
+ * R-SUB-02・raw原文（`戦闘システム.md`「サブユニットが攻撃に対して追加するダメージは
+ * １ヒットとして扱われます」）どおり**1ヒット**として観測されること、および吸収の
+ * 途中でPS/Memory連鎖が前提を崩した場合にR-SKL-01/R-SKL-03の中断契約が働くことを固定する。
+ */
+describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03, PR #289 review)", () => {
+  const ADDITIONAL_DAMAGE = {
+    formula: {
+      kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+      ownerAttack: "CURRENT_ATTACK",
+      providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+      skillMultiplier: 0.5,
+      targetDefense: "TARGET_CURRENT_DEFENSE",
+    },
+  } as const;
+
+  const SUBUNIT_DEFINITION_ID = createEffectActionDefinitionId("ACT_SUBUNIT_SUB_1");
+
+  function subUnitEffect(holderId: string, durability = 50, providerAttack = 100): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId("SUB_1"),
+      effectActionDefinitionId: SUBUNIT_DEFINITION_ID,
+      kindKey: effectKindKeyFromDefinitionId(SUBUNIT_DEFINITION_ID),
+      duplicate: true,
+      targetId: createBattleUnitId(holderId),
+      magnitude: durability,
+      categories: ["SUBUNIT"],
+      subUnit: { durability, additionalDamage: ADDITIONAL_DAMAGE },
+      snapshot: { [SUBUNIT_PROVIDER_ATTACK_KEY]: providerAttack },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  function attackerHoldingSubUnit(extra: readonly AppliedEffect[] = []): BattleUnit {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    return { ...attacker, appliedEffects: [subUnitEffect("ATTACKER"), ...extra] };
+  }
+
+  /**
+   * サブユニット追加ヒットが発行したイベントだけを、発生順の種別列として取り出す。
+   * `CriticalCheckResolved`のpayloadは`effectActionDefinitionId`を持たない
+   * （`08_ドメインイベント.md`「会心判定イベント」）ため、直前の`HitConfirmed`が
+   * 追加ヒットのものだった場合に追加ヒット側として数える。
+   */
+  function additionalHitEventTypes(context: DamageEventContext): readonly string[] {
+    const types: string[] = [];
+    let lastWasAdditionalHitConfirmed = false;
+    for (const event of context.recorder.getEvents()) {
+      const payload = event.payload as { effectActionDefinitionId?: string };
+      const isAdditional = payload.effectActionDefinitionId === SUBUNIT_DEFINITION_ID;
+      if (event.eventType === "CriticalCheckResolved") {
+        if (lastWasAdditionalHitConfirmed) {
+          types.push(event.eventType);
+        }
+        continue;
+      }
+      if (isAdditional) {
+        types.push(event.eventType);
+      }
+      lastWasAdditionalHitConfirmed = isAdditional && event.eventType === "HitConfirmed";
+    }
+    return types;
+  }
+
+  it("UT-R-SUB-02-010 (R-SKL-03): the additional damage emits the same hit observation events as any other hit", () => {
+    const context = damageEventContext();
+    const attacker = attackerHoldingSubUnit();
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(additionalHitEventTypes(context)).toEqual([
+      "UnitBeingAttacked",
+      "HitConfirmed",
+      "CriticalCheckResolved",
+      "DamageWillBeApplied",
+      "DamageCalculated",
+      "HitPointReduced",
+      "DamageApplied",
+    ]);
+  });
+
+  it("UT-R-SUB-02-011 (R-EFF-07): the additional hit consumes OUTGOING_HIT on the owner and INCOMING_HIT on the target", () => {
+    const recorderContext = damageEventContext();
+    const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+      [STAT_MOD_DEFINITION_ID, statModDefinition()],
+    ]);
+    const withHooks: DamageEventContext = {
+      ...recorderContext,
+      consumeEffectDuration: testConsumeEffectDuration(recorderContext.recorder, effectActions),
+    };
+
+    const outgoing = consumptionEffect(
+      "eff-outgoing",
+      createBattleUnitId("ATTACKER"),
+      "OUTGOING_HIT",
+      2,
+    );
+    const attacker = attackerHoldingSubUnit([outgoing]);
+    const incoming = consumptionEffect(
+      "eff-incoming",
+      createBattleUnitId("TARGET"),
+      "INCOMING_HIT",
+      2,
+    );
+    const baseTarget = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const target: BattleUnit = { ...baseTarget, appliedEffects: [incoming] };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      withHooks,
+    );
+
+    // 通常ヒット1回＋追加ダメージ1ヒット＝どちらの消費条件も2回消費して0になる。
+    const updatedAttacker = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("ATTACKER"),
+    )!;
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(
+      updatedAttacker.appliedEffects.find((e) => e.effectInstanceId === outgoing.effectInstanceId),
+    ).toBeUndefined();
+    expect(
+      updatedTarget.appliedEffects.find((e) => e.effectInstanceId === incoming.effectInstanceId),
+    ).toBeUndefined();
+  });
+
+  it("UT-R-SUB-02-012 (R-HIT-04): an N-hit evasion can evade the additional hit, consuming only the evading instance", () => {
+    const recorderContext = damageEventContext();
+    const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+      [STAT_MOD_DEFINITION_ID, statModDefinition()],
+    ]);
+    const context: DamageEventContext = {
+      ...recorderContext,
+      consumeEffectDuration: testConsumeEffectDuration(recorderContext.recorder, effectActions),
+    };
+    const attacker = attackerHoldingSubUnit();
+    // 残り1回のNヒット回避: 通常ヒットで使い切り、追加ヒットは命中する。
+    const evasion = hitCountEvasionEffect("eff-evasion", "TARGET", "HIT_EVASION", 1);
+    const baseTarget = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const target: BattleUnit = { ...baseTarget, appliedEffects: [evasion] };
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 通常ヒットが回避され、追加ヒットは（回避を使い切ったので）命中する。
+    const evaded = context.recorder.getEvents().filter((e) => e.eventType === "EvasionActivated");
+    expect(evaded).toHaveLength(1);
+    expect(additionalHitEventTypes(context)).toContain("HitConfirmed");
+    expect(additionalHitEventTypes(context)).toContain("DamageApplied");
+  });
+
+  it("UT-R-SUB-02-013 (R-HIT-04): the additional hit itself is evadable, producing no additional damage", () => {
+    const recorderContext = damageEventContext();
+    const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>([
+      [STAT_MOD_DEFINITION_ID, statModDefinition()],
+    ]);
+    const context: DamageEventContext = {
+      ...recorderContext,
+      consumeEffectDuration: testConsumeEffectDuration(recorderContext.recorder, effectActions),
+    };
+    const attacker = attackerHoldingSubUnit();
+    // 残り2回: 通常ヒットと追加ヒットの両方を回避する。
+    const evasion = hitCountEvasionEffect("eff-evasion", "TARGET", "HIT_EVASION", 2);
+    const baseTarget = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const target: BattleUnit = { ...baseTarget, appliedEffects: [evasion] };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "EvasionActivated"),
+    ).toHaveLength(2);
+    expect(additionalHitEventTypes(context)).toEqual(["UnitBeingAttacked"]);
+    // 追加ダメージが回避されたので対象のHPは無傷。
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(updatedTarget.currentHp).toBe(1000);
+  });
+
+  it("UT-R-SUB-01-011 (R-SKL-01/R-SKL-03, PR #289レビュー[P2]): a SubUnitDamaged chain that defeats the attacker stops the remaining absorption", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 200, maximumHp: 100 });
+    const first = {
+      ...subUnitEffect("TARGET", 10),
+      effectInstanceId: createEffectInstanceId("SUB_A"),
+    };
+    const second = {
+      ...subUnitEffect("TARGET", 10),
+      effectInstanceId: createEffectInstanceId("SUB_B"),
+    };
+    const baseTarget = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const target: BattleUnit = { ...baseTarget, appliedEffects: [first, second] };
+
+    // 最初の`SubUnitDamaged`に反応したPS連鎖が攻撃者を戦闘不能にする。
+    let defeatedAttacker = false;
+    const withChain: DamageEventContext = {
+      ...context,
+      onFactEventForPassiveChain: (event, units) => {
+        if (event.eventType !== "SubUnitDamaged" || defeatedAttacker) {
+          return units;
+        }
+        defeatedAttacker = true;
+        return units.map((u) =>
+          u.battleUnitId === createBattleUnitId("ATTACKER")
+            ? { ...u, currentHp: createHitPoint(0, u.combatStats.maximumHp) }
+            : u,
+        );
+      },
+    };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      withChain,
+    );
+
+    // 1体目だけが削られ、2体目は手つかずのまま残る。
+    const damaged = context.recorder.getEvents().filter((e) => e.eventType === "SubUnitDamaged");
+    expect(damaged).toHaveLength(1);
+    const updatedTarget = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("TARGET"),
+    )!;
+    expect(
+      updatedTarget.appliedEffects.find(
+        (e) => e.effectInstanceId === createEffectInstanceId("SUB_B"),
+      )?.subUnit?.durability,
+    ).toBe(10);
+    // 中断しても保存則は崩れない（吸収しなかった分はHP/超過破棄が引き受ける）。
+    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    const payload = applied.payload as unknown as Record<string, number>;
+    expect(
+      payload["typedShieldAbsorbed"]! +
+        payload["untypedShieldAbsorbed"]! +
+        payload["subUnitAbsorbed"]! +
+        payload["hitPointDamage"]! +
+        payload["discardedDamage"]!,
+    ).toBe(payload["calculatedDamage"]);
+  });
+});

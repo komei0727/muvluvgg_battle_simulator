@@ -636,7 +636,6 @@ const damageAppliedDetailsSchema = {
     "hpDirectDamage",
     "typedShieldAbsorbed",
     "untypedShieldAbsorbed",
-    "subUnitAbsorbed",
     "discardedDamage",
     "hitPointDamage",
     "hpBefore",
@@ -652,7 +651,17 @@ const damageAppliedDetailsSchema = {
     hpDirectDamage: { type: "integer", minimum: 0 },
     typedShieldAbsorbed: { type: "integer", minimum: 0 },
     untypedShieldAbsorbed: { type: "integer", minimum: 0 },
-    // DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
+    /*
+     * DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
+     *
+     * PRレビュー[P1]（#289）: `required`へは入れない。`10_API設計.md`「バージョニング」が
+     * 後方互換な追加として認めるのは**任意プロパティの追加**だけであり、`schemaVersion`が
+     * 1のまま既存イベントのdetailsへ必須項目を足すと、`additionalProperties: false`の
+     * v1 schemaを保持する厳密なデコーダを壊す（`markers`をv1のまま任意で足したのと
+     * 同じ扱い、`response.ts`の`BattleUnitStateResponseBody.markers`参照）。
+     * Domain側の`DamageApplied.payload`では必須であり、Response Mapperも常に値を
+     * 設定するため、実際の応答から欠落することはない。
+     */
     subUnitAbsorbed: { type: "integer", minimum: 0 },
     discardedDamage: { type: "integer", minimum: 0 },
     hitPointDamage: { type: "integer", minimum: 0 },
@@ -747,7 +756,6 @@ const continuousDamageAppliedDetailsSchema = {
     "calculatedDamage",
     "typedShieldAbsorbed",
     "untypedShieldAbsorbed",
-    "subUnitAbsorbed",
     "discardedDamage",
     "hitPointDamage",
     "hpBefore",
@@ -767,7 +775,17 @@ const continuousDamageAppliedDetailsSchema = {
     calculatedDamage: { type: "integer", minimum: 1 },
     typedShieldAbsorbed: { type: "integer", minimum: 0 },
     untypedShieldAbsorbed: { type: "integer", minimum: 0 },
-    // DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
+    /*
+     * DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
+     *
+     * PRレビュー[P1]（#289）: `required`へは入れない。`10_API設計.md`「バージョニング」が
+     * 後方互換な追加として認めるのは**任意プロパティの追加**だけであり、`schemaVersion`が
+     * 1のまま既存イベントのdetailsへ必須項目を足すと、`additionalProperties: false`の
+     * v1 schemaを保持する厳密なデコーダを壊す（`markers`をv1のまま任意で足したのと
+     * 同じ扱い、`response.ts`の`BattleUnitStateResponseBody.markers`参照）。
+     * Domain側の`DamageApplied.payload`では必須であり、Response Mapperも常に値を
+     * 設定するため、実際の応答から欠落することはない。
+     */
     subUnitAbsorbed: { type: "integer", minimum: 0 },
     discardedDamage: { type: "integer", minimum: 0 },
     hitPointDamage: { type: "integer", minimum: 0 },
