@@ -345,6 +345,43 @@ function* notifyOrYieldNewEvents(
 }
 
 /**
+ * `notifyOrYieldNewEvents`が解決した子連鎖の後に、このヒットを続行してよいかを
+ * `working`（連鎖後の最新state）から判定する（PR #283再々レビュー[P1]）。
+ *
+ * - `INTERRUPT`: 使用者が戦闘不能。R-SKL-01/R-SKL-03に従い、このヒットを含む
+ *   残りのヒットをすべて中断する
+ * - `SKIP`: 対象が戦闘不能（`context.includeDefeated`の明示指定がない場合）。
+ *   このヒットは適用せず、R-SKL-08の直前結果へ0を記録して次のヒットへ進む
+ * - `CONTINUE`: 続行してよい。以降の判定・イベントは返された最新の
+ *   `attacker`/`target`を使う（連鎖が会心率・防御力・`AppliedEffect`を
+ *   変えていても取りこぼさない）
+ *
+ * 各イベントの記録直後にこれを行うことで、既に成立しなくなった前提のまま次の
+ * 判定へ進んだり、後続イベント（とその連鎖）を余計に発行したりしなくなる。
+ */
+type HitRevalidation =
+  | { readonly kind: "CONTINUE"; readonly attacker: BattleUnit; readonly target: BattleUnit }
+  | { readonly kind: "INTERRUPT" }
+  | { readonly kind: "SKIP"; readonly attacker: BattleUnit; readonly target: BattleUnit };
+
+function revalidateHit(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  attackerUnitId: BattleUnitId,
+  targetUnitId: BattleUnitId,
+): HitRevalidation {
+  const attacker = findUnit(workingMap, attackerUnitId, "attacker.battleUnitId");
+  if (isDefeated(attacker)) {
+    return { kind: "INTERRUPT" };
+  }
+  const target = findUnit(workingMap, targetUnitId, "hits[].targetBattleUnitId");
+  if (!(context.includeDefeated ?? false) && isDefeated(target)) {
+    return { kind: "SKIP", attacker, target };
+  }
+  return { kind: "CONTINUE", attacker, target };
+}
+
+/**
  * `context.removeFreezeEffect`未指定時のfallback。`AppliedEffect`を直接filterし
  * `FreezeRemoved`だけを発行する — R-EFF-09のlinkedEffectGroupカスケードも
  * CombatStat再計算も行わない（`combat/`は`effects/`へ依存できないため、
@@ -429,11 +466,13 @@ function* fallbackRemoveFreezeEffectSteps(
  * スキップしたヒットは命中が確定して
  * いないためイベントを発行しない（`08_ドメインイベント.md`「HitConfirmed」）。
  *
- * R-DMG-05 #4（DMG-001、Issue #195）: `DamageWillBeApplied`はTIMINGイベントであり、
- * `08_ドメインイベント.md`「TIMINGイベント後の再検証」表どおり、その連鎖の解決後に
- * 発生源・対象の生存を再検証し、ダメージ計算の入力も連鎖後の最新状態から取り直す。
- * 対象が戦闘不能になればこのヒットを適用せず、使用者が戦闘不能になれば残りのヒットを
- * すべて中断する（`UnitBeingAttacked`後の再検証と同じ規約）。
+ * `08_ドメインイベント.md`「TIMINGイベント後の再検証」: 子連鎖はDAMAGEを行いうる
+ * （production例: `SKL_EVIE_KYONSHI_PS1`・`SKL_LAYLA_ENTREPRENEUR_PS2`は
+ * `CriticalCheckResolved`起点でDAMAGEを行う）ため、下の各通知の直後に
+ * `revalidateHit`で前提を再検証してから次の判定・イベントへ進む（PR #283
+ * 再々レビュー[P1]）。対象が戦闘不能になればこのヒットを適用せず、使用者が
+ * 戦闘不能になれば残りのヒットをすべて中断する。判定・計算の入力も、そのつど
+ * 連鎖後の最新状態から取り直す。
  *
  * 1ヒットが発行する内部イベントは、記録直後にPS/Memory即時連鎖へ届けて次の判定へ
  * 進む前に解決し切る（`notifyOrYieldNewEvents`、PR #283再レビュー[P1]）。
@@ -554,31 +593,32 @@ export function* applyDamageActionSteps(
     // に入る前に発生源・対象の生存を再検証し、計算用ステータスも`working`から
     // 取り直す。対象変更・挑発・肩代わり（R-SHD-*/R-SUB-*/R-LNK-*）はM8未実装の
     // ため、このヒットの対象自体を差し替える処理は行わない（関数冒頭コメント参照）。
-    const attackerAfterTiming = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
-    if (isDefeated(attackerAfterTiming)) {
+    const afterTiming = revalidateHit(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+    );
+    if (afterTiming.kind === "INTERRUPT") {
       interruptedCount = hits.length - i;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
-
-    const targetAfterTiming = findUnit(
-      working,
-      hit.targetBattleUnitId,
-      "hits[].targetBattleUnitId",
-    );
-    if (!(context.includeDefeated ?? false) && isDefeated(targetAfterTiming)) {
+    if (afterTiming.kind === "SKIP") {
       outcomes.push(skip(hit));
       // R-SKL-08: TIMING処理後に対象が戦闘不能になった場合も、この不成立結果を
       // 0として直前結果に記録する（上の対象不在チェックと同じ理由）。
       recordDamageResult(
         context.damageResults,
-        attackerAfterTiming.battleUnitId,
-        targetAfterTiming.battleUnitId,
+        afterTiming.attacker.battleUnitId,
+        afterTiming.target.battleUnitId,
         0,
         context.skillUseId,
       );
       continue;
     }
+    const attackerAfterTiming = afterTiming.attacker;
+    const targetAfterTiming = afterTiming.target;
 
     // R-HIT-02/R-HIT-04: 対象の有効な回避効果を判定する（暗闇/R-HIT-03は
     // `resolveEffectSequencePlan`のスキル使用単位ゲートで既に判定済み — MISSに
@@ -675,13 +715,37 @@ export function* applyDamageActionSteps(
     // 通知しないとPS/Memoryへ一度も届かない。
     yield* notifyOrYieldNewEvents(context, working, hitConfirmedEventsStart);
 
-    // 会心判定は上の連鎖を反映した最新の使用者状態から行う（連鎖が会心率・会心
-    // ダメージのバフを付与・失効させ得るため）。
-    const attackerBeforeCritical = findUnit(
+    // PR #283再々レビュー[P1]: `HitConfirmed`の子連鎖はDAMAGEを行いうる
+    // （production例: `SKL_EVIE_KYONSHI_PS1`・`SKL_LAYLA_ENTREPRENEUR_PS2`）。
+    // 会心判定へ進む前に生存を再検証し、成立しなくなっていればここで打ち切る —
+    // そうしないと不要な会心判定（乱数消費）と`CriticalCheckResolved`／
+    // `DamageWillBeApplied`の発行、およびそれらが誘発する連鎖まで進んでしまう。
+    const afterHitConfirmed = revalidateHit(
+      context,
       working,
       attacker.battleUnitId,
-      "attacker.battleUnitId",
+      hit.targetBattleUnitId,
     );
+    if (afterHitConfirmed.kind === "INTERRUPT") {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+    if (afterHitConfirmed.kind === "SKIP") {
+      outcomes.push(skip(hit));
+      recordDamageResult(
+        context.damageResults,
+        afterHitConfirmed.attacker.battleUnitId,
+        afterHitConfirmed.target.battleUnitId,
+        0,
+        context.skillUseId,
+      );
+      continue;
+    }
+
+    // 会心判定は上の連鎖を反映した最新の使用者状態から行う（連鎖が会心率・会心
+    // ダメージのバフを付与・失効させ得るため）。
+    const attackerBeforeCritical = afterHitConfirmed.attacker;
     const critical = resolveCritical(
       damageAction.payload.critical.mode,
       createPercentage(attackerBeforeCritical.combatStats.criticalRate),
@@ -714,6 +778,33 @@ export function* applyDamageActionSteps(
     // `SKL_SAYA_BUNNY_PS1`／`SKL_SENKA_CHRISTMAS_PS2`）。`HitConfirmed`と同じく、
     // 次のイベント（`DamageWillBeApplied`）へ進む前にここで連鎖を解決する。
     yield* notifyOrYieldNewEvents(context, working, criticalCheckResolvedEventsStart);
+
+    // PR #283再々レビュー[P1]: `CriticalCheckResolved`の子連鎖も同様にDAMAGEを
+    // 行いうるため、`DamageWillBeApplied`を発行する前に生存を再検証する。ここで
+    // 打ち切らないと、既に倒れた対象に対してTIMINGイベントを発行し、それをtrigger
+    // にする追加連鎖まで誘発してから後段でスキップすることになる。
+    const afterCriticalCheck = revalidateHit(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+    );
+    if (afterCriticalCheck.kind === "INTERRUPT") {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+    if (afterCriticalCheck.kind === "SKIP") {
+      outcomes.push(skip(hit));
+      recordDamageResult(
+        context.damageResults,
+        afterCriticalCheck.attacker.battleUnitId,
+        afterCriticalCheck.target.battleUnitId,
+        0,
+        context.skillUseId,
+      );
+      continue;
+    }
 
     // R-DMG-05 #4（DMG-001、Issue #195）: 命中・会心の確定後、ダメージ計算より前に
     // `DamageWillBeApplied`（TIMING）を発行する。`08_ドメインイベント.md`の
@@ -754,34 +845,34 @@ export function* applyDamageActionSteps(
     // まで遅れ、「TIMINGイベント後に親処理の前提を再検証する」契約を破っていた。
     yield* notifyOrYieldNewEvents(context, working, willBeAppliedEventsStart);
 
-    // R-SKL-01/R-SKL-03: 上の連鎖が使用者を戦闘不能にしたなら、このヒットを含む
-    // 残りのヒットをすべて中断する（`UnitBeingAttacked`後の再検証と同じ規約）。
-    const attackerBeforeDamage = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
-    if (isDefeated(attackerBeforeDamage)) {
+    // 「TIMINGイベント後の再検証」: 連鎖が使用者を戦闘不能にしたなら残りのヒットを
+    // 中断し（R-SKL-01/R-SKL-03）、対象を戦闘不能にしたならこのヒットを適用しない
+    // （`includeDefeated`が明示指定されている場合を除く）。
+    const beforeDamage = revalidateHit(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+    );
+    if (beforeDamage.kind === "INTERRUPT") {
       interruptedCount = hits.length - i;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
-
-    // 「TIMINGイベント後の再検証」#「対象の生存」: 連鎖が対象を戦闘不能にしたなら、
-    // このヒットは適用しない（`includeDefeated`が明示指定されている場合を除く）。
-    const targetBeforeDamage = findUnit(
-      working,
-      hit.targetBattleUnitId,
-      "hits[].targetBattleUnitId",
-    );
-    if (!(context.includeDefeated ?? false) && isDefeated(targetBeforeDamage)) {
+    if (beforeDamage.kind === "SKIP") {
       outcomes.push(skip(hit));
-      // R-SKL-08: 上の2箇所の不成立と同じく、この結果も0として直前結果に記録する。
+      // R-SKL-08: 先行する不成立と同じく、この結果も0として直前結果に記録する。
       recordDamageResult(
         context.damageResults,
-        attackerBeforeDamage.battleUnitId,
-        targetBeforeDamage.battleUnitId,
+        beforeDamage.attacker.battleUnitId,
+        beforeDamage.target.battleUnitId,
         0,
         context.skillUseId,
       );
       continue;
     }
+    const attackerBeforeDamage = beforeDamage.attacker;
+    const targetBeforeDamage = beforeDamage.target;
 
     const defenseIgnoreRate = damageAction.payload.piercing.defenseIgnoreRate;
     // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が

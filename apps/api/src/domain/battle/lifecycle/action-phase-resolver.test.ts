@@ -1168,6 +1168,152 @@ describe("resolveActionPhase", () => {
     ).toBeDefined();
   });
 
+  /**
+   * PR #283再々レビュー[P1]: `HitConfirmed`/`CriticalCheckResolved`の子連鎖が対象を
+   * 倒した場合、親ヒットは「次の判定・イベントへ進む前に」終了しなければならない。
+   * production例: `SKL_EVIE_KYONSHI_PS1`・`SKL_LAYLA_ENTREPRENEUR_PS2`はどちらも
+   * `CriticalCheckResolved`起点でDAMAGEを行う。
+   */
+  function lethalObserverChainSetup(triggerEventType: "HitConfirmed" | "CriticalCheckResolved") {
+    const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_LETHAL_ATTACKER");
+    const observerUnitDefinitionId = createUnitDefinitionId("UNIT_LETHAL_OBSERVER");
+    const attackAction = damageEffectAction("ACT_LETHAL_PARENT_ATTACK", "GUARANTEED");
+    const observerAction = damageEffectAction("ACT_LETHAL_OBSERVER_DAMAGE", "PREVENTED");
+
+    const observerPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId(`SKL_PS_LETHAL_ON_${triggerEventType}`),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: triggerEventType,
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_LETHAL"), selector: ENEMY_ALL },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_LETHAL") },
+            actions: [{ effectActionDefinitionId: observerAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: `Lethal on ${triggerEventType}`, tags: [] },
+    };
+
+    const attacker = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_LETHAL_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 1 },
+    });
+    const observer = {
+      ...unit("ALLY_2", "ALLY", {
+        unitDefinitionId: "UNIT_LETHAL_OBSERVER",
+        attack: 999,
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 0,
+      maximumHp: 40,
+      limits: { maximumAp: 0 },
+    });
+
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(observerUnitDefinitionId, {
+      ...unitDefinitions.get(observerUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [observerPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([
+        [attackerUnitDefinitionId, [attackSkill("ACT_LETHAL_PARENT_ATTACK", 1)]],
+      ]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [attackAction.effectActionDefinitionId, attackAction],
+        [observerAction.effectActionDefinitionId, observerAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[observerPassive.skillDefinitionId, observerPassive]]),
+    };
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [attacker, observer],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+    // `CriticalCheckResolved`のpayloadは`effectActionDefinitionId`を持たないため、
+    // 親（ALLY_1のAS）と子（ALLY_2のPS）の区別は`sourceUnitId`で行う。
+    const eventsOfParent = (eventType: string): number =>
+      ctx.recorder
+        .getEvents()
+        .filter(
+          (event) =>
+            event.eventType === eventType && event.sourceUnitId === createBattleUnitId("ALLY_1"),
+        ).length;
+    return { ctx, result, eventsOfParent };
+  }
+
+  it("UT-R-DMG-05-008 (PR #283再々レビュー[P1], 08_ドメインイベント.md「TIMINGイベント後の再検証」): when the PS chained off an AS DAMAGE's CriticalCheckResolved defeats the target, the parent hit ends immediately — no DamageWillBeApplied is emitted for it (production shape: SKL_EVIE_KYONSHI_PS1 / SKL_LAYLA_ENTREPRENEUR_PS2 deal DAMAGE from CriticalCheckResolved)", () => {
+    const { ctx, result, eventsOfParent } = lethalObserverChainSetup("CriticalCheckResolved");
+
+    expect(eventsOfParent("CriticalCheckResolved")).toBe(1);
+    expect(
+      eventsOfParent("DamageWillBeApplied"),
+      "the parent hit must be cancelled before its DamageWillBeApplied, so no further chain is induced",
+    ).toBe(0);
+    expect(eventsOfParent("DamageCalculated")).toBe(0);
+    expect(eventsOfParent("DamageApplied")).toBe(0);
+    expect(
+      ctx.recorder.getEvents().filter((event) => event.eventType === "UnitDefeated"),
+    ).toHaveLength(1);
+    expect(result.enemyUnits[0]!.currentHp).toBe(0);
+  });
+
+  it("UT-R-DMG-05-009 (PR #283再々レビュー[P1], R-DMG-05 #2→#3): when the PS chained off an AS DAMAGE's HitConfirmed defeats the target, the parent hit ends before the critical check — no CriticalCheckResolved is emitted for it", () => {
+    const { ctx, result, eventsOfParent } = lethalObserverChainSetup("HitConfirmed");
+
+    expect(eventsOfParent("HitConfirmed")).toBe(1);
+    expect(
+      eventsOfParent("CriticalCheckResolved"),
+      "the parent hit must be cancelled before its own critical check",
+    ).toBe(0);
+    expect(eventsOfParent("DamageWillBeApplied")).toBe(0);
+    expect(eventsOfParent("DamageApplied")).toBe(0);
+    expect(
+      ctx.recorder.getEvents().filter((event) => event.eventType === "UnitDefeated"),
+    ).toHaveLength(1);
+    expect(result.enemyUnits[0]!.currentHp).toBe(0);
+  });
+
   it("UT-R-ACT-03-005: an AS use increases the EX gauge by the same amount as the AP consumed", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
