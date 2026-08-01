@@ -5934,7 +5934,8 @@
           "skillMultiplier": 0.234,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
         }
-      }
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -6009,7 +6010,8 @@
           "skillMultiplier": 0.234,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
         }
-      }
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -6047,7 +6049,8 @@
           "skillMultiplier": 0.312,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
         }
-      }
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -6085,7 +6088,8 @@
           "skillMultiplier": 0.424,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
         }
-      }
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -6467,8 +6471,10 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.106,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        }
-      }
+        },
+        "damageType": "EN"
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -6503,8 +6509,10 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.0546,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        }
-      }
+        },
+        "damageType": "EN"
+      },
+      "duration": { "dispellable": true }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -7705,8 +7713,10 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.312,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        }
-      }
+        },
+        "damageType": "EN"
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -7738,8 +7748,11 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.312,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        }
-      }
+        },
+        "damageType": "EN",
+        "debuff": { "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS1_SUBUNIT_SPEED_DOWN" }
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
@@ -7807,6 +7820,19 @@
       }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS1_SUBUNIT_SPEED_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ACTION_SPEED",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": -20 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {

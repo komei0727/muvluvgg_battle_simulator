@@ -553,6 +553,8 @@ describe("OpenAPI document", () => {
         hpDirectDamage: 0,
         typedShieldAbsorbed: 0,
         untypedShieldAbsorbed: 0,
+        // DMG-005（Issue #190、R-SUB-01）: サブユニット未所持の対象の内訳。
+        subUnitAbsorbed: 0,
         discardedDamage: 0,
         hitPointDamage: 10,
         hpBefore: 20,
@@ -870,6 +872,7 @@ describe("OpenAPI document", () => {
       DamageWillBeApplied: true,
       DamageCalculated: true,
       ShieldConsumed: true,
+      SubUnitDamaged: true,
       HitPointReduced: true,
       DamageApplied: true,
       HealApplied: true,

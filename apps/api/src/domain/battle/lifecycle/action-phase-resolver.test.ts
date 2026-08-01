@@ -12,7 +12,11 @@ import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { reduceStateDeltas } from "./state-delta-reducer.js";
 import { createActionPoint, createExtraGauge, createHitPoint } from "../model/resource-gauge.js";
-import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import {
+  effectKindKeyFromDefinitionId,
+  SUBUNIT_PROVIDER_ATTACK_KEY,
+  type AppliedEffect,
+} from "../model/applied-effect.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
@@ -194,19 +198,54 @@ function shieldEffectAction(id: string, amount = 10): EffectActionDefinition {
 }
 
 /**
- * DMG-005（`CAP_SUBUNIT`、`runtimeStatus: PLANNED`）: この resolver がまだ実装
- * していないEffectAction kind。DMG-004（Issue #194）が`APPLY_SHIELD`を実装した
- * ため、「未実装kindは明確に失敗する」ことを確かめる証跡をこちらへ移した。
+ * DMG-006（`CAP_COVER`、`runtimeStatus: PLANNED`）: この resolver がまだ実装して
+ * いないEffectAction kind。DMG-005（Issue #190）が`APPLY_SUBUNIT`を実装したため、
+ * 「未実装kindは明確に失敗する」ことを確かめる証跡をこちらへ移した
+ * （DMG-004が`APPLY_SHIELD`を実装したときと同じ移し替え）。
  */
-function subUnitEffectAction(id: string): EffectActionDefinition {
+function coverEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "APPLY_COVER",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      coverer: { kind: "SELF" },
+      damageShareRate: 1,
+      guardRate: 0,
+      appliesTo: { actionKinds: ["ANY"] },
+      duration: {
+        timeLimit: { unit: "ACTION", count: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
+/** DMG-005（Issue #190、R-SUB-01/02）: 実ライフサイクルで付与されるサブユニット。 */
+function subUnitEffectAction(id: string, durability = 10): EffectActionDefinition {
   return {
     kind: "APPLY_SUBUNIT",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
     requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
-      durability: { formula: { kind: "CONSTANT", value: 10 } },
-      additionalDamage: { formula: { kind: "CONSTANT", value: 5 } },
+      durability: { formula: { kind: "CONSTANT", value: durability } },
+      additionalDamage: {
+        formula: {
+          kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+          ownerAttack: "CURRENT_ATTACK",
+          providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+          skillMultiplier: 0.5,
+          targetDefense: "TARGET_CURRENT_DEFENSE",
+        },
+      },
+      duration: {
+        timeLimit: { unit: "ACTION", count: 3 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
     },
   };
 }
@@ -1723,16 +1762,16 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-004: throws when a resolved plan targets an EffectAction kind this resolver does not implement yet (APPLY_SUBUNIT, CAP_SUBUNIT PLANNED)", () => {
-    const unitDefinitionId = createUnitDefinitionId("UNIT_SUBUNITER");
+  it("UT-ACTION-PHASE-004: throws when a resolved plan targets an EffectAction kind this resolver does not implement yet (APPLY_COVER, CAP_COVER PLANNED)", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_COVERER");
     const ally = unit("ALLY_1", "ALLY", {
-      unitDefinitionId: "UNIT_SUBUNITER",
+      unitDefinitionId: "UNIT_COVERER",
       limits: { maximumAp: 1 },
     });
     const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
-    const effectAction = subUnitEffectAction("ACT_SUBUNIT");
+    const effectAction = coverEffectAction("ACT_COVER");
     const definitions = definitionsOf(
-      new Map([[unitDefinitionId, [attackSkill("ACT_SUBUNIT", 1)]]]),
+      new Map([[unitDefinitionId, [attackSkill("ACT_COVER", 1)]]]),
       new Map([[effectAction.effectActionDefinitionId, effectAction]]),
     );
     const random = new SequenceRandomSource([]);
@@ -1781,6 +1820,73 @@ describe("resolveActionPhase", () => {
     expect(shielded.appliedEffects).toHaveLength(1);
     expect(shielded.appliedEffects[0]!.shield).toEqual({ shieldType: null, remaining: 10 });
     expect(shielded.appliedEffects[0]!.magnitude).toBe(10);
+  });
+
+  it("UT-R-SUB-01-006 (DMG-005, Issue #190): grants APPLY_SUBUNIT as an AppliedEffect carrying durability and the provider attack snapshot through the real action lifecycle", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SUBUNITER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SUBUNITER",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const effectAction = subUnitEffectAction("ACT_SUBUNIT");
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_SUBUNIT", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const holder = result.enemyUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(holder.appliedEffects).toHaveLength(1);
+    expect(holder.appliedEffects[0]!.subUnit?.durability).toBe(10);
+    expect(holder.appliedEffects[0]!.magnitude).toBe(10);
+    // R-SUB-02: 付与者（使用者）の付与時攻撃力をsnapshotとして焼き込む。
+    expect(holder.appliedEffects[0]!.snapshot?.[SUBUNIT_PROVIDER_ATTACK_KEY]).toBe(
+      ally.combatStats.attack,
+    );
+    expect(holder.appliedEffects[0]!.categories).toContain("SUBUNIT");
+  });
+
+  it("UT-R-SUB-01-007 (DMG-005, Issue #190, R-SUB-01): a subunit whose granted durability truncates to zero expires immediately instead of lingering", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_SUBUNITER");
+    const ally = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_SUBUNITER",
+      limits: { maximumAp: 1 },
+    });
+    const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+    const effectAction = subUnitEffectAction("ACT_SUBUNIT", 0.5);
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_SUBUNIT", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
+    );
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const holder = result.enemyUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(holder.appliedEffects).toHaveLength(0);
+    const expired = ctx.recorder.getEvents().filter((event) => event.eventType === "EffectExpired");
+    expect(expired.map((event) => event.payload.reason)).toEqual(["SUBUNIT_DEPLETED"]);
   });
 
   it("UT-R-SHD-01-014 (PRレビュー[P2], R-SHD-01第3項): a shield whose granted amount truncates to zero expires immediately instead of lingering as a zero-remaining instance", () => {

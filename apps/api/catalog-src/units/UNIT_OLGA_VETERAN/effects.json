@@ -243,6 +243,14 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.106,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
+        },
+        "damageType": "EN"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
         }
       }
     },
@@ -294,7 +302,11 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.0546,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        }
+        },
+        "damageType": "EN"
+      },
+      "duration": {
+        "dispellable": true
       }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],

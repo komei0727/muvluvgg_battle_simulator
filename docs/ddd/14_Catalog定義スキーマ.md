@@ -1285,7 +1285,7 @@ payload:
 
 M7-001（Issue #181）で `BUFF`（`REMOVE_BUFF_CATEGORY`）・`SHIELD`・`SUBUNIT`（`REMOVE_EFFECTS_CATEGORY_GAP`）を `categories` へ追加した。バフ/デバフ判定は R-EFF-05「バフは正の効果量、デバフは弱化量」に従い符号付き効果量から導き、状態異常（`STATUS`）は R-STS-01 により `DEBUFF` も兼ねる（`effect-category-classifier.ts`）。解除優先順が定義されていない場合の既定は付与順の古い順とする（R-EFF-02 #3）。
 
-`SUBUNIT` はサブユニットの実行時状態が未モデル化（`CAP_SUBUNIT`=DMG-005、`runtimeStatus: PLANNED`、Issue #242）。`SHIELD` は DMG-004（Issue #194）が `CAP_SHIELD` を `IMPLEMENTED` にしたため実行時状態を持つ（`AppliedEffect.shield`）が、下の宣言規則自体は両カテゴリで変わらない。`categories` へこれらを指定する `REMOVE_EFFECTS` は、対応する Capability（`SHIELD`→`CAP_SHIELD`、`SUBUNIT`→`CAP_SUBUNIT`）を `requiredCapabilities` へ宣言すること（`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体をCatalogロード時点で拒否する」パターン）。宣言してさえいれば、その Capability が `PLANNED` のままでも Catalog 自体は正しくロードできる — 実際の拒否は、そのUnit/Memoryが選択された時点で `SimulationPreflightValidator` が `UNSUPPORTED_RULE` として行う（`09_アプリケーション設計.md`）。`MARKER`（Catalogロード時点の即時拒否、直前の段落）とは異なり、SHIELD/SUBUNITは「将来実装される」性質のため、Catalog全体のロードを失敗させてはならない。
+`SHIELD` は DMG-004（Issue #194）が `CAP_SHIELD` を、`SUBUNIT` は DMG-005（Issue #190）が `CAP_SUBUNIT` を `IMPLEMENTED` にしたため、どちらも実行時状態を持つ（`AppliedEffect.shield` / `AppliedEffect.subUnit`）。下の宣言規則自体は両カテゴリで変わらない。`categories` へこれらを指定する `REMOVE_EFFECTS` は、対応する Capability（`SHIELD`→`CAP_SHIELD`、`SUBUNIT`→`CAP_SUBUNIT`）を `requiredCapabilities` へ宣言すること（`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体をCatalogロード時点で拒否する」パターン）。宣言してさえいれば、その Capability が `PLANNED` のままでも Catalog 自体は正しくロードできる — 実際の拒否は、そのUnit/Memoryが選択された時点で `SimulationPreflightValidator` が `UNSUPPORTED_RULE` として行う（`09_アプリケーション設計.md`）。`MARKER`（Catalogロード時点の即時拒否、直前の段落）とは異なり、SHIELD/SUBUNITは「将来実装される」性質のため、Catalog全体のロードを失敗させてはならない。
 
 `REMOVE_EFFECTS` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_REMOVE_EFFECTS` を含めること。Battle Engineが未実装のkindは、Capabilityで隔離しないと preflight（`SimulationPreflightValidator`、`09_アプリケーション設計.md`）を素通りしてしまう。
 
@@ -1460,20 +1460,37 @@ kind: APPLY_SUBUNIT
 payload:
   durability:
     formula:
-      kind: STAT_RATIO
-      source: SKILL_SOURCE
-      stat: ATTACK
-      ratio: 1.0
+      kind: MAX_HP_RATIO
+      source: { kind: SKILL_SOURCE }
+      ratio: 0.35
   additionalDamage:
     formula:
       kind: SUBUNIT_ADDITIONAL_DAMAGE
       ownerAttack: CURRENT_ATTACK
       providerAttack: SOURCE_SNAPSHOT_ATTACK
-      skillMultiplier: 0.5
+      skillMultiplier: 0.312
       targetDefense: TARGET_CURRENT_DEFENSE
+    damageType: EN
+    debuff:
+      effectActionDefinitionId: ACT_SHIRANA_SORA_AS1_SUBUNIT_SPEED_DOWN
+  duration:
+    dispellable: true
+    timeLimit: { unit: ACTION, count: 3 }
 ```
 
-`SUBUNIT_ADDITIONAL_DAMAGE` は `サブユニット所持者の攻撃力 + 付与者の攻撃力 × スキル倍率 - 対象の防御力` を表す。最終ダメージの丸めと最低1ダメージは通常のダメージ規則に従う。
+`SUBUNIT_ADDITIONAL_DAMAGE` は `サブユニット所持者の攻撃力 + 付与者の攻撃力 × スキル倍率 - 対象の防御力` を表す。最終ダメージの丸めと最低1ダメージは通常のダメージ規則に従う。付与者の攻撃力（`providerAttack: SOURCE_SNAPSHOT_ATTACK`）は付与時点のスナップショットで、`AppliedEffect.snapshot` が保持する（継続ダメージの `sourceAttack` と同じ規約）。
+
+| フィールド                    | 型                             | 意味                                                                                                                                                                                             |
+| ----------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `durability.formula`          | Formula                        | 付与時の最大耐久力。R-NUM-02 で切り捨てた非負整数を最大値（`magnitude`）と初期残量の両方に置く                                                                                                   |
+| `additionalDamage.formula`    | Formula                        | R-SUB-02 の追加ダメージ量。`SUBUNIT_ADDITIONAL_DAMAGE` を使う                                                                                                                                    |
+| `additionalDamage.damageType` | enum（`PHYSICAL` / `EN`）      | 任意。追加ダメージ自身のダメージタイプで、R-SHD-02 のタイプありシールド選択に使う。省略時は**その追加ダメージの契機になった攻撃**（保持者が使ったDAMAGE EffectAction）のタイプを引き継ぐ         |
+| `additionalDamage.debuff`     | `{ effectActionDefinitionId }` | 任意（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`）。追加ダメージに付随して同じ対象へ付与する `APPLY_STAT_MOD` 定義への参照。参照先が存在しない／`APPLY_STAT_MOD` でない場合はCatalogロード時点で拒否する |
+| `duration`                    | `DurationDefinition`           | 必須（`SUBUNIT_DURATION`）。サブユニット自身の存続期間。`timeLimit` なしは「耐久力が尽きるまで存続する」を表す                                                                                   |
+
+`damageType` を任意にしたのは、raw原文が明示する定義（`ACT_SHIRANA_SORA_EX_SUBUNIT`／`AS1`・`ACT_OLGA_VETERAN_PS1_SUBUNIT`／`PS2` の「ENダメージを追加する」）と、書いていない定義（`ACT_NADYA_SUCCESSOR_*` の「ダメージを追加する」）を取り違えないためである。省略は「不明」ではなく「その攻撃と同じ種類のダメージ」という確定した意味を持つ。
+
+`duration` は他の継続効果と同じく必須にする — 省略を許すと「期間を書き忘れた定義」と「期間を持たない定義」（`ACT_OLGA_VETERAN_PS2_SUBUNIT` の「カムラッドⅠ」）が区別できなくなるためである。耐久力が0になったインスタンスは `EffectExpired`（`reason: SUBUNIT_DEPLETED`）で失効し、失効経路は時間制限（`TIME_LIMIT`）と共有するため R-EFF-09 の `linkedEffectGroupId` カスケードと CombatStat 再計算も同じ振る舞いになる（`APPLY_SHIELD` の `SHIELD_DEPLETED` と同じ）。
 
 ### APPLY_MARKER
 
@@ -2278,7 +2295,7 @@ RES-004後続（Issue #227）で、`ConditionDefinition.kind: TARGET_SET_COUNT`�
 | `CAP_SKILL_RUNTIME_COUNTER`        | `M6-RC-001`  | SkillRuntimeスコープの発動回数・累計条件                                                                                                                                                                                                                                                                                                                                                        |
 | `CAP_SPECIFIC_IMMUNITY`            | `M7-001B`    | 個別状態異常無効（`EFFECT_IMMUNITY.statusKinds`、R-EFF-03、Issue #243で実装済み）                                                                                                                                                                                                                                                                                                               |
 | `CAP_STATUS_EFFECT_KIND`           | `M7-018`     | `APPLY_STATUS`の`status`がSTEALTH以外の場合の実効処理（R-STS-01〜04・R-HIT-02・R-HIT-04・R-HIT-05・R-DMG-02）。resolverは`status`自体の許可リストで判定し、`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`だけが未対応として残る（`CAP_CRITICAL_CONTROL`／DMG-003）。宣言しているproduction行は`UNIT_LAYLA_ENTREPRENEUR`のEX/PS1の2行（M7-001B、Issue #243）で、Issue #272で両方とも解決可能になった |
-| `CAP_SUBUNIT`                      | `DMG-005`    | サブユニット付与。M7-001で`REMOVE_EFFECTS`の`SUBUNIT`カテゴリが要求するCapabilityとしても登録する                                                                                                                                                                                                                                                                                               |
+| `CAP_SUBUNIT`                      | `DMG-005`    | サブユニット付与（R-SUB-01/02）。DMG-005（Issue #190）が耐久力の吸収（R-SHD-02 #4）・`SubUnitDamaged`・`EffectExpired`(`SUBUNIT_DEPLETED`)・対象ごとの追加ダメージと追加デバフを実ライフサイクルへ配線した。M7-001で`REMOVE_EFFECTS`の`SUBUNIT`カテゴリが要求するCapabilityとしても登録する                                                                                                     |
 | `CAP_TARGET_BINDING_FALLBACK`      | `TGT-003`    | TargetBinding固定・参照時の戦闘不能skip・fallback判定                                                                                                                                                                                                                                                                                                                                           |
 | `CAP_TARGET_DERIVED_AREA`          | `TGT-001`    | area・距離・隣接・列による派生対象                                                                                                                                                                                                                                                                                                                                                              |
 | `CAP_TARGET_FILTER_ORDER`          | `TGT-002`    | Target filter・order・除外選択                                                                                                                                                                                                                                                                                                                                                                  |

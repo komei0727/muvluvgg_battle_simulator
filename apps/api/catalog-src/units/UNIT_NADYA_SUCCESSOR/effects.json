@@ -75,6 +75,13 @@
           "skillMultiplier": 0.234,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
         }
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
       }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
@@ -213,6 +220,13 @@
           "skillMultiplier": 0.234,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
         }
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
       }
     },
     "requiredCapabilities": ["CAP_SUBUNIT"],
@@ -273,6 +287,13 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.312,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
         }
       }
     },
@@ -338,6 +359,13 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.424,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
+        }
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
         }
       }
     },

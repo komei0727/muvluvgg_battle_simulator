@@ -53,7 +53,11 @@ export interface GlobalCoordinateResponseBody {
   readonly y: number;
 }
 
-/** `10_API設計.md`「SubUnitStateResponse」。M8まではResponse Mapperが要素を追加することはない。 */
+/**
+ * `10_API設計.md`「SubUnitStateResponse」。DMG-005（Issue #190、R-SUB-01第3項）で
+ * `APPLY_SUBUNIT`由来の効果インスタンスへ配線した — サブユニットは「消費順と固有効果を
+ * 追跡するためインスタンスごとに返す」ため、`shields`のようなプール合計へは合算しない。
+ */
 export interface SubUnitStateResponseBody {
   readonly subUnitInstanceId: string;
   readonly subUnitDefinitionId: string;
@@ -151,10 +155,9 @@ export interface ChargeStateResponseBody {
 }
 
 /**
- * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`は対応するDomain機構が
- * 実装されるまで常に空配列（`未実装機能を仮の値で成功扱いにしない`の対象は
- * 「実際には効いていない補正を有効な値で偽装する」ことであり、「まだ何も
- * 付与されていない」ことを表す空配列は事実そのもの）。`effects`はEFF-002
+ * `10_API設計.md`「BattleUnitStateResponse」。`subUnits`はDMG-005（Issue #190）で
+ * `APPLY_SUBUNIT`由来の効果インスタンスへ配線した（それ以前は対応するDomain機構が
+ * 無いため常に空配列だった）。`effects`はEFF-002
  * （R-EFF-05の重複なし最強選択・CombatStat再計算）で`snapshot.effects`
  * （`isEffective`を含む）を実際にマップする。`APPLY_STAT_MOD`の
  * `stacking.mode: NON_STACKABLE`はM7-012（Issue #266）でCatalogスキーマ・

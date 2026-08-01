@@ -12,6 +12,7 @@ import type {
 } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type {
+  ApplySubunitPayload,
   ContinuousDamageKind,
   DamageModConditionDefinition,
   DamageThreshold,
@@ -106,6 +107,34 @@ export interface ShieldState {
   /** `SHIELD_DECAY_OVER_TIME`: 宣言がある場合だけ持つ、行動ごとの漸減。 */
   readonly decay?: ShieldDecayDefinition;
 }
+
+/**
+ * R-SUB-01/02（DMG-005、Issue #190、`APPLY_SUBUNIT`由来の付与だけが持つ）: この効果
+ * インスタンスが表す1体のサブユニットの残耐久力と、所持者の攻撃に追加する
+ * ダメージ・デバフの定義。
+ *
+ * `ShieldState`と同じ構造上の位置づけを持つ — 付与時の最大耐久力は
+ * `AppliedEffect.magnitude`（R-NUM-02により付与直前に切り捨て済みの非負整数）で、
+ * `durability`はそこから吸収で減っていく残量である。ただしR-SUB-01第3項
+ * 「サブユニットの残HPをシールド表示値へ合算できるが、内部状態は通常シールドと
+ * 分ける」のとおりシールドプールとは合算せず、`10_API設計.md`も`shields`とは別の
+ * `subUnits`（インスタンスごと）として公開する。
+ *
+ * `additionalDamage`はCatalog payloadをそのまま焼き込む（`damageModifier.condition`
+ * と同じ規約）。`combat/`はCatalogの`effectActions`マップを引けない
+ * （`domain/battle/combat`のmodule境界）ため、追加ダメージを解決する時点で
+ * 定義を引き直せないためである。付与者の付与時攻撃力（`SUBUNIT_ADDITIONAL_DAMAGE.
+ * providerAttack: SOURCE_SNAPSHOT_ATTACK`）は継続ダメージと同じく
+ * `AppliedEffect.snapshot[SUBUNIT_PROVIDER_ATTACK_KEY]`が持つ。
+ */
+export interface SubUnitState {
+  /** 現在の残耐久力。0以上、`magnitude`以下。 */
+  readonly durability: number;
+  readonly additionalDamage: ApplySubunitPayload["additionalDamage"];
+}
+
+/** R-SUB-02: `AppliedEffect.snapshot`がサブユニット付与者の付与時攻撃力へ使うキー。 */
+export const SUBUNIT_PROVIDER_ATTACK_KEY = "subUnitProviderAttack";
 
 /**
  * R-DOT-01〜04（DMG-008、Issue #189、`APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ）:
@@ -283,6 +312,8 @@ export interface AppliedEffect {
   readonly damageModifier?: DamageModifierState;
   /** R-SHD-01（DMG-004、Issue #194）: `APPLY_SHIELD`由来の付与だけが持つ。 */
   readonly shield?: ShieldState;
+  /** R-SUB-01/02（DMG-005、Issue #190）: `APPLY_SUBUNIT`由来の付与だけが持つ。 */
+  readonly subUnit?: SubUnitState;
   /** R-DOT-01〜04（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ。 */
   readonly continuousDamage?: ContinuousDamageState;
   /**

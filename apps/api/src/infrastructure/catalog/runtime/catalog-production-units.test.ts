@@ -219,7 +219,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 炎上・毒を`STATUS`へ分類し、`SKL_CHIYURU_MAZE_EX`のAOE対象別条件と
     // MERU/NANAEの総称「状態異常」照会を`TARGET_HAS_EFFECT`へ統一した。
     // ここで昇格した10 Unitの定義は変わらないため期待値は据え置き。
-    expect(catalog.catalogRevision).toBe("2026-08-01.6");
+    // Bumped again by DMG-005 (Issue #190, SUBUNIT_DURATION/
+    // SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF): `APPLY_SUBUNIT`へ`duration`と
+    // `additionalDamage.damageType`/`debuff`を追加し、SHIRANA_SORA/OLGA_VETERAN/
+    // NADYA_SUCCESSORの各サブユニット定義を近似なしへ更新した。ここで昇格した
+    // 10 Unitの定義は変わらないため期待値は据え置き。
+    expect(catalog.catalogRevision).toBe("2026-08-01.7");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -143,7 +143,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
   APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
   APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
-  APPLY_SUBUNIT: ["durability", "additionalDamage"],
+  APPLY_SUBUNIT: ["durability", "additionalDamage", "duration"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
   APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
   APPLY_RESOURCE_GAIN_MOD: ["resource", "rateDelta", "stacking", "duration"],
@@ -165,6 +165,12 @@ const APPLIES_TO_INCOMING_ACTION_KINDS_ALLOWED_KEYS = ["incomingActionKinds"] as
 const STACK_ALLOWED_KEYS = ["policy", "max"] as const;
 const TRIGGER_LETHAL_ALLOWED_KEYS = ["lethalDamageOnly"] as const;
 const SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS = ["formula"] as const;
+/**
+ * DMG-005（Issue #190、R-SUB-02）: `additionalDamage`だけは`formula`のほかに
+ * 自身のダメージタイプと追加デバフ参照を持てる（`durability`は`formula`のまま）。
+ */
+const SUBUNIT_ADDITIONAL_DAMAGE_ALLOWED_KEYS = ["formula", "damageType", "debuff"] as const;
+const SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF_ALLOWED_KEYS = ["effectActionDefinitionId"] as const;
 const DAMAGE_THRESHOLD_ALLOWED_KEYS = ["op", "formula"] as const;
 
 function requireField<T>(value: T | undefined, path: string): T {
@@ -1076,13 +1082,19 @@ function createPayload(
         `${path}.durability`,
       );
       const additionalDamage = requireField(
-        payload["additionalDamage"] as { formula?: FormulaDefinitionInput } | undefined,
+        payload["additionalDamage"] as
+          | {
+              formula?: FormulaDefinitionInput;
+              damageType?: string;
+              debuff?: { effectActionDefinitionId?: string };
+            }
+          | undefined,
         `${path}.additionalDamage`,
       );
       assertKnownKeys(durability, SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS, `${path}.durability`);
       assertKnownKeys(
         additionalDamage,
-        SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS,
+        SUBUNIT_ADDITIONAL_DAMAGE_ALLOWED_KEYS,
         `${path}.additionalDamage`,
       );
       const durabilityFormula = requireField(durability.formula, `${path}.durability.formula`);
@@ -1090,6 +1102,20 @@ function createPayload(
         additionalDamage.formula,
         `${path}.additionalDamage.formula`,
       );
+      // R-SUB-02（DMG-005、Issue #190）: 省略時は契機になった攻撃のダメージタイプを
+      // 引き継ぐ（`ApplySubunitPayload.additionalDamage.damageType`のコメント参照）。
+      const additionalDamageType = additionalDamage.damageType;
+      if (additionalDamageType !== undefined) {
+        assertEnumValue(additionalDamageType, DAMAGE_TYPES, `${path}.additionalDamage.damageType`);
+      }
+      const debuff = additionalDamage.debuff;
+      if (debuff !== undefined) {
+        assertKnownKeys(
+          debuff,
+          SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF_ALLOWED_KEYS,
+          `${path}.additionalDamage.debuff`,
+        );
+      }
       return {
         kind: "APPLY_SUBUNIT",
         payload: {
@@ -1106,7 +1132,22 @@ function createPayload(
               `${path}.additionalDamage.formula`,
               undefined,
             ),
+            ...(additionalDamageType !== undefined ? { damageType: additionalDamageType } : {}),
+            ...(debuff !== undefined
+              ? {
+                  debuff: {
+                    effectActionDefinitionId: createEffectActionDefinitionId(
+                      requireField(
+                        debuff.effectActionDefinitionId,
+                        `${path}.additionalDamage.debuff.effectActionDefinitionId`,
+                      ),
+                      `${path}.additionalDamage.debuff.effectActionDefinitionId`,
+                    ),
+                  },
+                }
+              : {}),
           },
+          duration: createDurationField(payload, path),
         },
       };
     }

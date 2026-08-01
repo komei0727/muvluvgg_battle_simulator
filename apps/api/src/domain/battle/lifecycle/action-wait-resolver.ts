@@ -28,6 +28,7 @@ import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { DepletedAbsorberReason } from "../combat/damage-application-service.js";
 
 /**
  * R-SKL-05（凍結中のチャージ維持、Issue #180 PRレビュー[P2]）: `ActionWaited`の
@@ -208,9 +209,10 @@ export function resolveWait(
       // `expireEffectsSteps`経由で行う（R-EFF-09カスケードとCombatStat再計算を共有する）。
       continuousDamage: {
         effectActions: definitions.effectActions,
-        expireDepletedShields: (
+        expireDepletedAbsorbers: (
           targetUnitId: BattleUnitId,
           depletedEffectInstanceIds: readonly EffectInstanceId[],
+          expiryReason: DepletedAbsorberReason,
           unitsForExpiry: readonly BattleUnit[],
           expiryParentEventId: DomainEventId,
         ) =>
@@ -227,7 +229,7 @@ export function resolveWait(
             depletedEffectInstanceIds.map((effectInstanceId) => ({
               battleUnitId: targetUnitId,
               effectInstanceId,
-              reason: "SHIELD_DEPLETED" as const,
+              reason: expiryReason,
             })),
             definitions.effectActions,
             expiryParentEventId,

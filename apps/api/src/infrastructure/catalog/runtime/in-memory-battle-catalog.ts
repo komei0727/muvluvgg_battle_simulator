@@ -65,6 +65,16 @@ export class InMemoryBattleCatalog implements BattleCatalog {
       for (const capabilityId of effectAction.requiredCapabilities) {
         includeCapability(capabilityId);
       }
+      // R-SUB-02第3項（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`、DMG-005、Issue #190）:
+      // EffectAction同士の参照も推移閉包へ含める。追加デバフはスキルのstepからは
+      // 参照されず`APPLY_SUBUNIT`の payload からだけ指されるため、ここで辿らないと
+      // 実戦闘のsnapshotに存在せず、付与時点で「Catalogに無い」として失敗する。
+      if (effectAction.kind === "APPLY_SUBUNIT") {
+        const debuff = effectAction.payload.additionalDamage.debuff;
+        if (debuff !== undefined) {
+          includeEffectAction(debuff.effectActionDefinitionId);
+        }
+      }
     };
 
     const includeSkill = (skillId: SkillDefinitionId): void => {

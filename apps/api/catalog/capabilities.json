@@ -758,10 +758,23 @@
   {
     "capabilityId": "CAP_SUBUNIT",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-005",
-    "description": "サブユニット付与（R-SUB-01/02）。M7-001（Issue #181、再々レビュー[P2]）でREMOVE_EFFECTSのSUBUNITカテゴリが要求するcapabilityとしても登録する（未実装であることを明示し、選択されたUnit/MemoryグラフだけをSimulationPreflightValidatorがUNSUPPORTED_RULEで拒否できるようにするため）。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "サブユニット付与（R-SUB-01/02）。DMG-005（Issue #190）がHP・シールドとは別枠の耐久力を持つサブユニットを実ライフサイクルへ配線した。effect-action-group-resolver.tsがAPPLY_SUBUNITをAppliedEffect（AppliedEffect.subUnit）として付与し、combat/sub-unit-policy.tsが耐久力の吸収とSubUnitDamagedの発行を担う。damage-application-service.tsはR-SHD-02の適用順どおりshieldIgnoreRate分→タイプありシールド→タイプなしシールド→サブユニット→HPへ振り分け、DamageAppliedの内訳（subUnitAbsorbed）で保存則を説明する。耐久力が0になったインスタンスはEffectExpired（reason: SUBUNIT_DEPLETED、R-SUB-01の個別消滅条件）としてexpireEffectsSteps経由で失効し、R-EFF-09のlinkedEffectGroupカスケードとCombatStat再計算は他の失効契機と同じ経路をたどる。R-SUB-02の追加ダメージは所持者の攻撃対象ごとに1ヒットずつ（保持しているサブユニットの数だけ）加わり、SUBUNIT_ADDITIONAL_DAMAGE Formula（所持者の現在攻撃力＋付与者の付与時攻撃力×スキル倍率－対象の現在防御力、防御力減衰なし）で解決する。payloadにはduration（SUBUNIT_DURATION、ACT_SHIRANA_SORA_EX_SUBUNITの「3行動の間」など）とadditionalDamage.damageType／debuff（SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF、ACT_SHIRANA_SORA_AS1_SUBUNITの「攻撃対象の行動速度を20低下させるデバフ」）を追加した。M7-001（Issue #181）でREMOVE_EFFECTSのSUBUNITカテゴリが要求するcapabilityとしても登録している。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_SHIRANA_SORA_EX_SUBUNIT",
+        "ACT_SHIRANA_SORA_AS1_SUBUNIT",
+        "ACT_OLGA_VETERAN_PS1_SUBUNIT",
+        "ACT_NADYA_SUCCESSOR_EX_SUBUNIT"
+      ],
+      "testCaseIds": [
+        "IT-CAP-SUBUNIT-PROD-001",
+        "IT-CAP-SUBUNIT-PROD-002",
+        "IT-CAP-SUBUNIT-PROD-003",
+        "IT-CAP-SUBUNIT-PROD-004"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_SUM_DAMAGE_RESULT",

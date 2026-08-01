@@ -14,6 +14,8 @@ import { DomainValidationError } from "../../shared/errors.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import { evaluateFormula } from "../skill/formula-evaluator.js";
 import { absorbFromShieldPool, emitShieldConsumed } from "../combat/shield-policy.js";
+import { absorbFromNextSubUnit, emitSubUnitDamaged } from "../combat/sub-unit-policy.js";
+import type { DepletedAbsorberReason } from "../combat/damage-application-service.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
@@ -69,16 +71,18 @@ export interface ContinuousDamageEventContext {
   /** 発火するインスタンスの`APPLY_CONTINUOUS_DAMAGE`定義（毒のFormula再評価に使う）。 */
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   /**
-   * R-SHD-01第3項（DMG-004、Issue #194）: 残量が0になったシールドインスタンスを
-   * `EffectExpired`（`reason: SHIELD_DEPLETED`）として失効させ、R-EFF-09の
-   * カスケードとCombatStat再計算まで行う完全な処理。`damage-application-service.ts`
-   * の同名フックと同じ理由（`effects/`への直接依存を持ち込まない）で呼び出し側が
-   * 注入する。未指定なら枯渇インスタンスをそのまま残す — このフックを用意しない
-   * 単体テスト向けの最小動作であり、production経路は常に注入する。
+   * R-SHD-01第3項（DMG-004、Issue #194）／R-SUB-01（DMG-005、Issue #190）:
+   * 残量が0になったシールドインスタンス、または耐久力が0になったサブユニット
+   * インスタンスを`EffectExpired`（`reason: SHIELD_DEPLETED` / `SUBUNIT_DEPLETED`）
+   * として失効させ、R-EFF-09のカスケードとCombatStat再計算まで行う完全な処理。
+   * `damage-application-service.ts`の同名フックと同じ理由（`effects/`への直接依存を
+   * 持ち込まない）で呼び出し側が注入する。未指定なら枯渇インスタンスをそのまま残す
+   * — このフックを用意しない単体テスト向けの最小動作であり、production経路は常に注入する。
    */
-  readonly expireDepletedShields?: (
+  readonly expireDepletedAbsorbers?: (
     targetUnitId: BattleUnitId,
     depletedEffectInstanceIds: readonly EffectInstanceId[],
+    reason: DepletedAbsorberReason,
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
   ) => Generator<
@@ -341,15 +345,16 @@ export function applyOneContinuousDamage(
 
     if (
       absorption.change.depletedEffectInstanceIds.length > 0 &&
-      context.expireDepletedShields !== undefined
+      context.expireDepletedAbsorbers !== undefined
     ) {
       // `damage-application-service.ts`の`driveRemovalSteps`と同じ規約: 除去1件
       // （とそのR-EFF-09カスケード）ごとに連鎖へ通知してから次の除去へ進む。
       // この経路は必ず`onFactEvent`を持つ（行動開始時処理はPS/Memory連鎖の
       // driverを常に注入する）ため、`yield`して呼び出し元へ委ねる必要はない。
-      const removal = context.expireDepletedShields(
+      const removal = context.expireDepletedAbsorbers(
         holder.battleUnitId,
         absorption.change.depletedEffectInstanceIds,
+        "SHIELD_DEPLETED",
         working,
         lastEventId,
       );
@@ -369,10 +374,68 @@ export function applyOneContinuousDamage(
   const typedShieldAbsorbed = absorbedByPool.get(damageType) ?? 0;
   const untypedShieldAbsorbed = absorbedByPool.get(null) ?? 0;
 
+  // R-SUB-01第1項「通常シールドをすべて適用した後にサブユニットがダメージを受ける」
+  // ＋第2項「毒、炎上など、通常シールドで受けられないダメージはサブユニットでも
+  // 受けない」（DMG-005、Issue #190）: シールドと同じ`poolDamage`（固定継続ダメージ
+  // だけが正）の残りをサブユニットへ回す。BURN/POISONは`poolDamage`が0のまま
+  // ここへ来るため、規則どおり素通ししてHPへ向かう。
+  let subUnitAbsorbed = 0;
+  while (poolDamage > 0) {
+    const currentHolder = working.find((unit) => unit.battleUnitId === holder.battleUnitId);
+    if (currentHolder === undefined) {
+      break;
+    }
+    const absorption = absorbFromNextSubUnit(currentHolder, poolDamage);
+    if (absorption.change === undefined) {
+      break;
+    }
+    const holderAfter: BattleUnit = {
+      ...currentHolder,
+      appliedEffects: absorption.appliedEffects,
+    };
+    working = working.map((unit) =>
+      unit.battleUnitId === holder.battleUnitId ? holderAfter : unit,
+    );
+    poolDamage -= absorption.absorbed;
+    subUnitAbsorbed += absorption.absorbed;
+
+    const damagedEventsStart = context.recorder.getEvents().length;
+    lastEventId = emitSubUnitDamaged(
+      shieldContextOf(context),
+      holderAfter,
+      absorption.change,
+      "CONTINUOUS_DAMAGE_ABSORPTION",
+      lastEventId,
+    );
+    notify(damagedEventsStart);
+
+    if (absorption.change.depleted && context.expireDepletedAbsorbers !== undefined) {
+      const removal = context.expireDepletedAbsorbers(
+        holder.battleUnitId,
+        [absorption.change.effectInstanceId],
+        "SUBUNIT_DEPLETED",
+        working,
+        lastEventId,
+      );
+      let step = removal.next();
+      while (!step.done) {
+        let stepUnits = step.value.units;
+        for (const event of step.value.events) {
+          stepUnits = onFactEvent === undefined ? stepUnits : onFactEvent(event, stepUnits);
+        }
+        working = stepUnits;
+        step = removal.next(stepUnits);
+      }
+      working = step.value.units;
+      lastEventId = step.value.lastEventId;
+    }
+  }
+
   const targetBeforeHp =
     working.find((unit) => unit.battleUnitId === holder.battleUnitId) ?? holder;
   const hpBefore = targetBeforeHp.currentHp;
-  const hitPointDamage = amount.calculatedDamage - typedShieldAbsorbed - untypedShieldAbsorbed;
+  const hitPointDamage =
+    amount.calculatedDamage - typedShieldAbsorbed - untypedShieldAbsorbed - subUnitAbsorbed;
   const hpAfter = Math.max(0, hpBefore - hitPointDamage);
   // R-SHD-03第2項と同じ「HPを0未満にせず、超過分を破棄する」。
   const discardedDamage = hitPointDamage - (hpBefore - hpAfter);

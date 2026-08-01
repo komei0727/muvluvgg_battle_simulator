@@ -479,9 +479,47 @@ export interface ApplyReflectPayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * `SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`（DMG-005、Issue #190、R-SUB-02第3項
+ * 「追加デバフが定義されている場合も対象ごとに適用する」）: 追加ダメージに
+ * 付随して同じ対象へ付与する効果。効果そのものは通常の`EffectActionDefinition`
+ * （raw原文の例は`SKL_SHIRANA_SORA_AS1`「攻撃対象の行動速度を20低下させる
+ * デバフ（重複可）」＝`APPLY_STAT_MOD`）としてCatalogへ定義し、ここではIDだけを
+ * 参照する — 付与経路・重複規則・期間解決を`APPLY_SUBUNIT`側で二重定義しない
+ * ため（`EFFECT_IMMUNITY.effectActionDefinitionIds`と同じ参照方式）。
+ */
+export interface SubunitAdditionalDamageDebuff {
+  readonly effectActionDefinitionId: EffectActionDefinitionId;
+}
+
 export interface ApplySubunitPayload {
   readonly durability: { readonly formula: FormulaDefinition };
-  readonly additionalDamage: { readonly formula: FormulaDefinition };
+  readonly additionalDamage: {
+    readonly formula: FormulaDefinition;
+    /**
+     * DMG-005（Issue #190、R-SUB-02）: 追加ダメージ自身のダメージタイプ。
+     * R-SHD-02の「ダメージタイプに対応するタイプありシールド」を選ぶために必要で、
+     * raw原文が明示する場合（`SKL_SHIRANA_SORA_EX`/`AS1`・`SKL_OLGA_VETERAN_PS1`/
+     * `PS2`の「ENダメージを追加する」）はそれを書く。省略した場合は追加ダメージの
+     * 契機になった攻撃（保持者が使ったDAMAGE EffectAction）のダメージタイプを
+     * 引き継ぐ — raw原文がタイプを書いていない定義（`SKL_NADYA_SUCCESSOR_*`の
+     * 「攻撃時に攻撃力×23.4%のダメージを追加する」）を、勝手にどちらかへ寄せず
+     * 「その攻撃と同じ種類のダメージ」として表すためである。
+     */
+    readonly damageType?: DamageType;
+    /** `SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`（R-SUB-02第3項）: 省略時は追加デバフなし。 */
+    readonly debuff?: SubunitAdditionalDamageDebuff;
+  };
+  /**
+   * `SUBUNIT_DURATION`（DMG-005、Issue #190）: サブユニット自身の存続期間。
+   * raw原文の「3行動の間」「2行動の間」（`SKL_SHIRANA_SORA_EX`・
+   * `SKL_OLGA_VETERAN_PS1`・`SKL_NADYA_SUCCESSOR_*`）を`timeLimit`で表す。
+   * 期間を書いていない定義（`SKL_OLGA_VETERAN_PS2`の「カムラッドⅠ」）は
+   * `timeLimit`なし＝耐久力が尽きるまで存続する、として表す。他の継続効果と
+   * 同じく必須fieldにする — 省略を許すと「期間を書き忘れた定義」と「期間を
+   * 持たない定義」が区別できなくなるためである。
+   */
+  readonly duration: DurationDefinition;
 }
 
 /**

@@ -11,7 +11,10 @@ import {
   grantPoisonContinuousDamage,
   isBurnStackLimitReached,
 } from "./continuous-damage-service.js";
-import { CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY } from "../model/applied-effect.js";
+import {
+  CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY,
+  SUBUNIT_PROVIDER_ATTACK_KEY,
+} from "../model/applied-effect.js";
 import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
 import { removeFreezeEffectSteps } from "../effects/freeze-removal-service.js";
@@ -733,12 +736,19 @@ function* resolveOneEffectActionApplication(
             context.definitions.effectActions,
             parentEventId,
           ),
-        // R-SHD-01第3項＋R-EFF-09（DMG-004、Issue #194）: 枯渇したシールドの失効も
+        // R-SHD-01第3項＋R-SUB-01＋R-EFF-09（DMG-004、Issue #194／DMG-005、
+        // Issue #190）: 枯渇したシールド・サブユニットの失効も
         // `removeFreezeEffect`とまったく同じ理由でここから注入する。`expireEffectsSteps`
         // をそのまま使うため、`linkedEffectGroupId`カスケード（production例:
         // `LILY_SINGER_PS2_LINK`「シールドの消滅と共に攻撃力バフも消滅する」）と
         // CombatStat再計算は他の失効契機と完全に同じ経路をたどる。
-        expireDepletedShields: (targetUnitId, depletedEffectInstanceIds, units, parentEventId) =>
+        expireDepletedAbsorbers: (
+          targetUnitId,
+          depletedEffectInstanceIds,
+          reason,
+          units,
+          parentEventId,
+        ) =>
           expireEffectsSteps(
             {
               recorder: context.recorder,
@@ -753,9 +763,27 @@ function* resolveOneEffectActionApplication(
             depletedEffectInstanceIds.map((effectInstanceId) => ({
               battleUnitId: targetUnitId,
               effectInstanceId,
-              reason: "SHIELD_DEPLETED" as const,
+              reason,
             })),
             context.definitions.effectActions,
+            parentEventId,
+          ),
+        // R-SUB-02第3項（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`、DMG-005、Issue #190）:
+        // 追加ダメージに付随するデバフの付与も、`combat/`がCatalogの`effectActions`
+        // マップと`effects/`へ到達できないため同じ理由でここから注入する。
+        grantSubUnitAdditionalDamageDebuff: (
+          targetUnitId,
+          debuffEffectActionDefinitionId,
+          ownerUnitId,
+          units,
+          parentEventId,
+        ) =>
+          grantSubUnitAdditionalDamageDebuffSteps(
+            context,
+            units,
+            targetUnitId,
+            debuffEffectActionDefinitionId,
+            ownerUnitId,
             parentEventId,
           ),
         ...(context.onFactEventForPassiveChain !== undefined
@@ -2133,6 +2161,116 @@ function* resolveOneEffectActionApplication(
       interruptedCount = 0;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_SUBUNIT") {
+    // R-SUB-01/02（DMG-005、Issue #190）: HPともシールドとも別枠の耐久力を持つ
+    // サブユニットを`AppliedEffect`として付与する。`APPLY_SHIELD`とまったく同じ
+    // 評価・重複規約に従う — `durability.formula`を付与時点に一度だけ評価し、
+    // R-NUM-02どおり切り捨てた値を最大耐久力（`magnitude`）と初期残耐久力
+    // （`subUnit.durability`）の両方に置き、負の結果は0へ丸める。重複規則は
+    // R-EFF-01の一般規則どおり常に新規インスタンス（`duplicate: true`）で、
+    // production定義も同じサブユニットを3つ付与する（`SKL_OLGA_VETERAN_PS1`）。
+    //
+    // R-SUB-02: 追加ダメージの`providerAttack: SOURCE_SNAPSHOT_ATTACK`が参照する
+    // 付与者の攻撃力を、継続ダメージ（R-DOT-01）と同じ`AppliedEffect.snapshot`へ
+    // 焼き込む。付与者はサブユニットの所持者と別のユニットになり得る
+    // （`SKL_SHIRANA_SORA_EX`は味方へ付与する）ため、所持者の現在攻撃力
+    // （`ownerAttack: CURRENT_ATTACK`）とは独立に保持する必要がある。
+    const actor = findActorUnit(context, box);
+    const magnitude = Math.max(
+      0,
+      truncateFraction(
+        evaluateFormula(effectAction.payload.durability.formula, {
+          ...(actor !== undefined ? { skillSource: actor } : {}),
+          ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
+          target: requireUnit(box.units, application.targetBattleUnitId),
+          allUnits: box.units,
+          ...(actor !== undefined
+            ? {
+                lastResults: damageResultsFor(
+                  context.damageResults,
+                  actor.battleUnitId,
+                  context.skillUseId,
+                ),
+              }
+            : {}),
+        }),
+      ),
+    );
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          definition: effectAction,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude,
+          subUnit: {
+            durability: magnitude,
+            additionalDamage: effectAction.payload.additionalDamage,
+          },
+          snapshot: { [SUBUNIT_PROVIDER_ATTACK_KEY]: actor?.combatStats.attack ?? 0 },
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      effectLastEventId = grantResult.lastEventId;
+      // R-SUB-01: 耐久力0で付与されたインスタンスは、シールドとまったく同じ理由・
+      // 同じタイミング（EffectSequence解決の最後、`sweepDepletedShields`）で失効させる。
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      resultKind = "APPLIED";
+    }
   } else if (effectAction.kind === "APPLY_CONTINUOUS_DAMAGE") {
     // R-DOT-01〜04（DMG-008、Issue #189）: 付与時点ではダメージを与えず、保持者の
     // `ActionStarted`で`continuous-damage-service.ts`が発生させる継続効果として
@@ -2350,7 +2488,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
@@ -3327,13 +3465,23 @@ function* sweepDepletedShields(
   context: EffectActionGroupContext,
   parentEventId: DomainEventId,
 ): Generator<EffectResolutionStep, DomainEventId, void> {
+  // R-SUB-01（DMG-005、Issue #190）: 耐久力0で付与されたサブユニットもまったく
+  // 同じ理由でここへ含める（吸収で枯渇した分は`damage-application-service.ts`が
+  // その場で失効させるため到達しない）。
   const seeds = box.units.flatMap((unit) =>
     unit.appliedEffects
-      .filter((effect) => effect.shield !== undefined && effect.shield.remaining <= 0)
+      .filter(
+        (effect) =>
+          (effect.shield !== undefined && effect.shield.remaining <= 0) ||
+          (effect.subUnit !== undefined && effect.subUnit.durability <= 0),
+      )
       .map((effect) => ({
         battleUnitId: unit.battleUnitId,
         effectInstanceId: effect.effectInstanceId,
-        reason: "SHIELD_DEPLETED" as const,
+        reason:
+          effect.shield !== undefined
+            ? ("SHIELD_DEPLETED" as const)
+            : ("SUBUNIT_DEPLETED" as const),
       })),
   );
   if (seeds.length === 0) {
@@ -3368,6 +3516,109 @@ function* sweepDepletedShields(
   }
   box.units = step.value.units;
   return step.value.lastEventId;
+}
+
+/**
+ * R-SUB-02第3項（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`、DMG-005、Issue #190）:
+ * サブユニットの追加ダメージに付随するデバフを、追加ダメージを受けた対象へ付与する。
+ * `combat/`はCatalogの`effectActions`マップにも`effects/`にも到達できないため、
+ * `removeFreezeEffect`/`expireDepletedAbsorbers`とまったく同じ理由でここに置き、
+ * `DamageEventContext`のhookとして注入する。
+ *
+ * 参照先が`APPLY_STAT_MOD`であることは`catalog-integrity.ts`がCatalogロード時点で
+ * 保証する（production例は`SKL_SHIRANA_SORA_AS1`「攻撃対象の行動速度を20低下させる
+ * デバフ（重複可）」）。付与そのものは通常の`APPLY_STAT_MOD`解決と同じ経路を通り、
+ * `EffectApplied`・CombatStat再計算（`CombatStatChanged`/`EffectiveEffectChanged`）
+ * まで行う — 追加デバフだけが別のライフサイクルを持たないようにするためである。
+ * R-EFF-03の免疫（`EFFECT_IMMUNITY`）判定も通常の付与と同じく行う。
+ */
+function* grantSubUnitAdditionalDamageDebuffSteps(
+  context: EffectActionGroupContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  debuffEffectActionDefinitionId: EffectActionDefinitionId,
+  ownerUnitId: BattleUnitId,
+  parentEventId: DomainEventId,
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+  readonly BattleUnit[] | undefined
+> {
+  const definition = context.definitions.effectActions.get(debuffEffectActionDefinitionId);
+  if (definition === undefined || definition.kind !== "APPLY_STAT_MOD") {
+    throw new DomainValidationError(
+      "subUnit.additionalDamage.debuff.effectActionDefinitionId",
+      `references "${debuffEffectActionDefinitionId}", which must be an APPLY_STAT_MOD EffectActionDefinition present in the Catalog (catalog-integrity.ts rejects anything else at load time)`,
+    );
+  }
+  const eventContext = {
+    recorder: context.recorder,
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    skillUseId: context.skillUseId,
+    resolutionScopeId: context.actionScope,
+    rootEventId: context.rootEventId,
+  };
+  const eventsStart = context.recorder.getEvents().length;
+  const owner = requireUnit(units, ownerUnitId);
+  const target = requireUnit(units, targetUnitId);
+  const magnitude = evaluateFormula(definition.payload.formula, {
+    skillSource: owner,
+    target,
+    allUnits: units,
+    lastResults: damageResultsFor(context.damageResults, ownerUnitId, context.skillUseId),
+  });
+  const blockingImmunity = findBlockingImmunity(
+    target,
+    { effectActionDefinitionId: debuffEffectActionDefinitionId, magnitude },
+    definition,
+  );
+  if (blockingImmunity !== undefined) {
+    const rejection = rejectEffectApplication(
+      eventContext,
+      units,
+      {
+        effectActionDefinitionId: debuffEffectActionDefinitionId,
+        sourceId: ownerUnitId,
+        targetId: targetUnitId,
+        blockingEffect: blockingImmunity,
+      },
+      parentEventId,
+    );
+    const injected = yield {
+      events: context.recorder.getEvents().slice(eventsStart),
+      units: rejection.units,
+    };
+    return { units: injected ?? rejection.units, lastEventId: rejection.lastEventId };
+  }
+  const grantResult = grantEffect(
+    eventContext,
+    units,
+    {
+      definition,
+      sourceId: ownerUnitId,
+      targetId: targetUnitId,
+      duplicate: definition.payload.stacking.mode === "STACKABLE",
+      magnitude,
+      durationDefinition: definition.payload.duration,
+    },
+    parentEventId,
+  );
+  const recalculation = recalculateCombatStats(
+    eventContext,
+    units,
+    grantResult.units,
+    targetUnitId,
+    context.definitions.effectActions,
+    grantResult.lastEventId,
+    "EFFECT_APPLIED",
+  );
+  const injected = yield {
+    events: context.recorder.getEvents().slice(eventsStart),
+    units: recalculation.units,
+  };
+  return { units: injected ?? recalculation.units, lastEventId: recalculation.lastEventId };
 }
 
 export function* resolveEffectSequencePlan(

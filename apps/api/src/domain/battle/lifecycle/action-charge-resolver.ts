@@ -29,6 +29,7 @@ import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
+import type { DepletedAbsorberReason } from "../combat/damage-application-service.js";
 
 /**
  * `06_戦闘状態遷移.md`「チャージ開始」: 元スキルのコストはRESOURCE_CONSUMINGで
@@ -117,9 +118,10 @@ export function resolveChargeStart(
       // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
       continuousDamage: {
         effectActions: definitions.effectActions,
-        expireDepletedShields: (
+        expireDepletedAbsorbers: (
           targetUnitId: BattleUnitId,
           depletedEffectInstanceIds: readonly EffectInstanceId[],
+          expiryReason: DepletedAbsorberReason,
           unitsForExpiry: readonly BattleUnit[],
           expiryParentEventId: DomainEventId,
         ) =>
@@ -136,7 +138,7 @@ export function resolveChargeStart(
             depletedEffectInstanceIds.map((effectInstanceId) => ({
               battleUnitId: targetUnitId,
               effectInstanceId,
-              reason: "SHIELD_DEPLETED" as const,
+              reason: expiryReason,
             })),
             definitions.effectActions,
             expiryParentEventId,
@@ -344,9 +346,10 @@ export function resolveChargeRelease(
       // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
       continuousDamage: {
         effectActions: definitions.effectActions,
-        expireDepletedShields: (
+        expireDepletedAbsorbers: (
           targetUnitId: BattleUnitId,
           depletedEffectInstanceIds: readonly EffectInstanceId[],
+          expiryReason: DepletedAbsorberReason,
           unitsForExpiry: readonly BattleUnit[],
           expiryParentEventId: DomainEventId,
         ) =>
@@ -363,7 +366,7 @@ export function resolveChargeRelease(
             depletedEffectInstanceIds.map((effectInstanceId) => ({
               battleUnitId: targetUnitId,
               effectInstanceId,
-              reason: "SHIELD_DEPLETED" as const,
+              reason: expiryReason,
             })),
             definitions.effectActions,
             expiryParentEventId,
