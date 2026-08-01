@@ -710,7 +710,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`TARGET_HAS_MARKER`/`NOT(...)`、`IT-CAP-EFFSTEP-005`）を近似なしへ更新した。
   // デバフ本体（`APPLY_DAMAGE_MOD`）の実行時解決は`CAP_DAMAGE_MOD`（`DMG-002`、
   // Issue #192）待ちのため、`EffectSequencePlan`レベルの振り分け検証に留め、
-  // `15_Unit_Memory変換台帳.md`の`DAMAGE_MOD_KIND_UNIMPLEMENTED`へ残す。
+  // `15_Unit_Memory変換台帳.md`の`DAMAGE_MOD_KIND_UNIMPLEMENTED`へ残していた。
+  // `DMG-002`が`APPLY_DAMAGE_MOD`を実ライフサイクルへ配線した後、Issue #225が
+  // `IT-CAP-TATIANA-OMEN-PROD-001`〜`005`で同じ対象別条件を実`resolveSkillUse`
+  // 経由の実付与（Marker 0/1/2/3件混在AOE・Domain Event・StateDelta・
+  // stateVersion・独立Reducer復元）まで通し、この暫定的な検証範囲を解消した。
   // Issue #230（RES-004-CONDITION-SCOPE）で、ACTION stepの単一`condition`を
   // `stepCondition`（step全体を一度だけ評価するgate。falseなら
   // `EffectStepSkipped`）と`targetCondition`（対象ごとに個別評価するfilter。
@@ -874,6 +878,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-EFFSTEP-003",
       "IT-CAP-EFFSTEP-004",
       "IT-CAP-EFFSTEP-005",
+      "IT-CAP-TATIANA-OMEN-PROD-001",
+      "IT-CAP-TATIANA-OMEN-PROD-003",
+      "IT-CAP-TATIANA-OMEN-PROD-004",
       "UT-R-SKL-06-056",
       "UT-R-SKL-06-057",
       "UT-R-SKL-06-058",
@@ -1505,6 +1512,16 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-DAMAGE-MOD-PROD-005",
       "UT-R-DMG-04-014",
       "UT-R-DMG-04-015",
+      // RES-004-TATIANA-EX（Issue #225）: `SKL_TATIANA_SAGE_EX`の
+      // `ACT_TATIANA_SAGE_EX_DEBUFF`（`direction: OUTGOING`／`damageType: null`／
+      // `CONSTANT -1.0`）を、対象別条件で振り分けられた実AOE解決から実際に付与し、
+      // 保持者の次の攻撃で与ダメージ倍率が0まで落ちること（最終ダメージは
+      // R-DMG-01 #3の最低1ダメージで止まる）まで実ライフサイクルで固定する。
+      "IT-CAP-TATIANA-OMEN-PROD-001",
+      "IT-CAP-TATIANA-OMEN-PROD-002",
+      "IT-CAP-TATIANA-OMEN-PROD-003",
+      "IT-CAP-TATIANA-OMEN-PROD-004",
+      "IT-CAP-TATIANA-OMEN-PROD-005",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -2108,6 +2125,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-07-014",
       "UT-R-EFF-07-015",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
+      "IT-CAP-TATIANA-OMEN-PROD-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
