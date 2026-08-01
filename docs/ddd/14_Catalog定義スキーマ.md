@@ -1943,15 +1943,17 @@ condition:
 
 評価スコープは`TARGET_STATE`/`TARGET_HAS_MARKER`と同一である。BRANCHとAS/EXの`activationCondition`は、どちらも対象ごとの評価コンテキストを持たない（量化規則を持たない）ため、参照する`TargetReference`が高々1体に解決されることをCatalogロード時点で要求する。PSのtrigger／`activationCondition`だけは、`triggering/`の評価器が解決した`BattleUnitId`集合へ存在量化するため複数対象でも評価できる。
 
+`activationCondition`が参照できる`TargetReference`の**種別**も、評価する側がskill typeごとに異なるためCatalogロード時点で制約する（`ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE`）。AS/EXは行動選択時に評価されトリガーイベントも直前結果も存在しないため`SELF`と解決済み`BINDING`だけ、PSは候補判定時に解決済みTargetBindingを持たないため`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`だけを許可する。CHARGEスキルの`activationCondition`は行動選択時（チャージ開始の可否判定）に評価されるため、解決される`targetBindings`は**開始側**だけであり、`chargeRelease`側のbindingは参照できない。
+
 **相補的な条件を2つのACTION stepへ分けてはならない**（PR #287レビュー[P2]）。`targetCondition`は各stepの`EffectStepStarting`とそこから生じるPS/Memory連鎖の**後**に最新stateで評価されるため、条件Xと`NOT(X)`を別stepに置くと、先行stepの解決中に`X`が変化した場合に両方が実行されうる。「通常版か強化版のどちらか一方」は`BRANCH`（分岐の選択を一度だけ確定する）で表し、`TRIGGER_TARGET`のようにBRANCHで参照できない対象では「基本効果を無条件、増加分だけを条件付き」の加算形にして条件付きstepを1つに保つ（production例: `SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`はBRANCH、`SKL_FLUTE_INFLUENCER_PS2`は加算形）。
 
-| スコープ                          | 可否 | 備考                                                                                               |
-| --------------------------------- | ---- | -------------------------------------------------------------------------------------------------- |
-| ACTION `targetCondition`          | ✓    | 対象ごとに評価。`target`はそのstep自身の`target`と一致していなければならない                       |
-| BRANCH `condition`                | ✓    | 高々1体に解決される参照のみ（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証）                     |
-| AS/EX `activationCondition`       | ✓    | `SELF`、または高々1体に解決される`BINDING`のみ（`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`が保証） |
-| PS trigger／`activationCondition` | ✓    | `SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`のみ                                                       |
-| ACTION `stepCondition`            | ✗    | 対象ごとに真偽が変わりうるため、`TARGET_STATE`と同じ理由で除外する                                 |
+| スコープ                          | 可否 | 備考                                                                                                                                                   |
+| --------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ACTION `targetCondition`          | ✓    | 対象ごとに評価。`target`はそのstep自身の`target`と一致していなければならない                                                                           |
+| BRANCH `condition`                | ✓    | 高々1体に解決される参照のみ（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証）                                                                         |
+| AS/EX `activationCondition`       | ✓    | `SELF`、または高々1体に解決される開始側`BINDING`のみ（`ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE`／`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`が保証） |
+| PS trigger／`activationCondition` | ✓    | `SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`のみ                                                                                                           |
+| ACTION `stepCondition`            | ✗    | 対象ごとに真偽が変わりうるため、`TARGET_STATE`と同じ理由で除外する                                                                                     |
 
 ### op
 

@@ -799,7 +799,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // BRANCHで参照できない`TRIGGER_TARGET`（`SKL_FLUTE_INFLUENCER_PS2`）は
   // 「基本回復は無条件、増加分だけ条件付き」の加算形にした。AS/EXの`activationCondition`も
   // BRANCHと同じ「高々1体」制約が実行時に効くため、`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`
-  // でCatalogロード時点から同じ制約を課す（`UT-CAT-IDX-092`〜`094`）。
+  // でCatalogロード時点から同じ制約を課す（`UT-CAT-IDX-092`〜`094`）。PR #287再レビュー[P2]:
+  // 制約は対象数だけでは足りず、参照kind自体もskill typeごとに評価器の契約と一致させる
+  // （AS/EXの`evaluateActivationCondition`は`SELF`/`BINDING`、PSの
+  // `evaluateTriggerCondition`は`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`しか解決しない）。
+  // `ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE`として`UT-CAT-IDX-095`/`096`で固定した。
+  // CHARGEの`activationCondition`は行動選択時に評価されるため、検証対象のbindingは
+  // 開始側だけに限定する（`UT-CAT-IDX-097`）。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -1860,6 +1866,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-IDX-092",
       "UT-CAT-IDX-093",
       "UT-CAT-IDX-094",
+      "UT-CAT-IDX-095",
+      "UT-CAT-IDX-096",
+      "UT-CAT-IDX-097",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

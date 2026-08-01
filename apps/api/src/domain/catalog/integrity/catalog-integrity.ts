@@ -64,6 +64,7 @@ export const VIOLATION_RULES = [
   "MIXED_STEP_TARGET_SET_CONDITION",
   "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
   "ACTIVATION_CONDITION_UNBOUNDED_REFERENCE",
+  "ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE",
   "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
   "MEMORY_REQUIRES_SOURCE_UNIT",
 ] as const;
@@ -668,32 +669,107 @@ function collectBranchTargetStateUnboundedReferencePaths(
 }
 
 /**
- * PR #287レビュー[P2]（Issue #248）: AS/EXの`activationCondition`は
- * `evaluateActivationCondition`（`lifecycle/activation-condition-evaluator.ts`）が
- * 解決済みbindingを`TargetSetResolver`として渡して`evaluateEffectStepCondition`で
- * 評価するため、BRANCHの`condition`とまったく同じ「高々1体」制約が実行時に効く
- * （量化規則を発明せずに済む範囲へ意図的に限定している）。この制約がCatalogロード
- * 側に無いと、`count: "ALL"`のbindingを参照する定義が正常にロードされたまま行動
- * 選択中に`DomainValidationError`で落ちるため、BRANCHと同じ規則をここでも課す。
- *
- * PSの`activationCondition`は`evaluateTriggerCondition`（`triggering/`）が解決
- * した`BattleUnitId`集合へ存在量化するため複数対象でも評価でき、この規則の対象外
- * とする（そもそも`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`しか解決しない）。
+ * `activationCondition`内の全`TargetReference`を、パス付きで再帰的に収集する
+ * （`collectConditionTargetReferences`のパス付き版）。cardinality検証は対象ごとの
+ * 3 kindだけが対象だが、参照kindの検証は`TARGET_SET_COUNT`/`POSITION_RELATION`を
+ * 含む全ての埋め込み参照へ及ぶ — どれも同じ評価器が解決するためである。
  */
-function validateActivationConditionUnboundedReference(
+function collectConditionTargetReferencePaths(
+  condition: ConditionDefinition,
+  path: string,
+): readonly { readonly reference: TargetReference; readonly path: string }[] {
+  switch (condition.kind) {
+    case "TARGET_STATE":
+    case "TARGET_HAS_MARKER":
+    case "TARGET_HAS_EFFECT":
+    case "POSITION_RELATION":
+    case "TARGET_SET_COUNT":
+      return [{ reference: condition.target, path }];
+    case "AND":
+    case "OR":
+      return condition.conditions.flatMap((c, i) =>
+        collectConditionTargetReferencePaths(c, `${path}.conditions[${i}]`),
+      );
+    case "NOT":
+      return collectConditionTargetReferencePaths(condition.condition, `${path}.condition`);
+    default:
+      return [];
+  }
+}
+
+/**
+ * PR #287再レビュー[P2]（Issue #248）: `activationCondition`が参照できる
+ * `TargetReference`の種別は、評価する側の実装で skill type ごとに異なる。
+ *
+ * - AS/EX: `evaluateActivationCondition`（`lifecycle/activation-condition-evaluator.ts`）が
+ *   使用者自身（`SELF`）と行動選択時点で解決済みの`BINDING`だけを解決する。行動選択には
+ *   トリガーイベントも直前結果も存在しないため、それ以外は実行時に必ず例外になる。
+ * - PS: `evaluateTriggerCondition`（`triggering/trigger-condition-evaluator.ts`）の
+ *   `resolveTargetReferenceIds`が`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`だけを解決する。
+ *   `BINDING`はEffectSequence文脈を前提とするため候補判定時には解決できない。
+ */
+const ACTIVATION_CONDITION_REFERENCE_KINDS: Readonly<
+  Record<"ACTION" | "PASSIVE", ReadonlySet<TargetReference["kind"]>>
+> = {
+  ACTION: new Set(["SELF", "BINDING"]),
+  PASSIVE: new Set(["SELF", "TRIGGER_SOURCE", "TRIGGER_TARGET"]),
+};
+
+/**
+ * PR #287レビュー[P2]（Issue #248）: `activationCondition`のCatalog契約を、実際に
+ * 評価する側の契約と一致させる。2つの独立した制約を課す。
+ *
+ * 1. 参照kind（skill typeごと、`ACTIVATION_CONDITION_REFERENCE_KINDS`）。評価器が
+ *    解決できない種別は、Catalogを通過しても行動選択・候補判定の時点で必ず
+ *    `DomainValidationError`になる。
+ * 2. 対象数（AS/EXのみ）。`evaluateActivationCondition`は`evaluateEffectStepCondition`を
+ *    再利用するため、BRANCHの`condition`とまったく同じ「高々1体」制約が効く
+ *    （量化規則を発明せずに済む範囲へ意図的に限定している）。PSは
+ *    `evaluateTriggerCondition`が解決済み`BattleUnitId`集合へ存在量化するため
+ *    複数対象でも評価でき、この制約の対象外とする。
+ *
+ * 対象数の制約は対象ごとに真偽が変わる3 kind（`TARGET_STATE`/`TARGET_HAS_MARKER`/
+ * `TARGET_HAS_EFFECT`）にだけ課す — `TARGET_SET_COUNT`は集合全体を1回だけ数える
+ * kindであり、複数対象のbindingを参照するのが本来の用途である
+ * （production例: `SKL_LYDIA_GENIUS_AS1`/`SKL_ELENA_MOODMAKER_AS1`）。
+ *
+ * PR #287再レビュー[P2]: CHARGEの`activationCondition`は行動選択時に評価されるため、
+ * 解決される`targetBindings`は開始側（`skill.resolution.targetBindings`、
+ * `action-selection-policy.ts`の`resolveAllTargetBindings`が見るもの）だけである。
+ * `chargeRelease`側のbindingを混ぜると、解放側にしか無いbindingの参照を通してしまい、
+ * 同じIDが両側にある場合は解放側のselectorが開始側の単一対象性を上書きしてしまう。
+ */
+function validateActivationConditionReferences(
   skill: SkillDefinition,
   violations: CatalogIntegrityViolation[],
 ): void {
   const activationCondition = skill.activationCondition;
-  if (activationCondition === undefined || skill.skillType === "PS") {
+  if (activationCondition === undefined) {
     return;
   }
+  const scope = skill.skillType === "PS" ? "PASSIVE" : "ACTION";
+  const allowedKinds = ACTIVATION_CONDITION_REFERENCE_KINDS[scope];
+  // 行動選択時に解決されるのは開始側のbindingだけ（CHARGEでも`chargeRelease`は見ない）。
   const bindingSelectors = new Map<string, TargetSelectorDefinition>(
-    (skill.resolution.kind === "CHARGE"
-      ? [...skill.resolution.targetBindings, ...skill.resolution.chargeRelease.targetBindings]
-      : skill.resolution.targetBindings
-    ).map((binding) => [binding.targetBindingId, binding.selector]),
+    skill.resolution.targetBindings.map((binding) => [binding.targetBindingId, binding.selector]),
   );
+
+  for (const { reference, path } of collectConditionTargetReferencePaths(
+    activationCondition,
+    "activationCondition",
+  )) {
+    if (!allowedKinds.has(reference.kind)) {
+      violations.push({
+        targetId: skill.skillDefinitionId,
+        rule: "ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE",
+        message: `${path}: a ${skill.skillType} activationCondition references TargetReference kind "${reference.kind}", which its evaluator cannot resolve (allowed: ${[...allowedKinds].join("/")} — AS/EX are evaluated at action-selection time with no triggering event, PS candidate detection has no resolved TargetBinding, PR #287再レビュー[P2] Issue #248)`,
+      });
+    }
+  }
+
+  if (scope === "PASSIVE") {
+    return;
+  }
   for (const { reference, path } of collectTargetStateOrMarkerReferences(
     activationCondition,
     "activationCondition",
@@ -702,7 +778,7 @@ function validateActivationConditionUnboundedReference(
       violations.push({
         targetId: skill.skillDefinitionId,
         rule: "ACTIVATION_CONDITION_UNBOUNDED_REFERENCE",
-        message: `${path}: an AS/EX activationCondition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF or a BINDING whose selector has kind SELECT and count 1 are supported — action-selection evaluation has no per-target context to quantify over multiple units, PR #287レビュー[P2] Issue #248)`,
+        message: `${path}: an AS/EX activationCondition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, or a charge-start BINDING whose selector has kind SELECT and count 1, are supported — action-selection evaluation has no per-target context to quantify over multiple units, PR #287レビュー[P2] Issue #248)`,
       });
     }
   }
@@ -1301,7 +1377,7 @@ function validateSkill(
     validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
     validateBranchTargetStateUnboundedReference(sequence, skill.skillDefinitionId, violations);
   }
-  validateActivationConditionUnboundedReference(skill, violations);
+  validateActivationConditionReferences(skill, violations);
   const runtimeTriggers = [
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),
