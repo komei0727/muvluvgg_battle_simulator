@@ -400,12 +400,21 @@ function* fallbackRemoveFreezeEffectSteps(
  * 対象が戦闘不能になればこのヒットを適用せず、使用者が戦闘不能になれば残りのヒットを
  * すべて中断する（`UnitBeingAttacked`後の再検証と同じ規約）。
  *
- * PRレビュー再々指摘[P2]（Issue #183）: 凍結解除のlinkedEffectGroupカスケード
- * だけは、`context.onFactEventForPassiveChain`未指定（PS自身のEffectSequence
- * 解決）の場合に各カスケードステップを`yield`する（それ以外の内部イベントは
- * 従来どおり`notifyNewEvents`/コールバックのみ — このgenerator化はカスケード
- * ステップの即時解決契約のためだけの最小限の変更）。`applyDamageAction`
- * （下の同期wrapper）が既存の全呼び出し元・テストと同じ振る舞いで駆動する。
+ * `context.onFactEventForPassiveChain`未指定（PS/Memory自身のEffectSequence解決）
+ * の場合、即時解決を要求する契機だけを`yield`し、driver
+ * （`effect-action-group-resolver.ts`の`resolveOneEffectActionApplication`）が
+ * 子連鎖を解決して更新した`units`を`.next()`で注入する。対象は次の2つ。
+ *
+ * - 凍結解除のlinkedEffectGroupカスケードの各ステップ（PRレビュー再々指摘[P2]、
+ *   Issue #183）と、消費失効・遅延失効の各除去（PR #280再レビュー[P1]）
+ * - `DamageWillBeApplied`（PR #283レビュー[P1]、R-DMG-05 #4）— TIMINGイベントの
+ *   連鎖は、この解決自身のダメージ計算より前に完了していなければならない
+ *
+ * それ以外の内部イベントは従来どおり`notifyNewEvents`/コールバックのみで通知する。
+ * callbackが指定されている経路（AS/EX・チャージ解放）では、いずれもその場で
+ * 同期的に通知するため`yield`しない。`applyDamageAction`（下の同期wrapper）は
+ * `yield`された値を読み捨てるため、連鎖driverを持たない呼び出し元・テストでは
+ * 従来どおりの振る舞いになる。
  */
 export function* applyDamageActionSteps(
   attacker: BattleUnit,
@@ -679,7 +688,26 @@ export function* applyDamageActionSteps(
       },
     });
     lastEventId = damageWillBeApplied.eventId;
-    notifyNewEvents(context, working, willBeAppliedEventsStart);
+    // PR #283レビュー[P1]: 連鎖の解決経路は凍結解除・消費失効と同じ2通りで、
+    // 「callbackがあれば同期通知、無ければ`yield`」の両方を満たす必要がある。
+    // `notifyNewEvents`だけではPS/Memory自身のEffectSequence解決
+    // （`onFactEventForPassiveChain`未指定）でこのTIMINGイベントの連鎖が
+    // ダメージ計算より後（`effect-action-group-resolver.ts`が`innerEvents`として
+    // EffectAction完了時にまとめて処理する時点）まで遅れ、「TIMINGイベント後に
+    // 親処理の前提を再検証する」契約を破っていた — その経路ではここで解決を
+    // 一時停止し、driver（`resolveOneEffectActionApplication`）が子連鎖を解決して
+    // 更新した`units`を取り込んでから計算を再開する。
+    if (context.onFactEventForPassiveChain !== undefined) {
+      notifyNewEvents(context, working, willBeAppliedEventsStart);
+    } else {
+      const injected = yield {
+        events: context.recorder.getEvents().slice(willBeAppliedEventsStart),
+        units: Array.from(working.values()),
+      };
+      for (const unit of injected ?? []) {
+        working.set(unit.battleUnitId, unit);
+      }
+    }
 
     // R-SKL-01/R-SKL-03: 上の連鎖が使用者を戦闘不能にしたなら、このヒットを含む
     // 残りのヒットをすべて中断する（`UnitBeingAttacked`後の再検証と同じ規約）。
@@ -1094,12 +1122,14 @@ export function* applyDamageActionSteps(
 }
 
 /**
- * `applyDamageActionSteps`（凍結解除カスケードのみ`yield`しうるgenerator）を
- * 同期的に完了まで駆動する薄いwrapper。凍結カスケードが`yield`する場面は
- * `context.onFactEventForPassiveChain`未指定（PS自身のEffectSequence解決）の
- * 時だけであり、その経路では元々どのイベントにも通知先が無い（PR #142以来の
- * 既存契約）ため、ここでは`yield`された値を単に読み捨てて`.next()`する —
- * 全ての既存呼び出し元・テストと完全に同じ振る舞いを保つ。
+ * `applyDamageActionSteps`を同期的に完了まで駆動する薄いwrapper。generatorが
+ * `yield`する場面は`context.onFactEventForPassiveChain`未指定（PS/Memory自身の
+ * EffectSequence解決）の時だけであり、その経路をこのwrapperで駆動する呼び出し元は
+ * 連鎖driverを持たない（PR #142以来の既存契約）。ここでは`yield`された値を単に
+ * 読み捨てて`.next()`する — 全ての既存呼び出し元・テストと完全に同じ振る舞いを
+ * 保つ。production経路（`effect-action-group-resolver.ts`）はこのwrapperではなく
+ * `applyDamageActionSteps`を直接駆動し、各`yield`を`EFFECT_RESOLVED`として
+ * `driveActivation`の共有stateへ参加させる。
  */
 export function applyDamageAction(
   attacker: BattleUnit,
