@@ -5,7 +5,11 @@ import {
   type CooldownMap,
 } from "../model/cooldown-state.js";
 import { decrementActionEffectDurations } from "../model/applied-effect-duration.js";
-import { decayActionShields, emitShieldConsumedEvents } from "../combat/shield-policy.js";
+import {
+  decayActionShields,
+  emitShieldConsumed,
+  shieldDecayHolders,
+} from "../combat/shield-policy.js";
 import { decrementActionMarkerDurations } from "../model/marker-duration.js";
 import {
   emitEffectDurationReducedEvents,
@@ -236,14 +240,21 @@ export function recordActionCompletion(
   // 0になったインスタンスは`TIME_LIMIT`と同じ経路（`expireEffects`）で
   // `reason: SHIELD_DEPLETED`として失効させる — R-EFF-09のlinkedEffectGroup
   // カスケードとCombatStat再計算をシールド固有の経路へ二重実装しないため。
-  const shieldDecay = decayActionShields(working, context.actorId);
-  if (shieldDecay.changes.length > 0) {
-    working = shieldDecay.units;
-    const decayEventsStart = recorder.getEvents().length;
-    // 漸減は保持者ごとに独立して起きうる（`decay.owner: BATTLE`/`EFFECT_SOURCE`）
-    // ため、変化を保持者単位へまとめてから発行する。
-    for (const holderId of [...new Set(shieldDecay.changes.map((change) => change.battleUnitId))]) {
-      lastEventId = emitShieldConsumedEvents(
+  //
+  // PRレビュー[P1]: 保持者→プールの単位で「減少→`ShieldConsumed`→PS/Memory即時
+  // 連鎖→枯渇分の失効」を完了させてから次へ進む。`decay.owner`が`BATTLE`/
+  // `EFFECT_SOURCE`の場合は1回の行動完了で複数の保持者が同時に漸減しうるため、
+  // まとめて変更してから通知すると、先頭の`ShieldConsumed`に反応するPSが
+  // 他の保持者まで変更済みの状態を観測してしまう。
+  for (const holderId of shieldDecayHolders(working, context.actorId)) {
+    const decay = decayActionShields(working, context.actorId, holderId);
+    if (decay.changes.length === 0) {
+      continue;
+    }
+    working = decay.units;
+    for (const change of decay.changes) {
+      const decayEventsStart = recorder.getEvents().length;
+      lastEventId = emitShieldConsumed(
         {
           recorder,
           turnNumber: context.turnNumber,
@@ -253,39 +264,39 @@ export function recordActionCompletion(
           rootEventId: context.rootEventId,
         },
         requireUnit(working, holderId),
-        shieldDecay.changes.filter((change) => change.battleUnitId === holderId),
+        change,
         "DECAY",
         lastEventId,
       );
-    }
-    for (const event of recorder.getEvents().slice(decayEventsStart)) {
-      notify(event);
-    }
+      for (const event of recorder.getEvents().slice(decayEventsStart)) {
+        notify(event);
+      }
 
-    if (shieldDecay.depleted.length > 0) {
-      const expiry = expireEffects(
-        {
-          recorder,
-          turnNumber: context.turnNumber,
-          cycleNumber: context.cycleNumber,
-          actionId: context.actionId,
-          resolutionScopeId: context.resolutionScopeId,
-          rootEventId: context.rootEventId,
-          ...(context.onFactEventForPassiveChain !== undefined
-            ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
-            : {}),
-        },
-        working,
-        shieldDecay.depleted.map((entry) => ({
-          battleUnitId: entry.battleUnitId,
-          effectInstanceId: entry.effectInstanceId,
-          reason: "SHIELD_DEPLETED" as const,
-        })),
-        context.effectActions,
-        lastEventId,
-      );
-      working = expiry.units;
-      lastEventId = expiry.lastEventId;
+      if (change.depletedEffectInstanceIds.length > 0) {
+        const expiry = expireEffects(
+          {
+            recorder,
+            turnNumber: context.turnNumber,
+            cycleNumber: context.cycleNumber,
+            actionId: context.actionId,
+            resolutionScopeId: context.resolutionScopeId,
+            rootEventId: context.rootEventId,
+            ...(context.onFactEventForPassiveChain !== undefined
+              ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+              : {}),
+          },
+          working,
+          change.depletedEffectInstanceIds.map((effectInstanceId) => ({
+            battleUnitId: holderId,
+            effectInstanceId,
+            reason: "SHIELD_DEPLETED" as const,
+          })),
+          context.effectActions,
+          lastEventId,
+        );
+        working = expiry.units;
+        lastEventId = expiry.lastEventId;
+      }
     }
   }
 

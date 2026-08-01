@@ -12,6 +12,7 @@ import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
 import { truncateFraction } from "../../domain/battle/model/resource-gauge.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import type { EffectInstanceId } from "../../domain/shared/event-ids.js";
 import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 
 /**
@@ -234,26 +235,21 @@ describe("production Catalog APPLY_SHIELD (CAP_SHIELD, DMG-004 Issue #194)", () 
 
     let units = granted.units;
     const steps: number[] = [];
-    let lastDepleted: readonly { readonly effectInstanceId: string }[] = [];
+    let lastDepleted: readonly EffectInstanceId[] = [];
     for (let i = 0; i < 4; i++) {
-      const decayed = decayActionShields(units, holder.battleUnitId);
+      const decayed = decayActionShields(units, holder.battleUnitId, holder.battleUnitId);
       units = decayed.units;
-      lastDepleted = decayed.depleted;
+      lastDepleted = decayed.changes[0]!.depletedEffectInstanceIds;
       steps.push(shieldPoolsOf(units[0]!.appliedEffects).untyped);
       // 3行動目まではまだ残っており、個別消滅の対象にならない。
       if (i < 3) {
-        expect(decayed.depleted).toEqual([]);
+        expect(lastDepleted).toEqual([]);
       }
     }
     const maximum = holder.combatStats.maximumHp;
     expect(steps).toEqual([maximum * 0.75, maximum * 0.5, maximum * 0.25, 0]);
     // 4行動目で枯渇し、R-SHD-01第3項の個別消滅（`EffectExpired`/`SHIELD_DEPLETED`）の
     // 対象になる。
-    expect(lastDepleted).toEqual([
-      {
-        battleUnitId: holder.battleUnitId,
-        effectInstanceId: granted.appliedEffect.effectInstanceId,
-      },
-    ]);
+    expect(lastDepleted).toEqual([granted.appliedEffect.effectInstanceId]);
   });
 });

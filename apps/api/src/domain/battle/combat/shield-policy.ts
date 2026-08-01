@@ -29,33 +29,40 @@ export interface ShieldPools {
 
 export const EMPTY_SHIELD_POOLS: ShieldPools = { physical: 0, energy: 0, untyped: 0 };
 
-/** 1つのシールドインスタンスがこのヒットで失った残量。 */
+/** 1つのシールドインスタンスが1回の減少（吸収または漸減）で失った残量。 */
 export interface ShieldInstanceChange {
   readonly effectInstanceId: EffectInstanceId;
-  readonly shieldType: DamageType | null;
   readonly before: number;
   readonly after: number;
 }
 
-export interface ShieldAbsorptionResult {
-  /** R-SHD-02 #1: `shieldIgnoreRate`分としてシールドを迂回しHPへ直接向かう量。 */
-  readonly hpDirectDamage: number;
-  /** R-SHD-02 #2: ダメージタイプに対応するタイプありシールドが吸収した量。 */
-  readonly typedShieldAbsorbed: number;
-  /** R-SHD-02 #3: タイプなしシールドが吸収した量。 */
-  readonly untypedShieldAbsorbed: number;
-  /**
-   * R-SHD-02 #5: シールドを通り抜けてHPへ向かう量（`hpDirectDamage`を含む）。
-   * HPを0未満にしない超過破棄（R-SHD-03第2項）は呼び出し側のHP適用が行う —
-   * このサービスは対象のHPを知る必要がない。
-   */
-  readonly hitPointDamage: number;
-  /** 吸収を反映した`appliedEffects`。吸収が起きなければ入力と同一参照を返す。 */
-  readonly appliedEffects: readonly AppliedEffect[];
-  /** プールごとの変化（`ShieldConsumed`のpayload・stateDeltaの素）。吸収量0のプールは含まない。 */
-  readonly changes: readonly ShieldInstanceChange[];
+/**
+ * `08_ドメインイベント.md`「ShieldConsumed payload」が要求する**プール単位**の変化。
+ *
+ * `poolBefore`/`poolAfter`は、この減少で変化しなかった同タイプのインスタンスも
+ * 含めたプール合計である（R-SHD-01「同じタイプのシールド付与値を加算する」）。
+ * PRレビュー[P1]: 当初は変化したインスタンスの合計だけを載せていたため、同タイプの
+ * シールドが `10 + 50` あり5だけ吸収した場合に `before: 10 / after: 5` という
+ * 「プールの前後値」ではない値を公開していた。
+ */
+export interface ShieldPoolChange {
+  readonly battleUnitId: BattleUnitId;
+  /** `null`はタイプなしシールドプール。 */
+  readonly shieldType: DamageType | null;
+  readonly poolBefore: number;
+  readonly poolAfter: number;
+  readonly absorbed: number;
+  readonly instances: readonly ShieldInstanceChange[];
   /** 残量が0になったインスタンス。呼び出し側がR-SHD-01の個別消滅として失効させる。 */
   readonly depletedEffectInstanceIds: readonly EffectInstanceId[];
+}
+
+export interface ShieldPoolAbsorption {
+  readonly absorbed: number;
+  /** 吸収を反映した`appliedEffects`。吸収が起きなければ入力と同一参照を返す。 */
+  readonly appliedEffects: readonly AppliedEffect[];
+  /** 吸収量が0（＝プールが空、または残ダメージが0）なら`undefined`。 */
+  readonly change?: ShieldPoolChange;
 }
 
 /**
@@ -95,106 +102,99 @@ export function shieldPoolsOf(effects: readonly { readonly shield?: ShieldState 
   return { physical, energy, untyped };
 }
 
+/** `shieldType`が選ぶプール（`null`はタイプなし）の合計残量。 */
+function poolTotalOf(
+  effects: readonly { readonly shield?: ShieldState }[],
+  shieldType: DamageType | null,
+): number {
+  return shieldInstances(effects)
+    .filter((effect) => effect.shield!.shieldType === shieldType)
+    .reduce((sum, effect) => sum + effect.shield!.remaining, 0);
+}
+
 /**
- * 1つのプール（`matches`が選ぶインスタンス群）から`amount`まで吸収する。
+ * R-SHD-02: `shieldType`が選ぶ**1つのプール**から`amount`まで吸収する。
+ *
+ * R-SHD-02の適用順（`shieldIgnoreRate`分→タイプあり→タイプなし→HP）そのものは
+ * 呼び出し側（`damage-application-service.ts`）が順に駆動する。プール1つを単位に
+ * したのは、`08_ドメインイベント.md`が要求する「各FACTイベントに対応するPS/Memory
+ * 候補を直ちに解決する」を満たすため — プールごとに `減少 → ShieldConsumed →
+ * 連鎖解決 → 枯渇分の失効` を完了してから次のプールへ進む必要がある
+ * （PRレビュー[P1]）。まとめて吸収してから通知すると、タイプありプールの
+ * `ShieldConsumed`に反応するPSが、まだ未処理のはずのタイプなしプールとHPまで
+ * 変更済みの状態を観測してしまう。
  *
  * R-SHD-01/R-SHD-02はプール内のどのインスタンスから先に減らすかを規定しない。
  * R-EFF-02 #3「優先順が未指定の場合は付与順の古い順」と同じ既定を採り、
  * `appliedEffects`の並び（＝付与順）の先頭から使い切る — 個別消滅条件を持つ
  * インスタンスの失効順を、Setの反復順のような不安定な基準に委ねないため。
+ *
+ * 「対応しないタイプありシールドへダメージを適用しない」（R-SHD-02末尾）は、
+ * 呼び出し側がヒットの`damageType`と一致するプールしか選ばないことで満たす。
  */
-function drainPool(
-  effects: readonly AppliedEffect[],
-  matches: (effect: AppliedEffect) => boolean,
+export function absorbFromShieldPool(
+  target: BattleUnit,
   amount: number,
-  changes: ShieldInstanceChange[],
-  depleted: EffectInstanceId[],
-): { readonly effects: readonly AppliedEffect[]; readonly absorbed: number } {
+  shieldType: DamageType | null,
+): ShieldPoolAbsorption {
   if (amount <= 0) {
-    return { effects, absorbed: 0 };
+    return { absorbed: 0, appliedEffects: target.appliedEffects };
   }
+  const poolBefore = poolTotalOf(target.appliedEffects, shieldType);
+  if (poolBefore <= 0) {
+    return { absorbed: 0, appliedEffects: target.appliedEffects };
+  }
+  const instances: ShieldInstanceChange[] = [];
+  const depleted: EffectInstanceId[] = [];
   let remainingDamage = amount;
   let absorbed = 0;
-  const next = effects.map((effect) => {
+  const appliedEffects = target.appliedEffects.map((effect) => {
     const shield = effect.shield;
-    if (remainingDamage <= 0 || shield === undefined || shield.remaining <= 0 || !matches(effect)) {
+    if (
+      remainingDamage <= 0 ||
+      shield === undefined ||
+      shield.remaining <= 0 ||
+      shield.shieldType !== shieldType
+    ) {
       return effect;
     }
     const taken = Math.min(shield.remaining, remainingDamage);
     remainingDamage -= taken;
     absorbed += taken;
     const after = shield.remaining - taken;
-    changes.push({
-      effectInstanceId: effect.effectInstanceId,
-      shieldType: shield.shieldType,
-      before: shield.remaining,
-      after,
-    });
+    instances.push({ effectInstanceId: effect.effectInstanceId, before: shield.remaining, after });
     if (after === 0) {
       depleted.push(effect.effectInstanceId);
     }
     return { ...effect, shield: { ...shield, remaining: after } };
   });
-  return absorbed === 0 ? { effects, absorbed: 0 } : { effects: next, absorbed };
+
+  return {
+    absorbed,
+    appliedEffects,
+    change: {
+      battleUnitId: target.battleUnitId,
+      shieldType,
+      poolBefore,
+      poolAfter: poolBefore - absorbed,
+      absorbed,
+      instances,
+      depletedEffectInstanceIds: depleted,
+    },
+  };
 }
 
 /**
- * R-SHD-02/R-SHD-03: 確定した1ヒットのダメージを適用先へ順に振り分ける。
+ * R-SHD-02 #1: `shieldIgnoreRate`分としてシールドを迂回しHPへ直接向かう量。
  *
- * 1. `shieldIgnoreRate`分をHPへ直接向ける（`hpDirectDamage`）
- * 2. 残りを`damageType`に対応するタイプありシールドへ適用する
- * 3. さらに残った分をタイプなしシールドへ適用する
- * 4. （サブユニット＝R-SUB-01はDMG-005のスコープ。現状は素通りする）
- * 5. さらに残った分をHPへ向ける
- *
- * 「対応しないタイプありシールドへダメージを適用しない」（R-SHD-02末尾）ため、
- * 別タイプのタイプありシールドは残量を持っていても素通しになる。
- *
- * `finalDamage`はR-DMG-02/R-NUM-02で既に切り捨て済みの非負整数、シールド残量も
- * R-NUM-02「シールド付与量は適用直前に小数部分を切り捨てる」により非負整数で
- * あるため、この振り分けは整数演算だけで閉じる。唯一の分割である
- * `shieldIgnoreRate`按分だけはR-NUM-02の一般規約どおり切り捨て、端数はシールド側
- * （後段）へ残す — これにより
- * `typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage`は常に
- * `finalDamage`と厳密に一致する（`08_ドメインイベント.md`の不変条件#6
- * 「シールド吸収とHPダメージの合計が計算ダメージと一致する」）。`hpDirectDamage`は
- * `hitPointDamage`の内訳（そのうちシールドを迂回した分）であり、独立した適用先では
- * ないため、この合計には別項として現れない。
+ * R-NUM-02の一般規約どおり切り捨て、端数はシールド側（後段）へ残す。これにより
+ * `typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage + discardedDamage`
+ * は常に`calculatedDamage`と厳密に一致する（`08_ドメインイベント.md`の不変条件#6）。
+ * 戻り値は`hitPointDamage`の内訳（そのうちシールドを迂回した分）であり、独立した
+ * 適用先ではないためこの合計には別項として現れない。
  */
-export function absorbWithShields(
-  target: BattleUnit,
-  finalDamage: number,
-  damageType: DamageType,
-  shieldIgnoreRate: number,
-): ShieldAbsorptionResult {
-  const hpDirectDamage = truncateFraction(finalDamage * shieldIgnoreRate);
-  const changes: ShieldInstanceChange[] = [];
-  const depleted: EffectInstanceId[] = [];
-
-  const typed = drainPool(
-    target.appliedEffects,
-    (effect) => effect.shield!.shieldType === damageType,
-    finalDamage - hpDirectDamage,
-    changes,
-    depleted,
-  );
-  const untyped = drainPool(
-    typed.effects,
-    (effect) => effect.shield!.shieldType === null,
-    finalDamage - hpDirectDamage - typed.absorbed,
-    changes,
-    depleted,
-  );
-
-  return {
-    hpDirectDamage,
-    typedShieldAbsorbed: typed.absorbed,
-    untypedShieldAbsorbed: untyped.absorbed,
-    hitPointDamage: finalDamage - typed.absorbed - untyped.absorbed,
-    appliedEffects: untyped.effects,
-    changes,
-    depletedEffectInstanceIds: depleted,
-  };
+export function shieldBypassedDamage(finalDamage: number, shieldIgnoreRate: number): number {
+  return truncateFraction(finalDamage * shieldIgnoreRate);
 }
 
 export interface ShieldConsumedContext {
@@ -214,96 +214,67 @@ export interface ShieldConsumedHitContext {
 }
 
 /**
- * `08_ドメインイベント.md`「ダメージイベント」ShieldConsumed: `absorbWithShields`
- * （または漸減）が返した`changes`をプール単位（R-SHD-01の「同じタイプのシールド値を
- * 加算する」単位）へまとめ、減少したプールごとに1件発行する。プールの並びは
- * `changes`の並び、すなわちR-SHD-02の適用順（タイプあり→タイプなし）のままにする。
+ * `08_ドメインイベント.md`「ShieldConsumed payload」: 減少した**1プール**につき
+ * 1件発行する。呼び出し側は、このイベントを発行した直後にPS/Memoryの即時連鎖を
+ * 解決し、枯渇したインスタンスを失効させてから次のプール・次の適用先へ進む
+ * （PRレビュー[P1]）。
  *
  * `holder`は変化を適用した**後**の状態を渡す（`emitEffectDurationReducedEvents`と
  * 同じ規約）。`before`スナップショットは`shield.remaining`だけを変化前の値へ
  * 差し替えて構築し、`isEffective`は現在の状態から1回だけ導出する — シールド残量の
  * 増減はR-EFF-05の採用可否を変えない（付与は常に`duplicate: true`）。
- *
- * `changes`が空の場合は何も発行せず`parentEventId`をそのまま返す。
  */
-export function emitShieldConsumedEvents(
+export function emitShieldConsumed(
   context: ShieldConsumedContext,
   holder: BattleUnit,
-  changes: readonly ShieldInstanceChange[],
+  change: ShieldPoolChange,
   reason: ShieldConsumptionReason,
   parentEventId: DomainEventId,
   hitContext?: ShieldConsumedHitContext,
 ): DomainEventId {
-  if (changes.length === 0) {
-    return parentEventId;
-  }
   const effectiveIds = selectEffectiveInstances(holder.appliedEffects);
-  const pools: { shieldType: DamageType | null; changes: ShieldInstanceChange[] }[] = [];
-  for (const change of changes) {
-    const pool = pools.find((entry) => entry.shieldType === change.shieldType);
-    if (pool === undefined) {
-      pools.push({ shieldType: change.shieldType, changes: [change] });
-    } else {
-      pool.changes.push(change);
-    }
+  const effects: Record<EffectInstanceId, ValueChange<EffectSnapshot | undefined>> = {};
+  for (const instance of change.instances) {
+    // 変化後のインスタンスは、枯渇（`after === 0`）でこの直後に失効させる場合でも
+    // まだ`holder.appliedEffects`に残っている（除去は`EffectExpired`が行う）。
+    const effect = holder.appliedEffects.find(
+      (candidate) => candidate.effectInstanceId === instance.effectInstanceId,
+    )!;
+    const afterSnapshot = toEffectSnapshot(effect, effectiveIds.has(instance.effectInstanceId));
+    effects[instance.effectInstanceId] = {
+      before: { ...afterSnapshot, shield: { ...effect.shield!, remaining: instance.before } },
+      after: afterSnapshot,
+    };
   }
-
-  let lastEventId = parentEventId;
-  for (const pool of pools) {
-    const before = pool.changes.reduce((sum, change) => sum + change.before, 0);
-    const after = pool.changes.reduce((sum, change) => sum + change.after, 0);
-    const effects: Record<EffectInstanceId, ValueChange<EffectSnapshot | undefined>> = {};
-    for (const change of pool.changes) {
-      // 変化後のインスタンスは、枯渇（`after === 0`）でこの直後に失効させる場合でも
-      // まだ`holder.appliedEffects`に残っている（除去は`EffectExpired`が行う）。
-      const effect = holder.appliedEffects.find(
-        (candidate) => candidate.effectInstanceId === change.effectInstanceId,
-      )!;
-      const afterSnapshot = toEffectSnapshot(effect, effectiveIds.has(change.effectInstanceId));
-      effects[change.effectInstanceId] = {
-        before: { ...afterSnapshot, shield: { ...effect.shield!, remaining: change.before } },
-        after: afterSnapshot,
-      };
-    }
-    const consumed = context.recorder.record({
-      eventType: "ShieldConsumed",
-      category: "FACT",
-      turnNumber: context.turnNumber,
-      cycleNumber: context.cycleNumber,
-      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
-      resolutionScopeId: context.resolutionScopeId,
-      parentEventId: lastEventId,
-      rootEventId: context.rootEventId,
-      sourceUnitId: holder.battleUnitId,
-      targetUnitIds: [holder.battleUnitId],
-      payload: {
-        ...(hitContext !== undefined
-          ? {
-              effectActionDefinitionId: hitContext.effectActionDefinitionId,
-              hitIndex: hitContext.hitIndex,
-            }
-          : {}),
-        battleUnitId: holder.battleUnitId,
-        reason,
-        shieldType: pool.shieldType,
-        before,
-        after,
-        absorbed: before - after,
-      },
-      stateDelta: { units: { [holder.battleUnitId]: { effects } } },
-    });
-    lastEventId = consumed.eventId;
-  }
-  return lastEventId;
-}
-
-/** `BattleUnitId`をキーに`units`から1体引く（`shield-policy.ts`内の共通ヘルパー）。 */
-export function shieldHolderOf(
-  units: readonly BattleUnit[],
-  battleUnitId: BattleUnitId,
-): BattleUnit | undefined {
-  return units.find((unit) => unit.battleUnitId === battleUnitId);
+  const consumed = context.recorder.record({
+    eventType: "ShieldConsumed",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+    resolutionScopeId: context.resolutionScopeId,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: holder.battleUnitId,
+    targetUnitIds: [holder.battleUnitId],
+    payload: {
+      ...(hitContext !== undefined
+        ? {
+            effectActionDefinitionId: hitContext.effectActionDefinitionId,
+            hitIndex: hitContext.hitIndex,
+          }
+        : {}),
+      battleUnitId: holder.battleUnitId,
+      reason,
+      shieldType: change.shieldType,
+      before: change.poolBefore,
+      after: change.poolAfter,
+      absorbed: change.absorbed,
+    },
+    stateDelta: { units: { [holder.battleUnitId]: { effects } } },
+  });
+  return consumed.eventId;
 }
 
 /**
@@ -320,26 +291,17 @@ function resolveDecayOwnerUnitId(effect: AppliedEffect): BattleUnitId | "BATTLE"
   return owner === "EFFECT_SOURCE" ? (effect.sourceId ?? "BATTLE") : effect.targetId;
 }
 
-/**
- * 漸減は保持者ごとに独立して起きうる（`decay.owner`が`BATTLE`/`EFFECT_SOURCE`の
- * 場合、行動者以外のユニットが保持するシールドも同じ契機で減る）ため、吸収の
- * `ShieldInstanceChange`と違って保持者IDを持つ。
- */
-export type ShieldDecayChange = ShieldInstanceChange & { readonly battleUnitId: BattleUnitId };
-
 export interface ShieldDecayResult {
   readonly units: readonly BattleUnit[];
-  readonly changes: readonly ShieldDecayChange[];
-  readonly depleted: readonly {
-    readonly battleUnitId: BattleUnitId;
-    readonly effectInstanceId: EffectInstanceId;
-  }[];
+  /** 変化したプールごとの差分。空なら漸減対象が無かったことを表す。 */
+  readonly changes: readonly ShieldPoolChange[];
 }
 
 /**
  * `SHIELD_DECAY_OVER_TIME`（DMG-004、Issue #194、R-SHD-01）: `actingUnitId`が1つの
- * 行動を完了したときに呼ぶ。`decay.owner`が解決するユニットが`actingUnitId`と一致する
- * （`BATTLE`はどのユニットの行動でも一致する）シールドインスタンスの残量を
+ * 行動を完了したとき、`holderUnitId`が保持するシールドの漸減を解決する。
+ * `decay.owner`が解決するユニットが`actingUnitId`と一致する（`BATTLE`はどの
+ * ユニットの行動でも一致する）インスタンスの残量を
  * `切り捨て(付与時最大値 × decay.ratio)`だけ減らす。raw原文の例は
  * `SKL_SHIRANA_LUCKY_EX`「シールドは1行動に付き最大値の25%減少する」。
  *
@@ -347,6 +309,11 @@ export interface ShieldDecayResult {
  * 明示しているためで、残量に対する等比減衰ではない（4行動でちょうど枯渇する）。
  * R-NUM-02の一般規約どおり切り捨てるが、`ratio > 0`なら最低1は減らす — 切り捨てで
  * 0になると漸減が永久に進まず、`decay`の宣言が無意味になるため。
+ *
+ * PRレビュー[P1]: 保持者を1体ずつ受け取るのは、`ShieldConsumed`（`reason: DECAY`）
+ * の発行と枯渇分の失効を保持者ごとに完了させてから次の保持者へ進むためである
+ * （`decay.owner`が`BATTLE`/`EFFECT_SOURCE`の場合、1回の行動完了で複数の保持者が
+ * 同時に漸減しうる）。対象となる保持者の列挙は`shieldDecayHolders`が行う。
  *
  * `decrementActionEffectDurations`と同じく、0になったインスタンスをこの関数自身は
  * 除去しない（`EffectExpired`発行・除去・カスケードは呼び出し側の責務）。
@@ -357,39 +324,93 @@ export interface ShieldDecayResult {
 export function decayActionShields(
   units: readonly BattleUnit[],
   actingUnitId: BattleUnitId,
+  holderUnitId: BattleUnitId,
 ): ShieldDecayResult {
-  const changes: ShieldDecayChange[] = [];
-  const depleted: { battleUnitId: BattleUnitId; effectInstanceId: EffectInstanceId }[] = [];
-  const nextUnits = units.map((unit) => {
-    let changedInUnit = false;
-    const nextEffects = unit.appliedEffects.map((effect) => {
-      const shield = effect.shield;
-      if (shield?.decay === undefined || shield.remaining <= 0) {
-        return effect;
-      }
-      const owner = resolveDecayOwnerUnitId(effect);
-      if (owner !== "BATTLE" && owner !== actingUnitId) {
-        return effect;
-      }
-      const step = Math.max(1, truncateFraction(effect.magnitude * shield.decay.ratio));
-      const after = Math.max(0, shield.remaining - step);
-      changes.push({
-        battleUnitId: unit.battleUnitId,
-        effectInstanceId: effect.effectInstanceId,
-        shieldType: shield.shieldType,
-        before: shield.remaining,
-        after,
-      });
-      if (after === 0) {
-        depleted.push({
-          battleUnitId: unit.battleUnitId,
-          effectInstanceId: effect.effectInstanceId,
-        });
-      }
-      changedInUnit = true;
-      return { ...effect, shield: { ...shield, remaining: after } };
+  const holder = units.find((unit) => unit.battleUnitId === holderUnitId);
+  if (holder === undefined) {
+    return { units, changes: [] };
+  }
+  // プール合計（`ShieldConsumed.before`）は、漸減しないインスタンスも含めた
+  // 変化前の総量である（PRレビュー[P1]）。
+  const poolBefore = new Map<DamageType | null, number>();
+  for (const effect of shieldInstances(holder.appliedEffects)) {
+    const shieldType = effect.shield!.shieldType;
+    poolBefore.set(shieldType, (poolBefore.get(shieldType) ?? 0) + effect.shield!.remaining);
+  }
+
+  const byPool = new Map<
+    DamageType | null,
+    { instances: ShieldInstanceChange[]; depleted: EffectInstanceId[]; absorbed: number }
+  >();
+  const nextEffects = holder.appliedEffects.map((effect) => {
+    const shield = effect.shield;
+    if (shield?.decay === undefined || shield.remaining <= 0) {
+      return effect;
+    }
+    const owner = resolveDecayOwnerUnitId(effect);
+    if (owner !== "BATTLE" && owner !== actingUnitId) {
+      return effect;
+    }
+    const step = Math.max(1, truncateFraction(effect.magnitude * shield.decay.ratio));
+    const after = Math.max(0, shield.remaining - step);
+    const pool = byPool.get(shield.shieldType) ?? { instances: [], depleted: [], absorbed: 0 };
+    pool.instances.push({
+      effectInstanceId: effect.effectInstanceId,
+      before: shield.remaining,
+      after,
     });
-    return changedInUnit ? { ...unit, appliedEffects: nextEffects } : unit;
+    pool.absorbed += shield.remaining - after;
+    if (after === 0) {
+      pool.depleted.push(effect.effectInstanceId);
+    }
+    byPool.set(shield.shieldType, pool);
+    return { ...effect, shield: { ...shield, remaining: after } };
   });
-  return { units: nextUnits, changes, depleted };
+
+  if (byPool.size === 0) {
+    return { units, changes: [] };
+  }
+  // R-SHD-02の適用順と同じ並び（タイプあり→タイプなし）でイベントを発行できるよう、
+  // タイプなしプールを常に最後へ置く（`Map`の挿入順は付与順に依存するため）。
+  const changes: ShieldPoolChange[] = [...byPool.entries()]
+    .sort((a, b) => (a[0] === null ? 1 : 0) - (b[0] === null ? 1 : 0))
+    .map(([shieldType, pool]) => ({
+      battleUnitId: holderUnitId,
+      shieldType,
+      poolBefore: poolBefore.get(shieldType) ?? 0,
+      poolAfter: (poolBefore.get(shieldType) ?? 0) - pool.absorbed,
+      absorbed: pool.absorbed,
+      instances: pool.instances,
+      depletedEffectInstanceIds: pool.depleted,
+    }));
+
+  return {
+    units: units.map((unit) =>
+      unit.battleUnitId === holderUnitId ? { ...unit, appliedEffects: nextEffects } : unit,
+    ),
+    changes,
+  };
+}
+
+/**
+ * `decayActionShields`の対象になる保持者を`units`の並び（決定的）で列挙する。
+ * `decay.owner`が`BATTLE`/`EFFECT_SOURCE`の場合、行動者以外のユニットが保持する
+ * シールドも同じ完了契機で減るため、呼び出し側は全ユニットを走査する必要がある。
+ */
+export function shieldDecayHolders(
+  units: readonly BattleUnit[],
+  actingUnitId: BattleUnitId,
+): readonly BattleUnitId[] {
+  return units
+    .filter((unit) =>
+      unit.appliedEffects.some((effect) => {
+        const shield = effect.shield;
+        if (shield?.decay === undefined || shield.remaining <= 0) {
+          return false;
+        }
+        const owner = resolveDecayOwnerUnitId(effect);
+        return owner === "BATTLE" || owner === actingUnitId;
+      }),
+    )
+    .map((unit) => unit.battleUnitId);
 }

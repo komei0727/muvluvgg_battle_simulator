@@ -2108,10 +2108,47 @@ function* resolveOneEffectActionApplication(
         for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
           box.units = context.onFactEventForPassiveChain(event, box.units);
         }
+        // 下の`expireEffects`が自身で除去1件ごとに通知するため、ここまでで
+        // 通知済みの分を捕捉範囲から外して二重通知を避ける。
+        innerEventsStart = context.recorder.getEvents().length;
+      }
+      effectLastEventId = grantResult.lastEventId;
+      // R-SHD-01第3項（PRレビュー[P2]）: Formula結果が負値・0、または切り捨てで0に
+      // なった付与は、残量0のインスタンスとして永続してしまう（吸収も漸減も
+      // `remaining <= 0`を対象外にするため、期間満了まで枯渇契機が訪れない）。
+      // 「残量が0になったインスタンスは即時失効させる」に従い、付与直後に
+      // `SHIELD_DEPLETED`として失効させる — `EffectApplied`自体は監査証跡として
+      // 発行し、linked group（`LILY_SINGER_PS2_LINK`等）も同じ経路でカスケードする。
+      if (magnitude <= 0) {
+        const expiry = expireEffects(
+          {
+            recorder: context.recorder,
+            turnNumber: context.turnNumber,
+            cycleNumber: context.cycleNumber,
+            ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+            skillUseId: context.skillUseId,
+            resolutionScopeId: context.actionScope,
+            rootEventId: context.rootEventId,
+            ...(context.onFactEventForPassiveChain !== undefined
+              ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+              : {}),
+          },
+          box.units,
+          [
+            {
+              battleUnitId: application.targetBattleUnitId,
+              effectInstanceId: grantResult.appliedEffect.effectInstanceId,
+              reason: "SHIELD_DEPLETED",
+            },
+          ],
+          context.definitions.effectActions,
+          effectLastEventId,
+        );
+        box.units = expiry.units;
+        effectLastEventId = expiry.lastEventId;
       }
       resolvedCount = application.hits.length;
       interruptedCount = 0;
-      effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
   } else if (effectAction.kind === "APPLY_HEALING_LINK") {
