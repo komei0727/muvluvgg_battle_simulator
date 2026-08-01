@@ -151,6 +151,9 @@ function snapshotOf(units: readonly BattleUnit[]): BattleStateSnapshot {
           ap: unit.currentAp,
           pp: unit.currentPp,
           extraGauge: unit.currentExtraGauge,
+          maximumAp: unit.maximumAp,
+          maximumPp: unit.maximumPp,
+          maximumExtraGauge: unit.maximumExtraGauge,
           combatStats: unit.combatStats,
           ...(Object.keys(unit.cooldowns).length > 0 ? { cooldowns: unit.cooldowns } : {}),
           ...(unit.appliedEffects.length > 0

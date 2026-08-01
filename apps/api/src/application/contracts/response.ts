@@ -222,6 +222,17 @@ export interface UnitResourcesDeltaResponseBody {
   readonly extraGauge?: ValueChangeBody<number>;
 }
 
+/**
+ * G-09（M7-002A／Issue #255）: `BattleUnitStateResponse.resources.{ap,pp,extraGauge}.maximum`
+ * の差分。`UnitResourcesDeltaResponseBody`（現在値）とは独立に変化するため別キーにする。
+ * HPの最大値は`MAXIMUM_HP` CombatStatであり`combatStats`側が表す。
+ */
+export interface UnitResourceMaximumsDeltaResponseBody {
+  readonly ap?: ValueChangeBody<number>;
+  readonly pp?: ValueChangeBody<number>;
+  readonly extraGauge?: ValueChangeBody<number>;
+}
+
 /** `10_API設計.md`「BattleStateDeltaResponse」の`EntityCollectionDelta`。 */
 export interface EntityCollectionDeltaResponseBody {
   readonly added: readonly unknown[];
@@ -246,6 +257,7 @@ export interface UnitStateDeltaResponseBody {
   readonly combatStatus?: ValueChangeBody<string>;
   readonly hp?: ValueChangeBody<number>;
   readonly resources?: UnitResourcesDeltaResponseBody;
+  readonly resourceMaximums?: UnitResourceMaximumsDeltaResponseBody;
   readonly combatStats?: Readonly<Record<string, ValueChangeBody<number>>>;
   readonly shields?: Readonly<Record<string, ValueChangeBody<number>>>;
   readonly subUnits?: EntityCollectionDeltaResponseBody;

@@ -29,6 +29,15 @@ export interface BattleUnitSnapshot {
   readonly ap: number;
   readonly pp: number;
   readonly extraGauge: number;
+  /**
+   * G-09（M7-002A／Issue #255）: `MODIFY_RESOURCE_CAPACITY`の付与・失効・解除の
+   * たびに再合成される現在の上限。`BattleUnitRosterEntry.maximumAp`等は
+   * `startBattle`前に1回だけ取る不変な開始時点の値であり、この時点の実効値とは
+   * 別物（`combatStats`と`BattleUnitRosterEntry.combatStats`の関係と同じ）。
+   */
+  readonly maximumAp: number;
+  readonly maximumPp: number;
+  readonly maximumExtraGauge: number;
   /** R-STA-04: AppliedEffectの付与・失効・解除のたびに再計算される現在の実効値。常に存在する（`BattleUnitRosterEntry.combatStats`は不変な開始時点のスナップショット）。 */
   readonly combatStats: CombatStats;
   /** 空でない場合だけ持つ(`captureBattleState`はクールタイムが1件も無いユニットへ`{}`を書かない)。 */
@@ -149,6 +158,9 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
       ap: unit.currentAp,
       pp: unit.currentPp,
       extraGauge: unit.currentExtraGauge,
+      maximumAp: unit.maximumAp,
+      maximumPp: unit.maximumPp,
+      maximumExtraGauge: unit.maximumExtraGauge,
       combatStats: unit.combatStats,
       ...(cooldownIds.length > 0 ? { cooldowns } : {}),
       ...(unit.charge !== undefined

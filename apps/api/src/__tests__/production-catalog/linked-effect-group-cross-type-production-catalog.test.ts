@@ -253,6 +253,9 @@ function initialSnapshot(actor: BattleUnit): BattleStateSnapshot {
         ap: actor.currentAp,
         pp: actor.currentPp,
         extraGauge: actor.currentExtraGauge,
+        maximumAp: actor.maximumAp,
+        maximumPp: actor.maximumPp,
+        maximumExtraGauge: actor.maximumExtraGauge,
         combatStats: actor.combatStats,
       },
     },
@@ -265,6 +268,9 @@ function liveSnapshot(actor: BattleUnit): BattleStateSnapshot["units"][BattleUni
     ap: actor.currentAp,
     pp: actor.currentPp,
     extraGauge: actor.currentExtraGauge,
+    maximumAp: actor.maximumAp,
+    maximumPp: actor.maximumPp,
+    maximumExtraGauge: actor.maximumExtraGauge,
     combatStats: actor.combatStats,
     ...(actor.appliedEffects.length > 0
       ? { effects: actor.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }

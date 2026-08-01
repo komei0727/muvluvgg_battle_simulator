@@ -18,6 +18,7 @@ import type {
   DurationOwner,
   DurationTimeUnit,
   EffectImmunityCategory,
+  GaugeCapacityResource,
   MarkerStackPolicy,
   ResourceKind,
   SkillType,
@@ -701,6 +702,22 @@ export interface BattleDomainEventPayloadMap {
     readonly reason: ResourceChangeReason;
     readonly causeEventId: DomainEventId;
   };
+  /**
+   * G-09（`14_Catalog定義スキーマ.md`「MODIFY_RESOURCE_CAPACITY」、M7-002A／Issue #255）:
+   * AP/PP/EXゲージの最大値そのものが変化した後の主イベント。`stateDelta`の
+   * `maximumAp`/`maximumPp`/`maximumExtraGauge`を単独で所有する。値が変わらない
+   * 再計算では発行しない（`CombatStatChanged`と同じ規約）。
+   *
+   * `resource: HP`の上限は`MAXIMUM_HP` CombatStatそのものであり、差分は
+   * `CombatStatChanged`が所有するため、このイベントの`resource`はゲージ3種だけを取る。
+   */
+  readonly ResourceCapacityChanged: {
+    readonly battleUnitId: BattleUnitId;
+    readonly resource: GaugeCapacityResource;
+    readonly before: number;
+    readonly after: number;
+    readonly reason: ResourceCapacityChangeReason;
+  };
   /** R-PS-05 #2: PP消費の内訳（`ResourceChanged`の子イベント、`stateDelta`は持たない）。 */
   readonly PassivePointConsumed: {
     readonly actorUnitId: BattleUnitId;
@@ -1079,6 +1096,13 @@ export interface BattleDomainEventPayloadMap {
  * 時点で追加する。
  */
 export type CombatStatChangeReason = "EFFECT_APPLIED" | "EFFECT_EXPIRED" | "EFFECT_REMOVED";
+
+/**
+ * G-09（M7-002A／Issue #255）: リソース上限の再計算契機。上限変更は
+ * `MODIFY_RESOURCE_CAPACITY`の`AppliedEffect`だけが作るため、CombatStatと同じ
+ * 3契機（付与・失効・解除）を共有し、同じ再計算フックから同時に導出する。
+ */
+export type ResourceCapacityChangeReason = CombatStatChangeReason;
 
 /**
  * `07_戦闘ルール詳細.md` R-EFF-04/06/07/08/09: 効果インスタンスが失効した理由。

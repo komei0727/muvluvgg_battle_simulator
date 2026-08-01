@@ -503,6 +503,16 @@ const unitStateDeltaResponseSchema = {
         extraGauge: valueChangeNumberSchema,
       },
     },
+    // G-09（M7-002A／Issue #255）: `resources.*.maximum`側の差分（`ResourceCapacityChanged`）。
+    resourceMaximums: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        ap: valueChangeNumberSchema,
+        pp: valueChangeNumberSchema,
+        extraGauge: valueChangeNumberSchema,
+      },
+    },
     combatStats: { type: "object", additionalProperties: valueChangeNumberSchema },
     shields: { type: "object", additionalProperties: valueChangeNumberSchema },
     subUnits: entityCollectionDeltaResponseSchema,

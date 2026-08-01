@@ -5,6 +5,10 @@ import {
   selectNonStackableWinners,
   type EffectiveEffectCandidate,
 } from "../model/effective-effect-selector.js";
+import {
+  composeResourceCapacity,
+  recalculateResourceCapacities,
+} from "./resource-capacity-recalculation-service.js";
 import { toEffectSnapshot, type EffectSnapshot, type ValueChange } from "../events/state-delta.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { AppliedEffect, EffectKindKey } from "../model/applied-effect.js";
@@ -61,11 +65,16 @@ export interface ComputeCombatStatsResult {
 }
 
 /**
- * R-STA-02〜04・R-EFF-05: `unit.appliedEffects`のうち`APPLY_STAT_MOD`由来のものだけを
+ * R-STA-02〜04・R-EFF-05: `unit.appliedEffects`のうち`APPLY_STAT_MOD`由来のものを
  * `unit.baseCombatStats`（編成補正・適性補正だけを反映した不変の基準値）へ
  * 合成し直し、現在の`combatStats`との差分を返す。純粋関数であり、`unit`も
  * `effectActions`も変更しない — 呼び出し側（`recalculateCombatStats`）が
  * イベント記録と`BattleUnit`更新を担う。
+ *
+ * G-09（M7-002A／Issue #255）: `MAXIMUM_HP`だけは`MODIFY_RESOURCE_CAPACITY`
+ * （`resource: HP`）由来のインスタンスも合成対象になる — HPゲージの上限は
+ * この戦闘中ステータスそのものであり、AP/PP/EXのように`BattleUnit`が独立した
+ * 上限フィールドを持たないため。
  */
 export function computeCombatStats(
   unit: BattleUnit,
@@ -103,13 +112,24 @@ export function computeCombatStats(
     // （例: 編成補正で 40347.6 → さらに +20% は 48417.12 = trunc 48417 が正、
     // 開始時に 40347 へ丸めてから ×1.2 すると 48416 になり1ずれる。PR #239
     // 再レビュー[P2]）。ゲージ最大値としての整数化はゲージへ渡す境界で行う。
-    const after = calculateCombatStat({
+    const corrected = calculateCombatStat({
       baseValue: unit.baseCombatStats[field],
       formationBonus: ZERO_PERCENTAGE,
       aptitudePenalty: ZERO_PERCENTAGE,
       ratioEffects: bucket?.ratio ?? [],
       fixedCorrection: combineEffects(bucket?.fixed ?? []),
     });
+    // G-09（M7-002A／Issue #255）: `MODIFY_RESOURCE_CAPACITY(resource: HP)`は
+    // HPゲージの上限＝`MAXIMUM_HP` CombatStatそのものを変える。AP/PP/EXのように
+    // `BattleUnit`が独立した上限フィールドを持たないため、`APPLY_STAT_MOD`の
+    // 比率・固定値補正を適用した後段としてここで合成し、差分は既存の
+    // `CombatStatChanged`（`stateDelta.combatStats.maximumHp`）が所有する
+    // （`ResourceCapacityChanged`は発行しない — 同じ状態差分を二重に持たない）。
+    // R-NUM-01: ここでも丸めず全精度で保持し、整数化はゲージ境界で行う。
+    const after =
+      stat === "MAXIMUM_HP"
+        ? Math.max(0, composeResourceCapacity(corrected, unit, "HP", effectActions))
+        : corrected;
     nextCombatStats[field] = after;
     if (before !== after) {
       changedStats.push({ stat, before, after });
@@ -239,7 +259,7 @@ export function recalculateCombatStats(
   }
 
   const { combatStats, changedStats } = computeCombatStats(target, effectActions);
-  const nextUnits =
+  let nextUnits =
     changedStats.length > 0
       ? units.map((unit) => (unit.battleUnitId === targetId ? { ...unit, combatStats } : unit))
       : units;
@@ -273,6 +293,23 @@ export function recalculateCombatStats(
     });
     lastEventId = event.eventId;
   }
+
+  // G-09（M7-002A／Issue #255）: R-STA-04の再計算契機はCombatStatだけでなく
+  // AP/PP/EXゲージの上限にも等しく効く。別のフックにすると呼び出し漏れた経路で
+  // だけ上限が基準へ戻らず、`createActionPoint`等の不変条件違反として後から
+  // 実行時例外になるため、同じ関数から必ず続けて再合成する。
+  // `CombatStatChanged`（HP上限を含む）を先に出してから呼ぶ — HPの現在値clampは
+  // 確定後の`combatStats.maximumHp`を基準にする。
+  const capacityResult = recalculateResourceCapacities(
+    context,
+    nextUnits,
+    targetId,
+    effectActions,
+    lastEventId,
+    reason,
+  );
+  nextUnits = capacityResult.units;
+  lastEventId = capacityResult.lastEventId;
 
   return { units: nextUnits, lastEventId };
 }

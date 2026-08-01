@@ -91,7 +91,18 @@ describe("buildBattleObservation", () => {
     const initialState = {
       status: "READY" as const,
       currentTurn: 0,
-      units: { [UNIT_A]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats } },
+      units: {
+        [UNIT_A]: {
+          hp: 100,
+          ap: 0,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+          maximumExtraGauge: 10,
+          combatStats,
+        },
+      },
     };
 
     const observation = buildBattleObservation({

@@ -738,6 +738,11 @@ UnitStateDeltaResponse {
     pp?: ValueChange
     extraGauge?: ValueChange
   }
+  resourceMaximums?: {
+    ap?: ValueChange
+    pp?: ValueChange
+    extraGauge?: ValueChange
+  }
   combatStats?: {
     [statName]: ValueChange
   }
@@ -751,6 +756,8 @@ UnitStateDeltaResponse {
   charge?: ValueChange
 }
 ```
+
+`resources` は `BattleUnitStateResponse.resources.{ap,pp,extraGauge}.current`（現在値）の差分、`resourceMaximums` は同じゲージの `.maximum`（上限）の差分であり、互いに独立に変化する（G-09／M7-002A・Issue #255、`MODIFY_RESOURCE_CAPACITY`）。HPの上限は `MAXIMUM_HP` 戦闘中ステータスであるため、`hp.maximum` に相当する差分は `combatStats.maximumHp` が表す。
 
 `EntityCollectionDelta` は次の形式とする。
 

@@ -251,9 +251,11 @@ function toUnitStateResponseBody(
     combatStatus: combatStatusOf(snapshot.hp),
     hp: { current: snapshot.hp, maximum: snapshot.combatStats.maximumHp },
     resources: {
-      ap: { current: snapshot.ap, maximum: roster.maximumAp },
-      pp: { current: snapshot.pp, maximum: roster.maximumPp },
-      extraGauge: { current: snapshot.extraGauge, maximum: roster.maximumExtraGauge },
+      // G-09（M7-002A／Issue #255）: 上限も`MODIFY_RESOURCE_CAPACITY`で戦闘中に
+      // 変わりうるため、`roster`（開始時点の不変値）ではなくこの時点のsnapshotを返す。
+      ap: { current: snapshot.ap, maximum: snapshot.maximumAp },
+      pp: { current: snapshot.pp, maximum: snapshot.maximumPp },
+      extraGauge: { current: snapshot.extraGauge, maximum: snapshot.maximumExtraGauge },
     },
     // R-STA-04: AppliedEffectの付与・失効・解除のたびに再計算される現在値
     // (`snapshot.combatStats`) を返す。`roster.combatStats`は編成補正・適性補正
@@ -495,6 +497,20 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
           ...(delta.extraGauge !== undefined ? { extraGauge: delta.extraGauge } : {}),
         }
       : undefined;
+  // G-09（M7-002A／Issue #255）: `ResourceCapacityChanged`が所有する上限差分。
+  // 現在値（`resources`）と同じ`ap`/`pp`/`extraGauge`キーだが、独立に変化するため
+  // 別のネストへ置く（`resources.ap`は`BattleUnitStateResponse.resources.ap.current`、
+  // `resourceMaximums.ap`は同`.maximum`に対応する）。
+  const resourceMaximums =
+    delta.maximumAp !== undefined ||
+    delta.maximumPp !== undefined ||
+    delta.maximumExtraGauge !== undefined
+      ? {
+          ...(delta.maximumAp !== undefined ? { ap: delta.maximumAp } : {}),
+          ...(delta.maximumPp !== undefined ? { pp: delta.maximumPp } : {}),
+          ...(delta.maximumExtraGauge !== undefined ? { extraGauge: delta.maximumExtraGauge } : {}),
+        }
+      : undefined;
   const combatStatusBefore = delta.hp !== undefined ? combatStatusOf(delta.hp.before) : undefined;
   const combatStatusAfter = delta.hp !== undefined ? combatStatusOf(delta.hp.after) : undefined;
   const combatStatus =
@@ -511,6 +527,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
   return {
     ...(delta.hp !== undefined ? { hp: delta.hp } : {}),
     ...(resources !== undefined ? { resources } : {}),
+    ...(resourceMaximums !== undefined ? { resourceMaximums } : {}),
     ...(combatStatus !== undefined ? { combatStatus } : {}),
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(markers !== undefined ? { markers } : {}),

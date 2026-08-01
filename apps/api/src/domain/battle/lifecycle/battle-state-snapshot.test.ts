@@ -89,6 +89,9 @@ describe("captureBattleState", () => {
       ap: 0,
       pp: 0,
       extraGauge: 0,
+      maximumAp: 3,
+      maximumPp: 2,
+      maximumExtraGauge: 100,
       combatStats: ally.combatStats,
     });
     expect(snapshot.units[enemy.battleUnitId]).toEqual({
@@ -96,6 +99,9 @@ describe("captureBattleState", () => {
       ap: 0,
       pp: 0,
       extraGauge: 0,
+      maximumAp: 3,
+      maximumPp: 2,
+      maximumExtraGauge: 100,
       combatStats: enemy.combatStats,
     });
   });

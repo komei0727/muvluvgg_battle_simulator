@@ -21,6 +21,16 @@ export type SkillType = "AS" | "PS" | "EX";
 /** M7-002（Issue #185）: `MODIFY_RESOURCE`は`HP`も対象にできる（HP_DIRECT_COST、防御力・会心を経由しない直接消費）。`SkillDefinition.cost.resource`はAP/PP/EX_GAUGEのみ（`skill-definition.ts`が独自に狭い`RESOURCE_KINDS`で検証する）。 */
 export type ResourceKind = "AP" | "PP" | "EX_GAUGE" | "HP";
 
+/**
+ * G-09（M7-002A／Issue #255）: `BattleUnit`がゲージ最大値を独立したフィールドとして
+ * 持つリソース。`HP`だけは上限が`MAXIMUM_HP` CombatStat（`combatStats.maximumHp`）
+ * であり、`MODIFY_RESOURCE_CAPACITY(resource: HP)`もそちらの再計算・差分へ合流する
+ * （`resource-capacity-recalculation-service.ts`）。
+ */
+export const GAUGE_CAPACITY_RESOURCES = ["AP", "PP", "EX_GAUGE"] as const;
+
+export type GaugeCapacityResource = (typeof GAUGE_CAPACITY_RESOURCES)[number];
+
 export type DurationTimeUnit = "ACTION" | "TURN" | "BATTLE" | "HIT" | "SKILL_USE";
 
 export type DurationOwner = "EFFECT_TARGET" | "EFFECT_SOURCE" | "BATTLE";

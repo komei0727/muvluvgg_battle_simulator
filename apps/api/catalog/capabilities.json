@@ -571,10 +571,35 @@
   {
     "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-002A",
-    "description": "最大APなどの上限変更（MODIFY_RESOURCE_CAPACITY）。M7-002（Issue #185）はこのCapabilityの実装を見送り、production需要が発生した時点で着手する待機TaskとしてM7-002A（Issue #255）へ分離した。実装するとCombatStat（APPLY_STAT_MOD）と同等の継続効果再計算システム（重複ポリシー・失効時の現在値clamp等）を新規に丸ごと設計することになる。M7-010（Issue #177、監査）で、#185とM7-002Aが記録した「現行のCatalog変換行のどれからも参照されていない」という前提が事実誤りであることを検出した — UNIT_FLUTE_VAMPIREのACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP（resource: AP、operation: ADD）が実際に参照しており、当該Unitの非selectable要因の一つである（UNIT_FLUTE_VAMPIREは他にCAP_DAMAGE_MOD・CAP_DEATH_SURVIVAL・CAP_HIT_COUNT_EVASIONでも非selectableのため、本Capabilityの完了だけではselectableにならない）。着手トリガーは既に成立しているため、M7-002Aは「需要待ち」ではなく通常の未実装TaskとしてM7-019（Issue #273）の需要待ちリストには含めない。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "最大APなどの上限変更（MODIFY_RESOURCE_CAPACITY、G-09）。M7-002（Issue #185）は見送ってM7-002A（Issue #255）へ分離し、M7-002Aが実装した。R-ACTN-03の継続効果として付与時にformulaを一度だけ評価してmagnitudeへ保持し、R-STA-04の再計算フック（recalculateCombatStats）が付与・失効・解除のたびに不変の基準（BattleUnit.baseMaximumAp等）から上限を再合成する（resource-capacity-recalculation-service.ts）。合成規約はSETが基準を置き換え（有効な複数のSETは付与順で後勝ち）、ADDをその上へ合算する。AP/PP/EX_GAUGEの上限はBattleUnitのmaximumAp等でありResourceCapacityChangedがstateDeltaを所有する。resource: HPの上限はMAXIMUM_HP CombatStatそのものであるためcomputeCombatStatsの最終段で合成し、差分は既存のCombatStatChangedが所有する。上限低下で現在値が可動域外になった場合はその場でclampしResourceChanged（reason: EFFECT_ACTION）を発行する。MODIFY_RESOURCE_CAPACITYはCAP_STAT_MOD/CAP_RESOURCE_DISTRIBUTEと同じくrequiredCapabilitiesへの本Capability宣言を必須とする（catalog-integrity.tsのMISSING_REQUIRED_CAPABILITY検証）。M7-010（Issue #177、監査）で、#185とM7-002Aが記録した「現行のCatalog変換行のどれからも参照されていない」という前提が事実誤りであることを検出した — UNIT_FLUTE_VAMPIREのACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP（resource: AP、operation: ADD、戦闘中恒久）が実際に参照している。同Unitは本Capabilityの完了後もCAP_DEATH_SURVIVAL（DMG-006／Issue #188）で非selectableのままであり、監査が記録した排他件数0の予測と一致する。",
+    "verification": {
+      "productionDefinitionIds": ["ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP"],
+      "testCaseIds": [
+        "UT-R-ACTN-03-001",
+        "UT-R-ACTN-03-002",
+        "UT-R-ACTN-03-003",
+        "UT-R-ACTN-03-004",
+        "UT-R-ACTN-03-005",
+        "UT-R-ACTN-03-006",
+        "UT-R-ACTN-03-007",
+        "UT-R-ACTN-03-008",
+        "UT-R-ACTN-03-009",
+        "UT-R-ACTN-03-010",
+        "UT-R-ACTN-03-011",
+        "UT-R-ACTN-03-012",
+        "UT-R-ACTN-03-013",
+        "UT-R-ACTN-03-014",
+        "UT-R-ACTN-03-015",
+        "UT-R-ACTN-03-016",
+        "UT-R-ACTN-03-017",
+        "UT-R-ACTN-03-018",
+        "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-001",
+        "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-002",
+        "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-003"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_RESOURCE_DISTRIBUTE",

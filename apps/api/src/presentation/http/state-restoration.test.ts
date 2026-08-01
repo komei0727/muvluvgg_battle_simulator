@@ -301,6 +301,30 @@ function applyValueChange<T>(current: T, change: ValueChangeBody<T>, path: strin
   return change.after;
 }
 
+/**
+ * G-09（M7-002A／Issue #255）: 1つのリソースゲージは現在値（`resources.*`）と
+ * 最大値（`resourceMaximums.*`）を独立した差分として受け取る。どちらも
+ * `ValueChange.before`が現在の追跡値と一致することを要求するため、上限差分を
+ * 落としたり順序を入れ替えたりすると復元が失敗する。
+ */
+function applyResourceDelta(
+  current: { readonly current: number; readonly maximum: number },
+  currentDelta: ValueChangeBody<number> | undefined,
+  maximumDelta: ValueChangeBody<number> | undefined,
+  path: string,
+): { readonly current: number; readonly maximum: number } {
+  return {
+    current:
+      currentDelta !== undefined
+        ? applyValueChange(current.current, currentDelta, path)
+        : current.current,
+    maximum:
+      maximumDelta !== undefined
+        ? applyValueChange(current.maximum, maximumDelta, `${path}.maximum`)
+        : current.maximum,
+  };
+}
+
 function applyDelta(
   state: BattleStateResponseBody,
   transition: StateTransitionResponseBody,
@@ -340,39 +364,24 @@ function applyDelta(
           ? { ...unit.hp, current: applyValueChange(unit.hp.current, unitDelta.hp, `${path}.hp`) }
           : unit.hp,
       resources: {
-        ap:
-          unitDelta.resources?.ap !== undefined
-            ? {
-                ...unit.resources.ap,
-                current: applyValueChange(
-                  unit.resources.ap.current,
-                  unitDelta.resources.ap,
-                  `${path}.resources.ap`,
-                ),
-              }
-            : unit.resources.ap,
-        pp:
-          unitDelta.resources?.pp !== undefined
-            ? {
-                ...unit.resources.pp,
-                current: applyValueChange(
-                  unit.resources.pp.current,
-                  unitDelta.resources.pp,
-                  `${path}.resources.pp`,
-                ),
-              }
-            : unit.resources.pp,
-        extraGauge:
-          unitDelta.resources?.extraGauge !== undefined
-            ? {
-                ...unit.resources.extraGauge,
-                current: applyValueChange(
-                  unit.resources.extraGauge.current,
-                  unitDelta.resources.extraGauge,
-                  `${path}.resources.extraGauge`,
-                ),
-              }
-            : unit.resources.extraGauge,
+        ap: applyResourceDelta(
+          unit.resources.ap,
+          unitDelta.resources?.ap,
+          unitDelta.resourceMaximums?.ap,
+          `${path}.resources.ap`,
+        ),
+        pp: applyResourceDelta(
+          unit.resources.pp,
+          unitDelta.resources?.pp,
+          unitDelta.resourceMaximums?.pp,
+          `${path}.resources.pp`,
+        ),
+        extraGauge: applyResourceDelta(
+          unit.resources.extraGauge,
+          unitDelta.resources?.extraGauge,
+          unitDelta.resourceMaximums?.extraGauge,
+          `${path}.resources.extraGauge`,
+        ),
       },
       cooldowns: applyCooldownsDelta(unit.cooldowns, unitDelta.cooldowns),
       markers: applyMarkersDelta(unit.markers, unitDelta.markers),

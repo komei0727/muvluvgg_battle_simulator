@@ -1608,6 +1608,20 @@ function validateEffectAction(
       });
     }
   }
+  // G-09（M7-002A／Issue #255）: `MODIFY_RESOURCE_CAPACITY`は`MODIFY_RESOURCE`
+  // （現在値の一回限りの加減算、`CAP_RESOURCE_MUTATION`）とは別に上限そのものを
+  // 期間付きで変える。`APPLY_STAT_MOD`/`CAP_STAT_MOD`と同じ「宣言漏れ自体を
+  // 拒否する」パターンで、この意味を使う定義がCatalog上で常に自己申告され
+  // Capability台帳から追跡できる状態を保つ。
+  if (effectAction.kind === "MODIFY_RESOURCE_CAPACITY") {
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_RESOURCE_CAPACITY_MOD")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message: `MODIFY_RESOURCE_CAPACITY must declare "CAP_RESOURCE_CAPACITY_MOD" in requiredCapabilities`,
+      });
+    }
+  }
   // RES-003A（Issue #257、G-10）: `SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
   // （EffectSequence実行中の累計）は`formula-evaluator.ts`の`DamageResultRegistry`
   // へ`SkillUseId`（=1回のEffectSequence解決）単位で配線済みで、

@@ -5167,6 +5167,116 @@ describe("applyEffectActionGroups", () => {
       expect(recorder.getEvents().some((e) => e.eventType === "EffectApplied")).toBe(true);
     });
   });
+
+  describe("MODIFY_RESOURCE_CAPACITY (G-09, M7-002A Issue #255, CAP_RESOURCE_CAPACITY_MOD full-stack wiring)", () => {
+    function capacityAction(
+      id: string,
+      payload: Extract<EffectActionDefinition, { kind: "MODIFY_RESOURCE_CAPACITY" }>["payload"],
+    ): EffectActionDefinition {
+      return {
+        kind: "MODIFY_RESOURCE_CAPACITY",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload,
+      };
+    }
+
+    // `ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP`と同じ形（`resource: AP` / `operation: ADD` /
+    // 戦闘中恒久＝`timeLimit: {unit: BATTLE, count: 1}`）。
+    const MAX_AP_UP: Extract<
+      EffectActionDefinition,
+      { kind: "MODIFY_RESOURCE_CAPACITY" }
+    >["payload"] = {
+      resource: "AP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: 1 },
+      duration: {
+        dispellable: false,
+        linkedEffectGroupId: null,
+        timeLimit: { unit: "BATTLE", count: 1 },
+      },
+    };
+
+    it("UT-R-ACTN-03-015 (full stack): a self-targeted MODIFY_RESOURCE_CAPACITY(AP, ADD +1) grants an AppliedEffect and raises maximumAp through the real resolver wiring, emitting ResourceCapacityChanged", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const buff = capacityAction("ACT_MAX_AP_UP", MAX_AP_UP);
+      const effectActions = new Map([[buff.effectActionDefinitionId, buff]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, buff.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updatedActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updatedActor.appliedEffects).toHaveLength(1);
+      expect(updatedActor.appliedEffects[0]).toMatchObject({
+        effectActionDefinitionId: buff.effectActionDefinitionId,
+        magnitude: 1,
+        duplicate: true,
+      });
+      expect(updatedActor.maximumAp).toBe(actor.baseMaximumAp + 1);
+      expect(updatedActor.baseMaximumAp).toBe(actor.baseMaximumAp);
+      // 上限が上がっただけでは現在値は追随しない（R-ACT-04）。
+      expect(updatedActor.currentAp).toBe(actor.currentAp);
+      const capacityEvents = recorder
+        .getEvents()
+        .filter((e) => e.eventType === "ResourceCapacityChanged");
+      expect(capacityEvents).toHaveLength(1);
+      expect(capacityEvents[0]!.payload).toMatchObject({
+        battleUnitId: actor.battleUnitId,
+        resource: "AP",
+        before: actor.baseMaximumAp,
+        after: actor.baseMaximumAp + 1,
+        reason: "EFFECT_APPLIED",
+      });
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectApplied")).toBe(true);
+    });
+
+    it("UT-R-ACTN-03-016 (negative): a blocking EFFECT_IMMUNITY rejects the capacity change, leaving maximumAp at the base", () => {
+      const buff = capacityAction("ACT_MAX_AP_UP", MAX_AP_UP);
+      const immunityDefinitionId = createEffectActionDefinitionId("ACT_BUFF_IMMUNITY");
+      const immunity: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("ei-immunity-capacity"),
+        effectActionDefinitionId: immunityDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(immunityDefinitionId),
+        duplicate: true,
+        sourceId: createBattleUnitId("ACTOR"),
+        targetId: createBattleUnitId("ACTOR"),
+        magnitude: 0,
+        categories: ["BUFF"],
+        immunity: { categories: ["BUFF"], maxBlocks: null, blockedCount: 0 },
+        duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+        appliedTurnNumber: 1,
+      };
+      const actor = unit("ACTOR", "ALLY", { appliedEffects: [immunity] });
+      const effectActions = new Map([[buff.effectActionDefinitionId, buff]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, buff.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updatedActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updatedActor.maximumAp).toBe(actor.baseMaximumAp);
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectApplicationRejected")).toBe(
+        true,
+      );
+      expect(
+        recorder.getEvents().filter((e) => e.eventType === "ResourceCapacityChanged"),
+      ).toHaveLength(0);
+    });
+  });
 });
 
 describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issue #167, Phase 2: AppliedEffect-based)", () => {

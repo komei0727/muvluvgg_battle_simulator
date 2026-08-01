@@ -126,6 +126,9 @@ function initialSnapshotFor(
           ap: unit.currentAp,
           pp: unit.currentPp,
           extraGauge: unit.currentExtraGauge,
+          maximumAp: unit.maximumAp,
+          maximumPp: unit.maximumPp,
+          maximumExtraGauge: unit.maximumExtraGauge,
           combatStats: unit.combatStats,
         },
       ]),
@@ -364,6 +367,9 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
     expect(reconstructed.units[owner.battleUnitId]).toMatchObject({
       pp: updatedOwner.currentPp,
       extraGauge: updatedOwner.currentExtraGauge,
+      maximumAp: updatedOwner.maximumAp,
+      maximumPp: updatedOwner.maximumPp,
+      maximumExtraGauge: updatedOwner.maximumExtraGauge,
       skillCounters: { [skillId]: { [counterId]: 1 } },
     });
     expect(reconstructed.units[enemy.battleUnitId]?.hp).toBe(updatedEnemy.currentHp);

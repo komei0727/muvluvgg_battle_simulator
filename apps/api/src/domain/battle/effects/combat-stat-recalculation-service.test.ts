@@ -74,6 +74,22 @@ function statModDefinition(
   };
 }
 
+/** G-09（M7-002A／Issue #255）: `resource: HP`の上限変更は`MAXIMUM_HP` CombatStatへ合成する。 */
+function hpCapacityDefinition(id: string, operation: "ADD" | "SET"): EffectActionDefinition {
+  return {
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    kind: "MODIFY_RESOURCE_CAPACITY",
+    payload: {
+      resource: "HP",
+      operation,
+      formula: { kind: "CONSTANT", value: 0 },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+  };
+}
+
 function statMod(
   definitionId: EffectActionDefinitionId,
   duplicate: boolean,
@@ -235,6 +251,53 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
     expect(result.combatStats.attack).toBe(100);
     expect(result.changedStats).toContainEqual({ stat: "ATTACK", before: 120, after: 100 });
   });
+
+  it("UT-R-ACTN-03-008: a MODIFY_RESOURCE_CAPACITY(resource: HP) instance composes onto MAXIMUM_HP after the stat corrections (G-09、M7-002A/Issue #255)", () => {
+    // HPの上限は`combatStats.maximumHp`そのものであるため、上限変更は
+    // `APPLY_STAT_MOD`の比率・固定値補正を適用した後段へ重ね、差分は既存の
+    // `CombatStatChanged`が所有する（`ResourceCapacityChanged`は発行しない）。
+    const ratio = statModDefinition("ACT_MAXHP_UP", "MAXIMUM_HP", "RATIO");
+    const capacity = hpCapacityDefinition("ACT_MAX_HP_ADD", "ADD");
+    const target = unit({
+      appliedEffects: [
+        statMod(ratio.effectActionDefinitionId, true, 0.2),
+        statMod(capacity.effectActionDefinitionId, true, 500),
+      ],
+    });
+
+    const result = computeCombatStats(
+      target,
+      new Map([
+        [ratio.effectActionDefinitionId, ratio],
+        [capacity.effectActionDefinitionId, capacity],
+      ]),
+    );
+
+    expect(result.combatStats.maximumHp).toBeCloseTo(1700);
+    expect(result.changedStats).toContainEqual({
+      stat: "MAXIMUM_HP",
+      before: 1000,
+      after: 1700,
+    });
+  });
+
+  it("UT-R-ACTN-03-009: a MODIFY_RESOURCE_CAPACITY for a gauge resource never leaks into any CombatStat", () => {
+    const capacity: EffectActionDefinition = {
+      ...hpCapacityDefinition("ACT_MAX_AP_ADD", "ADD"),
+      payload: { ...hpCapacityDefinition("ACT_MAX_AP_ADD", "ADD").payload, resource: "AP" },
+    } as EffectActionDefinition;
+    const target = unit({
+      appliedEffects: [statMod(capacity.effectActionDefinitionId, true, 1)],
+    });
+
+    const result = computeCombatStats(
+      target,
+      new Map([[capacity.effectActionDefinitionId, capacity]]),
+    );
+
+    expect(result.combatStats).toEqual(BASE_COMBAT_STATS);
+    expect(result.changedStats).toEqual([]);
+  });
 });
 
 function createRoot() {
@@ -379,5 +442,209 @@ describe("recalculateCombatStats — CombatStatChanged/EffectiveEffectChanged配
     expect(
       recorder.getEvents().filter((e) => e.eventType === "EffectiveEffectChanged"),
     ).toHaveLength(0);
+  });
+});
+
+/**
+ * G-09（`14_Catalog定義スキーマ.md`「MODIFY_RESOURCE_CAPACITY」、M7-002A／Issue #255）:
+ * R-STA-04の再計算フック（`recalculateCombatStats`）が、CombatStatだけでなく
+ * AP/PP/EXゲージの上限も同じ契機（付与・失効・解除）で再合成することを固定する。
+ * 別関数にすると呼び出し漏れた経路でだけ上限が基準へ戻らず、`createActionPoint`の
+ * 不変条件違反として後から実行時例外になるため、単一のフックへ集約している。
+ */
+describe("recalculateCombatStats — ResourceCapacityChanged配線（G-09）", () => {
+  function gaugeCapacityDefinition(
+    id: string,
+    resource: "AP" | "PP" | "EX_GAUGE",
+    operation: "ADD" | "SET",
+  ): EffectActionDefinition {
+    return {
+      ...hpCapacityDefinition(id, operation),
+      payload: { ...hpCapacityDefinition(id, operation).payload, resource },
+    } as EffectActionDefinition;
+  }
+
+  it("UT-R-ACTN-03-010: emits ResourceCapacityChanged owning the maximumAp delta and updates the unit's capacity", () => {
+    const def = gaugeCapacityDefinition("ACT_MAX_AP_UP", "AP", "ADD");
+    const beforeUnits = [unit()];
+    const afterUnits = [unit({ appliedEffects: [statMod(def.effectActionDefinitionId, true, 1)] })];
+    const { recorder, rootEventId } = createRoot();
+
+    const result = recalculateCombatStats(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      beforeUnits,
+      afterUnits,
+      afterUnits[0]!.battleUnitId,
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+      "EFFECT_APPLIED",
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === afterUnits[0]!.battleUnitId)!;
+    expect(updated.maximumAp).toBe(4);
+    // 基準は動かない — 失効時に3へ戻せることがこの再合成方式の要件。
+    expect(updated.baseMaximumAp).toBe(3);
+    const events = recorder.getEvents().filter((e) => e.eventType === "ResourceCapacityChanged");
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({
+      battleUnitId: afterUnits[0]!.battleUnitId,
+      resource: "AP",
+      before: 3,
+      after: 4,
+      reason: "EFFECT_APPLIED",
+    });
+    expect(events[0]!.stateDelta?.units?.[afterUnits[0]!.battleUnitId]?.maximumAp).toEqual({
+      before: 3,
+      after: 4,
+    });
+  });
+
+  it("UT-R-ACTN-03-011: emits nothing for resources whose capacity did not change", () => {
+    const def = gaugeCapacityDefinition("ACT_MAX_AP_UP", "AP", "ADD");
+    const afterUnits = [
+      unit({ maximumAp: 4, appliedEffects: [statMod(def.effectActionDefinitionId, true, 1)] }),
+    ];
+    const { recorder, rootEventId } = createRoot();
+
+    recalculateCombatStats(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      afterUnits,
+      afterUnits,
+      afterUnits[0]!.battleUnitId,
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+      "EFFECT_APPLIED",
+    );
+
+    expect(
+      recorder.getEvents().filter((e) => e.eventType === "ResourceCapacityChanged"),
+    ).toHaveLength(0);
+  });
+
+  it("UT-R-ACTN-03-012 (boundary): expiry restores the base capacity and clamps the now-out-of-range current value with a ResourceChanged", () => {
+    const def = gaugeCapacityDefinition("ACT_MAX_AP_UP", "AP", "ADD");
+    // 上限4・現在値4の状態から、上限変更の効果が失効して`appliedEffects`が空になった直後。
+    const raised = unit({ maximumAp: 4, currentAp: 4 });
+    const beforeUnits = [
+      unit({
+        maximumAp: 4,
+        currentAp: 4,
+        appliedEffects: [statMod(def.effectActionDefinitionId, true, 1)],
+      }),
+    ];
+    const { recorder, rootEventId } = createRoot();
+
+    const result = recalculateCombatStats(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      beforeUnits,
+      [raised],
+      raised.battleUnitId,
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+      "EFFECT_EXPIRED",
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === raised.battleUnitId)!;
+    expect(updated.maximumAp).toBe(3);
+    expect(updated.currentAp).toBe(3);
+    const capacityEvents = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "ResourceCapacityChanged");
+    expect(capacityEvents[0]!.payload).toMatchObject({ resource: "AP", before: 4, after: 3 });
+    const resourceEvents = recorder.getEvents().filter((e) => e.eventType === "ResourceChanged");
+    expect(resourceEvents).toHaveLength(1);
+    expect(resourceEvents[0]!.payload).toMatchObject({
+      resource: "AP",
+      before: 4,
+      after: 3,
+      delta: -1,
+      baseDelta: -1,
+      reason: "EFFECT_ACTION",
+    });
+    expect(resourceEvents[0]!.stateDelta?.units?.[raised.battleUnitId]?.ap).toEqual({
+      before: 4,
+      after: 3,
+    });
+  });
+
+  it("UT-R-ACTN-03-013 (boundary): a current value already inside the reduced capacity is left untouched", () => {
+    const def = gaugeCapacityDefinition("ACT_MAX_AP_UP", "AP", "ADD");
+    const raised = unit({ maximumAp: 4, currentAp: 2 });
+    const { recorder, rootEventId } = createRoot();
+
+    const result = recalculateCombatStats(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [raised],
+      [raised],
+      raised.battleUnitId,
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+      "EFFECT_EXPIRED",
+    );
+
+    expect(result.units[0]!.currentAp).toBe(2);
+    expect(recorder.getEvents().filter((e) => e.eventType === "ResourceChanged")).toHaveLength(0);
+  });
+
+  it("UT-R-ACTN-03-014 (boundary): a HP capacity drop clamps currentHp through the MAXIMUM_HP CombatStat and reports UnitDefeated at zero", () => {
+    const def = hpCapacityDefinition("ACT_MAX_HP_SET", "SET");
+    const target = unit({ appliedEffects: [statMod(def.effectActionDefinitionId, true, 0)] });
+    const { recorder, rootEventId } = createRoot();
+
+    const result = recalculateCombatStats(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [unit()],
+      [target],
+      target.battleUnitId,
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+      "EFFECT_APPLIED",
+    );
+
+    const updated = result.units[0]!;
+    expect(updated.combatStats.maximumHp).toBe(0);
+    expect(updated.currentHp).toBe(0);
+    // HP上限の差分は`CombatStatChanged`が所有し、`ResourceCapacityChanged`は発行しない。
+    expect(
+      recorder.getEvents().filter((e) => e.eventType === "ResourceCapacityChanged"),
+    ).toHaveLength(0);
+    expect(
+      recorder
+        .getEvents()
+        .filter((e) => e.eventType === "CombatStatChanged")
+        .map((e) => e.payload),
+    ).toContainEqual(expect.objectContaining({ stat: "MAXIMUM_HP", before: 1000, after: 0 }));
+    expect(recorder.getEvents().filter((e) => e.eventType === "ResourceChanged")).toHaveLength(1);
+    expect(recorder.getEvents().filter((e) => e.eventType === "UnitDefeated")).toHaveLength(1);
   });
 });

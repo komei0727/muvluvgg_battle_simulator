@@ -72,8 +72,26 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
       status: "READY",
       currentTurn: 0,
       units: {
-        [ALLY_ID]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: ALLY_COMBAT_STATS },
-        [ENEMY_ID]: { hp: 100, ap: 0, pp: 0, extraGauge: 0, combatStats: ENEMY_COMBAT_STATS },
+        [ALLY_ID]: {
+          hp: 100,
+          ap: 0,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 2,
+          maximumExtraGauge: 100,
+          combatStats: ALLY_COMBAT_STATS,
+        },
+        [ENEMY_ID]: {
+          hp: 100,
+          ap: 0,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 2,
+          maximumExtraGauge: 100,
+          combatStats: ENEMY_COMBAT_STATS,
+        },
       },
     },
     finalState: {
@@ -81,8 +99,26 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
       currentTurn: 1,
       result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
       units: {
-        [ALLY_ID]: { hp: 90, ap: 1, pp: 0, extraGauge: 5, combatStats: ALLY_COMBAT_STATS },
-        [ENEMY_ID]: { hp: 0, ap: 0, pp: 0, extraGauge: 0, combatStats: ENEMY_COMBAT_STATS },
+        [ALLY_ID]: {
+          hp: 90,
+          ap: 1,
+          pp: 0,
+          extraGauge: 5,
+          maximumAp: 3,
+          maximumPp: 2,
+          maximumExtraGauge: 100,
+          combatStats: ALLY_COMBAT_STATS,
+        },
+        [ENEMY_ID]: {
+          hp: 0,
+          ap: 0,
+          pp: 0,
+          extraGauge: 0,
+          maximumAp: 3,
+          maximumPp: 2,
+          maximumExtraGauge: 100,
+          combatStats: ENEMY_COMBAT_STATS,
+        },
       },
     },
     events: [],
@@ -168,7 +204,9 @@ describe("toBattleSimulationResponseBody", () => {
     expect(enemy.formationPosition).toEqual({ column: 1, row: "REAR" });
   });
 
-  it("API-RESP-005: maps hp/resources current values from the snapshot and maximums from the roster, and derives combatStatus from hp", () => {
+  // G-09（M7-002A／Issue #255）: AP/PP/EXの最大値も`MODIFY_RESOURCE_CAPACITY`で
+  // 戦闘中に変わりうるため、roster（開始時点の不変値）ではなくこの時点のsnapshotから写す。
+  it("API-RESP-005: maps hp/resources current values and gauge maximums from the snapshot, and derives combatStatus from hp", () => {
     const body = toBattleSimulationResponseBody(baseResult());
     const finalAlly = body.finalState.units[0]!;
     const finalEnemy = body.finalState.units[1]!;
@@ -863,6 +901,9 @@ describe("toBattleSimulationResponseBody", () => {
               ap: 1,
               pp: 0,
               extraGauge: 5,
+              maximumAp: 3,
+              maximumPp: 2,
+              maximumExtraGauge: 100,
               combatStats: ALLY_COMBAT_STATS,
               cooldowns: {
                 [SKL_A]: { unit: "ACTION", remaining: 2, setActionId: ACTION_1 },
@@ -879,6 +920,9 @@ describe("toBattleSimulationResponseBody", () => {
               ap: 0,
               pp: 0,
               extraGauge: 0,
+              maximumAp: 3,
+              maximumPp: 2,
+              maximumExtraGauge: 100,
               combatStats: ENEMY_COMBAT_STATS,
             },
           },
@@ -912,6 +956,9 @@ describe("toBattleSimulationResponseBody", () => {
                 ap: 1,
                 pp: 0,
                 extraGauge: 5,
+                maximumAp: 3,
+                maximumPp: 2,
+                maximumExtraGauge: 100,
                 combatStats: ALLY_COMBAT_STATS,
                 cooldowns: { [SKL_A]: { unit: "ACTION", remaining: 2 } },
               },
@@ -920,6 +967,9 @@ describe("toBattleSimulationResponseBody", () => {
                 ap: 0,
                 pp: 0,
                 extraGauge: 0,
+                maximumAp: 3,
+                maximumPp: 2,
+                maximumExtraGauge: 100,
                 combatStats: ENEMY_COMBAT_STATS,
               },
             },
@@ -943,6 +993,9 @@ describe("toBattleSimulationResponseBody", () => {
                 ap: 1,
                 pp: 0,
                 extraGauge: 5,
+                maximumAp: 3,
+                maximumPp: 2,
+                maximumExtraGauge: 100,
                 combatStats: ALLY_COMBAT_STATS,
                 cooldowns: {
                   [SKL_A]: {
@@ -958,6 +1011,9 @@ describe("toBattleSimulationResponseBody", () => {
                 ap: 0,
                 pp: 0,
                 extraGauge: 0,
+                maximumAp: 3,
+                maximumPp: 2,
+                maximumExtraGauge: 100,
                 combatStats: ENEMY_COMBAT_STATS,
               },
             },

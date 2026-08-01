@@ -279,6 +279,15 @@ export interface UnitStateDelta {
   readonly pp?: ValueChange<number>;
   readonly extraGauge?: ValueChange<number>;
   /**
+   * G-09（M7-002A／Issue #255）: `ResourceCapacityChanged`が単独で所有する、
+   * AP/PP/EXゲージの**最大値**の差分。`ap`/`pp`/`extraGauge`（現在値）とは
+   * 独立に変化するため別キーにする。HPの最大値は`MAXIMUM_HP` CombatStatであり、
+   * `combatStats.maximumHp`が同じ役割を担う。
+   */
+  readonly maximumAp?: ValueChange<number>;
+  readonly maximumPp?: ValueChange<number>;
+  readonly maximumExtraGauge?: ValueChange<number>;
+  /**
    * R-SKL-04: SkillDefinitionIdをキーとする、変更されたクールタイムだけを持つ。
    * `unit`(ACTION/TURN)はスキル使用開始時から不変だが、ReducerはCatalogを
    * 参照できないため、初回設定(`CooldownStarted`)以降の全ての変更でも
