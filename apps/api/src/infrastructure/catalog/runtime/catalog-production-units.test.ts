@@ -202,7 +202,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (`UNIT_SUIRAN_CHAOS`) is not among the 10 promoted units here and stays
     // non-selectable through `CAP_DAMAGE_MOD`, so `unitCount`/violation/
     // `selectable` expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-07-31.3");
+    // Bumped again by DMG-002 (Issue #192, R-DMG-03/R-DMG-04): `CAP_DAMAGE_MOD`
+    // flipped to IMPLEMENTED and 14 Catalog rows dropped their approximations
+    // (`HP_RATIO_SCALE` formulas, `APPLY_DAMAGE_MOD` dynamic conditions). The
+    // same PR added `CAP_TARGET_STATE_EXTENDED_FIELD` (M7-001E) and the missing
+    // `CAP_SUBUNIT` declarations so the Units that `CAP_DAMAGE_MOD` had been
+    // gating only by accident stay blocked by their real blocker. None of the
+    // 10 units promoted here changed definition, so `unitCount`/violation/
+    // `selectable` expectations here are unchanged.
+    expect(catalog.catalogRevision).toBe("2026-08-01.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

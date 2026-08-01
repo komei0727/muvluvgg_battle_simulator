@@ -460,7 +460,8 @@ const DAMAGE_TYPE_ENUM = ["PHYSICAL", "EN"] as const;
 /**
  * `DamageWillBeApplied`（R-DMG-05 #4、DMG-001／Issue #195）。命中・会心の確定後、
  * ダメージ計算より前に発行する`TIMING`イベント。R-DMG-04の集計済みDamageModifier
- * 倍率は`DMG-002`（Issue #192）がここへ追加する。
+ * 倍率（`outgoingDamageMultiplier`/`incomingDamageMultiplier`）は`DMG-002`
+ * （Issue #192）が追加した発行時点のsnapshotで、確定値は`DamageCalculated`が持つ。
  */
 const damageWillBeAppliedDetailsSchema = {
   type: "object",
@@ -476,6 +477,8 @@ const damageWillBeAppliedDetailsSchema = {
     "defenseIgnoreRate",
     "shieldIgnoreRate",
     "damageReductionIgnoreRate",
+    "outgoingDamageMultiplier",
+    "incomingDamageMultiplier",
   ],
   properties: {
     skillDefinitionId: { type: "string" },
@@ -488,6 +491,8 @@ const damageWillBeAppliedDetailsSchema = {
     defenseIgnoreRate: { type: "number" },
     shieldIgnoreRate: { type: "number" },
     damageReductionIgnoreRate: { type: "number" },
+    outgoingDamageMultiplier: { type: "number" },
+    incomingDamageMultiplier: { type: "number" },
   },
 } as const;
 
@@ -503,9 +508,13 @@ const damageCalculatedDetailsSchema = {
     "defenderDefense",
     "effectiveDefense",
     "defenseIgnoreRate",
+    "shieldIgnoreRate",
+    "damageReductionIgnoreRate",
     "skillPower",
     "attributeMultiplier",
     "criticalMultiplier",
+    "outgoingDamageMultiplier",
+    "incomingDamageMultiplier",
     "actionDamageMultiplier",
     "preTruncationDamage",
     "finalDamage",
@@ -520,9 +529,13 @@ const damageCalculatedDetailsSchema = {
     defenderDefense: { type: "number" },
     effectiveDefense: { type: "number" },
     defenseIgnoreRate: { type: "number" },
+    shieldIgnoreRate: { type: "number" },
+    damageReductionIgnoreRate: { type: "number" },
     skillPower: { type: "number" },
     attributeMultiplier: { type: "number" },
     criticalMultiplier: { type: "number" },
+    outgoingDamageMultiplier: { type: "number" },
+    incomingDamageMultiplier: { type: "number" },
     actionDamageMultiplier: { type: "number" },
     preTruncationDamage: { type: "number" },
     finalDamage: { type: "integer", minimum: 0 },

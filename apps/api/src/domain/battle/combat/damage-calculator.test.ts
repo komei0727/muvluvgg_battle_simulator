@@ -169,6 +169,24 @@ describe("calculateDamage", () => {
     expect(result.finalDamage).toBe(1);
   });
 
+  it("UT-R-DMG-01-009 (DMG-002, Issue #192): the outgoing and incoming DamageModifier multipliers both scale the calculated damage", () => {
+    const result = calculateDamage(
+      input({ outgoingDamageMultiplier: 1.1, incomingDamageMultiplier: 0.5 }),
+    );
+    // base 30 * skillPower 1 * attribute 1 * critical 1 * outgoing 1.1 * incoming 0.5 = 16.5
+    expect(result.preTruncationDamage).toBeCloseTo(16.5);
+    expect(result.finalDamage).toBe(16);
+    expect(result.outgoingDamageMultiplier).toBe(1.1);
+    expect(result.incomingDamageMultiplier).toBe(0.5);
+  });
+
+  it("UT-R-DMG-01-010 (DMG-002, Issue #192): both DamageModifier multipliers default to 1 when the caller supplies none", () => {
+    const result = calculateDamage(input());
+    expect(result.outgoingDamageMultiplier).toBe(1);
+    expect(result.incomingDamageMultiplier).toBe(1);
+    expect(result.finalDamage).toBe(30);
+  });
+
   it("UT-DAMAGE-CALCULATOR-004 (R-NUM-04): a damageModifiers entry can use any FormulaKind now, not just CONSTANT (e.g. MARKER_COUNT_SCALE)", () => {
     const skillSource = unitAt("U_ATTACKER", "ALLY", {
       markerStates: [

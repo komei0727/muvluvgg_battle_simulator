@@ -2,7 +2,10 @@
   {
     "skillDefinitionId": "SKL_KOTOHA_REBEL_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -21,7 +24,9 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": { "kind": "SELF" },
+            "target": {
+              "kind": "SELF"
+            },
             "field": "HP_RATIO",
             "op": "GTE",
             "value": 0.5
@@ -31,7 +36,9 @@
               "kind": "BRANCH",
               "condition": {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "SELF" },
+                "target": {
+                  "kind": "SELF"
+                },
                 "field": "HP_RATIO",
                 "op": "EQ",
                 "value": 1
@@ -39,15 +46,29 @@
               "thenSteps": [
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE_PIERCE" }]
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_LOWEST"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE_PIERCE"
+                    }
+                  ]
                 }
               ],
               "elseSteps": [
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE" }]
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_LOWEST"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_DAMAGE"
+                    }
+                  ]
                 }
               ]
             }
@@ -55,17 +76,26 @@
           "elseSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "SELF" },
+              "target": {
+                "kind": "SELF"
+              },
               "actions": [
-                { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_HEAL" },
-                { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_CONTINUOUS_HEAL" }
+                {
+                  "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_HEAL"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_KOTOHA_REBEL_EX_CONTINUOUS_HEAL"
+                }
               ]
             }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
@@ -75,25 +105,42 @@
       "CAP_CONTINUOUS_HEAL",
       "CAP_TARGET_FILTER_ORDER"
     ],
-    "metadata": { "displayName": "支配への反逆", "tags": [] }
+    "metadata": {
+      "displayName": "支配への反逆",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_KOTOHA_REBEL_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            },
             "side": "ENEMY"
           }
         }
@@ -101,57 +148,109 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE1" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE1"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE2" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_DAMAGE2"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_MARKER" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS1_MARKER"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 2 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER"],
-    "metadata": { "displayName": "快刀乱麻", "tags": [] }
+    "metadata": {
+      "displayName": "快刀乱麻",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_KOTOHA_REBEL_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_ATK_UP" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_ATK_UP"
+            }
+          ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": { "kind": "SELF" },
+            "target": {
+              "kind": "SELF"
+            },
             "markerId": "MARKER_FUNDO",
-            "countCondition": { "op": "LTE", "value": 1 }
+            "countCondition": {
+              "op": "LTE",
+              "value": 1
+            }
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_1HIT" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_1HIT"
+                }
+              ]
             }
           ],
           "elseSteps": [
@@ -159,15 +258,27 @@
               "kind": "BRANCH",
               "condition": {
                 "kind": "TARGET_HAS_MARKER",
-                "target": { "kind": "SELF" },
+                "target": {
+                  "kind": "SELF"
+                },
                 "markerId": "MARKER_FUNDO",
-                "countCondition": { "op": "EQ", "value": 2 }
+                "countCondition": {
+                  "op": "EQ",
+                  "value": 2
+                }
               },
               "thenSteps": [
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_2HIT" }]
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_PRIMARY"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_2HIT"
+                    }
+                  ]
                 }
               ],
               "elseSteps": [
@@ -175,27 +286,46 @@
                   "kind": "BRANCH",
                   "condition": {
                     "kind": "TARGET_HAS_MARKER",
-                    "target": { "kind": "SELF" },
+                    "target": {
+                      "kind": "SELF"
+                    },
                     "markerId": "MARKER_FUNDO",
-                    "countCondition": { "op": "GTE", "value": 4 }
+                    "countCondition": {
+                      "op": "GTE",
+                      "value": 4
+                    }
                   },
                   "thenSteps": [
                     {
                       "kind": "ACTION",
-                      "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                      "target": {
+                        "kind": "BINDING",
+                        "targetBindingId": "TGT_PRIMARY"
+                      },
                       "actions": [
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED" },
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
+                        {
+                          "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED"
+                        },
+                        {
+                          "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN"
+                        }
                       ]
                     }
                   ],
                   "elseSteps": [
                     {
                       "kind": "ACTION",
-                      "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                      "target": {
+                        "kind": "BINDING",
+                        "targetBindingId": "TGT_PRIMARY"
+                      },
                       "actions": [
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT" },
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
+                        {
+                          "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT"
+                        },
+                        {
+                          "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN"
+                        }
                       ]
                     }
                   ]
@@ -206,7 +336,10 @@
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
@@ -214,27 +347,45 @@
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD"
     ],
-    "metadata": { "displayName": "怒髪衝天", "tags": [] }
+    "metadata": {
+      "displayName": "怒髪衝天",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_KOTOHA_REBEL_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS1_ATK_UP" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS1_ATK_UP"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [],
-    "metadata": { "displayName": "報仇雪恨", "tags": [] },
+    "metadata": {
+      "displayName": "報仇雪恨",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "UnitDefeated",
@@ -247,22 +398,40 @@
   {
     "skillDefinitionId": "SKL_KOTOHA_REBEL_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL"
+            },
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DMG_UP"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "TURN", "count": 99 },
+    "cooldown": {
+      "unit": "TURN",
+      "count": 99
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER"],
-    "metadata": { "displayName": "起死回生", "tags": [] },
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER", "CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "起死回生",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnStarted",

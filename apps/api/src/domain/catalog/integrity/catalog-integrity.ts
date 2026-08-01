@@ -1671,7 +1671,7 @@ function formulasOf(effectAction: EffectActionDefinition): readonly FormulaDefin
   }
 }
 
-/** `SUM`/`MIN`/`MAX`/`CLAMP`の入れ子を含めて`SUM_DAMAGE_*`参照を再帰的に探す。 */
+/** `SUM`/`PRODUCT`/`MIN`/`MAX`/`CLAMP`の入れ子を含めて`SUM_DAMAGE_*`参照を再帰的に探す。 */
 function referencesSumDamageResult(formula: FormulaDefinition): boolean {
   switch (formula.kind) {
     case "DAMAGE_DEALT_RATIO":
@@ -1681,6 +1681,7 @@ function referencesSumDamageResult(formula: FormulaDefinition): boolean {
         formula.sourceResult === "SUM_DAMAGE_RECEIVED"
       );
     case "SUM":
+    case "PRODUCT":
     case "MIN":
     case "MAX":
       return formula.formulas.some(referencesSumDamageResult);

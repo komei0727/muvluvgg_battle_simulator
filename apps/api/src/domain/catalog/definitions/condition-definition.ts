@@ -50,7 +50,11 @@ const TARGET_STATE_FIELDS = [
 ] as const;
 export type TargetStateField = (typeof TARGET_STATE_FIELDS)[number];
 
-const TARGET_STATE_FIELD_TYPES: Record<TargetStateField, "boolean" | "number" | "string"> = {
+/**
+ * `TARGET_STATE.field`ごとの`value`の型。`APPLY_DAMAGE_MOD.condition`の
+ * `UNIT_STATE`（DMG-002、Issue #192）も同じ語彙・同じ型検査を使うため公開する。
+ */
+export const TARGET_STATE_FIELD_TYPES: Record<TargetStateField, "boolean" | "number" | "string"> = {
   IS_ALIVE: "boolean",
   HP_RATIO: "number",
   ATTRIBUTE: "string",

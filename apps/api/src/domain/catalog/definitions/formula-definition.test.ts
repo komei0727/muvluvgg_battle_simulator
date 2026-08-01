@@ -182,4 +182,52 @@ describe("FormulaDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-FORM-016 (DMG-002, Issue #192): maps HP_RATIO_SCALE with a target reference and a direction", () => {
+    expect(
+      createFormulaDefinition(
+        {
+          kind: "HP_RATIO_SCALE",
+          target: { kind: "TARGET" },
+          min: 0,
+          max: 2,
+          direction: "LOWER_HP_IS_MAX",
+        },
+        "formula",
+        undefined,
+      ),
+    ).toEqual({
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0,
+      max: 2,
+      direction: "LOWER_HP_IS_MAX",
+    });
+  });
+
+  it("UT-CAT-FORM-017 (DMG-002, Issue #192): rejects an HP_RATIO_SCALE direction outside the enum", () => {
+    expect(() =>
+      createFormulaDefinition(
+        {
+          kind: "HP_RATIO_SCALE",
+          target: { kind: "SKILL_SOURCE" },
+          min: 0,
+          max: 1.5,
+          direction: "LOWER_IS_BETTER",
+        },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-FORM-018 (DMG-002, Issue #192): rejects HP_RATIO_SCALE without a target", () => {
+    expect(() =>
+      createFormulaDefinition(
+        { kind: "HP_RATIO_SCALE", min: 0, max: 1.5, direction: "LOWER_HP_IS_MAX" },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -44,9 +44,9 @@ import {
  * 敵陣営には一切適用されないことを、対象・非対象の両方で確認する。
  *
  * `MEM_THREE_MAIDS_HOSPITALITY`・`MEM_ABSOLUTE_ORDER`の与ダメージ補正は
- * `APPLY_DAMAGE_MOD`（`CAP_DAMAGE_MOD`、`DMG-002`／Issue #192で実装）を要する
- * ため実行時解決はまだできない。Catalog上の変換自体は近似なしであることと、
- * Capability preflightがこの2件を編成不可として弾くことをここで固定する。
+ * `APPLY_DAMAGE_MOD`（`CAP_DAMAGE_MOD`）を要する。`DMG-002`（Issue #192）が
+ * このCapabilityを`IMPLEMENTED`にしたため、Catalog上の変換が近似なしであることに
+ * 加えて、この2件がCapability preflightを通過することをここで固定する。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
@@ -217,11 +217,11 @@ function unitSnapshotOf(snapshot: BattleStateSnapshot, battleUnitId: string) {
 }
 
 /**
- * `APPLY_DAMAGE_MOD`を含む2件は`CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）未実装の
- * ため実ライフサイクルを完走できないが、読み込んだproduction定義の対象条件と
- * 補正値は今でも検証できる。raw原文の各要素（属性・ロール・unitTypeの絞り込み、
- * ダメージ種別の有無、倍率・固定値）が定義のどこへ写っているかをここで固定し、
- * `DMG-002`までの間に「近似なし」の変換内容が黙って変わらないようにする。
+ * `APPLY_DAMAGE_MOD`を含む2件について、raw原文の各要素（属性・ロール・unitTypeの
+ * 絞り込み、ダメージ種別の有無、倍率・固定値）が定義のどこへ写っているかを固定し、
+ * 「近似なし」の変換内容が黙って変わらないようにする。実ライフサイクルでの
+ * 与ダメージ補正の適用そのものは`DMG-002`（Issue #192）の
+ * `damage-modifier-policy.ts`側テストが担う。
  */
 interface TriggeredEffectExpectation {
   readonly targetBindingId: string;
@@ -419,7 +419,7 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
     expect(restoredSupport?.combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP + 300, 6);
   });
 
-  it("IT-CAP-MEMORY-STATIC-PROD-006: MEM_THREE_MAIDS_HOSPITALITY/MEM_ABSOLUTE_ORDER convert every raw filter and magnitude without approximation, and stay gated by the unimplemented CAP_DAMAGE_MOD", () => {
+  it("IT-CAP-MEMORY-STATIC-PROD-006: MEM_THREE_MAIDS_HOSPITALITY/MEM_ABSOLUTE_ORDER convert every raw filter and magnitude without approximation, and pass Capability preflight now that CAP_DAMAGE_MOD is implemented", () => {
     for (const expectation of DAMAGE_MOD_MEMORY_EXPECTATIONS) {
       const memory = memoryOf(expectation.memoryDefinitionId);
       expect(memory.metadata.displayName).toBe(expectation.displayName);
@@ -493,16 +493,14 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
         expect(action.payload.duration.timeLimit).toEqual({ unit: "BATTLE", count: 1 });
       });
 
-      // `CAP_DAMAGE_MOD`は`DMG-002`（Issue #192）まで`PLANNED`のため、この2件は
-      // Capability preflightが編成不可として弾く（実ライフサイクル検証は#192後）。
+      // `DMG-002`（Issue #192）が`CAP_DAMAGE_MOD`を`IMPLEMENTED`にしたため、この2件は
+      // Capability preflightを通過するようになった（他に未実装Capabilityも要さない）。
       expect(memory.requiredCapabilities).toContain("CAP_DAMAGE_MOD");
       const unimplemented = findUnimplementedCapabilities(
         collectRequiredCapabilities(snapshot, [], [memory.memoryDefinitionId]),
         snapshot.capabilities,
       );
-      expect(unimplemented.map((capability) => capability.capabilityId)).toEqual([
-        "CAP_DAMAGE_MOD",
-      ]);
+      expect(unimplemented).toEqual([]);
     }
   });
 });

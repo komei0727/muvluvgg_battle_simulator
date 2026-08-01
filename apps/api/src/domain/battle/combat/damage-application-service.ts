@@ -19,6 +19,7 @@ import type { BattleDomainEvent } from "../events/domain-event.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import { resolveEffectiveAccuracyMode, resolveEvasion } from "./hit-policy.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
+import { composeDamageModifiers } from "./damage-modifier-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { ResolvedEffectApplication } from "../skill/skill-resolution-service.js";
@@ -812,6 +813,16 @@ export function* applyDamageActionSteps(
     // 対象を戦闘不能にしたり、ダメージ無効・軽減効果を付与したりし得るため、
     // 連鎖の解決後に前提を再検証してからダメージ計算へ進む。
     const willBeAppliedEventsStart = context.recorder.getEvents().length;
+    // R-DMG-04（DMG-002、Issue #192）: この時点の集計結果をsnapshotとして載せる
+    // （`08_ドメインイベント.md`「DamageWillBeApplied payload」の「補正」）。
+    // 下の連鎖が軽減効果を付け外しし得るため、実際の計算に使う確定値は
+    // `DamageCalculated`の直前で集計し直す。
+    const willBeAppliedMultipliers = composeDamageModifiers({
+      attacker: afterCriticalCheck.attacker,
+      defender: afterCriticalCheck.target,
+      damageType: damageAction.payload.damageType,
+      damageReductionIgnoreRate: damageAction.payload.piercing.damageReductionIgnoreRate,
+    });
     const damageWillBeApplied = context.recorder.record({
       eventType: "DamageWillBeApplied",
       category: "TIMING",
@@ -835,6 +846,12 @@ export function* applyDamageActionSteps(
         defenseIgnoreRate: damageAction.payload.piercing.defenseIgnoreRate,
         shieldIgnoreRate: damageAction.payload.piercing.shieldIgnoreRate,
         damageReductionIgnoreRate: damageAction.payload.piercing.damageReductionIgnoreRate,
+        // R-DMG-04（DMG-002、Issue #195→#192）: この時点の集計結果をsnapshotとして
+        // 載せる（`08_ドメインイベント.md`「DamageWillBeApplied payload」の「補正」）。
+        // 下の連鎖が軽減効果を付け外しし得るため、確定値は`DamageCalculated`側で
+        // 改めて集計し直す。
+        outgoingDamageMultiplier: willBeAppliedMultipliers.outgoingMultiplier,
+        incomingDamageMultiplier: willBeAppliedMultipliers.incomingMultiplier,
       },
     });
     lastEventId = damageWillBeApplied.eventId;
@@ -918,6 +935,17 @@ export function* applyDamageActionSteps(
           }
         : {}),
     };
+    // R-DMG-04（DMG-002、Issue #192）: 与/被ダメージ倍率は`DamageWillBeApplied`の
+    // 連鎖後の最新状態（`attackerBeforeDamage`/`targetBeforeDamage`）から集計する
+    // — 連鎖が被ダメージ軽減効果を付与・解除し得るため、snapshotを使い回さない。
+    // R-DMG-03の`damageReductionIgnoreRate`は、この集計の中で負の被ダメージ補正
+    // だけへ適用する。
+    const damageModifierMultipliers = composeDamageModifiers({
+      attacker: attackerBeforeDamage,
+      defender: targetBeforeDamage,
+      damageType: damageAction.payload.damageType,
+      damageReductionIgnoreRate: damageAction.payload.piercing.damageReductionIgnoreRate,
+    });
     const rawDamageResult = calculateDamage({
       attackerAttack: attackerBeforeDamage.combatStats.attack,
       attackerAttribute: attackerBeforeDamage.attribute,
@@ -928,6 +956,8 @@ export function* applyDamageActionSteps(
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
       criticalMultiplier: critical.multiplier,
+      outgoingDamageMultiplier: damageModifierMultipliers.outgoingMultiplier,
+      incomingDamageMultiplier: damageModifierMultipliers.incomingMultiplier,
       formulaContext,
     });
     // R-STS-03「新たな攻撃スキルによるダメージで解除する」「解除契機となった
@@ -996,9 +1026,13 @@ export function* applyDamageActionSteps(
         defenderDefense: targetBeforeDamage.combatStats.defense,
         effectiveDefense: damageResult.effectiveDefense,
         defenseIgnoreRate,
+        shieldIgnoreRate: damageAction.payload.piercing.shieldIgnoreRate,
+        damageReductionIgnoreRate: damageAction.payload.piercing.damageReductionIgnoreRate,
         skillPower: damageResult.skillPower,
         attributeMultiplier: damageResult.attributeMultiplier,
         criticalMultiplier: critical.multiplier,
+        outgoingDamageMultiplier: damageResult.outgoingDamageMultiplier,
+        incomingDamageMultiplier: damageResult.incomingDamageMultiplier,
         actionDamageMultiplier: damageResult.actionDamageMultiplier,
         preTruncationDamage: damageResult.preTruncationDamage,
         finalDamage: damageResult.finalDamage,

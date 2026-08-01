@@ -18,6 +18,14 @@ export interface DamageCalculationInput {
   readonly damageModifiers: readonly FormulaDefinition[];
   /** `CriticalPolicy`が解決済みの会心倍率（R-CRT-02）。 */
   readonly criticalMultiplier: number;
+  /**
+   * R-DMG-01の与ダメージ倍率。`damage-modifier-policy.ts`の
+   * `composeDamageModifiers`が攻撃側の`APPLY_DAMAGE_MOD direction: OUTGOING`から
+   * 解決済み（R-DMG-04）。未指定は補正なし（1倍）。
+   */
+  readonly outgoingDamageMultiplier?: number;
+  /** R-DMG-01の被ダメージ倍率（防御側の`INCOMING`、R-DMG-04）。未指定は1倍。 */
+  readonly incomingDamageMultiplier?: number;
   /** R-NUM-04: `skillPowerFormula`/`damageModifiers`を評価するための実行時文脈。 */
   readonly formulaContext: FormulaEvaluationContext;
 }
@@ -28,6 +36,10 @@ export interface DamageCalculationResult {
   readonly effectiveDefense: number;
   readonly skillPower: number;
   readonly attributeMultiplier: number;
+  /** R-DMG-04の与ダメージ倍率（監査用に入力をそのまま返す）。 */
+  readonly outgoingDamageMultiplier: number;
+  /** R-DMG-04の被ダメージ倍率（R-DMG-03の`damageReductionIgnoreRate`適用済み）。 */
+  readonly incomingDamageMultiplier: number;
   readonly actionDamageMultiplier: number;
   /** 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。 */
   readonly preTruncationDamage: number;
@@ -81,10 +93,13 @@ function resolveActionDamageMultiplier(
 
 /**
  * `DamageCalculator` (R-DMG-01, R-DMG-02の一部)。基礎値、スキル威力、属性倍率、
- * 会心倍率、Action内追加ダメージ倍率から計算ダメージを求め、最終切り捨てと
- * 最低1ダメージ（R-DMG-02の一部）を適用する。与ダメージ倍率・被ダメージ倍率
- * (R-DMG-04, AppliedEffectが必要)とダメージ無効効果(R-DMG-02の残り)は
- * M7未実装のため、この関数の対象外。
+ * 会心倍率、与/被ダメージ倍率、Action内追加ダメージ倍率から計算ダメージを求め、
+ * 最終切り捨てと最低1ダメージ（R-DMG-02の一部）を適用する。
+ *
+ * 与/被ダメージ倍率（R-DMG-04）自体の集計は`damage-modifier-policy.ts`が担い、
+ * この関数は解決済みの倍率だけを受け取る — `AppliedEffect`を知らない純粋な
+ * 数値計算に保つため（`resolveDamageImmunity`と同じ責務分割）。ダメージ無効効果
+ * （R-DMG-02の残り）も同じ理由でこの関数の対象外。
  */
 export function calculateDamage(input: DamageCalculationInput): DamageCalculationResult {
   const effectiveDefense = input.defenderDefense * (1 - input.defenseIgnoreRate);
@@ -104,17 +119,26 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     input.formulaContext,
   );
 
+  // R-DMG-01の乗算順どおり: 与ダメージ倍率・被ダメージ倍率は会心倍率の後、
+  // Action内追加ダメージ倍率の前に掛ける（乗算は可換だが、監査ログ
+  // （`DamageCalculated`）が式と同じ並びで読めるようにこの順で書く）。
+  const outgoingDamageMultiplier = input.outgoingDamageMultiplier ?? 1;
+  const incomingDamageMultiplier = input.incomingDamageMultiplier ?? 1;
   const preTruncationDamage =
     baseDamage *
     skillPower *
     attributeMultiplier *
     input.criticalMultiplier *
+    outgoingDamageMultiplier *
+    incomingDamageMultiplier *
     actionDamageMultiplier;
 
   return {
     effectiveDefense,
     skillPower,
     attributeMultiplier,
+    outgoingDamageMultiplier,
+    incomingDamageMultiplier,
     actionDamageMultiplier,
     preTruncationDamage,
     finalDamage: Math.max(1, Math.floor(preTruncationDamage)),

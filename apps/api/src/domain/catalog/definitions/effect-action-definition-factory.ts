@@ -12,7 +12,11 @@ import {
   createSkillDefinitionId,
   type EffectActionDefinitionId,
 } from "./catalog-ids.js";
-import { COMPARISON_OPERATORS } from "./condition-definition.js";
+import {
+  COMPARISON_OPERATORS,
+  TARGET_STATE_FIELD_TYPES,
+  type JsonPrimitive,
+} from "./condition-definition.js";
 import {
   createDurationDefinition,
   type DurationDefinition,
@@ -27,11 +31,14 @@ import {
 } from "./effect-action-definition.js";
 import {
   COOLDOWN_MANIPULATION_OPERATIONS,
+  DAMAGE_MOD_STATE_FIELDS,
+  DAMAGE_MOD_UNIT_REFERENCES,
   REFLECT_TIMINGS,
   RESOURCE_CAPACITY_OPERATIONS,
   STAT_MOD_STACKING_MODES,
   STATUS_AILMENT_KINDS,
   STATUS_KINDS,
+  type DamageModConditionDefinition,
   type DamageThreshold,
   type StatModStackingMode,
 } from "./effect-action-payload.js";
@@ -111,7 +118,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_CONTINUOUS_HEAL: ["formula", "timing", "duration"],
   APPLY_CONTINUOUS_DAMAGE: ["damageType", "formula", "timing", "duration"],
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
-  APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "stacking", "duration"],
+  APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "condition", "stacking", "duration"],
   APPLY_HEALING_MOD: ["direction", "formula", "stacking", "duration"],
   APPLY_HEALING_LINK: ["transferTo", "transferRate", "duration"],
   MODIFY_RESOURCE: ["resource", "operation", "formula", "bounds"],
@@ -199,6 +206,131 @@ function createDurationField(payload: Record<string, unknown>, path: string): Du
     `${path}.duration`,
     undefined,
   );
+}
+
+const DAMAGE_MOD_CONDITION_KINDS = [
+  "TRUE",
+  "AND",
+  "OR",
+  "NOT",
+  "UNIT_STATE",
+  "UNIT_HAS_MARKER",
+  "HP_RATIO_COMPARISON",
+] as const;
+
+const DAMAGE_MOD_CONDITION_ALLOWED_KEYS: Record<
+  (typeof DAMAGE_MOD_CONDITION_KINDS)[number],
+  readonly string[]
+> = {
+  TRUE: ["kind"],
+  AND: ["kind", "conditions"],
+  OR: ["kind", "conditions"],
+  NOT: ["kind", "condition"],
+  UNIT_STATE: ["kind", "unit", "field", "op", "value"],
+  UNIT_HAS_MARKER: ["kind", "unit", "markerId", "countCondition"],
+  HP_RATIO_COMPARISON: ["kind", "left", "op", "right"],
+};
+
+const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
+
+/**
+ * `DYNAMIC_DAMAGE_MOD_CONDITION`（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD.condition`を
+ * 検証して`DamageModConditionDefinition`へ写す。`ConditionDefinition`（EffectStep用）と
+ * 語彙は近いが、参照できるユニットが「補正の保持者」と「そのヒットの相手」の2体だけに
+ * 限られる点が異なる（`effect-action-payload.ts`の`DAMAGE_MOD_UNIT_REFERENCES`）。
+ * `UNIT_STATE.field`も、ダメージ解決時点でCatalogの`unitDefinitions`を引けないため
+ * `DAMAGE_MOD_STATE_FIELDS`（`UNIT_TYPE`/`ROLE`/`HAS_STATUS`を除く部分集合）へ絞る。
+ */
+function createDamageModCondition(
+  input: Record<string, unknown>,
+  path: string,
+): DamageModConditionDefinition {
+  const kind = requireField(input["kind"] as string | undefined, `${path}.kind`);
+  assertEnumValue(kind, DAMAGE_MOD_CONDITION_KINDS, `${path}.kind`);
+  assertKnownKeys(input, DAMAGE_MOD_CONDITION_ALLOWED_KEYS[kind], path);
+
+  switch (kind) {
+    case "TRUE":
+      return { kind: "TRUE" };
+    case "AND":
+    case "OR": {
+      const conditions = requireField(
+        input["conditions"] as readonly Record<string, unknown>[] | undefined,
+        `${path}.conditions`,
+      );
+      assertNonEmptyArray(conditions, `${path}.conditions`);
+      return {
+        kind,
+        conditions: conditions.map((child, i) =>
+          createDamageModCondition(child, `${path}.conditions[${i}]`),
+        ),
+      };
+    }
+    case "NOT":
+      return {
+        kind: "NOT",
+        condition: createDamageModCondition(
+          requireField(
+            input["condition"] as Record<string, unknown> | undefined,
+            `${path}.condition`,
+          ),
+          `${path}.condition`,
+        ),
+      };
+    case "UNIT_STATE": {
+      const unit = requireField(input["unit"] as string | undefined, `${path}.unit`);
+      assertEnumValue(unit, DAMAGE_MOD_UNIT_REFERENCES, `${path}.unit`);
+      const field = requireField(input["field"] as string | undefined, `${path}.field`);
+      assertEnumValue(field, DAMAGE_MOD_STATE_FIELDS, `${path}.field`);
+      const op = requireField(input["op"] as string | undefined, `${path}.op`);
+      assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
+      const value = requireField(input["value"] as JsonPrimitive | undefined, `${path}.value`);
+      const expectedType = TARGET_STATE_FIELD_TYPES[field];
+      if (typeof value !== expectedType) {
+        throw new DomainValidationError(
+          `${path}.value`,
+          `must be of type ${expectedType} for field "${field}", got ${typeof value}`,
+        );
+      }
+      return { kind: "UNIT_STATE", unit, field, op, value };
+    }
+    case "UNIT_HAS_MARKER": {
+      const unit = requireField(input["unit"] as string | undefined, `${path}.unit`);
+      assertEnumValue(unit, DAMAGE_MOD_UNIT_REFERENCES, `${path}.unit`);
+      const markerId = createMarkerId(
+        requireField(input["markerId"] as string | undefined, `${path}.markerId`),
+        `${path}.markerId`,
+      );
+      const countCondition = input["countCondition"] as
+        | { readonly op: string; readonly value: number }
+        | undefined;
+      if (countCondition === undefined) {
+        return { kind: "UNIT_HAS_MARKER", unit, markerId };
+      }
+      assertKnownKeys(
+        countCondition,
+        MARKER_COUNT_CONDITION_ALLOWED_KEYS,
+        `${path}.countCondition`,
+      );
+      assertEnumValue(countCondition.op, COMPARISON_OPERATORS, `${path}.countCondition.op`);
+      assertFinite(countCondition.value, `${path}.countCondition.value`);
+      return {
+        kind: "UNIT_HAS_MARKER",
+        unit,
+        markerId,
+        countCondition: { op: countCondition.op, value: countCondition.value },
+      };
+    }
+    case "HP_RATIO_COMPARISON": {
+      const left = requireField(input["left"] as string | undefined, `${path}.left`);
+      assertEnumValue(left, DAMAGE_MOD_UNIT_REFERENCES, `${path}.left`);
+      const right = requireField(input["right"] as string | undefined, `${path}.right`);
+      assertEnumValue(right, DAMAGE_MOD_UNIT_REFERENCES, `${path}.right`);
+      const op = requireField(input["op"] as string | undefined, `${path}.op`);
+      assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
+      return { kind: "HP_RATIO_COMPARISON", left, op, right };
+    }
+  }
 }
 
 function createActionKinds(
@@ -463,12 +595,16 @@ function createPayload(
         damageType = damageTypeRaw;
       }
       const stackingMode = requireStackingMode(payload, path);
+      const conditionInput = payload["condition"] as Record<string, unknown> | undefined;
       return {
         kind: "APPLY_DAMAGE_MOD",
         payload: {
           direction,
           damageType,
           formula: createFormulaField(payload, "formula", path),
+          ...(conditionInput !== undefined
+            ? { condition: createDamageModCondition(conditionInput, `${path}.condition`) }
+            : {}),
           stacking: { mode: stackingMode },
           duration: createDurationField(payload, path),
         },

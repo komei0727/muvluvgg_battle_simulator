@@ -355,10 +355,15 @@
       "direction": "INCOMING",
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.4 },
+      "condition": {
+        "kind": "UNIT_HAS_MARKER",
+        "unit": "OPPONENT",
+        "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -2584,6 +2589,12 @@
       "direction": "INCOMING",
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.1 },
+      "condition": {
+        "kind": "HP_RATIO_COMPARISON",
+        "left": "OPPONENT",
+        "op": "GT",
+        "right": "EFFECT_OWNER"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
@@ -3232,6 +3243,26 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.3 },
+      "condition": {
+        "kind": "UNIT_STATE",
+        "unit": "EFFECT_OWNER",
+        "field": "HP_RATIO",
+        "op": "GTE",
+        "value": 0.65
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
@@ -3504,6 +3535,25 @@
       }
     },
     "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "condition": {
+        "kind": "HP_RATIO_COMPARISON",
+        "left": "OPPONENT",
+        "op": "LT",
+        "right": "EFFECT_OWNER"
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -4887,7 +4937,13 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -0.5 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "min": 0,
+        "max": -0.5,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": false,
@@ -4895,7 +4951,7 @@
         "linkedEffectGroupId": "MAO_COMMITTEE_PS2_LINK"
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_COMPLEX_EXPIRATION"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_COMPLEX_EXPIRATION", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -5054,14 +5110,20 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.4 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "TRIGGER_TARGET" },
+        "min": 0,
+        "max": 0.4,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "tags": [] }
   },
   {
@@ -5070,14 +5132,20 @@
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "TRIGGER_TARGET" },
+        "min": 0,
+        "max": 0.25,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "tags": [] }
   },
   {
@@ -5275,8 +5343,20 @@
   {
     "effectActionDefinitionId": "ACT_MERU_SIRIUS_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.78 } },
-    "requiredCapabilities": [],
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.78 },
+      "damageModifiers": [
+        {
+          "kind": "HP_RATIO_SCALE",
+          "target": { "kind": "TARGET" },
+          "min": 0,
+          "max": 2,
+          "direction": "LOWER_HP_IS_MAX"
+        }
+      ]
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -5768,7 +5848,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -5843,7 +5923,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -5881,7 +5961,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -5919,7 +5999,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -6252,10 +6332,15 @@
       "direction": "INCOMING",
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.35 },
+      "condition": {
+        "kind": "UNIT_HAS_MARKER",
+        "unit": "OPPONENT",
+        "markerId": "MARKER_OLGA_VETERAN_VIGILANCE"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -6288,7 +6373,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -6324,7 +6409,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -6477,8 +6562,20 @@
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.06 } },
-    "requiredCapabilities": [],
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.06 },
+      "damageModifiers": [
+        {
+          "kind": "HP_RATIO_SCALE",
+          "target": { "kind": "SKILL_SOURCE" },
+          "min": 0,
+          "max": 1.5,
+          "direction": "LOWER_HP_IS_MAX"
+        }
+      ]
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -6516,11 +6613,17 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.8 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "min": 0,
+        "max": 0.8,
+        "direction": "LOWER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -6529,11 +6632,17 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 150 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "min": 0,
+        "max": 150,
+        "direction": "LOWER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -7124,8 +7233,34 @@
   {
     "effectActionDefinitionId": "ACT_SENKA_CHRISTMAS_AS2_HEAL",
     "kind": "HEAL",
-    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.525 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
+    "payload": {
+      "formula": {
+        "kind": "PRODUCT",
+        "formulas": [
+          {
+            "kind": "STAT_RATIO",
+            "source": { "kind": "SKILL_SOURCE" },
+            "stat": "ATTACK",
+            "ratio": 0.35
+          },
+          {
+            "kind": "SUM",
+            "formulas": [
+              { "kind": "CONSTANT", "value": 1 },
+              {
+                "kind": "HP_RATIO_SCALE",
+                "target": { "kind": "TARGET" },
+                "min": 0,
+                "max": 0.5,
+                "direction": "LOWER_HP_IS_MAX"
+              }
+            ]
+          }
+        ]
+      },
+      "overheal": "DISCARD"
+    },
+    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -7471,7 +7606,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -7504,7 +7639,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -8848,18 +8983,33 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DEF_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "TARGET" },
+        "min": 0,
+        "max": -0.5,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "SKILL_USE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
       "formula": { "kind": "SKILL_POWER", "power": 2.438 },
-      "piercing": {
-        "defenseIgnoreRate": 0.5,
-        "shieldIgnoreRate": 0,
-        "damageReductionIgnoreRate": 0
-      }
+      "piercing": { "defenseIgnoreRate": 0, "shieldIgnoreRate": 0, "damageReductionIgnoreRate": 0 }
     },
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {

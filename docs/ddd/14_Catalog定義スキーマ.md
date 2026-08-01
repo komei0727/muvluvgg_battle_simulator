@@ -948,12 +948,59 @@ payload:
       count: 1
 ```
 
-| フィールド    | 型                    | 制約                         |
-| ------------- | --------------------- | ---------------------------- |
-| `direction`   | enum                  | `OUTGOING` / `INCOMING`      |
-| `damageType`  | enum/null             | `PHYSICAL` / `EN` / null     |
-| `formula`     | FormulaDefinition     | 符号付き。増加は正、減少は負 |
-| `consumption` | ConsumptionDefinition | 次の攻撃など                 |
+| フィールド    | 型                        | 制約                                      |
+| ------------- | ------------------------- | ----------------------------------------- |
+| `direction`   | enum                      | `OUTGOING` / `INCOMING`                   |
+| `damageType`  | enum/null                 | `PHYSICAL` / `EN` / null                  |
+| `formula`     | FormulaDefinition         | 符号付き。増加は正、減少は負              |
+| `condition`   | DamageModCondition/省略可 | ヒットごとに評価する動的条件（`DMG-002`） |
+| `consumption` | ConsumptionDefinition     | 次の攻撃など                              |
+
+#### `condition`（`DMG-002`／Issue #192）
+
+補正が「どの攻撃に対して成立するか」を、付与時点ではなく**R-DMG-04の集計時点（ヒットごと）**に評価する条件。省略時は無条件。
+
+参照できるユニットは、そのヒットの2体だけに限る。`EffectStep` の `ConditionDefinition` が使う `TargetReference`（`BINDING`／`TRIGGER_SOURCE` など）は、補正が付与された後の無関係なスキル解決中には原理的に解決できないため、専用の2値を使う。
+
+| `unit` の値    | 意味                                                                     |
+| -------------- | ------------------------------------------------------------------------ |
+| `EFFECT_OWNER` | 補正を保持しているユニット（`INCOMING`なら防御側、`OUTGOING`なら攻撃側） |
+| `OPPONENT`     | そのヒットの相手（`INCOMING`なら攻撃側、`OUTGOING`なら攻撃対象）         |
+
+| `kind`                | フィールド                            | 意味                                                      |
+| --------------------- | ------------------------------------- | --------------------------------------------------------- |
+| `TRUE`                | —                                     | 常に成立                                                  |
+| `AND` / `OR`          | `conditions[]`                        | 論理合成（非空）                                          |
+| `NOT`                 | `condition`                           | 否定                                                      |
+| `UNIT_STATE`          | `unit`, `field`, `op`, `value`        | 指定ユニットの状態比較                                    |
+| `UNIT_HAS_MARKER`     | `unit`, `markerId`, `countCondition?` | 指定ユニットのMarker所持（`countCondition`省略で1つ以上） |
+| `HP_RATIO_COMPARISON` | `left`, `op`, `right`                 | 2体のHP割合同士の比較                                     |
+
+`UNIT_STATE.field` は `TARGET_STATE.field` の部分集合（`IS_ALIVE` / `HP_RATIO` / `ATTRIBUTE` / `POSITION_ROW` / `POSITION_COLUMN` / `RESOURCE_AP` / `RESOURCE_PP` / `RESOURCE_EX_GAUGE`）とする。ダメージ解決時点（`domain/battle/combat`）ではCatalogの `unitDefinitions` を引けないため、`UNIT_TYPE` / `ROLE` と、状態異常追跡を要する `HAS_STATUS` は受理しない（受理しても評価できない「効かない定義」を作らないため）。
+
+```yaml
+kind: APPLY_DAMAGE_MOD
+payload:
+  direction: INCOMING
+  damageType: null
+  formula: { kind: CONSTANT, value: -0.3 }
+  condition:
+    kind: UNIT_STATE
+    unit: EFFECT_OWNER
+    field: HP_RATIO
+    op: GTE
+    value: 0.65
+  stacking: { mode: STACKABLE }
+  duration:
+    timeLimit: { unit: BATTLE, count: 1 }
+```
+
+production例:
+
+- `SKL_KEI_JACKKNIFE_PS1`「自身のHPが最大HPの65%以上の場合にのみ被ダメージを30%減少」→ 上のYAMLそのもの
+- `SKL_AOI_ELEGANT_PS2`／`SKL_OLGA_VETERAN_AS2`「Xを所持している敵から受ける攻撃の被ダメージを減少」→ `UNIT_HAS_MARKER` + `unit: OPPONENT`
+- `SKL_JULIE_SNOW_PS1`「自分よりもHP割合が高い相手から攻撃された場合にのみ」→ `HP_RATIO_COMPARISON` `left: OPPONENT`, `op: GT`, `right: EFFECT_OWNER`
+- `SKL_KOTOHA_REBEL_PS2`「対象のHP割合が自身より低い敵に対してのみ与ダメージが10%増加」→ `HP_RATIO_COMPARISON` `left: OPPONENT`, `op: LT`, `right: EFFECT_OWNER`
 
 ### APPLY_HEALING_MOD
 
@@ -1474,6 +1521,7 @@ Formula は数値を返す。戻り値が整数リソースやHPへ適用され�
 | `ALIVE_UNIT_COUNT_SCALE`    | `side`, `perUnit`, `max`                                            | 生存数×perUnit                                           |
 | `HP_RATIO_SCALE`            | `target`, `min`, `max`, `direction`                                 | HP割合でmin〜maxを線形補間                               |
 | `SUM`                       | `formulas[]`                                                        | 合計                                                     |
+| `PRODUCT`                   | `formulas[]`                                                        | 総乗（`DMG-002`／Issue #192で追加）                      |
 | `MIN`                       | `formulas[]`                                                        | 最小                                                     |
 | `MAX`                       | `formulas[]`                                                        | 最大                                                     |
 | `CLAMP`                     | `formula`, `min`, `max`                                             | 範囲制限                                                 |
@@ -1487,6 +1535,59 @@ Formula は数値を返す。戻り値が整数リソースやHPへ適用され�
 | `TRIGGER_SOURCE` | trigger source        |
 | `TRIGGER_TARGET` | trigger target        |
 | `BINDING`        | targetBindingIdで指定 |
+
+### HP_RATIO_SCALE（`DMG-002`／Issue #192）
+
+参照対象のHP割合で `min`〜`max` を線形補間する。raw原文の「HPが多い/少ないほど高い効果を発揮する（上限X）」をそのまま表す。
+
+```yaml
+kind: HP_RATIO_SCALE
+target: { kind: TARGET }
+min: 0
+max: 2
+direction: LOWER_HP_IS_MAX
+```
+
+| フィールド  | 型         | 制約                                     |
+| ----------- | ---------- | ---------------------------------------- |
+| `target`    | source参照 | 上の「source」表と同じ（`TARGET` など）  |
+| `min`       | number     | HP割合が `max` 側の反対端にあるときの値  |
+| `max`       | number     | `direction` が示すHP端に到達したときの値 |
+| `direction` | enum       | `LOWER_HP_IS_MAX` / `HIGHER_HP_IS_MAX`   |
+
+```text
+hpRatio = clamp(対象の現在HP / 対象の最大HP, 0, 1)
+LOWER_HP_IS_MAX  → min + (max - min) × (1 - hpRatio)
+HIGHER_HP_IS_MAX → min + (max - min) × hpRatio
+```
+
+`min`/`max` の大小関係は問わない（`max` は「`direction` が示すHP端の値」であって上限値ではない）。被ダメージ減少のような負の補正は `min: 0`, `max: -0.5` のように書く。他のFormulaと同じく評価結果を丸めない（R-NUM-02の整数化は適用側の責務）。
+
+production例:
+
+- `SKL_MERU_SIRIUS_AS2`「敵のHPが少ないほどダメージが増加する(+200%まで)」→ `DAMAGE.damageModifiers` に `target: TARGET`, `0`〜`2`, `LOWER_HP_IS_MAX`
+- `SKL_MEIYA_FATED_PS2`「攻撃対象のHPが多いほど高い効果を発揮する」→ `target: TRIGGER_TARGET`, `HIGHER_HP_IS_MAX`
+- `SKL_MAO_COMMITTEE_PS2`「付与時の自身のHPが多いほど…被ダメージを最大50%減少」→ `APPLY_DAMAGE_MOD.formula` に `target: SKILL_SOURCE`, `0`〜`-0.5`, `HIGHER_HP_IS_MAX`
+
+### PRODUCT（`DMG-002`／Issue #192）
+
+`SUM` の乗算版。`formulas[]` の評価結果を、途中で丸めずに掛け合わせる。「基礎量 × (1 + 逓減倍率)」という形（`SKL_SENKA_CHRISTMAS_AS2`「威力35で回復する。対象のHPが少ないほど回復量が増加する（50%まで）」）を1つのFormulaで表すために追加した。
+
+```yaml
+kind: PRODUCT
+formulas:
+  - { kind: STAT_RATIO, source: { kind: SKILL_SOURCE }, stat: ATTACK, ratio: 0.35 }
+  - kind: SUM
+    formulas:
+      - { kind: CONSTANT, value: 1 }
+      - {
+          kind: HP_RATIO_SCALE,
+          target: { kind: TARGET },
+          min: 0,
+          max: 0.5,
+          direction: LOWER_HP_IS_MAX,
+        }
+```
 
 ### sourceResult（`DAMAGE_DEALT_RATIO` / `DAMAGE_RECEIVED_RATIO`）
 
@@ -2284,7 +2385,7 @@ production Catalog には source text を含めない。出典と転記根拠は
 Catalog v2 DTO・Domain Definition・Mapperの実装（Issue #6）で、本書の記述だけでは一意に決まらない箇所が見つかった。次はpayload例やenum一覧が未確定であり、production Catalogの authoring 前に本書へ追記が必要。
 
 1. `EffectActionDefinition.kind` のうち `APPLY_HEALING_MOD`、`MODIFY_RESOURCE_CAPACITY`、`APPLY_SHIELD`、`REMOVE_EFFECTS`、`APPLY_DAMAGE_LINK` の5種はpayload例が示されていなかった。Issue #44でこのうち `APPLY_HEALING_MOD`・`MODIFY_RESOURCE_CAPACITY`・`APPLY_SHIELD`・`REMOVE_EFFECTS` の4種のpayload形状を本書へ追記し、Mapperへ実装した（下記「Issue #44実装で追加した拡張」）。`APPLY_DAMAGE_LINK` はCover/Reflect/DamageLinkの割り込み順（本書「後続設計で具体化する点」#3）が未確定のため、引き続きMapperは未サポートとして拒否する。`REMOVE_MARKER` は `APPLY_MARKER` の対称形（`markerId` のみ）として実装した。
-2. `FormulaDefinition` の `HP_RATIO_SCALE.direction` は値候補が本書のどこにも列挙されていない。Mapperは `HP_RATIO_SCALE` 自体を未サポートとして拒否する。
+2. `FormulaDefinition` の `HP_RATIO_SCALE.direction` は値候補が本書のどこにも列挙されておらず、Mapperは長らく `HP_RATIO_SCALE` 自体を未サポートとして拒否していた。`DMG-002`（Issue #192、`HP_RATIO_SCALE_FORMULA`）が下記「HP_RATIO_SCALE」節へ2値を定義し、Mapper・`FormulaEvaluator` へ実装して解消した。
 3. `APPLY_STAT_MOD.stacking.mode` / `APPLY_DAMAGE_MOD.stacking.mode` は例で `STACKABLE` しか示されていない。「重複なし」(`R-STA-03`) に対応する値が未定義のため、Mapperは `STACKABLE` のみを許可していた。`M7-012`（Issue #266）が `APPLY_STAT_MOD` 側について `NON_STACKABLE` と重複上限 `stacking.max` を本書「APPLY_STAT_MOD」節へ定義し、Mapper・実ライフサイクルへ実装して解消した（`R-EFF-05` 完了）。`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD` は最強選択を行う合成経路を持たないため引き続き `STACKABLE` のみである。
 4. Formulaの `source`/`target` 参照（`STAT_RATIO.source`、`MARKER_COUNT_SCALE.target` など）はHEAL/MARKER_COUNT_SCALE例では `{kind: ...}` オブジェクト形式、APPLY_SUBUNIT例 (`source: SKILL_SOURCE`) では裸のenum文字列形式と表記が揺れている。Mapperはオブジェクト形式 `{kind, targetBindingId?}` に統一した（`BINDING` 種別が追加フィールドを要するため）。
 5. `TriggerDefinition.sourceSelector` / `targetSelector` の値候補は本書に一覧化されていない。実装では `08_ドメインイベント.md` と本書の例に実際に現れる値（`SELF`、`ALLY`、`ENEMY`、`ANY`、`EFFECT_OWNER`）だけを許可した。

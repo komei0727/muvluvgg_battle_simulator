@@ -1,5 +1,36 @@
 [
   {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DEF_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": {
+          "kind": "TARGET"
+        },
+        "min": 0,
+        "max": -0.5,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "SKILL_USE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
     "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
@@ -9,12 +40,12 @@
         "power": 2.438
       },
       "piercing": {
-        "defenseIgnoreRate": 0.5,
+        "defenseIgnoreRate": 0,
         "shieldIgnoreRate": 0,
         "damageReductionIgnoreRate": 0
       }
     },
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }

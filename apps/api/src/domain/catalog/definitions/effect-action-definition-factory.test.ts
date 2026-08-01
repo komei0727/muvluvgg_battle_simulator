@@ -491,6 +491,121 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-ACT-083 (DMG-002, Issue #192): maps an APPLY_DAMAGE_MOD dynamic condition tree", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_DAMAGE_MOD_1",
+        kind: "APPLY_DAMAGE_MOD",
+        payload: {
+          direction: "INCOMING",
+          formula: { kind: "CONSTANT", value: -0.3 },
+          condition: {
+            kind: "AND",
+            conditions: [
+              {
+                kind: "UNIT_STATE",
+                unit: "EFFECT_OWNER",
+                field: "HP_RATIO",
+                op: "GTE",
+                value: 0.65,
+              },
+              { kind: "UNIT_HAS_MARKER", unit: "OPPONENT", markerId: "MARKER_UKIASHI" },
+              { kind: "HP_RATIO_COMPARISON", left: "OPPONENT", op: "GT", right: "EFFECT_OWNER" },
+            ],
+          },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_DAMAGE_MOD");
+    if (result.kind === "APPLY_DAMAGE_MOD") {
+      expect(result.payload.condition).toEqual({
+        kind: "AND",
+        conditions: [
+          { kind: "UNIT_STATE", unit: "EFFECT_OWNER", field: "HP_RATIO", op: "GTE", value: 0.65 },
+          { kind: "UNIT_HAS_MARKER", unit: "OPPONENT", markerId: "MARKER_UKIASHI" },
+          { kind: "HP_RATIO_COMPARISON", left: "OPPONENT", op: "GT", right: "EFFECT_OWNER" },
+        ],
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-084 (DMG-002, Issue #192): leaves an APPLY_DAMAGE_MOD condition undefined when the payload omits it", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_DAMAGE_MOD_1",
+        kind: "APPLY_DAMAGE_MOD",
+        payload: {
+          direction: "OUTGOING",
+          formula: { kind: "CONSTANT", value: 0.1 },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_DAMAGE_MOD");
+    if (result.kind === "APPLY_DAMAGE_MOD") {
+      expect(result.payload.condition).toBeUndefined();
+    }
+  });
+
+  it("UT-CAT-ACT-085 (DMG-002, Issue #192): rejects an APPLY_DAMAGE_MOD condition that references a unit outside the two-unit damage scope", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_MOD_1",
+          kind: "APPLY_DAMAGE_MOD",
+          payload: {
+            direction: "INCOMING",
+            formula: { kind: "CONSTANT", value: -0.3 },
+            condition: {
+              kind: "UNIT_STATE",
+              unit: "TRIGGER_SOURCE",
+              field: "HP_RATIO",
+              op: "GTE",
+              value: 0.65,
+            },
+            stacking: { mode: "STACKABLE" },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-086 (DMG-002, Issue #192): rejects an APPLY_DAMAGE_MOD UNIT_STATE field that damage-time resolution cannot evaluate", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_MOD_1",
+          kind: "APPLY_DAMAGE_MOD",
+          payload: {
+            direction: "INCOMING",
+            formula: { kind: "CONSTANT", value: -0.3 },
+            condition: {
+              kind: "UNIT_STATE",
+              unit: "EFFECT_OWNER",
+              field: "UNIT_TYPE",
+              op: "EQ",
+              value: "TSF",
+            },
+            stacking: { mode: "STACKABLE" },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-021: maps MODIFY_RESOURCE with bounds.max as CURRENT_MAX", () => {
     const result = createEffectActionDefinition(
       {

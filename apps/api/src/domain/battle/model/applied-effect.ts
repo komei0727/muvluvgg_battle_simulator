@@ -5,10 +5,13 @@ import type { Side } from "../../shared/side.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   ActionKind,
+  DamageModDirection,
+  DamageType,
   EffectImmunityCategory,
 } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type {
+  DamageModConditionDefinition,
   DamageThreshold,
   StatusKind,
 } from "../../catalog/definitions/effect-action-payload.js";
@@ -57,6 +60,24 @@ export interface EffectImmunityState {
 export interface HealingLinkState {
   readonly transferToUnitId: BattleUnitId;
   readonly transferRate: number;
+}
+
+/**
+ * R-DMG-04（DMG-002、Issue #192、`APPLY_DAMAGE_MOD`由来の付与だけが持つ）:
+ * 補正の向き・対象ダメージタイプと、ヒットごとに評価する動的条件
+ * （`DYNAMIC_DAMAGE_MOD_CONDITION`）。補正値そのものは他の継続効果と同じく
+ * `magnitude`（付与時点で評価済みのFormula結果、符号付き割合）に入る。
+ *
+ * `isAttackDamageBonus`/`statusDetails`/`immunity`と同じ理由でインスタンス自身が
+ * 保持する — `combat/damage-application-service.ts`はCatalogの`effectActions`
+ * マップを引けない（`domain/battle/combat`のmodule境界）。
+ */
+export interface DamageModifierState {
+  readonly direction: DamageModDirection;
+  /** `null`なら全ダメージタイプへ適用する。 */
+  readonly damageType: DamageType | null;
+  /** 省略時は無条件。指定時は`damage-modifier-policy.ts`がヒットごとに評価する。 */
+  readonly condition?: DamageModConditionDefinition;
 }
 
 /**
@@ -209,6 +230,8 @@ export interface AppliedEffect {
    * 回復適用時点にはTargetBindingもトリガーcontextも残っていない）。
    */
   readonly healingLink?: HealingLinkState;
+  /** R-DMG-04（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD`由来の付与だけが持つ。 */
+  readonly damageModifier?: DamageModifierState;
   readonly duration: EffectDurationState;
   /** 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。 */
   readonly snapshot?: Readonly<Record<string, number>>;

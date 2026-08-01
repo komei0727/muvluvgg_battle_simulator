@@ -179,6 +179,12 @@
         "kind": "CONSTANT",
         "value": -0.1
       },
+      "condition": {
+        "kind": "HP_RATIO_COMPARISON",
+        "left": "OPPONENT",
+        "op": "GT",
+        "right": "EFFECT_OWNER"
+      },
       "stacking": {
         "mode": "STACKABLE"
       },

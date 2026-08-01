@@ -337,6 +337,19 @@ export function evaluateFormula(
       const stackCount = markerStackCount(target, formula.markerId);
       return Math.min(stackCount * formula.perStack, formula.max);
     }
+    case "HP_RATIO_SCALE": {
+      // DMG-002（Issue #192、`HP_RATIO_SCALE_FORMULA`）: 参照対象のHP割合で
+      // `min`〜`max`を線形補間する。`LOWER_HP_IS_MAX`はHPが少ないほど`max`へ、
+      // `HIGHER_HP_IS_MAX`はHPが多いほど`max`へ近づく。ここでは丸めない
+      // （このEvaluator全体の契約 — 整数化は適用側の責務、R-NUM-02）。
+      const target = resolveSourceUnit(formula.target, context, `${path}.target`);
+      const maximumHp = target.combatStats.maximumHp;
+      // 最大HPが0以下（理論上のみ）ならHP割合を0とみなす。0除算でNaNを
+      // 伝播させると、以降のダメージ計算全体が静かに壊れるため。
+      const hpRatio = maximumHp > 0 ? Math.min(1, Math.max(0, target.currentHp / maximumHp)) : 0;
+      const towardMax = formula.direction === "HIGHER_HP_IS_MAX" ? hpRatio : 1 - hpRatio;
+      return formula.min + (formula.max - formula.min) * towardMax;
+    }
     case "ALIVE_UNIT_COUNT_SCALE": {
       const relativeSide = context.skillSource?.side ?? context.sourceSide;
       if (relativeSide === undefined) {
@@ -348,6 +361,16 @@ export function evaluateFormula(
       const count = aliveUnitCount(relativeSide, context.allUnits, formula.side);
       return Math.min(count * formula.perUnit, formula.max);
     }
+    case "PRODUCT":
+      // DMG-002（Issue #192）: `SUM`の乗算版。「威力 × (1 + HP割合スケール)」のように
+      // 逓減倍率を基礎量へ掛ける形（`SKL_SENKA_CHRISTMAS_AS2`）を、丸めを挟まずに
+      // 1つのFormulaで表すために追加した。空集合の積は1（`SUM`の0に対応）だが、
+      // `formulas`はCatalog検証で非空が保証される。
+      return formula.formulas.reduce(
+        (total, child, index) =>
+          total * evaluateFormula(child, context, `${path}.formulas[${index}]`),
+        1,
+      );
     case "SUM":
       return formula.formulas.reduce(
         (total, child, index) =>

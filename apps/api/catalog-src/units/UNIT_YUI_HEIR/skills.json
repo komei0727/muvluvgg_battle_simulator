@@ -28,6 +28,9 @@
           },
           "actions": [
             {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DEF_DOWN"
+            },
+            {
               "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DAMAGE"
             }
           ]
@@ -39,7 +42,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "requiredCapabilities": [],
     "metadata": {
       "displayName": "ザ式戦術機動剣術「天崩」",
       "tags": []

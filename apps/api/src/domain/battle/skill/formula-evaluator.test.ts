@@ -407,6 +407,79 @@ describe("evaluateFormula", () => {
     // 0.21 in IEEE754); CLAMP passes it through unchanged; SUM adds 0.001.
     expect(evaluateFormula(formula, ctx)).toBe(0.001 + Math.min(7 * 0.03, 10));
   });
+
+  it("UT-R-NUM-04-031 (DMG-002, Issue #192): PRODUCT multiplies its child Formula results without any intermediate rounding", () => {
+    const target = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 20);
+    const ctx = context({ target, allUnits: [target] });
+    // `SKL_SENKA_CHRISTMAS_AS2`の形: 「威力ベースの回復量 × (1 + HP割合スケール)」。
+    const formula: FormulaDefinition = {
+      kind: "PRODUCT",
+      formulas: [
+        { kind: "CONSTANT", value: 35 },
+        {
+          kind: "SUM",
+          formulas: [
+            { kind: "CONSTANT", value: 1 },
+            {
+              kind: "HP_RATIO_SCALE",
+              target: { kind: "TARGET" },
+              min: 0,
+              max: 0.5,
+              direction: "LOWER_HP_IS_MAX",
+            },
+          ],
+        },
+      ],
+    };
+    // hpRatio 0.2 -> scale = 0.5 * 0.8 = 0.4 -> 35 * 1.4 = 49
+    expect(evaluateFormula(formula, ctx)).toBe(35 * (1 + 0.5 * 0.8));
+  });
+
+  it("UT-R-NUM-04-028 (DMG-002, Issue #192): HP_RATIO_SCALE with LOWER_HP_IS_MAX interpolates toward max as the target's HP drops", () => {
+    const target = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 25);
+    const ctx = context({ target, allUnits: [target] });
+    const formula: FormulaDefinition = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0,
+      max: 2,
+      direction: "LOWER_HP_IS_MAX",
+    };
+    // hpRatio = 25/100 = 0.25 -> 0 + (2 - 0) * (1 - 0.25) = 1.5
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(1.5);
+  });
+
+  it("UT-R-NUM-04-029 (DMG-002, Issue #192): HP_RATIO_SCALE with HIGHER_HP_IS_MAX interpolates toward max as the source's HP rises", () => {
+    const skillSource = withCurrentHp(unitAt("U_SOURCE", "ALLY"), 80);
+    const ctx = context({ skillSource, allUnits: [skillSource] });
+    const formula: FormulaDefinition = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "SKILL_SOURCE" },
+      min: 0,
+      max: 0.5,
+      direction: "HIGHER_HP_IS_MAX",
+    };
+    // hpRatio = 80/100 = 0.8 -> 0 + (0.5 - 0) * 0.8 = 0.4
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(0.4);
+  });
+
+  it("UT-R-NUM-04-030 (DMG-002, Issue #192): HP_RATIO_SCALE returns exactly min at the far end and max at the near end of each direction", () => {
+    const full = unitAt("U_TARGET", "ENEMY");
+    const empty = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 0);
+    const lower = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0.1,
+      max: 1.6,
+      direction: "LOWER_HP_IS_MAX",
+    } as const;
+    const higher = { ...lower, direction: "HIGHER_HP_IS_MAX" } as const;
+
+    expect(evaluateFormula(lower, context({ target: full, allUnits: [full] }))).toBeCloseTo(0.1);
+    expect(evaluateFormula(lower, context({ target: empty, allUnits: [empty] }))).toBeCloseTo(1.6);
+    expect(evaluateFormula(higher, context({ target: full, allUnits: [full] }))).toBeCloseTo(1.6);
+    expect(evaluateFormula(higher, context({ target: empty, allUnits: [empty] }))).toBeCloseTo(0.1);
+  });
 });
 
 /**
