@@ -1,6 +1,7 @@
 import type { BattleStatus } from "../model/battle-status.js";
 import type {
   AppliedEffect,
+  DamageModifierState,
   EffectImmunityState,
   HealingLinkState,
   StatusEffectDetails,
@@ -96,6 +97,13 @@ export interface EffectSnapshot {
    * 転送されず、`HealingTransferred`のStateDeltaと矛盾するため同一性比較へ含める。
    */
   readonly healingLink?: HealingLinkState;
+  /**
+   * DMG-002（Issue #192、R-DMG-04）: `APPLY_DAMAGE_MOD`由来の効果だけが持つ。
+   * `magnitude`（補正値）だけでは「どの向き・ダメージ種別・条件で適用される補正か」
+   * を復元できず、独立Reducerで復元した状態に対する`composeDamageModifiers`が
+   * 実戦闘と別の倍率を出してしまうため、`healingLink`と同じ理由で同一性比較へ含める。
+   */
+  readonly damageModifier?: DamageModifierState;
   readonly duration?: {
     readonly unit: "ACTION" | "TURN" | "SKILL_USE";
     readonly remaining: number;
@@ -145,6 +153,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
       ? { isAttackDamageBonus: effect.isAttackDamageBonus }
       : {}),
     ...(effect.healingLink !== undefined ? { healingLink: effect.healingLink } : {}),
+    ...(effect.damageModifier !== undefined ? { damageModifier: effect.damageModifier } : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
       ? { consumptionRemaining: effect.duration.consumptionRemaining }

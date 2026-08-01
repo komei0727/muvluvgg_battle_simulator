@@ -14,6 +14,7 @@ import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
 import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { runProductionUnitBattle } from "../../testing/scenario/run-production-battle.js";
+import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import type { Side } from "../../domain/shared/side.js";
 
 /**
@@ -272,6 +273,45 @@ describe("production Catalog APPLY_DAMAGE_MOD (DMG-002, R-DMG-03/R-DMG-04)", () 
         damageReductionIgnoreRate: 0,
       }).incomingMultiplier,
     ).toBeCloseTo(0.6);
+  });
+
+  it("IT-CAP-DAMAGE-MOD-PROD-005 (PR #284レビュー[P2]): a dynamically conditioned APPLY_DAMAGE_MOD survives independent Reducer restoration with its direction, damageType and condition intact", () => {
+    // `SKL_KEI_JACKKNIFE_PS1`はターン開始時に`ACT_KEI_JACKKNIFE_PS1_DMG_DOWN`
+    // （`UNIT_STATE`条件付きの被ダメージ-30%）を自身へ付与する。
+    const result = runProductionUnitBattle(CATALOG_DIR, "UNIT_KEI_JACKKNIFE", {
+      turnLimit: 5,
+      randomValue: 0.5,
+    });
+
+    // 独立Reducer復元: `initialState`へ`stateTransitions`だけを適用すると
+    // `finalState`と一致する（`assembleSimulationResult`も同じ不変条件を課すが、
+    // ここでは補正メタデータが復元されていることまで明示的に確かめる）。
+    const restored = reduceStateDeltas(
+      result.initialState,
+      result.stateTransitions.map((transition) => transition.stateDelta),
+    );
+    expect(restored).toEqual(result.finalState);
+
+    const restoredModifiers = Object.values(restored.units).flatMap((unit) =>
+      (unit?.effects ?? []).filter(
+        (effect) => effect.effectDefinitionId === "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
+      ),
+    );
+    expect(restoredModifiers.length).toBeGreaterThan(0);
+    for (const effect of restoredModifiers) {
+      expect(effect.magnitude).toBeCloseTo(-0.3);
+      expect(effect.damageModifier).toEqual({
+        direction: "INCOMING",
+        damageType: null,
+        condition: {
+          kind: "UNIT_STATE",
+          unit: "EFFECT_OWNER",
+          field: "HP_RATIO",
+          op: "GTE",
+          value: 0.65,
+        },
+      });
+    }
   });
 
   it("IT-CAP-DAMAGE-MOD-PROD-004: a full production battle emits DamageCalculated payloads that carry both R-DMG-04 multipliers", () => {

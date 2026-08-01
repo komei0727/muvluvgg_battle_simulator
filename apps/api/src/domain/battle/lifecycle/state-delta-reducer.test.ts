@@ -10,6 +10,7 @@ import {
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
+  createMarkerId,
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
@@ -699,6 +700,93 @@ describe("applyStateDelta", () => {
       },
     });
     expect(removed.units[UNIT_B]!.effects ?? []).toEqual([]);
+  });
+
+  it("UT-R-EFF-01-055 (DMG-002、Issue #192、R-DMG-04): an APPLY_DAMAGE_MOD delta round-trips its direction, damageType and dynamic condition through the independent Reducer", () => {
+    const damageMod: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
+      sourceUnitId: UNIT_A,
+      kindKey: "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
+      duplicate: true,
+      isEffective: true,
+      magnitude: -0.3,
+      damageModifier: {
+        direction: "INCOMING",
+        damageType: null,
+        condition: {
+          kind: "UNIT_STATE",
+          unit: "EFFECT_OWNER",
+          field: "HP_RATIO",
+          op: "GTE",
+          value: 0.65,
+        },
+      },
+      appliedTurnNumber: 1,
+    };
+
+    const next = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: {
+          effects: { [damageMod.effectInstanceId]: { before: undefined, after: damageMod } },
+        },
+      },
+    });
+
+    expect(next.units[UNIT_B]!.effects).toEqual([damageMod]);
+  });
+
+  it("UT-R-EFF-01-056 (DMG-002、Issue #192): a delta whose before.damageModifier disagrees with the stored one is rejected instead of silently accepted", () => {
+    const damageMod: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD",
+      sourceUnitId: UNIT_A,
+      kindKey: "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD",
+      duplicate: true,
+      isEffective: true,
+      magnitude: -0.4,
+      damageModifier: {
+        direction: "INCOMING",
+        damageType: null,
+        condition: {
+          kind: "UNIT_HAS_MARKER",
+          unit: "OPPONENT",
+          markerId: createMarkerId("MARKER_AOI_ELEGANT_UKIASHI"),
+        },
+      },
+      appliedTurnNumber: 1,
+    };
+    const granted = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: {
+          effects: { [damageMod.effectInstanceId]: { before: undefined, after: damageMod } },
+        },
+      },
+    });
+
+    // 同じ`magnitude`でも、向き・ダメージ種別・条件のどれかが違えば別物として弾く。
+    const { damageModifier: _dropped, ...withoutModifier } = damageMod;
+    for (const staleBefore of [
+      withoutModifier,
+      { ...damageMod, damageModifier: { direction: "OUTGOING", damageType: null } } as const,
+      { ...damageMod, damageModifier: { direction: "INCOMING", damageType: "EN" } } as const,
+      {
+        ...damageMod,
+        damageModifier: { direction: "INCOMING", damageType: null, condition: { kind: "TRUE" } },
+      } as const,
+    ]) {
+      expect(() =>
+        applyStateDelta(granted, {
+          units: {
+            [UNIT_B]: {
+              effects: {
+                [damageMod.effectInstanceId]: { before: staleBefore, after: undefined },
+              },
+            },
+          },
+        }),
+      ).toThrow(DomainValidationError);
+    }
   });
 
   it("UT-R-EFF-01-049 (TGT-004フェーズ3、Issue #167、R-ACTN-03): an APPLY_STATUS-style delta (statusKind set) round-trips through the independent Reducer", () => {

@@ -122,6 +122,27 @@ function sameHealingLinkState(
 }
 
 /**
+ * R-DMG-04（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD`由来の効果だけが持つ向き・
+ * 対象ダメージタイプ・動的条件を`sameHealingLinkState`と同じ理由で構造比較する。
+ * `condition`は再帰的な木なので、`sameStatusDetails`の`appliesTo`と同じく
+ * `JSON.stringify`で比較する（Catalog由来の決定的なプレーン値であり、
+ * `deepFreeze`済みでキー順も安定している）。
+ */
+function sameDamageModifierState(
+  a: EffectSnapshot["damageModifier"],
+  b: EffectSnapshot["damageModifier"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.direction === b.direction &&
+    a.damageType === b.damageType &&
+    JSON.stringify(a.condition) === JSON.stringify(b.condition)
+  );
+}
+
+/**
  * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
  * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
  * 単位の構造比較を行う。
@@ -156,7 +177,8 @@ export function sameEffectSnapshot(
     sameImmunityState(a.immunity, b.immunity) &&
     sameStatusDetails(a.statusDetails, b.statusDetails) &&
     a.isAttackDamageBonus === b.isAttackDamageBonus &&
-    sameHealingLinkState(a.healingLink, b.healingLink)
+    sameHealingLinkState(a.healingLink, b.healingLink) &&
+    sameDamageModifierState(a.damageModifier, b.damageModifier)
   );
 }
 
