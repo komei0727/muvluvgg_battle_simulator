@@ -763,4 +763,60 @@ describe("production Catalog CAP_CHARGE_RESTRICTION (M7-016, Issue #270, R-SKL-0
       reconfirmPassiveCandidate(candidates[0]!, sienaAfterRelease, turnStartedEvent, guard),
     ).toEqual({ ok: true });
   });
+
+  it("IT-CAP-CHARGE-RESTRICTION-PROD-006 (M7-016, Issue #270 review [P1]): both real CHARGE definitions carry an empty start-side steps array, so nothing a charge start would silently drop is declared, and a real charge start applies no MarkerState at all", () => {
+    for (const [unitId, skillId] of [
+      [MIRIAM_UNIT_ID, MIRIAM_CHARGE_SKILL_ID],
+      [SIENA_UNIT_ID, SIENA_CHARGE_SKILL_ID],
+    ] as const) {
+      const { definitions, recorder, skillOf } = fixture([unitId]);
+      const chargeSkill = skillOf(skillId);
+
+      // Catalog契約: 開始側はEffectSequenceを持たない（`targetBindings`だけが
+      // `activationCondition`のスコープとして意味を持つ）。`chargeRelease`は持つ。
+      expect(chargeSkill.resolution.kind).toBe("CHARGE");
+      expect(chargeSkill.resolution.steps).toEqual([]);
+      if (chargeSkill.resolution.kind === "CHARGE") {
+        expect(chargeSkill.resolution.chargeRelease.steps.length).toBeGreaterThan(0);
+      }
+      // 「チャージ中」を表す`APPLY_MARKER`は`charge`状態と重複する変換由来の定義
+      // だったため除去済み。実カタログのどこからも参照されない。
+      expect(
+        [...definitions.effectActions.keys()].filter((id) => id.endsWith("_CHARGE_MARKER")),
+      ).toEqual([]);
+
+      const charger = actorFor("B_CHARGE:unit:1", unitId, "ALLY", {
+        column: "CENTER",
+        row: "FRONT",
+      });
+      const enemy = actorFor("B_CHARGE:unit:2", ATTACKER_UNIT_ID, "ENEMY", {
+        column: "CENTER",
+        row: "FRONT",
+      });
+
+      const charged = resolveChargeStart(
+        charger,
+        chargeSkill,
+        "AS",
+        "AS",
+        [charger, enemy],
+        definitions,
+        new SequenceRandomSource([]),
+        recorder,
+        1,
+        0,
+        createActionId("B_CHARGE:action:1"),
+        recorder.nextResolutionScopeId(),
+      ).units;
+
+      // runtime: チャージ開始はEffectSequenceを一切解決しない
+      // （`06_戦闘状態遷移.md`「チャージ開始」#1〜6）。両者が一致している。
+      const chargerAfter = unitIn(charged, charger);
+      expect(chargerAfter.charge).toBeDefined();
+      expect(chargerAfter.markerStates).toEqual([]);
+      expect(chargerAfter.appliedEffects).toEqual([]);
+      expect(recorder.getEvents().map((e) => e.eventType)).not.toContain("MarkerApplied");
+      expect(recorder.getEvents().map((e) => e.eventType)).not.toContain("EffectApplied");
+    }
+  });
 });

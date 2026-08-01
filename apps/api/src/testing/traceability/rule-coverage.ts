@@ -661,9 +661,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: [
       // M7-016（Issue #270、`CAP_CHARGE_RESTRICTION`）: 実`catalog/`のCHARGE定義2件で
       // チャージ開始→保留中→解放の一巡を通し、`ChargeStarted`／`ActionCompleting`の
-      // StateDeltaと独立Reducer復元まで固定する。
+      // StateDeltaと独立Reducer復元まで固定する。`006`はPRレビュー[P1]の是正で、
+      // R-SKL-05が効果解決の手順を持たない（`resolveChargeStart`が開始側stepを
+      // 一つも解決しない）ことと、Catalog側の開始側`steps`が空であることの一致を見る。
       "IT-CAP-CHARGE-RESTRICTION-PROD-001",
       "IT-CAP-CHARGE-RESTRICTION-PROD-005",
+      "IT-CAP-CHARGE-RESTRICTION-PROD-006",
       "UT-ACTION-PHASE-012",
       "UT-ACTION-PHASE-013",
       "UT-ACTION-PHASE-014",

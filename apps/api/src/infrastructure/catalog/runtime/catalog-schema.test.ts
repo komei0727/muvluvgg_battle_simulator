@@ -214,6 +214,56 @@ describe("Catalog v2 DTO JSON Schema", () => {
     expect(valid).toBe(false);
   });
 
+  it("UT-INFRA-SCHEMA-012 (M7-016, Issue #270 review [P1]): rejects a CHARGE SkillDefinition DTO that declares start-side steps, which resolveChargeStart never resolves", () => {
+    const valid = validateSkillDefinitionDto({
+      skillDefinitionId: "SKL_001_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 2 },
+      resolution: {
+        kind: "CHARGE",
+        steps: [{ kind: "ACTION" }],
+        chargeRelease: { steps: [{ kind: "ACTION" }] },
+      },
+      cooldown: { unit: "ACTION", count: 2 },
+      traits: {},
+      requiredCapabilities: ["CAP_CHARGE_RESTRICTION"],
+      metadata: { displayName: "x" },
+    });
+    expect(valid).toBe(false);
+  });
+
+  it("UT-INFRA-SCHEMA-013 (M7-016, Issue #270 review [P1]): accepts a CHARGE SkillDefinition DTO whose start side carries an empty steps array, while IMMEDIATE still requires at least one step", () => {
+    expect(
+      validateSkillDefinitionDto({
+        skillDefinitionId: "SKL_001_AS1",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 2 },
+        resolution: {
+          kind: "CHARGE",
+          targetBindings: [{ targetBindingId: "TGT_START" }],
+          steps: [],
+          chargeRelease: { steps: [{ kind: "ACTION" }] },
+        },
+        cooldown: { unit: "ACTION", count: 2 },
+        traits: {},
+        requiredCapabilities: ["CAP_CHARGE_RESTRICTION"],
+        metadata: { displayName: "x" },
+      }),
+    ).toBe(true);
+    expect(
+      validateSkillDefinitionDto({
+        skillDefinitionId: "SKL_001_AS1",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 1 },
+        resolution: { kind: "IMMEDIATE", steps: [] },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        requiredCapabilities: [],
+        metadata: { displayName: "x" },
+      }),
+    ).toBe(false);
+  });
+
   it("UT-INFRA-SCHEMA-010: rejects an unknown property inside a fixed-shape sub-object (baseStats)", () => {
     const valid = validateUnitDefinitionDto({
       unitDefinitionId: "UNIT_001",

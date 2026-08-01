@@ -396,25 +396,21 @@ resolution:
 
 ### フィールド詳細
 
-| フィールド       | 型                        | 必須 | 制約                      |
-| ---------------- | ------------------------- | ---- | ------------------------- |
-| `kind`           | enum                      | ✓    | `IMMEDIATE` / `CHARGE`    |
-| `targetBindings` | TargetBindingDefinition[] | ✓    | 0件可。定義順で束縛する   |
-| `steps`          | EffectStepDefinition[]    | ✓    | 1件以上                   |
-| `chargeRelease`  | object                    | —    | `kind: CHARGE` の場合必須 |
+| フィールド       | 型                        | 必須 | 制約                                                             |
+| ---------------- | ------------------------- | ---- | ---------------------------------------------------------------- |
+| `kind`           | enum                      | ✓    | `IMMEDIATE` / `CHARGE`                                           |
+| `targetBindings` | TargetBindingDefinition[] | ✓    | 0件可。定義順で束縛する                                          |
+| `steps`          | EffectStepDefinition[]    | ✓    | `kind: IMMEDIATE` では1件以上。`kind: CHARGE` では必ず空（下記） |
+| `chargeRelease`  | object                    | —    | `kind: CHARGE` の場合必須                                        |
 
 ### CHARGE
 
 ```yaml
 resolution:
   kind: CHARGE
+  # 開始側は必ず空。`targetBindings` は activationCondition のスコープとしてだけ意味を持つ
   targetBindings: []
-  steps:
-    - kind: ACTION
-      target:
-        kind: SELF
-      actions:
-        - effectActionDefinitionId: ACT_MARKER_CHARGING
+  steps: []
   chargeRelease:
     targetBindings:
       - targetBindingId: TGT_ALL_ENEMIES
@@ -432,6 +428,8 @@ resolution:
         actions:
           - effectActionDefinitionId: ACT_DAMAGE_EN_21200
 ```
+
+`kind: CHARGE` の開始側 EffectSequence（トップレベルの `steps` / `counterUpdates`）は**必ず空**とする。`06_戦闘状態遷移.md`「チャージ開始」#1〜6 と `R-SKL-05` はコスト消費・クールタイム設定・チャージ状態化・`ChargeStarted` 発行・PS解決・行動完了だけを規定し、効果解決の手順を持たない。`resolveChargeStart` も開始側のstepを一つも解決しないため、ここにEffectActionを宣言すると、対応するDomain Event・StateDeltaごと実行時に黙って欠落する。DTOのJSON Schema（`catalog-schema.ts` の `kind` 条件付き `maxItems: 0`）とDomainのfactory（`createResolution`）の両方がロード時点で拒否する（`M7-016`／Issue #270 レビュー[P1]。`counterUpdates` は PR #213 レビュー[P1] で先に同じ理由で拒否済み）。開始側の `targetBindings` だけは、AS/EX の `activationCondition` が開始側bindingへスコープされる（PR #287）ため引き続き意味を持つ。チャージ効果は `chargeRelease` にだけ宣言する。
 
 `CHARGE` 中の「回避と自身のパッシブスキルが使用できない」は、チャージ状態の共通ルール（`R-HIT-02`・`R-HIT-04`・`R-PS-04`）として、チャージ中の所有者に対して常に適用する。`M7-016`（Issue #270）以降、`resolution.kind: CHARGE` を持つSkillは `requiredCapabilities` に `CAP_CHARGE_RESTRICTION` を必ず含めること（`catalog-integrity.ts` が宣言漏れを `MISSING_REQUIRED_CAPABILITY` として拒否する）。制限自体はチャージ状態の有無だけで決まるため、宣言はCapability→production定義の追跡可能性を保つためのものであり、宣言の有無が挙動を切り替えるわけではない。
 

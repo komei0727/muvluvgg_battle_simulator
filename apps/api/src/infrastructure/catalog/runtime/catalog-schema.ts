@@ -142,9 +142,24 @@ export const skillDefinitionSchema = {
       properties: {
         kind: { enum: ["IMMEDIATE", "CHARGE"] },
         targetBindings: looseObjectArray,
-        steps: { type: "array", minItems: 1, items: looseObject },
+        steps: { type: "array", items: looseObject },
         chargeRelease: looseObject,
       },
+      // M7-016（Issue #270 レビュー[P1]）: `steps`の要件はkindごとに逆になる。
+      // IMMEDIATEは1件以上を要求し、CHARGEは開始側を必ず空にする —
+      // `06_戦闘状態遷移.md`「チャージ開始」#1〜6が効果解決の手順を持たず、
+      // `resolveChargeStart`も開始側stepを一つも解決しないため、宣言できてしまうと
+      // 実行時に黙って欠落する（Domain側の`createResolution`も同じ検証を持つ）。
+      allOf: [
+        {
+          if: { required: ["kind"], properties: { kind: { const: "IMMEDIATE" } } },
+          then: { properties: { steps: { minItems: 1 } } },
+        },
+        {
+          if: { required: ["kind"], properties: { kind: { const: "CHARGE" } } },
+          then: { required: ["chargeRelease"], properties: { steps: { maxItems: 0 } } },
+        },
+      ],
     },
     cooldown: {
       type: "object",

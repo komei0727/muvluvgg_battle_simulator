@@ -50,13 +50,7 @@
     "resolution": {
       "kind": "CHARGE",
       "targetBindings": [],
-      "steps": [
-        {
-          "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_AS1_CHARGE_MARKER" }]
-        }
-      ],
+      "steps": [],
       "chargeRelease": {
         "targetBindings": [
           {
@@ -75,7 +69,7 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_CHARGE_RESTRICTION"],
+    "requiredCapabilities": ["CAP_CHARGE_RESTRICTION"],
     "metadata": { "displayName": "リリカルブラスト", "tags": [] }
   },
   {

@@ -248,13 +248,9 @@ function chargeSkill(id: string, requiredCapabilities: readonly string[]): Skill
           selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
         },
       ],
-      steps: [
-        {
-          kind: "ACTION",
-          target: { kind: "BINDING", targetBindingId: "TGT_START" },
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-        },
-      ],
+      // M7-016（Issue #270 レビュー[P1]）: CHARGE開始側は効果を解決しないため
+      // `steps`は常に空でなければならない。
+      steps: [],
       chargeRelease: {
         targetBindings: [
           {
@@ -3195,13 +3191,9 @@ describe("buildCatalogIndex", () => {
           resolution: {
             kind: "CHARGE",
             targetBindings: [{ targetBindingId: "TGT_START", selector: startSelector }],
-            steps: [
-              {
-                kind: "ACTION",
-                target: { kind: "BINDING", targetBindingId: "TGT_START" },
-                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-              },
-            ],
+            // M7-016（Issue #270 レビュー[P1]）: 開始側`steps`は空。`targetBindings`は
+            // `activationCondition`のスコープとして引き続き意味を持つ。
+            steps: [],
             chargeRelease: {
               targetBindings: [{ targetBindingId: releaseBindingId, selector: releaseSelector }],
               steps: [
