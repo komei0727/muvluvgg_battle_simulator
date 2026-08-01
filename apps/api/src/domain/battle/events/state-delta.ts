@@ -17,6 +17,7 @@ import type {
   RuntimeCounterId,
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { EffectImmunityCategory, StatKind } from "../../catalog/definitions/catalog-enums.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import type {
@@ -122,6 +123,20 @@ export interface EffectSnapshot {
    */
   readonly continuousDamage?: ContinuousDamageState;
   /**
+   * M7-001E（Issue #248、R-EFF-02/03）: `effect-category-classifier.ts`が付与時点に
+   * 確定した分類集合（`AppliedEffect.categories`と同じソート済み配列）。
+   * `TARGET_HAS_EFFECT`条件の判定入力であるため、欠落・破損したまま復元されると
+   * 独立Reducerの状態でだけ条件成立が変わる — `statusKind`/`shield`と同じ理由で
+   * 同一性比較へ含める。
+   */
+  readonly categories: readonly EffectImmunityCategory[];
+  /**
+   * M7-001E（Issue #248）: `APPLY_STAT_MOD`由来の効果だけが持つ補正対象stat。
+   * `TARGET_HAS_EFFECT.statKinds`のstat単位の絞り込みが復元後も同じ結果になるよう、
+   * `categories`と同じ理由で同一性比較へ含める。
+   */
+  readonly statModStat?: StatKind;
+  /**
    * DMG-008（Issue #189、R-DOT-01）: `AppliedEffect.snapshot`（継続ダメージの
    * `sourceAttack`など、付与時に固定した値）。付与者の攻撃力が復元されないと、
    * 独立Reducerで復元した状態の継続ダメージが実戦闘と別の量を出す
@@ -181,6 +196,8 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     ...(effect.damageModifier !== undefined ? { damageModifier: effect.damageModifier } : {}),
     ...(effect.shield !== undefined ? { shield: effect.shield } : {}),
     ...(effect.continuousDamage !== undefined ? { continuousDamage: effect.continuousDamage } : {}),
+    categories: effect.categories,
+    ...(effect.statModStat !== undefined ? { statModStat: effect.statModStat } : {}),
     ...(effect.snapshot !== undefined ? { snapshot: effect.snapshot } : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
@@ -256,9 +273,16 @@ export interface UnitStateDelta {
    * `unit`(ACTION/TURN)はスキル使用開始時から不変だが、ReducerはCatalogを
    * 参照できないため、初回設定(`CooldownStarted`)以降の全ての変更でも
    * 一緒に運ぶ（`before`のみのValueChangeでは初回設定時に`unit`を復元できない）。
-   * `setActionId`/`setTurnNumber`は初回設定(`CooldownStarted`)時だけ`unit`に
+   * `setActionId`/`setTurnNumber`は設定(`CooldownStarted`)時だけ`unit`に
    * 応じてどちらか一方を持ち、以降の変更(`CooldownReduced`等)では省略する
    * （設定scope自体は変わらないため、独立Reducerは既存値を保持する）。
+   *
+   * `establishesScope`（Issue #248で表面化した既存欠陥）は「この差分がエントリ自体を
+   * 設定し直す（`CooldownStarted`）」ことを表す。R-SKL-04/PR #141のとおり、行動外の
+   * トップレベルイベントから発動したPSは`unit: "ACTION"`でも設定scopeを持たない
+   * エントリになるため、`setActionId`/`setTurnNumber`の**不在**そのものが意味を持つ。
+   * この印が無いと独立Reducerは不在を「省略（既存値を保持）」と解釈するしかなく、
+   * 古い`setActionId`を残して実状態と食い違っていた。
    */
   readonly cooldowns?: Readonly<
     Record<
@@ -267,6 +291,7 @@ export interface UnitStateDelta {
         readonly unit: CooldownUnit;
         readonly setActionId?: ActionId;
         readonly setTurnNumber?: number;
+        readonly establishesScope?: true;
       } & ValueChange<number>
     >
   >;

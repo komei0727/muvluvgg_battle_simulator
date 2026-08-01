@@ -57,6 +57,7 @@ function effectWithConditions(
     sourceId: target.battleUnitId,
     targetId: target.battleUnitId,
     magnitude: 10,
+    categories: ["BUFF"],
     duration: { definition },
     appliedTurnNumber: 1,
   };
@@ -107,6 +108,7 @@ describe("findEffectsMatchingExpirationCondition", () => {
       sourceId: target.battleUnitId,
       targetId: target.battleUnitId,
       magnitude: 10,
+      categories: ["BUFF"],
       duration: { definition },
       appliedTurnNumber: 1,
     };
@@ -234,6 +236,7 @@ describe("findEffectsMatchingExpirationCondition", () => {
         sourceId: target.battleUnitId,
         targetId: target.battleUnitId,
         magnitude: 10,
+        categories: ["BUFF"],
         duration: { definition, counters: { [HIT_COUNTER]: { value: counterValue, carry: 0 } } },
         appliedTurnNumber: 1,
       };

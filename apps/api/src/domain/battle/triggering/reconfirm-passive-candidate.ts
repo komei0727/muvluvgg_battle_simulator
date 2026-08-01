@@ -2,6 +2,8 @@ import { isCoolingDown } from "../action/action-selection-policy.js";
 import { isDefeated, isFrozen, isStunned, type BattleUnit } from "../model/battle-unit.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { PassiveActivationGuard } from "./passive-activation-guard.js";
 import { hasActivated } from "./passive-activation-guard.js";
 import type { PassiveCandidate } from "./passive-candidate.js";
@@ -42,7 +44,9 @@ export type PassiveReconfirmationResult =
  * 同じ値を渡す。`units`/`turnNumber`（RES-004、Issue #171）も同じ理由で
  * `ALIVE_UNIT_COUNT`/`TURN_NUMBER`を候補検出時と同一の文脈で再評価するために
  * 渡す。`units`は再確認時点の最新状態（呼び出し側が`currentUnit`と同様に
- * 都度渡す）。
+ * 都度渡す）。`unitDefinitions`（M7-001E、Issue #248）も同じ理由で、
+ * `TARGET_STATE`の`UNIT_TYPE`/`ROLE`を候補検出時と同じCatalog参照表で
+ * 再評価するために渡す。
  */
 export function reconfirmPassiveCandidate(
   candidate: PassiveCandidate,
@@ -53,6 +57,7 @@ export function reconfirmPassiveCandidate(
   resolutionPhase?: ResolutionPhase,
   units?: readonly BattleUnit[],
   turnNumber?: number,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): PassiveReconfirmationResult {
   if (isDefeated(currentUnit)) {
     return { ok: false, reason: "OWNER_DEFEATED" };
@@ -81,6 +86,7 @@ export function reconfirmPassiveCandidate(
     ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
     ...(units !== undefined ? { units } : {}),
     ...(turnNumber !== undefined ? { turnNumber } : {}),
+    ...(unitDefinitions !== undefined ? { unitDefinitions } : {}),
   };
   if (
     !evaluateTriggerCondition(candidate.trigger.condition, event, counterContext) ||

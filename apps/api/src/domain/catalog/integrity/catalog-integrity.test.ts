@@ -2693,6 +2693,316 @@ describe("buildCatalogIndex", () => {
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
 
+    /**
+     * PR #287レビュー[P2]（Issue #248）: AS/EXの`activationCondition`は
+     * `evaluateActivationCondition`（`lifecycle/activation-condition-evaluator.ts`）が
+     * 解決済みbindingを`TargetSetResolver`として渡して評価するため、BRANCHと
+     * まったく同じ「高々1体」制約が実行時に効く。Catalogロード側にこの制約が
+     * 無いと、`count: "ALL"`のbindingを参照する定義が正常にロードされたまま
+     * 行動選択中に`DomainValidationError`で落ちる。
+     */
+    function activationConditionSkill(
+      condition: ConditionDefinitionInput,
+      selector: TargetSelectorDefinitionInput,
+      skillType: "AS" | "EX" | "PS" = "AS",
+    ): SkillDefinition {
+      return createSkillDefinition({
+        skillDefinitionId:
+          skillType === "EX" ? "SKL_EX1" : skillType === "PS" ? "SKL_PS1" : "SKL_AS1",
+        skillType,
+        cost: {
+          resource: skillType === "EX" ? "EX_GAUGE" : skillType === "PS" ? "PP" : "AP",
+          amount: 1,
+        },
+        activationCondition: condition,
+        ...(skillType === "PS"
+          ? {
+              triggers: [
+                {
+                  eventType: "DamageApplied",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                },
+              ],
+            }
+          : {}),
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [{ targetBindingId: "TGT_OTHER", selector }],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        requiredCapabilities:
+          skillType === "PS"
+            ? ["CAP_PASSIVE_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"]
+            : ["CAP_ACTION_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"],
+        metadata: { displayName: "Activation condition scope AS" },
+      });
+    }
+
+    const ACTIVATION_CAPABILITIES = [
+      capability("CAP_ACTION_ACTIVATION_CONDITION"),
+      capability("CAP_TARGET_EFFECT_QUERY"),
+    ];
+
+    it("UT-CAT-IDX-092 (PR #287レビュー[P2], Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
+      const defs = baseDefinitions();
+      const skill = activationConditionSkill(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          categories: ["DEBUFF"],
+        },
+        { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
+      );
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [skill, exSkill("SKL_EX1", 7)],
+          capabilities: ACTIVATION_CAPABILITIES,
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-093 (PR #287レビュー[P2], Issue #248): applies the same rule to TARGET_STATE/TARGET_HAS_MARKER, which share the AS/EX activationCondition evaluation path", () => {
+      const defs = baseDefinitions();
+      const multiSelector: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: "ALL",
+        order: ["DEFAULT"],
+      };
+      for (const condition of [
+        {
+          kind: "TARGET_STATE",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          field: "IS_ALIVE",
+          op: "EQ",
+          value: true,
+        },
+        {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          markerId: "MARKER_TEST",
+        },
+      ] satisfies ConditionDefinitionInput[]) {
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [activationConditionSkill(condition, multiSelector), exSkill("SKL_EX1", 7)],
+            capabilities: ACTIVATION_CAPABILITIES,
+          }),
+        ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
+      }
+    });
+
+    it("UT-CAT-IDX-094 (PR #287レビュー[P2], Issue #248): accepts a count:1 BINDING on an AS activationCondition", () => {
+      const defs = baseDefinitions();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            activationConditionSkill(
+              {
+                kind: "TARGET_HAS_EFFECT",
+                target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                categories: ["DEBUFF"],
+              },
+              { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+            ),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: ACTIVATION_CAPABILITIES,
+        }),
+      ).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-095 (PR #287 再レビュー[P2], Issue #248): rejects an AS/EX activationCondition referencing a TargetReference kind that evaluateActivationCondition cannot resolve (only SELF/BINDING exist at action-selection time)", () => {
+      const defs = baseDefinitions();
+      const singleSelector: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        order: ["DEFAULT"],
+      };
+      // `TRIGGER_SOURCE`は常に1体なのでcardinalityだけを見る検証は通過してしまうが、
+      // 行動選択時にはトリガーイベントが存在しないため実行時に必ず落ちる。
+      for (const referenceKind of ["TRIGGER_SOURCE", "TRIGGER_TARGET"] as const) {
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [
+              activationConditionSkill(
+                {
+                  kind: "TARGET_HAS_EFFECT",
+                  target: { kind: referenceKind },
+                  categories: ["DEBUFF"],
+                },
+                singleSelector,
+              ),
+              exSkill("SKL_EX1", 7),
+            ],
+            capabilities: [...ACTIVATION_CAPABILITIES, capability("CAP_TRIGGER_CONTEXT")],
+          }),
+        ).toThrowError(/ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE/);
+      }
+    });
+
+    it("UT-CAT-IDX-096 (PR #287 再レビュー[P2], Issue #248): rejects a PS activationCondition referencing a BINDING, which evaluateTriggerCondition cannot resolve, while still accepting its own trigger-context kinds", () => {
+      const defs = baseDefinitions();
+      const psCapabilities = [
+        ...ACTIVATION_CAPABILITIES,
+        capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
+        capability("CAP_TRIGGER_CONTEXT"),
+      ];
+      const psSkill = (target: TargetReferenceInput, selector: TargetSelectorDefinitionInput) =>
+        activationConditionSkill(
+          { kind: "TARGET_HAS_EFFECT", target, categories: ["DEBUFF"] },
+          selector,
+          "PS",
+        );
+      const anySelector: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        order: ["DEFAULT"],
+      };
+
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            psSkill({ kind: "BINDING", targetBindingId: "TGT_OTHER" }, anySelector),
+            asSkill("SKL_AS1", "ACT_DAMAGE_1"),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: psCapabilities,
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE/);
+
+      // PSは解決済みid集合へ存在量化するため、TRIGGER_TARGETが複数対象でも受理する。
+      for (const target of [
+        { kind: "SELF" },
+        { kind: "TRIGGER_SOURCE" },
+        { kind: "TRIGGER_TARGET" },
+      ] satisfies TargetReferenceInput[]) {
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [
+              psSkill(target, anySelector),
+              asSkill("SKL_AS1", "ACT_DAMAGE_1"),
+              exSkill("SKL_EX1", 7),
+            ],
+            capabilities: psCapabilities,
+          }),
+        ).not.toThrow();
+      }
+    });
+
+    it("UT-CAT-IDX-097 (PR #287 再レビュー[P2], Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
+      const defs = baseDefinitions();
+      const chargeSkill = (
+        activationCondition: ConditionDefinitionInput,
+        startSelector: TargetSelectorDefinitionInput,
+        releaseSelector: TargetSelectorDefinitionInput = {
+          kind: "SELECT",
+          side: "ENEMY",
+          count: 1,
+          order: ["DEFAULT"],
+        },
+        releaseBindingId = "TGT_RELEASE_ONLY",
+      ): SkillDefinition =>
+        createSkillDefinition({
+          skillDefinitionId: "SKL_AS1",
+          skillType: "AS",
+          cost: { resource: "AP", amount: 1 },
+          activationCondition,
+          resolution: {
+            kind: "CHARGE",
+            targetBindings: [{ targetBindingId: "TGT_START", selector: startSelector }],
+            steps: [
+              {
+                kind: "ACTION",
+                target: { kind: "BINDING", targetBindingId: "TGT_START" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+            chargeRelease: {
+              targetBindings: [{ targetBindingId: releaseBindingId, selector: releaseSelector }],
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "BINDING", targetBindingId: releaseBindingId },
+                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                },
+              ],
+            },
+          },
+          cooldown: { unit: "ACTION", count: 1 },
+          traits: {},
+          requiredCapabilities: ["CAP_ACTION_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"],
+          metadata: { displayName: "Charge activation condition AS" },
+        });
+      const startSelector: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        order: ["DEFAULT"],
+      };
+
+      // 解放側にしか存在しないbindingは、それ自体がcount:1でも行動選択時には
+      // 解決できない（未解決参照で落ちる）。解放側を検証対象へ混ぜていると、
+      // 単一対象なので通過してしまう。
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            chargeSkill(
+              {
+                kind: "TARGET_HAS_EFFECT",
+                target: { kind: "BINDING", targetBindingId: "TGT_RELEASE_ONLY" },
+                categories: ["DEBUFF"],
+              },
+              startSelector,
+            ),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: ACTIVATION_CAPABILITIES,
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
+
+      // 開始側のcount:1 bindingはそのまま受理する。開始側と解放側が同じbinding IDを
+      // 使い、解放側だけがcount:"ALL"であっても、開始側の単一対象性を上書きしない。
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            chargeSkill(
+              {
+                kind: "TARGET_HAS_EFFECT",
+                target: { kind: "BINDING", targetBindingId: "TGT_START" },
+                categories: ["DEBUFF"],
+              },
+              startSelector,
+              { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
+              "TGT_START",
+            ),
+            exSkill("SKL_EX1", 7),
+          ],
+          capabilities: ACTIVATION_CAPABILITIES,
+        }),
+      ).not.toThrow();
+    });
+
     it("UT-CAT-IDX-070（PRレビュー[P2]再指摘）: accepts a BRANCH condition referencing a BINDING whose fallback chain is entirely count:1 (every reachable path resolves to at most one unit)", () => {
       const defs = baseDefinitions();
       const skill = branchConditionSkill(

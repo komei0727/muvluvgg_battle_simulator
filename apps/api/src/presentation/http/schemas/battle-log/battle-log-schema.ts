@@ -1204,6 +1204,16 @@ const jsonPrimitiveSchema = { type: ["string", "number", "boolean"] } as const;
  * ドメインが拒否する組み合わせ（例: `SELF`に`targetBindingId`を付与）も
  * 有効と判定してしまうため、`oneOf`でBINDING形と非BINDING形を分ける。
  */
+const STAT_KIND_ENUM = [
+  "MAXIMUM_HP",
+  "ATTACK",
+  "DEFENSE",
+  "CRITICAL_RATE",
+  "CRITICAL_DAMAGE_BONUS",
+  "AFFINITY_BONUS",
+  "ACTION_SPEED",
+] as const;
+
 const targetReferenceDetailsSchema = {
   oneOf: [
     {
@@ -1440,6 +1450,36 @@ export const conditionDefinitionDetailsSchema = {
         negate: { type: "boolean" },
       },
     },
+    // M7-001E（Issue #248、`CAP_TARGET_EFFECT_QUERY`）: `TARGET_HAS_EFFECT`。
+    // `expiration.conditions`（`EffectApplied.details.expirationConditions`）で
+    // 使われうるため、Domainの`ConditionDefinition`語彙と揃えて公開する。
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "categories"],
+      properties: {
+        kind: { const: "TARGET_HAS_EFFECT" },
+        target: targetReferenceDetailsSchema,
+        categories: {
+          type: "array",
+          minItems: 1,
+          items: {
+            type: "string",
+            enum: ["BUFF", "DEBUFF", "STATUS", "DAMAGE_MOD", "SHIELD", "SUBUNIT"],
+          },
+        },
+        continuousDamageKinds: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string", enum: ["FIXED", "BURN", "POISON"] },
+        },
+        statKinds: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string", enum: STAT_KIND_ENUM },
+        },
+      },
+    },
   ],
 } as const;
 
@@ -1519,16 +1559,6 @@ const effectAppliedDetailsSchema = {
     snapshot: { type: "object", additionalProperties: { type: "number" } },
   },
 } as const;
-
-const STAT_KIND_ENUM = [
-  "MAXIMUM_HP",
-  "ATTACK",
-  "DEFENSE",
-  "CRITICAL_RATE",
-  "CRITICAL_DAMAGE_BONUS",
-  "AFFINITY_BONUS",
-  "ACTION_SPEED",
-] as const;
 
 const EFFECT_APPLICATION_REJECTION_REASON_ENUM = ["IMMUNITY"] as const;
 

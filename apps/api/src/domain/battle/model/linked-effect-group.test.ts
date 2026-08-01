@@ -72,6 +72,7 @@ function effect(
     sourceId: target.battleUnitId,
     targetId: target.battleUnitId,
     magnitude: 10,
+    categories: ["BUFF"],
     duration: { definition: durationDefinition(linkedEffectGroupId, linkedEffectGroupRole) },
     appliedTurnNumber: 1,
   };

@@ -780,10 +780,20 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
     // No setActionId recorded (no action was in progress), so the owner's own
     // next action-completion decrements it regardless of that action's id.
+    // `establishesScope`（Issue #248）はその「設定scopeなし」を独立Reducerへ
+    // 明示するための印であり、これが無いと復元側は不在を「省略」と読み違えて
+    // 直前の`setActionId`を残してしまう。
     expect(cooldownStarted.stateDelta).toEqual({
       units: {
         [owner.battleUnitId]: {
-          cooldowns: { [skill.skillDefinitionId]: { unit: "ACTION", before: 0, after: 2 } },
+          cooldowns: {
+            [skill.skillDefinitionId]: {
+              unit: "ACTION",
+              before: 0,
+              after: 2,
+              establishesScope: true,
+            },
+          },
         },
       },
     });
@@ -1164,6 +1174,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           sourceId: parentOwner.battleUnitId,
           targetId: enemyBase.battleUnitId,
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "FREEZE",
           statusDetails: { damageAmplificationOnBreak: 0.5 },
           duration: { definition: linkedDuration },
@@ -1177,6 +1188,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           sourceId: enemyBase.battleUnitId,
           targetId: enemyBase.battleUnitId,
           magnitude: 0.2,
+          categories: ["BUFF"],
           duration: { definition: linkedDuration },
           appliedTurnNumber: 1,
         },
@@ -1314,6 +1326,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           sourceId: parentOwner.battleUnitId,
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "FREEZE",
           statusDetails: { damageAmplificationOnBreak: 0.5 },
           duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -1461,6 +1474,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           sourceId: parentOwner.battleUnitId,
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "FREEZE",
           statusDetails: { damageAmplificationOnBreak: 0.5 },
           duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -3206,6 +3220,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: holderId,
         targetId: holderId,
         magnitude: -0.2,
+        categories: ["DEBUFF"],
         duration: {
           definition: { expiration: { conditions }, dispellable: true, linkedEffectGroupId: null },
         },
@@ -3446,6 +3461,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: granterId,
         targetId: holderId,
         magnitude: -0.25,
+        categories: ["DEBUFF"],
         duration: { definition: childDuration },
         appliedTurnNumber: 1,
       };
@@ -3872,6 +3888,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: createBattleUnitId("ENEMY"),
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
+        categories: ["BUFF"],
         duration: { definition: curseDefinition(threshold), counters: {} },
         appliedTurnNumber: 1,
       };
@@ -4038,6 +4055,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
                 duplicate: true,
                 isEffective: true,
                 magnitude: 0,
+                categories: ["BUFF"],
                 appliedTurnNumber: 1,
                 counters: {},
               },
@@ -4197,6 +4215,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: createBattleUnitId("ATTACKER"),
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
+        categories: ["BUFF"],
         duration: {
           definition: {
             dispellable: true,
@@ -4295,6 +4314,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: enemy.battleUnitId,
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
+        categories: ["BUFF"],
         duration: {
           definition: {
             dispellable: true,
@@ -4332,6 +4352,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: enemy.battleUnitId,
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
+        categories: ["BUFF"],
         duration: {
           definition: {
             dispellable: true,
@@ -4905,6 +4926,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: createBattleUnitId("HOLDER"),
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
+        categories: ["BUFF"],
         statusKind: "STEALTH",
         duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
         appliedTurnNumber: 1,
@@ -5094,6 +5116,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: createBattleUnitId("HOLDER"),
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
+        categories: ["BUFF"],
         statusKind: "STEALTH",
         duration: {
           definition: {
@@ -5112,6 +5135,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: createBattleUnitId("HOLDER"),
         targetId: createBattleUnitId("HOLDER"),
         magnitude: 0,
+        categories: ["BUFF"],
         duration: {
           definition: {
             dispellable: true,
@@ -5470,6 +5494,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         sourceId: createBattleUnitId("OWNER"),
         targetId: createBattleUnitId("OWNER"),
         magnitude: 0,
+        categories: ["BUFF"],
         statusKind: "STEALTH",
         duration: {
           definition: {
@@ -5843,6 +5868,7 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6, Issue
       sourceId: createBattleUnitId(destinationId),
       targetId: createBattleUnitId(holderId),
       magnitude: 1,
+      categories: ["BUFF"],
       healingLink: { transferToUnitId: createBattleUnitId(destinationId), transferRate: 1 },
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 1,

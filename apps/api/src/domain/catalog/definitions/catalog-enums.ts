@@ -33,14 +33,32 @@ export type ConsumptionKind =
   | "STATUS_BLOCKED"
   | "LETHAL_DAMAGE";
 
-export type StatKind =
-  | "MAXIMUM_HP"
-  | "ATTACK"
-  | "DEFENSE"
-  | "CRITICAL_RATE"
-  | "CRITICAL_DAMAGE_BONUS"
-  | "AFFINITY_BONUS"
-  | "ACTION_SPEED";
+/**
+ * R-STA-01の`stat`候補（`14_Catalog定義スキーマ.md`「APPLY_STAT_MOD」）。M7-001E
+ * （Issue #248）で`ConditionDefinition.TARGET_HAS_EFFECT.statKinds`も同じ値集合を
+ * 検証に使うようになったため、`effect-action-definition-factory.ts`の private const
+ * からここ（値もtypeも持たない葉モジュール）へ移し、正本を1つにした
+ * （`condition-definition.ts`は`effect-action-payload.ts`へ依存できない — 逆向きの
+ * type importが既にあり循環になる）。
+ */
+export const STAT_KINDS = [
+  "MAXIMUM_HP",
+  "ATTACK",
+  "DEFENSE",
+  "CRITICAL_RATE",
+  "CRITICAL_DAMAGE_BONUS",
+  "AFFINITY_BONUS",
+  "ACTION_SPEED",
+] as const;
+export type StatKind = (typeof STAT_KINDS)[number];
+
+/**
+ * R-DOT-01〜04（DMG-008、Issue #189）の継続ダメージ種別。`STAT_KINDS`と同じ理由で
+ * `effect-action-payload.ts`からここへ移した（`TARGET_HAS_EFFECT.continuousDamageKinds`
+ * が同じ値集合を検証に使う）。`effect-action-payload.ts`は後方互換のため再exportする。
+ */
+export const CONTINUOUS_DAMAGE_KINDS = ["FIXED", "BURN", "POISON"] as const;
+export type ContinuousDamageKind = (typeof CONTINUOUS_DAMAGE_KINDS)[number];
 
 /**
  * Subset of `StatKind` that `FormationBonus` and `PositionAptitudePolicy`

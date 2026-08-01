@@ -107,6 +107,7 @@ function statusEffect(
     sourceId: holderId,
     targetId: holderId,
     magnitude: 0,
+    categories: ["BUFF"],
     statusKind,
     duration: {
       definition: {
@@ -557,6 +558,7 @@ describe("resolveActionPhase", () => {
       sourceId: createBattleUnitId("ALLY_1"),
       targetId: createBattleUnitId("ALLY_1"),
       magnitude: 1.0,
+      categories: ["BUFF"],
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 1,
     };
@@ -627,6 +629,7 @@ describe("resolveActionPhase", () => {
       sourceId: createBattleUnitId("ALLY_1"),
       targetId: createBattleUnitId("ALLY_1"),
       magnitude: 0,
+      categories: ["BUFF"],
       duration: {
         definition: {
           timeLimit: { unit: "ACTION", count: 2 },
@@ -730,6 +733,7 @@ describe("resolveActionPhase", () => {
       sourceId: createBattleUnitId("ALLY_1"),
       targetId: createBattleUnitId("ALLY_1"),
       magnitude: 0,
+      categories: ["BUFF"],
       duration: {
         definition: {
           timeLimit: { unit: "ACTION", count: 2 },
@@ -875,6 +879,7 @@ describe("resolveActionPhase", () => {
       sourceId: createBattleUnitId("ENEMY_1"),
       targetId: createBattleUnitId("ALLY_1"),
       magnitude: 30,
+      categories: ["DEBUFF"],
       continuousDamage: { continuousDamageKind: "FIXED", damageType: "PHYSICAL" },
       snapshot: { sourceAttack: 100 },
       duration: {
@@ -985,6 +990,7 @@ describe("resolveActionPhase", () => {
       sourceId: createBattleUnitId("ALLY_1"),
       targetId: createBattleUnitId("ALLY_1"),
       magnitude: 0,
+      categories: ["BUFF"],
       duration: {
         definition: {
           timeLimit: { unit: "ACTION", count: 2 },

@@ -255,6 +255,49 @@ describe("applyStateDelta", () => {
     });
   });
 
+  it("UT-STATE-REDUCER-034 (Issue #248 で表面化した既存欠陥): a CooldownStarted that establishes a scope-less entry clears the previous setting scope instead of silently keeping the stale one", () => {
+    // R-SKL-04/PR #141: 行動外のトップレベルイベント（ターン開始・終了）から
+    // 発動したPSのクールタイムは`setActionId`を持たないエントリとして設定し直される。
+    // `establishesScope`が無いと、独立Reducerは`change.setActionId ?? existing`の
+    // マージで古い`setActionId`を残し、`captureBattleState`の実状態と食い違って
+    // 復元一致検証（`assembleSimulationResult`）が失敗していた
+    // （`UNIT_LUCIE_MAID`のgolden battleが実戦闘の失敗として検出した）。
+    const skillDefinitionId = createSkillDefinitionId("SKL_PS_CD");
+    const setActionId = createActionId("battle-1:action:1");
+
+    const started = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_A]: {
+          cooldowns: {
+            [skillDefinitionId]: {
+              unit: "ACTION",
+              before: 0,
+              after: 1,
+              setActionId,
+              establishesScope: true,
+            },
+          },
+        },
+      },
+    });
+    expect(started.units[UNIT_A]!.cooldowns).toEqual({
+      [skillDefinitionId]: { unit: "ACTION", remaining: 1, setActionId },
+    });
+
+    const restartedOutsideAction = applyStateDelta(started, {
+      units: {
+        [UNIT_A]: {
+          cooldowns: {
+            [skillDefinitionId]: { unit: "ACTION", before: 1, after: 1, establishesScope: true },
+          },
+        },
+      },
+    });
+    expect(restartedOutsideAction.units[UNIT_A]!.cooldowns).toEqual({
+      [skillDefinitionId]: { unit: "ACTION", remaining: 1 },
+    });
+  });
+
   it("UT-STATE-REDUCER-020 (M5 review round 2 [P1] fix): a TURN-unit CooldownStarted delta carries setTurnNumber (not setActionId)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_CD_TURN");
 
@@ -594,6 +637,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: 10,
+      categories: ["BUFF"],
       appliedTurnNumber: 1,
     };
 
@@ -615,6 +659,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: 10,
+      categories: ["BUFF"],
       appliedTurnNumber: 1,
     };
     const second: EffectSnapshot = {
@@ -648,6 +693,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: 10,
+      categories: ["BUFF"],
       appliedTurnNumber: 0,
     };
     const granted = applyStateDelta(initialState(), {
@@ -702,6 +748,53 @@ describe("applyStateDelta", () => {
     expect(removed.units[UNIT_B]!.effects ?? []).toEqual([]);
   });
 
+  it("UT-STATE-REDUCER-033 (M7-001E、Issue #248、R-EFF-02): rejects an effects delta whose before.categories disagrees with the stored classification", () => {
+    // 分類（`effectCategoriesOf`の結果）は`TARGET_HAS_EFFECT`条件の判定入力であり、
+    // 欠落・破損したまま復元されると独立Reducerの状態だけ条件成立が変わる。
+    // `statusKind`/`shield`等と同じ理由で同一性比較へ含める。
+    const debuff: EffectSnapshot = {
+      effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
+      effectDefinitionId: "ACT_TEST_ATTACK_DOWN",
+      sourceUnitId: UNIT_A,
+      kindKey: "ACT_TEST_ATTACK_DOWN",
+      duplicate: true,
+      isEffective: true,
+      magnitude: -0.2,
+      categories: ["DEBUFF"],
+      statModStat: "ATTACK",
+      appliedTurnNumber: 1,
+    };
+    const granted = applyStateDelta(initialState(), {
+      units: {
+        [UNIT_B]: { effects: { [debuff.effectInstanceId]: { before: undefined, after: debuff } } },
+      },
+    });
+    expect(granted.units[UNIT_B]!.effects).toEqual([debuff]);
+
+    for (const corrupted of [
+      { ...debuff, categories: ["BUFF"] as const },
+      { ...debuff, categories: ["DEBUFF", "STATUS"] as const },
+      { ...debuff, statModStat: "DEFENSE" as const },
+    ]) {
+      expect(() =>
+        applyStateDelta(granted, {
+          units: {
+            [UNIT_B]: {
+              effects: { [debuff.effectInstanceId]: { before: corrupted, after: undefined } },
+            },
+          },
+        }),
+      ).toThrow(DomainValidationError);
+    }
+
+    const removed = applyStateDelta(granted, {
+      units: {
+        [UNIT_B]: { effects: { [debuff.effectInstanceId]: { before: debuff, after: undefined } } },
+      },
+    });
+    expect(removed.units[UNIT_B]!.effects ?? []).toEqual([]);
+  });
+
   it("UT-R-DMG-04-014 (DMG-002、Issue #192、R-DMG-04): an APPLY_DAMAGE_MOD delta round-trips its direction, damageType and dynamic condition through the independent Reducer", () => {
     const damageMod: EffectSnapshot = {
       effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
@@ -711,6 +804,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: -0.3,
+      categories: ["DAMAGE_MOD", "DEBUFF"],
       damageModifier: {
         direction: "INCOMING",
         damageType: null,
@@ -745,6 +839,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: -0.4,
+      categories: ["DAMAGE_MOD", "DEBUFF"],
       damageModifier: {
         direction: "INCOMING",
         damageType: null,
@@ -798,6 +893,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: 0,
+      categories: ["BUFF"],
       statusKind: "STEALTH",
       duration: { unit: "SKILL_USE", remaining: 3 },
       appliedTurnNumber: 1,
@@ -823,6 +919,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: 0,
+      categories: ["BUFF"],
       statusKind: "STEALTH",
       appliedTurnNumber: 1,
     };
@@ -855,6 +952,7 @@ describe("applyStateDelta", () => {
       duplicate: true,
       isEffective: true,
       magnitude: 10,
+      categories: ["BUFF"],
       appliedTurnNumber: 1,
     };
     const staleBefore: EffectSnapshot = { ...effect, magnitude: 999 };

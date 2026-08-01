@@ -2,45 +2,79 @@
   {
     "skillDefinitionId": "SKL_CHIYURU_MAZE_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [],
-    "metadata": { "displayName": "Q.E.D", "tags": [] }
+    "metadata": {
+      "displayName": "Q.E.D",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CHIYURU_MAZE_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            },
             "side": "ENEMY"
           }
         }
@@ -48,14 +82,45 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "categories": ["DEBUFF"],
+            "continuousDamageKinds": ["POISON"]
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DEF_DOWN"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
             "field": "HP_RATIO",
             "op": "GTE",
             "value": 0.8
@@ -63,71 +128,122 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_BASE"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON"
+                }
+              ]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 2 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_STAT_MOD"
     ],
-    "metadata": { "displayName": "Pスラスト", "tags": [] }
+    "metadata": {
+      "displayName": "Pスラスト",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CHIYURU_MAZE_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS2_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS2_DAMAGE"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [],
-    "metadata": { "displayName": "多重連突", "tags": [] }
+    "metadata": {
+      "displayName": "多重連突",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CHIYURU_MAZE_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "ポイズンチェイス", "tags": [] },
+    "metadata": {
+      "displayName": "ポイズンチェイス",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "SkillUseCompleted",
@@ -137,10 +253,17 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "skillType",
+              "op": "EQ",
+              "value": "AS"
+            },
             {
               "kind": "TARGET_STATE",
-              "target": { "kind": "TRIGGER_SOURCE" },
+              "target": {
+                "kind": "TRIGGER_SOURCE"
+              },
               "field": "ATTRIBUTE",
               "op": "EQ",
               "value": "SHY"
@@ -153,29 +276,46 @@
   {
     "skillDefinitionId": "SKL_CHIYURU_MAZE_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 2 },
+    "cost": {
+      "resource": "PP",
+      "amount": 2
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
-    "traits": { "simultaneousActivationLimited": true },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
+    "traits": {
+      "simultaneousActivationLimited": true
+    },
     "requiredCapabilities": [
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_TRIGGER_CONTEXT",
       "CAP_TARGET_STATE_EXTENDED_FIELD"
     ],
-    "metadata": { "displayName": "ポイズンライド", "tags": [] },
+    "metadata": {
+      "displayName": "ポイズンライド",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "SkillUseStarting",
@@ -185,10 +325,17 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "skillType",
+              "op": "EQ",
+              "value": "AS"
+            },
             {
               "kind": "TARGET_STATE",
-              "target": { "kind": "TRIGGER_SOURCE" },
+              "target": {
+                "kind": "TRIGGER_SOURCE"
+              },
               "field": "UNIT_TYPE",
               "op": "EQ",
               "value": "AGILE"

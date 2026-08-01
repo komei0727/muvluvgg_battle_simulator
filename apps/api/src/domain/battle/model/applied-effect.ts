@@ -8,6 +8,7 @@ import type {
   DamageModDirection,
   DamageType,
   EffectImmunityCategory,
+  StatKind,
 } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type {
@@ -284,6 +285,31 @@ export interface AppliedEffect {
   readonly shield?: ShieldState;
   /** R-DOT-01〜04（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ。 */
   readonly continuousDamage?: ContinuousDamageState;
+  /**
+   * M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`、R-EFF-02/03）: 付与時点に
+   * `effect-category-classifier.ts`の`effectCategoriesOf`（BUFF・DEBUFF・STATUS等の
+   * 唯一の分類元）で確定した分類集合を、`EffectApplied.payload.categories`と同じ
+   * ソート済み配列として焼き込む。
+   *
+   * 分類は`definition.kind`と付与時点の`magnitude`の符号だけから決まり、付与後は
+   * 変化しない（R-EFF-05「バフは正の効果量、デバフは弱化量」の`magnitude`は付与時
+   * snapshot）ため、導出結果を保持しても実体と乖離しない。
+   *
+   * インスタンス自身に持たせる理由は`statusKind`/`shield`/`continuousDamage`と同じ
+   * である — `TARGET_HAS_EFFECT`条件を評価する`effect-step-condition-evaluator.ts`／
+   * `trigger-condition-evaluator.ts`はCatalogの`effectActions`マップを引けず
+   * （PS trigger評価は`BattleUnit`とイベントだけを文脈に持つ）、分類のためだけに
+   * 全呼び出し経路へ定義マップを通すと分類元が二重化するためである。
+   */
+  readonly categories: readonly EffectImmunityCategory[];
+  /**
+   * M7-001E（Issue #248）: `APPLY_STAT_MOD`由来の付与だけが持つ、補正対象の
+   * `StatKind`（`definition.payload.stat`）。`TARGET_HAS_EFFECT.statKinds`が
+   * 「対象の攻撃力にデバフがかかっているか」のようにカテゴリ判定をstat単位へ
+   * 絞り込むために参照する（`SKL_SHOUKA_SCHEMER_AS3`）。`categories`と同じく
+   * 定義から一意に決まる不変値を付与時点で焼き込む。
+   */
+  readonly statModStat?: StatKind;
   readonly duration: EffectDurationState;
   /**
    * 継続ダメージ等、付与時に固定するスナップショット値（例: 付与者攻撃力）。

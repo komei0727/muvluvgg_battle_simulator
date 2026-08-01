@@ -69,6 +69,7 @@ function linkedEffect(
     sourceId: target.battleUnitId,
     targetId: target.battleUnitId,
     magnitude: 0.025,
+    categories: ["BUFF"],
     duration: {
       definition: {
         dispellable: false,

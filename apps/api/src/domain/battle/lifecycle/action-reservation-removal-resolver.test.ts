@@ -154,6 +154,7 @@ function frozenChargeHeldEffect(
     sourceId: createBattleUnitId("E"),
     targetId: createBattleUnitId("E"),
     magnitude: 0,
+    categories: ["DEBUFF", "STATUS"],
     statusKind: "FREEZE",
     duration: {
       definition: {

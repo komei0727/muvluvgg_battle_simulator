@@ -299,6 +299,7 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
       sourceId: createBattleUnitId(transferToUnitId),
       targetId: createBattleUnitId(holderId),
       magnitude: transferRate,
+      categories: ["BUFF"],
       healingLink: { transferToUnitId: createBattleUnitId(transferToUnitId), transferRate },
       duration: {
         definition: { dispellable: true, linkedEffectGroupId: null },

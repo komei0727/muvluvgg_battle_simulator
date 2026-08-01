@@ -210,7 +210,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // gating only by accident stay blocked by their real blocker. None of the
     // 10 units promoted here changed definition, so `unitCount`/violation/
     // `selectable` expectations here are unchanged.
-    expect(catalog.catalogRevision).toBe("2026-08-01.4");
+    // Bumped again by M7-001E (Issue #248, TARGET_STATE_QUERY_BUFF_DEBUFF):
+    // `CAP_TARGET_STATE_EXTENDED_FIELD`が`IMPLEMENTED`になり、新設の
+    // `CAP_TARGET_EFFECT_QUERY`と対象5行（CHIYURU/FLUTE/MAIA/NOEL/SHOUKA）の
+    // 近似解消が入った。ここで昇格した10 Unitの定義は変わらないため
+    // `unitCount`/violation/`selectable`の期待値は据え置き。
+    expect(catalog.catalogRevision).toBe("2026-08-01.5");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

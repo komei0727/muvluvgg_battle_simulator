@@ -69,6 +69,7 @@ function effectWithCounterUpdates(
     sourceId: holder.battleUnitId,
     targetId: holder.battleUnitId,
     magnitude: 10,
+    categories: ["BUFF"],
     duration: {
       definition: {
         dispellable: true,

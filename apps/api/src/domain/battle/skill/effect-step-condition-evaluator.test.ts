@@ -23,8 +23,10 @@ import type { BattlePartyMember } from "../model/battle-party.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { buildInitialMarkerState } from "../model/marker-state.js";
-import { createMarkerInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
+import type { EffectImmunityCategory } from "../../catalog/definitions/catalog-enums.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -58,6 +60,29 @@ const STEP_TARGET: TargetReference = {
   kind: "BINDING",
   targetBindingId: createTargetBindingId("TGT_COLUMN"),
 };
+
+/**
+ * M7-001E（Issue #248）: `TARGET_HAS_EFFECT`/`HAS_STATUS`が読む最小の`AppliedEffect`。
+ * `categories`は`grantEffect`が`effectCategoriesOf`から焼き込む値と同じ形で渡す。
+ */
+function effect(
+  id: string,
+  categories: readonly EffectImmunityCategory[],
+  magnitude = -0.2,
+): AppliedEffect {
+  const effectActionDefinitionId = createEffectActionDefinitionId(`ACT_${id.toUpperCase()}`);
+  return {
+    effectInstanceId: createEffectInstanceId(`battle-1:effect:${id}`),
+    effectActionDefinitionId,
+    kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
+    duplicate: true,
+    targetId: createBattleUnitId("t1"),
+    magnitude,
+    categories,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
 const OTHER_BINDING: TargetReference = {
   kind: "BINDING",
   targetBindingId: createTargetBindingId("TGT_OTHER"),
@@ -736,6 +761,252 @@ describe("evaluateEffectStepCondition", () => {
           calculatedDamage: 5,
         }),
       ).toBe(false);
+    });
+  });
+
+  /**
+   * M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`、`CAP_TARGET_EFFECT_QUERY`）:
+   * 「対象が何らかのバフ／デバフ／状態異常を保持しているか」「対象が毒／炎上か」
+   * 「対象の攻撃力にデバフがかかっているか」を、評価時点の最新`BattleUnit`が持つ
+   * `AppliedEffect.categories`（付与時に`effectCategoriesOf`が確定した分類）から判定する。
+   */
+  describe("TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, Issue #248 M7-001E)", () => {
+    function contextFor(current: BattleUnit): EffectStepTargetContext {
+      return {
+        stepTarget: STEP_TARGET,
+        current,
+        resolveOtherReference: () => [],
+        unitDefinitions: new Map(),
+      };
+    }
+
+    const HAS_DEBUFF: ConditionDefinition = {
+      kind: "TARGET_HAS_EFFECT",
+      target: STEP_TARGET,
+      categories: ["DEBUFF"],
+    };
+
+    it("UT-R-SKL-06-056: matches a target holding an effect classified in one of the queried categories, and not one holding only other categories", () => {
+      const debuffed = unit("t1", "UNIT_A", { appliedEffects: [effect("e1", ["DEBUFF"])] });
+      const buffed = unit("t2", "UNIT_A", { appliedEffects: [effect("e2", ["BUFF"])] });
+      const clean = unit("t3", "UNIT_A");
+
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, contextFor(debuffed))).toBe(true);
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, contextFor(buffed))).toBe(false);
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, contextFor(clean))).toBe(false);
+    });
+
+    it("UT-R-SKL-06-057 (R-STS-01): a status ailment matches both a STATUS query and a DEBUFF query, because effectCategoriesOf classifies it as both", () => {
+      const stunned = unit("t1", "UNIT_A", {
+        appliedEffects: [{ ...effect("e1", ["DEBUFF", "STATUS"]), statusKind: "STUN" }],
+      });
+      const hasStatus: ConditionDefinition = {
+        kind: "TARGET_HAS_EFFECT",
+        target: STEP_TARGET,
+        categories: ["STATUS"],
+      };
+
+      expect(evaluateEffectStepCondition(hasStatus, undefined, contextFor(stunned))).toBe(true);
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, contextFor(stunned))).toBe(true);
+    });
+
+    it("UT-R-SKL-06-058: continuousDamageKinds narrows a DEBUFF query to poison, so a burning (but not poisoned) target does not match", () => {
+      const poisonQuery: ConditionDefinition = {
+        kind: "TARGET_HAS_EFFECT",
+        target: STEP_TARGET,
+        categories: ["DEBUFF"],
+        continuousDamageKinds: ["POISON"],
+      };
+      const poisoned = unit("t1", "UNIT_A", {
+        appliedEffects: [
+          {
+            ...effect("e1", ["DEBUFF"]),
+            continuousDamage: { continuousDamageKind: "POISON", damageType: "PHYSICAL" },
+          },
+        ],
+      });
+      const burning = unit("t2", "UNIT_A", {
+        appliedEffects: [
+          {
+            ...effect("e2", ["DEBUFF"]),
+            continuousDamage: { continuousDamageKind: "BURN", damageType: "PHYSICAL" },
+          },
+        ],
+      });
+      // 継続ダメージでない一般のデバフも、絞り込みがある限り一致しない。
+      const statDebuffed = unit("t3", "UNIT_A", { appliedEffects: [effect("e3", ["DEBUFF"])] });
+
+      expect(evaluateEffectStepCondition(poisonQuery, undefined, contextFor(poisoned))).toBe(true);
+      expect(evaluateEffectStepCondition(poisonQuery, undefined, contextFor(burning))).toBe(false);
+      expect(evaluateEffectStepCondition(poisonQuery, undefined, contextFor(statDebuffed))).toBe(
+        false,
+      );
+    });
+
+    it("UT-R-SKL-06-059: statKinds narrows a DEBUFF query to the attack stat, so a defense-only debuff does not match", () => {
+      const attackDebuffQuery: ConditionDefinition = {
+        kind: "TARGET_HAS_EFFECT",
+        target: STEP_TARGET,
+        categories: ["DEBUFF"],
+        statKinds: ["ATTACK"],
+      };
+      const attackDown = unit("t1", "UNIT_A", {
+        appliedEffects: [{ ...effect("e1", ["DEBUFF"]), statModStat: "ATTACK" }],
+      });
+      const defenseDown = unit("t2", "UNIT_A", {
+        appliedEffects: [{ ...effect("e2", ["DEBUFF"]), statModStat: "DEFENSE" }],
+      });
+      // 攻撃力**バフ**は`categories`が一致しないため、statだけ合っても一致しない。
+      const attackUp = unit("t3", "UNIT_A", {
+        appliedEffects: [{ ...effect("e3", ["BUFF"], 0.2), statModStat: "ATTACK" }],
+      });
+
+      expect(
+        evaluateEffectStepCondition(attackDebuffQuery, undefined, contextFor(attackDown)),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(attackDebuffQuery, undefined, contextFor(defenseDown)),
+      ).toBe(false);
+      expect(evaluateEffectStepCondition(attackDebuffQuery, undefined, contextFor(attackUp))).toBe(
+        false,
+      );
+    });
+
+    it("UT-R-SKL-06-060: evaluates per target, so a mixed target set yields a different verdict for each candidate", () => {
+      const debuffed = unit("t1", "UNIT_A", { appliedEffects: [effect("e1", ["DEBUFF"])] });
+      const clean = unit("t2", "UNIT_A");
+
+      expect(
+        [debuffed, clean].map((current) =>
+          evaluateEffectStepCondition(HAS_DEBUFF, undefined, contextFor(current)),
+        ),
+      ).toEqual([true, false]);
+    });
+
+    it("UT-R-SKL-06-061: reads the latest state, so an effect removed since planning no longer matches", () => {
+      const debuffed = unit("t1", "UNIT_A", { appliedEffects: [effect("e1", ["DEBUFF"])] });
+      const cleansed = { ...debuffed, appliedEffects: [] };
+
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, contextFor(debuffed))).toBe(true);
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, contextFor(cleansed))).toBe(false);
+    });
+
+    it("UT-R-SKL-06-062: in step-wide (BRANCH) scope resolves 0..1 units via the TargetSetResolver, and throws beyond one", () => {
+      const debuffed = unit("t1", "UNIT_A", { appliedEffects: [effect("e1", ["DEBUFF"])] });
+      const clean = unit("t2", "UNIT_A");
+
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, undefined, () => [])).toBe(false);
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, undefined, () => [debuffed])).toBe(
+        true,
+      );
+      expect(evaluateEffectStepCondition(HAS_DEBUFF, undefined, undefined, () => [clean])).toBe(
+        false,
+      );
+      expect(() =>
+        evaluateEffectStepCondition(HAS_DEBUFF, undefined, undefined, () => [debuffed, clean]),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-063: without either an EffectStepTargetContext or a TargetSetResolver throws instead of silently returning false", () => {
+      expect(() => evaluateEffectStepCondition(HAS_DEBUFF)).toThrow(DomainValidationError);
+    });
+  });
+
+  /**
+   * M7-001E（Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）: `TARGET_STATE`の
+   * `HAS_STATUS`（`UNIT_MERU_FLATSPIN`/`UNIT_NANAE_COMMANDER`のBRANCH条件）と
+   * `ROLE`を評価できるようにする。
+   */
+  describe("TARGET_STATE HAS_STATUS/ROLE (CAP_TARGET_STATE_EXTENDED_FIELD, Issue #248 M7-001E)", () => {
+    const stunCondition: ConditionDefinition = {
+      kind: "TARGET_STATE",
+      target: STEP_TARGET,
+      field: "HAS_STATUS",
+      op: "EQ",
+      value: "STUN",
+    };
+
+    function contextFor(current: BattleUnit): EffectStepTargetContext {
+      return {
+        stepTarget: STEP_TARGET,
+        current,
+        resolveOtherReference: () => [],
+        unitDefinitions: new Map(),
+      };
+    }
+
+    it("UT-R-SKL-06-064: HAS_STATUS is true exactly when the target holds an AppliedEffect of that statusKind", () => {
+      const stunned = unit("t1", "UNIT_A", {
+        appliedEffects: [{ ...effect("e1", ["DEBUFF", "STATUS"]), statusKind: "STUN" }],
+      });
+      const frozen = unit("t2", "UNIT_A", {
+        appliedEffects: [{ ...effect("e2", ["DEBUFF", "STATUS"]), statusKind: "FREEZE" }],
+      });
+      const statDebuffed = unit("t3", "UNIT_A", { appliedEffects: [effect("e3", ["DEBUFF"])] });
+
+      expect(evaluateEffectStepCondition(stunCondition, undefined, contextFor(stunned))).toBe(true);
+      expect(evaluateEffectStepCondition(stunCondition, undefined, contextFor(frozen))).toBe(false);
+      expect(evaluateEffectStepCondition(stunCondition, undefined, contextFor(statDebuffed))).toBe(
+        false,
+      );
+    });
+
+    it("UT-R-SKL-06-065: HAS_STATUS in step-wide (BRANCH) scope reads the resolved unit, matching UNIT_MERU_FLATSPIN's OR of STUN/FREEZE/BLIND", () => {
+      const blinded = unit("t1", "UNIT_A", {
+        appliedEffects: [{ ...effect("e1", ["DEBUFF", "STATUS"]), statusKind: "BLIND" }],
+      });
+      const anyAilment: ConditionDefinition = {
+        kind: "OR",
+        conditions: (["STUN", "FREEZE", "BLIND"] as const).map((value) => ({
+          kind: "TARGET_STATE",
+          target: STEP_TARGET,
+          field: "HAS_STATUS",
+          op: "EQ",
+          value,
+        })),
+      };
+
+      expect(evaluateEffectStepCondition(anyAilment, undefined, undefined, () => [blinded])).toBe(
+        true,
+      );
+      expect(
+        evaluateEffectStepCondition(anyAilment, undefined, undefined, () => [unit("t2", "UNIT_A")]),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-066: ROLE resolves from the target's UnitDefinition, and still throws when that definition is missing", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_TANK");
+      const unitDefinitions = new Map<typeof unitDefinitionId, UnitDefinition>([
+        [
+          unitDefinitionId,
+          { unitDefinitionId, unitType: "PHYSICAL", role: "TANK" } as UnitDefinition,
+        ],
+      ]);
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "ROLE",
+        op: "EQ",
+        value: "TANK",
+      };
+      const tank = unit("t1", "UNIT_TANK");
+
+      expect(
+        evaluateEffectStepCondition(condition, undefined, {
+          stepTarget: STEP_TARGET,
+          current: tank,
+          resolveOtherReference: () => [],
+          unitDefinitions,
+        }),
+      ).toBe(true);
+      expect(() =>
+        evaluateEffectStepCondition(condition, undefined, {
+          stepTarget: STEP_TARGET,
+          current: unit("t2", "UNIT_UNKNOWN"),
+          resolveOtherReference: () => [],
+          unitDefinitions,
+        }),
+      ).toThrow(DomainValidationError);
     });
   });
 });

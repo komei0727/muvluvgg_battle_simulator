@@ -83,6 +83,7 @@ function effect(
     sourceId: targetId,
     targetId,
     magnitude: 0.2,
+    categories: ["BUFF"],
     duration: { definition },
     appliedTurnNumber: 1,
     ...overrides,

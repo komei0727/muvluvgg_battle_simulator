@@ -60,6 +60,7 @@ function shieldEffect(
     duplicate: true,
     targetId: createBattleUnitId("ally:1"),
     magnitude: amount,
+    categories: ["SHIELD"],
     shield: {
       shieldType: shield.shieldType,
       remaining: shield.remaining ?? amount,

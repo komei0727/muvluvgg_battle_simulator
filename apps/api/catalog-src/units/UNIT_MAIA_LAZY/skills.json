@@ -2,7 +2,10 @@
   {
     "skillDefinitionId": "SKL_MAIA_LAZY_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 5 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 5
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -12,19 +15,35 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+            "filters": [
+              {
+                "kind": "POSITION_ROW",
+                "row": "FRONT"
+              }
+            ]
           }
         },
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_ROW_AS_BASE",
+              "includeBase": true
+            },
             "side": "ENEMY"
           }
         }
@@ -32,28 +51,51 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_FRONT_ALLIES"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_HEAL" },
-            { "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_ATK_UP" }
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_HEAL"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_ATK_UP"
+            }
           ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ROW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_DAMAGE"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "さて……準備はできたわ", "tags": [] }
+    "metadata": {
+      "displayName": "さて……準備はできたわ",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_MAIA_LAZY_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -65,38 +107,114 @@
             "count": 1,
             "order": ["BACK_ROW", "DEFAULT"]
           }
+        },
+        {
+          "targetBindingId": "TGT_ALLIES_EXCEPT_SELF",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "EXCLUDE_RESOLVED_UNIT",
+                "reference": {
+                  "kind": "SELF"
+                }
+              }
+            ],
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "categories": ["BUFF"]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ALLIES_EXCEPT_SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_SHIELD"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 3 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 3
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "スナイプリフレクター", "tags": [] }
+    "requiredCapabilities": [
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_SHIELD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
+    "metadata": {
+      "displayName": "スナイプリフレクター",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_MAIA_LAZY_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_LOWEST",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
         },
         {
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_LOWEST"
+            },
+            "area": {
+              "kind": "SAME_ROW_AS_BASE",
+              "includeBase": false
+            },
             "side": "ALLY"
           }
         }
@@ -104,17 +222,34 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL_OVER_TIME" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ROW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_AS2_HEAL_OVER_TIME"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 3 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 3
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_HEAL",
@@ -122,59 +257,104 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_TARGET_FILTER_ORDER"
     ],
-    "metadata": { "displayName": "アライヒーリング", "tags": [] }
+    "metadata": {
+      "displayName": "アライヒーリング",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_MAIA_LAZY_AS3",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_HIGHEST_ATK",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["HIGHEST_ATTACK"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["HIGHEST_ATTACK"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_HIGHEST_ATK"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_ATK_UP" },
-            { "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_AP_UP" }
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_AS3_AP_UP"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 3 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 3
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "パワーアプライ", "tags": [] }
+    "metadata": {
+      "displayName": "パワーアプライ",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_MAIA_LAZY_AS4",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS4_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MAIA_LAZY_AS4_DAMAGE"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [],
-    "metadata": { "displayName": "シングル・スナイプ", "tags": [] }
+    "metadata": {
+      "displayName": "シングル・スナイプ",
+      "tags": []
+    }
   }
 ]

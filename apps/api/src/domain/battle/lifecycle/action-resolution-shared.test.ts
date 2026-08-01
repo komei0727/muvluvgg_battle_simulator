@@ -71,6 +71,7 @@ function resourceGainModEffect(
     effectInstanceId: createEffectInstanceId(id),
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
+    categories: ["BUFF"],
     duplicate: true,
     sourceId: targetId,
     targetId,

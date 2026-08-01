@@ -176,6 +176,16 @@ function sameContinuousDamageState(
 }
 
 /**
+ * R-EFF-02/03（M7-001E、Issue #248）: `effectCategoriesOf`が付与時点に確定した分類集合を
+ * `sameShieldState`と同じ理由で構造比較する。`toEffectSnapshot`は常にソート済み配列を
+ * 出すため、順序込みの要素比較で十分（順序が違う時点で正本の`toEffectSnapshot`を
+ * 経由していない差分である）。
+ */
+function sameCategories(a: EffectSnapshot["categories"], b: EffectSnapshot["categories"]): boolean {
+  return a.length === b.length && a.every((category, index) => category === b[index]);
+}
+
+/**
  * R-DOT-01（DMG-008、Issue #189）: 継続ダメージの`sourceAttack`など、付与時に
  * 固定した値を`sameShieldState`と同じ理由で構造比較する。キー集合自体が定義
  * 依存（`Record<string, number>`）のため、キー数の一致まで見て欠落を検出する。
@@ -227,6 +237,8 @@ export function sameEffectSnapshot(
     sameDamageModifierState(a.damageModifier, b.damageModifier) &&
     sameShieldState(a.shield, b.shield) &&
     sameContinuousDamageState(a.continuousDamage, b.continuousDamage) &&
+    sameCategories(a.categories, b.categories) &&
+    a.statModStat === b.statModStat &&
     sameSnapshot(a.snapshot, b.snapshot)
   );
 }
@@ -516,12 +528,23 @@ function applyCooldownDeltas(
       readonly unit: CooldownState["unit"];
       readonly setActionId?: CooldownState["setActionId"];
       readonly setTurnNumber?: CooldownState["setTurnNumber"];
+      readonly establishesScope?: true;
     } & ValueChange<number>,
   ][]) {
     const existing = next[skillDefinitionId];
     assertBeforeMatches(`${path}[${skillDefinitionId}]`, existing?.remaining ?? 0, change);
-    const setActionId = change.setActionId ?? existing?.setActionId;
-    const setTurnNumber = change.setTurnNumber ?? existing?.setTurnNumber;
+    // `establishesScope`（`CooldownStarted`）はエントリ自体を設定し直すため、
+    // 差分が持つscopeがそのまま正本になる — 不在は「省略」ではなく「設定scopeなし」
+    // （行動外のトップレベルイベントから発動したPS、R-SKL-04/PR #141）を意味する。
+    // それ以外（`CooldownReduced`等の残数変更）は設定scopeを変えないため既存値を保つ。
+    const setActionId =
+      change.establishesScope === true
+        ? change.setActionId
+        : (change.setActionId ?? existing?.setActionId);
+    const setTurnNumber =
+      change.establishesScope === true
+        ? change.setTurnNumber
+        : (change.setTurnNumber ?? existing?.setTurnNumber);
     next[skillDefinitionId] = {
       unit: change.unit,
       remaining: change.after,

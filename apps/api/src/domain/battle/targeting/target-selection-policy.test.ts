@@ -95,6 +95,7 @@ function stealthEffect(targetId: string, instanceSuffix = targetId): AppliedEffe
     sourceId: createBattleUnitId(targetId),
     targetId: createBattleUnitId(targetId),
     magnitude: 0,
+    categories: ["BUFF"],
     statusKind: "STEALTH",
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
     appliedTurnNumber: 1,

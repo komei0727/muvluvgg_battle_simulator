@@ -460,6 +460,11 @@ export function recordCooldownStart(
               unit: skill.cooldown.unit,
               before: result.before,
               after: skill.cooldown.count,
+              // Issue #248で表面化した既存欠陥: `scope`が`undefined`（行動外の
+              // トップレベルイベントから発動したPS、PR #141）の場合、設定scopeの
+              // **不在**自体が既存エントリのscopeを消す意味を持つ。独立Reducerが
+              // これを「省略」と読み違えないよう明示する。
+              establishesScope: true,
               ...(scope === undefined
                 ? {}
                 : "actionId" in scope

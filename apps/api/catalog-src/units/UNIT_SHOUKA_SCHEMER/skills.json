@@ -187,15 +187,52 @@
       ],
       "steps": [
         {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "categories": ["DEBUFF"],
+            "statKinds": ["ATTACK"]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF"
+                }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "kind": "ACTION",
           "target": {
             "kind": "BINDING",
             "targetBindingId": "TGT_PRIMARY"
           },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE"
-            },
             {
               "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF"
             }
@@ -208,7 +245,12 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "requiredCapabilities": [
+      "CAP_REMOVE_EFFECTS",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": {
       "displayName": "インクリメントアタック",
       "tags": []

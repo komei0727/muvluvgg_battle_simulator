@@ -59,6 +59,7 @@ function immunityEffect(
     sourceId: createBattleUnitId(targetId),
     targetId: createBattleUnitId(targetId),
     magnitude: 0,
+    categories: ["BUFF"],
     statusKind: "DAMAGE_IMMUNITY",
     statusDetails: details,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },

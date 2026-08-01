@@ -118,6 +118,7 @@ function actionEffect(
     sourceId,
     targetId,
     magnitude: 0.2,
+    categories: ["BUFF"],
     duration: {
       definition,
       timeLimitRemaining,
@@ -387,6 +388,7 @@ describe("shield decay ordering at COMPLETING (DMG-004, Issue #194, PRレビュ�
       duplicate: true,
       targetId: createBattleUnitId(holderId),
       magnitude: amount,
+      categories: ["SHIELD"],
       shield: { shieldType, remaining: amount, decay: DECAY },
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 1,
