@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 25
+      "incompleteConversionRows": 24
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -148,7 +148,7 @@
       "issue": 224,
       "phase": 1,
       "milestone": "M7",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "RES-004-TATIANA-EX",
@@ -552,12 +552,6 @@
     }
   ],
   "conversionThemeAssignments": [
-    {
-      "milestone": "M7",
-      "theme": "AOE_PER_TARGET_CONDITION",
-      "rowCount": 1,
-      "taskId": "RES-004-STATUS-CONDITION"
-    },
     {
       "milestone": "M7",
       "theme": "REMOVE_EFFECTS_CATEGORY_GAP",

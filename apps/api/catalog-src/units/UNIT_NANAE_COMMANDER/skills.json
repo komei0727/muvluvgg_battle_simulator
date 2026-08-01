@@ -168,30 +168,9 @@
         {
           "kind": "BRANCH",
           "condition": {
-            "kind": "OR",
-            "conditions": [
-              {
-                "kind": "TARGET_STATE",
-                "target": { "kind": "SELF" },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "STUN"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": { "kind": "SELF" },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "FREEZE"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": { "kind": "SELF" },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "BLIND"
-              }
-            ]
+            "kind": "TARGET_HAS_EFFECT",
+            "target": { "kind": "SELF" },
+            "categories": ["STATUS"]
           },
           "thenSteps": [
             {
@@ -213,7 +192,7 @@
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_REMOVE_EFFECTS",
-      "CAP_TARGET_STATE_EXTENDED_FIELD"
+      "CAP_TARGET_EFFECT_QUERY"
     ],
     "metadata": { "displayName": "セントリストア", "tags": [] },
     "triggers": [

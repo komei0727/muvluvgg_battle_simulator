@@ -145,39 +145,12 @@
         {
           "kind": "BRANCH",
           "condition": {
-            "kind": "OR",
-            "conditions": [
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_HIGHEST_ATK"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "STUN"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_HIGHEST_ATK"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "FREEZE"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_HIGHEST_ATK"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "BLIND"
-              }
-            ]
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_HIGHEST_ATK"
+            },
+            "categories": ["STATUS"]
           },
           "thenSteps": [
             {
@@ -207,7 +180,7 @@
       "CAP_COOLDOWN_MANIPULATION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_TARGET_FILTER_ORDER",
-      "CAP_TARGET_STATE_EXTENDED_FIELD"
+      "CAP_TARGET_EFFECT_QUERY"
     ],
     "metadata": {
       "displayName": "フラットスピン",
@@ -250,39 +223,12 @@
         {
           "kind": "BRANCH",
           "condition": {
-            "kind": "OR",
-            "conditions": [
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_ENEMY"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "STUN"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_ENEMY"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "FREEZE"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_ENEMY"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "BLIND"
-              }
-            ]
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ENEMY"
+            },
+            "categories": ["STATUS"]
           },
           "thenSteps": [
             {
@@ -310,7 +256,7 @@
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_STATE_EXTENDED_FIELD"
+      "CAP_TARGET_EFFECT_QUERY"
     ],
     "metadata": {
       "displayName": "スカイドライヴ",
@@ -353,39 +299,12 @@
         {
           "kind": "BRANCH",
           "condition": {
-            "kind": "OR",
-            "conditions": [
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_ENEMY"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "STUN"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_ENEMY"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "FREEZE"
-              },
-              {
-                "kind": "TARGET_STATE",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_ENEMY"
-                },
-                "field": "HAS_STATUS",
-                "op": "EQ",
-                "value": "BLIND"
-              }
-            ]
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ENEMY"
+            },
+            "categories": ["STATUS"]
           },
           "thenSteps": [
             {
@@ -414,7 +333,7 @@
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_STATE_EXTENDED_FIELD"
+      "CAP_TARGET_EFFECT_QUERY"
     ],
     "metadata": {
       "displayName": "ハードラッシュ",

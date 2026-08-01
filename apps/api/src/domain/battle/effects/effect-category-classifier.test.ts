@@ -111,6 +111,51 @@ describe("effectCategoriesOf", () => {
     }
   });
 
+  function continuousDamageDefinition(
+    id: string,
+    continuousDamageKind: "FIXED" | "BURN" | "POISON",
+  ): EffectActionDefinition {
+    return createEffectActionDefinition(
+      {
+        effectActionDefinitionId: id,
+        kind: "APPLY_CONTINUOUS_DAMAGE",
+        payload: {
+          continuousDamageKind,
+          damageType: "PHYSICAL",
+          formula: { kind: "CONSTANT", value: 100 },
+          timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+          duration: { timeLimit: { unit: "ACTION", count: 3 } },
+        },
+        requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
+      },
+      "effectAction",
+    );
+  }
+
+  it("UT-R-EFF-02-007 (RES-004-STATUS-CONDITION, Issue #224): classifies POISON continuous damage as STATUS+DEBUFF", () => {
+    const categories = effectCategoriesOf(
+      effect({ magnitude: 120 }),
+      continuousDamageDefinition("ACT_POISON", "POISON"),
+    );
+    expect(new Set(categories)).toEqual(new Set(["STATUS", "DEBUFF"]));
+  });
+
+  it("UT-R-EFF-02-008 (RES-004-STATUS-CONDITION, Issue #224): classifies BURN continuous damage as STATUS+DEBUFF", () => {
+    const categories = effectCategoriesOf(
+      effect({ magnitude: 120 }),
+      continuousDamageDefinition("ACT_BURN", "BURN"),
+    );
+    expect(new Set(categories)).toEqual(new Set(["STATUS", "DEBUFF"]));
+  });
+
+  it("UT-R-EFF-02-009 (RES-004-STATUS-CONDITION, Issue #224): classifies FIXED continuous damage as DEBUFF only, not STATUS", () => {
+    const categories = effectCategoriesOf(
+      effect({ magnitude: 120 }),
+      continuousDamageDefinition("ACT_FIXED_DOT", "FIXED"),
+    );
+    expect([...categories]).toEqual(["DEBUFF"]);
+  });
+
   it("UT-R-EFF-02-006: classifies APPLY_DAMAGE_MOD as DAMAGE_MOD plus a polarity (BUFF for positive)", () => {
     const categories = effectCategoriesOf(
       effect({ magnitude: 0.2 }),

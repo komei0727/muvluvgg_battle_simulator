@@ -117,15 +117,20 @@ export const TARGET_HAS_EFFECT_CATEGORIES = [
 export type TargetHasEffectCategory = (typeof TARGET_HAS_EFFECT_CATEGORIES)[number];
 
 /**
- * `continuousDamageKinds`（`APPLY_CONTINUOUS_DAMAGE`は常に`DEBUFF`）／`statKinds`
- * （`APPLY_STAT_MOD`は符号で`BUFF`/`DEBUFF`）は、`categories`がその分類を含んで
- * いなければ実行時に一切一致しない。`EFFECT_IMMUNITY.statusKinds`（M7-001B、
- * Issue #243）と同じ理由で、そうした「黙って効かない定義」をロード時に拒否する。
+ * `continuousDamageKinds`（`APPLY_CONTINUOUS_DAMAGE`は`DEBUFF`、うち炎上・毒は
+ * `STATUS`も持つ）／`statKinds`（`APPLY_STAT_MOD`は符号で`BUFF`/`DEBUFF`）は、
+ * `categories`がその分類を含んでいなければ実行時に一切一致しない。
+ * `EFFECT_IMMUNITY.statusKinds`（M7-001B、Issue #243）と同じ理由で、そうした
+ * 「黙って効かない定義」をロード時に拒否する。
+ *
+ * RES-004-STATUS-CONDITION（Issue #224）: 炎上・毒が`STATUS`にも分類されるように
+ * なった（`effect-category-classifier.ts`）ため、「状態異常のうち毒だけ」という
+ * 照会は到達可能になった。`STATUS`を到達元へ加える。
  */
 const NARROWING_REACHABLE_CATEGORIES: Readonly<
   Record<"continuousDamageKinds" | "statKinds", readonly TargetHasEffectCategory[]>
 > = {
-  continuousDamageKinds: ["DEBUFF"],
+  continuousDamageKinds: ["DEBUFF", "STATUS"],
   statKinds: ["BUFF", "DEBUFF"],
 };
 

@@ -30,6 +30,29 @@
               "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE"
             }
           ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ENEMIES"
+            },
+            "categories": ["STATUS"]
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_STUN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP"
+            }
+          ]
         }
       ]
     },
@@ -38,7 +61,11 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_DAMAGE_MOD"
+    ],
     "metadata": {
       "displayName": "Q.E.D",
       "tags": []

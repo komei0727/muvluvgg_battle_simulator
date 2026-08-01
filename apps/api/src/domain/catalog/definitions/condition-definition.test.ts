@@ -608,6 +608,29 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     }
   });
 
+  it("UT-CAT-COND-044 (RES-004-STATUS-CONDITION, Issue #224): accepts continuousDamageKinds under categories STATUS", () => {
+    // 炎上・毒は`STATUS`にも分類されるようになった（`effect-category-classifier.ts`）
+    // ため、「状態異常のうち毒だけ」という照会は実行時に到達可能であり、
+    // `NARROWING_REACHABLE_CATEGORIES`は`STATUS`も到達元として認めなければならない。
+    expect(
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["STATUS"],
+          continuousDamageKinds: ["POISON"],
+        },
+        "condition",
+        undefined,
+      ),
+    ).toEqual({
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "SELF" },
+      categories: ["STATUS"],
+      continuousDamageKinds: ["POISON"],
+    });
+  });
+
   it("UT-CAT-COND-043: rejects a typo'd sibling key and a BINDING target outside the declared scope", () => {
     expect(() =>
       createConditionDefinition(
