@@ -1615,6 +1615,26 @@ function validateEffectAction(
       });
     }
   }
+  // M7-015（Issue #269、R-NUM-04「`MARKER_COUNT_SCALE`は評価時点の
+  // `MarkerState.stackCount`を参照する」）: `MARKER_COUNT_SCALE`はMarker本体
+  // （`CAP_MARKER`）とは別のCapability `CAP_MARKER_STACK_FORMULA`が担当する
+  // — Markerを付与する定義とMarker所持数を読む定義は別物で、後者だけを持つ
+  // 定義（`ACT_FEE_BATH_AS2_DAMAGE`のように付与は別EffectActionが行う）も
+  // 実在する。`CAP_SUM_DAMAGE_RESULT`と同じ「宣言漏れ自体を拒否する」
+  // パターンで宣言を必須にし、Capability→定義の追跡可能性を保つ
+  // （`checkRequiredCapabilities`は列挙済みCapabilityの存在有無しか見ないため、
+  // 宣言漏れは素通りしてしまう）。宣言があれば実際の可否判定は選択時の
+  // `SimulationPreflightValidator`が行い、Catalogロード自体は失敗させない。
+  if (formulasOf(effectAction).some(referencesMarkerCountScale)) {
+    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_MARKER_STACK_FORMULA")) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message:
+          'a FormulaDefinition referencing "MARKER_COUNT_SCALE" must declare "CAP_MARKER_STACK_FORMULA" in requiredCapabilities',
+      });
+    }
+  }
   // R-HEAL-03（M7-005、Issue #184）: `continuous-heal-service.ts`は
   // `timing: {eventType: "ActionStarted", targetSelector: "EFFECT_OWNER"}`
   // （production Catalogの継続回復13件がすべて使う唯一の組み合わせ）だけを
@@ -1855,6 +1875,23 @@ function referencesSumDamageResult(formula: FormulaDefinition): boolean {
       return formula.formulas.some(referencesSumDamageResult);
     case "CLAMP":
       return referencesSumDamageResult(formula.formula);
+    default:
+      return false;
+  }
+}
+
+/** `SUM`/`PRODUCT`/`MIN`/`MAX`/`CLAMP`の入れ子を含めて`MARKER_COUNT_SCALE`を再帰的に探す。 */
+function referencesMarkerCountScale(formula: FormulaDefinition): boolean {
+  switch (formula.kind) {
+    case "MARKER_COUNT_SCALE":
+      return true;
+    case "SUM":
+    case "PRODUCT":
+    case "MIN":
+    case "MAX":
+      return formula.formulas.some(referencesMarkerCountScale);
+    case "CLAMP":
+      return referencesMarkerCountScale(formula.formula);
     default:
       return false;
   }

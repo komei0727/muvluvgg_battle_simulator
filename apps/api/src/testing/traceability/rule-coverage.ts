@@ -85,6 +85,22 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-NUM-04-029",
       "UT-R-NUM-04-030",
       "UT-R-NUM-04-031",
+      // M7-015（Issue #269、`CAP_MARKER_STACK_FORMULA`）: R-NUM-04の
+      // 「`MARKER_COUNT_SCALE`は評価時点の`MarkerState.stackCount`を参照する」
+      // だけが実ライフサイクル検証を持たないまま残っていた（EFF-004／Issue #160は
+      // Marker本体だけを実装してcloseし、M7-010／Issue #177の監査が所有者不在を
+      // 検出した）。`UT-R-NUM-04-032`/`033`はこのFormulaを使う定義に
+      // `CAP_MARKER_STACK_FORMULA`宣言を必須とするCatalog検証、
+      // `IT-CAP-MARKER-STACK-PROD-001`〜`006`は実`catalog/`の
+      // `APPLY_STAT_MOD.formula`（`target: SKILL_SOURCE`）と
+      // `DAMAGE.damageModifiers`（`target: TARGET`）の両経路を実`resolveSkillUse`で
+      // 通した所持数0・比例・`max`頭打ち・別markerId非寄与の実測である。
+      "UT-R-NUM-04-032",
+      "UT-R-NUM-04-033",
+      "IT-CAP-MARKER-STACK-PROD-001",
+      "IT-CAP-MARKER-STACK-PROD-002",
+      "IT-CAP-MARKER-STACK-PROD-003",
+      "IT-CAP-MARKER-STACK-PROD-006",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -1460,6 +1476,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "PROP-DMG-01-002",
       "PROP-DMG-01-003",
       "PROP-DMG-01-004",
+      // M7-015（Issue #269）: R-DMG-01の「Action内追加ダメージ倍率」を、
+      // production定義（`ACT_KARINA_DOWNER_AS1_DAMAGE`／`ACT_FEE_BATH_AS2_DAMAGE`の
+      // `damageModifiers`）が実際に使う`MARKER_COUNT_SCALE`で実測した。同一AOE解決の
+      // 対象ごとに倍率が分かれること、複数ヒットが同じ所持数を読むことを含む。
+      "IT-CAP-MARKER-STACK-PROD-002",
+      "IT-CAP-MARKER-STACK-PROD-003",
+      "IT-CAP-MARKER-STACK-PROD-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },
@@ -2270,11 +2293,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `REMOVE_MARKER`とlinkedEffectGroupカスケード
   // （`marker-removal-service.ts`/`model/linked-effect-group.ts`）、ACTION/TURN単位
   // Duration失効（`marker-duration.ts`、`action-completion.ts`/`battle.ts`への
-  // 実ライフサイクル配線）を実装した。`MARKER_COUNT_SCALE`Formula評価
-  // （`CAP_MARKER_STACK_FORMULA`）はcontext付きFormulaEvaluatorを要するため
-  // RES-001（Issue #175）のスコープ、`TARGET_HAS_MARKER`Condition評価は
-  // RES-004（Issue #171）、`HAS_MARKER`TargetSelector評価はTGT-002
-  // （Issue #169）のスコープとして残す。`AppliedEffect`をまたぐlinkedEffectGroup
+  // 実ライフサイクル配線）を実装した。`MarkerState.stackCount`を**読む**側は
+  // それぞれ別Capabilityのスコープとして残した — `MARKER_COUNT_SCALE`Formula評価
+  // （`CAP_MARKER_STACK_FORMULA`）はM7-015（Issue #269）が実ライフサイクル検証
+  // （`IT-CAP-MARKER-STACK-PROD-001`〜`006`、R-NUM-04側で計上）まで通して完了させ、
+  // `TARGET_HAS_MARKER`Condition評価はRES-004（Issue #171）、`HAS_MARKER`
+  // TargetSelector評価はTGT-002（Issue #169）が担当する。
+  // `AppliedEffect`をまたぐlinkedEffectGroup
   // カスケード（cross-type、R-EFF-09第1項）はM7-013（Issue #267）が実装し、
   // それまで`catalog-integrity.ts`が`UNSUPPORTED_MARKER_LINKED_GROUP`として
   // 拒否していた組合せ（同じ`linkedEffectGroupId`を`APPLY_MARKER`と非Marker種別の

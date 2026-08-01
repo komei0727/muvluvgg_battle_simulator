@@ -879,6 +879,49 @@ function sumDamageHealAction(
   );
 }
 
+/**
+ * M7-015（Issue #269、R-NUM-04）: `MARKER_COUNT_SCALE`を`damageModifiers`の中に
+ * 置き、さらに`SUM`/`CLAMP`で入れ子にして、`sumDamageHealAction`と同じく
+ * walkerの再帰と`DAMAGE`の`damageModifiers`収集の両方を通す。
+ */
+function markerCountScaleDamageAction(
+  id: string,
+  requiredCapabilities: readonly string[] = ["CAP_MARKER_STACK_FORMULA"],
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "DAMAGE",
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "SKILL_POWER", power: 1 },
+        damageModifiers: [
+          {
+            kind: "CLAMP",
+            formula: {
+              kind: "SUM",
+              formulas: [
+                { kind: "CONSTANT", value: 0 },
+                {
+                  kind: "MARKER_COUNT_SCALE",
+                  target: { kind: "TARGET" },
+                  markerId: "MARKER_TEST",
+                  perStack: 0.15,
+                  max: 0.45,
+                },
+              ],
+            },
+            min: 0,
+            max: 1,
+          },
+        ],
+      },
+      requiredCapabilities,
+    },
+    "effectAction",
+  );
+}
+
 function healingLinkAction(
   id: string,
   transferTo: { kind: string; targetBindingId?: string } = { kind: "SELF" },
@@ -1773,6 +1816,51 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_SUM_HEAL",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-NUM-04-032 (M7-015, Issue #269): accepts a DAMAGE whose damageModifiers reference MARKER_COUNT_SCALE when it declares the required CAP_MARKER_STACK_FORMULA capability", () => {
+    const defs = baseDefinitions();
+    const withMarkerScale: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_SCALE_DAMAGE")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        markerCountScaleDamageAction("ACT_MARKER_SCALE_DAMAGE"),
+      ],
+      capabilities: [capability("CAP_MARKER_STACK_FORMULA")],
+    };
+
+    const index = buildCatalogIndex(withMarkerScale);
+
+    expect(index.effectActions.get("ACT_MARKER_SCALE_DAMAGE" as never)).toBeDefined();
+  });
+
+  it("UT-R-NUM-04-033 (M7-015, Issue #269, NEGATIVE): rejects a DAMAGE whose damageModifiers reference MARKER_COUNT_SCALE without CAP_MARKER_STACK_FORMULA, keeping every definition that reads MarkerState.stackCount self-declared", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_SCALE_DAMAGE")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        markerCountScaleDamageAction("ACT_MARKER_SCALE_DAMAGE", []),
+      ],
+      capabilities: [capability("CAP_MARKER_STACK_FORMULA")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) =>
+            v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_MARKER_SCALE_DAMAGE",
         ),
       ).toBe(true);
     }

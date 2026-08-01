@@ -348,7 +348,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士・AppliedEffectとのcross-type）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの参照はそれぞれRES-001/RES-004/TGT-002のスコープであり、CAP_MARKER_STACK_FORMULAが別途管理する。未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_DURATION、PR #210再レビュー[P2]）。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type、R-EFF-09第1項）はM7-013（Issue #267）が実装し、それまでの拒否（UNSUPPORTED_MARKER_LINKED_GROUP、PR #210レビュー[P2]）を撤去した — production CatalogのTARISA_TROUBLEMAKER_PS1_LINK/AOI_ELEGANT_AS1_KOUYOU_LINKがMarkerをPARENT、AppliedEffectをCHILDとして使う。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId`/`sourceSide`のexactly-one unionへ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）をDomain・StateDelta・独立Reducer復元まで通せるようにした。ただしAPI公開（`MarkerStateResponse.sourceUnitId`が必須）は別Capability `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）が担当する。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士・AppliedEffectとのcross-type）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの「所持状態を読む」側はそれぞれ別Capabilityが管理する（順にCAP_MARKER_STACK_FORMULA／M7-015・Issue #269、RES-004、TGT-002）。未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_DURATION、PR #210再レビュー[P2]）。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type、R-EFF-09第1項）はM7-013（Issue #267）が実装し、それまでの拒否（UNSUPPORTED_MARKER_LINKED_GROUP、PR #210レビュー[P2]）を撤去した — production CatalogのTARISA_TROUBLEMAKER_PS1_LINK/AOI_ELEGANT_AS1_KOUYOU_LINKがMarkerをPARENT、AppliedEffectをCHILDとして使う。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId`/`sourceSide`のexactly-one unionへ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）をDomain・StateDelta・独立Reducer復元まで通せるようにした。ただしAPI公開（`MarkerStateResponse.sourceUnitId`が必須）は別Capability `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）が担当する。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -398,12 +398,26 @@
   {
     "capabilityId": "CAP_MARKER_STACK_FORMULA",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-015",
-    "description": "Marker所持数を参照するFormula（MARKER_COUNT_SCALE）。EFF-004（Issue #160）はMarker本体を実装したがこのFormulaの実ライフサイクル配線は行わずcloseした。M7-010（Issue #177、監査）で所有者不在を検出しM7-015（Issue #269）へ引き継いだ。production使用はACT_CHIYURU_NEWYEAR_AS1_ATK_UP／ACT_CHIYURU_NEWYEAR_AS1_DEF_UPのformulaと、ACT_KARINA_DOWNER_AS1_DAMAGE／ACT_FEE_BATH_AS2_DAMAGEのdamageModifiersで、UNIT_CHIYURU_NEWYEAR・UNIT_KARINA_DOWNER・UNIT_FEE_BATHの非selectable要因の一つだが、排他的なブロッカーではない（3件ともM8のCAP_DAMAGE_MOD/CAP_CONTINUOUS_DAMAGE/CAP_SHIELD等でも非selectableのままで、本Capabilityの完了だけではselectableにならない）。",
+    "description": "Marker所持数を参照するFormula（MARKER_COUNT_SCALE、R-NUM-04「評価時点のMarkerState.stackCountを参照する」）。EFF-004（Issue #160）はMarker本体を実装したがこのFormulaの実ライフサイクル検証を持たないままcloseし、M7-010（Issue #177、監査）が所有者不在を検出してM7-015（Issue #269）へ引き継いだ。M7-015はproduction 2経路——APPLY_STAT_MOD.payload.formula（target: SKILL_SOURCE、ACT_CHIYURU_NEWYEAR_AS1_ATK_UP／ACT_CHIYURU_NEWYEAR_AS1_DEF_UP）と、DAMAGE.payload.damageModifiers（target: TARGET、R-DMG-01のAction内追加ダメージ倍率、ACT_KARINA_DOWNER_AS1_DAMAGE／ACT_FEE_BATH_AS2_DAMAGE）——を実catalog無改変のまま実resolveSkillUseへ通し、所持数0（不成立）・perStack比例・Formulaのmaxでの頭打ち・別markerIdの非寄与・Domain Event・StateDelta・独立Reducer復元まで固定した。あわせてcatalog-integrity.tsへ、MARKER_COUNT_SCALEを参照するEffectActionDefinitionにCAP_MARKER_STACK_FORMULA宣言を必須とする検証（MISSING_REQUIRED_CAPABILITY、CAP_SUM_DAMAGE_RESULTと同じ「宣言漏れ自体を拒否する」パターン）を追加し、Capability→定義の追跡可能性を保つ。Markerの付与・スタック・失効そのものはCAP_MARKERのスコープであり、本Capabilityは所持数の読み取りだけを担当する。本Capabilityを宣言するのはUNIT_CHIYURU_NEWYEAR・UNIT_KARINA_DOWNER・UNIT_FEE_BATHの3件で、M7-015の完了によりUNIT_CHIYURU_NEWYEAR・UNIT_FEE_BATHがselectableになり（実在Unitのselectableは49→51件）、UNIT_KARINA_DOWNERだけがCAP_COVER_DAMAGE・CAP_TARGET_REDIRECTで引き続き非selectableである。M7-010の監査時点（2026-07-29）の記録は排他件数0（3件とも他のM8 Capabilityでも非selectableのまま）だったが、その後CAP_DAMAGE_MOD（DMG-002／Issue #192）・CAP_SHIELD（DMG-004／Issue #194）・CAP_CONTINUOUS_DAMAGE（DMG-008／Issue #189）が実装されたことで排他件数は0→2へ変わっていた。",
     "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
+      "productionDefinitionIds": [
+        "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP",
+        "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP",
+        "ACT_KARINA_DOWNER_AS1_DAMAGE",
+        "ACT_FEE_BATH_AS2_DAMAGE"
+      ],
+      "testCaseIds": [
+        "IT-CAP-MARKER-STACK-PROD-001",
+        "IT-CAP-MARKER-STACK-PROD-002",
+        "IT-CAP-MARKER-STACK-PROD-003",
+        "IT-CAP-MARKER-STACK-PROD-004",
+        "IT-CAP-MARKER-STACK-PROD-005",
+        "IT-CAP-MARKER-STACK-PROD-006",
+        "UT-R-NUM-04-032",
+        "UT-R-NUM-04-033"
+      ]
     }
   },
   {
