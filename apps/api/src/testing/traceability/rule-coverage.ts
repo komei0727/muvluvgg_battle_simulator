@@ -1476,6 +1476,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DMG-02-008",
       "UT-R-DMG-02-009",
       "UT-R-DMG-02-010",
+      // RES-004-TATIANA-EX（Issue #225）: #3「計算結果が1未満の場合も1とする」を
+      // production Catalogの実定義で踏む唯一の経路。`ACT_TATIANA_SAGE_EX_DEBUFF`
+      // が与ダメージ倍率を0まで落とすため丸め前ダメージは0になるが、最終ダメージは
+      // この最終化規則で1へ引き上げられる（`APPLY_DAMAGE_MOD`はこの全体不変条件の
+      // 上書きを宣言しないため、効果定義側では0にできない）。
+      "IT-CAP-TATIANA-OMEN-PROD-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -1516,7 +1522,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // `ACT_TATIANA_SAGE_EX_DEBUFF`（`direction: OUTGOING`／`damageType: null`／
       // `CONSTANT -1.0`）を、対象別条件で振り分けられた実AOE解決から実際に付与し、
       // 保持者の次の攻撃で与ダメージ倍率が0まで落ちること（最終ダメージは
-      // R-DMG-01 #3の最低1ダメージで止まる）まで実ライフサイクルで固定する。
+      // R-DMG-02（最終化）#3の最低1ダメージで止まる）まで実ライフサイクルで固定する。
       "IT-CAP-TATIANA-OMEN-PROD-001",
       "IT-CAP-TATIANA-OMEN-PROD-002",
       "IT-CAP-TATIANA-OMEN-PROD-003",

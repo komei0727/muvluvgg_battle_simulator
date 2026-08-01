@@ -154,7 +154,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-002",
-    "description": "与ダメージ・被ダメージ補正（R-DMG-04）。DMG-002（Issue #192）が`APPLY_DAMAGE_MOD`の実ライフサイクル配線（`effect-action-group-resolver.ts`が`AppliedEffect.damageModifier`へ向き・ダメージタイプ・動的条件を焼き込み、`combat/damage-modifier-policy.ts`がヒットごとに与/被倍率へ集計する）と、`DYNAMIC_DAMAGE_MOD_CONDITION`（保持者・相手のHP割合やMarker所持でヒットごとに成立を判定する`payload.condition`）を実装した。R-DMG-03の`damageReductionIgnoreRate`は、この集計のうち負の被ダメージ補正だけへ適用する。RES-004-TATIANA-EX（Issue #225）が`ACT_TATIANA_SAGE_EX_DEBUFF`（与ダメージ-100%・`NEXT_OUTGOING_ATTACK`消費）を対象別条件つきAOEの実解決から実際に付与し、保持者の次の攻撃で与ダメージ倍率が0まで落ちて消費とともに失効することまで検証した（最終ダメージはR-DMG-01 #3の最低1ダメージで止まる — `APPLY_DAMAGE_MOD`はこの全体不変条件の上書きを宣言しない）。",
+    "description": "与ダメージ・被ダメージ補正（R-DMG-04）。DMG-002（Issue #192）が`APPLY_DAMAGE_MOD`の実ライフサイクル配線（`effect-action-group-resolver.ts`が`AppliedEffect.damageModifier`へ向き・ダメージタイプ・動的条件を焼き込み、`combat/damage-modifier-policy.ts`がヒットごとに与/被倍率へ集計する）と、`DYNAMIC_DAMAGE_MOD_CONDITION`（保持者・相手のHP割合やMarker所持でヒットごとに成立を判定する`payload.condition`）を実装した。R-DMG-03の`damageReductionIgnoreRate`は、この集計のうち負の被ダメージ補正だけへ適用する。RES-004-TATIANA-EX（Issue #225）が`ACT_TATIANA_SAGE_EX_DEBUFF`（与ダメージ-100%・`NEXT_OUTGOING_ATTACK`消費）を対象別条件つきAOEの実解決から実際に付与し、保持者の次の攻撃で与ダメージ倍率が0まで落ちて消費とともに失効することまで検証した（最終ダメージはR-DMG-02「最終化」#3の最低1ダメージで止まる — `APPLY_DAMAGE_MOD`はこの全体不変条件の上書きを宣言しない）。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_TATIANA_SAGE_EX_DEBUFF",

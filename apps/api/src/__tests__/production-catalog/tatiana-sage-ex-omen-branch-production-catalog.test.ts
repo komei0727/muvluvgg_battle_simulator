@@ -435,7 +435,7 @@ describe("production Catalog SKL_TATIANA_SAGE_EX Omen threshold branch (RES-004-
     }
   });
 
-  it("IT-CAP-TATIANA-OMEN-PROD-002: the debuffed target's next attack drops its outgoing multiplier to 0 (final damage held at the R-DMG-01 floor of 1) and the debuff expires on that NEXT_OUTGOING_ATTACK consumption, while an undebuffed target of the same resolution is unaffected", () => {
+  it("IT-CAP-TATIANA-OMEN-PROD-002: the debuffed target's next attack drops its outgoing multiplier to 0 (final damage held at the R-DMG-02 floor of 1) and the debuff expires on that NEXT_OUTGOING_ATTACK consumption, while an undebuffed target of the same resolution is unaffected", () => {
     const context = setup([0, 2]);
     const undebuffed = enemyAt(context, 0);
     const debuffed = enemyAt(context, 1);
@@ -452,11 +452,11 @@ describe("production Catalog SKL_TATIANA_SAGE_EX Omen threshold branch (RES-004-
 
     // デバフ保持者の「次の攻撃」は与ダメージ倍率が0まで落ちる。
     // raw原文の「与ダメージを100％減少」はここで完全に効いており、丸め前ダメージは0。
-    // ただし最終ダメージはR-DMG-01 #3「計算結果が1未満の場合も1とする」という
+    // ただし最終ダメージはR-DMG-02（最終化）#3「計算結果が1未満の場合も1とする」という
     // 全体不変条件（`07_戦闘ルール詳細.md`冒頭「スキル・効果定義による個別指定は
     // ……最低1ダメージ……を、明示的に上書きを許可した仕様がない限り変更しない」）に
     // よって1へ引き上げられる — `APPLY_DAMAGE_MOD`はこの上書きを宣言していない。
-    // Issue #225本文は「0ダメージになり」と書いているが、より詳細なR-DMG-01が優先する。
+    // Issue #225本文は「0ダメージになり」と書いているが、より詳細なR-DMG-02が優先する。
     const nullified = fireEnemyAttack(context, control.result.units, debuffed);
     expect(nullified.damageApplied).toHaveLength(1);
     const calculated = nullified.emitted.find((event) => event.eventType === "DamageCalculated")!;

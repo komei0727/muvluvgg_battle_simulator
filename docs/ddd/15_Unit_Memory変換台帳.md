@@ -125,7 +125,7 @@ Issue #225では、`muvluv-girls-garden.wikiru.jp`のタチアナ・ドロズド
 
 `DMG-002`のmerge後、Issue #225は残る実ライフサイクル検証を`tatiana-sage-ex-omen-branch-production-catalog.test.ts`（`IT-CAP-TATIANA-OMEN-PROD-001`〜`005`）で完了した。実`catalog/`の`SKL_TATIANA_SAGE_EX`を無改変のまま実`resolveSkillUse`へ通し、「凶兆」0件・1件（しきい値直前）・2件（一致）・3件（超過）が同一AOEに混在する解決で、ダメージが全対象へ、デバフが2件以上の対象だけへ、Marker追加が2件未満の対象だけへ振り分けられること、Domain Event（`EffectApplied`／`MarkerApplied`／`MarkerUpdated`／`DamageApplied`）・StateDelta・`stateVersionBefore`/`After`の単調性・単一rootの因果木・初期スナップショットからの独立Reducer復元までを固定した。
 
-1点だけ、Issue #225本文の受け入れ条件「デバフ対象の次の攻撃が0ダメージになり」は実装と一致しない。`ACT_TATIANA_SAGE_EX_DEBUFF`（`direction: OUTGOING`／`CONSTANT -1.0`）は与ダメージ倍率を確かに0まで落とす（`DamageCalculated.outgoingDamageMultiplier: 0`、`preTruncationDamage: 0`）が、最終ダメージは`R-DMG-01` #3「計算結果が1未満の場合も1とする」で1へ引き上げられる。[`07_戦闘ルール詳細.md`](./07_戦闘ルール詳細.md)冒頭が「最低1ダメージ……の全体不変条件は、明示的に上書きを許可した仕様がない限り変更しない」と定めており、`APPLY_DAMAGE_MOD`はその上書きを宣言していないため、より詳細な`R-DMG-01`が優先する。近似ではなく規則どおりの結果であり、Catalog定義は変更していない。
+1点だけ、Issue #225本文の受け入れ条件「デバフ対象の次の攻撃が0ダメージになり」は実装と一致しない。`ACT_TATIANA_SAGE_EX_DEBUFF`（`direction: OUTGOING`／`CONSTANT -1.0`）は与ダメージ倍率を確かに0まで落とす（`DamageCalculated.outgoingDamageMultiplier: 0`、`preTruncationDamage: 0`）が、最終ダメージは`R-DMG-02`（最終化）#3「計算結果が1未満の場合も1とする」で1へ引き上げられる。[`07_戦闘ルール詳細.md`](./07_戦闘ルール詳細.md)冒頭が「最低1ダメージ……の全体不変条件は、明示的に上書きを許可した仕様がない限り変更しない」と定めており、`APPLY_DAMAGE_MOD`はその上書きを宣言していないため、より詳細な`R-DMG-02`が優先する。近似ではなく規則どおりの結果であり、Catalog定義は変更していない。
 
 `UNIT_LYDIA_GENIUS`（`SKL_LYDIA_GENIUS_AS1`、列などの絞り込み後の対象数を発動条件にする「集合条件」は本Capabilityでは未対応）の1行は引き続き残す。`UNIT_CHIYURU_MAZE`（`SKL_CHIYURU_MAZE_EX`）は`RES-004-STATUS-CONDITION`／Issue #224 が解消した（下記）。
 
