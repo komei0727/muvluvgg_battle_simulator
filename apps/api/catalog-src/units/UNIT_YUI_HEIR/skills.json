@@ -28,6 +28,9 @@
           },
           "actions": [
             {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_EX_REMOVE_SHIELD"
+            },
+            {
               "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DEF_DOWN"
             },
             {

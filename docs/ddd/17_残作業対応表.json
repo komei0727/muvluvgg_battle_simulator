@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 20
+      "incompleteConversionRows": 18
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -211,7 +211,7 @@
       "issue": 242,
       "phase": 2,
       "milestone": "M7",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "M7-001B",
@@ -548,12 +548,6 @@
     }
   ],
   "conversionThemeAssignments": [
-    {
-      "milestone": "M7",
-      "theme": "REMOVE_EFFECTS_CATEGORY_GAP",
-      "rowCount": 2,
-      "taskId": "M7-001A"
-    },
     {
       "milestone": "M8",
       "theme": "POST_DAMAGE_CRITICAL_BRANCH",

@@ -1477,25 +1477,19 @@ function* resolveOneEffectActionApplication(
     interruptedCount = 0;
   } else if (effectAction.kind === "REMOVE_EFFECTS") {
     // R-EFF-02（M7-001、Issue #181）: 対象カテゴリに一致する`AppliedEffect`を
-    // 即時解除する（`effect-removal-service.ts`）。`REMOVE_EFFECTS_CATEGORY_GAP`の
-    // SHIELD/SUBUNITはシールド・サブユニットの実行時状態がまだモデル化されて
-    // いない（`CAP_SHIELD`=DMG-004、`CAP_SUBUNIT`=DMG-005、いずれも`PLANNED`、#242）。
-    // schema自体はSHIELD/SUBUNITを有効な値として受理する（Catalog全体のロードを
-    // 失敗させないため）が、`catalog-integrity.ts`が対応するCapability宣言を必須にし、
-    // 実際に選択されたUnit/Memoryグラフに対してだけ`SimulationPreflightValidator`が
-    // `UNSUPPORTED_RULE`として拒否する（`UT-PREFLIGHT-012`）ため、通常の
-    // Catalog駆動battle生成経路ではここへ到達しない。以下はpreflightを迂回した
-    // 直接構築（テスト等）に対する防御的ガード（defense-in-depth）で、
-    // silent no-opへの退行を防ぐ。
-    const unsupportedCategories = effectAction.payload.categories.filter(
-      (category) => category === "SHIELD" || category === "SUBUNIT",
-    );
-    if (unsupportedCategories.length > 0) {
-      throw new DomainValidationError(
-        "effectActionDefinitionId",
-        `REMOVE_EFFECTS categories ${unsupportedCategories.join("/")} are not yet supported by this resolver — shield/subunit runtime state is owned by DMG-004/DMG-005 (still open, #242). M7-001 wires BUFF/DEBUFF/STATUS/DAMAGE_MOD/SPECIFIC_EFFECT removal only`,
-      );
-    }
+    // 即時解除する（`effect-removal-service.ts`）。
+    //
+    // M7-001A（Issue #242、`REMOVE_EFFECTS_CATEGORY_GAP`）: SHIELD/SUBUNITは
+    // シールド・サブユニットの実行時状態が未モデル化だった間だけ、silent no-opへの
+    // 退行を防ぐ防御的ガードとしてここで明示的に拒否していた。DMG-004（`CAP_SHIELD`、
+    // Issue #194）とDMG-005（`CAP_SUBUNIT`、Issue #190）がどちらも
+    // `AppliedEffect.shield`/`AppliedEffect.subUnit`として実行時状態を持つように
+    // なったため、ガードを外して他カテゴリと同じ経路へ通す — シールドプール
+    // （`shield-policy.ts`の`shieldPoolsOf`）もサブユニット耐久力
+    // （`sub-unit-policy.ts`の`subUnitDurabilityTotal`）もインスタンス集合からの
+    // 導出値であり、インスタンスの除去がそのまま解除になる。分類は他カテゴリと同じく
+    // `effect-category-classifier.ts`（`APPLY_SHIELD`→`SHIELD`、`APPLY_SUBUNIT`→
+    // `SUBUNIT`）ただ1つを正本とする。
     // PR #280レビュー[P1]: REMOVE_MARKER分岐と同じ理由で、除去より前に記録済みの
     // `EffectActionStarting`を先に通知し、以降のインスタンス単位の通知は
     // `removeEffects`内部（R-EFF-09カスケード分＋seed分）へ委ねる。

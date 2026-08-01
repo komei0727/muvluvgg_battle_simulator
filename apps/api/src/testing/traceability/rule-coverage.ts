@@ -1872,12 +1872,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`effect-action-group-resolver.ts`のREMOVE_EFFECTS branch、REMOVE_MARKERのcount）。
   // REMOVE_BUFF_CATEGORY・REMOVE_EFFECTS_COUNT_LIMITを実production Catalog
   // （Mihime/Lily/Mao）に対して`IT-REMOVE-EFFECTS-PROD-001/002`が検証する。
-  // SHIELD/SUBUNITカテゴリは`categories`として受理し、`CAP_SHIELD`/`CAP_SUBUNIT`
-  // （いずれも`PLANNED`、DMG-004/005）の宣言をCatalogロード時点で要求すること
-  // （`catalog-integrity.ts`）で選択時に`SimulationPreflightValidator`が
-  // `UNSUPPORTED_RULE`として拒否する経路までは本Issueで配線した
-  // （`UT-PREFLIGHT-012`）が、実際の解除ロジック自体はIssue #242のスコープ。
   // 状態異常種別限定免疫（R-EFF-03、`CAP_SPECIFIC_IMMUNITY`）はM7-001B（Issue #243）で完了した。
+  // M7-001A（Issue #242、`REMOVE_EFFECTS_CATEGORY_GAP`）: SHIELD/SUBUNITカテゴリの
+  // 実行時拒否を解除した。DMG-004（`CAP_SHIELD`）/DMG-005（`CAP_SUBUNIT`）が
+  // シールド・サブユニットを`AppliedEffect.shield`/`AppliedEffect.subUnit`として
+  // 実行時状態にしたため、他カテゴリと同じ`removeEffects`経路でインスタンスごと解除
+  // できる（プール・耐久力はインスタンス集合からの導出値）。`UT-R-EFF-02-024/025`が
+  // シールド・サブユニットの非負`magnitude`が`BUFF`へ落ちないこと（`REMOVE_EFFECTS`の
+  // BUFF解除に巻き込まれない）を分類元で固定し、`UT-R-EFF-02-022/023`が実resolver経路の
+  // 解除を、`IT-REMOVE-EFFECTS-PROD-008/009`がYui EX（敵単体のシールド全解除→防御力
+  // デバフ→攻撃の順序）とOlga PS1（自身のシールド・サブユニット全解除→同じstepでの
+  // 3体付与）をproduction Catalog定義に対して検証する。
+  // `UT-PREFLIGHT-012`は依存Capabilityが`PLANNED`の場合に選択時
+  // `UNSUPPORTED_RULE`となる契約（`catalog-integrity.ts`のCapability宣言必須と対）を
+  // 合成Catalogに対して引き続き固定する。
   // M7-001C（Issue #244）: 残りのREMOVE_BUFF_CATEGORY対象（Noel PS2・Shouka EX/AS3・
   // Senka PS2）をcategories:["BUFF"]へ変換した。`IT-REMOVE-EFFECTS-PROD-004/005`が
   // `removeEffects`実行器レベルでcategories/maxRemovalsを検証し、`IT-REMOVE-EFFECTS-
@@ -1909,6 +1917,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-020",
       "UT-R-EFF-02-021",
       "UT-R-EFF-02-022",
+      "UT-R-EFF-02-023",
+      "UT-R-EFF-02-024",
+      "UT-R-EFF-02-025",
       "IT-REMOVE-EFFECTS-PROD-001",
       "IT-REMOVE-EFFECTS-PROD-002",
       "IT-REMOVE-EFFECTS-PROD-003",
@@ -1916,6 +1927,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-REMOVE-EFFECTS-PROD-005",
       "IT-REMOVE-EFFECTS-PROD-006",
       "IT-REMOVE-EFFECTS-PROD-007",
+      "IT-REMOVE-EFFECTS-PROD-008",
+      "IT-REMOVE-EFFECTS-PROD-009",
       "UT-CAT-COND-037",
       "UT-CAT-COND-038",
       "UT-CAT-COND-039",

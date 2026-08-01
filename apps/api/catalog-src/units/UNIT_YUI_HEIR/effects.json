@@ -1,5 +1,14 @@
 [
   {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_EX_REMOVE_SHIELD",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["SHIELD"]
+    },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DEF_DOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {

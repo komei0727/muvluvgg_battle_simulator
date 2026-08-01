@@ -269,6 +269,9 @@
           },
           "actions": [
             {
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT"
+            },
+            {
               "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_ATK_UP"
             },
             {

@@ -1694,7 +1694,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-069: maps REMOVE_EFFECTS with SHIELD/SUBUNIT categories at the Factory level (schema-valid; the required-capability gate that keeps preflight's UNSUPPORTED_RULE contract lives in catalog-integrity.ts, not here — see UT-CAT-IDX-018..021)", () => {
+  it("UT-CAT-ACT-069: maps REMOVE_EFFECTS with SHIELD/SUBUNIT categories at the Factory level (M7-001A/Issue #242: fully supported at runtime; the CAP_SHIELD/CAP_SUBUNIT declaration gate lives in catalog-integrity.ts, not here — see UT-CAT-IDX-018..021)", () => {
     for (const category of ["SHIELD", "SUBUNIT"] as const) {
       const result = createEffectActionDefinition(
         {

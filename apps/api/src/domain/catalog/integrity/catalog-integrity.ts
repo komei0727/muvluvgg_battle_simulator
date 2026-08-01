@@ -1473,12 +1473,12 @@ function validateEffectAction(
     }
   }
   // M7-001（Issue #181、再々レビュー[P2]）: REMOVE_EFFECTSのSHIELD/SUBUNITカテゴリは
-  // シールド/サブユニットの実行時状態が未モデル化（`CAP_SHIELD`=DMG-004、
-  // `CAP_SUBUNIT`=DMG-005、いずれも`PLANNED`、#242）。`COOLDOWN_MANIPULATION`/
-  // `CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体を拒否する」パターンで、対応する
-  // Capabilityの宣言を必須にする。これによりCatalog自体は正しく宣言されていれば
-  // ロードでき（Capabilityが`PLANNED`のままでも）、実際の拒否は選択時の
-  // `SimulationPreflightValidator`（`findUnimplementedCapabilities`）が
+  // 解除対象の実行時状態を持つCapability（`CAP_SHIELD`=DMG-004、`CAP_SUBUNIT`=DMG-005、
+  // M7-001A／Issue #242時点でいずれも`IMPLEMENTED`）へ依存する。
+  // `COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体を
+  // 拒否する」パターンで、対応するCapabilityの宣言を必須にする。これによりCatalog自体は
+  // 正しく宣言されていればロードでき（依存先Capabilityが`PLANNED`へ差し戻された場合でも）、
+  // 実際の拒否は選択時の`SimulationPreflightValidator`（`findUnimplementedCapabilities`）が
   // `UNSUPPORTED_RULE`として行う — Catalog全体のロード失敗にはしない。
   if (effectAction.kind === "REMOVE_EFFECTS") {
     // `14_Catalog定義スキーマ.md`「REMOVE_EFFECTSを使うEffectActionDefinitionは

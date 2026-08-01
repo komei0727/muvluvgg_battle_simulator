@@ -6445,6 +6445,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["SHIELD", "SUBUNIT"] },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD", "CAP_SUBUNIT"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS1_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
@@ -9117,6 +9124,13 @@
       }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_EX_REMOVE_SHIELD",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["SHIELD"] },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {

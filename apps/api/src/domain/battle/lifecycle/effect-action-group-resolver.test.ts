@@ -8,6 +8,8 @@ import {
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
+import { shieldPoolsOf } from "../combat/shield-policy.js";
+import { subUnitDurabilityTotal } from "../combat/sub-unit-policy.js";
 import {
   effectKindKeyFromDefinitionId,
   SUBUNIT_PROVIDER_ATTACK_KEY,
@@ -5376,11 +5378,120 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(recorder.getEvents().filter((e) => e.eventType === "EffectRemoved")).toHaveLength(2);
   });
 
-  it("UT-R-EFF-02-022 (REMOVE_EFFECTS_CATEGORY_GAP deferred, defense-in-depth): a factory-bypassing SHIELD REMOVE_EFFECTS def is still rejected by the resolver guard (primary rejection is at Catalog load, UT-CAT-ACT-069)", () => {
+  // --- M7-001A (Issue #242, REMOVE_EFFECTS_CATEGORY_GAP): SHIELD/SUBUNIT category removal ---
+
+  function shieldAction(id: string, shieldType: "PHYSICAL" | "EN" | null): EffectActionDefinition {
+    return {
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: 100 },
+        ...(shieldType !== null ? { shieldType } : {}),
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    };
+  }
+
+  function subUnitAction(id: string): EffectActionDefinition {
+    return {
+      kind: "APPLY_SUBUNIT",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        durability: { formula: { kind: "CONSTANT", value: 80 } },
+        additionalDamage: {
+          formula: {
+            kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+            ownerAttack: "CURRENT_ATTACK",
+            providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+            skillMultiplier: 0.1,
+            targetDefense: "TARGET_CURRENT_DEFENSE",
+          },
+        },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    };
+  }
+
+  function shieldEffectOn(
+    holder: BattleUnit,
+    instanceId: string,
+    definitionId: EffectActionDefinition["effectActionDefinitionId"],
+    remaining: number,
+    shieldType: "PHYSICAL" | "EN" | null = null,
+  ): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId(instanceId),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      categories: ["SHIELD"],
+      duplicate: true,
+      sourceId: holder.battleUnitId,
+      targetId: holder.battleUnitId,
+      magnitude: remaining,
+      shield: { shieldType, remaining },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 0,
+    };
+  }
+
+  function subUnitEffectOn(
+    holder: BattleUnit,
+    instanceId: string,
+    definitionId: EffectActionDefinition["effectActionDefinitionId"],
+    durability: number,
+  ): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId(instanceId),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      categories: ["SUBUNIT"],
+      duplicate: true,
+      sourceId: holder.battleUnitId,
+      targetId: holder.battleUnitId,
+      magnitude: durability,
+      subUnit: {
+        durability,
+        additionalDamage: {
+          formula: {
+            kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+            ownerAttack: "CURRENT_ATTACK",
+            providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+            skillMultiplier: 0.1,
+            targetDefense: "TARGET_CURRENT_DEFENSE",
+          },
+        },
+      },
+      snapshot: { [SUBUNIT_PROVIDER_ATTACK_KEY]: 100 },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 0,
+    };
+  }
+
+  it("UT-R-EFF-02-022 (M7-001A, Issue #242, REMOVE_EFFECTS_CATEGORY_GAP): a REMOVE_EFFECTS SHIELD ACTION step clears every shield-bearing AppliedEffect of the target (SKL_YUI_HEIR_EX), emptying all shield pools while leaving non-shield effects", () => {
     const actor = unit("ACTOR", "ALLY");
-    const enemy = unit("ENEMY", "ENEMY");
+    const enemyBase = unit("ENEMY", "ENEMY");
+    const enShield = shieldAction("ACT_EN_SHIELD", "EN");
+    const untypedShield = shieldAction("ACT_UNTYPED_SHIELD", null);
+    const buffDef = statModAction("ACT_ATK_UP");
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [
+        shieldEffectOn(enemyBase, "shield-en", enShield.effectActionDefinitionId, 120, "EN"),
+        buffEffectOn(enemyBase, "kept-buff", buffDef.effectActionDefinitionId, 20),
+        shieldEffectOn(enemyBase, "shield-untyped", untypedShield.effectActionDefinitionId, 60),
+      ],
+      combatStats: { ...enemyBase.combatStats, attack: 40 },
+    });
     const remove = removeEffectsAction("ACT_STRIP_SHIELD", { categories: ["SHIELD"] });
-    const effectActions = new Map([[remove.effectActionDefinitionId, remove]]);
+    const effectActions = new Map([
+      [enShield.effectActionDefinitionId, enShield],
+      [untypedShield.effectActionDefinitionId, untypedShield],
+      [buffDef.effectActionDefinitionId, buffDef],
+      [remove.effectActionDefinitionId, remove],
+    ]);
     const { recorder, rootEventId } = seedRecorder();
     const context = contextFor(actor, effectActions, recorder, rootEventId);
     const plan: EffectSequencePlan = {
@@ -5390,9 +5501,95 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       resolvedBindings: new Map(),
     };
 
-    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
-      DomainValidationError,
-    );
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+    const stripped = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+
+    expect(stripped.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      createEffectInstanceId("kept-buff"),
+    ]);
+    expect(shieldPoolsOf(stripped.appliedEffects)).toEqual({
+      physical: 0,
+      energy: 0,
+      untyped: 0,
+    });
+    const removed = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "EffectRemoved")
+      .map((e) => e.payload);
+    expect(removed).toEqual([
+      expect.objectContaining({
+        effectInstanceId: createEffectInstanceId("shield-en"),
+        reason: "REMOVED",
+        cascaded: false,
+      }),
+      expect.objectContaining({
+        effectInstanceId: createEffectInstanceId("shield-untyped"),
+        reason: "REMOVED",
+        cascaded: false,
+      }),
+    ]);
+  });
+
+  it("UT-R-EFF-02-023 (M7-001A, Issue #242, REMOVE_EFFECTS_CATEGORY_GAP): a REMOVE_EFFECTS [SHIELD, SUBUNIT] ACTION step on SELF clears both the shield pools and the sub-unit durability (SKL_OLGA_VETERAN_PS1)", () => {
+    const actorBase = unit("ACTOR", "ALLY");
+    const shieldDef = shieldAction("ACT_SELF_SHIELD", "PHYSICAL");
+    const subUnitDef = subUnitAction("ACT_SELF_SUBUNIT");
+    const buffDef = statModAction("ACT_ATK_UP");
+    const actor = unit("ACTOR", "ALLY", {
+      appliedEffects: [
+        shieldEffectOn(
+          actorBase,
+          "self-shield",
+          shieldDef.effectActionDefinitionId,
+          90,
+          "PHYSICAL",
+        ),
+        subUnitEffectOn(actorBase, "self-sub-1", subUnitDef.effectActionDefinitionId, 80),
+        buffEffectOn(actorBase, "kept-buff", buffDef.effectActionDefinitionId, 20),
+        subUnitEffectOn(actorBase, "self-sub-2", subUnitDef.effectActionDefinitionId, 80),
+      ],
+      combatStats: { ...actorBase.combatStats, attack: 40 },
+    });
+    const remove = removeEffectsAction("ACT_STRIP_SHIELD_SUBUNIT", {
+      categories: ["SHIELD", "SUBUNIT"],
+    });
+    const effectActions = new Map([
+      [shieldDef.effectActionDefinitionId, shieldDef],
+      [subUnitDef.effectActionDefinitionId, subUnitDef],
+      [buffDef.effectActionDefinitionId, buffDef],
+      [remove.effectActionDefinitionId, remove],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, actor.battleUnitId, remove.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor], context);
+    const stripped = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+
+    expect(stripped.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      createEffectInstanceId("kept-buff"),
+    ]);
+    expect(shieldPoolsOf(stripped.appliedEffects)).toEqual({
+      physical: 0,
+      energy: 0,
+      untyped: 0,
+    });
+    expect(subUnitDurabilityTotal(stripped.appliedEffects)).toBe(0);
+    expect(
+      recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectRemoved")
+        .map((e) => e.payload.effectInstanceId),
+    ).toEqual([
+      createEffectInstanceId("self-shield"),
+      createEffectInstanceId("self-sub-1"),
+      createEffectInstanceId("self-sub-2"),
+    ]);
   });
 
   // --- M7-001B (Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): EFFECT_IMMUNITY (R-EFF-03) real lifecycle wiring ---
