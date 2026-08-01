@@ -145,6 +145,7 @@ describe("captureBattleState", () => {
       sourceId: createBattleUnitId("ally-1"),
       targetId: createBattleUnitId("ally-1"),
       magnitude: 20,
+      categories: ["BUFF"],
       duration: buildInitialDurationState(
         { timeLimit: { unit: "TURN", count: 2 }, dispellable: true, linkedEffectGroupId: null },
         { turnNumber: 1 },
@@ -172,6 +173,7 @@ describe("captureBattleState", () => {
         duplicate: true,
         isEffective: true,
         magnitude: 20,
+        categories: ["BUFF"],
         duration: { unit: "TURN", remaining: 2 },
         appliedTurnNumber: 1,
       },

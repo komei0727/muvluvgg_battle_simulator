@@ -1071,6 +1071,7 @@ describe("applyEffectActionGroups", () => {
           sourceId: createBattleUnitId("ACTOR"),
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "FREEZE",
           statusDetails: { damageAmplificationOnBreak: 0.5 },
           duration: {
@@ -1086,6 +1087,7 @@ describe("applyEffectActionGroups", () => {
           sourceId: createBattleUnitId("ENEMY"),
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0.2,
+          categories: ["BUFF"],
           duration: {
             definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
           },
@@ -1154,6 +1156,7 @@ describe("applyEffectActionGroups", () => {
           sourceId: createBattleUnitId("ACTOR"),
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "FREEZE",
           statusDetails: { damageAmplificationOnBreak: 0.5 },
           duration: {
@@ -1169,6 +1172,7 @@ describe("applyEffectActionGroups", () => {
           sourceId: createBattleUnitId("ENEMY"),
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0.2,
+          categories: ["BUFF"],
           duration: {
             definition: { dispellable: true, linkedEffectGroupId: "GROUP_A" },
           },
@@ -1411,6 +1415,7 @@ describe("applyEffectActionGroups", () => {
           sourceId: createBattleUnitId("SOURCE"),
           targetId: createBattleUnitId("ACTOR"),
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "BLIND",
           statusDetails: { probability: 0.5 },
           duration: {
@@ -1483,6 +1488,7 @@ describe("applyEffectActionGroups", () => {
           sourceId: createBattleUnitId("SOURCE"),
           targetId: createBattleUnitId("ACTOR"),
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "BLIND",
           statusDetails: { probability: 0.5 },
           duration: {
@@ -1632,6 +1638,7 @@ describe("applyEffectActionGroups", () => {
           sourceId: createBattleUnitId("SOURCE"),
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0,
+          categories: ["DEBUFF", "STATUS"],
           statusKind: "STUN",
           duration: {
             definition: {
@@ -1841,6 +1848,7 @@ describe("applyEffectActionGroups", () => {
       sourceId: actor.battleUnitId,
       targetId: actor.battleUnitId,
       magnitude: 0.4,
+      categories: ["BUFF"],
       duration: {
         definition: consumedAtkBuffDuration,
         consumptionRemaining: 1,
@@ -5167,6 +5175,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       sourceId: createBattleUnitId("HOLDER"),
       targetId: createBattleUnitId("HOLDER"),
       magnitude: 0,
+      categories: ["BUFF"],
       statusKind: "STEALTH",
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 1,
@@ -5250,6 +5259,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       effectInstanceId: createEffectInstanceId(instanceId),
       effectActionDefinitionId: definitionId,
       kindKey: effectKindKeyFromDefinitionId(definitionId),
+      categories: ["BUFF"],
       duplicate: true,
       sourceId: holder.battleUnitId,
       targetId: holder.battleUnitId,
@@ -5410,6 +5420,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       sourceId: holder.battleUnitId,
       targetId: holder.battleUnitId,
       magnitude: 0,
+      categories: ["BUFF"],
       immunity,
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 0,
@@ -5770,6 +5781,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
           sourceId: createBattleUnitId("ENEMY"),
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0,
+          categories: ["BUFF"],
           duration: {
             definition: {
               dispellable: true,
@@ -5848,7 +5860,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     const actor = unit("ACTOR", "ALLY");
     const attack = damageAction("ACT_ONE_HIT", 1);
     const consumptionDefId = createEffectActionDefinitionId("ACT_INCOMING_HIT_BUFF");
-    const consumptionEffect = (id: string) => ({
+    const consumptionEffect = (id: string): AppliedEffect => ({
       effectInstanceId: createEffectInstanceId(id),
       effectActionDefinitionId: consumptionDefId,
       kindKey: effectKindKeyFromDefinitionId(consumptionDefId),
@@ -5856,6 +5868,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       sourceId: createBattleUnitId("ENEMY"),
       targetId: createBattleUnitId("ENEMY"),
       magnitude: 0,
+      categories: ["BUFF"],
       duration: {
         definition: {
           dispellable: true,
@@ -5948,6 +5961,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
           sourceId: createBattleUnitId("ENEMY"),
           targetId: createBattleUnitId("ENEMY"),
           magnitude: 0,
+          categories: ["BUFF"],
           immunity: { categories: ["STATUS"], maxBlocks: 1, blockedCount: 0 },
           duration: {
             definition: {

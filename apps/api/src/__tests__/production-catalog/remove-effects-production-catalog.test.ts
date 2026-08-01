@@ -415,6 +415,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       sourceId: base.battleUnitId,
       targetId: base.battleUnitId,
       magnitude: 20,
+      categories: ["BUFF"],
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 0,
     };

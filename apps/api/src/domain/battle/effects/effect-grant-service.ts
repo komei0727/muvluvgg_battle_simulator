@@ -220,6 +220,20 @@ export function grantEffect(
   const durationDefinition = resolveDurationOnReapply(target, request);
   const timeLimit = durationDefinition.timeLimit;
 
+  // M7-001E（Issue #248）: 分類は`definition.kind`と`magnitude`の符号だけから決まる
+  // ため、`AppliedEffect`を組み立てる前にここで一度だけ確定させ、インスタンス・
+  // `EffectApplied.payload`・`EffectSnapshot`の3者が同じ値を運ぶようにする
+  // （分類元は`effectCategoriesOf`ただ1つ）。
+  const categories = [
+    ...effectCategoriesOf(
+      {
+        magnitude: request.magnitude,
+        ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
+      },
+      request.definition,
+    ),
+  ].sort();
+
   const newEffect: AppliedEffect = {
     effectInstanceId: context.recorder.nextEffectInstanceId(),
     effectActionDefinitionId,
@@ -240,6 +254,10 @@ export function grantEffect(
     ...(request.shield !== undefined ? { shield: request.shield } : {}),
     ...(request.continuousDamage !== undefined
       ? { continuousDamage: request.continuousDamage }
+      : {}),
+    categories,
+    ...(request.definition.kind === "APPLY_STAT_MOD"
+      ? { statModStat: request.definition.payload.stat }
       : {}),
     duration: buildInitialDurationState(durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
@@ -301,7 +319,7 @@ export function grantEffect(
       // `STATUS`と`DEBUFF`の両方）を取るため配列とし、`op: CONTAINS`で判定する。
       // 順序はイベント列の決定性のためソートして固定する。
       effectKind: request.definition.kind,
-      categories: [...effectCategoriesOf(newEffect, request.definition)].sort(),
+      categories: newEffect.categories,
       magnitude: request.magnitude,
       ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
       linkedEffectGroupId: durationDefinition.linkedEffectGroupId,

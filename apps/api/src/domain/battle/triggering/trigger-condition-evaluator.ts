@@ -1,4 +1,5 @@
-import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type {
   ConditionDefinition,
   JsonPrimitive,
@@ -11,6 +12,7 @@ import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { heldStatusKinds, holdsMatchingEffect } from "../model/applied-effect-query.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
 import { matchesRelativeSideOf } from "../targeting/target-selection-policy.js";
@@ -84,6 +86,14 @@ export interface RuntimeCounterLookupContext {
   readonly resolutionPhase?: ResolutionPhase;
   readonly units?: readonly BattleUnit[];
   readonly turnNumber?: number;
+  /**
+   * M7-001E（Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）: `TARGET_STATE`の
+   * `UNIT_TYPE`/`ROLE`が引くCatalogの`UnitDefinition`。production定義の例は
+   * `SKL_CHIYURU_MAZE_PS2`／`SKL_LUCIE_MAID_PS1`のtrigger条件（「対象が敏捷型／
+   * 物理型だった場合」）。未指定時は他の未対応条件と同じく明確な例外で隔離する
+   * — 黙ってfalseにすると「trigger条件が常に不成立のPS」を作ってしまう。
+   */
+  readonly unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
 }
 
 /**
@@ -137,13 +147,20 @@ function matchesPositionRelation(
 }
 
 /**
- * `TARGET_STATE.field`（EFF-003レビュー修正 PR #209）を、`BattleUnit`自体から
- * 直接導出できる範囲だけ解決する。`UNIT_TYPE`/`ROLE`はCatalogの`UnitDefinition`
- * 参照が必要（このevaluatorはCatalog参照を持たない）、`HAS_STATUS`は状態異常
- * 追跡（M7-003等）が未実装のため、いずれも明確なエラーで隔離する（他の
- * "basic"evaluatorと同じ方針）。
+ * `TARGET_STATE.field`（EFF-003レビュー修正 PR #209）を1つの値へ解決する。
+ * `UNIT_TYPE`/`ROLE`はCatalogの`UnitDefinition`参照が必要なため、呼び出し側が
+ * `context.unitDefinitions`で渡した参照表を引く（M7-001E、Issue #248）。
+ * `HAS_STATUS`だけは対象が複数の状態を同時に保持しうる存在量化であり単一値へ
+ * 解決できないため、`matchesTargetState`が別途判定する。
+ *
+ * `skill/effect-step-condition-evaluator.ts`の同名関数と同じ方針・意図的な重複
+ * （`domain/battle/triggering`と`domain/battle/skill`は互いに依存できない）。
  */
-function resolveTargetStateField(target: BattleUnit, field: TargetStateField): JsonPrimitive {
+function resolveTargetStateField(
+  target: BattleUnit,
+  field: TargetStateField,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> | undefined,
+): JsonPrimitive {
   switch (field) {
     case "IS_ALIVE":
       return !isDefeated(target);
@@ -162,13 +179,45 @@ function resolveTargetStateField(target: BattleUnit, field: TargetStateField): J
     case "RESOURCE_EX_GAUGE":
       return target.currentExtraGauge;
     case "UNIT_TYPE":
-    case "ROLE":
+    case "ROLE": {
+      const unitDefinition = unitDefinitions?.get(target.unitDefinitionId);
+      if (unitDefinition === undefined) {
+        throw new DomainValidationError(
+          "condition.field",
+          `TARGET_STATE field "${field}" requires a context with unitDefinitions containing "${target.unitDefinitionId}" (CAP_TARGET_STATE_EXTENDED_FIELD)`,
+        );
+      }
+      return field === "UNIT_TYPE" ? unitDefinition.unitType : unitDefinition.role;
+    }
     case "HAS_STATUS":
       throw new DomainValidationError(
         "condition.field",
-        `TARGET_STATE field "${field}" is not supported by this basic evaluator (requires a Catalog UnitDefinition lookup or state-ailment tracking not yet available)`,
+        'TARGET_STATE field "HAS_STATUS" is existentially quantified over the target\'s held statuses and must be evaluated by matchesTargetState, not resolved to a single value',
       );
   }
+}
+
+/**
+ * M7-001E（Issue #248）: 1体に対する`TARGET_STATE`を判定する。`HAS_STATUS`は
+ * 「対象が保持している`APPLY_STATUS`由来の状態種別のいずれかが`op`/`value`へ
+ * 一致するか」の存在量化として扱う（`skill/effect-step-condition-evaluator.ts`の
+ * `matchesTargetState`と同じ契約）。
+ */
+function matchesTargetState(
+  target: BattleUnit,
+  condition: Extract<ConditionDefinition, { kind: "TARGET_STATE" }>,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> | undefined,
+): boolean {
+  if (condition.field === "HAS_STATUS") {
+    return heldStatusKinds(target).some((statusKind) =>
+      compareWithOperator(statusKind, condition.op, condition.value),
+    );
+  }
+  return compareWithOperator(
+    resolveTargetStateField(target, condition.field, unitDefinitions),
+    condition.op,
+    condition.value,
+  );
 }
 
 /**
@@ -258,8 +307,23 @@ export function evaluateTriggerCondition(
         if (target === undefined) {
           return false;
         }
-        const actual = resolveTargetStateField(target, condition.field);
-        return compareWithOperator(actual, condition.op, condition.value);
+        return matchesTargetState(target, condition, context.unitDefinitions);
+      });
+    }
+    case "TARGET_HAS_EFFECT": {
+      // `TARGET_STATE`と同じ隔離方針・同じ解決経路（`getUnit`が無ければ例外、
+      // 解決先が居なければ不成立）。判定そのものは`applied-effect-query.ts`が
+      // ACTION step条件と共有する（分類元・照会契約を1つに保つ）。
+      if (context?.getUnit === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "TARGET_HAS_EFFECT" requires a context with a getUnit lookup (owner + getUnit)',
+        );
+      }
+      const { owner, getUnit } = context;
+      return resolveTargetReferenceIds(condition.target, owner, event).some((id) => {
+        const target = getUnit(id);
+        return target !== undefined && holdsMatchingEffect(target, condition);
       });
     }
     case "TARGET_HAS_MARKER": {

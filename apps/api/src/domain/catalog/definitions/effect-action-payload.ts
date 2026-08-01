@@ -1,6 +1,7 @@
 import type {
   ActionKind,
   ComparisonOperator,
+  ContinuousDamageKind,
   CriticalMode,
   AccuracyMode,
   DamageModDirection,
@@ -127,9 +128,8 @@ export interface ApplyContinuousHealPayload {
  * 「炎上として書いたつもりの定義が固定継続ダメージとして黙って別規則で解決される」
  * 近似が復活するためである。
  */
-export const CONTINUOUS_DAMAGE_KINDS = ["FIXED", "BURN", "POISON"] as const;
-
-export type ContinuousDamageKind = (typeof CONTINUOUS_DAMAGE_KINDS)[number];
+export { CONTINUOUS_DAMAGE_KINDS } from "./catalog-enums.js";
+export type { ContinuousDamageKind } from "./catalog-enums.js";
 
 /** G-02 (Issue #44): the DAMAGE-direction counterpart of `APPLY_CONTINUOUS_HEAL`. */
 export interface ApplyContinuousDamagePayload {

@@ -13,6 +13,7 @@ import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "./comparison-operator.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { heldStatusKinds, holdsMatchingEffect } from "../model/applied-effect-query.js";
 
 /** R-SKL-06: `LastEffectActionResult`を`LAST_RESULT`の`field`が参照できる平坦なrecordへ変換する。 */
 function lastResultRecord(lastResult: LastEffectActionResult): Readonly<Record<string, unknown>> {
@@ -66,13 +67,15 @@ export function conditionReferencesTargetSetCount(condition: ConditionDefinition
 }
 
 /**
- * `TARGET_STATE.field`を`BattleUnit`から解決する。`UNIT_TYPE`はCatalogの
- * `UnitDefinition`参照が必要なため`unitDefinitions`を引く。`ROLE`（同じく
- * `UnitDefinition`参照）と`HAS_STATUS`（状態異常追跡、`TARGET_STATE_QUERY_BUFF_DEBUFF`
- * テーマ）は、それぞれ本Capabilityが検証済みのproduction定義を持たないため
- * 未対応のまま隔離する（`triggering/trigger-condition-evaluator.ts`の
- * `resolveTargetStateField`と同じ方針・意図的な重複 — `domain/battle/skill`は
- * `domain/battle/triggering`へ依存できない、module境界）。
+ * `TARGET_STATE.field`を`BattleUnit`から解決する。`UNIT_TYPE`/`ROLE`はCatalogの
+ * `UnitDefinition`参照が必要なため`unitDefinitions`を引く（M7-001E、Issue #248で
+ * `ROLE`も解決できるようにした。production定義は現状`UNIT_TYPE`だけが使う）。
+ * `HAS_STATUS`だけはスカラー1値へ解決できない（対象は複数の状態を同時に保持しうる）
+ * ため、この関数ではなく`matchesTargetState`が存在量化で判定する。
+ *
+ * `triggering/trigger-condition-evaluator.ts`の`resolveTargetStateField`と同じ
+ * 方針・意図的な重複 — `domain/battle/skill`は`domain/battle/triggering`へ
+ * 依存できない（module境界）。
  */
 function resolveTargetStateField(
   target: BattleUnit,
@@ -106,13 +109,46 @@ function resolveTargetStateField(
       }
       return unitDefinition.unitType;
     }
-    case "ROLE":
+    case "ROLE": {
+      const unitDefinition = unitDefinitions.get(target.unitDefinitionId);
+      if (unitDefinition === undefined) {
+        throw new DomainValidationError(
+          "condition.field",
+          `TARGET_STATE field "ROLE" requires a UnitDefinition for unitDefinitionId "${target.unitDefinitionId}"`,
+        );
+      }
+      return unitDefinition.role;
+    }
     case "HAS_STATUS":
       throw new DomainValidationError(
         "condition.field",
-        `TARGET_STATE field "${field}" is not supported by this basic ACTION step condition evaluator (ROLE requires a UnitDefinition lookup not yet driven by a production definition, HAS_STATUS requires state-ailment tracking, TARGET_STATE_QUERY_BUFF_DEBUFF scope)`,
+        'TARGET_STATE field "HAS_STATUS" is existentially quantified over the target\'s held statuses and must be evaluated by matchesTargetState, not resolved to a single value',
       );
   }
+}
+
+/**
+ * M7-001E（Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）: 1体に対する`TARGET_STATE`を
+ * 判定する。`HAS_STATUS`だけは「対象が保持している`APPLY_STATUS`由来の状態種別のうち
+ * いずれかが`op`/`value`に一致するか」という存在量化であり、他のfieldのように単一値へ
+ * 解決できない（対象は気絶と暗闇を同時に保持しうる）。production定義
+ * （`UNIT_MERU_FLATSPIN`/`UNIT_NANAE_COMMANDER`）はこれを`op: EQ`のORで使う。
+ */
+function matchesTargetState(
+  unit: BattleUnit,
+  condition: Extract<ConditionDefinition, { kind: "TARGET_STATE" }>,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+): boolean {
+  if (condition.field === "HAS_STATUS") {
+    return heldStatusKinds(unit).some((statusKind) =>
+      compareWithOperator(statusKind, condition.op, condition.value),
+    );
+  }
+  return compareWithOperator(
+    resolveTargetStateField(unit, condition.field, unitDefinitions),
+    condition.op,
+    condition.value,
+  );
 }
 
 /** `reference`が`ctx.stepTarget`と同じなら評価中の1体だけを、それ以外は`resolveOtherReference`が返す集合を候補にする。 */
@@ -232,11 +268,7 @@ export function evaluateEffectStepCondition(
       if (targetContext !== undefined) {
         const candidates = resolveConditionTargets(condition.target, targetContext);
         return candidates.some((unit) =>
-          compareWithOperator(
-            resolveTargetStateField(unit, condition.field, targetContext.unitDefinitions),
-            condition.op,
-            condition.value,
-          ),
+          matchesTargetState(unit, condition, targetContext.unitDefinitions),
         );
       }
       // BRANCH（Issue #230 レビュー[P1]）: BRANCHの`condition`は対象ごとの
@@ -258,11 +290,7 @@ export function evaluateEffectStepCondition(
         if (unit === undefined) {
           return false;
         }
-        return compareWithOperator(
-          resolveTargetStateField(unit, condition.field, unitDefinitions ?? EMPTY_UNIT_DEFINITIONS),
-          condition.op,
-          condition.value,
-        );
+        return matchesTargetState(unit, condition, unitDefinitions ?? EMPTY_UNIT_DEFINITIONS);
       }
       throw new DomainValidationError(
         "step.condition",
@@ -318,6 +346,30 @@ export function evaluateEffectStepCondition(
       throw new DomainValidationError(
         "step.condition",
         'kind "TARGET_HAS_MARKER" requires an EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION) or a TargetSetResolver (BRANCH step-wide scope)',
+      );
+    }
+    case "TARGET_HAS_EFFECT": {
+      // `TARGET_STATE`/`TARGET_HAS_MARKER`と完全に同じスコープ規約:
+      // `targetContext`があれば対象ごと、無ければBRANCH step-wideとして
+      // preflightが高々1体を保証する`resolveTargetSet`経由で0〜1体を評価する。
+      if (targetContext !== undefined) {
+        const candidates = resolveConditionTargets(condition.target, targetContext);
+        return candidates.some((unit) => holdsMatchingEffect(unit, condition));
+      }
+      if (resolveTargetSet !== undefined) {
+        const candidates = resolveTargetSet(condition.target);
+        if (candidates.length > 1) {
+          throw new DomainValidationError(
+            "step.condition",
+            `kind "TARGET_HAS_EFFECT" resolved ${candidates.length} units for a step-wide (BRANCH) condition, but step-wide quantification over more than one unit is not supported (Catalog preflight should already guarantee at most one unit for this TargetReference)`,
+          );
+        }
+        const unit = candidates[0];
+        return unit !== undefined && holdsMatchingEffect(unit, condition);
+      }
+      throw new DomainValidationError(
+        "step.condition",
+        'kind "TARGET_HAS_EFFECT" requires an EffectStepTargetContext (CAP_TARGET_EFFECT_QUERY) or a TargetSetResolver (BRANCH step-wide scope)',
       );
     }
     case "TARGET_SET_COUNT": {

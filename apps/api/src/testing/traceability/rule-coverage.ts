@@ -774,6 +774,24 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // TROUBLEMAKER`の`SKL_TARISA_TROUBLEMAKER_PS1`（「与えたダメージが10以下だった
   // 場合、『負けん気』を3つ解除する」）を実production Catalogに対し
   // `IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001`〜`003`で近似なしへ変換した。
+  // M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）: `TARGET_HAS_EFFECT`
+  // （`CAP_TARGET_EFFECT_QUERY`）と`TARGET_STATE`の`HAS_STATUS`/`UNIT_TYPE`/`ROLE`
+  // （`CAP_TARGET_STATE_EXTENDED_FIELD`）を条件評価器へ接続した。分類元は
+  // `effect-category-classifier.ts`ただ1つのまま、`grantEffect`が付与時点に
+  // `AppliedEffect.categories`（と`APPLY_STAT_MOD`の`statModStat`）へ焼き込み、
+  // 照会側（`applied-effect-query.ts`、ACTION step条件とPS trigger条件が共有）は
+  // 定義マップを引かずに最新の`BattleUnit`だけを読む（`UT-R-SKL-06-056`〜`063`、
+  // `UT-R-PS-01-056`〜`058`）。`HAS_STATUS`は対象が複数の状態を同時に保持しうる
+  // ため単一値へ解決せず存在量化として評価する（`UT-R-SKL-06-064`/`065`、
+  // `UT-R-PS-01-059`）。trigger scopeの`UNIT_TYPE`/`ROLE`は
+  // `RuntimeCounterLookupContext.unitDefinitions`を候補検出（`passive-trigger-matcher.ts`）と
+  // 再確認（`reconfirm-passive-candidate.ts`）の両方へ通して解決する（`UT-R-PS-01-055`）。
+  // 変換台帳の対象5行（`SKL_CHIYURU_MAZE_AS1`/`SKL_FLUTE_INFLUENCER_PS2`/
+  // `SKL_MAIA_LAZY_AS1`/`SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`）を近似なしへ
+  // 更新し、`IT-CAP-TARGET-EFFECT-QUERY-PROD-001`〜`005`で実ライフサイクル検証した。
+  // `SKL_SHOUKA_SCHEMER_AS3`の「対象の攻撃力がデバフ」は`statKinds`で、
+  // `SKL_CHIYURU_MAZE_AS1`/`SKL_NOEL_RUMBLE_AS1`の毒・炎上は`continuousDamageKinds`で
+  // 絞り込む — どちらも無ければ「何らかのデバフ」への近似が残っていた。
   {
     ruleId: "R-SKL-06",
     testCaseIds: [
@@ -842,6 +860,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-EFFSTEP-003",
       "IT-CAP-EFFSTEP-004",
       "IT-CAP-EFFSTEP-005",
+      "UT-R-SKL-06-056",
+      "UT-R-SKL-06-057",
+      "UT-R-SKL-06-058",
+      "UT-R-SKL-06-059",
+      "UT-R-SKL-06-060",
+      "UT-R-SKL-06-061",
+      "UT-R-SKL-06-062",
+      "UT-R-SKL-06-063",
+      "UT-R-SKL-06-064",
+      "UT-R-SKL-06-065",
+      "UT-R-SKL-06-066",
+      "IT-CAP-TARGET-STATE-FIELD-PROD-001",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -1024,6 +1054,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-TRIGGER-PAYLOAD-PROD-006",
       "IT-CAP-TRIGGER-PAYLOAD-PROD-007",
       "IT-CAT-PROD-013",
+      "UT-R-PS-01-055",
+      "UT-R-PS-01-056",
+      "UT-R-PS-01-057",
+      "UT-R-PS-01-058",
+      "UT-R-PS-01-059",
+      "IT-CAP-TARGET-STATE-FIELD-PROD-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -1746,6 +1782,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-01-039",
       "UT-R-EFF-01-040",
       "UT-R-EFF-01-041",
+      "UT-R-EFF-01-063",
+      "UT-R-EFF-01-064",
+      "UT-R-EFF-01-065",
+      "UT-R-EFF-01-066",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -1796,6 +1836,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-REMOVE-EFFECTS-PROD-005",
       "IT-REMOVE-EFFECTS-PROD-006",
       "IT-REMOVE-EFFECTS-PROD-007",
+      "UT-CAT-COND-037",
+      "UT-CAT-COND-038",
+      "UT-CAT-COND-039",
+      "UT-CAT-COND-040",
+      "UT-CAT-COND-041",
+      "UT-CAT-COND-042",
+      "UT-CAT-COND-043",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-001",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-002",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-003",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-004",
+      "IT-CAP-TARGET-EFFECT-QUERY-PROD-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

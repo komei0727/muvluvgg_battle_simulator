@@ -1911,6 +1911,46 @@ resolution:
 | `RESOURCE_PP`       | integer |
 | `RESOURCE_EX_GAUGE` | integer |
 
+`UNIT_TYPE` / `ROLE` はCatalogの`UnitDefinition`を参照して解決する（M7-001E、Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）。ACTION step条件・BRANCH条件では`EffectStepTargetContext.unitDefinitions`が、PSのtrigger／`activationCondition`では`RuntimeCounterLookupContext.unitDefinitions`（`passive-trigger-matcher.ts`が候補検出へ、`reconfirm-passive-candidate.ts`が発動直前再確認へ、同じ参照表を渡す）が正本になる。参照表を渡さない呼び出しでこれらの`field`へ到達した場合は、黙って不成立にせず`DomainValidationError`で隔離する。
+
+`HAS_STATUS` は「対象が保持している`APPLY_STATUS`由来の状態種別のいずれかが`op`/`value`に一致するか」という**存在量化**として評価する — 対象は気絶と暗闇を同時に保持しうるため、他の`field`のように単一値へは解決しない。production定義（`SKL_MERU_FLATSPIN_AS1`〜`AS3`、`SKL_NANAE_COMMANDER_PS1`）は`op: EQ`のORで「何らかの状態異常か」を表す。
+
+### TARGET_HAS_EFFECT
+
+M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`、`CAP_TARGET_EFFECT_QUERY`）。「対象が何らかのバフ／デバフ／状態異常を保持しているか」を、R-EFF-02/03の分類軸で照会する。
+
+```yaml
+condition:
+  kind: TARGET_HAS_EFFECT
+  target: { kind: BINDING, targetBindingId: TGT_BASE }
+  categories: [DEBUFF]
+  continuousDamageKinds: [POISON]
+  statKinds: [ATTACK]
+```
+
+| フィールド              | 型       | 必須 | 制約                                                                                 |
+| ----------------------- | -------- | ---- | ------------------------------------------------------------------------------------ |
+| `target`                | object   | ✓    | `TargetReference`                                                                    |
+| `categories`            | string[] | ✓    | 1件以上。`BUFF` / `DEBUFF` / `STATUS` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT`          |
+| `continuousDamageKinds` | string[] | —    | 1件以上。`FIXED` / `BURN` / `POISON`。`categories`が`DEBUFF`を含む場合だけ指定できる |
+| `statKinds`             | string[] | —    | 1件以上。`StatKind`。`categories`が`BUFF`または`DEBUFF`を含む場合だけ指定できる      |
+
+判定は「`categories`のいずれかに一致する`AppliedEffect`を対象が1つ以上保持している」ことであり、絞り込み（`continuousDamageKinds`／`statKinds`）はその一致へANDで重ねる。到達できない組み合わせ（例: `categories: [SHIELD]`に`statKinds`）はCatalogロード時点で拒否する — `EFFECT_IMMUNITY.statusKinds`と同じく「schemaは通るが実行時に一切一致しない定義」を作らせないためである。
+
+`MARKER`と`SPECIFIC_EFFECT`は`categories`に指定できない。`MarkerState`は`AppliedEffect`ではなく`TARGET_HAS_MARKER`が照会し、`SPECIFIC_EFFECT`は分類軸ではなく`effectActionDefinitionId`の直接一致だからである。
+
+分類の正本は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`の`effectCategoriesOf`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込む。`EffectApplied.payload.categories`・`EffectSnapshot.categories`も同じ値を運ぶため、独立Reducerで復元した状態でも同じ判定になる。
+
+評価スコープは`TARGET_STATE`/`TARGET_HAS_MARKER`と同一である。
+
+| スコープ                          | 可否 | 備考                                                                           |
+| --------------------------------- | ---- | ------------------------------------------------------------------------------ |
+| ACTION `targetCondition`          | ✓    | 対象ごとに評価。`target`はそのstep自身の`target`と一致していなければならない   |
+| BRANCH `condition`                | ✓    | 高々1体に解決される参照のみ（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証） |
+| AS/EX `activationCondition`       | ✓    | `SELF`と解決済み`BINDING`のみ                                                  |
+| PS trigger／`activationCondition` | ✓    | `SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`のみ                                   |
+| ACTION `stepCondition`            | ✗    | 対象ごとに真偽が変わりうるため、`TARGET_STATE`と同じ理由で除外する             |
+
 ### op
 
 `GT` / `GTE` / `LT` / `LTE` / `EQ` / `NEQ` / `IN` / `CONTAINS`

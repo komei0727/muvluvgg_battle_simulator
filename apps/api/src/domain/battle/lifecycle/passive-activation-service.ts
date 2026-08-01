@@ -373,6 +373,10 @@ export class PassiveActivationRuntime {
       // 同じ生存数母集団を使うため、`findUnit`と同様に`this.units`を都度読み直す
       // 関数として渡す（PS連鎖の途中で`this.units`が変わりうるため固定配列は使えない）。
       getAllUnits: () => this.units,
+      // M7-001E（Issue #248）: `TARGET_STATE`の`UNIT_TYPE`/`ROLE`（`SKL_CHIYURU_MAZE_PS2`／
+      // `SKL_LUCIE_MAID_PS1`のtrigger条件）を、再確認（R-PS-04）でも候補検出時と
+      // 同じCatalog参照表で評価する。
+      unitDefinitions: this.context.definitions.unitDefinitions,
       ...(this.context.resolutionPhase !== undefined
         ? { resolutionPhase: this.context.resolutionPhase }
         : {}),

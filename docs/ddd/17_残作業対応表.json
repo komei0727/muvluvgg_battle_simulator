@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 30
+      "incompleteConversionRows": 25
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 0
     },
     "capabilities": {
-      "total": 46,
-      "implemented": 32
+      "total": 47,
+      "implemented": 34
     }
   },
   "tasks": [
@@ -239,7 +239,7 @@
       "issue": 248,
       "phase": 2,
       "milestone": "M7",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "M7-002",
@@ -560,12 +560,6 @@
     },
     {
       "milestone": "M7",
-      "theme": "TARGET_STATE_QUERY_BUFF_DEBUFF",
-      "rowCount": 5,
-      "taskId": "M7-001E"
-    },
-    {
-      "milestone": "M7",
       "theme": "REMOVE_EFFECTS_CATEGORY_GAP",
       "rowCount": 2,
       "taskId": "M7-001A"
@@ -631,7 +625,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 43,
+      "selectableProductionUnits": 47,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -706,13 +700,6 @@
         "blockedUnits": 2,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_TARGET_STATE_EXTENDED_FIELD",
-        "blockedUnits": 4,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 4,
         "exclusivelyBlockedMemories": 0
       }
     ],

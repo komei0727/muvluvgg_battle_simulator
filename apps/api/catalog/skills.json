@@ -719,6 +719,17 @@
       "steps": [
         {
           "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "categories": ["DEBUFF"],
+            "continuousDamageKinds": ["POISON"]
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DEF_DOWN" }]
+        },
+        {
+          "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DAMAGE" }]
         },
@@ -748,7 +759,9 @@
       "CAP_TARGET_DERIVED_AREA",
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_STAT_MOD"
     ],
     "metadata": { "displayName": "Pスラスト", "tags": [] }
   },
@@ -3614,13 +3627,40 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_TARGET" },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "categories": ["DEBUFF"]
+            }
+          },
           "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": { "kind": "TRIGGER_TARGET" },
+            "categories": ["DEBUFF"]
+          },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED" },
+            { "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF" }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_REMOVE_EFFECTS",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": { "displayName": "イケてる♡イケてる", "tags": [] },
     "triggers": [
       {
@@ -8034,6 +8074,16 @@
             "count": 1,
             "order": ["BACK_ROW", "DEFAULT"]
           }
+        },
+        {
+          "targetBindingId": "TGT_ALLIES_EXCEPT_SELF",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }],
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
@@ -8041,12 +8091,34 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "categories": ["BUFF"]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLIES_EXCEPT_SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_SHIELD" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": [
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_SHIELD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "スナイプリフレクター", "tags": [] }
   },
   {
@@ -10681,13 +10753,33 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "categories": ["DEBUFF"],
+            "continuousDamageKinds": ["BURN"]
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "categories": ["DEBUFF"],
+              "continuousDamageKinds": ["BURN"]
+            }
+          },
           "actions": [{ "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_EFFECT_QUERY", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": { "displayName": "クラッシュラッシュ", "tags": [] }
   },
   {
@@ -13227,16 +13319,44 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "categories": ["DEBUFF"],
+            "statKinds": ["ATTACK"]
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF" }
+            { "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF" }
           ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "categories": ["DEBUFF"],
+              "statKinds": ["ATTACK"]
+            }
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
+    "requiredCapabilities": [
+      "CAP_REMOVE_EFFECTS",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": { "displayName": "インクリメントアタック", "tags": [] }
   },
   {

@@ -54,6 +54,7 @@ function statusEffectOf(statusKind: "STUN" | "FREEZE", holderId: BattleUnitId): 
     sourceId: holderId,
     targetId: holderId,
     magnitude: 0,
+    categories: ["BUFF"],
     statusKind,
     duration: {
       definition: {

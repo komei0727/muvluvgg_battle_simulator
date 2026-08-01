@@ -494,3 +494,144 @@ describe("ConditionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 });
+
+/**
+ * M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`、`CAP_TARGET_EFFECT_QUERY`）:
+ * 「対象が何らかのバフ／デバフ／状態異常を保持しているか」を、R-EFF-02/03の
+ * 分類軸（`EffectImmunityCategory`）で照会する`TARGET_HAS_EFFECT`。絞り込み
+ * （`statusKinds`/`continuousDamageKinds`/`statKinds`）は`REMOVE_EFFECTS`／
+ * `EFFECT_IMMUNITY`のselector形と同じく、カテゴリ一致にANDで重ねる。
+ */
+describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
+  it("UT-CAT-COND-037: maps a bare category query, defaulting every narrowing filter to absent", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_HAS_EFFECT",
+        target: { kind: "BINDING", targetBindingId: "TGT_BASE" },
+        categories: ["DEBUFF"],
+      },
+      "condition",
+      new Set(["TGT_BASE"]),
+    );
+
+    expect(result).toEqual({
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "BINDING", targetBindingId: "TGT_BASE" },
+      categories: ["DEBUFF"],
+    });
+  });
+
+  it("UT-CAT-COND-038: maps both narrowing filters (continuousDamageKinds / statKinds)", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_HAS_EFFECT",
+        target: { kind: "SELF" },
+        categories: ["DEBUFF"],
+        continuousDamageKinds: ["POISON"],
+        statKinds: ["ATTACK"],
+      },
+      "condition",
+      undefined,
+    );
+
+    expect(result).toEqual({
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "SELF" },
+      categories: ["DEBUFF"],
+      continuousDamageKinds: ["POISON"],
+      statKinds: ["ATTACK"],
+    });
+  });
+
+  it("UT-CAT-COND-039: rejects an empty categories array (a query that can never match)", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "TARGET_HAS_EFFECT", target: { kind: "SELF" }, categories: [] },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-040: rejects MARKER and SPECIFIC_EFFECT categories, which TARGET_HAS_MARKER and a definition-id match own instead", () => {
+    for (const category of ["MARKER", "SPECIFIC_EFFECT"]) {
+      expect(() =>
+        createConditionDefinition(
+          { kind: "TARGET_HAS_EFFECT", target: { kind: "SELF" }, categories: [category] },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-COND-041: rejects an unknown or empty value in any narrowing filter", () => {
+    for (const narrowing of [
+      { continuousDamageKinds: ["NOT_A_DOT"] },
+      { statKinds: ["NOT_A_STAT"] },
+      { continuousDamageKinds: [] },
+      { statKinds: [] },
+    ]) {
+      expect(() =>
+        createConditionDefinition(
+          {
+            kind: "TARGET_HAS_EFFECT",
+            target: { kind: "SELF" },
+            categories: ["DEBUFF"],
+            ...narrowing,
+          },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-COND-042: rejects a narrowing filter that its categories can never reach", () => {
+    // `continuousDamageKinds`は`APPLY_CONTINUOUS_DAMAGE`（常に`DEBUFF`）だけが、
+    // `statKinds`は`APPLY_STAT_MOD`（符号で`BUFF`/`DEBUFF`）だけが持つ。`STATUS`や
+    // `SHIELD`だけを問い合わせる条件へ重ねると実行時に一切一致しない「黙って効かない
+    // 定義」になるため、`EFFECT_IMMUNITY.statusKinds`と同じ理由でロード時に拒否する。
+    for (const narrowing of [{ continuousDamageKinds: ["POISON"] }, { statKinds: ["ATTACK"] }]) {
+      expect(() =>
+        createConditionDefinition(
+          {
+            kind: "TARGET_HAS_EFFECT",
+            target: { kind: "SELF" },
+            categories: ["SHIELD"],
+            ...narrowing,
+          },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-COND-043: rejects a typo'd sibling key and a BINDING target outside the declared scope", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["DEBUFF"],
+          typoField: 1,
+        } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "BINDING", targetBindingId: "TGT_UNKNOWN" },
+          categories: ["DEBUFF"],
+        },
+        "condition",
+        new Set(["TGT_BASE"]),
+      ),
+    ).toThrow(DomainValidationError);
+  });
+});

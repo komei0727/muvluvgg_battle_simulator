@@ -611,6 +611,7 @@ describe("assembleSimulationResult", () => {
                   duplicate: true,
                   isEffective: true,
                   magnitude: 20,
+                  categories: ["BUFF"],
                   appliedTurnNumber: 1,
                 },
               },

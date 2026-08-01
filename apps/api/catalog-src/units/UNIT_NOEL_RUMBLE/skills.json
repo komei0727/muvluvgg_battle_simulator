@@ -135,6 +135,39 @@
             "kind": "BINDING",
             "targetBindingId": "TGT_PRIMARY"
           },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
+            "categories": ["DEBUFF"],
+            "continuousDamageKinds": ["BURN"]
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "categories": ["DEBUFF"],
+              "continuousDamageKinds": ["BURN"]
+            }
+          },
           "actions": [
             {
               "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE"
@@ -148,7 +181,7 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_TARGET_EFFECT_QUERY", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": {
       "displayName": "クラッシュラッシュ",
       "tags": []

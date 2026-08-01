@@ -6,8 +6,9 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { MarkerState } from "../model/marker-state.js";
 import { createBattleUnitId, type BattleUnitId } from "../../shared/ids.js";
-import { createMarkerInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import {
+  createEffectActionDefinitionId,
   createMarkerId,
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -15,7 +16,13 @@ import {
 } from "../../catalog/definitions/catalog-ids.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
-import type { PositionColumn, PositionRow } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  EffectImmunityCategory,
+  PositionColumn,
+  PositionRow,
+} from "../../catalog/definitions/catalog-enums.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 
 const SKILL_ID = createSkillDefinitionId("SKL_PS1");
 const COUNTER_ID = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
@@ -78,6 +85,26 @@ function unitAt(
   return {
     ...createBattleUnit(member, side, { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 }),
     ...overrides,
+  };
+}
+
+/** M7-001E（Issue #248）: `TARGET_HAS_EFFECT`/`HAS_STATUS`が読む最小の`AppliedEffect`。 */
+function effect(
+  id: string,
+  categories: readonly EffectImmunityCategory[],
+  magnitude = -0.2,
+): AppliedEffect {
+  const effectActionDefinitionId = createEffectActionDefinitionId(`ACT_${id.toUpperCase()}`);
+  return {
+    effectInstanceId: createEffectInstanceId(`battle-1:effect:${id}`),
+    effectActionDefinitionId,
+    kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
+    duplicate: true,
+    targetId: createBattleUnitId("OWNER"),
+    magnitude,
+    categories,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
   };
 }
 
@@ -697,8 +724,11 @@ describe("evaluateTriggerCondition", () => {
       ).toBe(false);
     });
 
-    it("UT-R-PS-01-034: a field requiring unimplemented Catalog/state-ailment lookups (UNIT_TYPE/ROLE/HAS_STATUS) throws a clear DomainValidationError", () => {
-      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+    it("UT-R-PS-01-059 (M7-001E、Issue #248): HAS_STATUS matches the statuses the resolved target currently holds, without needing a UnitDefinition lookup", () => {
+      const stunned = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+        appliedEffects: [{ ...effect("e1", ["DEBUFF", "STATUS"]), statusKind: "STUN" }],
+      });
+      const clean = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
       const condition: ConditionDefinition = {
         kind: "TARGET_STATE",
         target: { kind: "SELF" },
@@ -706,13 +736,148 @@ describe("evaluateTriggerCondition", () => {
         op: "EQ",
         value: "STUN",
       };
-      expect(() =>
+      const check = (owner: BattleUnit): boolean =>
         evaluateTriggerCondition(
           condition,
           { payload: {} },
           { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        );
+
+      expect(check(stunned)).toBe(true);
+      expect(check(clean)).toBe(false);
+    });
+
+    it("UT-R-PS-01-055 (M7-001E、Issue #248、CAP_TARGET_STATE_EXTENDED_FIELD): UNIT_TYPE and ROLE resolve from the unitDefinitions the caller threads through, and throw without them", () => {
+      const unitDefinitionId = createUnitDefinitionId("UNIT_A");
+      const unitDefinitions = new Map<typeof unitDefinitionId, UnitDefinition>([
+        [
+          unitDefinitionId,
+          { unitDefinitionId, unitType: "AGILE", role: "CONTROL" } as UnitDefinition,
+        ],
+      ]);
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const conditionFor = (field: "UNIT_TYPE" | "ROLE", value: string): ConditionDefinition => ({
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field,
+        op: "EQ",
+        value,
+      });
+      const base = { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner };
+
+      expect(
+        evaluateTriggerCondition(
+          conditionFor("UNIT_TYPE", "AGILE"),
+          { payload: {} },
+          {
+            ...base,
+            unitDefinitions,
+          },
         ),
+      ).toBe(true);
+      expect(
+        evaluateTriggerCondition(
+          conditionFor("UNIT_TYPE", "PHYSICAL"),
+          { payload: {} },
+          {
+            ...base,
+            unitDefinitions,
+          },
+        ),
+      ).toBe(false);
+      expect(
+        evaluateTriggerCondition(
+          conditionFor("ROLE", "CONTROL"),
+          { payload: {} },
+          {
+            ...base,
+            unitDefinitions,
+          },
+        ),
+      ).toBe(true);
+      // 呼び出し側が`unitDefinitions`を渡さない場合は、黙ってfalseにせず例外で隔離する。
+      expect(() =>
+        evaluateTriggerCondition(conditionFor("UNIT_TYPE", "AGILE"), { payload: {} }, base),
       ).toThrow(DomainValidationError);
+    });
+  });
+
+  /**
+   * M7-001E（Issue #248、`CAP_TARGET_EFFECT_QUERY`）: PS trigger／AS・PSの
+   * `activationCondition`／R-EFF-08の`expiration.conditions`も、ACTION step条件と
+   * 同じ`TARGET_HAS_EFFECT`契約で対象の保持効果を照会できる。
+   */
+  describe("TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, Issue #248 M7-001E)", () => {
+    const hasBuff: ConditionDefinition = {
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "TRIGGER_TARGET" },
+      categories: ["BUFF"],
+    };
+
+    it("UT-R-PS-01-056: matches when the resolved trigger target holds an effect of the queried category", () => {
+      const buffed = unitAt("TARGET", "ENEMY", "FRONT", "LEFT", {
+        appliedEffects: [effect("e1", ["BUFF"], 0.2)],
+      });
+      const debuffed = unitAt("TARGET", "ENEMY", "FRONT", "LEFT", {
+        appliedEffects: [effect("e2", ["DEBUFF"])],
+      });
+      const check = (target: BattleUnit): boolean =>
+        evaluateTriggerCondition(
+          hasBuff,
+          { payload: {}, targetUnitIds: [target.battleUnitId] },
+          { owner: target, skillDefinitionId: SKILL_ID, getUnit: () => target },
+        );
+
+      expect(check(buffed)).toBe(true);
+      expect(check(debuffed)).toBe(false);
+    });
+
+    it("UT-R-PS-01-057: resolving to no unit does not match, and no getUnit lookup throws (same isolation as TARGET_STATE)", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      expect(
+        evaluateTriggerCondition(
+          hasBuff,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => undefined },
+        ),
+      ).toBe(false);
+      expect(() => evaluateTriggerCondition(hasBuff, { payload: {} })).toThrow(
+        DomainValidationError,
+      );
+    });
+
+    it("UT-R-PS-01-058: narrows a DEBUFF query to burn, so a poisoned (but not burning) target does not match", () => {
+      const burnQuery: ConditionDefinition = {
+        kind: "TARGET_HAS_EFFECT",
+        target: { kind: "SELF" },
+        categories: ["DEBUFF"],
+        continuousDamageKinds: ["BURN"],
+      };
+      const burning = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+        appliedEffects: [
+          {
+            ...effect("e1", ["DEBUFF"]),
+            continuousDamage: { continuousDamageKind: "BURN", damageType: "PHYSICAL" },
+          },
+        ],
+      });
+      const poisoned = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+        appliedEffects: [
+          {
+            ...effect("e2", ["DEBUFF"]),
+            continuousDamage: { continuousDamageKind: "POISON", damageType: "PHYSICAL" },
+          },
+        ],
+      });
+      const check = (owner: BattleUnit): boolean =>
+        evaluateTriggerCondition(
+          burnQuery,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        );
+
+      expect(check(burning)).toBe(true);
+      expect(check(poisoned)).toBe(false);
     });
   });
 

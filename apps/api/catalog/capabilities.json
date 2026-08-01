@@ -931,9 +931,59 @@
   {
     "capabilityId": "CAP_TARGET_STATE_EXTENDED_FIELD",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001E",
-    "description": "`ConditionDefinition.TARGET_STATE`のうち、条件evaluatorがまだ解決できない`field`（`UNIT_TYPE`／`ROLE`はCatalogの`UnitDefinition`参照、`HAS_STATUS`は状態異常追跡が必要）。schema上は受理されるがACTION step条件・trigger条件の評価時点で`DomainValidationError`になる。DMG-002（Issue #192）が`CAP_DAMAGE_MOD`を`IMPLEMENTED`にした際、これらを使うUNIT_LUCIE_MAID・UNIT_MERU_FLATSPIN・UNIT_SHIRANA_SORAが`CAP_DAMAGE_MOD`だけを理由に非selectableだったことが判明したため（golden battle層が実戦闘の失敗として検出した）、実際のブロッカーを表す本Capabilityを新設して宣言漏れを埋めた。担当はM7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "`ConditionDefinition.TARGET_STATE`のうち、`BattleUnit`だけからは解決できない`field`（`UNIT_TYPE`／`ROLE`はCatalogの`UnitDefinition`参照、`HAS_STATUS`は対象が保持する`APPLY_STATUS`由来の状態種別の照会）。DMG-002（Issue #192）が`CAP_DAMAGE_MOD`を`IMPLEMENTED`にした際、これらを使うUNIT_LUCIE_MAID・UNIT_MERU_FLATSPIN・UNIT_SHIRANA_SORAが`CAP_DAMAGE_MOD`だけを理由に非selectableだったことが判明したため（golden battle層が実戦闘の失敗として検出した）、実際のブロッカーを表す本Capabilityを新設して宣言漏れを埋めた。M7-001E（Issue #248）で実装した: `HAS_STATUS`は`AppliedEffect.statusKind`に対する存在量化として（対象は気絶と暗闇を同時に保持しうるため単一値へ解決しない）ACTION step条件・BRANCH条件の両方で評価し、`UNIT_TYPE`/`ROLE`はtrigger条件でも`RuntimeCounterLookupContext.unitDefinitions`（`passive-trigger-matcher.ts`／`reconfirm-passive-candidate.ts`が候補検出と再確認へ同じ参照表を渡す）から解決する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "SKL_CHIYURU_MAZE_PS2",
+        "SKL_LUCIE_MAID_PS1",
+        "SKL_MERU_FLATSPIN_AS1",
+        "SKL_NANAE_COMMANDER_PS1"
+      ],
+      "testCaseIds": [
+        "UT-R-SKL-06-064",
+        "UT-R-SKL-06-065",
+        "UT-R-SKL-06-066",
+        "UT-R-PS-01-059",
+        "UT-R-PS-01-055",
+        "IT-CAP-TARGET-STATE-FIELD-PROD-001",
+        "IT-CAP-TARGET-STATE-FIELD-PROD-002"
+      ]
+    }
+  },
+  {
+    "capabilityId": "CAP_TARGET_EFFECT_QUERY",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "M7-001E",
+    "description": "`ConditionDefinition.TARGET_HAS_EFFECT`（M7-001E、Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）。「対象が何らかのバフ／デバフ／状態異常を保持しているか」をR-EFF-02/03の分類軸（`EffectImmunityCategory`のうち`MARKER`/`SPECIFIC_EFFECT`を除く）で照会し、`continuousDamageKinds`（毒・炎上）と`statKinds`（攻撃力デバフ等）で絞り込む。分類元は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込み、`EffectApplied.payload`・`EffectSnapshot`・独立Reducerが同じ値を運ぶ。評価スコープはACTIONの`targetCondition`（対象ごと）・BRANCHの`condition`（高々1体、`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`が保証）・AS/EXの`activationCondition`・PSのtrigger/activationConditionで、`stepCondition`からは`TARGET_STATE`と同じ理由で除外する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "SKL_CHIYURU_MAZE_AS1",
+        "SKL_FLUTE_INFLUENCER_PS2",
+        "SKL_MAIA_LAZY_AS1",
+        "SKL_NOEL_RUMBLE_AS1",
+        "SKL_SHOUKA_SCHEMER_AS3"
+      ],
+      "testCaseIds": [
+        "UT-R-SKL-06-056",
+        "UT-R-SKL-06-057",
+        "UT-R-SKL-06-058",
+        "UT-R-SKL-06-059",
+        "UT-R-SKL-06-060",
+        "UT-R-SKL-06-061",
+        "UT-R-SKL-06-062",
+        "UT-R-SKL-06-063",
+        "UT-R-PS-01-056",
+        "UT-R-PS-01-057",
+        "UT-R-PS-01-058",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-001",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-002",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-003",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-004",
+        "IT-CAP-TARGET-EFFECT-QUERY-PROD-005"
+      ]
+    }
   }
 ]

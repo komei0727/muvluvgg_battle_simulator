@@ -70,6 +70,7 @@ function stealthEffect(targetId: string): AppliedEffect {
     sourceId: createBattleUnitId(targetId),
     targetId: createBattleUnitId(targetId),
     magnitude: 0,
+    categories: ["BUFF"],
     statusKind: "STEALTH",
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
     appliedTurnNumber: 1,

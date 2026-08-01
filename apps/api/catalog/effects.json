@@ -584,6 +584,19 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DEF_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.272 } },
@@ -2054,6 +2067,20 @@
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.55 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED",
+    "kind": "HEAL",
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 1.1 }, "overheal": "DISCARD" },
+    "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["DEBUFF"] },
+    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
   {
@@ -4651,6 +4678,21 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MAIA_LAZY_AS1_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 0.5
+      },
+      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+    },
+    "requiredCapabilities": ["CAP_SHIELD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MAIA_SALON_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
@@ -6258,6 +6300,13 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.4336 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
@@ -7848,6 +7897,13 @@
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
     "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.7472 } },
+    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {

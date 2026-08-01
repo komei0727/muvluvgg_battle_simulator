@@ -618,6 +618,131 @@ describe("grantEffect", () => {
       categories: ["BUFF"],
     });
   });
+
+  it("UT-R-EFF-01-063 (M7-001E、Issue #248、TARGET_STATE_QUERY_BUFF_DEBUFF): burns the effectCategoriesOf classification onto the AppliedEffect instance itself, so a condition evaluator can query it without a Catalog effectActions lookup", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statusDefinition("STUN"),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STUN",
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    // R-STS-01: 状態異常はデバフの一種。順序は`EffectApplied.payload.categories`と
+    // 同じソート済み配列で固定する（インスタンスとイベントの分類元は同一）。
+    expect(result.appliedEffect.categories).toEqual(["DEBUFF", "STATUS"]);
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload.categories).toEqual(result.appliedEffect.categories);
+  });
+
+  it("UT-R-EFF-01-064 (M7-001E、Issue #248): records the APPLY_STAT_MOD target stat on the instance, so a DEBUFF query can be narrowed to a specific stat", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statModDefinition(),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: -0.2,
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    expect(result.appliedEffect.categories).toEqual(["DEBUFF"]);
+    expect(result.appliedEffect.statModStat).toBe("ATTACK");
+  });
+
+  it("UT-R-EFF-01-065 (M7-001E、Issue #248): leaves statModStat unset for a non APPLY_STAT_MOD grant, so a stat-narrowed query never matches it", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statusDefinition("STEALTH"),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: 0,
+        statusKind: "STEALTH",
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    expect(result.appliedEffect.statModStat).toBeUndefined();
+  });
+
+  it("UT-R-EFF-01-066 (M7-001E、Issue #248): carries the classification into the EffectApplied stateDelta, so an independent Reducer restores the same categories/statModStat as the live state", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: statModDefinition(),
+        sourceId: source.battleUnitId,
+        targetId: target.battleUnitId,
+        duplicate: true,
+        magnitude: -0.2,
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    const after =
+      applied!.stateDelta?.units?.[target.battleUnitId]?.effects?.[
+        result.appliedEffect.effectInstanceId
+      ]?.after;
+    expect(after?.categories).toEqual(["DEBUFF"]);
+    expect(after?.statModStat).toBe("ATTACK");
+  });
 });
 
 /**
@@ -814,6 +939,7 @@ describe("isStackLimitReached (R-EFF-05 重複上限)", () => {
         duplicate: true,
         targetId: target.battleUnitId,
         magnitude: 0.025,
+        categories: ["BUFF"],
         duration: { definition: TURN_DURATION, timeLimitRemaining: 2 },
         appliedTurnNumber: 1,
       })),

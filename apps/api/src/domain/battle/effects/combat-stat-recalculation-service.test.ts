@@ -83,6 +83,7 @@ function statMod(
     effectInstanceId: instanceId(),
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
+    categories: ["BUFF"],
     duplicate,
     sourceId: createBattleUnitId("BU_1"),
     targetId: createBattleUnitId("BU_1"),

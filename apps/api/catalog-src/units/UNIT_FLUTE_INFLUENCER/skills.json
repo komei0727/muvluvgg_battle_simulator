@@ -2,13 +2,20 @@
   {
     "skillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL"
+          }
         },
         {
           "targetBindingId": "TGT_LOWEST",
@@ -23,25 +30,48 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ALLIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_LOWEST" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_LOWEST"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "ライブストリーミング！", "tags": [] }
+    "metadata": {
+      "displayName": "ライブストリーミング！",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_FLUTE_INFLUENCER_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -58,8 +88,14 @@
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_LOWEST"
+            },
+            "area": {
+              "kind": "SAME_ROW_AS_BASE",
+              "includeBase": true
+            },
             "side": "ALLY"
           }
         }
@@ -67,37 +103,63 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS1_HEAL_OVER_TIME" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ROW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS1_HEAL_OVER_TIME"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "TURN", "count": 2 },
+    "cooldown": {
+      "unit": "TURN",
+      "count": 2
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_CONTINUOUS_HEAL",
       "CAP_TARGET_DERIVED_AREA",
       "CAP_TARGET_FILTER_ORDER"
     ],
-    "metadata": { "displayName": "いいね☆で元気だそ？", "tags": [] }
+    "metadata": {
+      "displayName": "いいね☆で元気だそ？",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_FLUTE_INFLUENCER_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_ADJACENT",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "ADJACENT_ORTHOGONAL"
+            },
             "side": "ENEMY"
           }
         }
@@ -105,40 +167,75 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE_ADJACENT" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ADJACENT"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_AS2_DAMAGE_ADJACENT"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
-    "metadata": { "displayName": "ぽよビ～～ム♡", "tags": [] }
+    "metadata": {
+      "displayName": "ぽよビ～～ム♡",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_FLUTE_INFLUENCER_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS1_SHIELD" }]
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS1_SHIELD"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_SHIELD", "CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "ぽよぽよプロテクト", "tags": [] },
+    "metadata": {
+      "displayName": "ぽよぽよプロテクト",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "HitPointReduced",
@@ -147,7 +244,9 @@
         "targetSelector": "ALLY",
         "condition": {
           "kind": "TARGET_STATE",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
           "field": "HP_RATIO",
           "op": "LTE",
           "value": 0.5
@@ -158,22 +257,74 @@
   {
     "skillDefinitionId": "SKL_FLUTE_INFLUENCER_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL" }]
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": {
+                "kind": "TRIGGER_TARGET"
+              },
+              "categories": ["DEBUFF"]
+            }
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
+          "targetCondition": {
+            "kind": "TARGET_HAS_EFFECT",
+            "target": {
+              "kind": "TRIGGER_TARGET"
+            },
+            "categories": ["DEBUFF"]
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_HEAL_BOOSTED"
+            },
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_PS2_REMOVE_DEBUFF"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "イケてる♡イケてる", "tags": [] },
+    "requiredCapabilities": [
+      "CAP_HEAL",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_REMOVE_EFFECTS",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
+    "metadata": {
+      "displayName": "イケてる♡イケてる",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "DamageApplied",

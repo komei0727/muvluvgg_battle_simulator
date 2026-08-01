@@ -43,6 +43,7 @@ function findMatchingTrigger(
   event: TriggerCandidateEvent,
   units: readonly BattleUnit[],
   unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   resolutionPhase: ResolutionPhase | undefined,
   turnNumber: number | undefined,
 ): TriggerDefinition | undefined {
@@ -57,6 +58,7 @@ function findMatchingTrigger(
         skillDefinitionId: skill.skillDefinitionId,
         getUnit: (id) => unitsById.get(id),
         units,
+        unitDefinitions,
         ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
         ...(turnNumber !== undefined ? { turnNumber } : {}),
       }),
@@ -116,6 +118,7 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
         event,
         units,
         unitsById,
+        unitDefinitions,
         resolutionPhase,
         turnNumber,
       );
@@ -126,6 +129,7 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
           skillDefinitionId: skill.skillDefinitionId,
           getUnit: (id) => unitsById.get(id),
           units,
+          unitDefinitions,
           ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
           ...(turnNumber !== undefined ? { turnNumber } : {}),
         })

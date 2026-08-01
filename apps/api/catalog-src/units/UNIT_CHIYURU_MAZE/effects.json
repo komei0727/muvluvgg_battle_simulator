@@ -2,16 +2,32 @@
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.17
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.4056 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.4056
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON",
@@ -19,30 +35,60 @@
     "payload": {
       "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
-      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
-      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.1
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 3
+        }
+      }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 0.1326 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.1326
+      },
       "hitCount": 13
     },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.06 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.06
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON",
@@ -50,19 +96,44 @@
     "payload": {
       "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
-      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
-      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.1
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.3816 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.3816
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON",
@@ -70,11 +141,54 @@
     "payload": {
       "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
-      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
-      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.1
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 3
+        }
+      }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_DEF_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "metadata": {
+      "tags": []
+    }
   }
 ]

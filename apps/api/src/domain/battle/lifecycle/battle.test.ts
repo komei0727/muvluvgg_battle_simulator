@@ -143,6 +143,7 @@ function turnEffect(
     sourceId: ownerUnit.battleUnitId,
     targetId: ownerUnit.battleUnitId,
     magnitude: 0.2,
+    categories: ["BUFF"],
     duration: {
       definition: {
         timeLimit: { unit: "TURN", count: timeLimitRemaining },

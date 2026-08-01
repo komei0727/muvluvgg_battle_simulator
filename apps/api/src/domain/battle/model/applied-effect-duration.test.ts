@@ -64,6 +64,7 @@ function effectOn(
     sourceId: source.battleUnitId,
     targetId: target.battleUnitId,
     magnitude: 10,
+    categories: ["BUFF"],
     duration: {
       definition: durationDefinition,
       ...(timeLimit !== undefined ? { timeLimitRemaining: timeLimit.count } : {}),

@@ -54,6 +54,7 @@ function damageMod(
     effectInstanceId: createEffectInstanceId(`EFFECT_INSTANCE_${instanceCounter}`),
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
+    categories: ["BUFF"],
     duplicate: true,
     targetId: unit.battleUnitId,
     magnitude,

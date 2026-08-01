@@ -1,5 +1,7 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
+import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import {
   createEmptyPassiveActivationGuard,
@@ -165,6 +167,14 @@ export interface PassiveChainDependencies {
    * `resolutionPhase`と同様、1解決スコープの全体を通じて固定。
    */
   readonly turnNumber?: number;
+  /**
+   * `TARGET_STATE`の`UNIT_TYPE`/`ROLE`（M7-001E、Issue #248、
+   * `CAP_TARGET_STATE_EXTENDED_FIELD`）を候補検出時と同じCatalog参照表で
+   * 再確認（R-PS-04）するために`reconfirmPassiveCandidate`へそのまま渡す。
+   * 未指定時はこれらを参照するtrigger/activationConditionの再確認がthrowする
+   * （`evaluateTriggerCondition`の既存契約と同じ）。
+   */
+  readonly unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
   /**
    * レビュー再指摘[P2]（PR #209）: R-EFF-08（`expiration.conditions`）は
    * 「関連するドメインイベント発行後、PS/Memory候補抽出前に評価する」契約
@@ -439,6 +449,7 @@ function resolveTopGroup(
     deps.resolutionPhase,
     deps.getAllUnits?.(),
     deps.turnNumber,
+    deps.unitDefinitions,
   );
   if (reconfirmation.ok) {
     state.guard = recordActivation(

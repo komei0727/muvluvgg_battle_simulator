@@ -1,3 +1,4 @@
+import { STAT_KINDS } from "./catalog-enums.js";
 import type {
   ActionKind,
   DamageType,
@@ -73,15 +74,6 @@ const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE", "HP"] as const;
 const RESOURCE_OPERATIONS = ["ADD", "SET", "SET_TO_MAX", "DISTRIBUTE"] as const;
 /** PRレビュー指摘[P2]（Issue #185）: `APPLY_RESOURCE_GAIN_MOD`はEXゲージ増加（R-ACT-03）だけを合成対象にする。 */
 const RESOURCE_GAIN_MOD_RESOURCE_KINDS = ["EX_GAUGE"] as const;
-const STAT_KINDS = [
-  "MAXIMUM_HP",
-  "ATTACK",
-  "DEFENSE",
-  "CRITICAL_RATE",
-  "CRITICAL_DAMAGE_BONUS",
-  "AFFINITY_BONUS",
-  "ACTION_SPEED",
-] as const;
 const STAT_VALUE_TYPES = ["RATIO", "FIXED"] as const;
 const STACKING_MODES = ["STACKABLE"] as const;
 /**

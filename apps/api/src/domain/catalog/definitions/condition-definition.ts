@@ -1,4 +1,11 @@
-import type { ComparisonOperator, Side } from "./catalog-enums.js";
+import { CONTINUOUS_DAMAGE_KINDS, STAT_KINDS } from "./catalog-enums.js";
+import type {
+  ComparisonOperator,
+  ContinuousDamageKind,
+  EffectImmunityCategory,
+  Side,
+  StatKind,
+} from "./catalog-enums.js";
 import {
   createMarkerId,
   createRuntimeCounterId,
@@ -83,8 +90,44 @@ const CONDITION_KINDS = [
   "POSITION_RELATION",
   "RESOLUTION_PHASE",
   "TARGET_SET_COUNT",
+  "TARGET_HAS_EFFECT",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
+
+/**
+ * M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）: `TARGET_HAS_EFFECT.categories`
+ * に指定できる分類軸。`EffectImmunityCategory`（`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と
+ * 共有する軸、R-EFF-02/03）のうち`MARKER`と`SPECIFIC_EFFECT`を除く。
+ *
+ * - `MARKER`: `MarkerState`は`AppliedEffect`ではなく、照会は`TARGET_HAS_MARKER`が担う
+ * - `SPECIFIC_EFFECT`: 分類軸ではなく`effectActionDefinitionId`の直接一致であり、
+ *   「対象が特定の効果を持つか」を表す条件は現行productionに存在しない
+ *
+ * どちらも受理すると「schemaは通るが実行時に一切一致しない」定義を作れてしまうため、
+ * Catalogロード時点で拒否する。
+ */
+export const TARGET_HAS_EFFECT_CATEGORIES = [
+  "BUFF",
+  "DEBUFF",
+  "STATUS",
+  "DAMAGE_MOD",
+  "SHIELD",
+  "SUBUNIT",
+] as const satisfies readonly EffectImmunityCategory[];
+export type TargetHasEffectCategory = (typeof TARGET_HAS_EFFECT_CATEGORIES)[number];
+
+/**
+ * `continuousDamageKinds`（`APPLY_CONTINUOUS_DAMAGE`は常に`DEBUFF`）／`statKinds`
+ * （`APPLY_STAT_MOD`は符号で`BUFF`/`DEBUFF`）は、`categories`がその分類を含んで
+ * いなければ実行時に一切一致しない。`EFFECT_IMMUNITY.statusKinds`（M7-001B、
+ * Issue #243）と同じ理由で、そうした「黙って効かない定義」をロード時に拒否する。
+ */
+const NARROWING_REACHABLE_CATEGORIES: Readonly<
+  Record<"continuousDamageKinds" | "statKinds", readonly TargetHasEffectCategory[]>
+> = {
+  continuousDamageKinds: ["DEBUFF"],
+  statKinds: ["BUFF", "DEBUFF"],
+};
 
 /**
  * R-SKL-06（CAP_EFFECT_STEP_CONDITION_SCOPE、Issue #230 RES-004-CONDITION-SCOPE）:
@@ -96,7 +139,10 @@ export type ConditionKind = (typeof CONDITION_KINDS)[number];
  * 固定する（DoD「型レベルで両スコープを区別する」）。
  */
 export const STEP_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set(
-  CONDITION_KINDS.filter((kind) => kind !== "TARGET_STATE" && kind !== "TARGET_HAS_MARKER"),
+  CONDITION_KINDS.filter(
+    (kind) =>
+      kind !== "TARGET_STATE" && kind !== "TARGET_HAS_MARKER" && kind !== "TARGET_HAS_EFFECT",
+  ),
 );
 
 /**
@@ -118,6 +164,7 @@ export const TARGET_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set([
   "NOT",
   "TARGET_STATE",
   "TARGET_HAS_MARKER",
+  "TARGET_HAS_EFFECT",
   "EVENT_PAYLOAD",
 ]);
 
@@ -168,6 +215,7 @@ export function assertTargetConditionReferencesOwnTarget(
   switch (condition.kind) {
     case "TARGET_STATE":
     case "TARGET_HAS_MARKER":
+    case "TARGET_HAS_EFFECT":
       if (!targetReferenceEquals(condition.target, expectedTarget)) {
         throw new DomainValidationError(
           `${path}.target`,
@@ -208,6 +256,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   POSITION_RELATION: ["kind", "target", "relation"],
   RESOLUTION_PHASE: ["kind", "phase", "negate"],
   TARGET_SET_COUNT: ["kind", "target", "op", "value"],
+  TARGET_HAS_EFFECT: ["kind", "target", "categories", "continuousDamageKinds", "statKinds"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
@@ -290,6 +339,16 @@ export type ConditionDefinition =
       readonly target: TargetReference;
       readonly op: ComparisonOperator;
       readonly value: number;
+    }
+  | {
+      readonly kind: "TARGET_HAS_EFFECT";
+      readonly target: TargetReference;
+      /** 少なくとも1つに一致する`AppliedEffect`を対象が保持していれば真。 */
+      readonly categories: readonly TargetHasEffectCategory[];
+      /** 指定時、一致対象を`APPLY_CONTINUOUS_DAMAGE`のこの種別（毒・炎上）へ絞る。 */
+      readonly continuousDamageKinds?: readonly ContinuousDamageKind[];
+      /** 指定時、一致対象を`APPLY_STAT_MOD`のこの補正stat（攻撃力など）へ絞る。 */
+      readonly statKinds?: readonly StatKind[];
     };
 
 export interface ConditionDefinitionInput {
@@ -309,6 +368,9 @@ export interface ConditionDefinitionInput {
   readonly relation?: string;
   readonly phase?: string;
   readonly negate?: boolean;
+  readonly categories?: readonly string[];
+  readonly continuousDamageKinds?: readonly string[];
+  readonly statKinds?: readonly string[];
 }
 
 function requireField<K extends keyof ConditionDefinitionInput>(
@@ -336,6 +398,33 @@ function createOperator(input: ConditionDefinitionInput, path: string): Comparis
   const op = requireField(input, "op", path);
   assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
   return op;
+}
+
+/**
+ * `TARGET_HAS_EFFECT`の絞り込みfield（`continuousDamageKinds`/`statKinds`）を
+ * 検証して、指定がある場合だけ持つ部分オブジェクトを返す。空配列と未知値のほか、
+ * `categories`から到達できない組み合わせ（`NARROWING_REACHABLE_CATEGORIES`）も拒否する。
+ */
+function createNarrowing<Field extends "continuousDamageKinds" | "statKinds", Value extends string>(
+  input: ConditionDefinitionInput,
+  field: Field,
+  allowedValues: readonly Value[],
+  categories: readonly TargetHasEffectCategory[],
+  path: string,
+): { readonly [K in Field]?: readonly Value[] } {
+  const values = input[field];
+  if (values === undefined) {
+    return {};
+  }
+  if (!NARROWING_REACHABLE_CATEGORIES[field].some((category) => categories.includes(category))) {
+    throw new DomainValidationError(
+      `${path}.${field}`,
+      `must not be set unless "categories" includes one of ${NARROWING_REACHABLE_CATEGORIES[field].join("/")} (it would otherwise never match at evaluation time)`,
+    );
+  }
+  assertNonEmptyArray(values, `${path}.${field}`);
+  values.forEach((value, i) => assertEnumValue(value, allowedValues, `${path}.${field}[${i}]`));
+  return { [field]: values as readonly Value[] } as { readonly [K in Field]?: readonly Value[] };
 }
 
 export function createConditionDefinition(
@@ -488,6 +577,28 @@ export function createConditionDefinition(
         target: createTargetReference(target, `${path}.target`, scope),
         op,
         value,
+      };
+    }
+    case "TARGET_HAS_EFFECT": {
+      const target = requireField(input, "target", path);
+      const categories = requireField(input, "categories", path);
+      assertNonEmptyArray(categories, `${path}.categories`);
+      categories.forEach((category, i) =>
+        assertEnumValue(category, TARGET_HAS_EFFECT_CATEGORIES, `${path}.categories[${i}]`),
+      );
+      const typedCategories = categories as readonly TargetHasEffectCategory[];
+      return {
+        kind: "TARGET_HAS_EFFECT",
+        target: createTargetReference(target, `${path}.target`, scope),
+        categories: typedCategories,
+        ...createNarrowing(
+          input,
+          "continuousDamageKinds",
+          CONTINUOUS_DAMAGE_KINDS,
+          typedCategories,
+          path,
+        ),
+        ...createNarrowing(input, "statKinds", STAT_KINDS, typedCategories, path),
       };
     }
   }

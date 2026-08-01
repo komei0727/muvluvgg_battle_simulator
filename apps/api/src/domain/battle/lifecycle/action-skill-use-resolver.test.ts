@@ -626,6 +626,7 @@ describe("resolveSkillUse", () => {
       sourceId: createBattleUnitId("ACTOR"),
       targetId: createBattleUnitId("ACTOR"),
       magnitude: 0,
+      categories: ["BUFF"],
       statusKind: "STEALTH",
       duration: {
         definition: {
@@ -774,6 +775,7 @@ describe("resolveSkillUse", () => {
       sourceId: createBattleUnitId("ACTOR"),
       targetId: createBattleUnitId("ACTOR"),
       magnitude: 0,
+      categories: ["BUFF"],
       statusKind: "STEALTH",
       duration: {
         definition: {
@@ -916,6 +918,7 @@ describe("resolveSkillUse", () => {
       sourceId: createBattleUnitId("ACTOR"),
       targetId: createBattleUnitId("ACTOR"),
       magnitude: 0,
+      categories: ["BUFF"],
       statusKind: "STEALTH",
       duration: {
         definition: {
