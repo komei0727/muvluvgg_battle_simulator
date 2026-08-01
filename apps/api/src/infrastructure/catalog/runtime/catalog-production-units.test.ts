@@ -229,7 +229,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // （敵単体のシールド全解除）とOLGA_VETERAN PS1（自身のシールド・サブユニット
     // 全解除）を近似なしへ更新した。ここで昇格した10 Unitの定義は変わらないため
     // 期待値は据え置き。
-    expect(catalog.catalogRevision).toBe("2026-08-01.8");
+    // Bumped again by RES-004-TATIANA-EX (Issue #225): `CAP_DAMAGE_MOD`と
+    // `CAP_EFFECT_STEP_CONDITION`の`verification.testCaseIds`へ
+    // `IT-CAP-TATIANA-OMEN-PROD-001`〜`005`（`SKL_TATIANA_SAGE_EX`の「凶兆」
+    // しきい値分岐の実ライフサイクル検証）を追加した。Unit・Skill・Effectの
+    // 定義自体は変えていないため期待値は据え置き。
+    expect(catalog.catalogRevision).toBe("2026-08-01.9");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
