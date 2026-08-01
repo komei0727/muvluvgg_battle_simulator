@@ -2107,6 +2107,30 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
   });
 
+  it("UT-CAT-IDX-072 (R-DMG-05 #4、DMG-001/Issue #195): treats DamageWillBeApplied as a runtime-owned trigger event, so a PS reacting to it must declare CAP_TRIGGER_CONTEXT", () => {
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+        skills: [...defs.skills, psSkill("SKL_PS1", "DamageWillBeApplied", "TIMING")],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+        skills: [
+          ...defs.skills,
+          psSkill("SKL_PS1", "DamageWillBeApplied", "TIMING", ["CAP_TRIGGER_CONTEXT"]),
+        ],
+        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      }),
+    ).not.toThrow();
+  });
+
   it("UT-CAT-IDX-026: rejects BRANCH/REPEAT memories without CAP_RESOLUTION_BRANCH_REPEAT", () => {
     const defs = baseDefinitions();
     expect(() =>

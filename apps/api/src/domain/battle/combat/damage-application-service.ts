@@ -310,6 +310,78 @@ function notifyNewEvents(
 }
 
 /**
+ * PR #283再レビュー[P1]: 1ヒットの内部イベント（`UnitBeingAttacked`・
+ * `EvasionActivated`・`HitConfirmed`・`CriticalCheckResolved`・
+ * `DamageWillBeApplied`）を、記録直後にPS/Memory即時連鎖へ届けて次の判定へ進む前に
+ * 解決し切るための共通ヘルパー。凍結解除・消費失効（`driveRemovalSteps`）と同じ
+ * 2経路の規約を持つ。
+ *
+ * - `context.onFactEventForPassiveChain`あり（AS/EX・チャージ解放）: その場で
+ *   同期通知する。この経路では`effect-action-group-resolver.ts`の`innerEvents`が
+ *   常に空になるため、ここで通知しないイベントはPS/Memory連鎖へ一度も届かない
+ *   （`CriticalCheckResolved`をtriggerにするproduction PSが実戦闘で発動しない、
+ *   という形で顕在化していた）。
+ * - 未指定（PS/Memory自身のEffectSequence解決）: 1ステップ`yield`し、driver
+ *   （`resolveOneEffectActionApplication`）が子連鎖を解決して更新した`units`を
+ *   `.next()`で注入する。これが無いとEffectAction完了時まで連鎖が遅れ、
+ *   TIMINGイベントの再検証契機を過ぎてしまう。
+ */
+function* notifyOrYieldNewEvents(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  eventsStart: number,
+): Generator<DamageStep, void, readonly BattleUnit[] | undefined> {
+  if (context.onFactEventForPassiveChain !== undefined) {
+    notifyNewEvents(context, workingMap, eventsStart);
+    return;
+  }
+  const injected = yield {
+    events: context.recorder.getEvents().slice(eventsStart),
+    units: Array.from(workingMap.values()),
+  };
+  for (const unit of injected ?? []) {
+    workingMap.set(unit.battleUnitId, unit);
+  }
+}
+
+/**
+ * `notifyOrYieldNewEvents`が解決した子連鎖の後に、このヒットを続行してよいかを
+ * `working`（連鎖後の最新state）から判定する（PR #283再々レビュー[P1]）。
+ *
+ * - `INTERRUPT`: 使用者が戦闘不能。R-SKL-01/R-SKL-03に従い、このヒットを含む
+ *   残りのヒットをすべて中断する
+ * - `SKIP`: 対象が戦闘不能（`context.includeDefeated`の明示指定がない場合）。
+ *   このヒットは適用せず、R-SKL-08の直前結果へ0を記録して次のヒットへ進む
+ * - `CONTINUE`: 続行してよい。以降の判定・イベントは返された最新の
+ *   `attacker`/`target`を使う（連鎖が会心率・防御力・`AppliedEffect`を
+ *   変えていても取りこぼさない）
+ *
+ * 各イベントの記録直後にこれを行うことで、既に成立しなくなった前提のまま次の
+ * 判定へ進んだり、後続イベント（とその連鎖）を余計に発行したりしなくなる。
+ */
+type HitRevalidation =
+  | { readonly kind: "CONTINUE"; readonly attacker: BattleUnit; readonly target: BattleUnit }
+  | { readonly kind: "INTERRUPT" }
+  | { readonly kind: "SKIP"; readonly attacker: BattleUnit; readonly target: BattleUnit };
+
+function revalidateHit(
+  context: DamageEventContext,
+  workingMap: Map<BattleUnitId, BattleUnit>,
+  attackerUnitId: BattleUnitId,
+  targetUnitId: BattleUnitId,
+): HitRevalidation {
+  const attacker = findUnit(workingMap, attackerUnitId, "attacker.battleUnitId");
+  if (isDefeated(attacker)) {
+    return { kind: "INTERRUPT" };
+  }
+  const target = findUnit(workingMap, targetUnitId, "hits[].targetBattleUnitId");
+  if (!(context.includeDefeated ?? false) && isDefeated(target)) {
+    return { kind: "SKIP", attacker, target };
+  }
+  return { kind: "CONTINUE", attacker, target };
+}
+
+/**
  * `context.removeFreezeEffect`未指定時のfallback。`AppliedEffect`を直接filterし
  * `FreezeRemoved`だけを発行する — R-EFF-09のlinkedEffectGroupカスケードも
  * CombatStat再計算も行わない（`combat/`は`effects/`へ依存できないため、
@@ -380,7 +452,8 @@ function* fallbackRemoveFreezeEffectSteps(
 /**
  * `DamageApplicationService` の基本形 (`05_ドメインモデル.md`)。`SkillResolutionService`が
  * 解決した1つのDAMAGE EffectActionのヒット列を、R-DMG-05の順序（命中→会心→
- * ダメージ計算→HP適用→戦闘不能判定）でヒットごとに処理する。R-ACTN-01/R-SKL-03:
+ * ダメージ適用直前TIMING→ダメージ計算→HP適用→戦闘不能判定）でヒットごとに
+ * 処理する。R-ACTN-01/R-SKL-03:
  * 参照時点で既に戦闘不能な対象へのヒットは、`context.includeDefeated`（選択元
  * `TargetSelectorDefinition.includeDefeated`）が`true`でない限り適用をスキップ
  * する（レビュー再指摘[P2]、PR #215: 非DAMAGE種別と同じ明示指定を尊重する）。
@@ -388,16 +461,35 @@ function* fallbackRemoveFreezeEffectSteps(
  * 使用者(attacker)自身が途中で戦闘不能になった場合、以降の未解決ヒットをすべて
  * 中断する（対象が異なるヒットも含む）。シールド・サブユニット・リンクダメージへの
  * 適用調整(R-SHD-*、R-SUB-*、R-LNK-*)はM8未実装のため、HPへ直接適用する。
- * 適用されたヒットごとに `HitConfirmed`→`CriticalCheckResolved`→`DamageCalculated`→
- * `DamageApplied`（→`UnitDefeated`）を発行する。スキップしたヒットは命中が確定して
+ * 適用されたヒットごとに `HitConfirmed`→`CriticalCheckResolved`→`DamageWillBeApplied`
+ * →`DamageCalculated`→`HitPointReduced`→`DamageApplied`（→`UnitDefeated`）を発行する。
+ * スキップしたヒットは命中が確定して
  * いないためイベントを発行しない（`08_ドメインイベント.md`「HitConfirmed」）。
  *
- * PRレビュー再々指摘[P2]（Issue #183）: 凍結解除のlinkedEffectGroupカスケード
- * だけは、`context.onFactEventForPassiveChain`未指定（PS自身のEffectSequence
- * 解決）の場合に各カスケードステップを`yield`する（それ以外の内部イベントは
- * 従来どおり`notifyNewEvents`/コールバックのみ — このgenerator化はカスケード
- * ステップの即時解決契約のためだけの最小限の変更）。`applyDamageAction`
- * （下の同期wrapper）が既存の全呼び出し元・テストと同じ振る舞いで駆動する。
+ * `08_ドメインイベント.md`「TIMINGイベント後の再検証」: 子連鎖はDAMAGEを行いうる
+ * （production例: `SKL_EVIE_KYONSHI_PS1`・`SKL_LAYLA_ENTREPRENEUR_PS2`は
+ * `CriticalCheckResolved`起点でDAMAGEを行う）ため、下の各通知の直後に
+ * `revalidateHit`で前提を再検証してから次の判定・イベントへ進む（PR #283
+ * 再々レビュー[P1]）。対象が戦闘不能になればこのヒットを適用せず、使用者が
+ * 戦闘不能になれば残りのヒットをすべて中断する。判定・計算の入力も、そのつど
+ * 連鎖後の最新状態から取り直す。
+ *
+ * 1ヒットが発行する内部イベントは、記録直後にPS/Memory即時連鎖へ届けて次の判定へ
+ * 進む前に解決し切る（`notifyOrYieldNewEvents`、PR #283再レビュー[P1]）。
+ * `UnitBeingAttacked`・`EvasionActivated`・`HitConfirmed`・`CriticalCheckResolved`・
+ * `DamageWillBeApplied`が対象で、消費失効・凍結解除カスケードは`consumeAndExpire`／
+ * `driveRemovalSteps`が除去1件ごとに同じ規約で解決する。解決経路は2通り。
+ *
+ * - `context.onFactEventForPassiveChain`あり（AS/EX・チャージ解放）: その場で
+ *   同期通知する。この経路では`effect-action-group-resolver.ts`の`innerEvents`が
+ *   常に空になるため、ここで通知しないイベントは連鎖へ一度も届かない
+ * - 未指定（PS/Memory自身のEffectSequence解決）: 1ステップ`yield`し、driver
+ *   （`resolveOneEffectActionApplication`）が子連鎖を解決して更新した`units`を
+ *   `.next()`で注入する
+ *
+ * `applyDamageAction`（下の同期wrapper）は
+ * `yield`された値を読み捨てるため、連鎖driverを持たない呼び出し元・テストでは
+ * 従来どおりの振る舞いになる。
  */
 export function* applyDamageActionSteps(
   attacker: BattleUnit,
@@ -473,7 +565,10 @@ export function* applyDamageActionSteps(
     // PR #280再レビュー[P1]: `UnitBeingAttacked`は消費失効より前に記録されている
     // ため、状態を書き換える前にここで通知する。消費失効自身の通知は
     // `consumeAndExpire`が除去1件ごとに行う（またはcallback未指定なら`yield`する）。
-    notifyNewEvents(context, working, unitBeingAttackedEventsStart);
+    // PR #283再レビュー[P1]: これもTIMINGイベントであり、下の再検証
+    // （`attackerAfterTiming`/`targetAfterTiming`）はその連鎖の結果を見るためのもの。
+    // callback未指定の経路でも連鎖をここで解決し切る必要がある。
+    yield* notifyOrYieldNewEvents(context, working, unitBeingAttackedEventsStart);
     lastEventId = yield* consumeAndExpire(
       context,
       working,
@@ -498,31 +593,32 @@ export function* applyDamageActionSteps(
     // に入る前に発生源・対象の生存を再検証し、計算用ステータスも`working`から
     // 取り直す。対象変更・挑発・肩代わり（R-SHD-*/R-SUB-*/R-LNK-*）はM8未実装の
     // ため、このヒットの対象自体を差し替える処理は行わない（関数冒頭コメント参照）。
-    const attackerAfterTiming = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
-    if (isDefeated(attackerAfterTiming)) {
+    const afterTiming = revalidateHit(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+    );
+    if (afterTiming.kind === "INTERRUPT") {
       interruptedCount = hits.length - i;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
-
-    const targetAfterTiming = findUnit(
-      working,
-      hit.targetBattleUnitId,
-      "hits[].targetBattleUnitId",
-    );
-    if (!(context.includeDefeated ?? false) && isDefeated(targetAfterTiming)) {
+    if (afterTiming.kind === "SKIP") {
       outcomes.push(skip(hit));
       // R-SKL-08: TIMING処理後に対象が戦闘不能になった場合も、この不成立結果を
       // 0として直前結果に記録する（上の対象不在チェックと同じ理由）。
       recordDamageResult(
         context.damageResults,
-        attackerAfterTiming.battleUnitId,
-        targetAfterTiming.battleUnitId,
+        afterTiming.attacker.battleUnitId,
+        afterTiming.target.battleUnitId,
         0,
         context.skillUseId,
       );
       continue;
     }
+    const attackerAfterTiming = afterTiming.attacker;
+    const targetAfterTiming = afterTiming.target;
 
     // R-HIT-02/R-HIT-04: 対象の有効な回避効果を判定する（暗闇/R-HIT-03は
     // `resolveEffectSequencePlan`のスキル使用単位ゲートで既に判定済み — MISSに
@@ -569,7 +665,7 @@ export function* applyDamageActionSteps(
       // （`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`と同じ扱い）。
       // PR #280再レビュー[P1]: 消費で発生した`EffectConsumptionChanged`/
       // `EffectExpired`は一括ではなく`consumeAndExpire`が除去1件ごとに通知する。
-      notifyNewEvents(context, working, evasionEventsStart);
+      yield* notifyOrYieldNewEvents(context, working, evasionEventsStart);
       lastEventId = yield* consumeAndExpire(
         context,
         working,
@@ -592,6 +688,7 @@ export function* applyDamageActionSteps(
       continue;
     }
 
+    const hitConfirmedEventsStart = context.recorder.getEvents().length;
     const hitConfirmed = context.recorder.record({
       eventType: "HitConfirmed",
       category: "FACT",
@@ -612,13 +709,51 @@ export function* applyDamageActionSteps(
       },
     });
 
+    // PR #283再レビュー[P1]: R-DMG-05 #2「命中判定」の結果である`HitConfirmed`は、
+    // #3「会心判定」へ進む前に連鎖を解決し切る。callbackありの経路では
+    // `effect-action-group-resolver.ts`の`innerEvents`が常に空になるため、ここで
+    // 通知しないとPS/Memoryへ一度も届かない。
+    yield* notifyOrYieldNewEvents(context, working, hitConfirmedEventsStart);
+
+    // PR #283再々レビュー[P1]: `HitConfirmed`の子連鎖はDAMAGEを行いうる
+    // （production例: `SKL_EVIE_KYONSHI_PS1`・`SKL_LAYLA_ENTREPRENEUR_PS2`）。
+    // 会心判定へ進む前に生存を再検証し、成立しなくなっていればここで打ち切る —
+    // そうしないと不要な会心判定（乱数消費）と`CriticalCheckResolved`／
+    // `DamageWillBeApplied`の発行、およびそれらが誘発する連鎖まで進んでしまう。
+    const afterHitConfirmed = revalidateHit(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+    );
+    if (afterHitConfirmed.kind === "INTERRUPT") {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+    if (afterHitConfirmed.kind === "SKIP") {
+      outcomes.push(skip(hit));
+      recordDamageResult(
+        context.damageResults,
+        afterHitConfirmed.attacker.battleUnitId,
+        afterHitConfirmed.target.battleUnitId,
+        0,
+        context.skillUseId,
+      );
+      continue;
+    }
+
+    // 会心判定は上の連鎖を反映した最新の使用者状態から行う（連鎖が会心率・会心
+    // ダメージのバフを付与・失効させ得るため）。
+    const attackerBeforeCritical = afterHitConfirmed.attacker;
     const critical = resolveCritical(
       damageAction.payload.critical.mode,
-      createPercentage(attackerAfterTiming.combatStats.criticalRate),
-      attackerAfterTiming.combatStats.criticalDamageBonus,
+      createPercentage(attackerBeforeCritical.combatStats.criticalRate),
+      attackerBeforeCritical.combatStats.criticalDamageBonus,
       random,
     );
 
+    const criticalCheckResolvedEventsStart = context.recorder.getEvents().length;
     const criticalCheckResolved = context.recorder.record({
       eventType: "CriticalCheckResolved",
       category: "FACT",
@@ -638,6 +773,106 @@ export function* applyDamageActionSteps(
         result: critical.isCritical,
       },
     });
+    // PR #283再レビュー[P1]: `CriticalCheckResolved`をtriggerにするproduction PSが
+    // 実在する（`SKL_LAYLA_ENTREPRENEUR_PS2`／`SKL_EVIE_KYONSHI_PS1`／
+    // `SKL_SAYA_BUNNY_PS1`／`SKL_SENKA_CHRISTMAS_PS2`）。`HitConfirmed`と同じく、
+    // 次のイベント（`DamageWillBeApplied`）へ進む前にここで連鎖を解決する。
+    yield* notifyOrYieldNewEvents(context, working, criticalCheckResolvedEventsStart);
+
+    // PR #283再々レビュー[P1]: `CriticalCheckResolved`の子連鎖も同様にDAMAGEを
+    // 行いうるため、`DamageWillBeApplied`を発行する前に生存を再検証する。ここで
+    // 打ち切らないと、既に倒れた対象に対してTIMINGイベントを発行し、それをtrigger
+    // にする追加連鎖まで誘発してから後段でスキップすることになる。
+    const afterCriticalCheck = revalidateHit(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+    );
+    if (afterCriticalCheck.kind === "INTERRUPT") {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+    if (afterCriticalCheck.kind === "SKIP") {
+      outcomes.push(skip(hit));
+      recordDamageResult(
+        context.damageResults,
+        afterCriticalCheck.attacker.battleUnitId,
+        afterCriticalCheck.target.battleUnitId,
+        0,
+        context.skillUseId,
+      );
+      continue;
+    }
+
+    // R-DMG-05 #4（DMG-001、Issue #195）: 命中・会心の確定後、ダメージ計算より前に
+    // `DamageWillBeApplied`（TIMING）を発行する。`08_ドメインイベント.md`の
+    // 「TIMINGイベント後の再検証」表どおり、このイベントに反応したPS/Memoryは
+    // 対象を戦闘不能にしたり、ダメージ無効・軽減効果を付与したりし得るため、
+    // 連鎖の解決後に前提を再検証してからダメージ計算へ進む。
+    const willBeAppliedEventsStart = context.recorder.getEvents().length;
+    const damageWillBeApplied = context.recorder.record({
+      eventType: "DamageWillBeApplied",
+      category: "TIMING",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: criticalCheckResolved.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attacker.battleUnitId,
+      targetUnitIds: [hit.targetBattleUnitId],
+      payload: {
+        skillDefinitionId: context.skillDefinitionId,
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+        targetUnitId: hit.targetBattleUnitId,
+        damageType: damageAction.payload.damageType,
+        isCritical: critical.isCritical,
+        criticalMultiplier: critical.multiplier,
+        defenseIgnoreRate: damageAction.payload.piercing.defenseIgnoreRate,
+        shieldIgnoreRate: damageAction.payload.piercing.shieldIgnoreRate,
+        damageReductionIgnoreRate: damageAction.payload.piercing.damageReductionIgnoreRate,
+      },
+    });
+    lastEventId = damageWillBeApplied.eventId;
+    // PR #283レビュー[P1]: PS/Memory自身のEffectSequence解決
+    // （`onFactEventForPassiveChain`未指定）では、`notifyNewEvents`だけだと
+    // このTIMINGイベントの連鎖がダメージ計算より後（`effect-action-group-
+    // resolver.ts`が`innerEvents`としてEffectAction完了時にまとめて処理する時点）
+    // まで遅れ、「TIMINGイベント後に親処理の前提を再検証する」契約を破っていた。
+    yield* notifyOrYieldNewEvents(context, working, willBeAppliedEventsStart);
+
+    // 「TIMINGイベント後の再検証」: 連鎖が使用者を戦闘不能にしたなら残りのヒットを
+    // 中断し（R-SKL-01/R-SKL-03）、対象を戦闘不能にしたならこのヒットを適用しない
+    // （`includeDefeated`が明示指定されている場合を除く）。
+    const beforeDamage = revalidateHit(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+    );
+    if (beforeDamage.kind === "INTERRUPT") {
+      interruptedCount = hits.length - i;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+    if (beforeDamage.kind === "SKIP") {
+      outcomes.push(skip(hit));
+      // R-SKL-08: 先行する不成立と同じく、この結果も0として直前結果に記録する。
+      recordDamageResult(
+        context.damageResults,
+        beforeDamage.attacker.battleUnitId,
+        beforeDamage.target.battleUnitId,
+        0,
+        context.skillUseId,
+      );
+      continue;
+    }
+    const attackerBeforeDamage = beforeDamage.attacker;
+    const targetBeforeDamage = beforeDamage.target;
 
     const defenseIgnoreRate = damageAction.payload.piercing.defenseIgnoreRate;
     // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
@@ -653,15 +888,15 @@ export function* applyDamageActionSteps(
     // PRレビュー指摘[P2]: IDから`working`（このヒット時点の最新状態、
     // 先行するヒットやPS連鎖による変更を反映済み）へ都度引き直す。R-DMG-02の
     // `damageThreshold`（`resolveDamageImmunity`）も同じcontextを再利用する
-    // （`CURRENT_HP_RATIO(source: TARGET)`は対象=`targetAfterTiming`自身の
+    // （`CURRENT_HP_RATIO(source: TARGET)`は対象=`targetBeforeDamage`自身の
     // 現在HPを参照する）。
     const formulaContext = {
-      skillSource: attackerAfterTiming,
-      target: targetAfterTiming,
+      skillSource: attackerBeforeDamage,
+      target: targetBeforeDamage,
       allUnits: Array.from(working.values()),
       lastResults: damageResultsFor(
         context.damageResults,
-        attackerAfterTiming.battleUnitId,
+        attackerBeforeDamage.battleUnitId,
         context.skillUseId,
       ),
       ...(context.triggerSourceUnitId !== undefined
@@ -684,11 +919,11 @@ export function* applyDamageActionSteps(
         : {}),
     };
     const rawDamageResult = calculateDamage({
-      attackerAttack: attackerAfterTiming.combatStats.attack,
-      attackerAttribute: attackerAfterTiming.attribute,
-      attackerAffinityBonus: attackerAfterTiming.combatStats.affinityBonus,
-      defenderDefense: targetAfterTiming.combatStats.defense,
-      defenderAttribute: targetAfterTiming.attribute,
+      attackerAttack: attackerBeforeDamage.combatStats.attack,
+      attackerAttribute: attackerBeforeDamage.attribute,
+      attackerAffinityBonus: attackerBeforeDamage.combatStats.affinityBonus,
+      defenderDefense: targetBeforeDamage.combatStats.defense,
+      defenderAttribute: targetBeforeDamage.attribute,
       defenseIgnoreRate,
       skillPowerFormula: damageAction.payload.formula,
       damageModifiers: damageAction.payload.damageModifiers,
@@ -710,12 +945,12 @@ export function* applyDamageActionSteps(
     // 増幅・追加ダメージは`calculateDamage`が既に切り捨てた`finalDamage`にでは
     // なく、丸め前の`preTruncationDamage`に適用し、この関数全体でただ一度だけ
     // 最終切り捨て・最低1ダメージ（R-DMG-02 #1/#3/#4）を行う。
-    const frozenEffect = activeStatusEffect(targetAfterTiming, "FREEZE");
+    const frozenEffect = activeStatusEffect(targetBeforeDamage, "FREEZE");
     const freezeMultiplier =
       frozenEffect !== undefined
         ? 1 + (frozenEffect.statusDetails?.damageAmplificationOnBreak ?? 0.5)
         : 1;
-    const attackDamageBonus = attackerAfterTiming.appliedEffects
+    const attackDamageBonus = attackerBeforeDamage.appliedEffects
       .filter((effect) => effect.isAttackDamageBonus === true)
       .reduce((sum, effect) => sum + effect.magnitude, 0);
     const combinedPreTruncationDamage =
@@ -727,7 +962,7 @@ export function* applyDamageActionSteps(
     // R-DMG-02の順序どおり（#1切り捨て→#2無効化）、既に切り捨て済みの
     // `combinedFinalDamage`を「incoming raw damage」として判定する。
     const damageImmunity = resolveDamageImmunity(
-      targetAfterTiming,
+      targetBeforeDamage,
       combinedFinalDamage,
       formulaContext,
     );
@@ -745,7 +980,10 @@ export function* applyDamageActionSteps(
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       skillUseId: context.skillUseId,
       resolutionScopeId: context.resolutionScopeId,
-      parentEventId: criticalCheckResolved.eventId,
+      // R-DMG-05 #4→#6（DMG-001、Issue #195）: 直接の契機は`CriticalCheckResolved`
+      // ではなく、その後に発行した`DamageWillBeApplied`（このTIMINGイベントの連鎖が
+      // 計算前提を変え得るため、因果としてもこの間に挟まる）。
+      parentEventId: damageWillBeApplied.eventId,
       rootEventId: context.rootEventId,
       sourceUnitId: attacker.battleUnitId,
       targetUnitIds: [hit.targetBattleUnitId],
@@ -754,8 +992,8 @@ export function* applyDamageActionSteps(
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
         targetUnitId: hit.targetBattleUnitId,
-        attackerAttack: attackerAfterTiming.combatStats.attack,
-        defenderDefense: targetAfterTiming.combatStats.defense,
+        attackerAttack: attackerBeforeDamage.combatStats.attack,
+        defenderDefense: targetBeforeDamage.combatStats.defense,
         effectiveDefense: damageResult.effectiveDefense,
         defenseIgnoreRate,
         skillPower: damageResult.skillPower,
@@ -788,7 +1026,7 @@ export function* applyDamageActionSteps(
       const removeGen =
         context.removeFreezeEffect !== undefined
           ? context.removeFreezeEffect(
-              targetAfterTiming.battleUnitId,
+              targetBeforeDamage.battleUnitId,
               frozenEffect.effectInstanceId,
               damageResult.finalDamage,
               Array.from(working.values()),
@@ -797,7 +1035,7 @@ export function* applyDamageActionSteps(
           : fallbackRemoveFreezeEffectSteps(
               context,
               Array.from(working.values()),
-              targetAfterTiming.battleUnitId,
+              targetBeforeDamage.battleUnitId,
               frozenEffect,
               damageResult.finalDamage,
               lastEventIdBeforeHp,
@@ -825,10 +1063,10 @@ export function* applyDamageActionSteps(
       lastEventIdBeforeHp = removal.lastEventId;
     }
 
-    // `targetAfterTiming`のスナップショット後にPS連鎖が介在し得るのは、上の
+    // `targetBeforeDamage`のスナップショット後にPS連鎖が介在し得るのは、上の
     // 凍結解除通知だけ（`UnitBeingAttacked`/`NEXT_OUTGOING_ATTACK`の連鎖は
     // 既に反映済み）。HPはこの通知後の最新状態から起点にする。
-    const targetBeforeHp = working.get(targetAfterTiming.battleUnitId) ?? targetAfterTiming;
+    const targetBeforeHp = working.get(targetBeforeDamage.battleUnitId) ?? targetBeforeDamage;
     const hpBefore = targetBeforeHp.currentHp;
     const hpAfter = Math.max(0, hpBefore - damageResult.finalDamage);
     const updatedTarget: BattleUnit = {
@@ -837,7 +1075,7 @@ export function* applyDamageActionSteps(
       // HPゲージへ渡す境界で最大値を0方向へ切り捨てて整数化する。
       currentHp: createHitPoint(hpAfter, truncateFraction(targetBeforeHp.combatStats.maximumHp)),
     };
-    working.set(targetAfterTiming.battleUnitId, updatedTarget);
+    working.set(targetBeforeDamage.battleUnitId, updatedTarget);
     // R-SKL-08（レビュー再指摘[P1]、PR #214）: `context.damageResults`
     // （呼び出し側が1解決スコープごとに新規生成する共有registry）へ直接
     // 記録する。`BattleUnit`の永続フィールドではないため、StateDelta・
@@ -849,8 +1087,8 @@ export function* applyDamageActionSteps(
     // 使える（同じ行動中でもPS連鎖は別の`SkillUseId`を持つ）。
     recordDamageResult(
       context.damageResults,
-      attackerAfterTiming.battleUnitId,
-      targetAfterTiming.battleUnitId,
+      attackerBeforeDamage.battleUnitId,
+      targetBeforeDamage.battleUnitId,
       damageResult.finalDamage,
       context.skillUseId,
     );
@@ -880,7 +1118,7 @@ export function* applyDamageActionSteps(
         hpAfter,
       },
       stateDelta: {
-        units: { [targetAfterTiming.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+        units: { [targetBeforeDamage.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
       },
     });
 
@@ -914,17 +1152,17 @@ export function* applyDamageActionSteps(
     // 致死ヒットでも`DamageApplied`起点のPS（例:「味方がダメージを受けた時」）を
     // `UnitDefeated`だけに上書きして見逃さないよう、両方を個別にフックへ渡す
     // （PR #141レビュー[P1]）。`includeDefeated`が無い通常経路では
-    // `targetAfterTiming`はこの直前の生存再検証で既に生存確定済みのため、
+    // `targetBeforeDamage`はこの直前の生存再検証で既に生存確定済みのため、
     // 新規致死判定は`updatedTarget`のみで足りていた。しかし`includeDefeated:
     // true`（レビュー再々指摘[P2]、PR #215）では既に戦闘不能な対象へもヒットが
     // 続くため、`updatedTarget`だけを見ると「HPが0になった直後」
     // （`08_ドメインイベント.md`）ではないヒットでも`UnitDefeated`を毎回
     // 再発行してしまう。実際にこのヒットでHPが0へ遷移した場合だけ発行する —
-    // レビュー再々々指摘[P2]（Issue #183）: 判定基準は`targetAfterTiming`
+    // レビュー再々々指摘[P2]（Issue #183）: 判定基準は`targetBeforeDamage`
     // （凍結解除カスケード開始前のスナップショット）ではなく`targetBeforeHp`
     // （カスケードの`FreezeRemoved`/`EffectExpired`に反応した子PSがこのヒットの
     // HP計算前に対象を戦闘不能にしていれば、既にそれを反映した最新状態）を
-    // 使う。`targetAfterTiming`のままだと、子PSが既に対象を戦闘不能にした
+    // 使う。`targetBeforeDamage`のままだと、子PSが既に対象を戦闘不能にした
     // ケースでHP 0→0の遷移にもかかわらず`UnitDefeated`を再発行してしまう
     // （子PS自身のDAMAGE解決が既に1回発行済み）。
     lastEventId = damageApplied.eventId;
@@ -943,8 +1181,8 @@ export function* applyDamageActionSteps(
         parentEventId: damageApplied.eventId,
         rootEventId: context.rootEventId,
         sourceUnitId: attacker.battleUnitId,
-        targetUnitIds: [targetAfterTiming.battleUnitId],
-        payload: { unitId: targetAfterTiming.battleUnitId, causeEventId: damageApplied.eventId },
+        targetUnitIds: [targetBeforeDamage.battleUnitId],
+        payload: { unitId: targetBeforeDamage.battleUnitId, causeEventId: damageApplied.eventId },
       });
       factEvents.push(unitDefeated);
       lastEventId = unitDefeated.eventId;
@@ -973,14 +1211,14 @@ export function* applyDamageActionSteps(
     lastEventId = yield* consumeAndExpire(
       context,
       working,
-      attackerAfterTiming.battleUnitId,
+      attackerBeforeDamage.battleUnitId,
       "OUTGOING_HIT",
       lastEventId,
     );
     lastEventId = yield* consumeAndExpire(
       context,
       working,
-      targetAfterTiming.battleUnitId,
+      targetBeforeDamage.battleUnitId,
       "INCOMING_HIT",
       lastEventId,
     );
@@ -1020,12 +1258,14 @@ export function* applyDamageActionSteps(
 }
 
 /**
- * `applyDamageActionSteps`（凍結解除カスケードのみ`yield`しうるgenerator）を
- * 同期的に完了まで駆動する薄いwrapper。凍結カスケードが`yield`する場面は
- * `context.onFactEventForPassiveChain`未指定（PS自身のEffectSequence解決）の
- * 時だけであり、その経路では元々どのイベントにも通知先が無い（PR #142以来の
- * 既存契約）ため、ここでは`yield`された値を単に読み捨てて`.next()`する —
- * 全ての既存呼び出し元・テストと完全に同じ振る舞いを保つ。
+ * `applyDamageActionSteps`を同期的に完了まで駆動する薄いwrapper。generatorが
+ * `yield`する場面は`context.onFactEventForPassiveChain`未指定（PS/Memory自身の
+ * EffectSequence解決）の時だけであり、その経路をこのwrapperで駆動する呼び出し元は
+ * 連鎖driverを持たない（PR #142以来の既存契約）。ここでは`yield`された値を単に
+ * 読み捨てて`.next()`する — 全ての既存呼び出し元・テストと完全に同じ振る舞いを
+ * 保つ。production経路（`effect-action-group-resolver.ts`）はこのwrapperではなく
+ * `applyDamageActionSteps`を直接駆動し、各`yield`を`EFFECT_RESOLVED`として
+ * `driveActivation`の共有stateへ参加させる。
  */
 export function applyDamageAction(
   attacker: BattleUnit,

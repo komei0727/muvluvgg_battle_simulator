@@ -287,6 +287,37 @@ export interface BattleDomainEventPayloadMap {
     readonly effectiveCriticalRate: number;
     readonly result: boolean;
   };
+  /**
+   * `08_ドメインイベント.md`「ダメージイベント」「DamageWillBeApplied」（R-DMG-05 #4、
+   * DMG-001／Issue #195）: 命中・会心が確定した後、ダメージ計算より前に、ヒットごとに
+   * 発行する`TIMING`イベント。まだ何も適用していないため`stateDelta`を持たない。
+   *
+   * 同表の「主なpayload」は「発生源、対象、会心、貫通、補正」であり、発生源・対象は
+   * イベント封筒の`sourceUnitId`/`targetUnitIds`が、会心（このヒットの確定した会心
+   * 結果と倍率）と貫通（`piercing`の3割合）はこのpayloadが持つ。「補正」＝R-DMG-04の
+   * 集計済みDamageModifier倍率だけはこのイベントの発行時点でまだ確定しておらず
+   * （集計自体が`DMG-002`／Issue #192のスコープ）、現時点では`DamageCalculated`の
+   * `actionDamageMultiplier`が唯一の補正情報である。`DMG-002`がここへ追加する。
+   *
+   * `08_ドメインイベント.md`「TIMINGイベント後の再検証」: このイベントに反応した
+   * PS/Memoryは対象を戦闘不能にしたり、ダメージ無効・軽減効果を付与したりし得る。
+   * `applyDamageActionSteps`は連鎖の解決後に発生源・対象の生存を再検証し、ダメージ
+   * 計算の入力（`combatStats`・`AppliedEffect`）も連鎖後の最新状態から取り直す。
+   */
+  readonly DamageWillBeApplied: {
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+    readonly targetUnitId: BattleUnitId;
+    readonly damageType: DamageType;
+    /** R-CRT-*: このヒットで確定した会心結果（`CriticalCheckResolved.result`と同じ）。 */
+    readonly isCritical: boolean;
+    readonly criticalMultiplier: number;
+    /** R-DMG-03の貫通3割合（EffectAction定義の`payload.piercing`）。 */
+    readonly defenseIgnoreRate: number;
+    readonly shieldIgnoreRate: number;
+    readonly damageReductionIgnoreRate: number;
+  };
   readonly DamageCalculated: {
     readonly skillDefinitionId: SkillDefinitionId;
     readonly effectActionDefinitionId: EffectActionDefinitionId;

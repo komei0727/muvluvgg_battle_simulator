@@ -1506,6 +1506,151 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(unitDefeatedEvents).toHaveLength(1);
   });
 
+  it("UT-R-DMG-05-006 (PR #283レビュー[P1], R-DMG-05 #4): inside a PS's OWN EffectSequence (no onFactEventForPassiveChain), a child PS reacting to DamageWillBeApplied that defeats the target cancels the parent's hit — the TIMING event's chain resolves before damage calculation, not after the hit completed", () => {
+    const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_WBA");
+    const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_WBA");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_WBA");
+    const parentDamage = damageEffectAction("ACT_PARENT_WBA_DAMAGE");
+    const childDamage = damageEffectAction("ACT_CHILD_WBA_DAMAGE");
+    const parentEnemyBindingId = createTargetBindingId("TGT_WBA_ENEMY_PARENT");
+    const childEnemyBindingId = createTargetBindingId("TGT_WBA_ENEMY_CHILD");
+
+    const parentSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_PARENT_WBA"),
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: parentEnemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: parentEnemyBindingId },
+            actions: [{ effectActionDefinitionId: parentDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+    // 子PS: 親のヒットの`DamageWillBeApplied`（R-DMG-05 #4のTIMINGイベント）に
+    // 反応し、致死ダメージで対象を戦闘不能にする。親のこのヒットは、
+    // 「TIMINGイベント後の再検証」に従って取り消されなければならない。
+    const childSkill: SkillDefinition = {
+      ...passiveSkillOf("SKL_CHILD_WBA"),
+      triggers: [
+        {
+          eventType: "DamageWillBeApplied",
+          category: "TIMING",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: childEnemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: childEnemyBindingId },
+            actions: [{ effectActionDefinitionId: childDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+
+    const parentOwner = unit("PARENT", "ALLY", {
+      unitDefinitionId: parentUnitDefinitionId,
+      attack: 15,
+      currentPp: 3,
+    });
+    const childOwner = unit("CHILD", "ALLY", {
+      unitDefinitionId: childUnitDefinitionId,
+      attack: 999,
+      currentPp: 3,
+    });
+    const enemy = unit("ENEMY", "ENEMY", {
+      unitDefinitionId: enemyUnitDefinitionId,
+      defense: 0,
+      currentHp: 10,
+      maximumHp: 10,
+    });
+
+    const definitions = definitionsOf(
+      new Map([
+        [
+          parentUnitDefinitionId,
+          unitDefinitionOf(parentUnitDefinitionId, [parentSkill.skillDefinitionId]),
+        ],
+        [
+          childUnitDefinitionId,
+          unitDefinitionOf(childUnitDefinitionId, [childSkill.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([
+        [parentSkill.skillDefinitionId, parentSkill],
+        [childSkill.skillDefinitionId, childSkill],
+      ]),
+      new Map([
+        [parentDamage.effectActionDefinitionId, parentDamage],
+        [childDamage.effectActionDefinitionId, childDamage],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [parentOwner, childOwner, enemy],
+    );
+
+    const result = runtime.onFactEvent(turnStarted, [parentOwner, childOwner, enemy]);
+
+    const events = recorder.getEvents();
+    const actionIdOf = (eventType: string): string[] =>
+      events
+        .filter((event) => event.eventType === eventType)
+        .map(
+          (event) =>
+            (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ?? "",
+        );
+
+    // 親のヒットは`DamageWillBeApplied`まで到達している。
+    expect(actionIdOf("DamageWillBeApplied")).toContain(parentDamage.effectActionDefinitionId);
+    // が、その連鎖が対象を倒したため、親のダメージ計算・適用は起きない。
+    expect(actionIdOf("DamageCalculated")).toEqual([childDamage.effectActionDefinitionId]);
+    expect(actionIdOf("DamageApplied")).toEqual([childDamage.effectActionDefinitionId]);
+    expect(events.filter((event) => event.eventType === "UnitDefeated")).toHaveLength(1);
+
+    const updatedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(updatedEnemy.currentHp).toBe(0);
+  });
+
   it("PR #142再レビュー[P1]: a child PS triggered by CooldownReduced (a COOLDOWN_MANIPULATION action's own internal event) resolves before the parent's second EffectAction starts", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");

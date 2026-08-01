@@ -201,6 +201,11 @@ const RANDOM_BRANCH_STEP_KINDS = new Set<EffectStepDefinition["kind"]>(["RANDOM_
 const TRIGGER_CONTEXT_EVENT_TYPES = new Set([
   "EffectApplied",
   "UnitBeingAttacked",
+  // R-DMG-05 #4（DMG-001／Issue #195）: `UnitBeingAttacked`と同じく発生源・対象を
+  // 伴うruntime所有のダメージTIMINGイベント。現時点でこれをtriggerにする
+  // production定義は存在しないが、追加時に`CAP_TRIGGER_CONTEXT`の宣言漏れを
+  // Catalogロード時点で弾く。
+  "DamageWillBeApplied",
   "HitPointReduced",
 ]);
 const TRIGGER_CONTEXT_TARGET_KINDS = new Set(["TRIGGER_SOURCE", "TRIGGER_TARGET"]);
