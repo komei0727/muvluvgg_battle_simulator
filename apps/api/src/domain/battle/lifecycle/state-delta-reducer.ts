@@ -162,6 +162,33 @@ function sameShieldState(a: EffectSnapshot["shield"], b: EffectSnapshot["shield"
 }
 
 /**
+ * R-DOT-01〜04（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の効果だけが
+ * 持つ種別・ダメージタイプを`sameShieldState`と同じ理由で構造比較する。
+ */
+function sameContinuousDamageState(
+  a: EffectSnapshot["continuousDamage"],
+  b: EffectSnapshot["continuousDamage"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return a.continuousDamageKind === b.continuousDamageKind && a.damageType === b.damageType;
+}
+
+/**
+ * R-DOT-01（DMG-008、Issue #189）: 継続ダメージの`sourceAttack`など、付与時に
+ * 固定した値を`sameShieldState`と同じ理由で構造比較する。キー集合自体が定義
+ * 依存（`Record<string, number>`）のため、キー数の一致まで見て欠落を検出する。
+ */
+function sameSnapshot(a: EffectSnapshot["snapshot"], b: EffectSnapshot["snapshot"]): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  const aKeys = Object.keys(a);
+  return aKeys.length === Object.keys(b).length && aKeys.every((key) => a[key] === b[key]);
+}
+
+/**
  * `charge`の`sameChargeState`と同じ理由（複合値は呼び出しごとに新しい
  * オブジェクトとして構築されるため参照同一性では判定できない）で、フィールド
  * 単位の構造比較を行う。
@@ -198,7 +225,9 @@ export function sameEffectSnapshot(
     a.isAttackDamageBonus === b.isAttackDamageBonus &&
     sameHealingLinkState(a.healingLink, b.healingLink) &&
     sameDamageModifierState(a.damageModifier, b.damageModifier) &&
-    sameShieldState(a.shield, b.shield)
+    sameShieldState(a.shield, b.shield) &&
+    sameContinuousDamageState(a.continuousDamage, b.continuousDamage) &&
+    sameSnapshot(a.snapshot, b.snapshot)
   );
 }
 

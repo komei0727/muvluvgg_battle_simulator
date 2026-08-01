@@ -186,6 +186,7 @@
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",

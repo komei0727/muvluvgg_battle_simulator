@@ -1,6 +1,7 @@
 import type { BattleStatus } from "../model/battle-status.js";
 import type {
   AppliedEffect,
+  ContinuousDamageState,
   DamageModifierState,
   EffectImmunityState,
   HealingLinkState,
@@ -113,6 +114,21 @@ export interface EffectSnapshot {
    * 再現しない。
    */
   readonly shield?: ShieldState;
+  /**
+   * DMG-008（Issue #189、R-DOT-01〜04）: `APPLY_CONTINUOUS_DAMAGE`由来の効果だけが
+   * 持つ種別・ダメージタイプ。種別が復元されないと、独立Reducerで復元した状態の
+   * 炎上重複数（R-DOT-03）と毒の再付与統合（R-DOT-04）が実戦闘と食い違うため、
+   * `shield`と同じ理由で同一性比較へ含める。
+   */
+  readonly continuousDamage?: ContinuousDamageState;
+  /**
+   * DMG-008（Issue #189、R-DOT-01）: `AppliedEffect.snapshot`（継続ダメージの
+   * `sourceAttack`など、付与時に固定した値）。付与者の攻撃力が復元されないと、
+   * 独立Reducerで復元した状態の継続ダメージが実戦闘と別の量を出す
+   * （毒の上限`付与時攻撃力 × 100%`が特に効く）ため、`shield`と同じ理由で
+   * 同一性比較へ含める。R-DOT-04の統合（`EffectMerged`）でも書き換わる。
+   */
+  readonly snapshot?: Readonly<Record<string, number>>;
   readonly duration?: {
     readonly unit: "ACTION" | "TURN" | "SKILL_USE";
     readonly remaining: number;
@@ -164,6 +180,8 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     ...(effect.healingLink !== undefined ? { healingLink: effect.healingLink } : {}),
     ...(effect.damageModifier !== undefined ? { damageModifier: effect.damageModifier } : {}),
     ...(effect.shield !== undefined ? { shield: effect.shield } : {}),
+    ...(effect.continuousDamage !== undefined ? { continuousDamage: effect.continuousDamage } : {}),
+    ...(effect.snapshot !== undefined ? { snapshot: effect.snapshot } : {}),
     ...(duration !== undefined ? { duration } : {}),
     ...(effect.duration.consumptionRemaining !== undefined
       ? { consumptionRemaining: effect.duration.consumptionRemaining }

@@ -1,5 +1,9 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { applyOneHeal, type HealEventContext } from "./heal-application-service.js";
+import {
+  applyOneContinuousDamage,
+  type ContinuousDamageEventContext,
+} from "./continuous-damage-service.js";
 import { recordActionCompletion, type ActionCompletionContext } from "./action-completion.js";
 import type {
   ActionResolutionResult,
@@ -27,6 +31,18 @@ export interface FireContinuousHealsResult {
 }
 
 /**
+ * `06_戦闘状態遷移.md`「START_EVENT：行動開始時処理」#2「継続ダメージなど、行動開始を
+ * 契機とする効果を**定義順**に解決する」が対象とする`EffectActionDefinition.kind`。
+ * 継続回復（R-HEAL-03、M7-005）と継続ダメージ（R-DOT-01、DMG-008）を1回の走査で
+ * 付与順のまま解決するために共有する — 種別ごとに別々の走査へ分けると、保持者が
+ * 両方を持つ場合の解決順が付与順ではなく種別順になってしまう。
+ */
+const ACTION_START_CONTINUOUS_KINDS: ReadonlySet<string> = new Set([
+  "APPLY_CONTINUOUS_HEAL",
+  "APPLY_CONTINUOUS_DAMAGE",
+]);
+
+/**
  * R-HEAL-03 継続回復（M7-005、Issue #184）: 保持者の`ActionStarted`を契機に、
  * その保持者が持つ`APPLY_CONTINUOUS_HEAL`由来の`AppliedEffect`を定義順（付与順）に
  * 発火させ、R-HEAL-01と同じ手順（`applyOneHeal`）で回復する。
@@ -47,7 +63,17 @@ export interface FireContinuousHealsResult {
 export function fireContinuousHealsOnActionStart(
   units: readonly BattleUnit[],
   ownerId: BattleUnitId,
-  context: Omit<HealEventContext, "parentEventId" | "sourceUnitId">,
+  context: Omit<HealEventContext, "parentEventId" | "sourceUnitId"> & {
+    /**
+     * R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ用のcontext。
+     * 未指定なら継続ダメージは発火しない（`APPLY_CONTINUOUS_DAMAGE`を持たない
+     * 既存テスト向けの後方互換）。
+     */
+    readonly continuousDamage?: Omit<
+      ContinuousDamageEventContext,
+      "recorder" | "turnNumber" | "cycleNumber" | "resolutionScopeId" | "rootEventId" | "actionId"
+    >;
+  },
   parentEventId: DomainEventId,
   onFactEvent?: (event: BattleDomainEvent, units: readonly BattleUnit[]) => readonly BattleUnit[],
 ): FireContinuousHealsResult {
@@ -64,11 +90,19 @@ export function fireContinuousHealsOnActionStart(
   const firingInstanceIds = owner.appliedEffects
     .filter((effect) => {
       const definition = context.effectActions.get(effect.effectActionDefinitionId);
+      if (definition === undefined || !ACTION_START_CONTINUOUS_KINDS.has(definition.kind)) {
+        return false;
+      }
+      // 継続回復・継続ダメージとも、実装済みの`timing`は保持者自身の
+      // `ActionStarted`だけである（R-HEAL-03／R-DOT-01）。
+      const timing =
+        definition.kind === "APPLY_CONTINUOUS_HEAL" || definition.kind === "APPLY_CONTINUOUS_DAMAGE"
+          ? definition.payload.timing
+          : undefined;
       return (
-        definition !== undefined &&
-        definition.kind === "APPLY_CONTINUOUS_HEAL" &&
-        definition.payload.timing.eventType === SUPPORTED_CONTINUOUS_HEAL_TIMING.eventType &&
-        definition.payload.timing.targetSelector === SUPPORTED_CONTINUOUS_HEAL_TIMING.targetSelector
+        timing !== undefined &&
+        timing.eventType === SUPPORTED_CONTINUOUS_HEAL_TIMING.eventType &&
+        timing.targetSelector === SUPPORTED_CONTINUOUS_HEAL_TIMING.targetSelector
       );
     })
     .map((effect) => effect.effectInstanceId);
@@ -76,6 +110,11 @@ export function fireContinuousHealsOnActionStart(
   for (const effectInstanceId of firingInstanceIds) {
     const currentOwner = working.find((u) => u.battleUnitId === ownerId);
     if (currentOwner === undefined) {
+      break;
+    }
+    // R-DOT-01／R-ACTN-01: 先行するインスタンスの発生（またはその連鎖）で保持者が
+    // 戦闘不能になったら、残りの継続効果は発火させない。
+    if (isDefeated(currentOwner)) {
       break;
     }
     // 連鎖の途中でこのインスタンスが失効・除去された場合は発火しない。
@@ -86,7 +125,45 @@ export function fireContinuousHealsOnActionStart(
       continue;
     }
     const definition = context.effectActions.get(effect.effectActionDefinitionId);
-    if (definition === undefined || definition.kind !== "APPLY_CONTINUOUS_HEAL") {
+    if (definition === undefined) {
+      continue;
+    }
+
+    // R-DOT-01〜04（DMG-008、Issue #189）: 継続ダメージは`applyOneContinuousDamage`が
+    // `ContinuousDamageApplied`（致死なら`UnitDefeated`）まで発行し、連鎖もその中で
+    // 解決する（継続回復の`applyOneHeal`と同じ規約）。
+    if (definition.kind === "APPLY_CONTINUOUS_DAMAGE") {
+      if (context.continuousDamage === undefined) {
+        continue;
+      }
+      const damaged = applyOneContinuousDamage(
+        effect,
+        definition,
+        currentOwner,
+        working.find((u) => u.battleUnitId === effect.sourceId),
+        working,
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+          effectActions: context.effectActions,
+          ...(context.continuousDamage.expireDepletedShields !== undefined
+            ? { expireDepletedShields: context.continuousDamage.expireDepletedShields }
+            : {}),
+        },
+        lastEventId,
+        onFactEvent,
+      );
+      working = damaged.units;
+      lastEventId = damaged.lastEventId;
+      continue;
+    }
+
+    if (definition.kind !== "APPLY_CONTINUOUS_HEAL") {
       continue;
     }
     const healer = working.find((u) => u.battleUnitId === effect.sourceId) ?? currentOwner;

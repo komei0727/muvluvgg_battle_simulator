@@ -7,6 +7,9 @@ import {
   type DamageEventContext,
 } from "../combat/damage-application-service.js";
 import { grantEffect, isStackLimitReached } from "../effects/effect-grant-service.js";
+import { grantPoisonContinuousDamage } from "../effects/poison-grant-service.js";
+import { isBurnStackLimitReached } from "./continuous-damage-service.js";
+import { CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY } from "../model/applied-effect.js";
 import { grantStunStatus } from "../effects/stun-grant-service.js";
 import { grantFreezeStatus } from "../effects/freeze-grant-service.js";
 import { removeFreezeEffectSteps } from "../effects/freeze-removal-service.js";
@@ -2128,6 +2131,124 @@ function* resolveOneEffectActionApplication(
       interruptedCount = 0;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_CONTINUOUS_DAMAGE") {
+    // R-DOT-01〜04（DMG-008、Issue #189）: 付与時点ではダメージを与えず、保持者の
+    // `ActionStarted`で`continuous-damage-service.ts`が発生させる継続効果として
+    // 付与する（`APPLY_CONTINUOUS_HEAL`と同じ構造）。
+    //
+    // R-DOT-01「付与時に付与者の攻撃力をスナップショットとして記録する」:
+    // 付与者の攻撃力を`AppliedEffect.snapshot.sourceAttack`へ焼き込み、以後の
+    // 攻撃力変化・付与者の戦闘不能に影響されないようにする。`formula`も
+    // `APPLY_STAT_MOD`と同じ評価規約で付与時に一度だけ評価して`magnitude`へ置く
+    // — `FIXED`/`BURN`はこれがそのまま固定ダメージ量になり、`POISON`は発火時点の
+    // 現在HPを参照し直す必要があるため監査用の付与時snapshotに留まる。
+    const actor = findActorUnit(context, box);
+    const target = requireUnit(box.units, application.targetBattleUnitId);
+    const magnitude = evaluateFormula(effectAction.payload.formula, {
+      ...(actor !== undefined ? { skillSource: actor } : {}),
+      ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
+      target,
+      allUnits: box.units,
+      ...(actor !== undefined
+        ? {
+            lastResults: damageResultsFor(
+              context.damageResults,
+              actor.battleUnitId,
+              context.skillUseId,
+            ),
+          }
+        : {}),
+    });
+    const snapshot = { [CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY]: actor?.combatStats.attack ?? 0 };
+    const blockingImmunity = findBlockingImmunity(
+      target,
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else if (
+      effectAction.payload.continuousDamageKind === "BURN" &&
+      isBurnStackLimitReached(target)
+    ) {
+      // R-DOT-03「最大3つまで保持する」: 上限到達時は付与自体を行わない
+      // （`APPLY_STAT_MOD.stacking.max`と同じ「変化が無ければイベントを発行しない」
+      // 規約。3つ保持している対象への4つ目は`SKIPPED`になる）。
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = starting.eventId;
+      resultKind = "SKIPPED";
+    } else {
+      const grantContext = {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      };
+      const grantRequest = {
+        definition: effectAction,
+        ...grantSourceOf(context),
+        targetId: application.targetBattleUnitId,
+        duplicate: true,
+        magnitude,
+        continuousDamage: {
+          continuousDamageKind: effectAction.payload.continuousDamageKind,
+          damageType: effectAction.payload.damageType,
+        },
+        durationDefinition: effectAction.payload.duration,
+        snapshot,
+      };
+      // R-DOT-04「既存の毒へ再付与した場合、…一つの毒を残す」: 毒だけは新規
+      // インスタンスを追加せず既存へ統合する（R-STS-02の気絶と同じ、Q-EFF-10の
+      // 既定に対する固有規則の上書き）。
+      const grantResult =
+        effectAction.payload.continuousDamageKind === "POISON"
+          ? grantPoisonContinuousDamage(grantContext, box.units, grantRequest, starting.eventId)
+          : grantEffect(grantContext, box.units, grantRequest, starting.eventId);
+      const changed = grantResult.lastEventId !== starting.eventId;
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      // R-DOT-04: 期間も効果量も既存側が勝った再付与は何も変えないため`SKIPPED`。
+      resultKind = changed ? "APPLIED" : "SKIPPED";
+    }
   } else if (effectAction.kind === "APPLY_HEALING_LINK") {
     // R-HEAL-04（M7-005-HEAL-LINK、Issue #229、production例:
     // `SKL_ELENA_MOODMAKER_AS1`「対象が得られる回復効果を100%自身に転送する」）:
@@ -2221,7 +2342,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_HEALING_LINK"/"APPLY_SHIELD" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

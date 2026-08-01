@@ -15,7 +15,14 @@ import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { resolveChargeReleaseOrder } from "../skill/skill-resolution-service.js";
-import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
+import { expireEffectsSteps } from "../effects/duration-expiry-service.js";
+import type {
+  ActionId,
+  DomainEventId,
+  EffectInstanceId,
+  ResolutionScopeId,
+} from "../../shared/event-ids.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
@@ -107,6 +114,34 @@ export function resolveChargeStart(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       effectActions: definitions.effectActions,
+      // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
+      continuousDamage: {
+        effectActions: definitions.effectActions,
+        expireDepletedShields: (
+          targetUnitId: BattleUnitId,
+          depletedEffectInstanceIds: readonly EffectInstanceId[],
+          unitsForExpiry: readonly BattleUnit[],
+          expiryParentEventId: DomainEventId,
+        ) =>
+          expireEffectsSteps(
+            {
+              recorder,
+              turnNumber,
+              cycleNumber,
+              actionId,
+              resolutionScopeId: actionScope,
+              rootEventId: actionStarted.eventId,
+            },
+            unitsForExpiry,
+            depletedEffectInstanceIds.map((effectInstanceId) => ({
+              battleUnitId: targetUnitId,
+              effectInstanceId,
+              reason: "SHIELD_DEPLETED" as const,
+            })),
+            definitions.effectActions,
+            expiryParentEventId,
+          ),
+      },
     },
     actionStarted.eventId,
     (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
@@ -306,6 +341,34 @@ export function resolveChargeRelease(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       effectActions: definitions.effectActions,
+      // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
+      continuousDamage: {
+        effectActions: definitions.effectActions,
+        expireDepletedShields: (
+          targetUnitId: BattleUnitId,
+          depletedEffectInstanceIds: readonly EffectInstanceId[],
+          unitsForExpiry: readonly BattleUnit[],
+          expiryParentEventId: DomainEventId,
+        ) =>
+          expireEffectsSteps(
+            {
+              recorder,
+              turnNumber,
+              cycleNumber,
+              actionId,
+              resolutionScopeId: actionScope,
+              rootEventId: actionStarted.eventId,
+            },
+            unitsForExpiry,
+            depletedEffectInstanceIds.map((effectInstanceId) => ({
+              battleUnitId: targetUnitId,
+              effectInstanceId,
+              reason: "SHIELD_DEPLETED" as const,
+            })),
+            definitions.effectActions,
+            expiryParentEventId,
+          ),
+      },
     },
     actionStarted.eventId,
     (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,

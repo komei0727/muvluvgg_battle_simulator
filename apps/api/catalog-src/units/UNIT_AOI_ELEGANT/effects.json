@@ -157,6 +157,7 @@
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",

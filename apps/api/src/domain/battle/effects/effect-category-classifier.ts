@@ -57,6 +57,18 @@ export function effectCategoriesOf(
       // STEALTH等、対象に有利な状態は状態異常ではなくバフとして扱う。
       return new Set<EffectImmunityCategory>(["BUFF"]);
     }
+    case "APPLY_CONTINUOUS_DAMAGE":
+      // R-DOT-01（DMG-008、Issue #189）: 継続ダメージは保持者へダメージを与える
+      // 効果であり、常にデバフである。`magnitude`（ダメージ量）は正の値のため、
+      // 符号から導く既定の分岐に任せるとバフとして分類され、production の
+      // デバフ解除（`REMOVE_EFFECTS` の `categories: ["DEBUFF"]`）が炎上・毒を
+      // 解除できなくなる。`APPLY_SHIELD`等と同じく定義kindから固定で決める。
+      //
+      // `STATUS`は付けない — R-STS-01の状態異常解除・状態異常無効が対象とする
+      // 「状態異常として定義された効果」は`STATUS_AILMENT_KINDS`（気絶・凍結・
+      // 暗闇）であり、炎上・毒を状態異常として扱うかはR-DOT-01〜04が規定して
+      // いないためである（`EFFECT_IMMUNITY_STATUS_GRANULARITY`テーマの範囲）。
+      return new Set<EffectImmunityCategory>(["DEBUFF"]);
     case "APPLY_DAMAGE_MOD":
       return new Set<EffectImmunityCategory>(["DAMAGE_MOD", polarity]);
     case "APPLY_SHIELD":

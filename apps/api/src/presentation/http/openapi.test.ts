@@ -874,6 +874,8 @@ describe("OpenAPI document", () => {
       DamageApplied: true,
       HealApplied: true,
       HealingTransferred: true,
+      ContinuousDamageApplied: true,
+      EffectMerged: true,
       UnitDefeated: true,
       ActionCompleting: true,
       ActionCompleted: true,

@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 113,
-      "completed": 97,
-      "remaining": 16
+      "completed": 101,
+      "remaining": 12
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 46,
-      "implemented": 31
+      "implemented": 32
     }
   },
   "tasks": [
@@ -449,7 +449,7 @@
       "issue": 189,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "DMG-009",
@@ -547,10 +547,6 @@
       "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"]
     },
     {
-      "taskId": "DMG-008",
-      "ruleIds": ["R-DOT-01", "R-DOT-02", "R-DOT-03", "R-DOT-04"]
-    },
-    {
       "taskId": "DMG-011",
       "ruleIds": ["R-ACTN-02", "R-DMG-05"]
     }
@@ -635,7 +631,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 32,
+      "selectableProductionUnits": 43,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -646,14 +642,7 @@
         "capabilityId": "CAP_CHARGE_RESTRICTION",
         "blockedUnits": 2,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 1,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_CONTINUOUS_DAMAGE",
-        "blockedUnits": 19,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 13,
+        "exclusivelyBlockedUnits": 2,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -667,21 +656,21 @@
         "capabilityId": "CAP_CRITICAL_CONTROL",
         "blockedUnits": 6,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 4,
+        "exclusivelyBlockedUnits": 5,
         "exclusivelyBlockedMemories": 0
       },
       {
         "capabilityId": "CAP_DEATH_SURVIVAL",
         "blockedUnits": 6,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 2,
+        "exclusivelyBlockedUnits": 3,
         "exclusivelyBlockedMemories": 0
       },
       {
         "capabilityId": "CAP_MARKER_STACK_FORMULA",
         "blockedUnits": 3,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedUnits": 2,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -695,7 +684,7 @@
         "capabilityId": "CAP_PARTIAL_PIERCING",
         "blockedUnits": 3,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedUnits": 2,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -721,9 +710,9 @@
       },
       {
         "capabilityId": "CAP_TARGET_STATE_EXTENDED_FIELD",
-        "blockedUnits": 2,
+        "blockedUnits": 4,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 2,
+        "exclusivelyBlockedUnits": 4,
         "exclusivelyBlockedMemories": 0
       }
     ],

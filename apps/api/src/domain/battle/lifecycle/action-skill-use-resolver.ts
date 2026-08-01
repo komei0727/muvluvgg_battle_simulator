@@ -26,9 +26,15 @@ import {
 import {
   emitEffectDurationReducedEvents,
   expireEffects,
+  expireEffectsSteps,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
-import type { ActionId, ResolutionScopeId } from "../../shared/event-ids.js";
+import type {
+  ActionId,
+  DomainEventId,
+  EffectInstanceId,
+  ResolutionScopeId,
+} from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { TargetBindingDefinition } from "../../catalog/definitions/effect-sequence.js";
 import type { TargetBindingId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -206,7 +212,41 @@ export function resolveSkillUse(
   const continuousHeal = fireContinuousHealsOnActionStart(
     working,
     actorId,
-    { ...resourceChangeContext, effectActions: definitions.effectActions },
+    {
+      ...resourceChangeContext,
+      effectActions: definitions.effectActions,
+      // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
+      // 固定継続ダメージがシールドを枯渇させた場合の失効（R-SHD-01第3項）は、
+      // `effect-action-group-resolver.ts`のヒット処理とまったく同じ
+      // `expireEffectsSteps`経由で行う（R-EFF-09カスケードとCombatStat再計算を共有する）。
+      continuousDamage: {
+        effectActions: definitions.effectActions,
+        expireDepletedShields: (
+          targetUnitId: BattleUnitId,
+          depletedEffectInstanceIds: readonly EffectInstanceId[],
+          unitsForExpiry: readonly BattleUnit[],
+          expiryParentEventId: DomainEventId,
+        ) =>
+          expireEffectsSteps(
+            {
+              recorder,
+              turnNumber,
+              cycleNumber,
+              actionId,
+              resolutionScopeId: actionScope,
+              rootEventId: actionStarted.eventId,
+            },
+            unitsForExpiry,
+            depletedEffectInstanceIds.map((effectInstanceId) => ({
+              battleUnitId: targetUnitId,
+              effectInstanceId,
+              reason: "SHIELD_DEPLETED" as const,
+            })),
+            definitions.effectActions,
+            expiryParentEventId,
+          ),
+      },
+    },
     lastEventId,
     (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
   );

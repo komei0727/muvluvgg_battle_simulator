@@ -82,6 +82,7 @@
     "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
@@ -231,6 +232,7 @@
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -521,6 +523,7 @@
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
@@ -551,9 +554,10 @@
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
-      "timing": { "eventType": "ActionPointConsumed", "targetSelector": "EFFECT_SOURCE" },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
@@ -570,9 +574,10 @@
     "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
-      "timing": { "eventType": "ActionPointConsumed", "targetSelector": "EFFECT_SOURCE" },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
@@ -589,6 +594,7 @@
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.1 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
@@ -1746,6 +1752,7 @@
     "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -2562,6 +2569,7 @@
     "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -2620,6 +2628,7 @@
     "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -2980,6 +2989,7 @@
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -3661,6 +3671,7 @@
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -4093,6 +4104,7 @@
     "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_POISON",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "POISON",
       "damageType": "PHYSICAL",
       "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.2 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
@@ -4189,6 +4201,7 @@
     "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_DAMAGE",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -4862,6 +4875,7 @@
     "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -5727,6 +5741,7 @@
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -6067,6 +6082,7 @@
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -6173,6 +6189,7 @@
     "effectActionDefinitionId": "ACT_NOEL_RUMBLE_EX_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -6720,6 +6737,7 @@
     "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -7068,6 +7086,7 @@
     "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -7372,6 +7391,7 @@
     "effectActionDefinitionId": "ACT_SENKA_SCHEMER_AS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -7575,6 +7595,7 @@
     "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_PS2_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
@@ -8718,6 +8739,7 @@
     "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -8797,6 +8819,7 @@
     "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_DOT",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "FIXED",
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
@@ -9177,6 +9200,7 @@
     "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_BURN",
     "kind": "APPLY_CONTINUOUS_DAMAGE",
     "payload": {
+      "continuousDamageKind": "BURN",
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
