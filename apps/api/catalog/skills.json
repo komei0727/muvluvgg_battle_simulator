@@ -5581,13 +5581,16 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_MAXHP_UP" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_MAXHP_UP" },
+            { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN" }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "応急防御", "tags": [] },
     "triggers": [
       {
@@ -6178,13 +6181,16 @@
         {
           "kind": "ACTION",
           "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL" },
+            { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_PS2_DMG_UP" }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER"],
+    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "起死回生", "tags": [] },
     "triggers": [
       {
@@ -7398,7 +7404,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_TARGET_STATE_EXTENDED_FIELD"
+    ],
     "metadata": { "displayName": "フィジカルガード", "tags": [] },
     "triggers": [
       {
@@ -8965,7 +8975,8 @@
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_COOLDOWN_MANIPULATION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_TARGET_STATE_EXTENDED_FIELD"
     ],
     "metadata": { "displayName": "フラットスピン", "tags": [] }
   },
@@ -9028,7 +9039,11 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
+    "requiredCapabilities": [
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_STATE_EXTENDED_FIELD"
+    ],
     "metadata": { "displayName": "スカイドライヴ", "tags": [] }
   },
   {
@@ -9093,7 +9108,8 @@
     "requiredCapabilities": [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_TARGET_STATE_EXTENDED_FIELD"
     ],
     "metadata": { "displayName": "ハードラッシュ", "tags": [] }
   },
@@ -15029,13 +15045,16 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DAMAGE" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DEF_DOWN" },
+            { "effectActionDefinitionId": "ACT_YUI_HEIR_EX_DAMAGE" }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "requiredCapabilities": [],
     "metadata": { "displayName": "ザ式戦術機動剣術「天崩」", "tags": [] }
   },
   {

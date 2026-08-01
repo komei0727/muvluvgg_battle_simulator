@@ -5,12 +5,25 @@
     "payload": {
       "stat": "DEFENSE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.35 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.35
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_EX_SUBUNIT",
@@ -19,7 +32,9 @@
       "durability": {
         "formula": {
           "kind": "MAX_HP_RATIO",
-          "source": { "kind": "SKILL_SOURCE" },
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
           "ratio": 0.35
         }
       },
@@ -33,8 +48,10 @@
         }
       }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "requiredCapabilities": ["CAP_SUBUNIT"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS1_ATK_UP",
@@ -42,12 +59,25 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.05 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS1_SUBUNIT",
@@ -56,7 +86,9 @@
       "durability": {
         "formula": {
           "kind": "MAX_HP_RATIO",
-          "source": { "kind": "SKILL_SOURCE" },
+          "source": {
+            "kind": "SKILL_SOURCE"
+          },
           "ratio": 0.25
         }
       },
@@ -70,47 +102,68 @@
         }
       }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "requiredCapabilities": ["CAP_SUBUNIT"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS2_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": { "kind": "SKILL_POWER", "power": 0.275 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.275
+      },
       "overheal": "DISCARD"
     },
     "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS2_REMOVE_DEBUFF",
     "kind": "REMOVE_EFFECTS",
-    "payload": { "categories": ["DEBUFF"] },
+    "payload": {
+      "categories": ["DEBUFF"]
+    },
     "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS1_DAMAGE_FRONT",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": { "kind": "SKILL_POWER", "power": 0.2106 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.2106
+      },
       "hitCount": 5
     },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS1_DAMAGE_BACK",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": { "kind": "SKILL_POWER", "power": 0.156 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.156
+      },
       "hitCount": 5
     },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS1_OUTGOING_DOWN",
@@ -118,12 +171,25 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -0.3 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS2_GUARD",
@@ -131,14 +197,24 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": "EN",
-      "formula": { "kind": "CONSTANT", "value": -0.75 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.75
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

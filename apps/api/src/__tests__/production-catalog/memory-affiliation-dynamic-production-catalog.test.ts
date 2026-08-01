@@ -47,12 +47,13 @@ import {
  * - `TurnStarted` 発動の triggeredEffect が実 `advanceBattle` でターンごとに発動し、
  *   `BattleStarted` 発動の triggeredEffect は戦闘開始時の1回だけであること。
  *
- * `APPLY_DAMAGE_MOD` を含む9件は `CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）が
- * `PLANNED` のため実ライフサイクルを完走できない。Memory由来Markerを持つ
- * `MEM_ALWAYS_PICO_BESIDE_YOU` はDomain側は完走できるが、v1 API契約が付与元なし
- * Markerを表現できないため `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263、
- * PR #262レビュー[P1]）で同じくpreflightが弾く。いずれもCatalog上の変換が近似なしで
- * あることと、Capability preflightが編成不可として弾くことを固定する。
+ * `APPLY_DAMAGE_MOD` を含む9件は `CAP_DAMAGE_MOD` が `PLANNED` の間 preflight で
+ * 弾かれていたが、`DMG-002`（Issue #192）が同Capabilityを `IMPLEMENTED` にしたため
+ * 編成可能になった。Memory由来Markerを持つ `MEM_ALWAYS_PICO_BESIDE_YOU` はDomain側は
+ * 完走できるが、v1 API契約が付与元なしMarkerを表現できないため
+ * `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263、PR #262レビュー[P1]）で
+ * 引き続きpreflightが弾く。いずれもCatalog上の変換が近似なしであることと、
+ * 残る1件だけが編成不可であることを固定する。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
@@ -418,12 +419,12 @@ function statOf(unit: BattleUnit, stat: StatKind): number {
 
 /**
  * 変換の「近似なし」を1行ずつ固定するための、raw原文→定義の対応表。
- * `APPLY_DAMAGE_MOD`を含む9件は`CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）未実装で
- * 実ライフサイクルを完走できないが、対象条件と補正値は今でも検証できる。
- * Domain解決を完走できる11件（Capability preflightを通る10件と、Domainは完走するが
- * v1 API契約の都合で`CAP_MEMORY_GRANTED_MARKER`が編成を弾く
- * `MEM_ALWAYS_PICO_BESIDE_YOU`）についても、実行結果の期待値がraw原文のどこ由来かを
- * ここで固定する。
+ * `APPLY_DAMAGE_MOD`を含む9件は`DMG-002`（Issue #192）以降Capability preflightを
+ * 通る（実ライフサイクルでの与ダメージ補正の適用そのものは
+ * `damage-modifier-policy.ts`側テストが担う）。Domain解決を完走できる各件についても、
+ * 実行結果の期待値がraw原文のどこ由来かをここで固定する。
+ * `MEM_ALWAYS_PICO_BESIDE_YOU`だけはDomainは完走するがv1 API契約の都合で
+ * `CAP_MEMORY_GRANTED_MARKER`が編成を弾く。
  */
 interface ActionExpectation {
   readonly effectActionDefinitionId: string;
@@ -463,9 +464,9 @@ interface MemoryExpectation {
   readonly displayName: string;
   /**
    * Capability preflightがこのMemoryを編成不可として弾く原因のCapability。
-   * `CAP_DAMAGE_MOD`は実行時解決の未実装（`DMG-002`／Issue #192）、
    * `CAP_MEMORY_GRANTED_MARKER`はv1 API契約が付与元なしMarkerを表現できないこと
-   * （`REL-008`／Issue #263、PR #262レビュー[P1]）による。空配列なら編成可能。
+   * （`REL-008`／Issue #263、PR #262レビュー[P1]）による。空配列なら編成可能
+   * （`CAP_DAMAGE_MOD`は`DMG-002`／Issue #192で`IMPLEMENTED`になった）。
    */
   readonly gatedBy: readonly string[];
   readonly triggeredEffects: readonly TriggeredEffectExpectation[];
@@ -747,7 +748,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：コントロールの味方全員の攻撃力を1250上昇させる」
     memoryDefinitionId: "MEM_SHAPING_FAMILY",
     displayName: "家族のかたちを象りながら",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -780,7 +781,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方前衛の防御力を2.5％上昇させる」
     memoryDefinitionId: "MEM_TENT_COMMOTION",
     displayName: "密着！？テントの中の珍騒動",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -813,7 +814,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：敵後衛の行動速度を70下降させる」
     memoryDefinitionId: "MEM_ELOPEMENT_FULL_THROTTLE",
     displayName: "駆け落ちフルスロットル！",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -846,7 +847,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：タンクの防御力を1000上昇させる」
     memoryDefinitionId: "MEM_NAUGHTY_PENALTY_GAME",
     displayName: "エッ◯な罰ゲームやってみた",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -879,7 +880,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：左列後衛の味方の攻撃力を1行動の間2500上昇させる」
     memoryDefinitionId: "MEM_SOOTHING_SCENT",
     displayName: "安心する香り",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -916,7 +917,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の会心率を1％上昇させる」
     memoryDefinitionId: "MEM_ENCOUNTER_WITH_GIRLS",
     displayName: "少女たちとの邂逅",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -949,7 +950,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の攻撃力を250上昇させる」
     memoryDefinitionId: "MEM_NEW_YEAR_GREETING",
     displayName: "新年のご挨拶",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -982,7 +983,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方前衛のHPを1500上昇させる」
     memoryDefinitionId: "MEM_CATS_AND_DOGS_BOND",
     displayName: "腐れ縁で犬猿の仲？",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -1048,7 +1049,7 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：戦闘開始時に発動。味方後衛の防御力を1000上昇させる」
     memoryDefinitionId: "MEM_BUSY_DAY_SLUMBER",
     displayName: "忙しい時のまどろみ",
-    gatedBy: ["CAP_DAMAGE_MOD"],
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "TurnStarted",
@@ -1481,7 +1482,7 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     expect(restored?.markers?.[0]?.sourceSide).toBe("ALLY");
   });
 
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and the ten Memories that need an unimplemented Capability stay gated by exactly that Capability", () => {
+  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and only MEM_ALWAYS_PICO_BESIDE_YOU stays gated by an unimplemented Capability", () => {
     expect(MEMORY_EXPECTATIONS.map((expectation) => expectation.memoryDefinitionId)).toEqual([
       ...M7_008_MEMORY_IDS,
     ]);

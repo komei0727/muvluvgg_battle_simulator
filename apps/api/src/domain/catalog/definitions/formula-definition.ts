@@ -17,9 +17,12 @@ import {
 } from "../../shared/validate.js";
 
 /**
- * Payload shapes documented in `14_Catalog定義スキーマ.md`. `HP_RATIO_SCALE`
- * is excluded: its `direction` field has no enum spec anywhere in the DDD
- * docs, so mapping it would require inventing behavior.
+ * Payload shapes documented in `14_Catalog定義スキーマ.md`.
+ *
+ * DMG-002（Issue #192）: `HP_RATIO_SCALE`の`direction`は長らく値候補が本書の
+ * どこにも列挙されておらずMapperが未サポートとしていた（`14_Catalog定義
+ * スキーマ.md`「Issue #6実装で判明した制約」#2）。本Taskが
+ * `HP_RATIO_SCALE_DIRECTIONS`の2値を同書へ定義し、ここで受理する。
  */
 const FORMULA_KINDS = [
   "CONSTANT",
@@ -34,7 +37,9 @@ const FORMULA_KINDS = [
   "DAMAGE_RECEIVED_RATIO",
   "MARKER_COUNT_SCALE",
   "ALIVE_UNIT_COUNT_SCALE",
+  "HP_RATIO_SCALE",
   "SUM",
+  "PRODUCT",
   "MIN",
   "MAX",
   "CLAMP",
@@ -53,6 +58,18 @@ const STAT_RATIO_STATS = [
 export type StatRatioStat = (typeof STAT_RATIO_STATS)[number];
 
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
+
+/**
+ * DMG-002（Issue #192、`HP_RATIO_SCALE_FORMULA`）: `HP_RATIO_SCALE`が`min`〜`max`を
+ * どちら向きに線形補間するかを表す。raw表現に現れるのは「HPが少ないほど高い効果」
+ * （`LOWER_HP_IS_MAX`、例: `SKL_MERU_SIRIUS_AS2`「敵のHPが少ないほどダメージが増加する
+ * (+200%まで)」）と「HPが多いほど高い効果」（`HIGHER_HP_IS_MAX`、例:
+ * `SKL_MEIYA_FATED_PS2`「攻撃対象のHPが多いほど高い効果を発揮する」）の2方向だけである。
+ * 値は`max`側がどちらのHP端に対応するかを名前で示す（`14_Catalog定義スキーマ.md`
+ * 「HP_RATIO_SCALE」）。
+ */
+export const HP_RATIO_SCALE_DIRECTIONS = ["LOWER_HP_IS_MAX", "HIGHER_HP_IS_MAX"] as const;
+export type HpRatioScaleDirection = (typeof HP_RATIO_SCALE_DIRECTIONS)[number];
 
 const FORMULA_ALLOWED_KEYS: Record<FormulaKind, readonly string[]> = {
   CONSTANT: ["kind", "value"],
@@ -73,7 +90,9 @@ const FORMULA_ALLOWED_KEYS: Record<FormulaKind, readonly string[]> = {
   DAMAGE_RECEIVED_RATIO: ["kind", "sourceResult", "ratio"],
   MARKER_COUNT_SCALE: ["kind", "target", "markerId", "perStack", "max"],
   ALIVE_UNIT_COUNT_SCALE: ["kind", "side", "perUnit", "max"],
+  HP_RATIO_SCALE: ["kind", "target", "min", "max", "direction"],
   SUM: ["kind", "formulas"],
+  PRODUCT: ["kind", "formulas"],
   MIN: ["kind", "formulas"],
   MAX: ["kind", "formulas"],
   CLAMP: ["kind", "formula", "min", "max"],
@@ -118,7 +137,17 @@ export type FormulaDefinition =
       readonly perUnit: number;
       readonly max: number;
     }
-  | { readonly kind: "SUM" | "MIN" | "MAX"; readonly formulas: readonly FormulaDefinition[] }
+  | {
+      readonly kind: "HP_RATIO_SCALE";
+      readonly target: FormulaSourceReference;
+      readonly min: number;
+      readonly max: number;
+      readonly direction: HpRatioScaleDirection;
+    }
+  | {
+      readonly kind: "SUM" | "PRODUCT" | "MIN" | "MAX";
+      readonly formulas: readonly FormulaDefinition[];
+    }
   | {
       readonly kind: "CLAMP";
       readonly formula: FormulaDefinition;
@@ -144,6 +173,7 @@ export interface FormulaDefinitionInput {
   readonly max?: number;
   readonly side?: string;
   readonly perUnit?: number;
+  readonly direction?: string;
   readonly formulas?: readonly FormulaDefinitionInput[];
   readonly formula?: FormulaDefinitionInput;
   readonly min?: number;
@@ -250,7 +280,22 @@ export function createFormulaDefinition(
         max: requireNumber(input.max, `${path}.max`),
       };
     }
+    case "HP_RATIO_SCALE": {
+      if (input.target === undefined) {
+        throw new DomainValidationError(`${path}.target`, "is required");
+      }
+      const direction = requireString(input.direction, `${path}.direction`);
+      assertEnumValue(direction, HP_RATIO_SCALE_DIRECTIONS, `${path}.direction`);
+      return {
+        kind: "HP_RATIO_SCALE",
+        target: createFormulaSourceReference(input.target, `${path}.target`, scope),
+        min: requireNumber(input.min, `${path}.min`),
+        max: requireNumber(input.max, `${path}.max`),
+        direction,
+      };
+    }
     case "SUM":
+    case "PRODUCT":
     case "MIN":
     case "MAX": {
       const formulas = input.formulas;

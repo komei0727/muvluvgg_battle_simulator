@@ -176,6 +176,11 @@
         "kind": "CONSTANT",
         "value": -0.35
       },
+      "condition": {
+        "kind": "UNIT_HAS_MARKER",
+        "unit": "OPPONENT",
+        "markerId": "MARKER_OLGA_VETERAN_VIGILANCE"
+      },
       "stacking": {
         "mode": "STACKABLE"
       },
@@ -187,7 +192,7 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -241,7 +246,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }
@@ -254,13 +259,20 @@
       "operation": "ADD",
       "formula": {
         "kind": "CURRENT_HP_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "ratio": -0.6
       },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
     "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_OLGA_VETERAN_PS2_SUBUNIT",
@@ -285,7 +297,7 @@
         }
       }
     },
-    "requiredCapabilities": [],
+    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }

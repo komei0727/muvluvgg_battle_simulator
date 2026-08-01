@@ -1863,13 +1863,21 @@ function* resolveOneEffectActionApplication(
         : "SKIPPED";
   } else if (
     effectAction.kind === "APPLY_HEALING_MOD" ||
+    effectAction.kind === "APPLY_DAMAGE_MOD" ||
     effectAction.kind === "APPLY_CONTINUOUS_HEAL"
   ) {
-    // R-HEAL-02/R-HEAL-03（M7-005、Issue #184）: どちらも`AppliedEffect`として
+    // R-HEAL-02/R-HEAL-03（M7-005、Issue #184）／R-DMG-04（DMG-002、Issue #192）:
+    // いずれも`AppliedEffect`として
     // 保持する継続効果（R-ACTN-03）。`APPLY_STAT_MOD`と同じ評価規約で`formula`を
     // 付与時点に一度だけ評価し、結果を`magnitude`へ保持する。
     // - `APPLY_HEALING_MOD`: 符号付き割合の回復量補正。実際の適用は
     //   `heal-application-service.ts`が`composeHealingRate`で合成する。
+    // - `APPLY_DAMAGE_MOD`: 符号付き割合の与/被ダメージ補正。向き・対象
+    //   ダメージタイプ・動的条件（`DYNAMIC_DAMAGE_MOD_CONDITION`）は
+    //   `AppliedEffect.damageModifier`へ焼き込み、実際の集計は
+    //   `combat/damage-modifier-policy.ts`がヒットごとに行う（条件は付与時では
+    //   なくヒット時点の状態で評価する必要があるため、`magnitude`と違って
+    //   snapshotにできない）。
     // - `APPLY_CONTINUOUS_HEAL`: 付与時点では回復せず、`timing.eventType`が
     //   発生した時点で`continuous-heal-service.ts`がR-HEAL-01と同じ手順で
     //   回復する。回復量Formulaは発火のたびに評価し直す必要がある
@@ -1948,6 +1956,17 @@ function* resolveOneEffectActionApplication(
           targetId: application.targetBattleUnitId,
           duplicate: true,
           magnitude,
+          ...(effectAction.kind === "APPLY_DAMAGE_MOD"
+            ? {
+                damageModifier: {
+                  direction: effectAction.payload.direction,
+                  damageType: effectAction.payload.damageType,
+                  ...(effectAction.payload.condition !== undefined
+                    ? { condition: effectAction.payload.condition }
+                    : {}),
+                },
+              }
+            : {}),
           durationDefinition: effectAction.payload.duration,
         },
         starting.eventId,
@@ -2056,7 +2075,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_HEALING_LINK" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_HEALING_LINK" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 

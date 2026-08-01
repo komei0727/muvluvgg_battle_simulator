@@ -271,8 +271,13 @@
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
       "formula": {
-        "kind": "CONSTANT",
-        "value": 0.4
+        "kind": "HP_RATIO_SCALE",
+        "target": {
+          "kind": "TRIGGER_TARGET"
+        },
+        "min": 0,
+        "max": 0.4,
+        "direction": "HIGHER_HP_IS_MAX"
       },
       "stacking": {
         "mode": "STACKABLE"
@@ -285,7 +290,7 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "tags": []
     }
@@ -297,8 +302,13 @@
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
       "formula": {
-        "kind": "CONSTANT",
-        "value": 0.25
+        "kind": "HP_RATIO_SCALE",
+        "target": {
+          "kind": "TRIGGER_TARGET"
+        },
+        "min": 0,
+        "max": 0.25,
+        "direction": "HIGHER_HP_IS_MAX"
       },
       "stacking": {
         "mode": "STACKABLE"
@@ -311,7 +321,7 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "tags": []
     }

@@ -2,9 +2,17 @@
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.56
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_HEAL",
@@ -18,55 +26,114 @@
       "overheal": "DISCARD"
     },
     "requiredCapabilities": ["CAP_FORMULA", "CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_ENEMY_DMG_UP",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "INCOMING",
-      "formula": { "kind": "CONSTANT", "value": 0.3 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "timeLimit": { "unit": "BATTLE", "count": 1 }, "dispellable": true }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
+        "dispellable": true
+      }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.06 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.06
+      },
+      "damageModifiers": [
+        {
+          "kind": "HP_RATIO_SCALE",
+          "target": {
+            "kind": "SKILL_SOURCE"
+          },
+          "min": 0,
+          "max": 1.5,
+          "direction": "LOWER_HP_IS_MAX"
+        }
+      ]
+    },
+    "requiredCapabilities": ["CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS1_SHIELD",
     "kind": "APPLY_SHIELD",
     "payload": {
-      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.5 },
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.5
+      },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 3, "owner": "EFFECT_TARGET" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 3,
+          "owner": "EFFECT_TARGET"
+        }
       }
     },
     "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL",
     "kind": "APPLY_DEATH_SURVIVAL",
     "payload": {
-      "trigger": { "lethalDamageOnly": true },
-      "survivalHp": { "kind": "CONSTANT", "value": 1 },
+      "trigger": {
+        "lethalDamageOnly": true
+      },
+      "survivalHp": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
       "healAfterSurvival": null,
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "BATTLE", "count": 1 },
-        "consumption": { "kind": "LETHAL_DAMAGE", "maxCount": 1 }
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "LETHAL_DAMAGE",
+          "maxCount": 1
+        }
       }
     },
     "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_ATK_UP",
@@ -74,12 +141,30 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.8 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": {
+          "kind": "SKILL_SOURCE"
+        },
+        "min": 0,
+        "max": 0.8,
+        "direction": "LOWER_HP_IS_MAX"
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        },
+        "dispellable": true
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS2_SPEED_UP",
@@ -87,26 +172,54 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 150 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": {
+          "kind": "SKILL_SOURCE"
+        },
+        "min": 0,
+        "max": 150,
+        "direction": "LOWER_HP_IS_MAX"
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        },
+        "dispellable": true
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_PS3_DMG_UP",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
-      "formula": { "kind": "CONSTANT", "value": 0.5 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

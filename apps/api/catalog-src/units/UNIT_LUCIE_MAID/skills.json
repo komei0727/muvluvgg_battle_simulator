@@ -2,164 +2,289 @@
   {
     "skillDefinitionId": "SKL_LUCIE_MAID_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true }
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
+          "target": {
+            "kind": "SELF"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_ATK_UP" },
-            { "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_DEBUFF_IMMUNITY" }
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_EX_DEBUFF_IMMUNITY"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
-    "metadata": { "displayName": "お嬢に近づくな……！", "tags": [] }
+    "metadata": {
+      "displayName": "お嬢に近づくな……！",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_LUCIE_MAID_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 2 },
+    "cost": {
+      "resource": "AP",
+      "amount": 2
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true }
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_SPEED_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_SPEED_DOWN"
+            }
           ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
           "targetCondition": {
             "kind": "OR",
             "conditions": [
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+                "target": {
+                  "kind": "BINDING",
+                  "targetBindingId": "TGT_COLUMN"
+                },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "PHYSICAL"
               },
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+                "target": {
+                  "kind": "BINDING",
+                  "targetBindingId": "TGT_COLUMN"
+                },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "AGILE"
               }
             ]
           },
-          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_STUN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_AS1_STUN"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 2 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_EFFECT_STEP_CONDITION"],
-    "metadata": { "displayName": "スタンディクライン", "tags": [] }
+    "metadata": {
+      "displayName": "スタンディクライン",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_LUCIE_MAID_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_MAIN",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_ADJ",
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_MAIN" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_MAIN"
+            },
+            "area": {
+              "kind": "ADJACENT_ORTHOGONAL"
+            }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_MAIN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_AS2_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_MAIN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_AS2_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_AS2_DAMAGE_EXTRA" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ADJ"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_AS2_DAMAGE_EXTRA"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
-    "metadata": { "displayName": "シングル・プラス", "tags": [] }
+    "metadata": {
+      "displayName": "シングル・プラス",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_LUCIE_MAID_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_PS1_GUARD" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_PS1_GUARD"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "フィジカルガード", "tags": [] },
+    "requiredCapabilities": [
+      "CAP_DAMAGE_MOD",
+      "CAP_TRIGGER_CONTEXT",
+      "CAP_TARGET_STATE_EXTENDED_FIELD"
+    ],
+    "metadata": {
+      "displayName": "フィジカルガード",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "UnitBeingAttacked",
@@ -171,14 +296,18 @@
           "conditions": [
             {
               "kind": "TARGET_STATE",
-              "target": { "kind": "TRIGGER_SOURCE" },
+              "target": {
+                "kind": "TRIGGER_SOURCE"
+              },
               "field": "UNIT_TYPE",
               "op": "EQ",
               "value": "PHYSICAL"
             },
             {
               "kind": "TARGET_STATE",
-              "target": { "kind": "TRIGGER_SOURCE" },
+              "target": {
+                "kind": "TRIGGER_SOURCE"
+              },
               "field": "UNIT_TYPE",
               "op": "EQ",
               "value": "AGILE"
@@ -191,66 +320,112 @@
   {
     "skillDefinitionId": "SKL_LUCIE_MAID_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 2 },
-    "activationCondition": { "kind": "TURN_NUMBER", "op": "NEQ", "value": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 2
+    },
+    "activationCondition": {
+      "kind": "TURN_NUMBER",
+      "op": "NEQ",
+      "value": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true }
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
           "targetCondition": {
             "kind": "OR",
             "conditions": [
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+                "target": {
+                  "kind": "BINDING",
+                  "targetBindingId": "TGT_COLUMN"
+                },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "PHYSICAL"
               },
               {
                 "kind": "TARGET_STATE",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+                "target": {
+                  "kind": "BINDING",
+                  "targetBindingId": "TGT_COLUMN"
+                },
                 "field": "UNIT_TYPE",
                 "op": "EQ",
                 "value": "AGILE"
               }
             ]
           },
-          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_PP_DOWN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LUCIE_MAID_PS2_PP_DOWN"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": { "priorityAttack": true },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {
+      "priorityAttack": true
+    },
     "requiredCapabilities": [
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOURCE_MUTATION",
       "CAP_PASSIVE_ACTIVATION_CONDITION"
     ],
-    "metadata": { "displayName": "スタート・プリエンプティブ", "tags": [] },
+    "metadata": {
+      "displayName": "スタート・プリエンプティブ",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnStarted",

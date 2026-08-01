@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 113,
-      "completed": 91,
-      "remaining": 22
+      "completed": 93,
+      "remaining": 20
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 46
+      "incompleteConversionRows": 32
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,25 +40,109 @@
       "unconverted": 0
     },
     "capabilities": {
-      "total": 45,
-      "implemented": 29
+      "total": 46,
+      "implemented": 30
     }
   },
   "tasks": [
-    { "taskId": "PLAN-001", "issue": 163, "phase": 0, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "CAP-001", "issue": 166, "phase": 0, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "CAT-001", "issue": 161, "phase": 0, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "EFF-001", "issue": 164, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "EFF-002", "issue": 165, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "EFF-003", "issue": 159, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "EFF-004", "issue": 160, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "EFF-005", "issue": 162, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "EFF-006", "issue": 212, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "RES-001", "issue": 175, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "RES-002", "issue": 174, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "RES-003", "issue": 173, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "RES-003A", "issue": 257, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "RES-004", "issue": 171, "phase": 1, "milestone": "M7", "status": "OPEN" },
+    {
+      "taskId": "PLAN-001",
+      "issue": 163,
+      "phase": 0,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "CAP-001",
+      "issue": 166,
+      "phase": 0,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "CAT-001",
+      "issue": 161,
+      "phase": 0,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "EFF-001",
+      "issue": 164,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "EFF-002",
+      "issue": 165,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "EFF-003",
+      "issue": 159,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "EFF-004",
+      "issue": 160,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "EFF-005",
+      "issue": 162,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "EFF-006",
+      "issue": 212,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "RES-001",
+      "issue": 175,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "RES-002",
+      "issue": 174,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "RES-003",
+      "issue": 173,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "RES-003A",
+      "issue": 257,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "RES-004",
+      "issue": 171,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
     {
       "taskId": "RES-004-STATUS-CONDITION",
       "issue": 224,
@@ -80,23 +164,125 @@
       "milestone": "M7",
       "status": "CLOSED"
     },
-    { "taskId": "RES-005", "issue": 172, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "TGT-001", "issue": 170, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "TGT-002", "issue": 169, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "TGT-003", "issue": 168, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "TGT-004", "issue": 167, "phase": 1, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-001", "issue": 181, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-001A", "issue": 242, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-001B", "issue": 243, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-001C", "issue": 244, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-001D", "issue": 247, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-001E", "issue": 248, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-002", "issue": 185, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-002A", "issue": 255, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-003", "issue": 180, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-003A", "issue": 251, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-004", "issue": 183, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-005", "issue": 184, "phase": 2, "milestone": "M7", "status": "CLOSED" },
+    {
+      "taskId": "RES-005",
+      "issue": 172,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "TGT-001",
+      "issue": 170,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "TGT-002",
+      "issue": 169,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "TGT-003",
+      "issue": 168,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "TGT-004",
+      "issue": 167,
+      "phase": 1,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-001",
+      "issue": 181,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "M7-001A",
+      "issue": 242,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "M7-001B",
+      "issue": 243,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-001C",
+      "issue": 244,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-001D",
+      "issue": 247,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-001E",
+      "issue": 248,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "M7-002",
+      "issue": 185,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-002A",
+      "issue": 255,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "M7-003",
+      "issue": 180,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-003A",
+      "issue": 251,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-004",
+      "issue": 183,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-005",
+      "issue": 184,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
     {
       "taskId": "M7-005-HEAL-LINK",
       "issue": 229,
@@ -104,50 +290,274 @@
       "milestone": "M7",
       "status": "CLOSED"
     },
-    { "taskId": "M7-006", "issue": 179, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-007", "issue": 178, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-008", "issue": 176, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-009", "issue": 182, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-010", "issue": 177, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-011", "issue": 265, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-012", "issue": 266, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-013", "issue": 267, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-014", "issue": 268, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-015", "issue": 269, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-016", "issue": 270, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-017", "issue": 271, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-018", "issue": 272, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "M7-019", "issue": 273, "phase": 2, "milestone": "M7", "status": "OPEN" },
-    { "taskId": "M7-020", "issue": 279, "phase": 2, "milestone": "M7", "status": "CLOSED" },
-    { "taskId": "DMG-001", "issue": 195, "phase": 3, "milestone": "M8", "status": "CLOSED" },
-    { "taskId": "DMG-002", "issue": 192, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-003", "issue": 196, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-004", "issue": 194, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-005", "issue": 190, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-006", "issue": 188, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-007", "issue": 187, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-008", "issue": 189, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-009", "issue": 193, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-010", "issue": 191, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "DMG-011", "issue": 186, "phase": 3, "milestone": "M8", "status": "OPEN" },
-    { "taskId": "REL-001", "issue": 202, "phase": 4, "milestone": "M9", "status": "OPEN" },
-    { "taskId": "REL-002", "issue": 199, "phase": 4, "milestone": "M9", "status": "OPEN" },
-    { "taskId": "REL-003", "issue": 200, "phase": 4, "milestone": "M9", "status": "OPEN" },
-    { "taskId": "REL-004", "issue": 203, "phase": 4, "milestone": "M9", "status": "OPEN" },
-    { "taskId": "REL-005", "issue": 198, "phase": 4, "milestone": "M9", "status": "OPEN" },
-    { "taskId": "REL-006", "issue": 197, "phase": 4, "milestone": "M9", "status": "OPEN" },
-    { "taskId": "REL-007", "issue": 201, "phase": 4, "milestone": "M9", "status": "OPEN" },
-    { "taskId": "REL-008", "issue": 263, "phase": 4, "milestone": "M9", "status": "OPEN" }
+    {
+      "taskId": "M7-006",
+      "issue": 179,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-007",
+      "issue": 178,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-008",
+      "issue": 176,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-009",
+      "issue": 182,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-010",
+      "issue": 177,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-011",
+      "issue": 265,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-012",
+      "issue": 266,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-013",
+      "issue": 267,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-014",
+      "issue": 268,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-015",
+      "issue": 269,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "M7-016",
+      "issue": 270,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "M7-017",
+      "issue": 271,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-018",
+      "issue": 272,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "M7-019",
+      "issue": 273,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "M7-020",
+      "issue": 279,
+      "phase": 2,
+      "milestone": "M7",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "DMG-001",
+      "issue": 195,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "DMG-002",
+      "issue": 192,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "DMG-003",
+      "issue": 196,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-004",
+      "issue": 194,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-005",
+      "issue": 190,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-006",
+      "issue": 188,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-007",
+      "issue": 187,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-008",
+      "issue": 189,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-009",
+      "issue": 193,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-010",
+      "issue": 191,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "DMG-011",
+      "issue": 186,
+      "phase": 3,
+      "milestone": "M8",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-001",
+      "issue": 202,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-002",
+      "issue": 199,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-003",
+      "issue": 200,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-004",
+      "issue": 203,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-005",
+      "issue": 198,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-006",
+      "issue": 197,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-007",
+      "issue": 201,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "REL-008",
+      "issue": 263,
+      "phase": 4,
+      "milestone": "M9",
+      "status": "OPEN"
+    }
   ],
   "ruleAssignments": [
-    { "taskId": "M7-019", "ruleIds": ["R-TGT-06"] },
-    { "taskId": "DMG-006", "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"] },
-    { "taskId": "DMG-002", "ruleIds": ["R-DMG-03", "R-DMG-04"] },
-    { "taskId": "DMG-004", "ruleIds": ["R-SHD-01", "R-SHD-02", "R-SHD-03", "R-SKL-03"] },
-    { "taskId": "DMG-005", "ruleIds": ["R-SUB-01", "R-SUB-02"] },
-    { "taskId": "DMG-007", "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"] },
-    { "taskId": "DMG-008", "ruleIds": ["R-DOT-01", "R-DOT-02", "R-DOT-03", "R-DOT-04"] },
-    { "taskId": "DMG-011", "ruleIds": ["R-ACTN-02", "R-DMG-05"] }
+    {
+      "taskId": "M7-019",
+      "ruleIds": ["R-TGT-06"]
+    },
+    {
+      "taskId": "DMG-006",
+      "ruleIds": ["R-ACTN-03", "R-INT-01", "R-INT-02", "R-INT-03"]
+    },
+    {
+      "taskId": "DMG-004",
+      "ruleIds": ["R-SHD-01", "R-SHD-02", "R-SHD-03", "R-SKL-03"]
+    },
+    {
+      "taskId": "DMG-005",
+      "ruleIds": ["R-SUB-01", "R-SUB-02"]
+    },
+    {
+      "taskId": "DMG-007",
+      "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"]
+    },
+    {
+      "taskId": "DMG-008",
+      "ruleIds": ["R-DOT-01", "R-DOT-02", "R-DOT-03", "R-DOT-04"]
+    },
+    {
+      "taskId": "DMG-011",
+      "ruleIds": ["R-ACTN-02", "R-DMG-05"]
+    }
   ],
   "conversionThemeAssignments": [
     {
@@ -170,46 +580,58 @@
     },
     {
       "milestone": "M8",
-      "theme": "DAMAGE_MOD_KIND_UNIMPLEMENTED",
-      "rowCount": 2,
-      "taskId": "DMG-002"
-    },
-    { "milestone": "M8", "theme": "HP_RATIO_SCALE_FORMULA", "rowCount": 7, "taskId": "DMG-002" },
-    {
-      "milestone": "M8",
       "theme": "POST_DAMAGE_CRITICAL_BRANCH",
       "rowCount": 6,
       "taskId": "DMG-003"
     },
     {
       "milestone": "M8",
-      "theme": "DYNAMIC_DAMAGE_MOD_CONDITION",
-      "rowCount": 5,
-      "taskId": "DMG-002"
+      "theme": "DAMAGE_LINK",
+      "rowCount": 4,
+      "taskId": "DMG-007"
     },
-    { "milestone": "M8", "theme": "DAMAGE_LINK", "rowCount": 4, "taskId": "DMG-007" },
     {
       "milestone": "M8",
       "theme": "POST_DAMAGE_SURVIVAL_BRANCH",
       "rowCount": 3,
       "taskId": "DMG-003"
     },
-    { "milestone": "M8", "theme": "SUBUNIT_DURATION", "rowCount": 3, "taskId": "DMG-005" },
+    {
+      "milestone": "M8",
+      "theme": "SUBUNIT_DURATION",
+      "rowCount": 3,
+      "taskId": "DMG-005"
+    },
     {
       "milestone": "M8",
       "theme": "CONFUSION_OR_DAMAGE_TO_HEAL",
       "rowCount": 2,
       "taskId": "DMG-009"
     },
-    { "milestone": "M8", "theme": "REFLECT_DAMAGE", "rowCount": 1, "taskId": "DMG-006" },
-    { "milestone": "M8", "theme": "SHIELD_DECAY_OVER_TIME", "rowCount": 1, "taskId": "DMG-004" },
+    {
+      "milestone": "M8",
+      "theme": "REFLECT_DAMAGE",
+      "rowCount": 1,
+      "taskId": "DMG-006"
+    },
+    {
+      "milestone": "M8",
+      "theme": "SHIELD_DECAY_OVER_TIME",
+      "rowCount": 1,
+      "taskId": "DMG-004"
+    },
     {
       "milestone": "M8",
       "theme": "SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF",
       "rowCount": 1,
       "taskId": "DMG-005"
     },
-    { "milestone": "M8", "theme": "TEMP_PIERCING_GRANT", "rowCount": 1, "taskId": "DMG-003" },
+    {
+      "milestone": "M8",
+      "theme": "TEMP_PIERCING_GRANT",
+      "rowCount": 1,
+      "taskId": "DMG-003"
+    },
     {
       "milestone": "M8",
       "theme": "LINKED_EFFECT_GROUP_SHIELD",
@@ -229,53 +651,25 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 6,
+      "selectableProductionUnits": 22,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
-      "selectableMemories": 18
+      "selectableMemories": 31
     },
     "blockingCapabilities": [
       {
-        "capabilityId": "CAP_DAMAGE_MOD",
-        "blockedUnits": 54,
-        "blockedMemories": 13,
-        "exclusivelyBlockedUnits": 20,
-        "exclusivelyBlockedMemories": 13
-      },
-      {
-        "capabilityId": "CAP_CONTINUOUS_DAMAGE",
-        "blockedUnits": 19,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 3,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_SHIELD",
-        "blockedUnits": 18,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 2,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_CRITICAL_CONTROL",
-        "blockedUnits": 6,
+        "capabilityId": "CAP_CHARGE_RESTRICTION",
+        "blockedUnits": 2,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 1,
         "exclusivelyBlockedMemories": 0
       },
       {
-        "capabilityId": "CAP_DEATH_SURVIVAL",
-        "blockedUnits": 6,
+        "capabilityId": "CAP_CONTINUOUS_DAMAGE",
+        "blockedUnits": 19,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_PARTIAL_PIERCING",
-        "blockedUnits": 4,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedUnits": 11,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -286,24 +680,24 @@
         "exclusivelyBlockedMemories": 0
       },
       {
+        "capabilityId": "CAP_CRITICAL_CONTROL",
+        "blockedUnits": 6,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 3,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_DEATH_SURVIVAL",
+        "blockedUnits": 6,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
         "capabilityId": "CAP_MARKER_STACK_FORMULA",
         "blockedUnits": 3,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_CHARGE_RESTRICTION",
-        "blockedUnits": 2,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_TARGET_REDIRECT",
-        "blockedUnits": 2,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedUnits": 1,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -314,18 +708,52 @@
         "exclusivelyBlockedMemories": 1
       },
       {
+        "capabilityId": "CAP_PARTIAL_PIERCING",
+        "blockedUnits": 3,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 1,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
         "capabilityId": "CAP_RESOURCE_CAPACITY_MOD",
         "blockedUnits": 1,
         "blockedMemories": 0,
         "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_SHIELD",
+        "blockedUnits": 18,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 10,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_SUBUNIT",
+        "blockedUnits": 3,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 2,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_TARGET_REDIRECT",
+        "blockedUnits": 2,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 0,
+        "exclusivelyBlockedMemories": 0
+      },
+      {
+        "capabilityId": "CAP_TARGET_STATE_EXTENDED_FIELD",
+        "blockedUnits": 2,
+        "blockedMemories": 0,
+        "exclusivelyBlockedUnits": 2,
         "exclusivelyBlockedMemories": 0
       }
     ],
     "unreferencedCapabilities": [
       "CAP_EFFECT_RUNTIME_COUNTER",
       "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER",
-      "CAP_EFFECT_STEP_SET_CONDITION",
-      "CAP_SUBUNIT"
+      "CAP_EFFECT_STEP_SET_CONDITION"
     ]
   }
 }

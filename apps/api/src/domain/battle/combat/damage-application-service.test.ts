@@ -2214,6 +2214,9 @@ describe("applyDamageAction hit-level damage event order (DMG-001, Issue #195)",
       defenseIgnoreRate: 0,
       shieldIgnoreRate: 0,
       damageReductionIgnoreRate: 0,
+      // R-DMG-04（DMG-002、Issue #192）: どちらも`APPLY_DAMAGE_MOD`不在で1倍。
+      outgoingDamageMultiplier: 1,
+      incomingDamageMultiplier: 1,
     });
     // TIMINGイベントは状態変更を表さない（`08_ドメインイベント.md`「FACTイベントは、
     // 表す状態変更が確定した後に発行する」の裏返し）。

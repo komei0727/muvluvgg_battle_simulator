@@ -2,52 +2,90 @@
   {
     "skillDefinitionId": "SKL_KEI_JACKKNIFE_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [],
-    "metadata": { "displayName": "突撃前衛", "tags": [] }
+    "metadata": {
+      "displayName": "突撃前衛",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_KEI_JACKKNIFE_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_THREE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 3,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_NEAREST",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST"]
+          }
         },
         {
           "targetBindingId": "TGT_ADJACENT",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_NEAREST"
+            },
+            "area": {
+              "kind": "ADJACENT_ORTHOGONAL"
+            },
             "side": "ENEMY"
           }
         }
@@ -55,40 +93,79 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_THREE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE_ADJACENT" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ADJACENT"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_DAMAGE_ADJACENT"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_MARKER" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS1_MARKER"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 2 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "ウルフズショット", "tags": [] }
+    "metadata": {
+      "displayName": "ウルフズショット",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_KEI_JACKKNIFE_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         },
         {
           "targetBindingId": "TGT_THREE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 3,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
@@ -96,54 +173,94 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": { "kind": "SELF" },
+            "target": {
+              "kind": "SELF"
+            },
             "markerId": "MARKER_ROUSHIN"
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE_BOOSTED" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_THREE"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE_BOOSTED"
+                }
+              ]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_AS2_DAMAGE"
+                }
+              ]
             }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
-    "metadata": { "displayName": "ウルフズスラッシュ", "tags": [] }
+    "metadata": {
+      "displayName": "ウルフズスラッシュ",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_KEI_JACKKNIFE_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_MAXHP_UP" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_MAXHP_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
-    "metadata": { "displayName": "応急防御", "tags": [] },
+    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DAMAGE_MOD"],
+    "metadata": {
+      "displayName": "応急防御",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnStarted",
@@ -182,22 +299,37 @@
   {
     "skillDefinitionId": "SKL_KEI_JACKKNIFE_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS2_DAMAGE" }]
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_PS2_DAMAGE"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "勝機の直感", "tags": [] },
+    "metadata": {
+      "displayName": "勝機の直感",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "EffectApplied",
@@ -207,10 +339,27 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "DEBUFF" },
-            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
-            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
-            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "categories",
+              "op": "CONTAINS",
+              "value": "DEBUFF"
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "BATTLE_START",
+              "negate": true
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "TURN_START",
+              "negate": true
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "TURN_END",
+              "negate": true
+            }
           ]
         }
       }

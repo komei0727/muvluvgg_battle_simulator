@@ -132,10 +132,25 @@
   {
     "capabilityId": "CAP_DAMAGE_MOD",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-002",
-    "description": "与ダメージ・被ダメージ補正",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "与ダメージ・被ダメージ補正（R-DMG-04）。DMG-002（Issue #192）が`APPLY_DAMAGE_MOD`の実ライフサイクル配線（`effect-action-group-resolver.ts`が`AppliedEffect.damageModifier`へ向き・ダメージタイプ・動的条件を焼き込み、`combat/damage-modifier-policy.ts`がヒットごとに与/被倍率へ集計する）と、`DYNAMIC_DAMAGE_MOD_CONDITION`（保持者・相手のHP割合やMarker所持でヒットごとに成立を判定する`payload.condition`）を実装した。R-DMG-03の`damageReductionIgnoreRate`は、この集計のうち負の被ダメージ補正だけへ適用する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_TATIANA_SAGE_EX_DEBUFF",
+        "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH",
+        "ACT_MAO_COMMITTEE_PS2_DMG_DOWN",
+        "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD",
+        "ACT_KOTOHA_REBEL_PS2_DMG_UP"
+      ],
+      "testCaseIds": [
+        "IT-CAP-DAMAGE-MOD-PROD-001",
+        "IT-CAP-DAMAGE-MOD-PROD-002",
+        "IT-CAP-DAMAGE-MOD-PROD-003",
+        "IT-CAP-DAMAGE-MOD-PROD-004",
+        "IT-CAP-DAMAGE-MOD-PROD-005"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_DEATH_SURVIVAL",
@@ -894,5 +909,13 @@
         "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-003"
       ]
     }
+  },
+  {
+    "capabilityId": "CAP_TARGET_STATE_EXTENDED_FIELD",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "PLANNED",
+    "implementationTaskId": "M7-001E",
+    "description": "`ConditionDefinition.TARGET_STATE`のうち、条件evaluatorがまだ解決できない`field`（`UNIT_TYPE`／`ROLE`はCatalogの`UnitDefinition`参照、`HAS_STATUS`は状態異常追跡が必要）。schema上は受理されるがACTION step条件・trigger条件の評価時点で`DomainValidationError`になる。DMG-002（Issue #192）が`CAP_DAMAGE_MOD`を`IMPLEMENTED`にした際、これらを使うUNIT_LUCIE_MAID・UNIT_MERU_FLATSPIN・UNIT_SHIRANA_SORAが`CAP_DAMAGE_MOD`だけを理由に非selectableだったことが判明したため（golden battle層が実戦闘の失敗として検出した）、実際のブロッカーを表す本Capabilityを新設して宣言漏れを埋めた。担当はM7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）。",
+    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   }
 ]

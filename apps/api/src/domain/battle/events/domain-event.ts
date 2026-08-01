@@ -295,9 +295,10 @@ export interface BattleDomainEventPayloadMap {
    * 同表の「主なpayload」は「発生源、対象、会心、貫通、補正」であり、発生源・対象は
    * イベント封筒の`sourceUnitId`/`targetUnitIds`が、会心（このヒットの確定した会心
    * 結果と倍率）と貫通（`piercing`の3割合）はこのpayloadが持つ。「補正」＝R-DMG-04の
-   * 集計済みDamageModifier倍率だけはこのイベントの発行時点でまだ確定しておらず
-   * （集計自体が`DMG-002`／Issue #192のスコープ）、現時点では`DamageCalculated`の
-   * `actionDamageMultiplier`が唯一の補正情報である。`DMG-002`がここへ追加する。
+   * 集計済みDamageModifier倍率は`DMG-002`（Issue #192）が
+   * `outgoingDamageMultiplier`/`incomingDamageMultiplier`として追加した。ただし
+   * これは**このイベントの発行時点のsnapshot**であり、下の「TIMINGイベント後の再検証」
+   * のとおり連鎖が軽減効果を付け外しし得るため、確定値は`DamageCalculated`側が持つ。
    *
    * `08_ドメインイベント.md`「TIMINGイベント後の再検証」: このイベントに反応した
    * PS/Memoryは対象を戦闘不能にしたり、ダメージ無効・軽減効果を付与したりし得る。
@@ -317,6 +318,13 @@ export interface BattleDomainEventPayloadMap {
     readonly defenseIgnoreRate: number;
     readonly shieldIgnoreRate: number;
     readonly damageReductionIgnoreRate: number;
+    /**
+     * R-DMG-04（DMG-002、Issue #192）: このイベント発行時点で集計した与/被
+     * ダメージ倍率のsnapshot。このイベントを契機とする連鎖が補正を付け外しし得る
+     * ため、実際に計算へ使う確定値は`DamageCalculated`が持つ。
+     */
+    readonly outgoingDamageMultiplier: number;
+    readonly incomingDamageMultiplier: number;
   };
   readonly DamageCalculated: {
     readonly skillDefinitionId: SkillDefinitionId;
@@ -327,10 +335,20 @@ export interface BattleDomainEventPayloadMap {
     readonly defenderDefense: number;
     /** R-DMG-01の実効防御力（`defenderDefense * (1 - defenseIgnoreRate)`）。 */
     readonly effectiveDefense: number;
+    /** R-DMG-03の貫通3割合（DMG-002／Issue #192が3つとも揃えた）。 */
     readonly defenseIgnoreRate: number;
+    readonly shieldIgnoreRate: number;
+    readonly damageReductionIgnoreRate: number;
     readonly skillPower: number;
     readonly attributeMultiplier: number;
     readonly criticalMultiplier: number;
+    /**
+     * R-DMG-01の与ダメージ倍率・被ダメージ倍率（R-DMG-04の集計結果、
+     * DMG-002／Issue #192）。被ダメージ側は`damageReductionIgnoreRate`
+     * （R-DMG-03）を負の補正へ適用した後の値である。
+     */
+    readonly outgoingDamageMultiplier: number;
+    readonly incomingDamageMultiplier: number;
     /** R-DMG-01のAction内追加ダメージ倍率。 */
     readonly actionDamageMultiplier: number;
     /** 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。 */

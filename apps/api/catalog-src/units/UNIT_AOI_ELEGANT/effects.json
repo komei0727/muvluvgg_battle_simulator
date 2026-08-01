@@ -2,16 +2,29 @@
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.802 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.802
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_CD_RESET",
     "kind": "COOLDOWN_MANIPULATION",
-    "payload": { "targetSkillDefinitionId": "SKL_AOI_ELEGANT_PS1", "operation": "RESET" },
+    "payload": {
+      "targetSkillDefinitionId": "SKL_AOI_ELEGANT_PS1",
+      "operation": "RESET"
+    },
     "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN",
@@ -19,54 +32,98 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.15 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.404 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.404
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_AOI_ELEGANT_UKIASHI",
-      "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI",
     "kind": "REMOVE_MARKER",
-    "payload": { "markerId": "MARKER_AOI_ELEGANT_UKIASHI" },
+    "payload": {
+      "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
+    },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_AOI_ELEGANT_KOUYOU",
-      "stack": { "policy": "ADD", "max": null },
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
       "duration": {
         "dispellable": false,
-        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
         "linkedEffectGroupRole": "PARENT",
         "removeOnSourceDefeated": true
       }
     },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN",
@@ -74,17 +131,27 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.25 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.25
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": false,
-        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
         "linkedEffectGroupRole": "CHILD"
       }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
@@ -93,41 +160,68 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
         "ratio": 0.375
       },
-      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
       "duration": {
         "dispellable": false,
-        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
         "linkedEffectGroupRole": "CHILD"
       }
     },
     "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.848
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_AOI_ELEGANT_UKIASHI",
-      "stack": { "policy": "ADD", "max": null },
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
+        }
       }
     },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE",
@@ -139,12 +233,16 @@
         "formulas": [
           {
             "kind": "CURRENT_HP_RATIO",
-            "source": { "kind": "TARGET" },
+            "source": {
+              "kind": "TARGET"
+            },
             "ratio": 0.2
           },
           {
             "kind": "STAT_RATIO",
-            "source": { "kind": "SKILL_SOURCE" },
+            "source": {
+              "kind": "SKILL_SOURCE"
+            },
             "stat": "ATTACK",
             "ratio": 0.5
           }
@@ -152,14 +250,24 @@
       }
     },
     "requiredCapabilities": ["CAP_FORMULA"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.794 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.794
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_ATK_DOWN",
@@ -167,12 +275,25 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.35 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.35
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CRIT_RATE_DOWN",
@@ -180,12 +301,25 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.075 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.075
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN",
@@ -193,23 +327,47 @@
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.25 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.25
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_MARKER_UKIASHI",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_AOI_ELEGANT_UKIASHI",
-      "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD",
@@ -217,18 +375,40 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -0.4 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.4
+      },
+      "condition": {
+        "kind": "UNIT_HAS_MARKER",
+        "unit": "OPPONENT",
+        "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU",
     "kind": "REMOVE_MARKER",
-    "payload": { "markerId": "MARKER_AOI_ELEGANT_KOUYOU" },
+    "payload": {
+      "markerId": "MARKER_AOI_ELEGANT_KOUYOU"
+    },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

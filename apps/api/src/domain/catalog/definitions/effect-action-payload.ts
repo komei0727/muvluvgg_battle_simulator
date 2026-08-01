@@ -13,6 +13,7 @@ import type {
   StatKind,
 } from "./catalog-enums.js";
 import type { EffectActionDefinitionId, MarkerId, SkillDefinitionId } from "./catalog-ids.js";
+import type { JsonPrimitive, MarkerCountCondition } from "./condition-definition.js";
 import type { DurationDefinition } from "./duration-definition.js";
 import type { FormulaDefinition } from "./formula-definition.js";
 import type { TargetReference } from "./references.js";
@@ -143,10 +144,92 @@ export interface ApplyStatModPayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * `DYNAMIC_DAMAGE_MOD_CONDITION`（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD`が
+ * 「どのユニットの状態を見るか」を表す参照。R-DMG-04の集計はヒット1件の
+ * 攻撃側・防御側の2体だけを文脈に持つため、汎用の`TargetReference`
+ * （`BINDING`/`TRIGGER_SOURCE`等、付与時点にしか存在しない解決文脈を要する）
+ * ではなくこの2値に限定する。
+ *
+ * - `EFFECT_OWNER`: この補正を保持しているユニット自身（`INCOMING`なら防御側、
+ *   `OUTGOING`なら攻撃側）。
+ * - `OPPONENT`: そのヒットにおける相手側（`INCOMING`なら攻撃側、`OUTGOING`なら
+ *   攻撃対象）。
+ */
+export const DAMAGE_MOD_UNIT_REFERENCES = ["EFFECT_OWNER", "OPPONENT"] as const;
+export type DamageModUnitReference = (typeof DAMAGE_MOD_UNIT_REFERENCES)[number];
+
+/**
+ * `UNIT_STATE`が参照できる`BattleUnit`のフィールド。`TargetStateField`の部分集合で、
+ * `UnitDefinition`参照（`UNIT_TYPE`/`ROLE`）と未実装の状態異常追跡（`HAS_STATUS`）を
+ * 除く — ダメージ解決時点（`domain/battle/combat`）ではCatalogの`unitDefinitions`
+ * マップを引けないため、受理しても評価できない値を型から外す。
+ */
+export const DAMAGE_MOD_STATE_FIELDS = [
+  "IS_ALIVE",
+  "HP_RATIO",
+  "ATTRIBUTE",
+  "POSITION_ROW",
+  "POSITION_COLUMN",
+  "RESOURCE_AP",
+  "RESOURCE_PP",
+  "RESOURCE_EX_GAUGE",
+] as const;
+export type DamageModStateField = (typeof DAMAGE_MOD_STATE_FIELDS)[number];
+
+/**
+ * `DYNAMIC_DAMAGE_MOD_CONDITION`（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD`が
+ * 「どの攻撃に対して補正が成立するか」をヒットごとに動的評価するための条件。
+ * `ConditionDefinition`（EffectStep用）とは別の型にしている — あちらの
+ * `TargetReference`はEffectSequence解決中のTargetBinding・トリガーcontextを
+ * 前提とするが、ここでは補正が付与された「後」の、無関係なスキル解決中の
+ * ヒットで評価するため、それらの参照は原理的に解決できない。
+ *
+ * production由来の必要形は4つ:
+ * - `SKL_KEI_JACKKNIFE_PS1`「自身のHPが最大HPの65%以上の場合にのみ」→ `UNIT_STATE`
+ * - `SKL_AOI_ELEGANT_PS2`／`SKL_OLGA_VETERAN_AS2`「Xを所持している敵から受ける攻撃」
+ *   → `UNIT_HAS_MARKER`
+ * - `SKL_JULIE_SNOW_PS1`「自分よりもHP割合が高い相手から攻撃された場合にのみ」／
+ *   `SKL_KOTOHA_REBEL_PS2`「対象のHP割合が自身より低い敵に対してのみ」
+ *   → `HP_RATIO_COMPARISON`
+ */
+export type DamageModConditionDefinition =
+  | { readonly kind: "TRUE" }
+  | {
+      readonly kind: "AND" | "OR";
+      readonly conditions: readonly DamageModConditionDefinition[];
+    }
+  | { readonly kind: "NOT"; readonly condition: DamageModConditionDefinition }
+  | {
+      readonly kind: "UNIT_STATE";
+      readonly unit: DamageModUnitReference;
+      readonly field: DamageModStateField;
+      readonly op: ComparisonOperator;
+      readonly value: JsonPrimitive;
+    }
+  | {
+      readonly kind: "UNIT_HAS_MARKER";
+      readonly unit: DamageModUnitReference;
+      readonly markerId: MarkerId;
+      readonly countCondition?: MarkerCountCondition;
+    }
+  | {
+      readonly kind: "HP_RATIO_COMPARISON";
+      readonly left: DamageModUnitReference;
+      readonly op: ComparisonOperator;
+      readonly right: DamageModUnitReference;
+    };
+
 export interface ApplyDamageModPayload {
   readonly direction: DamageModDirection;
   readonly damageType: DamageType | null;
   readonly formula: FormulaDefinition;
+  /**
+   * `DYNAMIC_DAMAGE_MOD_CONDITION`（DMG-002、Issue #192）: 省略時は常に成立
+   * （無条件の与/被ダメージ補正）。指定時は、この補正を集計するヒットごとに
+   * 評価し、成立したヒットにだけ`formula`の評価結果を加算する。
+   */
+  readonly condition?: DamageModConditionDefinition;
   readonly stacking: { readonly mode: "STACKABLE" };
   readonly duration: DurationDefinition;
 }
