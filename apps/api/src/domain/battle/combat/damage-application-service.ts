@@ -66,6 +66,15 @@ export interface ApplyDamageActionResult {
    */
   readonly interruptedCount: number;
   /**
+   * PR #289再々レビュー[P2]: 使用者の戦闘不能で未解決の効果を残したまま打ち切った
+   * 場合`true`。`interruptedCount`とは別に持つ（HEALの`ApplyHealActionResult.
+   * interrupted`と同じ理由）— R-SUB-02のサブユニット追加ヒットは`hits`に含まれない
+   * ため、追加ヒットの解決中に使用者が戦闘不能になっても`interruptedCount`は0のまま
+   * になり、そのままでは`effect-action-group-resolver.ts`が`EffectActionCompleted`を
+   * `APPLIED`として発行して後続stepまで進んでしまう。
+   */
+  readonly interrupted: boolean;
+  /**
    * PR #142レビュー[P2]: このEffectAction適用中に実際に記録された最後の
    * イベントID（最終ヒットの`DamageApplied`、致死なら`UnitDefeated`）。
    * 呼び出し側が`EffectActionCompleted.parentEventId`をこれへ設定することで、
@@ -1412,6 +1421,16 @@ function* applyConfirmedDamageSteps(
 }
 
 /**
+ * `applySubUnitAdditionalDamageSteps`の結果。`interrupted`は使用者の戦闘不能で追加
+ * ヒットを未解決のまま残したことを表し、`ApplyDamageActionResult.interrupted`へ伝わる
+ * （追加ヒットは`hits`に含まれないため`interruptedCount`では表せない）。
+ */
+interface SubUnitAdditionalDamageResult {
+  readonly lastEventId: DomainEventId;
+  readonly interrupted: boolean;
+}
+
+/**
  * R-SUB-02（DMG-005、Issue #190）: 1つのDAMAGE EffectActionの解決が終わった直後に、
  * 使用者が保持するサブユニットの追加ダメージを解決する。
  *
@@ -1444,18 +1463,22 @@ function* applySubUnitAdditionalDamageSteps(
   damageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }>,
   interrupted: boolean,
   parentEventId: DomainEventId,
-): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+): Generator<DamageStep, SubUnitAdditionalDamageResult, readonly BattleUnit[] | undefined> {
   let lastEventId = parentEventId;
   if (interrupted) {
-    return lastEventId;
+    // 元のヒット列が既に中断されている（`interruptedCount`が表す）。
+    return { lastEventId, interrupted: false };
   }
   const attacker = working.get(attackerUnitId);
-  if (attacker === undefined || isDefeated(attacker)) {
-    return lastEventId;
-  }
-  const sources = subUnitAdditionalDamageSources(attacker);
+  const sources = attacker === undefined ? [] : subUnitAdditionalDamageSources(attacker);
   if (sources.length === 0) {
-    return lastEventId;
+    // サブユニットを保持していなければ未解決の追加ヒットも存在しない。
+    return { lastEventId, interrupted: false };
+  }
+  if (attacker === undefined || isDefeated(attacker)) {
+    // PR #289再々レビュー[P2]: 最後のヒットの連鎖で使用者が戦闘不能になった場合、
+    // 追加ヒットは未解決のまま残る（R-SKL-01「未解決効果を中断する」）。
+    return { lastEventId, interrupted: true };
   }
   // 「所持者の**攻撃対象**ごとに」（R-SUB-02第1項）が数えるのは、その攻撃が誰を
   // 狙ったかであって、攻撃自身のヒットが通ったかではない — 追加ダメージは独立した
@@ -1473,7 +1496,7 @@ function* applySubUnitAdditionalDamageSteps(
     for (const source of sources) {
       const owner = working.get(attackerUnitId);
       if (owner === undefined || isDefeated(owner)) {
-        return lastEventId;
+        return { lastEventId, interrupted: true };
       }
       const target = working.get(targetUnitId);
       if (target === undefined || isDefeated(target)) {
@@ -1491,7 +1514,7 @@ function* applySubUnitAdditionalDamageSteps(
       }
       const hitIndex = additionalHitIndex;
       additionalHitIndex += 1;
-      lastEventId = yield* applyOneSubUnitAdditionalDamageSteps(
+      const additionalHit = yield* applyOneSubUnitAdditionalDamageSteps(
         context,
         working,
         random,
@@ -1517,9 +1540,15 @@ function* applySubUnitAdditionalDamageSteps(
         },
         lastEventId,
       );
+      lastEventId = additionalHit.lastEventId;
+      // PR #289再々レビュー[P2]: 追加ヒット自身の観測・吸収連鎖で使用者が戦闘不能に
+      // なった場合も、残る追加ヒットを解決せずここで打ち切る（R-SKL-01）。
+      if (additionalHit.kind === "INTERRUPT") {
+        return { lastEventId, interrupted: true };
+      }
     }
   }
-  return lastEventId;
+  return { lastEventId, interrupted: false };
 }
 
 /**
@@ -1554,7 +1583,7 @@ function* applyOneSubUnitAdditionalDamageSteps(
   source: SubUnitAdditionalDamageSource,
   profile: HitObservationProfile,
   parentEventId: DomainEventId,
-): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
   const observation = yield* observeHitSteps(
     context,
     working,
@@ -1565,7 +1594,7 @@ function* applyOneSubUnitAdditionalDamageSteps(
     parentEventId,
   );
   if (observation.kind !== "CONFIRMED") {
-    return observation.lastEventId;
+    return { kind: observation.kind, lastEventId: observation.lastEventId };
   }
   const owner = observation.attacker;
   const target = observation.target;
@@ -1660,7 +1689,7 @@ function* applyOneSubUnitAdditionalDamageSteps(
   );
   let lastEventId = application.lastEventId;
   if (application.kind !== "APPLIED") {
-    return lastEventId;
+    return { kind: application.kind, lastEventId };
   }
 
   // R-SUB-02第3項「追加デバフが定義されている場合も対象ごとに適用する」。
@@ -1677,7 +1706,8 @@ function* applyOneSubUnitAdditionalDamageSteps(
   if (debuff !== undefined && context.grantSubUnitAdditionalDamageDebuff !== undefined) {
     const beforeDebuff = revalidateHit(context, working, owner.battleUnitId, target.battleUnitId);
     if (beforeDebuff.kind !== "CONTINUE") {
-      return lastEventId;
+      // 使用者の戦闘不能はこの攻撃の残りの追加ヒットも中断させる（R-SKL-01）。
+      return { kind: beforeDebuff.kind, lastEventId };
     }
     const granted = yield* driveRemovalSteps(
       context,
@@ -1692,7 +1722,7 @@ function* applyOneSubUnitAdditionalDamageSteps(
     );
     lastEventId = granted.lastEventId;
   }
-  return lastEventId;
+  return { kind: "APPLIED", lastEventId };
 }
 
 /**
@@ -1752,6 +1782,9 @@ export function* applyDamageActionSteps(
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
   let interruptedCount = 0;
+  // R-SKL-01: 使用者の戦闘不能で未解決の効果を残したかどうか。`hits`に含まれない
+  // サブユニット追加ヒット（R-SUB-02）の中断も表せるよう`interruptedCount`とは別に持つ。
+  let interrupted = false;
   let lastEventId = context.parentEventId;
 
   for (let i = 0; i < hits.length; i++) {
@@ -1761,6 +1794,7 @@ export function* applyDamageActionSteps(
     // R-SKL-01/R-SKL-03: 使用者が戦闘不能になったら残りの未解決ヒットを中断する。
     if (isDefeated(currentAttacker)) {
       interruptedCount = hits.length - i;
+      interrupted = true;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
@@ -1806,6 +1840,7 @@ export function* applyDamageActionSteps(
     lastEventId = observation.lastEventId;
     if (observation.kind === "INTERRUPT") {
       interruptedCount = hits.length - i;
+      interrupted = true;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
@@ -2046,6 +2081,7 @@ export function* applyDamageActionSteps(
     // 戦闘不能はこのヒットだけを不成立にする（R-ACTN-01 #2）。
     if (application.kind === "INTERRUPT") {
       interruptedCount = hits.length - i;
+      interrupted = true;
       outcomes.push(...hits.slice(i).map(skip));
       break;
     }
@@ -2067,16 +2103,20 @@ export function* applyDamageActionSteps(
   // 攻撃の対象ごとに追加ダメージを1ヒットずつ加える。全ヒットの解決が終わった
   // この時点で行うのは、R-SUB-02が数える単位が「ヒット」ではなく「攻撃対象」
   // だからである（5ヒット単体攻撃でも追加ダメージは1回、2体攻撃なら各1回）。
-  lastEventId = yield* applySubUnitAdditionalDamageSteps(
+  const additional = yield* applySubUnitAdditionalDamageSteps(
     context,
     working,
     random,
     attacker.battleUnitId,
     outcomes,
     damageAction,
-    interruptedCount > 0,
+    interrupted,
     lastEventId,
   );
+  lastEventId = additional.lastEventId;
+  // PR #289再々レビュー[P2]: 追加ヒットは`hits`に含まれないため`interruptedCount`へは
+  // 足せない。中断の事実だけを`interrupted`として外側へ伝える。
+  interrupted = interrupted || additional.interrupted;
 
   // レビュー再々指摘[P1]（PR #209）: `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`
   // の消費で0になったインスタンスは、このEffectAction（全ヒット）の解決が
@@ -2099,6 +2139,7 @@ export function* applyDamageActionSteps(
     units: units.map((unit) => working.get(unit.battleUnitId)!),
     hits: outcomes,
     interruptedCount,
+    interrupted,
     lastEventId,
   };
 }

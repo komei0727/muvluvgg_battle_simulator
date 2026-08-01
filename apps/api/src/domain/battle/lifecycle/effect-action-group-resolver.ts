@@ -835,9 +835,14 @@ function* resolveOneEffectActionApplication(
     resolvedCount = application.hits.length - damageResult.interruptedCount;
     interruptedCount = damageResult.interruptedCount;
     effectLastEventId = damageResult.lastEventId;
+    // PR #289再々レビュー[P2]: 中断の判定は`interruptedCount > 0`ではなく
+    // `interrupted`を見る。R-SUB-02のサブユニット追加ヒットは`application.hits`に
+    // 含まれないため、追加ヒットの解決中に使用者が戦闘不能になっても
+    // `interruptedCount`は0のままであり、そのままでは`APPLIED`として後続stepまで
+    // 進んでしまう（HEALの`healResult.interrupted`と同じ扱い）。
     resultKind = damageResultKind(
       targetAlreadyDefeated,
-      damageResult.interruptedCount > 0,
+      damageResult.interrupted,
       damageResult.hits.some((hit) => hit.applied),
     );
   } else if (effectAction.kind === "COOLDOWN_MANIPULATION") {
