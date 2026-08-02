@@ -1597,6 +1597,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DMG-03-021",
       "UT-R-DMG-03-022",
       "UT-R-DMG-03-023",
+      // PR #296レビュー[P1]: 合成結果が`DamageWillBeApplied`のsnapshotだけで
+      // なく確定計算（`DamageCalculated`の`effectiveDefense`）まで届くことを
+      // 直接固定する（合成関数そのものではなく配線の回帰テスト）。
+      "UT-R-DMG-03-024",
       "IT-CAP-PARTIAL-PIERCING-PROD-001",
       "IT-CAP-PARTIAL-PIERCING-PROD-002",
       "IT-CAP-PARTIAL-PIERCING-PROD-003",

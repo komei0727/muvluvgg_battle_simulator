@@ -236,7 +236,7 @@ describe("production Catalog CAP_PARTIAL_PIERCING — APPLY_PIERCING_MOD (DMG-00
     const psSkill = ramiSnapshot.skills.get("SKL_RAMI_NEWYEAR_PS1" as never)!;
     const attackSkill = ramiSnapshot.skills.get("SKL_RAMI_NEWYEAR_AS3" as never)!;
 
-    const damageDealt = (withGrant: boolean, scope: string): number => {
+    const damageDealt = (withGrant: boolean, scope: string) => {
       const actor = unitOf("ALLY", "rami", "UNIT_RAMI_NEWYEAR" as never, {
         column: "LEFT",
         row: "FRONT",
@@ -252,39 +252,93 @@ describe("production Catalog CAP_PARTIAL_PIERCING — APPLY_PIERCING_MOD (DMG-00
       let allUnits: readonly BattleUnit[] = [actor, enemy];
       const { recorder, rootEventId } = seedRecorder(scope);
 
-      if (withGrant) {
-        const definitions = definitionsFor(
-          ramiSnapshot.effectActions,
-          "SKL_RAMI_NEWYEAR_PS1",
-          psSkill,
-        );
-        const plan = resolveSkillOrder(psSkill, actor, allUnits, definitions.effectActions);
-        const granted = applyEffectActionGroups(plan, allUnits, {
-          ...contextFor(actor, "SKL_RAMI_NEWYEAR_PS1", definitions, recorder, rootEventId),
-          random: new SequenceRandomSource(new Array<number>(64).fill(0)),
-        });
-        allUnits = granted.units;
-      }
-
-      const attacker = allUnits.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      // PR #296レビュー[P1]: 対照は「PSを走らせたか」ではなく「一時貫与が
+      // 残っているか」だけで切り替える。同じPSは`ACT_RAMI_NEWYEAR_PS1_DMG_UP`
+      // （与ダメージ+20%）も必ず付与するため、PS実行そのものを対照にすると
+      // 貫通が一切効いていなくてもダメージ差が出てしまい、貫通の配線漏れを
+      // 検出できない。両方でPSを完走させ、対照側からは貫通インスタンス1件
+      // だけを取り除く。
       const definitions = definitionsFor(
+        ramiSnapshot.effectActions,
+        "SKL_RAMI_NEWYEAR_PS1",
+        psSkill,
+      );
+      const plan = resolveSkillOrder(psSkill, actor, allUnits, definitions.effectActions);
+      const granted = applyEffectActionGroups(plan, allUnits, {
+        ...contextFor(actor, "SKL_RAMI_NEWYEAR_PS1", definitions, recorder, rootEventId),
+        random: new SequenceRandomSource(new Array<number>(64).fill(0)),
+      });
+      allUnits = granted.units.map((unit) =>
+        unit.battleUnitId !== actor.battleUnitId || withGrant
+          ? unit
+          : {
+              ...unit,
+              appliedEffects: unit.appliedEffects.filter(
+                (e) => e.effectActionDefinitionId !== "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI",
+              ),
+            },
+      );
+      const holder = allUnits.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(
+        holder.appliedEffects.some(
+          (e) => e.effectActionDefinitionId === "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI",
+        ),
+      ).toBe(withGrant);
+      // 貫通以外の付与（与ダメージ+20%）は両側に等しく残っている。
+      expect(
+        holder.appliedEffects.filter(
+          (e) => e.effectActionDefinitionId === "ACT_RAMI_NEWYEAR_PS1_DMG_UP",
+        ),
+      ).toHaveLength(1);
+
+      const attacker = holder;
+      const attackDefinitions = definitionsFor(
         ramiSnapshot.effectActions,
         "SKL_RAMI_NEWYEAR_AS3",
         attackSkill,
       );
-      const plan = resolveSkillOrder(attackSkill, attacker, allUnits, definitions.effectActions);
-      const result = applyEffectActionGroups(
-        plan,
+      const attackPlan = resolveSkillOrder(
+        attackSkill,
+        attacker,
         allUnits,
-        contextFor(attacker, "SKL_RAMI_NEWYEAR_AS3", definitions, recorder, rootEventId),
+        attackDefinitions.effectActions,
+      );
+      const result = applyEffectActionGroups(
+        attackPlan,
+        allUnits,
+        contextFor(attacker, "SKL_RAMI_NEWYEAR_AS3", attackDefinitions, recorder, rootEventId),
       );
       const after = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
-      return enemy.currentHp - after.currentHp;
+      // PR #296レビュー[P1]: `DamageWillBeApplied`（snapshot）ではなく
+      // `DamageCalculated`（確定値）を見る。前者にしか合成率が現れず実計算が
+      // 静的値のままだった、というのが指摘された不具合の形である。
+      const calculated = recorder
+        .getEvents()
+        .filter(
+          (e) =>
+            e.eventType === "DamageCalculated" &&
+            (e.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+              "ACT_RAMI_NEWYEAR_AS3_DAMAGE",
+        )
+        .map((e) => e.payload as { defenseIgnoreRate: number; effectiveDefense: number });
+      return { damage: enemy.currentHp - after.currentHp, calculated, enemy };
     };
 
     const withPiercing = damageDealt(true, "B_RAMI_PIERCE_ON");
     const withoutPiercing = damageDealt(false, "B_RAMI_PIERCE_OFF");
-    expect(withPiercing).toBeGreaterThan(withoutPiercing);
+    expect(withPiercing.damage).toBeGreaterThan(withoutPiercing.damage);
+
+    // 一時貫通が確定計算へ届いている: 防御力200 → 実効防御100（50%無視）。
+    expect(withPiercing.calculated.length).toBeGreaterThan(0);
+    for (const payload of withPiercing.calculated) {
+      expect(payload.defenseIgnoreRate).toBe(0.5);
+      expect(payload.effectiveDefense).toBe(withPiercing.enemy.combatStats.defense * 0.5);
+    }
+    // 対照側は静的値（貫通なし）のまま。
+    for (const payload of withoutPiercing.calculated) {
+      expect(payload.defenseIgnoreRate).toBe(0);
+      expect(payload.effectiveDefense).toBe(withoutPiercing.enemy.combatStats.defense);
+    }
   });
 
   it("IT-CAP-PARTIAL-PIERCING-PROD-003: the static piercing side (ACT_EVIE_KYONSHI_EX_DAMAGE) keeps declaring CAP_PARTIAL_PIERCING and its 50% defense/shield ignore", () => {

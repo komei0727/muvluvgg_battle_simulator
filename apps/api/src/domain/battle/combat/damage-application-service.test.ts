@@ -2536,6 +2536,61 @@ describe("applyDamageAction shield absorption (DMG-004, Issue #194, R-SHD-01/02/
     });
   });
 
+  it("UT-R-DMG-03-024 (TEMP_PIERCING_GRANT, DMG-003/Issue #196, PR #296 review [P1]): an APPLY_PIERCING_MOD the attacker holds reaches the confirmed calculation, not only the DamageWillBeApplied snapshot", () => {
+    const context = damageEventContext();
+    // 一時貫通の保持者。定義自身の`payload.piercing`はすべて0のため、実効防御が
+    // 下がったならそれは合成された一時貫通が確定計算まで届いた証拠にしかならない。
+    const grantId = createEffectActionDefinitionId("ACT_TEMP_PIERCE");
+    const bareAttacker = unit("ATTACKER", "ALLY", { attack: 200 });
+    const attacker: BattleUnit = {
+      ...bareAttacker,
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("TEMP_PIERCE"),
+          effectActionDefinitionId: grantId,
+          kindKey: effectKindKeyFromDefinitionId(grantId),
+          duplicate: true,
+          targetId: bareAttacker.battleUnitId,
+          magnitude: 0,
+          categories: ["BUFF"],
+          piercing: {
+            defenseIgnoreRate: 0.5,
+            shieldIgnoreRate: 0,
+            damageReductionIgnoreRate: 0,
+          },
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 100 });
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // R-DMG-05の順序どおり `DamageWillBeApplied`（snapshot）→ `DamageCalculated`
+    // （確定値）。両方が合成後の率を持つことを要求する — 前者だけに現れて
+    // 実計算が静的値のまま、というのがレビューで指摘された不具合の形である。
+    const willBeApplied = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageWillBeApplied")!;
+    expect(willBeApplied.payload).toMatchObject({ defenseIgnoreRate: 0.5 });
+    const calculated = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageCalculated")!;
+    expect(calculated.payload).toMatchObject({
+      defenseIgnoreRate: 0.5,
+      defenderDefense: 100,
+      effectiveDefense: 50,
+    });
+  });
+
   it("UT-R-SHD-01-005: expires a shield instance whose remaining amount reaches zero", () => {
     const context = damageEventContext();
     const attacker = unit("ATTACKER", "ALLY", { attack: 40 });
