@@ -38,7 +38,7 @@ Ask only when ambiguity would materially change behavior. Treat `Q-*` items mark
 ## Prepare the branch
 
 1. Fetch the base branch after confirming the worktree is safe.
-2. Create `.claude/issue-<number>-<short-slug>` from the intended base.
+2. Create `claude/issue-<number>-<short-slug>` from the intended base (a leading dot would make the ref name invalid).
 3. Never discard, reset, or overwrite user changes.
 
 ## Implement test-first (TDD Red → Green)

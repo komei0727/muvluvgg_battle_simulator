@@ -17,11 +17,7 @@ Closes #<issue>
 
 - Red: `<focused command>` — failed because <expected reason>
 - Green: `<focused command>`
-- `mise run format-check`
-- `mise run typecheck`
-- `mise run lint`
-- `mise run test`
-- `mise run build`
+- `bash scripts/run-quality-gates.sh` — <exit code, platform, and any platform-conditional skip (e.g. ui:e2e:visual off Linux)>
 
 ## Documentation and contracts
 
