@@ -58,6 +58,7 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_CONTINUOUS_HEAL_TIMING",
   "UNSUPPORTED_CONTINUOUS_DAMAGE_TIMING",
   "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
+  "UNSUPPORTED_DEFENSIVE_INTERVENTION",
   "UNSUPPORTED_DYNAMIC_DURATION_REAPPLY",
   "UNSUPPORTED_SOURCE_DEFEATED_REMOVAL",
   "MISSING_PRECEDING_RESULT",
@@ -1745,6 +1746,12 @@ function validateEffectAction(
       });
     }
   }
+  // R-INT-01〜03（DMG-006、Issue #188）: 防御介入系4kindの未実装バリエーションを、
+  // `APPLY_HEALING_LINK`の`transferTo`とまったく同じ理由でCatalogロード時点で拒否する。
+  // どれも「`EffectApplied`としては成功するが介入が一度も成立しない」silent partial
+  // implementationになるため、Capabilityだけでは隔離できない。併せて対応Capabilityの
+  // 宣言も必須にする（`COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体を拒否する」パターン）。
+  collectDefensiveInterventionViolations(effectAction, violations);
   // PR #210再レビュー[P2]: `marker-duration.ts`はACTION/TURN単位のDuration
   // 減算だけを実装する（`BATTLE`は本来減算不要のため対象外扱いで問題ない）。
   // `consumption`（消費条件）・`expiration`（特殊失効条件）・`HIT`/`SKILL_USE`
@@ -1872,6 +1879,90 @@ function validateEffectAction(
  * 同じ網羅的`switch`とし、新しいkindの追加時にこの関数の更新漏れをコンパイル
  * エラーとして検出する。
  */
+/**
+ * R-INT-01〜03（DMG-006、Issue #188）: 防御介入系4kindが実装済みの形だけを宣言している
+ * ことを検証する。実装は次に限られ、いずれもproduction Catalogの全行がこの形である。
+ *
+ * - `APPLY_TARGET_REDIRECT.redirectTo` / `APPLY_COVER.coverer`: `SELF`（付与時点で
+ *   解決してインスタンスへ焼き込む、`APPLY_HEALING_LINK.transferTo`と同じ制限）
+ * - `APPLY_COVER.damageShareRate`: `1`（R-INT-02第1項「防御側を肩代わり者へ変更する」。
+ *   1未満は1ヒットを2体へ分割適用することになり、R-INT-02が規定しない）
+ * - `APPLY_REFLECT.reflectTo`: `TRIGGER_SOURCE`（R-INT-03の反射先＝元ダメージの攻撃者）
+ * - `APPLY_REFLECT.allowRecursiveReflect`: `false`（R-INT-03第2項「反射からさらに
+ *   反射を発生させない」）
+ * - `APPLY_DEATH_SURVIVAL.trigger.lethalDamageOnly`: `true`（R-INT-01 #5の致死耐えは
+ *   HPが0へ落ちる量が確定した時点でだけ成立する）
+ */
+function collectDefensiveInterventionViolations(
+  effectAction: EffectActionDefinition,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const targetId = effectAction.effectActionDefinitionId;
+  const requireCapability = (capabilityId: string): void => {
+    if (!effectAction.requiredCapabilities.some((id) => id === capabilityId)) {
+      violations.push({
+        targetId,
+        rule: "MISSING_REQUIRED_CAPABILITY",
+        message: `${effectAction.kind} must declare "${capabilityId}" in requiredCapabilities`,
+      });
+    }
+  };
+  const unsupported = (message: string): void => {
+    violations.push({ targetId, rule: "UNSUPPORTED_DEFENSIVE_INTERVENTION", message });
+  };
+
+  switch (effectAction.kind) {
+    case "APPLY_TARGET_REDIRECT": {
+      requireCapability("CAP_TARGET_REDIRECT");
+      if (effectAction.payload.redirectTo.kind !== "SELF") {
+        unsupported(
+          `APPLY_TARGET_REDIRECT only implements redirectTo {kind: "SELF"} (R-INT-01, DMG-006), received {kind: "${effectAction.payload.redirectTo.kind}"}`,
+        );
+      }
+      return;
+    }
+    case "APPLY_COVER": {
+      requireCapability("CAP_COVER_DAMAGE");
+      if (effectAction.payload.coverer.kind !== "SELF") {
+        unsupported(
+          `APPLY_COVER only implements coverer {kind: "SELF"} (R-INT-02, DMG-006), received {kind: "${effectAction.payload.coverer.kind}"}`,
+        );
+      }
+      if (effectAction.payload.damageShareRate !== 1) {
+        unsupported(
+          `APPLY_COVER only implements damageShareRate 1 (R-INT-02 replaces the defender itself; a partial share would split one hit across two defenders, which R-INT-02 does not define), received ${effectAction.payload.damageShareRate}`,
+        );
+      }
+      return;
+    }
+    case "APPLY_REFLECT": {
+      requireCapability("CAP_REFLECT_DAMAGE");
+      if (effectAction.payload.reflectTo.kind !== "TRIGGER_SOURCE") {
+        unsupported(
+          `APPLY_REFLECT only implements reflectTo {kind: "TRIGGER_SOURCE"} (R-INT-03, DMG-006), received {kind: "${effectAction.payload.reflectTo.kind}"}`,
+        );
+      }
+      if (effectAction.payload.allowRecursiveReflect) {
+        unsupported(
+          'APPLY_REFLECT only implements allowRecursiveReflect false (R-INT-03 "反射からさらに反射を発生させない")',
+        );
+      }
+      return;
+    }
+    case "APPLY_DEATH_SURVIVAL": {
+      requireCapability("CAP_DEATH_SURVIVAL");
+      if (!effectAction.payload.trigger.lethalDamageOnly) {
+        unsupported(
+          "APPLY_DEATH_SURVIVAL only implements trigger.lethalDamageOnly true (R-INT-01 #5 resolves the survival at the moment HP would reach 0)",
+        );
+      }
+      return;
+    }
+    default:
+      return;
+  }
+}
+
 function formulasOf(effectAction: EffectActionDefinition): readonly FormulaDefinition[] {
   switch (effectAction.kind) {
     case "DAMAGE":

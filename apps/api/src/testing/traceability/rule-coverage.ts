@@ -1847,9 +1847,56 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // INT: 防御介入
-  { ruleId: "R-INT-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-INT-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-INT-03", testCaseIds: [], kinds: [] },
+  // DMG-006（Issue #188）: 引き寄せ・肩代わり・反射・致死耐えを実ライフサイクルへ
+  // 配線した。R-INT-01 #3（`APPLY_DAMAGE_LINK`）はDMG-007（Issue #187）のスコープ。
+  {
+    ruleId: "R-INT-01",
+    testCaseIds: [
+      "UT-R-INT-01-001",
+      "UT-R-INT-01-002",
+      "UT-R-INT-01-003",
+      "UT-R-INT-01-004",
+      "UT-R-INT-01-005",
+      "UT-R-INT-01-006",
+      "UT-R-INT-01-007",
+      "UT-R-INT-01-008",
+      "UT-R-INT-01-010",
+      "UT-R-INT-01-011",
+      "UT-R-INT-01-012",
+      "UT-R-INT-01-013",
+      "UT-R-INT-01-014",
+      "IT-CAP-TARGET-REDIRECT-PROD-001",
+      "IT-CAP-TARGET-REDIRECT-PROD-002",
+      "IT-CAP-DEATH-SURVIVAL-PROD-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-INT-02",
+    testCaseIds: [
+      "UT-R-INT-02-001",
+      "UT-R-INT-02-002",
+      "UT-R-INT-02-003",
+      "UT-R-INT-02-004",
+      "UT-R-INT-02-005",
+      "UT-R-INT-02-010",
+      "UT-R-INT-02-011",
+      "IT-CAP-COVER-DAMAGE-PROD-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-INT-03",
+    testCaseIds: [
+      "UT-R-INT-03-001",
+      "UT-R-INT-03-002",
+      "UT-R-INT-03-010",
+      "UT-R-INT-03-011",
+      "UT-R-INT-03-012",
+      "IT-CAP-REFLECT-DAMAGE-PROD-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE"],
+  },
 
   // LNK: リンク
   { ruleId: "R-LNK-01", testCaseIds: [], kinds: [] },

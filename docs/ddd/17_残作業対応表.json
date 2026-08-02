@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 114,
-      "completed": 105,
-      "remaining": 9
+      "completed": 108,
+      "remaining": 6
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 8
+      "incompleteConversionRows": 7
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 0
     },
     "capabilities": {
-      "total": 47,
-      "implemented": 41
+      "total": 48,
+      "implemented": 45
     }
   },
   "tasks": [
@@ -442,7 +442,7 @@
       "issue": 188,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "DMG-007",
@@ -542,10 +542,6 @@
       "ruleIds": ["R-TGT-06"]
     },
     {
-      "taskId": "DMG-006",
-      "ruleIds": ["R-INT-01", "R-INT-02", "R-INT-03"]
-    },
-    {
       "taskId": "DMG-007",
       "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"]
     },
@@ -568,12 +564,6 @@
       "taskId": "DMG-009"
     },
     {
-      "milestone": "M8",
-      "theme": "REFLECT_DAMAGE",
-      "rowCount": 1,
-      "taskId": "DMG-006"
-    },
-    {
       "milestone": "M9",
       "theme": "UNREACHABLE_BRANCH_BY_RAW_DATA",
       "rowCount": 1,
@@ -586,7 +576,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 60,
+      "selectableProductionUnits": 69,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -594,32 +584,11 @@
     },
     "blockingCapabilities": [
       {
-        "capabilityId": "CAP_COVER_DAMAGE",
-        "blockedUnits": 3,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 1,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_DEATH_SURVIVAL",
-        "blockedUnits": 6,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 6,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
         "capabilityId": "CAP_MEMORY_GRANTED_MARKER",
         "blockedUnits": 0,
         "blockedMemories": 1,
         "exclusivelyBlockedUnits": 0,
         "exclusivelyBlockedMemories": 1
-      },
-      {
-        "capabilityId": "CAP_TARGET_REDIRECT",
-        "blockedUnits": 2,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
       }
     ],
     "unreferencedCapabilities": [

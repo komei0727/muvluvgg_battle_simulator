@@ -2,13 +2,17 @@ import type { BattleStatus } from "../model/battle-status.js";
 import type {
   AppliedEffect,
   ContinuousDamageState,
+  CoverState,
   DamageModifierState,
+  DeathSurvivalState,
   EffectImmunityState,
   HealingLinkState,
   PiercingModifierState,
+  ReflectState,
   ShieldState,
   StatusEffectDetails,
   SubUnitState,
+  TargetRedirectState,
 } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
@@ -140,6 +144,17 @@ export interface EffectSnapshot {
    */
   readonly continuousDamage?: ContinuousDamageState;
   /**
+   * DMG-006（Issue #188、R-INT-01〜03）: 防御介入系の4kind由来の効果だけが持つ。
+   * 引き寄せ先・肩代わり者は付与時点で解決したユニットIDであり、反射量・耐えHPは
+   * Catalog Formulaを焼き込んだものである。どれも復元されないと独立Reducerで復元した
+   * 状態の介入解決（`defensive-intervention-policy.ts`）が実戦闘と食い違うため、
+   * `shield`と同じ理由で同一性比較へ含める。
+   */
+  readonly targetRedirect?: TargetRedirectState;
+  readonly cover?: CoverState;
+  readonly reflect?: ReflectState;
+  readonly deathSurvival?: DeathSurvivalState;
+  /**
    * M7-001E（Issue #248、R-EFF-02/03）: `effect-category-classifier.ts`が付与時点に
    * 確定した分類集合（`AppliedEffect.categories`と同じソート済み配列）。
    * `TARGET_HAS_EFFECT`条件の判定入力であるため、欠落・破損したまま復元されると
@@ -215,6 +230,10 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     ...(effect.shield !== undefined ? { shield: effect.shield } : {}),
     ...(effect.subUnit !== undefined ? { subUnit: effect.subUnit } : {}),
     ...(effect.continuousDamage !== undefined ? { continuousDamage: effect.continuousDamage } : {}),
+    ...(effect.targetRedirect !== undefined ? { targetRedirect: effect.targetRedirect } : {}),
+    ...(effect.cover !== undefined ? { cover: effect.cover } : {}),
+    ...(effect.reflect !== undefined ? { reflect: effect.reflect } : {}),
+    ...(effect.deathSurvival !== undefined ? { deathSurvival: effect.deathSurvival } : {}),
     categories: effect.categories,
     ...(effect.statModStat !== undefined ? { statModStat: effect.statModStat } : {}),
     ...(effect.snapshot !== undefined ? { snapshot: effect.snapshot } : {}),

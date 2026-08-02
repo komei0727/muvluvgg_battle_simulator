@@ -469,6 +469,91 @@ export interface BattleDomainEventPayloadMap {
     readonly hpBefore: number;
     readonly hpAfter: number;
     readonly defeated: boolean;
+    /**
+     * R-INT-03第3項「反射ダメージは`isReflectedDamage=true`を持つ」（DMG-006、
+     * Issue #188）。反射で生じたダメージの適用だけが`true`を持ち、通常のヒットでは
+     * 省略する。反射ダメージは命中判定・会心判定・防御介入をどれも通らないため、
+     * `DamageCalculated`／`DamageWillBeApplied`も伴わない（`hitIndex`は常に0）。
+     */
+    readonly isReflectedDamage?: true;
+  };
+  /**
+   * `08_ドメインイベント.md`「ダメージイベント」DamageRedirected（DMG-006、
+   * Issue #188、R-INT-01 #1/#2・R-INT-02）: 引き寄せ（挑発）または肩代わりが成立し、
+   * このヒットの防御側が変わった直後に発行する`FACT`。`DamageWillBeApplied`の後、
+   * `DamageCalculated`より前（R-INT-01「`DamageWillBeApplied`後、ダメージ確定前に
+   * 防御介入系状態を…評価する」）。
+   *
+   * `reason`は成立した介入を区別する。
+   * - `TARGET_REDIRECT`: R-INT-01 #1。以後の命中済みヒットは`newTargetUnitId`へ向かう
+   * - `COVER`: R-INT-01 #2／R-INT-02。`damageShareRate`（実装済みは1＝防御側そのものを
+   *   差し替える）と`guardRate`（肩代わり時の軽減率）を併せて運ぶ。肩代わり者が
+   *   引き寄せ後の対象自身の場合は`originalTargetUnitId === newTargetUnitId`になり、
+   *   このイベントは`guardRate`の適用だけを表す
+   *
+   * 状態を変えないため`stateDelta`を持たない（実際のHP・シールド変化は差し替え後の
+   * 防御側に対する`ShieldConsumed`/`HitPointReduced`が表す）。
+   */
+  readonly DamageRedirected: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+    readonly reason: DamageRedirectReason;
+    readonly originalTargetUnitId: BattleUnitId;
+    readonly newTargetUnitId: BattleUnitId;
+    /** 介入を成立させた`AppliedEffect`（保持者は攻撃側）。 */
+    readonly effectInstanceId: EffectInstanceId;
+    readonly causeEffectActionDefinitionId: EffectActionDefinitionId;
+    /** `reason: COVER`だけが持つR-INT-02の2率。 */
+    readonly damageShareRate?: number;
+    readonly guardRate?: number;
+  };
+  /**
+   * `08_ドメインイベント.md`「ダメージイベント」ReflectedDamageGenerated（DMG-006、
+   * Issue #188、R-INT-01 #4・R-INT-03）: 反射ダメージを生成した時に発行する`FACT`。
+   * R-INT-03第1項「反射は元ダメージの確定後、元ダメージの適用結果を巻き戻さずに
+   * 発生する」のとおり、元ダメージの`DamageApplied`（`sourceDamageEventId`）の後に
+   * 発行し、続けて反射先への適用（`HitPointReduced`→`DamageApplied`）が起きる。
+   *
+   * このイベント自身は量の確定だけを表すため`stateDelta`を持たない。
+   */
+  readonly ReflectedDamageGenerated: {
+    /** 反射の契機になった元ダメージの`DamageApplied`。 */
+    readonly sourceDamageEventId: DomainEventId;
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    /** 反射元（元ダメージを受けた側＝反射効果の保持者）。 */
+    readonly reflectedByUnitId: BattleUnitId;
+    /** 反射先（`reflectTo: TRIGGER_SOURCE`＝元ダメージの攻撃者）。 */
+    readonly reflectToUnitId: BattleUnitId;
+    /** 元ダメージ量（`DamageApplied.calculatedDamage`）。 */
+    readonly sourceDamage: number;
+    /** Formula評価結果（切り捨て・最低1ダメージの適用前）。 */
+    readonly formulaResult: number;
+    /** R-DMG-02の切り捨て・最低1ダメージを適用した反射ダメージ量。 */
+    readonly reflectedDamage: number;
+    readonly damageType: DamageType;
+  };
+  /**
+   * `08_ドメインイベント.md`「ダメージイベント」LethalDamageSurvived（DMG-006、
+   * Issue #188、R-INT-01 #5）: 致死ダメージを致死耐えで耐えた直後に発行する`FACT`。
+   * `UnitDefeated`が発行されるはずだった位置（`DamageApplied`の直後）に、それと
+   * 排他で発行する。
+   *
+   * HP自体は`HitPointReduced`が`hpAfter: survivalHp`として既に確定させており、
+   * 耐えたことで適用されなかった分は`DamageApplied.discardedDamage`が説明する
+   * （不変条件#6の保存則はそのまま成立する）ため、このイベントは`stateDelta`を
+   * 持たない。効果自身の消費（R-EFF-07、`consumption.kind: LETHAL_DAMAGE`）は
+   * 続く`EffectConsumptionChanged`が、`healAfterSurvival`の回復は続く`HealApplied`が表す。
+   */
+  readonly LethalDamageSurvived: {
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly battleUnitId: BattleUnitId;
+    /** 耐えなければHPへ適用されていた量。 */
+    readonly lethalDamage: number;
+    readonly hpBefore: number;
+    /** `survivalHp` Formulaを評価しR-NUM-02で整数化した、耐えた直後のHP。 */
+    readonly survivalHp: number;
   };
   /**
    * `08_ドメインイベント.md`「HealApplied payload」（M7-005、Issue #184、
@@ -1140,6 +1225,13 @@ export type ShieldConsumptionReason =
  * サブユニットは吸収と存続期間（`APPLY_SUBUNIT.duration`）だけで消える。
  */
 export type SubUnitDamageReason = "DAMAGE_ABSORPTION" | "CONTINUOUS_DAMAGE_ABSORPTION";
+
+/**
+ * `DamageRedirected.reason`: このヒットの防御側が変わった契機（DMG-006、Issue #188）。
+ * R-INT-01の評価順（引き寄せ→肩代わり）に対応し、両方が成立した場合は
+ * `TARGET_REDIRECT`→`COVER`の順に2件発行する。
+ */
+export type DamageRedirectReason = "TARGET_REDIRECT" | "COVER";
 
 /**
  * `07_戦闘ルール詳細.md` R-EFF-10: `MarkerState`が除去された理由。`REMOVED`は

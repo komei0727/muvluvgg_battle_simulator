@@ -3,13 +3,17 @@ import {
   effectKindKeyFromDefinitionId,
   type AppliedEffect,
   type ContinuousDamageState,
+  type CoverState,
   type DamageModifierState,
+  type DeathSurvivalState,
   type EffectImmunityState,
   type HealingLinkState,
   type PiercingModifierState,
+  type ReflectState,
   type ShieldState,
   type StatusEffectDetails,
   type SubUnitState,
+  type TargetRedirectState,
 } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
@@ -80,6 +84,14 @@ export interface GrantEffectRequest {
   readonly subUnit?: SubUnitState;
   /** DMG-008（Issue #189、R-DOT-01〜04）: `APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ。 */
   readonly continuousDamage?: ContinuousDamageState;
+  /** DMG-006（Issue #188、R-INT-01/02）: `APPLY_TARGET_REDIRECT`由来の付与だけが持つ。 */
+  readonly targetRedirect?: TargetRedirectState;
+  /** DMG-006（Issue #188、R-INT-01/02）: `APPLY_COVER`由来の付与だけが持つ。 */
+  readonly cover?: CoverState;
+  /** DMG-006（Issue #188、R-INT-01/03）: `APPLY_REFLECT`由来の付与だけが持つ。 */
+  readonly reflect?: ReflectState;
+  /** DMG-006（Issue #188、R-INT-01 #5）: `APPLY_DEATH_SURVIVAL`由来の付与だけが持つ。 */
+  readonly deathSurvival?: DeathSurvivalState;
   readonly durationDefinition: DurationDefinition;
   readonly snapshot?: Readonly<Record<string, number>>;
 }
@@ -263,6 +275,10 @@ export function grantEffect(
     ...(request.continuousDamage !== undefined
       ? { continuousDamage: request.continuousDamage }
       : {}),
+    ...(request.targetRedirect !== undefined ? { targetRedirect: request.targetRedirect } : {}),
+    ...(request.cover !== undefined ? { cover: request.cover } : {}),
+    ...(request.reflect !== undefined ? { reflect: request.reflect } : {}),
+    ...(request.deathSurvival !== undefined ? { deathSurvival: request.deathSurvival } : {}),
     categories,
     ...(request.definition.kind === "APPLY_STAT_MOD"
       ? { statModStat: request.definition.payload.stat }

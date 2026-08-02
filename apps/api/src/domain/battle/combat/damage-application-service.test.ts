@@ -37,7 +37,11 @@ import {
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
-import type { Attribute, CriticalMode } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  Attribute,
+  ConsumptionKind,
+  CriticalMode,
+} from "../../catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
@@ -304,7 +308,7 @@ function statModDefinition(): EffectActionDefinition {
 function consumptionEffect(
   id: string,
   ownerId: ReturnType<typeof createBattleUnitId>,
-  kind: "NEXT_OUTGOING_ATTACK" | "NEXT_INCOMING_ATTACK" | "OUTGOING_HIT" | "INCOMING_HIT",
+  kind: ConsumptionKind,
   consumptionRemaining: number,
 ): AppliedEffect {
   return {
@@ -3816,5 +3820,445 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03, PR #289
     expect(updatedTarget.currentHp).toBe(1000);
     expect(result.interruptedCount).toBe(1);
     expect(result.hits.map((outcome) => outcome.applied)).toEqual([false]);
+  });
+});
+
+/**
+ * DMG-006（Issue #188、R-INT-01〜03）: 防御介入を実際のダメージpipelineへ配線した
+ * 部分の検証。選択規則そのものは`defensive-intervention-policy.test.ts`が担う。
+ */
+function interventionEffect(
+  id: string,
+  holderId: string,
+  extra: Partial<AppliedEffect>,
+): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId(`ACT_${id}`);
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: createBattleUnitId(holderId),
+    targetId: createBattleUnitId(holderId),
+    magnitude: 0,
+    categories: ["DEBUFF"],
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+    ...extra,
+  };
+}
+
+function redirectHeldByAttacker(id: string, attackerId: string, redirectTo: string): AppliedEffect {
+  return interventionEffect(id, attackerId, {
+    targetRedirect: {
+      redirectToUnitId: createBattleUnitId(redirectTo),
+      actionKinds: ["DAMAGE"],
+    },
+  });
+}
+
+function coverHeldByAttacker(
+  id: string,
+  attackerId: string,
+  coverer: string,
+  guardRate = 0,
+): AppliedEffect {
+  return interventionEffect(id, attackerId, {
+    cover: {
+      covererUnitId: createBattleUnitId(coverer),
+      damageShareRate: 1,
+      guardRate,
+      actionKinds: ["DAMAGE"],
+    },
+  });
+}
+
+function reflectHeldByDefender(id: string, defenderId: string, ratio: number): AppliedEffect {
+  return interventionEffect(id, defenderId, {
+    categories: ["BUFF"],
+    reflect: {
+      formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio },
+      allowRecursiveReflect: false,
+    },
+  });
+}
+
+function deathSurvivalHeldByTarget(
+  id: string,
+  targetId: string,
+  consumptionRemaining: number,
+  survivalHp = 1,
+): AppliedEffect {
+  return interventionEffect(id, targetId, {
+    categories: ["BUFF"],
+    deathSurvival: {
+      survivalHp: { kind: "CONSTANT", value: survivalHp },
+      healAfterSurvival: null,
+    },
+    duration: {
+      definition: {
+        consumption: { kind: "LETHAL_DAMAGE", maxCount: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      consumptionRemaining,
+    },
+  });
+}
+
+describe("defensive interventions in the damage pipeline (DMG-006, Issue #188, R-INT-01〜03)", () => {
+  it("UT-R-INT-01-010: a redirect the attacker holds moves the whole hit onto the taunting unit and emits DamageRedirected before DamageCalculated", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [redirectHeldByAttacker("REDIRECT", "ATTACKER", "TAUNTER")],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const taunter = unit("TAUNTER", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, taunter],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const events = context.recorder.getEvents();
+    const redirected = events.find((e) => e.eventType === "DamageRedirected")!;
+    expect(redirected.payload).toEqual({
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK"),
+      hitIndex: 0,
+      reason: "TARGET_REDIRECT",
+      originalTargetUnitId: target.battleUnitId,
+      newTargetUnitId: taunter.battleUnitId,
+      effectInstanceId: createEffectInstanceId("REDIRECT"),
+      causeEffectActionDefinitionId: createEffectActionDefinitionId("ACT_REDIRECT"),
+    });
+    // R-INT-01: `DamageWillBeApplied`の後・`DamageCalculated`の前に評価する。
+    const order = events.map((e) => e.eventType);
+    expect(order.indexOf("DamageWillBeApplied")).toBeLessThan(order.indexOf("DamageRedirected"));
+    expect(order.indexOf("DamageRedirected")).toBeLessThan(order.indexOf("DamageCalculated"));
+
+    // R-INT-02第2項: 後続効果が参照する対象も、最終的にダメージを受けた側になる。
+    expect(result.hits[0]!.targetBattleUnitId).toBe(taunter.battleUnitId);
+    const damagedTaunter = result.units.find((u) => u.battleUnitId === taunter.battleUnitId)!;
+    const untouchedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(damagedTaunter.currentHp).toBe(100 - 20);
+    expect(untouchedTarget.currentHp).toBe(100);
+  });
+
+  it("UT-R-INT-02-010: cover is evaluated against the redirected target and both interventions are reported in R-INT-01 order", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [
+        redirectHeldByAttacker("REDIRECT", "ATTACKER", "TAUNTER"),
+        coverHeldByAttacker("COVER", "ATTACKER", "COVERER"),
+      ],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const taunter = unit("TAUNTER", "ENEMY", { defense: 10, maximumHp: 100 });
+    const coverer = unit("COVERER", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, taunter, coverer],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const redirects = context.recorder
+      .getEvents()
+      .filter((e) => e.eventType === "DamageRedirected");
+    expect(
+      redirects.map((e) => [
+        (e.payload as { reason: string }).reason,
+        (e.payload as { originalTargetUnitId: string }).originalTargetUnitId,
+        (e.payload as { newTargetUnitId: string }).newTargetUnitId,
+      ]),
+    ).toEqual([
+      ["TARGET_REDIRECT", target.battleUnitId, taunter.battleUnitId],
+      ["COVER", taunter.battleUnitId, coverer.battleUnitId],
+    ]);
+    expect(result.units.find((u) => u.battleUnitId === coverer.battleUnitId)!.currentHp).toBe(80);
+    expect(result.units.find((u) => u.battleUnitId === taunter.battleUnitId)!.currentHp).toBe(100);
+  });
+
+  it("UT-R-INT-02-011: a self-cover that only guards keeps the defender and reduces the damage by guardRate (ACT_EVIE_ECO_PS1_COVER)", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [coverHeldByAttacker("COVER", "ATTACKER", "TARGET", 0.5)],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 素のダメージ20（攻撃30 - 防御10）が50%ガードで10になる。
+    expect(result.hits[0]!.damage).toBe(10);
+    expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(90);
+    const redirected = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageRedirected")!;
+    expect(redirected.payload).toMatchObject({
+      reason: "COVER",
+      originalTargetUnitId: target.battleUnitId,
+      newTargetUnitId: target.battleUnitId,
+      damageShareRate: 1,
+      guardRate: 0.5,
+    });
+  });
+
+  it("UT-R-INT-03-010: a reflect the defender holds generates ReflectedDamageGenerated after the original DamageApplied and applies isReflectedDamage damage to the attacker", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [reflectHeldByDefender("REFLECT", "TARGET", 0.75)],
+    };
+    const context = damageEventContext();
+    const damageResults: DamageResultRegistry = new Map();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      { ...context, damageResults },
+    );
+
+    const generated = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "ReflectedDamageGenerated")!;
+    const originalApplied = context.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          (e.payload as { targetUnitId: string }).targetUnitId === target.battleUnitId,
+      )!;
+    expect(generated.payload).toMatchObject({
+      sourceDamageEventId: originalApplied.eventId,
+      reflectedByUnitId: target.battleUnitId,
+      reflectToUnitId: attacker.battleUnitId,
+      sourceDamage: 20,
+      // 20 × 75% = 15。
+      formulaResult: 15,
+      reflectedDamage: 15,
+      damageType: "PHYSICAL",
+    });
+
+    const reflectedApplied = context.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          (e.payload as { isReflectedDamage?: true }).isReflectedDamage === true,
+      )!;
+    expect(reflectedApplied.payload).toMatchObject({
+      targetUnitId: attacker.battleUnitId,
+      calculatedDamage: 15,
+      hitPointDamage: 15,
+      isReflectedDamage: true,
+    });
+    expect(result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!.currentHp).toBe(85);
+    expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(80);
+  });
+
+  it("UT-R-INT-03-011: a reflected hit never reflects again, even when the attacker also holds a reflect (R-INT-03第2項)", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 }),
+      appliedEffects: [reflectHeldByDefender("ATTACKER_REFLECT", "ATTACKER", 1)],
+    };
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [reflectHeldByDefender("REFLECT", "TARGET", 0.75)],
+    };
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "ReflectedDamageGenerated"),
+    ).toHaveLength(1);
+  });
+
+  it("UT-R-INT-03-012: a reflect holder killed by the original hit does not reflect (R-ACTN-01 #2)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const dying = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(5, 100),
+      appliedEffects: [reflectHeldByDefender("REFLECT", "TARGET", 0.75)],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, dying],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    expect(isDefeated(result.units.find((u) => u.battleUnitId === dying.battleUnitId)!)).toBe(true);
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "ReflectedDamageGenerated"),
+    ).toEqual([]);
+  });
+
+  it("UT-R-INT-01-011: a lethal hit against a death-survival holder stops HP at survivalHp, discards the rest, and replaces UnitDefeated with LethalDamageSurvived", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(5, 100),
+      appliedEffects: [deathSurvivalHeldByTarget("SURVIVAL", "TARGET", 1)],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      {
+        ...context,
+        consumeEffectDuration: testConsumeEffectDuration(
+          context.recorder,
+          new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+        ),
+      },
+    );
+
+    const survived = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "LethalDamageSurvived")!;
+    expect(survived.payload).toEqual({
+      effectInstanceId: createEffectInstanceId("SURVIVAL"),
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SURVIVAL"),
+      battleUnitId: target.battleUnitId,
+      lethalDamage: 20,
+      hpBefore: 5,
+      survivalHp: 1,
+    });
+    expect(context.recorder.getEvents().filter((e) => e.eventType === "UnitDefeated")).toEqual([]);
+
+    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    // 保存則（不変条件#6）: 吸収0 + HPダメージ4 + 破棄16 = 確定ダメージ20。
+    expect(applied.payload).toMatchObject({
+      calculatedDamage: 20,
+      hitPointDamage: 4,
+      discardedDamage: 16,
+      hpBefore: 5,
+      hpAfter: 1,
+      defeated: false,
+    });
+
+    const survivor = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(survivor.currentHp).toBe(1);
+    // R-EFF-07: 耐えたインスタンス自身の`LETHAL_DAMAGE`消費を1消費して失効する。
+    expect(survivor.appliedEffects).toEqual([]);
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "EffectConsumptionChanged"),
+    ).toHaveLength(1);
+  });
+
+  it("UT-R-INT-01-012: a death-survival instance whose LETHAL_DAMAGE consumption is spent no longer prevents the defeat", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(5, 100),
+      appliedEffects: [deathSurvivalHeldByTarget("SURVIVAL", "TARGET", 0)],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(isDefeated(result.units.find((u) => u.battleUnitId === target.battleUnitId)!)).toBe(
+      true,
+    );
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "LethalDamageSurvived"),
+    ).toEqual([]);
+    expect(context.recorder.getEvents().filter((e) => e.eventType === "UnitDefeated")).toHaveLength(
+      1,
+    );
+  });
+
+  it("UT-R-INT-01-013: survivalHp is clamped to the HP the target still had, so a non-lethal hit is unaffected by the holder's death survival", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [deathSurvivalHeldByTarget("SURVIVAL", "TARGET", 1, 50)],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 致死ではないため耐えは成立せず、通常どおり20だけ削れる。
+    expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(80);
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "LethalDamageSurvived"),
+    ).toEqual([]);
+  });
+
+  it("UT-R-INT-01-014: death survival also protects against reflected damage, since both share the HP application path", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 }),
+      currentHp: createHitPoint(3, 100),
+      appliedEffects: [deathSurvivalHeldByTarget("SURVIVAL", "ATTACKER", 1)],
+    };
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [reflectHeldByDefender("REFLECT", "TARGET", 0.75)],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!.currentHp).toBe(1);
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "LethalDamageSurvived"),
+    ).toHaveLength(1);
   });
 });
