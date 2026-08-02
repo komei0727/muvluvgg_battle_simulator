@@ -273,7 +273,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // units' definitions are unchanged, but every remaining production unit
     // becomes `selectable` (60 → 69, tracked in `docs/ddd/17_残作業対応表.json`'s
     // `m7Audit`).
-    expect(catalog.catalogRevision).toBe("2026-08-02.6");
+    // `.7` is the same PR's review fix [P2]: `appliesTo.actionKinds` beyond
+    // `["DAMAGE"]` is rejected at Catalog load time
+    // (`UNSUPPORTED_DEFENSIVE_INTERVENTION`) because `R-INT-01` only evaluates
+    // defensive interventions after `DamageWillBeApplied`, recorded in
+    // `CAP_TARGET_REDIRECT`'s and `CAP_COVER_DAMAGE`'s descriptions. Capability
+    // metadata only — no definition changed (every production row already
+    // declares `["DAMAGE"]`).
+    expect(catalog.catalogRevision).toBe("2026-08-02.7");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

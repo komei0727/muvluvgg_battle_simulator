@@ -1349,7 +1349,9 @@ payload:
 | `appliesTo.actionKinds` | enum[]             | `DAMAGE` / `DEBUFF` / `ANY`                               |
 | `duration`              | DurationDefinition | 行動終了までなら `owner=BATTLE`, `unit=ACTION`, `count=1` |
 
-`DMG-006`（Issue #188、`R-INT-01` #1）で実行時へ配線した。この効果は**攻撃側**が保持し（production定義の付与対象はいずれも `TRIGGER_SOURCE`、raw原文「攻撃してくる敵単体に対して…攻撃を自身に引き寄せ」）、`redirectTo` は付与時点で解決して効果インスタンスへ焼き込む。そのため実装するのは付与時点に確定する `SELF` だけであり、他の `kind` は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する（`APPLY_HEALING_LINK.transferTo` と同じ制限）。`requiredCapabilities` に `CAP_TARGET_REDIRECT` を含めること。
+`DMG-006`（Issue #188、`R-INT-01` #1）で実行時へ配線した。この効果は**攻撃側**が保持し（production定義の付与対象はいずれも `TRIGGER_SOURCE`、raw原文「攻撃してくる敵単体に対して…攻撃を自身に引き寄せ」）、`redirectTo` は付与時点で解決して効果インスタンスへ焼き込む。そのため実装するのは付与時点に確定する `SELF` だけであり、他の `kind` は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する（`APPLY_HEALING_LINK.transferTo` と同じ制限）。
+
+`appliesTo.actionKinds` も実装するのは `["DAMAGE"]` だけである。`R-INT-01` が介入の評価点として定めるのは `DamageWillBeApplied` の後だけで、デバフ付与のライフサイクルには介入の評価点自体が無いため、`DEBUFF` を含む宣言は「`EffectApplied` としては成功するが一度も作用しない」silent no-opになる（`ANY` も同じ理由で `DAMAGE` 以外には作用しない）。同じく `UNSUPPORTED_DEFENSIVE_INTERVENTION` として拒否し、デバフ側へ配線した時点で解除する。`requiredCapabilities` に `CAP_TARGET_REDIRECT` を含めること。
 
 ### APPLY_COVER
 
@@ -1381,7 +1383,7 @@ payload:
 
 `APPLY_TARGET_REDIRECT` と `APPLY_COVER` を同じ行動で付与する場合、redirect 後の攻撃対象に対して cover を評価する。
 
-`DMG-006`（Issue #188、`R-INT-01` #2／`R-INT-02`）で実行時へ配線した。`APPLY_TARGET_REDIRECT` と同じく攻撃側が保持し、`coverer` は付与時点で解決するため実装するのは `SELF` だけである。`damageShareRate` も実装するのは `1`（`R-INT-02` 第1項「防御側を肩代わり者へ変更する」）だけで、1未満は1ヒットのダメージを2体へ分割適用することになり `R-INT-02` が規定しない。どちらも外れる定義は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`guardRate` は最終切り捨ての前に掛ける（`Q-DMG-01`）ため、肩代わり者が redirect 後の対象自身であっても軽減だけは成立する（`ACT_EVIE_ECO_PS1_COVER`）。`requiredCapabilities` に `CAP_COVER_DAMAGE` を含めること。
+`DMG-006`（Issue #188、`R-INT-01` #2／`R-INT-02`）で実行時へ配線した。`APPLY_TARGET_REDIRECT` と同じく攻撃側が保持し、`coverer` は付与時点で解決するため実装するのは `SELF` だけ、`appliesTo.actionKinds` も同じ理由で `["DAMAGE"]` だけである。`damageShareRate` も実装するのは `1`（`R-INT-02` 第1項「防御側を肩代わり者へ変更する」）だけで、1未満は1ヒットのダメージを2体へ分割適用することになり `R-INT-02` が規定しない。どちらも外れる定義は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`guardRate` は最終切り捨ての前に掛ける（`Q-DMG-01`）ため、肩代わり者が redirect 後の対象自身であっても軽減だけは成立する（`ACT_EVIE_ECO_PS1_COVER`）。`requiredCapabilities` に `CAP_COVER_DAMAGE` を含めること。
 
 ### APPLY_REFLECT
 

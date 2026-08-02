@@ -10,6 +10,7 @@ import {
   DIAGNOSTIC_ONLY_EVENT_TYPES,
   EVENT_TYPE_CATEGORIES,
 } from "../definitions/catalog-event-types.js";
+import type { ActionKind } from "../definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { ConditionDefinition } from "../definitions/condition-definition.js";
 import type { DurationDefinition } from "../definitions/duration-definition.js";
@@ -1885,6 +1886,12 @@ function validateEffectAction(
  *
  * - `APPLY_TARGET_REDIRECT.redirectTo` / `APPLY_COVER.coverer`: `SELF`（付与時点で
  *   解決してインスタンスへ焼き込む、`APPLY_HEALING_LINK.transferTo`と同じ制限）
+ * - `APPLY_TARGET_REDIRECT.appliesTo.actionKinds` / `APPLY_COVER.appliesTo.actionKinds`:
+ *   `["DAMAGE"]`（PR #298レビュー[P2]）。R-INT-01が介入の評価点として定めるのは
+ *   `DamageWillBeApplied`の後だけであり、`damage-application-service.ts`も
+ *   `"DAMAGE"`でしか介入解決を呼ばない。`DEBUFF`を含む宣言は「`EffectApplied`として
+ *   成功するがデバフ付与には一度も作用しない」silent no-opになり、`ANY`も同じ理由で
+ *   DAMAGE以外には作用しない。デバフのライフサイクルへ配線するまではロード時に拒否する
  * - `APPLY_COVER.damageShareRate`: `1`（R-INT-02第1項「防御側を肩代わり者へ変更する」。
  *   1未満は1ヒットを2体へ分割適用することになり、R-INT-02が規定しない）
  * - `APPLY_REFLECT.reflectTo`: `TRIGGER_SOURCE`（R-INT-03の反射先＝元ダメージの攻撃者）
@@ -1910,6 +1917,18 @@ function collectDefensiveInterventionViolations(
   const unsupported = (message: string): void => {
     violations.push({ targetId, rule: "UNSUPPORTED_DEFENSIVE_INTERVENTION", message });
   };
+  /**
+   * PR #298レビュー[P2]: `DAMAGE`以外を含む`appliesTo.actionKinds`は実行時に一度も
+   * 作用しない。`ANY`も「DAMAGEには作用するがDEBUFFには作用しない」部分実装に
+   * なるため、`["DAMAGE"]`以外はまとめて拒否する。
+   */
+  const requireDamageOnlyAppliesTo = (actionKinds: readonly ActionKind[]): void => {
+    if (actionKinds.some((kind) => kind !== "DAMAGE")) {
+      unsupported(
+        `${effectAction.kind} only implements appliesTo.actionKinds ["DAMAGE"] (R-INT-01 evaluates defensive interventions after DamageWillBeApplied only, DMG-006), received [${actionKinds.join(", ")}]`,
+      );
+    }
+  };
 
   switch (effectAction.kind) {
     case "APPLY_TARGET_REDIRECT": {
@@ -1919,10 +1938,12 @@ function collectDefensiveInterventionViolations(
           `APPLY_TARGET_REDIRECT only implements redirectTo {kind: "SELF"} (R-INT-01, DMG-006), received {kind: "${effectAction.payload.redirectTo.kind}"}`,
         );
       }
+      requireDamageOnlyAppliesTo(effectAction.payload.appliesTo.actionKinds);
       return;
     }
     case "APPLY_COVER": {
       requireCapability("CAP_COVER_DAMAGE");
+      requireDamageOnlyAppliesTo(effectAction.payload.appliesTo.actionKinds);
       if (effectAction.payload.coverer.kind !== "SELF") {
         unsupported(
           `APPLY_COVER only implements coverer {kind: "SELF"} (R-INT-02, DMG-006), received {kind: "${effectAction.payload.coverer.kind}"}`,

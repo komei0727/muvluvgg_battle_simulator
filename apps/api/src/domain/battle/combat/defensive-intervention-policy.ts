@@ -28,7 +28,15 @@ import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
  * （R-INT-03「反射は元ダメージの確定後…に発生する」）とHP適用時に起きる。
  */
 
-/** 引き寄せ・肩代わりの候補が「この攻撃に適用されるか」（`appliesTo.actionKinds`）。 */
+/**
+ * 引き寄せ・肩代わりの候補が「この攻撃に適用されるか」（`appliesTo.actionKinds`）。
+ *
+ * PR #298レビュー[P2]: 呼び出し側（`damage-application-service.ts`）はR-INT-01の評価点で
+ * ある`"DAMAGE"`でしかこの判定を行わないため、Catalogは`["DAMAGE"]`以外の宣言を
+ * ロード時点で拒否する（`UNSUPPORTED_DEFENSIVE_INTERVENTION`）。`ANY`の分岐をここに
+ * 残すのは、Catalogを経由しない合成定義（単体テスト）と、将来デバフのライフサイクルへ
+ * 配線した際に`appliesTo`の意味論をこの関数が正しく持ち続けるためである。
+ */
 function appliesToActionKind(actionKinds: readonly ActionKind[], actionKind: ActionKind): boolean {
   return actionKinds.includes("ANY") || actionKinds.includes(actionKind);
 }
