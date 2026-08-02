@@ -1,0 +1,4 @@
+interface:
+  display_name: "Muv-Luv GG Issue Implementer"
+  short_description: "Issue選定からTDD実装・品質確認・PR作成までを実行"
+  default_prompt: "Use $muvluvgg-implement-issue to select a ready Issue and implement it through a tested pull request."

@@ -65,7 +65,7 @@ description = "Test the CI changed-path classification logic (scripts/ci/)"
 run = "node --test scripts/ci/*.test.mjs"
 
 [tasks.check]
-description = "Run all validation tasks"
+description = "Fast local validation (api+ui typecheck/lint/test/build; no coverage, container, or e2e). The canonical PR-equivalent gate is `bash scripts/run-quality-gates.sh`"
 depends = [
   "typecheck",
   "lint",
