@@ -715,7 +715,12 @@ function collectDamageTargetedBindingIds(
 function invertSelectorSide(selector: TargetSelectorDefinition): TargetSelectorDefinition {
   const invertedFallback =
     selector.fallback === undefined ? undefined : invertSelectorSide(selector.fallback);
-  if (selector.side === undefined) {
+  // `TargetSelectorDefinition.side`はCatalogの`Side`（`catalog-enums.ts`）であり、
+  // `domain/shared/side.ts`の実行時`Side`と違って`ALL`（両陣営）を含む
+  // （PR #300レビュー[P2]）。R-CFS-01が定める反転は`ALLY`↔`ENEMY`だけなので、
+  // `ALL`はそのまま残す — `ALL`は既に両陣営を覆っており「逆陣営」も自分自身に
+  // なるためで、`ALLY`へ倒すと本来の全ユニット対象が味方だけへ狭まってしまう。
+  if (selector.side !== "ALLY" && selector.side !== "ENEMY") {
     return invertedFallback === undefined ? selector : { ...selector, fallback: invertedFallback };
   }
   return {

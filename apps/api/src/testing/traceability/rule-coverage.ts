@@ -2088,6 +2088,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-CFS-01-004",
       "UT-R-CFS-01-005",
       "UT-R-CFS-01-006",
+      "UT-R-CFS-01-007",
+      "UT-R-CFS-01-008",
       "IT-CAP-CONFUSION-PROD-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],

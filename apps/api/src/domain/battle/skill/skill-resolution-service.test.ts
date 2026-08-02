@@ -1242,4 +1242,95 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
       createBattleUnitId("ALLY_1"),
     ]);
   });
+
+  it("UT-R-CFS-01-007 (PR #300 レビュー[P2]): a `side: ALL` damage binding is left alone — R-CFS-01 inverts ALLY↔ENEMY only, and ALL already covers both camps", () => {
+    const actor = confusedActor();
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: createTargetBindingId("TGT_1"),
+          selector: { ...ENEMY_ALL_SELECTOR, side: "ALL" },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+
+    const plan = resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions);
+
+    // 反転して`ALLY`へ狭めてしまうと敵が候補から落ちる。両陣営が残ることで確認する
+    // （並びはR-TGT-02の使用者からの距離昇順そのまま）。
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_1"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([
+      createBattleUnitId("ACTOR"),
+      createBattleUnitId("ENEMY_1"),
+      createBattleUnitId("ALLY_1"),
+    ]);
+  });
+
+  it("UT-R-CFS-01-008 (PR #300 レビュー[P2]): the recursive fallback inversion follows the same ALLY↔ENEMY-only rule", () => {
+    const actor = confusedActor();
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    // 第一selectorは候補0件になる絞り込み（後列限定・前列しか居ない）を持たせ、
+    // 必ずfallbackまで降りるようにする。
+    const emptyThenFallback = (fallbackSide: "ENEMY" | "ALL"): TargetSelectorDefinition => ({
+      ...ENEMY_ALL_SELECTOR,
+      filters: [{ kind: "POSITION_ROW", row: "BACK" }],
+      fallback: { ...ENEMY_ALL_SELECTOR, side: fallbackSide },
+    });
+    const skillWith = (fallbackSide: "ENEMY" | "ALL"): SkillDefinition =>
+      skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_1"),
+            selector: emptyThenFallback(fallbackSide),
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          },
+        ],
+      });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const units = [actor, ally, enemy];
+
+    // `fallback.side: ENEMY` は反転して自陣営へ向かう。
+    expect(
+      resolveSkillOrder(skillWith("ENEMY"), actor, units, effectActions)
+        .resolvedBindings.get(createTargetBindingId("TGT_1"))!
+        .units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")]);
+
+    // `fallback.side: ALL` は反転せず両陣営のまま残る。
+    expect(
+      resolveSkillOrder(skillWith("ALL"), actor, units, effectActions)
+        .resolvedBindings.get(createTargetBindingId("TGT_1"))!
+        .units.map((u) => u.battleUnitId),
+    ).toEqual([
+      createBattleUnitId("ACTOR"),
+      createBattleUnitId("ENEMY_1"),
+      createBattleUnitId("ALLY_1"),
+    ]);
+  });
 });

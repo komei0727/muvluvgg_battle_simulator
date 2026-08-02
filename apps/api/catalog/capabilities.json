@@ -1253,7 +1253,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-009",
-    "description": "混乱（R-CFS-01／R-CFS-02、DMG-009／Issue #193）。`APPLY_STATUS`の`status: CONFUSION`が付与する状態で、保持者が**AS**を使用する間だけ働く3つの効果を持つ。(1) R-CFS-01の対象振り替え: `skill-resolution-service.ts`が、そのEffectSequenceのうち`DAMAGE` EffectActionを適用する`ACTION` stepが対象に取るTargetBindingだけを選び、`TargetSelector.side`を反転（`ALLY`↔`ENEMY`）してからR-SKL-01 #1のbinding評価を行う（`fallback`も再帰的に反転する。`BRANCH`/`RANDOM_BRANCH`/`REPEAT`の内側のstepも走査する）。攻撃を伴わないbindingは反転しないため、バフ・回復は本来の陣営へ向かう。(2) R-CFS-02の混乱倍率: `damage-calculator.ts`が計算ダメージへ`1 - damageReductionRate`を掛ける。与ダメージ倍率（R-DMG-04）とは独立した専用の倍率であり、`DamageCalculated.confusionDamageMultiplier`が個別に公開する。(3) R-CFS-02の基礎ダメージ差し替え: 攻撃側の戦闘中攻撃力が防御側の**実効防御力以下**の場合、`max(0, 攻撃力 - 実効防御力)`の代わりに`攻撃力 × lowAttackBaseDamageRate`を基礎ダメージにする（基礎ダメージが差分から求まる`FormulaDefinition.kind: SKILL_POWER`だけが対象）。ASかどうかの判別は`DamageEventContext.skillType`（`effect-action-group-resolver.ts`がCatalogの`skillDefinitions`から解決して渡す）で行い、EX・PS・Memory・継続ダメージ・反射・リンク・サブユニット追加ダメージはいずれも対象外である。混乱は`戦闘システム.md`が列挙する定義済み状態異常ではないため`STATUS`カテゴリに属さず`DEBUFF`だけを持つ（R-CRT-03の会心不可と同じ扱い）。production定義は`ACT_OLGA_VETERAN_EX_CONFUSION`（`SKL_OLGA_VETERAN_EX`「鉄の女」、敵全体へ1行動）。",
+    "description": "混乱（R-CFS-01／R-CFS-02、DMG-009／Issue #193）。`APPLY_STATUS`の`status: CONFUSION`が付与する状態で、保持者が**AS**を使用する間だけ働く3つの効果を持つ。(1) R-CFS-01の対象振り替え: `skill-resolution-service.ts`が、そのEffectSequenceのうち`DAMAGE` EffectActionを適用する`ACTION` stepが対象に取るTargetBindingだけを選び、`TargetSelector.side`を反転（`ALLY`↔`ENEMY`）してからR-SKL-01 #1のbinding評価を行う（`fallback`も再帰的に反転する。`BRANCH`/`RANDOM_BRANCH`/`REPEAT`の内側のstepも走査する）。`side: ALL`（両陣営）は既に両陣営を覆っており「逆陣営」も自分自身になるためそのまま残す — `ALLY`へ倒すと全ユニット対象が味方だけへ狭まる（PR #300レビュー[P2]）。攻撃を伴わないbindingは反転しないため、バフ・回復は本来の陣営へ向かう。(2) R-CFS-02の混乱倍率: `damage-calculator.ts`が計算ダメージへ`1 - damageReductionRate`を掛ける。与ダメージ倍率（R-DMG-04）とは独立した専用の倍率であり、`DamageCalculated.confusionDamageMultiplier`が個別に公開する。(3) R-CFS-02の基礎ダメージ差し替え: 攻撃側の戦闘中攻撃力が防御側の**実効防御力以下**の場合、`max(0, 攻撃力 - 実効防御力)`の代わりに`攻撃力 × lowAttackBaseDamageRate`を基礎ダメージにする（基礎ダメージが差分から求まる`FormulaDefinition.kind: SKILL_POWER`だけが対象）。ASかどうかの判別は`DamageEventContext.skillType`（`effect-action-group-resolver.ts`がCatalogの`skillDefinitions`から解決して渡す）で行い、EX・PS・Memory・継続ダメージ・反射・リンク・サブユニット追加ダメージはいずれも対象外である。混乱は`戦闘システム.md`が列挙する定義済み状態異常ではないため`STATUS`カテゴリに属さず`DEBUFF`だけを持つ（R-CRT-03の会心不可と同じ扱い）。production定義は`ACT_OLGA_VETERAN_EX_CONFUSION`（`SKL_OLGA_VETERAN_EX`「鉄の女」、敵全体へ1行動）。",
     "verification": {
       "productionDefinitionIds": ["ACT_OLGA_VETERAN_EX_CONFUSION"],
       "testCaseIds": [
@@ -1263,6 +1263,8 @@
         "UT-R-CFS-01-001",
         "UT-R-CFS-01-003",
         "UT-R-CFS-01-004",
+        "UT-R-CFS-01-007",
+        "UT-R-CFS-01-008",
         "UT-R-CFS-02-001",
         "UT-R-CFS-02-003",
         "UT-R-CFS-02-101"

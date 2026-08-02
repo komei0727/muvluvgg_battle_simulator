@@ -303,7 +303,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `ACT_TATIANA_SAGE_AS1_DAZZLE`, converting the last two
     // `CONFUSION_OR_DAMAGE_TO_HEAL` ledger rows without approximation. Neither
     // unit is one of the 10 promoted units, so `selectable` stays at 69.
-    expect(catalog.catalogRevision).toBe("2026-08-02.10");
+    // `.11` is the same Issue's review fix: R-CFS-01's inversion is `ALLY`↔`ENEMY`
+    // only, so `CAP_CONFUSION`'s description now spells out that `side: ALL` is
+    // left alone ([P2]). Capability metadata only — no definition changed.
+    expect(catalog.catalogRevision).toBe("2026-08-02.11");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
