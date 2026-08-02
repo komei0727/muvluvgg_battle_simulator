@@ -42,6 +42,7 @@ pnpm install
 | `mise run ui:typecheck`              | apps/ui の TypeScript 型検査                                                                                                                                         |
 | `mise run ui:lint`                   | apps/ui の ESLint                                                                                                                                                    |
 | `mise run ui:test`                   | apps/ui の unit / component テスト (Vitest)                                                                                                                          |
+| `mise run ui:test:coverage`          | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                                                                                                                  |
 | `mise run ui:build`                  | apps/ui の production ビルド (Vite)                                                                                                                                  |
 | `mise run ui:e2e`                    | apps/ui の Playwright E2E スモーク（`@visual` 除外。どのOSでも実行可）                                                                                               |
 | `mise run ui:e2e:visual`             | apps/ui の visual regression（`@visual` のみ。baseline は Linux 専用 → CI 実行前提）                                                                                 |
@@ -60,7 +61,7 @@ bash scripts/run-quality-gates.sh
 # changes:   format:check → ci:test
 # quality:   typecheck → lint → test:coverage → check:circular
 # container: test:container（Docker 必須 — daemon 未起動なら冒頭で fail する）
-# ui:        ui:typecheck → ui:lint → ui:test → ui:build
+# ui:        ui:typecheck → ui:lint → ui:test:coverage → ui:build
 #            → playwright install chromium → ui:e2e
 #            → ui:e2e:visual（Linux のみ。baseline が Linux 専用のため他OSではskip）
 ```

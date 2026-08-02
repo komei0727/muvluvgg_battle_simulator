@@ -29,6 +29,7 @@
     "ui:typecheck": "pnpm --filter ui run typecheck",
     "ui:lint": "pnpm --filter ui run lint",
     "ui:test": "pnpm --filter ui run test",
+    "ui:test:coverage": "pnpm --filter ui run test:coverage",
     "ui:build": "pnpm --filter ui run build",
     "ui:e2e": "pnpm --filter ui run test:e2e"
   },
