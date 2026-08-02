@@ -1,0 +1,70 @@
+# Shared UI quality gate called by pr.yml (visual-regression: true) and
+# main.yml (visual-regression: false). A CI step added here reaches both
+# workflows without double editing.
+name: UI Quality Gate (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      visual-regression:
+        description: >
+          Also run the visual regression suite and upload the Playwright
+          report on failure — the PR gate. The main-branch gate keeps this
+          false: a merge commit already passed visual regression on its PR.
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  ui:
+    name: UI Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: UI type check
+        run: mise run ui:typecheck
+
+      - name: UI lint
+        run: mise run ui:lint
+
+      - name: UI unit / component tests
+        run: mise run ui:test
+
+      - name: UI build (GitHub Pages base path)
+        run: mise run ui:build
+        env:
+          VITE_BASE_PATH: /muvluvgg_battle_simulator/
+          VITE_API_BASE_URL: https://ci-build-placeholder.invalid.example
+
+      - name: Install Playwright browser
+        run: pnpm --filter ui exec playwright install --with-deps chromium
+
+      - name: UI end-to-end smoke test
+        run: mise run ui:e2e
+
+      # Visual regression baselines are Linux-only (see
+      # apps/ui/e2e/visual-regression.spec.ts), so this runs as its own step
+      # against the same ubuntu-latest runner the baselines were captured on,
+      # separate from the platform-portable "UI end-to-end smoke test" step
+      # above that a contributor also runs locally via `mise run ui:e2e`.
+      - name: UI visual regression test
+        if: inputs.visual-regression
+        run: mise run ui:e2e:visual
+
+      # Diagnostic-only: lets a maintainer download actual/diff screenshots
+      # after a visual-regression failure (missing/changed baseline) without
+      # rerunning locally. Playwright's own report already ships the
+      # comparison images under test-results/; nothing here gates the job.
+      - name: Upload Playwright report
+        if: failure() && inputs.visual-regression
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/ui/test-results/
+          retention-days: 7

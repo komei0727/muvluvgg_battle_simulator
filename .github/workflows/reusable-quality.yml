@@ -1,0 +1,60 @@
+# Shared API quality gate called by pr.yml (extended: false) and main.yml
+# (extended: true). A CI step added here reaches both workflows without
+# double editing.
+name: Quality Gate (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      extended:
+        description: >
+          Also run build, worker integration tests, HTTP + worker
+          end-to-end tests, and upload the coverage artifact — the
+          main-branch gate. PR gates keep this false so PR feedback stays
+          fast.
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Type check
+        run: mise run typecheck
+
+      - name: Lint
+        run: mise run lint
+
+      - name: Unit / Scenario / Contract tests with coverage
+        run: mise run test:coverage
+
+      - name: Build
+        if: inputs.extended
+        run: mise run build
+
+      - name: Worker integration tests
+        if: inputs.extended
+        run: mise run test:integration
+
+      - name: HTTP + Worker end-to-end tests
+        if: inputs.extended
+        run: mise run test:e2e
+
+      - name: Circular dependency check
+        run: mise run check:circular
+
+      - name: Upload coverage report
+        if: inputs.extended
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: apps/api/coverage/

@@ -1,0 +1,86 @@
+# Shared `changes` job called by pr.yml / main.yml. The caller must let it
+# run on every trigger (no workflow-level `on.*.paths` filter) — required
+# status checks then report success/skipped instead of staying Pending when
+# a change only touches one workspace. Downstream jobs read run_api /
+# run_ui and skip themselves at the job level.
+# Decision logic: scripts/ci/classify-changed-paths.mjs.
+name: Detect changed workspaces (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      base-sha:
+        description: >
+          Diff base commit. An empty, all-zero, or unresolvable SHA (new
+          branch, force-push, history rewrite) fails safe: both gates run.
+        required: true
+        type: string
+      head-sha:
+        description: Diff head commit.
+        required: true
+        type: string
+      merge-base-diff:
+        description: >
+          true diffs from the merge-base (`base...head`, pull_request
+          events where base-sha is the base branch tip); false diffs the
+          two commits directly (push events where base-sha is the previous
+          tip of the same branch).
+        required: true
+        type: boolean
+    outputs:
+      run_api:
+        description: "'true' when the API quality gates must run."
+        value: ${{ jobs.changes.outputs.run_api }}
+      run_ui:
+        description: "'true' when the UI quality gates must run."
+        value: ${{ jobs.changes.outputs.run_ui }}
+
+jobs:
+  changes:
+    name: Detect changed workspaces
+    runs-on: ubuntu-latest
+    outputs:
+      run_api: ${{ steps.classify.outputs.run_api }}
+      run_ui: ${{ steps.classify.outputs.run_ui }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: mise run install
+
+      # Runs here, not in the quality gates, because those skip on a
+      # single-workspace change — this job is the only one guaranteed to
+      # always run, and format:check covers the whole repo tree regardless
+      # of workspace (a UI-only Prettier violation must not pass CI).
+      - name: Format check
+        run: mise run format:check
+
+      - name: Test the change-classification logic
+        run: mise run ci:test
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ inputs.base-sha }}
+          HEAD_SHA: ${{ inputs.head-sha }}
+          MERGE_BASE_DIFF: ${{ inputs.merge-base-diff }}
+        run: |
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "$ZERO_SHA" ] || ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            # New branch or an unresolvable base (force-push, history
+            # rewrite): fail safe and run both gates rather than guess.
+            echo "run_api=true" >> "$GITHUB_OUTPUT"
+            echo "run_ui=true" >> "$GITHUB_OUTPUT"
+          elif [ "$MERGE_BASE_DIFF" = "true" ]; then
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" \
+              | mise exec -- node scripts/ci/classify-changed-paths.mjs \
+              >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
+              | mise exec -- node scripts/ci/classify-changed-paths.mjs \
+              >> "$GITHUB_OUTPUT"
+          fi
