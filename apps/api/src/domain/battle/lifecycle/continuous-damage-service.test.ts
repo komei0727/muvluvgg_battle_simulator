@@ -146,6 +146,39 @@ function shieldEffect(amount: number, shieldType: ShieldState["shieldType"]): Ap
   };
 }
 
+/**
+ * R-SUB-01のサブユニット。`FIXED`継続ダメージは通常シールドをすべて適用した後に
+ * サブユニットへ回る（R-SUB-01第1項）。
+ */
+function subUnitEffect(durability: number): AppliedEffect {
+  sequence += 1;
+  const definitionId = createEffectActionDefinitionId(`ACT_SUBUNIT_${sequence}`);
+  return {
+    effectInstanceId: createEffectInstanceId(`EFFECT_INSTANCE_${sequence}`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    targetId: createBattleUnitId("ally:1"),
+    magnitude: durability,
+    categories: ["SUBUNIT"],
+    // R-SUB-02の追加ダメージ自体はこのテストの対象外だが、`SubUnitState`の必須項目。
+    subUnit: {
+      durability,
+      additionalDamage: {
+        formula: {
+          kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+          ownerAttack: "CURRENT_ATTACK",
+          providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+          skillMultiplier: 0.5,
+          targetDefense: "TARGET_CURRENT_DEFENSE",
+        },
+      },
+    },
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
 function seedRecorder(): { recorder: EventRecorder; rootEventId: DomainEventId } {
   const recorder = new EventRecorder(createBattleId("B_1"));
   const seed = recorder.record({
@@ -453,5 +486,90 @@ describe("continuous damage (R-DOT-01〜04, DMG-008 Issue #189)", () => {
     expect(defeated.parentEventId).toBe(applied.eventId);
     expect(result.lastEventId).toBe(defeated.eventId);
     expect(result.units.find((u) => u.battleUnitId === holder.battleUnitId)!.currentHp).toBe(0);
+  });
+
+  // DMG-010 (PR #301 レビュー[P1]): `FIXED`継続ダメージはR-SUB-01第1項どおり
+  // サブユニットへも吸収されるが、`ContinuousDamageApplied`がその量を公開して
+  // いなかったため、`08_ドメインイベント.md`の保存則
+  // `typedShieldAbsorbed + untypedShieldAbsorbed + subUnitAbsorbed
+  //  + hitPointDamage + discardedDamage === calculatedDamage`
+  // が成立せず、UIも差分を説明できなかった。
+  it("UT-R-DOT-02-003: a FIXED continuous damage publishes the sub unit absorption that completes the conservation law", () => {
+    const definition = dotDefinition("ACT_DOT", "FIXED", { kind: "CONSTANT", value: 100 });
+    const effect = dotEffect(definition.effectActionDefinitionId, "FIXED", 100, 100);
+    const holder = unit("ally:1", {
+      currentHp: 500,
+      effects: [shieldEffect(30, "PHYSICAL"), subUnitEffect(50), effect],
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    applyOneContinuousDamage(
+      effect,
+      definition,
+      holder,
+      undefined,
+      [holder],
+      contextOf(
+        recorder,
+        rootEventId,
+        new Map([[definition.effectActionDefinitionId, definition]]),
+      ),
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "ContinuousDamageApplied")!
+      .payload as unknown as Record<string, number>;
+    expect(applied).toMatchObject({
+      calculatedDamage: 100,
+      typedShieldAbsorbed: 30,
+      untypedShieldAbsorbed: 0,
+      subUnitAbsorbed: 50,
+      discardedDamage: 0,
+      hitPointDamage: 20,
+      hpBefore: 500,
+      hpAfter: 480,
+    });
+    expect(
+      applied["typedShieldAbsorbed"]! +
+        applied["untypedShieldAbsorbed"]! +
+        applied["subUnitAbsorbed"]! +
+        applied["hitPointDamage"]! +
+        applied["discardedDamage"]!,
+    ).toBe(applied["calculatedDamage"]);
+    expect(
+      recorder
+        .getEvents()
+        .filter((e) => e.eventType === "SubUnitDamaged")
+        .map((e) => (e.payload as Record<string, unknown>)["reason"]),
+    ).toEqual(["CONTINUOUS_DAMAGE_ABSORPTION"]);
+  });
+
+  it("UT-R-DOT-02-004: sub units never absorb BURN or POISON continuous damage (R-SUB-01第2項)", () => {
+    const definition = dotDefinition("ACT_BURN", "BURN", { kind: "CONSTANT", value: 50 });
+    const effect = dotEffect(definition.effectActionDefinitionId, "BURN", 50, 100);
+    const holder = unit("ally:1", {
+      currentHp: 500,
+      effects: [subUnitEffect(999), effect],
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    applyOneContinuousDamage(
+      effect,
+      definition,
+      holder,
+      undefined,
+      [holder],
+      contextOf(
+        recorder,
+        rootEventId,
+        new Map([[definition.effectActionDefinitionId, definition]]),
+      ),
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "ContinuousDamageApplied")!
+      .payload as Record<string, unknown>;
+    expect(applied).toMatchObject({ subUnitAbsorbed: 0, hitPointDamage: 50, hpAfter: 450 });
+    expect(recorder.getEvents().some((e) => e.eventType === "SubUnitDamaged")).toBe(false);
   });
 });

@@ -120,29 +120,31 @@ function UnitActionStateGroup({
                   チャージ中: {actionState.charge.skillDefinitionId}
                 </p>
               ) : null}
-              {actionState.shields === undefined && !actionState.subUnitsKnown ? (
-                <p className={styles["muted"]}>
-                  シールド・サブユニット: このレスポンスに含まれず不明
-                </p>
+              {/*
+                PR #301レビュー[P2]: シールドとサブユニットは別々の契約
+                （DMG-004 / DMG-005）で追加されたため、片方だけを持つレスポンスが
+                存在しうる。まとめて1つの不明メッセージにすると欠落側が黙って
+                消えるので、それぞれ独立に「不明」／「なし」／実値を出す。
+              */}
+              {actionState.shields === undefined ? (
+                <p className={styles["muted"]}>シールド: このレスポンスに含まれず不明</p>
+              ) : actionState.shields.physical === 0 &&
+                actionState.shields.energy === 0 &&
+                actionState.shields.untyped === 0 ? (
+                <p className={styles["muted"]}>シールドなし</p>
               ) : (
-                <>
-                  {actionState.shields === undefined ? null : actionState.shields.physical === 0 &&
-                    actionState.shields.energy === 0 &&
-                    actionState.shields.untyped === 0 ? (
-                    <p className={styles["muted"]}>シールドなし</p>
-                  ) : (
-                    <p className={styles["shields"]}>{shieldLabel(actionState.shields)}</p>
-                  )}
-                  {!actionState.subUnitsKnown ? null : actionState.subUnits.length === 0 ? (
-                    <p className={styles["muted"]}>サブユニットなし</p>
-                  ) : (
-                    <ul className={styles["subUnitList"]}>
-                      {actionState.subUnits.map((subUnit) => (
-                        <li key={subUnit.subUnitInstanceId}>{subUnitLabel(subUnit)}</li>
-                      ))}
-                    </ul>
-                  )}
-                </>
+                <p className={styles["shields"]}>{shieldLabel(actionState.shields)}</p>
+              )}
+              {!actionState.subUnitsKnown ? (
+                <p className={styles["muted"]}>サブユニット: このレスポンスに含まれず不明</p>
+              ) : actionState.subUnits.length === 0 ? (
+                <p className={styles["muted"]}>サブユニットなし</p>
+              ) : (
+                <ul className={styles["subUnitList"]}>
+                  {actionState.subUnits.map((subUnit) => (
+                    <li key={subUnit.subUnitInstanceId}>{subUnitLabel(subUnit)}</li>
+                  ))}
+                </ul>
               )}
               {!actionState.effectsKnown ? (
                 <p className={styles["muted"]}>効果・状態異常: このレスポンスに含まれず不明</p>

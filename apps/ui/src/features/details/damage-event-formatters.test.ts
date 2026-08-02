@@ -250,7 +250,7 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
           confusionDamageMultiplier: 0.5,
           preTruncationDamage: 150,
           finalDamage: 150,
-          damageType: "ENERGY",
+          damageType: "EN",
         },
       }),
       rosterIndex,
@@ -476,7 +476,7 @@ describe("defensive intervention events (R-INT-01〜03, R-LNK-01〜03)", () => {
           sourceDamage: 200,
           formulaResult: 40.5,
           reflectedDamage: 40,
-          damageType: "ENERGY",
+          damageType: "EN",
         },
       }),
       rosterIndex,
@@ -486,7 +486,7 @@ describe("defensive intervention events (R-INT-01〜03, R-LNK-01〜03)", () => {
     expect(presentation.summary).toContain("エー");
     expect(presentation.summary).toContain("元ダメージ200");
     expect(presentation.summary).toContain("反射ダメージ40");
-    expect(presentation.summary).toContain("ENERGY");
+    expect(presentation.summary).toContain("EN");
   });
 
   // UI-UT-DMG-015: R-LNK-01/02。
@@ -581,7 +581,7 @@ describe("continuous damage events (R-DOT-01〜04, DMG-008)", () => {
           effectInstanceId: "battle:effect:6",
           effectActionDefinitionId: "ACT_BURN",
           continuousDamageKind: "BURN",
-          damageType: "ENERGY",
+          damageType: "EN",
           targetUnitId: "enemy:1",
           snapshotAttack: 400,
           formulaResult: 40,
@@ -606,6 +606,45 @@ describe("continuous damage events (R-DOT-01〜04, DMG-008)", () => {
     expect(presentation.summary).toContain("HP 200 → 120");
     expect(presentation.summary).toContain("炎上3スタック");
     expect(presentation.severity).toBe("negative");
+  });
+
+  // UI-UT-DMG-018B（PR #301 レビュー[P1]）: R-SUB-01第1項どおり`FIXED`継続ダメージは
+  // サブユニットへも吸収される。この項が内訳から落ちると`計算ダメージ100 → HPダメージ20`の
+  // 差分80を説明できない。
+  it("shows the sub unit absorption of a FIXED continuous damage so the breakdown still adds up", () => {
+    const presentation = formatEvent(
+      event({
+        type: "CONTINUOUS_DAMAGE_APPLIED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          effectInstanceId: "battle:effect:7",
+          effectActionDefinitionId: "ACT_DOT",
+          continuousDamageKind: "FIXED",
+          damageType: "PHYSICAL",
+          targetUnitId: "enemy:1",
+          snapshotAttack: 400,
+          formulaResult: 100,
+          burnStackMultiplier: 1,
+          cappedBySnapshotAttack: false,
+          calculatedDamage: 100,
+          typedShieldAbsorbed: 30,
+          untypedShieldAbsorbed: 0,
+          subUnitAbsorbed: 50,
+          discardedDamage: 0,
+          hitPointDamage: 20,
+          hpBefore: 200,
+          hpAfter: 180,
+          defeated: false,
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("計算ダメージ100");
+    expect(presentation.summary).toContain("タイプありシールド吸収30");
+    expect(presentation.summary).toContain("サブユニット吸収50");
+    expect(presentation.summary).toContain("HPダメージ20");
   });
 
   // UI-UT-DMG-019: R-DOT-04の上限到達。

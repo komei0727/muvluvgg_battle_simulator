@@ -93,7 +93,7 @@ test("separates calculated damage, shield/sub unit absorption and HP damage of a
     page.getByText(/サブユニット「ACT_ENEMY_SUBUNIT」がヒット1で50吸収しました/),
   ).toBeVisible();
   // 継続ダメージはヒット単位のダメージと別種別として読める。
-  await expect(page.getByText(/継続ダメージ BURN（ENERGY）/)).toBeVisible();
+  await expect(page.getByText(/継続ダメージ BURN（EN）/)).toBeVisible();
 
   // finalStateのシールドプールとサブユニットはユニット状態タブに出る。
   const tabs = page.getByRole("tablist", { name: "戦闘詳細" });

@@ -371,6 +371,51 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText("サブユニットなし")).toBeInTheDocument();
   });
 
+  // PR #301 レビュー[P2]: DMG-004後・DMG-005前のように片方だけを持つレスポンスでは、
+  // 欠落側が何も描画されず「不明」とも読めなくなっていた。個別に不明表示する。
+  it("says only the missing side is unknown when a response carries shields but not subUnits (UI-CT-025)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+          shields: { physical: 40, energy: 0, untyped: 0 },
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/シールド.*物理 40/)).toBeInTheDocument();
+    expect(screen.getByText(/サブユニット.*不明/)).toBeInTheDocument();
+    expect(screen.queryByText("サブユニットなし")).not.toBeInTheDocument();
+    expect(screen.queryByText(/シールド.*不明/)).not.toBeInTheDocument();
+  });
+
+  it("says only the missing side is unknown when a response carries subUnits but not shields (UI-CT-026)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+          subUnits: [],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/シールド.*不明/)).toBeInTheDocument();
+    expect(screen.getByText("サブユニットなし")).toBeInTheDocument();
+    expect(screen.queryByText("シールドなし")).not.toBeInTheDocument();
+  });
+
   it("says shields and sub units are unknown, not absent, for a fixture recorded before the M8 contract (UI-CT-024)", () => {
     const response = responseWith({
       units: [
@@ -388,6 +433,7 @@ describe("UnitActionStateSection", () => {
 
     expect(screen.queryByText("シールドなし")).not.toBeInTheDocument();
     expect(screen.queryByText("サブユニットなし")).not.toBeInTheDocument();
-    expect(screen.getByText(/シールド・サブユニット.*不明/)).toBeInTheDocument();
+    expect(screen.getByText(/シールド.*不明/)).toBeInTheDocument();
+    expect(screen.getByText(/サブユニット.*不明/)).toBeInTheDocument();
   });
 });

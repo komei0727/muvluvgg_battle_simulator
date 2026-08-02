@@ -500,9 +500,14 @@ function formatContinuousDamageApplied(
   }
   const damageType = details["damageType"];
   const damageTypeText = typeof damageType === "string" ? `（${damageType}）` : "";
+  // R-SUB-01第1項「通常シールドをすべて適用した後にサブユニットがダメージを受ける」
+  // （DMG-010、PR #301レビュー[P1]）: `FIXED`はサブユニットへも吸収されるため、この項が
+  // 無いと`calculatedDamage`と`hitPointDamage`の差を説明できない。`BURN`/`POISON`は
+  // 第2項によりサブユニットで受けず常に0なので、0を落とす規則のまま文からも消える。
   const breakdown = optionalTerms([
     positiveTerm("タイプありシールド吸収", details["typedShieldAbsorbed"]),
     positiveTerm("タイプなしシールド吸収", details["untypedShieldAbsorbed"]),
+    positiveTerm("サブユニット吸収", details["subUnitAbsorbed"]),
     positiveTerm("破棄", details["discardedDamage"]),
   ]);
   const notes = optionalTerms([
