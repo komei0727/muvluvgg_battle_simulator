@@ -142,26 +142,41 @@ const REQUIRED_SPINE: Readonly<Record<HitOutcome, readonly string[]>> = {
   ],
 };
 
-/** 終端ごとに、そのヒットへ現れてはならないイベント。 */
-const FORBIDDEN_AFTER_OUTCOME: Readonly<Record<HitOutcome, readonly string[]>> = {
-  // MISSの場合、対象へのダメージと効果を適用しない（`R-HIT-01`）。
-  MISSED: [
+/**
+ * 終端ごとに、そのヒットへ現れてよいpipelineイベント（allowlist）。
+ *
+ * PR #302再レビュー[P2]: 当初は「現れてはならないイベント」の列挙（blocklist）で
+ * 書いていたが、列挙は必ず取りこぼす — 実際に`MISSED`が`ShieldConsumed`・
+ * `SubUnitDamaged`・`DamageRedirected`・`UnitDefeated`を、`CONVERTED_TO_HEAL`が
+ * `ShieldConsumed`・`SubUnitDamaged`・`LethalDamageSurvived`を禁止できておらず、
+ * 「回避したヒットがシールドだけ誤消費する」回帰が段階の単調性も必須部分列も
+ * 満たしたまま通り抜けた。許可側を書く形へ反転し、`PIPELINE_STAGE`へ新しい
+ * イベントを足したときの既定を「`MISSED`／`CONVERTED_TO_HEAL`では不許可」に
+ * している（下の`APPLIED`は全pipelineイベントから導出するため、新イベントは
+ * 適用経路でだけ自動的に許可される）。
+ */
+const ALLOWED_EVENT_TYPES: Readonly<Record<HitOutcome, ReadonlySet<string>>> = {
+  // `R-HIT-01`: MISSの場合、対象へのダメージと効果を適用しない。命中判定より後の
+  // 手順（#3以降）は一つも発行されない。
+  MISSED: new Set(["UNIT_BEING_ATTACKED", "EVASION_ACTIVATED"]),
+  // `R-DTH-01`: #1〜#6（命中・会心・防御介入・ダメージ計算）は通常どおり通し、
+  // #7の適用段階だけを`DamageConvertedToHeal`へ差し替える。ダメージを適用しない
+  // ため、シールド・サブユニットの吸収も致死耐えも`UnitDefeated`もリンク・反射も
+  // 起きない。
+  CONVERTED_TO_HEAL: new Set([
+    "UNIT_BEING_ATTACKED",
+    "HIT_CONFIRMED",
     "CRITICAL_CHECK_RESOLVED",
     "DAMAGE_WILL_BE_APPLIED",
+    "DAMAGE_REDIRECTED",
     "DAMAGE_CALCULATED",
-    "HIT_POINT_REDUCED",
-    "DAMAGE_APPLIED",
     "DAMAGE_CONVERTED_TO_HEAL",
-  ],
-  // `R-DTH-01`: ダメージを適用しないため`UnitDefeated`・リンク・反射は起きない。
-  CONVERTED_TO_HEAL: [
-    "HIT_POINT_REDUCED",
-    "DAMAGE_APPLIED",
-    "UNIT_DEFEATED",
-    "LINKED_DAMAGE_GENERATED",
-    "REFLECTED_DAMAGE_GENERATED",
-  ],
-  APPLIED: ["DAMAGE_CONVERTED_TO_HEAL"],
+  ]),
+  // 適用まで到達するヒットは9手順のどのイベントも発行しうる。唯一の例外は
+  // `DamageConvertedToHeal`で、これが出た時点で終端は`CONVERTED_TO_HEAL`である。
+  APPLIED: new Set(
+    [...PIPELINE_STAGE.keys()].filter((type) => type !== "DAMAGE_CONVERTED_TO_HEAL"),
+  ),
 };
 
 function classifyHit(types: readonly string[]): HitOutcome {
@@ -234,10 +249,15 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
           );
           continue;
         }
-        const forbidden = FORBIDDEN_AFTER_OUTCOME[outcome].filter((type) => types.includes(type));
-        if (forbidden.length > 0) {
+        // (c) 終端が許すイベントだけで構成されていること。必須部分列は「足りない」
+        //     ことしか見ないため、終端の意味に反する余分なイベント（回避したヒットの
+        //     シールド誤消費など）は許可側の集合で弾く（PR #302再レビュー[P2]）。
+        const disallowed = [...new Set(types)].filter(
+          (type) => !ALLOWED_EVENT_TYPES[outcome].has(type),
+        );
+        if (disallowed.length > 0) {
           spineViolations.push(
-            `${battle.unitDefinitionId} seq=${hit.events[0]!.sequence} ${outcome} hit also emitted ${JSON.stringify(forbidden)}: ${types.join(" -> ")}`,
+            `${battle.unitDefinitionId} seq=${hit.events[0]!.sequence} ${outcome} hit also emitted ${JSON.stringify(disallowed.sort())}: ${types.join(" -> ")}`,
           );
         }
       }
@@ -249,8 +269,19 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
     ).toEqual([]);
     expect(
       spineViolations,
-      `hits missing a step their outcome requires: ${JSON.stringify(spineViolations)}`,
+      `hits missing a required step, or emitting one their outcome forbids: ${JSON.stringify(spineViolations)}`,
     ).toEqual([]);
+
+    // 許可集合そのものの健全性: 綴り違いのイベント名が「どのヒットにも現れない
+    // ので通る」形で紛れ込まないよう、全要素が`PIPELINE_STAGE`の実在キーであり、
+    // 途中終了する2終端が適用経路の真部分集合であることを固定する。
+    for (const [outcome, allowed] of Object.entries(ALLOWED_EVENT_TYPES)) {
+      const unknown = [...allowed].filter((type) => !PIPELINE_STAGE.has(type));
+      expect(unknown, `${outcome} allows a type absent from PIPELINE_STAGE`).toEqual([]);
+    }
+    for (const outcome of ["MISSED", "CONVERTED_TO_HEAL"] as const) {
+      expect(ALLOWED_EVENT_TYPES[outcome].size).toBeLessThan(ALLOWED_EVENT_TYPES.APPLIED.size);
+    }
 
     // 空振り防止: 9手順のすべてと、3つの終端すべてがproduction戦闘で実際に
     // 観測されていること。
