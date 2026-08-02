@@ -1340,7 +1340,54 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
-  { ruleId: "R-ACTN-02", testCaseIds: [], kinds: [] },
+  // DMG-011（Issue #186、M8完了監査）でR-ACTN-02「即時効果」を完了計上した。
+  // 本ルールは4種の即時EffectActionそれぞれを他のルール群へ委譲する規定であり、
+  // `MODIFY_RESOURCE`（`DISTRIBUTE`を含む）だけが自前の規約を持つ。委譲先が
+  // すべて実装済みになった時点で初めて全条項が成立するため、完了責任は
+  // `DMG-001`（Issue #195）から本監査へ引き継がれていた
+  // （`17_残作業対応表.md`「DMG-001」節の再割当表）。
+  {
+    ruleId: "R-ACTN-02",
+    testCaseIds: [
+      // 第1項 `DAMAGE`は`R-HIT-*`/`R-CRT-*`/`R-DMG-*`/`R-SHD-*`に従う。
+      // 委譲先を1本の列として通しで観測するのは本監査が追加した2件で、
+      // 実 `catalog/` の全production戦闘（イベント順・保存則）を対象にする。
+      "IT-AUDIT-M8-001",
+      "IT-AUDIT-M8-002",
+      "SCN-BTL-015",
+      // 第2項 `HEAL`は`R-HEAL-*`に従ってHPを回復する。
+      "UT-R-HEAL-01-001",
+      "UT-R-HEAL-01-002",
+      // 第3項 `MODIFY_RESOURCE`の整数化と`[0, 現在最大値]`への丸め。
+      "UT-R-ACTN-02-001",
+      "UT-R-ACTN-02-002",
+      "UT-R-ACTN-02-003",
+      "UT-R-ACTN-02-004",
+      "UT-R-ACTN-02-005",
+      "UT-R-ACTN-02-007",
+      "UT-R-ACTN-02-008",
+      "UT-R-ACTN-02-009",
+      "UT-R-ACTN-02-010",
+      "UT-R-ACTN-02-011",
+      // 第4項 `DISTRIBUTE`の分配規約（総量の等分・端数切り捨て・参照ごとに独立）。
+      "UT-R-ACTN-02-012",
+      "UT-R-ACTN-02-013",
+      "UT-R-ACTN-02-014",
+      "UT-R-ACTN-02-015",
+      "UT-R-ACTN-02-016",
+      "UT-R-ACTN-02-017",
+      "UT-R-ACTN-02-018",
+      "UT-R-ACTN-02-019",
+      "UT-R-ACTN-02-020",
+      "UT-R-ACTN-02-021",
+      "UT-R-ACTN-02-022",
+      // 第5項 `REMOVE_EFFECTS`のカテゴリ・解除数・優先順。
+      "UT-R-EFF-02-011",
+      "UT-R-EFF-02-012",
+      "UT-R-EFF-02-016",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
   // M7-002A（Issue #255、`CAP_RESOURCE_CAPACITY_MOD`／G-09）で、R-ACTN-03
   // 「継続状態の付与」に初めて機械検証を登録した。`MODIFY_RESOURCE_CAPACITY`は
   // 「付与後、影響するステータス…を再評価する」（同ルール第4項）のリソース上限版で
@@ -1678,7 +1725,37 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
-  { ruleId: "R-DMG-05", testCaseIds: [], kinds: [] },
+  // DMG-011（Issue #186、M8完了監査）でR-DMG-05「ダメージイベント順」を完了計上した。
+  // #4（`DamageWillBeApplied`）は`DMG-001`が実装したが、残る#5（防御介入、`DMG-006`）・
+  // #7（シールド／サブユニット、`DMG-004`／`DMG-005`）・#9（リンク／反射、`DMG-007`／
+  // `DMG-006`）が4Taskへまたがり、各Taskは自分が追加したイベントの前後関係だけを
+  // 検証していた。9手順が1本の列として成立していることを固定するのが
+  // `IT-AUDIT-M8-001`で、実 `catalog/` の全production戦闘の全ヒットを対象にする。
+  {
+    ruleId: "R-DMG-05",
+    testCaseIds: [
+      // #1〜#9を通しで（production全戦闘・全ヒット）。
+      "IT-AUDIT-M8-001",
+      // #4 `DamageWillBeApplied`（TIMING）の位置と、その連鎖後の前提再検証。
+      "UT-R-DMG-05-001",
+      "UT-R-DMG-05-002",
+      "UT-R-DMG-05-003",
+      "UT-R-DMG-05-004",
+      "UT-R-DMG-05-005",
+      "UT-R-DMG-05-006",
+      // #2/#3 命中判定・会心判定のPS連鎖と、その途中終了。
+      "UT-R-DMG-05-007",
+      "UT-R-DMG-05-008",
+      "UT-R-DMG-05-009",
+      // #7 シールド→サブユニット→HPの適用順（`SCN-BTL-015`）と保存則。
+      "SCN-BTL-015",
+      "IT-AUDIT-M8-002",
+      // #9 リンク・反射の追加イベントと、そこから再びリンク・反射が起きないこと。
+      "SCN-BTL-016",
+      "IT-AUDIT-M8-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
 
   // HEAL: 回復計算
   {

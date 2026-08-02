@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 117,
-      "completed": 114,
-      "remaining": 3
+      "completed": 116,
+      "remaining": 1
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -141,7 +141,7 @@
       "issue": 171,
       "phase": 1,
       "milestone": "M7",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "RES-004-STATUS-CONDITION",
@@ -204,7 +204,7 @@
       "issue": 181,
       "phase": 2,
       "milestone": "M7",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "M7-001A",
@@ -365,7 +365,7 @@
       "issue": 270,
       "phase": 2,
       "milestone": "M7",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "M7-017",
@@ -421,7 +421,7 @@
       "issue": 295,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "DMG-004",
@@ -477,7 +477,7 @@
       "issue": 186,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "REL-001",
@@ -540,10 +540,6 @@
     {
       "taskId": "M7-019",
       "ruleIds": ["R-TGT-06"]
-    },
-    {
-      "taskId": "DMG-011",
-      "ruleIds": ["R-ACTN-02", "R-DMG-05"]
     }
   ],
   "conversionThemeAssignments": [
@@ -579,5 +575,36 @@
       "CAP_EFFECT_RUNTIME_COUNTER",
       "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"
     ]
+  },
+  "m8Audit": {
+    "auditDate": "2026-08-02",
+    "auditIssue": 186,
+    "plannedRuleIds": [
+      "R-SKL-03",
+      "R-ACTN-02",
+      "R-ACTN-03",
+      "R-DMG-03",
+      "R-DMG-04",
+      "R-DMG-05",
+      "R-SHD-01",
+      "R-SHD-02",
+      "R-SHD-03",
+      "R-SUB-01",
+      "R-SUB-02",
+      "R-INT-01",
+      "R-INT-02",
+      "R-INT-03",
+      "R-LNK-01",
+      "R-LNK-02",
+      "R-LNK-03",
+      "R-DOT-01",
+      "R-DOT-02",
+      "R-DOT-03",
+      "R-DOT-04"
+    ],
+    "discoveredRuleIds": ["R-CRT-03", "R-CFS-01", "R-CFS-02", "R-DTH-01"],
+    "resolvedConversionRows": 34,
+    "completedByAudit": ["R-ACTN-02", "R-DMG-05"],
+    "addedScenarioIds": ["SCN-BTL-015", "SCN-BTL-016", "SCN-BTL-017"]
   }
 }
