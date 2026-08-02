@@ -199,6 +199,7 @@ export const effectActionDefinitionSchema = {
         "APPLY_CONTINUOUS_DAMAGE",
         "APPLY_STAT_MOD",
         "APPLY_DAMAGE_MOD",
+        "APPLY_PIERCING_MOD",
         "APPLY_HEALING_MOD",
         "APPLY_HEALING_LINK",
         "MODIFY_RESOURCE",

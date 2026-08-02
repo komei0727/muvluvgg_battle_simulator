@@ -3409,12 +3409,34 @@
             { "effectActionDefinitionId": "ACT_FEE_BATH_AS2_DAMAGE" },
             { "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER" }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER_CRIT" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_MARKER"],
+    "requiredCapabilities": [
+      "CAP_MARKER_STACK_FORMULA",
+      "CAP_MARKER",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": { "displayName": "背中流そうか？", "tags": [] }
   },
   {
@@ -4339,11 +4361,11 @@
         {
           "kind": "BRANCH",
           "condition": {
-            "kind": "TARGET_STATE",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "field": "IS_ALIVE",
-            "op": "EQ",
-            "value": false
+            "kind": "TARGET_SET_COUNT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+            "countOf": "DEFEATED",
+            "op": "GTE",
+            "value": 1
           },
           "thenSteps": [
             {
@@ -4362,7 +4384,8 @@
       "CAP_RESOURCE_MUTATION",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_DERIVED_AREA"
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_SET_CONDITION"
     ],
     "metadata": { "displayName": "ピアースショット", "tags": [] }
   },
@@ -4488,12 +4511,34 @@
             { "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_IMMUNITY" },
             { "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DEBUFF_IMMUNITY" }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_SET_COUNT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_3ENEMIES" },
+            "countOf": "ALIVE",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_3ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": [
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_SET_CONDITION",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": { "displayName": "雪山とジュリーだるま？", "tags": [] }
   },
   {
@@ -11240,8 +11285,32 @@
           "kind": "RANDOM_BRANCH",
           "mode": "WEIGHTED_ONE",
           "branches": [
-            { "label": "DAIKICHI", "weight": 10, "steps": [] },
-            { "label": "CHUKICHI", "weight": 20, "steps": [] },
+            {
+              "label": "DAIKICHI",
+              "weight": 10,
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI" }
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "CHUKICHI",
+              "weight": 20,
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_PS1_PIERCE_CHUKICHI" }
+                  ]
+                }
+              ]
+            },
             {
               "label": "SHOKICHI",
               "weight": 30,
@@ -11273,7 +11342,8 @@
     "requiredCapabilities": [
       "CAP_RANDOM_BRANCH",
       "CAP_DAMAGE_MOD",
-      "CAP_PASSIVE_ACTIVATION_CONDITION"
+      "CAP_PASSIVE_ACTIVATION_CONDITION",
+      "CAP_PARTIAL_PIERCING"
     ],
     "metadata": { "displayName": "おみくじ運試し", "tags": [] },
     "triggers": [
@@ -11325,11 +11395,11 @@
         {
           "kind": "BRANCH",
           "condition": {
-            "kind": "TARGET_STATE",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "field": "IS_ALIVE",
-            "op": "EQ",
-            "value": false
+            "kind": "TARGET_SET_COUNT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+            "countOf": "DEFEATED",
+            "op": "GTE",
+            "value": 1
           },
           "thenSteps": [
             {
@@ -11350,7 +11420,8 @@
       "CAP_FORMULA",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_DAMAGE_MOD",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_SET_CONDITION"
     ],
     "metadata": { "displayName": "あっかんべー♡", "tags": [] }
   },
@@ -11644,6 +11715,23 @@
         {
           "kind": "BRANCH",
           "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS2_MARK_CRIT" }]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
             "kind": "TARGET_HAS_MARKER",
             "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "markerId": "MARKER_RAVEL_MODEL_TARGET",
@@ -11798,12 +11886,39 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [{ "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DAMAGE_CRIT" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DMG_UP" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": { "displayName": "メタル・ワイドバレット", "tags": [] }
   },
   {
@@ -14912,12 +15027,38 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [{ "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DMG_TAKEN_UP" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DAMAGE_CRIT" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": [
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": { "displayName": "一日一不憫", "tags": [] }
   },
   {
@@ -14946,12 +15087,38 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [{ "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DMG_TAKEN_UP" },
+                { "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_CRIT_DOWN" }
+              ]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_DAMAGE_MOD",
+      "CAP_STAT_MOD",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": { "displayName": "エクスペクトボーダー", "tags": [] }
   },
   {
@@ -15170,15 +15337,93 @@
           "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_CRIT_UP" }]
         },
         {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE" }]
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_YUI_HEIR_KENKI"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE_KENKI" }]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "LAST_RESULT",
+                "field": "criticalHitCount",
+                "op": "GTE",
+                "value": 1
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_CLEAR_KENKI" }]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DMG_DOWN" }]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_KENKI" }]
+                }
+              ],
+              "elseSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_CLEAR_KENKI" }]
+                }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE" }]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "LAST_RESULT",
+                "field": "criticalHitCount",
+                "op": "GTE",
+                "value": 1
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DMG_DOWN" }]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_KENKI" }]
+                }
+              ],
+              "elseSteps": []
+            }
+          ]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_STAT_MOD",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": { "displayName": "ザ式戦術機動剣術「破衝撃」", "tags": [] }
   },
   {

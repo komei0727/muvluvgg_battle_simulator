@@ -2,7 +2,10 @@
   {
     "skillDefinitionId": "SKL_FEE_BATH_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -13,7 +16,11 @@
             "side": "ENEMY",
             "count": 1,
             "order": [
-              { "kind": "MARKER_COUNT", "markerId": "MARKER_FEE_BATH_FLUSH", "direction": "DESC" }
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_FEE_BATH_FLUSH",
+                "direction": "DESC"
+              }
             ]
           }
         }
@@ -23,15 +30,28 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
             "markerId": "MARKER_FEE_BATH_FLUSH",
-            "countCondition": { "op": "GTE", "value": 4 }
+            "countCondition": {
+              "op": "GTE",
+              "value": 4
+            }
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_FEE_BATH_EX_STUN" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_BASE"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_FEE_BATH_EX_STUN"
+                }
+              ]
             }
           ],
           "elseSteps": []
@@ -40,31 +60,54 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
             "markerId": "MARKER_FEE_BATH_FLUSH",
-            "countCondition": { "op": "GTE", "value": 7 }
+            "countCondition": {
+              "op": "GTE",
+              "value": 7
+            }
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_BASE"
+              },
               "actions": [
-                { "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE_BOOSTED" },
-                { "effectActionDefinitionId": "ACT_FEE_BATH_EX_CLEAR_FLUSH" }
+                {
+                  "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE_BOOSTED"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_FEE_BATH_EX_CLEAR_FLUSH"
+                }
               ]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_BASE"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_FEE_BATH_EX_DAMAGE"
+                }
+              ]
             }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
@@ -72,97 +115,194 @@
       "CAP_RESOLUTION_BRANCH_REPEAT",
       "CAP_TARGET_FILTER_ORDER"
     ],
-    "metadata": { "displayName": "あわあわふー", "tags": [] }
+    "metadata": {
+      "displayName": "あわあわふー",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_FEE_BATH_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 2 },
+    "cost": {
+      "resource": "AP",
+      "amount": 2
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_FARTHEST",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["FARTHEST"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_FARTHEST"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_FEE_BATH_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER" }
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_AS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "かぶり湯", "tags": [] }
+    "metadata": {
+      "displayName": "かぶり湯",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_FEE_BATH_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_FEE_BATH_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER" }
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_AS2_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER"
+            }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_BASE"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER_CRIT"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_MARKER"],
-    "metadata": { "displayName": "背中流そうか？", "tags": [] }
+    "requiredCapabilities": [
+      "CAP_MARKER_STACK_FORMULA",
+      "CAP_MARKER",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
+    "metadata": {
+      "displayName": "背中流そうか？",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_FEE_BATH_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_SOURCE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FEE_BATH_PS1_ATK_DOWN" }]
+          "target": {
+            "kind": "TRIGGER_SOURCE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_PS1_ATK_DOWN"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "すべすべお肌", "tags": [] },
+    "metadata": {
+      "displayName": "すべすべお肌",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "DamageApplied",
         "category": "FACT",
         "sourceSelector": "ENEMY",
         "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_FEE_BATH_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -179,18 +319,31 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_FEE_BATH_PS2_MARKER" },
-            { "effectActionDefinitionId": "ACT_FEE_BATH_PS2_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_PS2_MARKER"
+            },
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_PS2_DEBUFF"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "のぼせた？", "tags": [] },
+    "metadata": {
+      "displayName": "のぼせた？",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnCompleting",

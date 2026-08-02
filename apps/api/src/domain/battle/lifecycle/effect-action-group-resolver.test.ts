@@ -3500,6 +3500,259 @@ describe("applyEffectActionGroups", () => {
     });
   });
 
+  describe("POST_DAMAGE_CRITICAL_BRANCH / POST_DAMAGE_SURVIVAL_BRANCH（DMG-003、Issue #196）", () => {
+    /** `critical.mode: GUARANTEED`のDAMAGE（乱数を消費せず必ず会心する、R-CRT-02）。 */
+    function guaranteedCriticalDamage(id: string, hitCount = 1): EffectActionDefinition {
+      const base = damageAction(id, hitCount);
+      if (base.kind !== "DAMAGE") {
+        throw new Error("expected DAMAGE");
+      }
+      return { ...base, payload: { ...base.payload, critical: { mode: "GUARANTEED" } } };
+    }
+
+    function completedActionIdsOf(recorder: EventRecorder): readonly unknown[] {
+      return recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectActionCompleted")
+        .map((e) => e.payload.effectActionDefinitionId);
+    }
+
+    it("UT-R-SKL-08-022: LAST_RESULT criticalHitCount is scoped to the whole preceding ACTION step, not to its last EffectAction application", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemyA = unit("ENEMY_A", "ENEMY");
+      const enemyB = unit("ENEMY_B", "ENEMY");
+      const attack = guaranteedCriticalDamage("ACT_AOE_CRIT");
+      // `SKL_FEE_BATH_AS2`と同じ形（1つのACTION stepがDAMAGEとMARKERを順に持つ）。
+      // R-SKL-06 #4より対象ごとにactionsを定義順で適用するため、このstepの
+      // **最後**のapplicationは会心を持たないMARKER側になる。`criticalHitCount`が
+      // 「最後に処理したapplication 1件」の値なら0になり elseSteps へ倒れる —
+      // per-applicationとstep-wideを区別する識別子はこの並びである。
+      const tailMarker = markerAction("ACT_TAIL", createMarkerId("MARKER_TAIL"));
+      const thenAction = markerAction("ACT_THEN", createMarkerId("MARKER_THEN"));
+      const elseAction = markerAction("ACT_ELSE", createMarkerId("MARKER_ELSE"));
+      const effectActions = new Map([
+        [attack.effectActionDefinitionId, attack],
+        [tailMarker.effectActionDefinitionId, tailMarker],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: enemyTarget,
+            actions: [
+              { effectActionDefinitionId: attack.effectActionDefinitionId },
+              { effectActionDefinitionId: tailMarker.effectActionDefinitionId },
+            ],
+          },
+          {
+            kind: "BRANCH",
+            condition: { kind: "LAST_RESULT", field: "criticalHitCount", op: "GTE", value: 1 },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const units = [actor, enemyA, enemyB];
+      const plan = resolveSkillOrder(skill, actor, units, effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      applyEffectActionGroups(plan, units, contextFor(actor, effectActions, recorder, rootEventId));
+
+      const completed = completedActionIdsOf(recorder);
+      expect(completed).toContain(thenAction.effectActionDefinitionId);
+      expect(completed).not.toContain(elseAction.effectActionDefinitionId);
+    });
+
+    it("UT-R-SKL-08-023: LAST_RESULT criticalHitCount stays 0 when the preceding DAMAGE step could not crit, so elseSteps run", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY_A", "ENEMY");
+      // `damageAction`の既定は`critical.mode: PREVENTED`（会心しない）。
+      const attack = damageAction("ACT_NO_CRIT", 3);
+      const thenAction = markerAction("ACT_THEN", createMarkerId("MARKER_THEN"));
+      const elseAction = markerAction("ACT_ELSE", createMarkerId("MARKER_ELSE"));
+      const effectActions = new Map([
+        [attack.effectActionDefinitionId, attack],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn(enemyTarget, attack.effectActionDefinitionId),
+          {
+            kind: "BRANCH",
+            condition: { kind: "LAST_RESULT", field: "criticalHitCount", op: "GTE", value: 1 },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const units = [actor, enemy];
+      const plan = resolveSkillOrder(skill, actor, units, effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      applyEffectActionGroups(plan, units, contextFor(actor, effectActions, recorder, rootEventId));
+
+      const completed = completedActionIdsOf(recorder);
+      expect(completed).toContain(elseAction.effectActionDefinitionId);
+      expect(completed).not.toContain(thenAction.effectActionDefinitionId);
+    });
+
+    it("UT-R-SKL-08-024: a BRANCH counting DEFEATED members of LAST_ACTION_TARGETS fires when the preceding AOE killed any one of them", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const frail = unit("ENEMY_A", "ENEMY", { currentHp: 1 });
+      const sturdy = unit("ENEMY_B", "ENEMY");
+      const attack = damageAction("ACT_AOE");
+      const thenAction = markerAction("ACT_THEN", createMarkerId("MARKER_THEN"));
+      const elseAction = markerAction("ACT_ELSE", createMarkerId("MARKER_ELSE"));
+      const effectActions = new Map([
+        [attack.effectActionDefinitionId, attack],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      // `LAST_ACTION_TARGETS`は直前ACTION stepが実際に対象にしたunit集合を、
+      // 戦闘不能になった対象も含めて指す — `TGT_ENEMY`をそのまま数え直すと
+      // 生存者だけへ縮んでしまい「倒した」ことが観測できない。
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn(enemyTarget, attack.effectActionDefinitionId),
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: { kind: "LAST_ACTION_TARGETS" },
+              countOf: "DEFEATED",
+              op: "GTE",
+              value: 1,
+            },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const units = [actor, frail, sturdy];
+      const plan = resolveSkillOrder(skill, actor, units, effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      applyEffectActionGroups(plan, units, contextFor(actor, effectActions, recorder, rootEventId));
+
+      const completed = completedActionIdsOf(recorder);
+      expect(completed).toContain(thenAction.effectActionDefinitionId);
+      expect(completed).not.toContain(elseAction.effectActionDefinitionId);
+    });
+
+    it("UT-R-SKL-08-025: the same DEFEATED branch does not fire when every attacked target survived", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const sturdyA = unit("ENEMY_A", "ENEMY");
+      const sturdyB = unit("ENEMY_B", "ENEMY");
+      const attack = damageAction("ACT_AOE");
+      const thenAction = markerAction("ACT_THEN", createMarkerId("MARKER_THEN"));
+      const elseAction = markerAction("ACT_ELSE", createMarkerId("MARKER_ELSE"));
+      const effectActions = new Map([
+        [attack.effectActionDefinitionId, attack],
+        [thenAction.effectActionDefinitionId, thenAction],
+        [elseAction.effectActionDefinitionId, elseAction],
+      ]);
+
+      const enemyBindingId = createTargetBindingId("TGT_ENEMY");
+      const enemyTarget: TargetReference = { kind: "BINDING", targetBindingId: enemyBindingId };
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          actionOn(enemyTarget, attack.effectActionDefinitionId),
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: { kind: "LAST_ACTION_TARGETS" },
+              countOf: "DEFEATED",
+              op: "GTE",
+              value: 1,
+            },
+            thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
+            elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
+          },
+        ],
+      });
+
+      const units = [actor, sturdyA, sturdyB];
+      const plan = resolveSkillOrder(skill, actor, units, effectActions);
+      const { recorder, rootEventId } = seedRecorder();
+      applyEffectActionGroups(plan, units, contextFor(actor, effectActions, recorder, rootEventId));
+
+      const completed = completedActionIdsOf(recorder);
+      expect(completed).toContain(elseAction.effectActionDefinitionId);
+      expect(completed).not.toContain(thenAction.effectActionDefinitionId);
+    });
+  });
+
   describe("CAP_EFFECT_STEP_SET_CONDITION（Issue #227 RES-004集合条件）: TARGET_SET_COUNTは対象集合の最新状態を反映する", () => {
     it("UT-R-SKL-06-034: a BRANCH's TARGET_SET_COUNT (EXISTS: op GTE, value 1) takes elseSteps once a preceding step's DAMAGE has defeated the only member of the referenced set", () => {
       const actor = unit("ACTOR", "ALLY");
@@ -3536,7 +3789,13 @@ describe("applyEffectActionGroups", () => {
           actionOn(enemyTarget, kill.effectActionDefinitionId),
           {
             kind: "BRANCH",
-            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: enemyTarget,
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 1,
+            },
             thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
             elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
           },
@@ -3593,7 +3852,13 @@ describe("applyEffectActionGroups", () => {
           actionOn(enemyTarget, kill.effectActionDefinitionId),
           {
             kind: "BRANCH",
-            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: enemyTarget,
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 1,
+            },
             thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
             elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
           },
@@ -3653,7 +3918,13 @@ describe("applyEffectActionGroups", () => {
           actionOn(enemyTarget, kill.effectActionDefinitionId),
           {
             kind: "BRANCH",
-            condition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 2 },
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: enemyTarget,
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 2,
+            },
             thenSteps: [actionOn({ kind: "SELF" }, thenAction.effectActionDefinitionId)],
             elseSteps: [actionOn({ kind: "SELF" }, elseAction.effectActionDefinitionId)],
           },
@@ -3705,7 +3976,13 @@ describe("applyEffectActionGroups", () => {
           actionOn(enemyTarget, kill.effectActionDefinitionId),
           {
             kind: "ACTION",
-            stepCondition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            stepCondition: {
+              kind: "TARGET_SET_COUNT",
+              target: enemyTarget,
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 1,
+            },
             targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
@@ -3765,6 +4042,7 @@ describe("applyEffectActionGroups", () => {
             kind: "BRANCH",
             condition: {
               kind: "TARGET_SET_COUNT",
+              countOf: "ALIVE",
               target: enemyTarget,
               op: "GTE",
               value: 1,
@@ -3825,7 +4103,13 @@ describe("applyEffectActionGroups", () => {
         steps: [
           {
             kind: "ACTION",
-            stepCondition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 1 },
+            stepCondition: {
+              kind: "TARGET_SET_COUNT",
+              target: enemyTarget,
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 1,
+            },
             targetCondition: { kind: "TRUE" },
             target: { kind: "SELF" },
             actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
@@ -3933,6 +4217,7 @@ describe("applyEffectActionGroups", () => {
             // TGT_ALLの生存数がstepConditionValue以上でなければstep全体をskipする。
             stepCondition: {
               kind: "TARGET_SET_COUNT",
+              countOf: "ALIVE",
               target: allTarget,
               op: "GTE",
               value: stepConditionValue,
@@ -3989,7 +4274,13 @@ describe("applyEffectActionGroups", () => {
       // （TARGET_HAS_MARKER）を持つ、ネストされる側のACTION本体。
       const combinedAction: EffectStepDefinition = {
         kind: "ACTION",
-        stepCondition: { kind: "TARGET_SET_COUNT", target: allTarget, op: "GTE", value: 2 },
+        stepCondition: {
+          kind: "TARGET_SET_COUNT",
+          target: allTarget,
+          countOf: "ALIVE",
+          op: "GTE",
+          value: 2,
+        },
         targetCondition: { kind: "TARGET_HAS_MARKER", target: allTarget, markerId },
         target: allTarget,
         actions: [{ effectActionDefinitionId: conditionalHit.effectActionDefinitionId }],
@@ -4155,7 +4446,13 @@ describe("applyEffectActionGroups", () => {
           {
             kind: "ACTION",
             // step-wide gate: satisfied (both enemies alive).
-            stepCondition: { kind: "TARGET_SET_COUNT", target: enemyTarget, op: "GTE", value: 2 },
+            stepCondition: {
+              kind: "TARGET_SET_COUNT",
+              target: enemyTarget,
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 2,
+            },
             // per-target filter: satisfied by nobody (marker never granted).
             targetCondition: {
               kind: "TARGET_HAS_MARKER",

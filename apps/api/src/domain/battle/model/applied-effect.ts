@@ -99,6 +99,21 @@ export interface DamageModifierState {
  * `damageModifier`と同じ理由でインスタンス自身が持つ — `combat/`はCatalogの
  * `effectActions`マップを引けない（`domain/battle/combat`のmodule境界）。
  */
+/**
+ * R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003、Issue #196、`APPLY_PIERCING_MOD`由来の
+ * 付与だけが持つ）: 保持者が**行う**攻撃へ期間中だけ上乗せする防御貫通率。
+ *
+ * 3つの率をインスタンス自身に持たせるのは`shield`/`damageModifier`と同じ理由 —
+ * 合成する`combat/piercing-policy.ts`はCatalogの`effectActions`マップを引けない
+ * （`domain/battle/combat`のmodule境界）。`magnitude`へ畳み込めないのは、
+ * 1インスタンスが独立した3つの率を同時に持ちうるためである。
+ */
+export interface PiercingModifierState {
+  readonly defenseIgnoreRate: number;
+  readonly shieldIgnoreRate: number;
+  readonly damageReductionIgnoreRate: number;
+}
+
 export interface ShieldState {
   /** `null`はタイプなしシールド（あらゆるダメージタイプを吸収する）。 */
   readonly shieldType: DamageType | null;
@@ -310,6 +325,8 @@ export interface AppliedEffect {
   readonly healingLink?: HealingLinkState;
   /** R-DMG-04（DMG-002、Issue #192）: `APPLY_DAMAGE_MOD`由来の付与だけが持つ。 */
   readonly damageModifier?: DamageModifierState;
+  /** R-DMG-03（DMG-003、Issue #196）: `APPLY_PIERCING_MOD`由来の付与だけが持つ。 */
+  readonly piercing?: PiercingModifierState;
   /** R-SHD-01（DMG-004、Issue #194）: `APPLY_SHIELD`由来の付与だけが持つ。 */
   readonly shield?: ShieldState;
   /** R-SUB-01/02（DMG-005、Issue #190）: `APPLY_SUBUNIT`由来の付与だけが持つ。 */

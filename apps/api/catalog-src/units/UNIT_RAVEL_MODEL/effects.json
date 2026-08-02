@@ -312,5 +312,27 @@
     "metadata": {
       "tags": []
     }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS2_MARK_CRIT",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_RAVEL_MODEL_TARGET",
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": {
+      "tags": []
+    }
   }
 ]

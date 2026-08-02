@@ -45,6 +45,34 @@
               "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DEBUFF_IMMUNITY"
             }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_SET_COUNT",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_3ENEMIES"
+            },
+            "countOf": "ALIVE",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_3ENEMIES"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
@@ -53,7 +81,11 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": [
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_EFFECT_STEP_SET_CONDITION",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": {
       "displayName": "雪山とジュリーだるま？",
       "tags": []

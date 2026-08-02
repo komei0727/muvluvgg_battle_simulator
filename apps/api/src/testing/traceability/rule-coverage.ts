@@ -989,6 +989,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-08-010",
       "UT-R-SKL-08-011",
       "UT-R-SKL-08-012",
+      // DMG-003（Issue #196、POST_DAMAGE_CRITICAL_BRANCH）: `LAST_RESULT`の
+      // `criticalHitCount`（直前ACTION step全体の会心ヒット数）と、その
+      // step-wideスコープをproduction定義の形のまま固定する証跡。
+      "UT-R-SKL-08-021",
+      "UT-R-SKL-08-022",
+      "UT-R-SKL-08-023",
+      "IT-CAP-POST-DAMAGE-BRANCH-PROD-001",
+      "IT-CAP-POST-DAMAGE-BRANCH-PROD-002",
+      "IT-CAP-POST-DAMAGE-BRANCH-PROD-003",
       "UT-CAT-IDX-042",
       "UT-CAT-IDX-043",
       "UT-CAT-IDX-044",
@@ -1581,6 +1590,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DMG-03-003",
       "UT-R-DMG-03-004",
       "IT-CAP-DAMAGE-MOD-PROD-001",
+      // DMG-003（Issue #196、TEMP_PIERCING_GRANT）: 静的な`DamagePayload.piercing`
+      // と`APPLY_PIERCING_MOD`由来の一時貫通を「無視されずに残る割合の積」で
+      // 合成する（`combat/piercing-policy.ts`）。
+      "UT-R-DMG-03-020",
+      "UT-R-DMG-03-021",
+      "UT-R-DMG-03-022",
+      "UT-R-DMG-03-023",
+      // PR #296レビュー[P1]: 合成結果が`DamageWillBeApplied`のsnapshotだけで
+      // なく確定計算（`DamageCalculated`の`effectiveDefense`）まで届くことを
+      // 直接固定する（合成関数そのものではなく配線の回帰テスト）。
+      "UT-R-DMG-03-024",
+      "IT-CAP-PARTIAL-PIERCING-PROD-001",
+      "IT-CAP-PARTIAL-PIERCING-PROD-002",
+      "IT-CAP-PARTIAL-PIERCING-PROD-003",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },

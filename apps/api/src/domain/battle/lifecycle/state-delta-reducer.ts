@@ -128,6 +128,24 @@ function sameHealingLinkState(
  * `JSON.stringify`で比較する（Catalog由来の決定的なプレーン値であり、
  * `deepFreeze`済みでキー順も安定している）。
  */
+/**
+ * R-DMG-03（DMG-003、Issue #196）: `APPLY_PIERCING_MOD`由来の3率を構造比較する
+ * （`sameDamageModifierState`と同じ理由 — `magnitude`だけでは復元できない）。
+ */
+function samePiercingModifierState(
+  a: EffectSnapshot["piercing"],
+  b: EffectSnapshot["piercing"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.defenseIgnoreRate === b.defenseIgnoreRate &&
+    a.shieldIgnoreRate === b.shieldIgnoreRate &&
+    a.damageReductionIgnoreRate === b.damageReductionIgnoreRate
+  );
+}
+
 function sameDamageModifierState(
   a: EffectSnapshot["damageModifier"],
   b: EffectSnapshot["damageModifier"],
@@ -252,6 +270,7 @@ export function sameEffectSnapshot(
     a.isAttackDamageBonus === b.isAttackDamageBonus &&
     sameHealingLinkState(a.healingLink, b.healingLink) &&
     sameDamageModifierState(a.damageModifier, b.damageModifier) &&
+    samePiercingModifierState(a.piercing, b.piercing) &&
     sameShieldState(a.shield, b.shield) &&
     sameSubUnitState(a.subUnit, b.subUnit) &&
     sameContinuousDamageState(a.continuousDamage, b.continuousDamage) &&

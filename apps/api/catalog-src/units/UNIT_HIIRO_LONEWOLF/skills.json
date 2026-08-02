@@ -196,14 +196,14 @@
         {
           "kind": "BRANCH",
           "condition": {
-            "kind": "TARGET_STATE",
+            "kind": "TARGET_SET_COUNT",
             "target": {
               "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
+              "targetBindingId": "TGT_COLUMN"
             },
-            "field": "IS_ALIVE",
-            "op": "EQ",
-            "value": false
+            "countOf": "DEFEATED",
+            "op": "GTE",
+            "value": 1
           },
           "thenSteps": [
             {
@@ -231,7 +231,8 @@
       "CAP_RESOURCE_MUTATION",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_DERIVED_AREA"
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_EFFECT_STEP_SET_CONDITION"
     ],
     "metadata": {
       "displayName": "ピアースショット",

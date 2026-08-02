@@ -116,6 +116,13 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_CONTINUOUS_DAMAGE: ["continuousDamageKind", "damageType", "formula", "timing", "duration"],
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
   APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "condition", "stacking", "duration"],
+  APPLY_PIERCING_MOD: [
+    "defenseIgnoreRate",
+    "shieldIgnoreRate",
+    "damageReductionIgnoreRate",
+    "stacking",
+    "duration",
+  ],
   APPLY_HEALING_MOD: ["direction", "formula", "stacking", "duration"],
   APPLY_HEALING_LINK: ["transferTo", "transferRate", "duration"],
   MODIFY_RESOURCE: ["resource", "operation", "formula", "bounds"],
@@ -647,6 +654,41 @@ function createPayload(
           ...(conditionInput !== undefined
             ? { condition: createDamageModCondition(conditionInput, `${path}.condition`) }
             : {}),
+          stacking: { mode: stackingMode },
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "APPLY_PIERCING_MOD": {
+      // `TEMP_PIERCING_GRANT`（DMG-003、Issue #196）: 3つの率は
+      // `DamagePayload.piercing`と同じ意味・同じ定義域（R-DMG-03の[0, 1]）を持ち、
+      // 省略時は0。`DAMAGE`側は`payload.piercing`というネストだが、こちらは
+      // EffectAction自身が貫通付与そのものであるためpayload直下に置く。
+      const stackingMode = requireStackingMode(payload, path);
+      const rates = {
+        defenseIgnoreRate: (payload["defenseIgnoreRate"] as number | undefined) ?? 0,
+        shieldIgnoreRate: (payload["shieldIgnoreRate"] as number | undefined) ?? 0,
+        damageReductionIgnoreRate:
+          (payload["damageReductionIgnoreRate"] as number | undefined) ?? 0,
+      };
+      for (const [key, value] of Object.entries(rates)) {
+        assertFinite(value, `${path}.${key}`);
+        if (value < 0 || value > 1) {
+          throw new DomainValidationError(`${path}.${key}`, `must be within [0, 1], got ${value}`);
+        }
+      }
+      // 3つとも0の定義は何も無視しないno-opであり、付与しても実行時に一切
+      // 観測できない（`CAP_PARTIAL_PIERCING`の silent partial implementation）。
+      if (Object.values(rates).every((value) => value === 0)) {
+        throw new DomainValidationError(
+          path,
+          "must ignore something: at least one of defenseIgnoreRate/shieldIgnoreRate/damageReductionIgnoreRate must be greater than 0",
+        );
+      }
+      return {
+        kind: "APPLY_PIERCING_MOD",
+        payload: {
+          ...rates,
           stacking: { mode: stackingMode },
           duration: createDurationField(payload, path),
         },

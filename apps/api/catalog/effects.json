@@ -2033,6 +2033,17 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_FEE_BATH_AS2_MARKER_CRIT",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_FEE_BATH_FLUSH",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL",
     "kind": "HEAL",
     "payload": {
@@ -2144,7 +2155,7 @@
       "accuracy": { "mode": "GUARANTEED" },
       "piercing": { "defenseIgnoreRate": 1, "shieldIgnoreRate": 1, "damageReductionIgnoreRate": 1 }
     },
-    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA", "CAP_PARTIAL_PIERCING"],
     "metadata": { "tags": [] }
   },
   {
@@ -2699,6 +2710,13 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.9 } },
+    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -6632,6 +6650,34 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI",
+    "kind": "APPLY_PIERCING_MOD",
+    "payload": {
+      "defenseIgnoreRate": 0.5,
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_PS1_PIERCE_CHUKICHI",
+    "kind": "APPLY_PIERCING_MOD",
+    "payload": {
+      "defenseIgnoreRate": 0.25,
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_RAMI_UNYIELDING_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
@@ -6930,6 +6976,17 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS2_MARK_CRIT",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_RAVEL_MODEL_TARGET",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_ROSIE_ARTIST_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
@@ -7019,6 +7076,29 @@
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
     "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DAMAGE_CRIT",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.39 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -9105,6 +9185,55 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DMG_TAKEN_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DAMAGE_CRIT",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.2844 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DMG_TAKEN_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_CRIT_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": -0.02 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_STAT_MOD"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_YUI_HEIR_EX_REMOVE_SHIELD",
     "kind": "REMOVE_EFFECTS",
     "payload": { "categories": ["SHIELD"] },
@@ -9246,6 +9375,47 @@
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.2 }, "overheal": "DISCARD" },
     "requiredCapabilities": ["CAP_HEAL"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_KENKI",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_YUI_HEIR_KENKI",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_CLEAR_KENKI",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_YUI_HEIR_KENKI" },
+    "requiredCapabilities": ["CAP_MARKER"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE_KENKI",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.496 } },
+    "requiredCapabilities": [],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {

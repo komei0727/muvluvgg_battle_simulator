@@ -174,14 +174,133 @@
           ]
         },
         {
-          "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "SELF"
+            },
+            "markerId": "MARKER_YUI_HEIR_KENKI"
           },
-          "actions": [
+          "thenSteps": [
             {
-              "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE"
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE_KENKI"
+                }
+              ]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "LAST_RESULT",
+                "field": "criticalHitCount",
+                "op": "GTE",
+                "value": 1
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "SELF"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_CLEAR_KENKI"
+                    }
+                  ]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_PRIMARY"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DMG_DOWN"
+                    }
+                  ]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "SELF"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_KENKI"
+                    }
+                  ]
+                }
+              ],
+              "elseSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "SELF"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_CLEAR_KENKI"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DAMAGE"
+                }
+              ]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "LAST_RESULT",
+                "field": "criticalHitCount",
+                "op": "GTE",
+                "value": 1
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_PRIMARY"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_DMG_DOWN"
+                    }
+                  ]
+                },
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "SELF"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_YUI_HEIR_AS2_KENKI"
+                    }
+                  ]
+                }
+              ],
+              "elseSteps": []
             }
           ]
         }
@@ -192,7 +311,13 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": [
+      "CAP_MARKER",
+      "CAP_STAT_MOD",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION",
+      "CAP_RESOLUTION_BRANCH_REPEAT"
+    ],
     "metadata": {
       "displayName": "ザ式戦術機動剣術「破衝撃」",
       "tags": []

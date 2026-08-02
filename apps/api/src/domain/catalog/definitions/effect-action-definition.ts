@@ -5,6 +5,7 @@ import type {
   ApplyContinuousHealPayload,
   ApplyCoverPayload,
   ApplyDamageModPayload,
+  ApplyPiercingModPayload,
   ApplyDeathSurvivalPayload,
   ApplyHealingLinkPayload,
   ApplyHealingModPayload,
@@ -41,6 +42,7 @@ export const EFFECT_ACTION_KINDS = [
   "APPLY_CONTINUOUS_DAMAGE",
   "APPLY_STAT_MOD",
   "APPLY_DAMAGE_MOD",
+  "APPLY_PIERCING_MOD",
   "APPLY_HEALING_MOD",
   "APPLY_HEALING_LINK",
   "MODIFY_RESOURCE",
@@ -69,6 +71,7 @@ export type EffectActionPayload =
   | { readonly kind: "APPLY_CONTINUOUS_DAMAGE"; readonly payload: ApplyContinuousDamagePayload }
   | { readonly kind: "APPLY_STAT_MOD"; readonly payload: ApplyStatModPayload }
   | { readonly kind: "APPLY_DAMAGE_MOD"; readonly payload: ApplyDamageModPayload }
+  | { readonly kind: "APPLY_PIERCING_MOD"; readonly payload: ApplyPiercingModPayload }
   | { readonly kind: "APPLY_HEALING_MOD"; readonly payload: ApplyHealingModPayload }
   | { readonly kind: "APPLY_HEALING_LINK"; readonly payload: ApplyHealingLinkPayload }
   | { readonly kind: "MODIFY_RESOURCE"; readonly payload: ModifyResourcePayload }

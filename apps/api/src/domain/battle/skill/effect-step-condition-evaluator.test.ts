@@ -141,7 +141,24 @@ describe("evaluateEffectStepCondition", () => {
       effectActionKind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_DAMAGE"),
       targetUnitIds: [createBattleUnitId("enemy-1"), createBattleUnitId("enemy-2")],
+      criticalHitCount: 0,
     };
+
+    it("UT-R-SKL-08-021 (POST_DAMAGE_CRITICAL_BRANCH, DMG-003/Issue #196): compares criticalHitCount, which is 0 when the preceding ACTION step produced no critical hit", () => {
+      const anyCritical: ConditionDefinition = {
+        kind: "LAST_RESULT",
+        field: "criticalHitCount",
+        op: "GTE",
+        value: 1,
+      };
+      expect(evaluateEffectStepCondition(anyCritical, damageResult)).toBe(false);
+      expect(
+        evaluateEffectStepCondition(anyCritical, { ...damageResult, criticalHitCount: 1 }),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(anyCritical, { ...damageResult, criticalHitCount: 3 }),
+      ).toBe(true);
+    });
 
     it("UT-R-SKL-08-001: compares resultKind against the supplied last result", () => {
       const condition: ConditionDefinition = {
@@ -229,6 +246,7 @@ describe("evaluateEffectStepCondition", () => {
     it("UT-R-SKL-06-032: detects a top-level TARGET_SET_COUNT and recurses through AND/OR/NOT", () => {
       const direct: ConditionDefinition = {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: OTHER_BINDING,
         op: "GTE",
         value: 1,
@@ -575,6 +593,7 @@ describe("evaluateEffectStepCondition", () => {
     it("UT-R-SKL-06-025: without a resolveTargetSet resolver throws", () => {
       const condition: ConditionDefinition = {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: OTHER_BINDING,
         op: "GTE",
         value: 1,
@@ -585,6 +604,7 @@ describe("evaluateEffectStepCondition", () => {
     it("UT-R-SKL-06-026: EXISTS-style (op GTE, value 1) is false when the resolved set is empty", () => {
       const condition: ConditionDefinition = {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: OTHER_BINDING,
         op: "GTE",
         value: 1,
@@ -595,6 +615,7 @@ describe("evaluateEffectStepCondition", () => {
     it("UT-R-SKL-06-027: NONE-style (op LT, value 1) is true when the resolved set is empty", () => {
       const condition: ConditionDefinition = {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: OTHER_BINDING,
         op: "LT",
         value: 1,
@@ -607,6 +628,7 @@ describe("evaluateEffectStepCondition", () => {
       const enemyB = unit("ENEMY_B", "UNIT_A");
       const condition: ConditionDefinition = {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: OTHER_BINDING,
         op: "GTE",
         value: 2,
@@ -624,6 +646,7 @@ describe("evaluateEffectStepCondition", () => {
       const defeated = unit("ENEMY_B", "UNIT_A", { currentHp: 0 });
       const condition: ConditionDefinition = {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: OTHER_BINDING,
         op: "GTE",
         value: 1,
@@ -636,15 +659,66 @@ describe("evaluateEffectStepCondition", () => {
       ).toBe(true);
     });
 
+    it("UT-R-SKL-06-069 (POST_DAMAGE_SURVIVAL_BRANCH, DMG-003/Issue #196): countOf DEFEATED counts the defeated members instead of the surviving ones", () => {
+      const alive = unit("ENEMY_A", "UNIT_A");
+      const defeated = unit("ENEMY_B", "UNIT_A", { currentHp: 0 });
+      const anyDefeated: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        countOf: "DEFEATED",
+        op: "GTE",
+        value: 1,
+      };
+      // 全員生存 → 0件、1体でも撃破 → 成立（「この攻撃で敵を倒した場合」）。
+      expect(evaluateEffectStepCondition(anyDefeated, undefined, undefined, () => [alive])).toBe(
+        false,
+      );
+      expect(
+        evaluateEffectStepCondition(anyDefeated, undefined, undefined, () => [alive, defeated]),
+      ).toBe(true);
+      // 空集合はどちらの数え方でも0件。
+      expect(evaluateEffectStepCondition(anyDefeated, undefined, undefined, () => [])).toBe(false);
+    });
+
+    it("UT-R-SKL-06-070 (DMG-003/Issue #196): countOf ALIVE is the default and keeps the pre-existing surviving-member semantics", () => {
+      const alive = unit("ENEMY_A", "UNIT_A");
+      const defeated = unit("ENEMY_B", "UNIT_A", { currentHp: 0 });
+      const explicitAlive: ConditionDefinition = {
+        kind: "TARGET_SET_COUNT",
+        target: OTHER_BINDING,
+        countOf: "ALIVE",
+        op: "GTE",
+        value: 1,
+      };
+      expect(
+        evaluateEffectStepCondition(explicitAlive, undefined, undefined, () => [defeated]),
+      ).toBe(false);
+      expect(
+        evaluateEffectStepCondition(explicitAlive, undefined, undefined, () => [alive, defeated]),
+      ).toBe(true);
+    });
+
     it("UT-R-SKL-06-030: recurses through AND/OR/NOT and passes the resolveTargetSet resolver down", () => {
       const enemyA = unit("ENEMY_A", "UNIT_A");
       const condition: ConditionDefinition = {
         kind: "AND",
         conditions: [
-          { kind: "TARGET_SET_COUNT", target: OTHER_BINDING, op: "GTE", value: 1 },
+          {
+            kind: "TARGET_SET_COUNT",
+            target: OTHER_BINDING,
+            countOf: "ALIVE",
+            op: "GTE",
+            value: 1,
+          },
           {
             kind: "NOT",
-            condition: { kind: "TARGET_SET_COUNT", target: OTHER_BINDING, op: "GTE", value: 2 },
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: OTHER_BINDING,
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 2,
+            },
           },
         ],
       };
@@ -659,7 +733,13 @@ describe("evaluateEffectStepCondition", () => {
         kind: "AND",
         conditions: [
           { kind: "TARGET_STATE", target: STEP_TARGET, field: "IS_ALIVE", op: "EQ", value: true },
-          { kind: "TARGET_SET_COUNT", target: OTHER_BINDING, op: "GTE", value: 1 },
+          {
+            kind: "TARGET_SET_COUNT",
+            target: OTHER_BINDING,
+            countOf: "ALIVE",
+            op: "GTE",
+            value: 1,
+          },
         ],
       };
       const ctx: EffectStepTargetContext = {

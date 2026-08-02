@@ -248,6 +248,7 @@ describe("selectAsCandidate", () => {
     const gated = asSkill("SKL_GATED", 1, {
       activationCondition: {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_LOW_HP") },
         op: "GTE",
         value: 1,
@@ -293,6 +294,7 @@ describe("selectAsCandidate", () => {
     const gated = asSkill("SKL_GATED", 1, {
       activationCondition: {
         kind: "TARGET_SET_COUNT",
+        countOf: "ALIVE",
         target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_LOW_HP") },
         op: "GTE",
         value: 1,

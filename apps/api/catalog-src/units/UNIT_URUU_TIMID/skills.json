@@ -30,6 +30,42 @@
               "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DAMAGE"
             }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ALL_ENEMIES"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DMG_TAKEN_UP"
+                }
+              ]
+            },
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ALL_ENEMIES"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DAMAGE_CRIT"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
@@ -38,7 +74,11 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
+    "requiredCapabilities": [
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": {
       "displayName": "一日一不憫",
       "tags": []
@@ -91,6 +131,33 @@
               "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DAMAGE"
             }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ROW"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DMG_TAKEN_UP"
+                },
+                {
+                  "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_CRIT_DOWN"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
@@ -99,7 +166,13 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_DAMAGE_MOD",
+      "CAP_STAT_MOD",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": {
       "displayName": "エクスペクトボーダー",
       "tags": []

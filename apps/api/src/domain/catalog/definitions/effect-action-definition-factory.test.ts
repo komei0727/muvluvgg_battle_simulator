@@ -2172,4 +2172,70 @@ describe("EffectActionDefinition", () => {
       ).toThrow(DomainValidationError);
     }
   });
+
+  describe("APPLY_PIERCING_MOD (TEMP_PIERCING_GRANT, DMG-003/Issue #196)", () => {
+    const base = {
+      effectActionDefinitionId: "ACT_TEMP_PIERCING",
+      kind: "APPLY_PIERCING_MOD",
+      requiredCapabilities: ["CAP_PARTIAL_PIERCING"],
+    } as const;
+
+    it("UT-CAT-ACT-096: maps the three ignore rates and defaults the omitted ones to 0", () => {
+      const result = createEffectActionDefinition(
+        {
+          ...base,
+          payload: {
+            defenseIgnoreRate: 0.5,
+            stacking: { mode: "STACKABLE" },
+            duration: { consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 } },
+          },
+        },
+        "effectAction",
+      );
+      expect(result.kind).toBe("APPLY_PIERCING_MOD");
+      if (result.kind !== "APPLY_PIERCING_MOD") {
+        throw new Error("expected APPLY_PIERCING_MOD");
+      }
+      expect(result.payload.defenseIgnoreRate).toBe(0.5);
+      expect(result.payload.shieldIgnoreRate).toBe(0);
+      expect(result.payload.damageReductionIgnoreRate).toBe(0);
+    });
+
+    it("UT-CAT-ACT-097: rejects an ignore rate outside [0, 1] (R-DMG-03: 0 は通常処理、1 は全量無視)", () => {
+      for (const payload of [
+        { defenseIgnoreRate: 1.5 },
+        { shieldIgnoreRate: -0.1 },
+        { damageReductionIgnoreRate: 2 },
+      ]) {
+        expect(() =>
+          createEffectActionDefinition(
+            {
+              ...base,
+              payload: {
+                ...payload,
+                stacking: { mode: "STACKABLE" },
+                duration: { consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 } },
+              },
+            },
+            "effectAction",
+          ),
+        ).toThrow(DomainValidationError);
+      }
+    });
+
+    it("UT-CAT-ACT-098: rejects a definition that ignores nothing at all (all three rates 0 or omitted)", () => {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            ...base,
+            payload: {
+              stacking: { mode: "STACKABLE" },
+              duration: { consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 } },
+            },
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
 });

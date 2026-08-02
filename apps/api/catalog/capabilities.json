@@ -152,8 +152,8 @@
     "capabilityId": "CAP_CRITICAL_CONTROL",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "PLANNED",
-    "implementationTaskId": "DMG-003",
-    "description": "会心保証・会心不可",
+    "implementationTaskId": "DMG-003A",
+    "description": "会心保証・会心不可。`DamagePayload.critical.mode`の`GUARANTEED`/`PREVENTED`は`combat/critical-policy.ts`に実装済みだが、`APPLY_STATUS`の`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`は`effect-action-group-resolver.ts`が明示的に拒否したままである。`DMG-003`（Issue #196）が完了責任を持っていたが、同Issueの3テーマ（`POST_DAMAGE_CRITICAL_BRANCH`/`POST_DAMAGE_SURVIVAL_BRANCH`/`TEMP_PIERCING_GRANT`）とは独立した機能のため`DMG-003A`（Issue #295）へ分離した。",
     "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
   },
   {
@@ -237,10 +237,25 @@
   {
     "capabilityId": "CAP_EFFECT_STEP_SET_CONDITION",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-019",
-    "description": "TARGET_SET_COUNTを使い、Area/TargetFilterで絞り込んだ対象集合（TargetReferenceが解決する集合）の存在・件数をしきい値判定する（EXISTS: op GTE value 1、NONE: op LT value 1、COUNT: 任意のop/value）。BRANCHの`condition`、またはACTIONの`stepCondition`（step全体のgate、Issue #230でACTIONの`condition`から分離）でだけ使える。生存数のみを数え、条件評価時点の最新Battle stateを反映する。AS/EXの行動選択（CAP_ACTION_ACTIVATION_CONDITION）・PSの候補判定（CAP_PASSIVE_ACTIVATION_CONDITION）での利用はこの完了境界に含めない（Issue #227、#180（M7-003）へ引き渡す）。BRANCHの単一`condition`は今もTARGET_STATE/TARGET_HAS_MARKER（対象別条件、参照先のTargetReferenceは問わない）とTARGET_SET_COUNTをAND/OR/NOTで同時に含められない（両者は単一のbooleanへ還元する意味論が異なり、混在させると量化の位置に依存して結果が変わるため、Catalogロード時点でMIXED_STEP_TARGET_SET_CONDITIONとして明示的に拒否する、PRレビュー[P2]再々々指摘・再々々々指摘）。ACTIONは`stepCondition`/`targetCondition`という独立したスキーマフィールドへ分離済みのため、この2種は型・Catalogスキーマの両方で最初から混在不可能になり、MIXED_STEP_TARGET_SET_CONDITIONの対象から外れた（Issue #230）。schema・評価器・Catalog検証は実装済みだが、利用するproduction定義が現状存在しないため、productionDefinitionIdsが揃うまでruntimeStatusはPLANNEDのまま。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "TARGET_SET_COUNTを使い、Area/TargetFilterで絞り込んだ対象集合（TargetReferenceが解決する集合）の存在・件数をしきい値判定する（EXISTS: op GTE value 1、NONE: op LT value 1、COUNT: 任意のop/value）。BRANCHの`condition`、またはACTIONの`stepCondition`（step全体のgate、Issue #230でACTIONの`condition`から分離）でだけ使える。条件評価時点の最新Battle stateを反映する。`countOf`は集合の生存側・戦闘不能側のどちらを数えるかを選び、省略時は`ALIVE`（Issue #227時点の既定の意味）。`DEFEATED`は`POST_DAMAGE_SURVIVAL_BRANCH`（`DMG-003`／Issue #196）が追加した——対象集合の大きさは実行時にしか分からないため「この攻撃で敵を倒した場合」を`ALIVE`側のしきい値では表せないためである。AS/EXの行動選択（CAP_ACTION_ACTIVATION_CONDITION）・PSの候補判定（CAP_PASSIVE_ACTIVATION_CONDITION）での利用はこの完了境界に含めない（Issue #227、#180（M7-003）へ引き渡す）。BRANCHの単一`condition`は今もTARGET_STATE/TARGET_HAS_MARKER（対象別条件、参照先のTargetReferenceは問わない）とTARGET_SET_COUNTをAND/OR/NOTで同時に含められない（両者は単一のbooleanへ還元する意味論が異なり、混在させると量化の位置に依存して結果が変わるため、Catalogロード時点でMIXED_STEP_TARGET_SET_CONDITIONとして明示的に拒否する、PRレビュー[P2]再々々指摘・再々々々指摘）。ACTIONは`stepCondition`/`targetCondition`という独立したスキーマフィールドへ分離済みのため、この2種は型・Catalogスキーマの両方で最初から混在不可能になり、MIXED_STEP_TARGET_SET_CONDITIONの対象から外れた（Issue #230）。`DMG-003`（Issue #196）が`SKL_RAMI_UNYIELDING_EX`／`SKL_HIIRO_LONEWOLF_AS2`（どちらも`countOf: DEFEATED`で「この攻撃対象を倒した場合」）と`SKL_JULIE_SNOW_EX`（`countOf: ALIVE`で「攻撃後に敵が生存していた場合」）を近似なしへ更新し、production代表が揃ったため`IMPLEMENTED`になった。対象bindingはR-SKL-01より再評価されない（同じunit集合を指し続け状態だけが最新化される）ため、DAMAGE後に撃破された構成員も数え漏らさない。",
+    "verification": {
+      "productionDefinitionIds": [
+        "SKL_RAMI_UNYIELDING_EX",
+        "SKL_HIIRO_LONEWOLF_AS2",
+        "SKL_JULIE_SNOW_EX"
+      ],
+      "testCaseIds": [
+        "UT-R-SKL-06-069",
+        "UT-R-SKL-06-070",
+        "UT-R-SKL-08-024",
+        "UT-R-SKL-08-025",
+        "IT-CAP-POST-DAMAGE-BRANCH-PROD-004",
+        "IT-CAP-POST-DAMAGE-BRANCH-PROD-005",
+        "IT-CAP-POST-DAMAGE-BRANCH-PROD-006"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_FORMULA",
@@ -470,10 +485,29 @@
   {
     "capabilityId": "CAP_PARTIAL_PIERCING",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-003",
-    "description": "部分防御/シールド無視",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "部分防御/シールド無視（R-DMG-03）。`DamagePayload.piercing`の3率（`defenseIgnoreRate`/`shieldIgnoreRate`/`damageReductionIgnoreRate`）は`DMG-002`（Issue #192）・`DMG-004`（Issue #194）がダメージ計算・シールド振り分けへ配線済みで、`DMG-003`（Issue #196）が`TEMP_PIERCING_GRANT`——後続の自身の攻撃へ一時的に貫通を付与する`APPLY_PIERCING_MOD`——を追加して完了させた。`combat/piercing-policy.ts`の`composePiercing`が「無視されずに残る割合の積」（`1 - Π(1 - 各無視率)`）としてヒットごとに静的率と保持中の一時付与を合成する。貫通を宣言する定義は`requiredCapabilities`に本Capabilityを含めること（Issue #196で必須化。`MODIFY_RESOURCE_CAPACITY`/`CAP_RESOURCE_CAPACITY_MOD`と同じ「宣言漏れ自体を拒否する」パターン）——この必須化で`ACT_FLUTE_VAMPIRE_AS1_HP_COST`（3率とも1の自傷コスト）の宣言漏れが見つかったため併せて埋めた。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI",
+        "ACT_RAMI_NEWYEAR_PS1_PIERCE_CHUKICHI",
+        "ACT_EVIE_KYONSHI_EX_DAMAGE"
+      ],
+      "testCaseIds": [
+        "UT-R-DMG-03-020",
+        "UT-R-DMG-03-021",
+        "UT-R-DMG-03-022",
+        "UT-R-DMG-03-023",
+        "UT-R-DMG-03-024",
+        "UT-CAT-ACT-096",
+        "UT-CAT-ACT-097",
+        "UT-CAT-ACT-098",
+        "IT-CAP-PARTIAL-PIERCING-PROD-001",
+        "IT-CAP-PARTIAL-PIERCING-PROD-002",
+        "IT-CAP-PARTIAL-PIERCING-PROD-003"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_PASSIVE_ACTIVATION_CONDITION",
@@ -557,14 +591,29 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "RES-003",
-    "description": "EffectStepの`BRANCH`（条件分岐）・`REPEAT`（反復）と直前結果（`LAST_RESULT` Condition、`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` TargetReference）を実resolverでJIT解決する（R-SKL-07/08、Issue #173）。`BRANCH`は`condition`をstep-wideスコープで評価し（`resolveBranchStep`→`evaluateEffectStepCondition`）trueなら`thenSteps`・falseなら`elseSteps`を定義順に解決する。`REPEAT`は指定回数`steps`を繰り返し、途中で使用者が戦闘不能になれば残りを中断する。直前結果は同じ解決スコープ内で実際に確定した`EffectAction`結果だけ（MISS/付与拒否/対象なし/対象0件SKIPPEDを含む）を`LastResultState`へ記録する。production代表`SKL_KEI_JACKKNIFE_AS2`（`TARGET_HAS_MARKER`条件のthen/else両枝が純DAMAGE）・`SKL_SENKA_SCHEMER_EX`（`IS_ALIVE`条件、先行stepの副作用を反映したstate評価・空else）を実ライフサイクル（`EffectStepStarting`→`DamageApplied`→StateDelta→独立Reducer復元）まで検証する（`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）。`REPEAT`と直前結果はランタイム実装済み・domain単体テスト（`UT-R-SKL-07`/`UT-R-SKL-08`、`rule-coverage.ts`）済みだが、これらを使うproduction Skill定義が現時点で1件も存在しない（`catalog-src/`全走査）ため、production代表は`BRANCH`のみとする。本Capabilityの`IMPLEMENTED`化により`UNIT_KEI_JACKKNIFE`が初の`selectable`な実production Unitになった。`selectable`ユニットの実戦闘完走はユニット軸のgolden battle（`__tests__/golden/`、selectableごとに自動生成）が担い、PS1の`MAXIMUM_HP`比率補正で非整数化するHPゲージ最大値の整数化（statは全精度保持のままゲージ境界`createBattleUnit`/`applyDamageAction`でR-NUM-02整数化）はdomain単体テスト（`UT-BATTLE-UNIT-010`/`UT-R-STA-01-013`）が守る。当初これらを検証していた`IT-CAP-BRANCH-REPEAT-PROD-005〜006`（kei-jackknife結合テスト）は、2軸モデルのライフサイクル方針（selectable化しgoldenが完全包含したら機能軸テストをretire）に従い削除した。合成Unit`UNIT_CI_SMOKE_TEST`の削除は`REL-002`管理のまま。",
+    "description": "EffectStepの`BRANCH`（条件分岐）・`REPEAT`（反復）と直前結果（`LAST_RESULT` Condition、`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` TargetReference）を実resolverでJIT解決する（R-SKL-07/08、Issue #173）。`BRANCH`は`condition`をstep-wideスコープで評価し（`resolveBranchStep`→`evaluateEffectStepCondition`）trueなら`thenSteps`・falseなら`elseSteps`を定義順に解決する。`REPEAT`は指定回数`steps`を繰り返し、途中で使用者が戦闘不能になれば残りを中断する。直前結果は同じ解決スコープ内で実際に確定した`EffectAction`結果だけ（MISS/付与拒否/対象なし/対象0件SKIPPEDを含む）を`LastResultState`へ記録する。production代表`SKL_KEI_JACKKNIFE_AS2`（`TARGET_HAS_MARKER`条件のthen/else両枝が純DAMAGE）・`SKL_SENKA_SCHEMER_EX`（`IS_ALIVE`条件、先行stepの副作用を反映したstate評価・空else）を実ライフサイクル（`EffectStepStarting`→`DamageApplied`→StateDelta→独立Reducer復元）まで検証する（`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）。`REPEAT`と直前結果はランタイム実装済み・domain単体テスト（`UT-R-SKL-07`/`UT-R-SKL-08`、`rule-coverage.ts`）済みだが、これらを使うproduction Skill定義が現時点で1件も存在しない（`catalog-src/`全走査）ため、production代表は`BRANCH`のみとする。本Capabilityの`IMPLEMENTED`化により`UNIT_KEI_JACKKNIFE`が初の`selectable`な実production Unitになった。`selectable`ユニットの実戦闘完走はユニット軸のgolden battle（`__tests__/golden/`、selectableごとに自動生成）が担い、PS1の`MAXIMUM_HP`比率補正で非整数化するHPゲージ最大値の整数化（statは全精度保持のままゲージ境界`createBattleUnit`/`applyDamageAction`でR-NUM-02整数化）はdomain単体テスト（`UT-BATTLE-UNIT-010`/`UT-R-STA-01-013`）が守る。当初これらを検証していた`IT-CAP-BRANCH-REPEAT-PROD-005〜006`（kei-jackknife結合テスト）は、2軸モデルのライフサイクル方針（selectable化しgoldenが完全包含したら機能軸テストをretire）に従い削除した。合成Unit`UNIT_CI_SMOKE_TEST`の削除は`REL-002`管理のまま。 `DMG-003`（Issue #196、`POST_DAMAGE_CRITICAL_BRANCH`）で`LAST_RESULT`の`field`へ`criticalHitCount`（直前ACTION step**全体**で実際に適用された会心ヒット数）が加わった。step全体スコープなのは、raw原文の「この攻撃で会心攻撃が発生した場合」がAOEでも「その攻撃のどこかで会心が出たか」を意味するためで、`lastActionTargetUnitIds`/`lastDamagedTargetUnitIds`と同じ粒度である。production代表は`SKL_FEE_BATH_AS2`ほか計6定義。",
     "verification": {
-      "productionDefinitionIds": ["SKL_KEI_JACKKNIFE_AS2", "SKL_SENKA_SCHEMER_EX"],
+      "productionDefinitionIds": [
+        "SKL_FEE_BATH_AS2",
+        "SKL_KEI_JACKKNIFE_AS2",
+        "SKL_RAVEL_MODEL_AS2",
+        "SKL_ROSIE_ARTIST_AS1",
+        "SKL_SENKA_SCHEMER_EX",
+        "SKL_URUU_TIMID_AS1",
+        "SKL_URUU_TIMID_EX",
+        "SKL_YUI_HEIR_AS2"
+      ],
       "testCaseIds": [
         "IT-CAP-BRANCH-REPEAT-PROD-001",
         "IT-CAP-BRANCH-REPEAT-PROD-002",
         "IT-CAP-BRANCH-REPEAT-PROD-003",
-        "IT-CAP-BRANCH-REPEAT-PROD-004"
+        "IT-CAP-BRANCH-REPEAT-PROD-004",
+        "IT-CAP-POST-DAMAGE-BRANCH-PROD-001",
+        "IT-CAP-POST-DAMAGE-BRANCH-PROD-002",
+        "IT-CAP-POST-DAMAGE-BRANCH-PROD-003",
+        "UT-R-SKL-08-021",
+        "UT-R-SKL-08-022",
+        "UT-R-SKL-08-023"
       ]
     }
   },

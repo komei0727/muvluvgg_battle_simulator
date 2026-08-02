@@ -2,6 +2,7 @@ import { activeStatusEffect, isDefeated, type BattleUnit } from "../model/battle
 import type { AppliedEffect } from "../model/applied-effect.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical, type CriticalResult } from "./critical-policy.js";
+import { composePiercing } from "./piercing-policy.js";
 import {
   damageResultsFor,
   recordDamageResult,
@@ -1833,7 +1834,14 @@ export function* applyDamageActionSteps(
         damageType: damageAction.payload.damageType,
         accuracyMode: damageAction.payload.accuracy.mode,
         criticalMode: damageAction.payload.critical.mode,
-        piercing: damageAction.payload.piercing,
+        // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003、Issue #196）: この定義自身の
+        // 静的な貫通率へ、攻撃側が保持している`APPLY_PIERCING_MOD`の一時貫通を
+        // 合成する。ヒットごとに評価するのは、同じEffectActionの途中でPS連鎖が
+        // 新たな貫通を付与・解除しうるため（`composeDamageModifiers`と同じ粒度）。
+        // `NEXT_OUTGOING_ATTACK`で消費されたインスタンスは
+        // `finalizeConsumedEffectDurations`まで除去されないため、このヒットの
+        // 計算にはまだ有効なものとして参加する。
+        piercing: composePiercing(damageAction.payload.piercing, currentAttacker),
       },
       lastEventId,
     );
@@ -1852,7 +1860,18 @@ export function* applyDamageActionSteps(
     const attackerBeforeDamage = observation.attacker;
     const targetBeforeDamage = observation.target;
 
-    const defenseIgnoreRate = damageAction.payload.piercing.defenseIgnoreRate;
+    // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003、Issue #196。PR #296レビュー[P1]）:
+    // このヒットで実際に使う貫通率を、`DamageWillBeApplied`のsnapshotではなく
+    // 再検証後の攻撃側（`attackerBeforeDamage`）から改めて合成する。
+    // `willBeAppliedMultipliers`と`damageModifierMultipliers`が同じ理由で
+    // 二段構えになっているのと同じ扱い —— `DamageWillBeApplied`起点のPS連鎖が
+    // 貫通を付け外ししうるため、確定値はここで採り直す必要がある。
+    //
+    // 以降の防御力無視・軽減無視・シールド無視・HP適用は、必ずこの1つの
+    // `piercing`を参照する（`damageAction.payload.piercing`を直接読み直すと、
+    // 一時付与が`DamageWillBeApplied`のpayloadにしか現れない）。
+    const piercing = composePiercing(damageAction.payload.piercing, attackerBeforeDamage);
+    const defenseIgnoreRate = piercing.defenseIgnoreRate;
     // R-NUM-04: `triggerSource`/`triggerTarget`はRES-005（Issue #172）が
     // `context.triggerSourceUnitId`/`triggerTargetUnitIds`（`TRIGGER_TARGET`は
     // 複数ユニットを指しうるが、Formula側は単一参照のため先頭の1体を使う、
@@ -1905,7 +1924,7 @@ export function* applyDamageActionSteps(
       attacker: attackerBeforeDamage,
       defender: targetBeforeDamage,
       damageType: damageAction.payload.damageType,
-      damageReductionIgnoreRate: damageAction.payload.piercing.damageReductionIgnoreRate,
+      damageReductionIgnoreRate: piercing.damageReductionIgnoreRate,
     });
     const rawDamageResult = calculateDamage({
       attackerAttack: attackerBeforeDamage.combatStats.attack,
@@ -1987,8 +2006,8 @@ export function* applyDamageActionSteps(
         defenderDefense: targetBeforeDamage.combatStats.defense,
         effectiveDefense: damageResult.effectiveDefense,
         defenseIgnoreRate,
-        shieldIgnoreRate: damageAction.payload.piercing.shieldIgnoreRate,
-        damageReductionIgnoreRate: damageAction.payload.piercing.damageReductionIgnoreRate,
+        shieldIgnoreRate: piercing.shieldIgnoreRate,
+        damageReductionIgnoreRate: piercing.damageReductionIgnoreRate,
         skillPower: damageResult.skillPower,
         attributeMultiplier: damageResult.attributeMultiplier,
         criticalMultiplier: critical.multiplier,
@@ -2070,7 +2089,7 @@ export function* applyDamageActionSteps(
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
         damageType: damageAction.payload.damageType,
-        piercing: damageAction.payload.piercing,
+        piercing,
       },
       damageResult.finalDamage,
       lastEventIdBeforeHp,

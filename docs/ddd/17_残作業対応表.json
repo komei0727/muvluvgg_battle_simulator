@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 18
+      "incompleteConversionRows": 8
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 47,
-      "implemented": 38
+      "implemented": 40
     }
   },
   "tasks": [
@@ -414,6 +414,13 @@
       "issue": 196,
       "phase": 3,
       "milestone": "M8",
+      "status": "CLOSED"
+    },
+    {
+      "taskId": "DMG-003A",
+      "issue": 295,
+      "phase": 3,
+      "milestone": "M8",
       "status": "OPEN"
     },
     {
@@ -550,21 +557,9 @@
   "conversionThemeAssignments": [
     {
       "milestone": "M8",
-      "theme": "POST_DAMAGE_CRITICAL_BRANCH",
-      "rowCount": 6,
-      "taskId": "DMG-003"
-    },
-    {
-      "milestone": "M8",
       "theme": "DAMAGE_LINK",
       "rowCount": 4,
       "taskId": "DMG-007"
-    },
-    {
-      "milestone": "M8",
-      "theme": "POST_DAMAGE_SURVIVAL_BRANCH",
-      "rowCount": 3,
-      "taskId": "DMG-003"
     },
     {
       "milestone": "M8",
@@ -579,12 +574,6 @@
       "taskId": "DMG-006"
     },
     {
-      "milestone": "M8",
-      "theme": "TEMP_PIERCING_GRANT",
-      "rowCount": 1,
-      "taskId": "DMG-003"
-    },
-    {
       "milestone": "M9",
       "theme": "UNREACHABLE_BRANCH_BY_RAW_DATA",
       "rowCount": 1,
@@ -597,7 +586,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 53,
+      "selectableProductionUnits": 55,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -622,7 +611,7 @@
         "capabilityId": "CAP_DEATH_SURVIVAL",
         "blockedUnits": 6,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 5,
+        "exclusivelyBlockedUnits": 6,
         "exclusivelyBlockedMemories": 0
       },
       {
@@ -631,13 +620,6 @@
         "blockedMemories": 1,
         "exclusivelyBlockedUnits": 0,
         "exclusivelyBlockedMemories": 1
-      },
-      {
-        "capabilityId": "CAP_PARTIAL_PIERCING",
-        "blockedUnits": 3,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 2,
-        "exclusivelyBlockedMemories": 0
       },
       {
         "capabilityId": "CAP_TARGET_REDIRECT",
@@ -649,8 +631,7 @@
     ],
     "unreferencedCapabilities": [
       "CAP_EFFECT_RUNTIME_COUNTER",
-      "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER",
-      "CAP_EFFECT_STEP_SET_CONDITION"
+      "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"
     ]
   }
 }

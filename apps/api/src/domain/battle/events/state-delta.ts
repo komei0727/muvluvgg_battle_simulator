@@ -5,6 +5,7 @@ import type {
   DamageModifierState,
   EffectImmunityState,
   HealingLinkState,
+  PiercingModifierState,
   ShieldState,
   StatusEffectDetails,
   SubUnitState,
@@ -117,6 +118,13 @@ export interface EffectSnapshot {
    */
   readonly shield?: ShieldState;
   /**
+   * DMG-003（Issue #196、R-DMG-03）: `APPLY_PIERCING_MOD`由来の効果だけが持つ。
+   * `magnitude`は3つの率のどれも表さない（この効果はmagnitudeを使わない）ため、
+   * `damageModifier`と同じ理由で3率そのものを同一性比較へ含める — これが無いと
+   * 独立Reducerで復元した状態の`composePiercing`が実戦闘と別の貫通率を出す。
+   */
+  readonly piercing?: PiercingModifierState;
+  /**
    * DMG-005（Issue #190、R-SUB-01/02）: `APPLY_SUBUNIT`由来の効果だけが持つ
    * 残耐久力と追加ダメージ定義。`durability`はヒットごとの吸収（`SubUnitDamaged`）で
    * 変化し、`additionalDamage`は所持者の攻撃へ加わる追加ヒットの内容を決めるため、
@@ -203,6 +211,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
       : {}),
     ...(effect.healingLink !== undefined ? { healingLink: effect.healingLink } : {}),
     ...(effect.damageModifier !== undefined ? { damageModifier: effect.damageModifier } : {}),
+    ...(effect.piercing !== undefined ? { piercing: effect.piercing } : {}),
     ...(effect.shield !== undefined ? { shield: effect.shield } : {}),
     ...(effect.subUnit !== undefined ? { subUnit: effect.subUnit } : {}),
     ...(effect.continuousDamage !== undefined ? { continuousDamage: effect.continuousDamage } : {}),
