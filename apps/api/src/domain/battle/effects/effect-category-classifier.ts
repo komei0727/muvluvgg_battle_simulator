@@ -126,6 +126,20 @@ export function effectCategoriesOf(
       return new Set<EffectImmunityCategory>(["SHIELD"]);
     case "APPLY_SUBUNIT":
       return new Set<EffectImmunityCategory>(["SUBUNIT"]);
+    case "APPLY_TARGET_REDIRECT":
+    case "APPLY_COVER":
+      // R-INT-01/02（DMG-006、Issue #188）: 引き寄せ・肩代わりの状態は**攻撃側**が
+      // 保持し（production定義の効果対象はどちらも`TRIGGER_SOURCE`）、その攻撃の
+      // 対象と受け手を保持者の意図に反して差し替える。`戦闘システム.md`
+      // 「2. デバフについて」の「相手を不利にする効果」そのものであり、
+      // `APPLY_CONTINUOUS_DAMAGE`と同じ理由で符号から導く既定の分岐に任せない
+      // （どちらも`magnitude`に効果量としての意味を持たない）。
+      return new Set<EffectImmunityCategory>(["DEBUFF"]);
+    case "APPLY_REFLECT":
+    case "APPLY_DEATH_SURVIVAL":
+      // R-INT-01/03（DMG-006、Issue #188）: 反射・致死耐えは保持者自身を利する
+      // 継続効果であり、`APPLY_PIERCING_MOD`と同じ理由で常に`BUFF`とする。
+      return new Set<EffectImmunityCategory>(["BUFF"]);
     case "APPLY_MARKER":
       return new Set<EffectImmunityCategory>(["MARKER"]);
     default:

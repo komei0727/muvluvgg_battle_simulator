@@ -11,6 +11,7 @@ import type {
   StatKind,
 } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type {
   ApplySubunitPayload,
   ContinuousDamageKind,
@@ -150,6 +151,78 @@ export interface SubUnitState {
 
 /** R-SUB-02: `AppliedEffect.snapshot`がサブユニット付与者の付与時攻撃力へ使うキー。 */
 export const SUBUNIT_PROVIDER_ATTACK_KEY = "subUnitProviderAttack";
+
+/**
+ * R-INT-01 #1（DMG-006、Issue #188、`APPLY_TARGET_REDIRECT`由来の付与だけが持つ）:
+ * 保持者が**行う**攻撃の対象を引き寄せ先（挑発したユニット）へ差し替える。
+ *
+ * production定義（`ACT_KARINA_DOWNER_PS1_REDIRECT`／`ACT_EVIE_ECO_PS1_REDIRECT`）は
+ * どちらも`TRIGGER_SOURCE`（攻撃してくる敵）を効果対象、`redirectTo: SELF`（PS使用者）を
+ * 引き寄せ先とする — raw原文「攻撃してくる敵単体に対して…攻撃を自身に引き寄せ」の
+ * とおり、状態は**攻撃側**が保持し、引き寄せ先を指す。
+ *
+ * `redirectToUnitId`は`payload.redirectTo`（実装済みは`SELF`のみ）を付与時点で解決した
+ * 結果である（`HealingLinkState.transferToUnitId`と同じ「付与時snapshot」規約 —
+ * ダメージ適用時点にはTargetBindingもトリガーcontextも残っていない）。`actionKinds`
+ * （`payload.appliesTo.actionKinds`）を併せて持つのは`shield`/`damageModifier`と同じ
+ * 理由で、`combat/`はCatalogの`effectActions`マップを引けないためである。
+ */
+export interface TargetRedirectState {
+  readonly redirectToUnitId: BattleUnitId;
+  readonly actionKinds: readonly ActionKind[];
+}
+
+/**
+ * R-INT-01 #2／R-INT-02（DMG-006、Issue #188、`APPLY_COVER`由来の付与だけが持つ）:
+ * 保持者が**行う**攻撃のダメージを肩代わり者が受ける。`TargetRedirectState`と同じく
+ * 状態は攻撃側が保持し（production定義はどちらも効果対象が`TRIGGER_SOURCE`）、
+ * `covererUnitId`は`payload.coverer`（実装済みは`SELF`のみ）を付与時点で解決した結果である。
+ *
+ * `damageShareRate`は実装済みの`1`（防御側そのものを肩代わり者へ差し替える、R-INT-02
+ * 第1項）だけを取る — 1未満は「1ヒットのダメージを2体へ分割して適用する」という
+ * R-INT-02が規定しない振る舞いになるため、Catalogロード時点で拒否する
+ * （`UNSUPPORTED_COVER_DAMAGE_SHARE_RATE`）。`guardRate`は肩代わり時の軽減率
+ * （`ACT_EVIE_ECO_PS1_COVER`の50%ガード）であり、肩代わり者が自分自身を庇う場合
+ * （redirect後の対象＝肩代わり者）でも適用される。
+ */
+export interface CoverState {
+  readonly covererUnitId: BattleUnitId;
+  readonly damageShareRate: number;
+  readonly guardRate: number;
+  readonly actionKinds: readonly ActionKind[];
+}
+
+/**
+ * R-INT-01 #4／R-INT-03（DMG-006、Issue #188、`APPLY_REFLECT`由来の付与だけが持つ）:
+ * 保持者が**受けた**ダメージの一部を反射する。`TargetRedirectState`/`CoverState`とは
+ * 逆に、状態は防御側が保持する（production定義`ACT_LUNA_HUNGRY_PS1_REFLECT`の効果対象は
+ * `SELF`）。
+ *
+ * `formula`はCatalog payloadをそのまま焼き込む（`SubUnitState.additionalDamage`と同じ
+ * 規約 — 反射量は受けたダメージ量に依存するため付与時点では評価できない）。反射先は
+ * 実装済みの`TRIGGER_SOURCE`＝その被ダメージの攻撃者だけであり、反射時点に確定するため
+ * インスタンスへは焼き込まない。
+ */
+export interface ReflectState {
+  readonly formula: FormulaDefinition;
+  /** R-INT-03第2項「反射からさらに反射を発生させない」。実装済みは`false`のみ。 */
+  readonly allowRecursiveReflect: boolean;
+}
+
+/**
+ * R-INT-01 #5（DMG-006、Issue #188、`APPLY_DEATH_SURVIVAL`由来の付与だけが持つ）:
+ * 保持者が致死ダメージを受けたとき、HPを0にせず`survivalHp`で耐える。
+ *
+ * `survivalHp`/`healAfterSurvival`は`ReflectState.formula`と同じ理由でCatalog payloadを
+ * そのまま焼き込む（耐えた時点の最大HPを参照する`MAX_HP_RATIO`があり、付与時点の
+ * 評価では実戦闘と値がずれる）。「致死ダメージ時だけ消費する」
+ * （`payload.trigger.lethalDamageOnly`）はR-EFF-07の`consumption.kind: LETHAL_DAMAGE`
+ * が表すため、この状態は消費回数を持たない（`duration.consumptionRemaining`が正本）。
+ */
+export interface DeathSurvivalState {
+  readonly survivalHp: FormulaDefinition;
+  readonly healAfterSurvival: FormulaDefinition | null;
+}
 
 /**
  * R-DOT-01〜04（DMG-008、Issue #189、`APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ）:
@@ -333,6 +406,14 @@ export interface AppliedEffect {
   readonly subUnit?: SubUnitState;
   /** R-DOT-01〜04（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の付与だけが持つ。 */
   readonly continuousDamage?: ContinuousDamageState;
+  /** R-INT-01/02（DMG-006、Issue #188）: `APPLY_TARGET_REDIRECT`由来の付与だけが持つ。 */
+  readonly targetRedirect?: TargetRedirectState;
+  /** R-INT-01/02（DMG-006、Issue #188）: `APPLY_COVER`由来の付与だけが持つ。 */
+  readonly cover?: CoverState;
+  /** R-INT-01/03（DMG-006、Issue #188）: `APPLY_REFLECT`由来の付与だけが持つ。 */
+  readonly reflect?: ReflectState;
+  /** R-INT-01 #5（DMG-006、Issue #188）: `APPLY_DEATH_SURVIVAL`由来の付与だけが持つ。 */
+  readonly deathSurvival?: DeathSurvivalState;
   /**
    * M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`、R-EFF-02/03）: 付与時点に
    * `effect-category-classifier.ts`の`effectCategoriesOf`（BUFF・DEBUFF・STATUS等の

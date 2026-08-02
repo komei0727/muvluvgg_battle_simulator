@@ -669,6 +669,98 @@ const damageAppliedDetailsSchema = {
     hpBefore: { type: "integer", minimum: 0 },
     hpAfter: { type: "integer", minimum: 0 },
     defeated: { type: "boolean" },
+    /**
+     * DMG-006（Issue #188、R-INT-03第3項）: 反射で生じたダメージだけが`true`を持つ。
+     * `subUnitAbsorbed`と同じ理由で`required`へは入れない（v1デコーダ互換）。
+     */
+    isReflectedDamage: { type: "boolean", enum: [true] },
+  },
+} as const;
+
+/**
+ * `DamageRedirected`（DMG-006、Issue #188、R-INT-01 #1/#2・R-INT-02）。引き寄せ・
+ * 肩代わりでこのヒットの防御側が変わった直後に発行する。`reason: COVER`だけが
+ * `damageShareRate`/`guardRate`を持つ。
+ */
+const damageRedirectedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectActionDefinitionId",
+    "hitIndex",
+    "reason",
+    "originalTargetUnitId",
+    "newTargetUnitId",
+    "effectInstanceId",
+    "causeEffectActionDefinitionId",
+  ],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    reason: { type: "string", enum: ["TARGET_REDIRECT", "COVER"] },
+    originalTargetUnitId: { type: "string" },
+    newTargetUnitId: { type: "string" },
+    effectInstanceId: { type: "string" },
+    causeEffectActionDefinitionId: { type: "string" },
+    damageShareRate: { type: "number", minimum: 0, maximum: 1 },
+    guardRate: { type: "number", minimum: 0, maximum: 1 },
+  },
+} as const;
+
+/**
+ * `ReflectedDamageGenerated`（DMG-006、Issue #188、R-INT-01 #4・R-INT-03）。元ダメージの
+ * `DamageApplied`の後に反射量を確定させた時点で発行する。
+ */
+const reflectedDamageGeneratedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "sourceDamageEventId",
+    "effectInstanceId",
+    "effectActionDefinitionId",
+    "reflectedByUnitId",
+    "reflectToUnitId",
+    "sourceDamage",
+    "formulaResult",
+    "reflectedDamage",
+    "damageType",
+  ],
+  properties: {
+    /** 元ダメージの`DAMAGE_APPLIED`イベントID（`UNIT_DEFEATED.causeEventId`と同じ規約）。 */
+    sourceDamageEventId: { type: "string" },
+    effectInstanceId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    reflectedByUnitId: { type: "string" },
+    reflectToUnitId: { type: "string" },
+    sourceDamage: { type: "integer", minimum: 0 },
+    formulaResult: { type: "number" },
+    reflectedDamage: { type: "integer", minimum: 0 },
+    damageType: { type: "string", enum: [...DAMAGE_TYPE_ENUM] },
+  },
+} as const;
+
+/**
+ * `LethalDamageSurvived`（DMG-006、Issue #188、R-INT-01 #5）。致死耐えが成立し、
+ * `UnitDefeated`の代わりに発行する。
+ */
+const lethalDamageSurvivedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectInstanceId",
+    "effectActionDefinitionId",
+    "battleUnitId",
+    "lethalDamage",
+    "hpBefore",
+    "survivalHp",
+  ],
+  properties: {
+    effectInstanceId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    battleUnitId: { type: "string" },
+    lethalDamage: { type: "integer", minimum: 0 },
+    hpBefore: { type: "integer", minimum: 0 },
+    survivalHp: { type: "integer", minimum: 1 },
   },
 } as const;
 
@@ -1950,6 +2042,9 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   SUB_UNIT_DAMAGED: subUnitDamagedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
+  DAMAGE_REDIRECTED: damageRedirectedDetailsSchema,
+  REFLECTED_DAMAGE_GENERATED: reflectedDamageGeneratedDetailsSchema,
+  LETHAL_DAMAGE_SURVIVED: lethalDamageSurvivedDetailsSchema,
   HEAL_APPLIED: healAppliedDetailsSchema,
   HEALING_TRANSFERRED: healingTransferredDetailsSchema,
   CONTINUOUS_DAMAGE_APPLIED: continuousDamageAppliedDetailsSchema,

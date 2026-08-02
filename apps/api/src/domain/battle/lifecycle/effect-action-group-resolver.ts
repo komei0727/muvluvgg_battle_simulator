@@ -1,12 +1,16 @@
 import { requireUnit } from "./action-resolution-shared.js";
 import { applyCooldownManipulationAction } from "./cooldown-manipulation-application-service.js";
 import { applyModifyResourceAction } from "./resource-modification-service.js";
-import { applyHealActionSteps } from "./heal-application-service.js";
+import { applyHealActionSteps, applyOneHealSteps } from "./heal-application-service.js";
 import {
   applyDamageActionSteps,
   type DamageEventContext,
 } from "../combat/damage-application-service.js";
-import { grantEffect, isStackLimitReached } from "../effects/effect-grant-service.js";
+import {
+  grantEffect,
+  isStackLimitReached,
+  type GrantEffectRequest,
+} from "../effects/effect-grant-service.js";
 import {
   grantPoisonContinuousDamage,
   isBurnStackLimitReached,
@@ -54,6 +58,8 @@ import type {
   EffectStepDefinition,
 } from "../../catalog/definitions/effect-sequence.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type {
   ActionId,
   DomainEventId,
@@ -823,6 +829,24 @@ function* resolveOneEffectActionApplication(
             targetUnitId,
             debuffEffectActionDefinitionId,
             ownerUnitId,
+            parentEventId,
+          ),
+        // R-INT-01 #5（`healAfterSurvival`、DMG-006、Issue #188）: 致死を耐えた
+        // 直後の回復も、`combat/`が`lifecycle/`のR-HEAL-01実装へ到達できないため
+        // 同じ理由でここから注入する。
+        applyDeathSurvivalHeal: (
+          targetUnitId,
+          effectActionDefinitionId,
+          formula,
+          units,
+          parentEventId,
+        ) =>
+          applyDeathSurvivalHealSteps(
+            context,
+            units,
+            targetUnitId,
+            effectActionDefinitionId,
+            formula,
             parentEventId,
           ),
         ...(context.onFactEventForPassiveChain !== undefined
@@ -2736,10 +2760,101 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (
+    effectAction.kind === "APPLY_TARGET_REDIRECT" ||
+    effectAction.kind === "APPLY_COVER" ||
+    effectAction.kind === "APPLY_REFLECT" ||
+    effectAction.kind === "APPLY_DEATH_SURVIVAL"
+  ) {
+    // R-INT-01〜03（DMG-006、Issue #188）: 防御介入系の4kindを`AppliedEffect`として
+    // 付与する。実際の介入は`combat/damage-application-service.ts`が
+    // `DamageWillBeApplied`の後（引き寄せ・肩代わり・反射）とHP適用時（致死耐え）に
+    // 解決する。付与時点で確定させるのは、その時点にしか解決できない参照
+    // （`redirectTo`/`coverer`のユニットID）だけである（`APPLY_HEALING_LINK`の
+    // `transferTo`と同じ「付与時snapshot」規約）。
+    //
+    // 重複規則は`APPLY_SHIELD`と同じくR-EFF-01の一般規則どおり常に新規インスタンス
+    // （`duplicate: true`）。CombatStatsは変えないため再計算は呼ばない。
+    const grant = buildDefensiveInterventionGrant(
+      effectAction,
+      requireActorUnit(context, box).battleUnitId,
+    );
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      {
+        effectActionDefinitionId: application.effectActionDefinitionId,
+        magnitude: grant.magnitude,
+      },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          definition: effectAction,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude: grant.magnitude,
+          ...grant.state,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE_CAPACITY"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_PIERCING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE_CAPACITY"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_PIERCING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT"/"APPLY_TARGET_REDIRECT"/"APPLY_COVER"/"APPLY_REFLECT"/"APPLY_DEATH_SURVIVAL" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
@@ -3799,6 +3914,180 @@ function* sweepDepletedShields(
  * まで行う — 追加デバフだけが別のライフサイクルを持たないようにするためである。
  * R-EFF-03の免疫（`EFFECT_IMMUNITY`）判定も通常の付与と同じく行う。
  */
+/**
+ * R-INT-01〜03（DMG-006、Issue #188）: 防御介入系の4kindについて、`grantEffect`へ渡す
+ * `magnitude`とkind固有stateを組み立てる。
+ *
+ * `redirectTo`/`coverer`（実装済みは`SELF`＝この効果を付与するユニット）は付与時点で
+ * 解決してインスタンスへ焼き込む。`combat/`は介入の解決時点でTargetBindingも
+ * トリガーcontextも引けないためで、`APPLY_HEALING_LINK.transferTo`とまったく同じ理由・
+ * 同じ制限である。未対応の形はCatalogロード時点で拒否済み
+ * （`catalog-integrity.ts`の`UNSUPPORTED_TARGET_REDIRECT_DESTINATION`／
+ * `UNSUPPORTED_COVER_*`／`UNSUPPORTED_REFLECT_*`）だが、Catalogを経由しない合成定義に
+ * 対する実行時backstopもここへ残す。
+ *
+ * `magnitude`は`AppliedEffect`共通の「符号付き効果量」であり、この4kindでは補正値としての
+ * 意味を持たない。監査で意味のある単一の数値を持つ`APPLY_COVER`だけ`damageShareRate`を
+ * 入れ（`APPLY_HEALING_LINK`が`transferRate`を入れるのと同じ規約）、残りは0にする。
+ * バフ／デバフの分類は`magnitude`の符号ではなくkindから決まる
+ * （`effect-category-classifier.ts`）ため、この0が分類へ影響することはない。
+ */
+function buildDefensiveInterventionGrant(
+  effectAction: Extract<
+    EffectActionDefinition,
+    { kind: "APPLY_TARGET_REDIRECT" | "APPLY_COVER" | "APPLY_REFLECT" | "APPLY_DEATH_SURVIVAL" }
+  >,
+  actorUnitId: BattleUnitId,
+): {
+  readonly magnitude: number;
+  readonly state: Partial<
+    Pick<GrantEffectRequest, "targetRedirect" | "cover" | "reflect" | "deathSurvival">
+  >;
+} {
+  switch (effectAction.kind) {
+    case "APPLY_TARGET_REDIRECT": {
+      if (effectAction.payload.redirectTo.kind !== "SELF") {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_TARGET_REDIRECT payload.redirectTo.kind "${effectAction.payload.redirectTo.kind}" is not supported (R-INT-01 implements "SELF" only)`,
+        );
+      }
+      return {
+        magnitude: 0,
+        state: {
+          targetRedirect: {
+            redirectToUnitId: actorUnitId,
+            actionKinds: effectAction.payload.appliesTo.actionKinds,
+          },
+        },
+      };
+    }
+    case "APPLY_COVER": {
+      if (effectAction.payload.coverer.kind !== "SELF") {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_COVER payload.coverer.kind "${effectAction.payload.coverer.kind}" is not supported (R-INT-02 implements "SELF" only)`,
+        );
+      }
+      if (effectAction.payload.damageShareRate !== 1) {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_COVER payload.damageShareRate ${effectAction.payload.damageShareRate} is not supported (R-INT-02 implements 1 only — a partial share would split one hit across two defenders, which R-INT-02 does not define)`,
+        );
+      }
+      return {
+        magnitude: effectAction.payload.damageShareRate,
+        state: {
+          cover: {
+            covererUnitId: actorUnitId,
+            damageShareRate: effectAction.payload.damageShareRate,
+            guardRate: effectAction.payload.guardRate,
+            actionKinds: effectAction.payload.appliesTo.actionKinds,
+          },
+        },
+      };
+    }
+    case "APPLY_REFLECT": {
+      if (effectAction.payload.reflectTo.kind !== "TRIGGER_SOURCE") {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_REFLECT payload.reflectTo.kind "${effectAction.payload.reflectTo.kind}" is not supported (R-INT-03 implements "TRIGGER_SOURCE" only)`,
+        );
+      }
+      if (effectAction.payload.allowRecursiveReflect) {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          'APPLY_REFLECT payload.allowRecursiveReflect: true is not supported (R-INT-03 "反射からさらに反射を発生させない")',
+        );
+      }
+      return {
+        magnitude: 0,
+        state: {
+          reflect: {
+            formula: effectAction.payload.formula,
+            allowRecursiveReflect: effectAction.payload.allowRecursiveReflect,
+          },
+        },
+      };
+    }
+    case "APPLY_DEATH_SURVIVAL":
+      return {
+        magnitude: 0,
+        state: {
+          deathSurvival: {
+            survivalHp: effectAction.payload.survivalHp,
+            healAfterSurvival: effectAction.payload.healAfterSurvival,
+          },
+        },
+      };
+  }
+}
+
+/**
+ * R-INT-01 #5（`APPLY_DEATH_SURVIVAL.healAfterSurvival`、DMG-006、Issue #188）:
+ * 致死を耐えた直後の回復をR-HEAL-01の手順（`applyOneHealSteps`）で適用する。
+ * 回復元・回復対象はどちらも耐えたユニット自身であり（R-INT-01は付与者の回復量補正を
+ * 規定しない）、R-HEAL-02のHealingModifier・overheal破棄・R-HEAL-04の回復リンク転送は
+ * 通常の回復とまったく同じ経路をたどる。
+ *
+ * `applyOneHealSteps`が`yield`する連鎖境界（`{ units }`）を、`combat/`側の除去ステップ
+ * 規約（`{ events, units }`）へ変換して中継する。
+ */
+function* applyDeathSurvivalHealSteps(
+  context: EffectActionGroupContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  effectActionDefinitionId: EffectActionDefinitionId,
+  formula: FormulaDefinition,
+  parentEventId: DomainEventId,
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+  readonly BattleUnit[] | undefined
+> {
+  let working = units;
+  const survivor = requireUnit(working, targetUnitId);
+  const healGen = applyOneHealSteps(
+    { effectActionDefinitionId, formula },
+    survivor,
+    survivor,
+    working,
+    {
+      recorder: context.recorder,
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.actionScope,
+      rootEventId: context.rootEventId,
+      parentEventId,
+      sourceUnitId: targetUnitId,
+      effectActions: context.definitions.effectActions,
+      ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+      ...(context.onFactEventForPassiveChain !== undefined
+        ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+        : {}),
+    },
+    parentEventId,
+  );
+  let eventsStart = context.recorder.getEvents().length;
+  let healStep = healGen.next();
+  while (!healStep.done) {
+    const injected = yield {
+      events: context.recorder.getEvents().slice(eventsStart),
+      units: healStep.value.units,
+    };
+    eventsStart = context.recorder.getEvents().length;
+    working = injected ?? healStep.value.units;
+    healStep = healGen.next(working);
+  }
+  const healResult = healStep.value;
+  return {
+    units: healResult?.units ?? working,
+    lastEventId: healResult?.lastEventId ?? parentEventId,
+  };
+}
+
 function* grantSubUnitAdditionalDamageDebuffSteps(
   context: EffectActionGroupContext,
   units: readonly BattleUnit[],

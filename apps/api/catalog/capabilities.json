@@ -143,10 +143,26 @@
   {
     "capabilityId": "CAP_COVER_DAMAGE",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-006",
-    "description": "肩代わり",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "肩代わり（R-INT-01 #2／R-INT-02、DMG-006／Issue #188）。`APPLY_COVER`が付与する`AppliedEffect.cover`も引き寄せと同じく**攻撃側**が保持し、`damage-application-service.ts`が引き寄せ解決**後**の対象に対して評価して（`14_Catalog定義スキーマ.md`「redirect後の攻撃対象に対してcoverを評価する」）、以後のダメージ計算・シールド適用・HP適用の防御側を肩代わり者へ変更する（R-INT-02第1項）。`guardRate`（`ACT_EVIE_ECO_PS1_COVER`の50%ガード）は最終切り捨ての前に掛ける（Q-DMG-01）。肩代わり者が引き寄せ後の対象自身でも`guardRate`があれば成立し、`DamageRedirected`（`reason: COVER`）が`damageShareRate`/`guardRate`とともにそれを表す。`coverer`は`SELF`だけ、`appliesTo.actionKinds`は`[\"DAMAGE\"]`だけ（`APPLY_TARGET_REDIRECT`と同じ理由、PR #298レビュー[P2]）、`damageShareRate`は`1`だけを実装する（1未満は1ヒットを2体へ分割適用することになりR-INT-02が規定しない）ため、それ以外は`UNSUPPORTED_DEFENSIVE_INTERVENTION`としてCatalogロード時点で拒否する。production定義は`ACT_KARINA_DOWNER_PS1_COVER`・`ACT_EVIE_ECO_PS1_COVER`・`ACT_LUNA_HUNGRY_PS1_COVER`。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_KARINA_DOWNER_PS1_COVER",
+        "ACT_EVIE_ECO_PS1_COVER",
+        "ACT_LUNA_HUNGRY_PS1_COVER"
+      ],
+      "testCaseIds": [
+        "IT-CAP-COVER-DAMAGE-PROD-001",
+        "UT-R-INT-02-001",
+        "UT-R-INT-02-002",
+        "UT-R-INT-02-003",
+        "UT-R-INT-02-004",
+        "UT-R-INT-02-005",
+        "UT-R-INT-02-010",
+        "UT-R-INT-02-011"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_CRITICAL_CONTROL",
@@ -210,10 +226,29 @@
   {
     "capabilityId": "CAP_DEATH_SURVIVAL",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-006",
-    "description": "致死耐え",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "致死耐え（R-INT-01 #5、DMG-006／Issue #188）。`APPLY_DEATH_SURVIVAL`が付与する`AppliedEffect.deathSurvival`を保持者自身が持ち、`damage-application-service.ts`のHP適用時（「致死かどうか」が確定する唯一の時点）に成立を判定して、HPを0ではなく`survivalHp` Formulaの評価結果（R-NUM-02で整数化し1以上・現在HP以下へ収める）で止める。適用されなかった分は`DamageApplied.discardedDamage`が説明するため、ダメージイベントの保存則（不変条件#6）はそのまま成立する。`UnitDefeated`の代わりに`LethalDamageSurvived`（新設）を発行し、続けてR-EFF-07の`consumption.kind: LETHAL_DAMAGE`をそのインスタンスへ1消費し（R-HIT-04のNヒット回避と同じインスタンス限定消費）、`healAfterSurvival`があればR-HEAL-01の手順（`applyOneHealSteps`、HealingModifier・overheal破棄・回復リンク転送を含む）で回復する。消費を使い切ったインスタンスは以後の致死を耐えない。反射ダメージ・サブユニット追加ダメージも同じHP適用経路を通るため一様に保護される。production定義は`ACT_CHIZURU_DOMESTIC_PS2_DEATH_SURVIVAL`・`ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL`・`ACT_TATIANA_SAGE_PS1_DEATH_SURVIVAL`・`ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL`・`ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL`・`ACT_FLUTE_VAMPIRE_PS3_DEATH_SURVIVAL`。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL",
+        "ACT_CHIZURU_DOMESTIC_PS2_DEATH_SURVIVAL",
+        "ACT_TATIANA_SAGE_PS1_DEATH_SURVIVAL",
+        "ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL",
+        "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL",
+        "ACT_FLUTE_VAMPIRE_PS3_DEATH_SURVIVAL"
+      ],
+      "testCaseIds": [
+        "IT-CAP-DEATH-SURVIVAL-PROD-001",
+        "UT-R-INT-01-006",
+        "UT-R-INT-01-007",
+        "UT-R-INT-01-008",
+        "UT-R-INT-01-011",
+        "UT-R-INT-01-012",
+        "UT-R-INT-01-013",
+        "UT-R-INT-01-014"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_EFFECT_RUNTIME_COUNTER",
@@ -568,6 +603,24 @@
     "verification": {
       "productionDefinitionIds": ["SKL_KATE_PALADIN_EX"],
       "testCaseIds": ["IT-CAP-RANDOM-BRANCH-PROD-001", "IT-CAP-RANDOM-BRANCH-PROD-002"]
+    }
+  },
+  {
+    "capabilityId": "CAP_REFLECT_DAMAGE",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "DMG-006",
+    "description": "反射（R-INT-01 #4／R-INT-03、DMG-006／Issue #188）。`14_Catalog定義スキーマ.md`は`APPLY_REFLECT`のpayloadを定義していたにもかかわらず、このCapabilityだけレジストリへ未登録で、`validate-catalog`が`UNKNOWN_CAPABILITY`で拒否するため`UNIT_LUNA_HUNGRY`の「ネガティブヘイト」は反射を省略した近似変換のままだった（`16_不完全変換対応予定方針.md`の`REFLECT_DAMAGE`、1行）。DMG-006がレジストリ登録と実装を同時に行い、同行を近似なしへ更新した。`APPLY_REFLECT`が付与する`AppliedEffect.reflect`は**防御側**が保持し、`damage-application-service.ts`が元ダメージの`DamageApplied`の後に`ReflectedDamageGenerated`を発行してから反射先（`reflectTo`、実装済みは`TRIGGER_SOURCE`＝元ダメージの攻撃者）へ適用する（R-INT-03第1項「元ダメージの適用結果を巻き戻さずに発生する」）。反射量は`formula`（`DAMAGE_RECEIVED_RATIO`／`LAST_DAMAGE_RECEIVED`）の評価結果にR-DMG-02の切り捨て・最低1ダメージだけを適用し、属性相性・会心・与被ダメージ補正は掛けない。反射ダメージの適用は介入解決を通らないため再反射も起きず（R-INT-03第2項）、`DamageApplied`は`isReflectedDamage: true`を持つ（第3項）。反射元が元ダメージで戦闘不能になった場合と反射先が戦闘不能な場合は発生しない（R-ACTN-01 #2）。`allowRecursiveReflect: true`と`TRIGGER_SOURCE`以外の`reflectTo`は`UNSUPPORTED_DEFENSIVE_INTERVENTION`としてCatalogロード時点で拒否する。",
+    "verification": {
+      "productionDefinitionIds": ["ACT_LUNA_HUNGRY_PS1_REFLECT"],
+      "testCaseIds": [
+        "IT-CAP-REFLECT-DAMAGE-PROD-001",
+        "UT-R-INT-03-001",
+        "UT-R-INT-03-002",
+        "UT-R-INT-03-010",
+        "UT-R-INT-03-011",
+        "UT-R-INT-03-012"
+      ]
     }
   },
   {
@@ -1035,10 +1088,26 @@
   {
     "capabilityId": "CAP_TARGET_REDIRECT",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-006",
-    "description": "挑発・攻撃引き寄せ",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "挑発・攻撃引き寄せ（R-INT-01 #1、DMG-006／Issue #188）。`APPLY_TARGET_REDIRECT`が付与する`AppliedEffect.targetRedirect`を**攻撃側**が保持し、`damage-application-service.ts`が`DamageWillBeApplied`の後・ダメージ確定前（R-INT-01の評価点）にその攻撃の防御側を引き寄せ先へ差し替えて`DamageRedirected`（`reason: TARGET_REDIRECT`）を発行する。引き寄せ先（`payload.redirectTo`、実装済みは`SELF`＝付与するユニット）は付与時点で解決してインスタンスへ焼き込む（`APPLY_HEALING_LINK.transferTo`と同じ規約）。`appliesTo.actionKinds`がその攻撃種別を含まない場合、引き寄せ先が戦闘不能な場合（R-ACTN-01 #2）、引き寄せ先が既にその攻撃の対象である場合は成立しない。実装するのは`appliesTo.actionKinds: [\"DAMAGE\"]`だけで、R-INT-01の評価点がダメージpipelineにしか無い以上`DEBUFF`／`ANY`はsilent no-opになるため`UNSUPPORTED_DEFENSIVE_INTERVENTION`として拒否する（PR #298レビュー[P2]）。複数候補は付与順の古い順に1件だけ成立する（R-INT-02第3項の具体化）。production定義は`ACT_KARINA_DOWNER_PS1_REDIRECT`・`ACT_EVIE_ECO_PS1_REDIRECT`・`ACT_LUNA_HUNGRY_PS1_REDIRECT`（`REFLECT_DAMAGE`変換行の近似解消でDMG-006が追加）。`SELF`以外の`redirectTo`は`UNSUPPORTED_DEFENSIVE_INTERVENTION`としてCatalogロード時点で拒否する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_KARINA_DOWNER_PS1_REDIRECT",
+        "ACT_EVIE_ECO_PS1_REDIRECT",
+        "ACT_LUNA_HUNGRY_PS1_REDIRECT"
+      ],
+      "testCaseIds": [
+        "IT-CAP-TARGET-REDIRECT-PROD-001",
+        "IT-CAP-TARGET-REDIRECT-PROD-002",
+        "UT-R-INT-01-001",
+        "UT-R-INT-01-002",
+        "UT-R-INT-01-003",
+        "UT-R-INT-01-004",
+        "UT-R-INT-01-005",
+        "UT-R-INT-01-010"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_TRIGGER_CONTEXT",

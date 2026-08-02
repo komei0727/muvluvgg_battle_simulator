@@ -32,6 +32,14 @@ import {
   subUnitAdditionalDamageSources,
   type SubUnitAdditionalDamageSource,
 } from "./sub-unit-policy.js";
+import {
+  guardedDamage,
+  selectCover,
+  selectDeathSurvival,
+  selectReflects,
+  selectTargetRedirect,
+  type ReflectSelection,
+} from "./defensive-intervention-policy.js";
 import { evaluateFormula } from "../skill/formula-evaluator.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
@@ -47,6 +55,7 @@ import type {
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -267,6 +276,30 @@ export interface DamageEventContext {
     targetUnitId: BattleUnitId,
     debuffEffectActionDefinitionId: EffectActionDefinitionId,
     ownerUnitId: BattleUnitId,
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >;
+  /**
+   * R-INT-01 #5（`APPLY_DEATH_SURVIVAL.healAfterSurvival`、DMG-006、Issue #188）:
+   * 致死を耐えた直後の回復をR-HEAL-01の手順（`heal-application-service.ts`の
+   * `applyOneHealSteps`、HealingModifier・overheal破棄・回復リンク転送を含む）で
+   * 適用する。`grantSubUnitAdditionalDamageDebuff`とまったく同じ理由
+   * （`combat/`は`lifecycle/`へ依存できない、module境界）で呼び出し側が注入し、
+   * 同じ「1件ごとに`yield`する」規約を持つ。未指定なら耐えた後の回復を行わない
+   * （hookを用意しない単体テストでは`survivalHp`まで戻すだけになる）。
+   *
+   * 回復元・回復対象はどちらも耐えたユニット自身である（`healAfterSurvival`は
+   * `APPLY_DEATH_SURVIVAL`の保持者が自力で立ち直る効果であり、付与者の回復量補正を
+   * 受ける規則をR-INT-01もCatalog schemaも持たない）。
+   */
+  readonly applyDeathSurvivalHeal?: (
+    targetUnitId: BattleUnitId,
+    effectActionDefinitionId: EffectActionDefinitionId,
+    formula: FormulaDefinition,
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
   ) => Generator<
@@ -1016,6 +1049,150 @@ function* observeHitSteps(
   };
 }
 
+/**
+ * R-INT-01（DMG-006、Issue #188）: `DamageWillBeApplied`の連鎖まで解決し終えた1ヒットに
+ * ついて、防御介入の解決結果を返す。`INTERRUPT`（使用者の戦闘不能）と`SKIP`
+ * （差し替え後の防御側が戦闘不能）は`observeHitSteps`と同じ意味を持ち、どちらも
+ * R-SKL-08の直前結果への0記録は呼び出し側が行う。
+ */
+type DefensiveInterventionResolution =
+  | {
+      readonly kind: "RESOLVED";
+      /** 引き寄せ・肩代わりを反映した最終的な防御側（R-INT-02第1項）。 */
+      readonly defenderUnitId: BattleUnitId;
+      /** R-INT-02第2項の軽減率。肩代わりが成立していなければ0。 */
+      readonly guardRate: number;
+      /** R-INT-01 #4: 元ダメージの適用**後**に発生させる反射（R-INT-03第1項）。 */
+      readonly reflects: readonly ReflectSelection[];
+      readonly lastEventId: DomainEventId;
+    }
+  | { readonly kind: "INTERRUPT"; readonly lastEventId: DomainEventId }
+  | { readonly kind: "SKIP"; readonly lastEventId: DomainEventId };
+
+/**
+ * R-INT-01「防御介入順」（DMG-006、Issue #188）: `DamageWillBeApplied`の後・ダメージ確定
+ * 前に、防御介入系状態を規定の順で評価する。
+ *
+ * 1. `APPLY_TARGET_REDIRECT`（引き寄せ・挑発）: 攻撃側が保持する引き寄せで防御側を
+ *    差し替え、`DamageRedirected`（`reason: TARGET_REDIRECT`）を発行する
+ * 2. `APPLY_COVER`（肩代わり）: `14_Catalog定義スキーマ.md`のとおり**redirect後の対象**に
+ *    対して評価し、防御側を肩代わり者へ差し替える（R-INT-02第1項）。軽減率
+ *    （`guardRate`）は呼び出し側がダメージ計算の最後に適用する
+ * 3. `APPLY_DAMAGE_LINK`（継続リンク状態）: `DMG-007`（Issue #187、R-LNK-01〜03）の
+ *    スコープ。この順序位置に介入を持たない
+ * 4. `APPLY_REFLECT`（反射）: 成立判定だけをここで行い、実際の反射ダメージは元ダメージの
+ *    適用後に発生させる（R-INT-03第1項「反射は元ダメージの確定後…に発生する」）
+ * 5. `APPLY_DEATH_SURVIVAL`（致死耐え）: 「致死かどうか」はHPへ適用する量が確定して
+ *    初めて決まるため、成立判定はHP適用時点（`applyConfirmedDamageSteps`）で行う。
+ *    #4との相対順序は保たれる — 反射は元ダメージ（耐えた結果を含む）の適用後に
+ *    初めて発生するためである
+ *
+ * 各介入の`DamageRedirected`は`FACT`であり、他のヒット内イベントと同じ規約で記録直後に
+ * PS/Memory即時連鎖へ届け、次の介入へ進む前に前提を再検証する（`08_ドメインイベント.md`
+ * 「TIMINGイベント後の再検証」と同じ扱い — 連鎖が引き寄せ先を倒しうる）。
+ */
+function* resolveDefensiveInterventionsSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  attackerUnitId: BattleUnitId,
+  targetUnitId: BattleUnitId,
+  hitContext: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+  },
+  parentEventId: DomainEventId,
+): Generator<DamageStep, DefensiveInterventionResolution, readonly BattleUnit[] | undefined> {
+  let lastEventId = parentEventId;
+  let defenderUnitId = targetUnitId;
+  let guardRate = 0;
+
+  const emitRedirected = (
+    reason: "TARGET_REDIRECT" | "COVER",
+    originalTargetUnitId: BattleUnitId,
+    newTargetUnitId: BattleUnitId,
+    cause: {
+      readonly effectInstanceId: EffectInstanceId;
+      readonly definitionId: EffectActionDefinitionId;
+    },
+    coverRates?: { readonly damageShareRate: number; readonly guardRate: number },
+  ): DomainEventId =>
+    context.recorder.record({
+      eventType: "DamageRedirected",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attackerUnitId,
+      targetUnitIds: [newTargetUnitId],
+      payload: {
+        effectActionDefinitionId: hitContext.effectActionDefinitionId,
+        hitIndex: hitContext.hitIndex,
+        reason,
+        originalTargetUnitId,
+        newTargetUnitId,
+        effectInstanceId: cause.effectInstanceId,
+        causeEffectActionDefinitionId: cause.definitionId,
+        ...(coverRates ?? {}),
+      },
+    }).eventId;
+
+  // R-INT-01 #1: 引き寄せ。攻撃側が保持する`APPLY_TARGET_REDIRECT`から選ぶ。
+  const attackerBeforeRedirect = findUnit(working, attackerUnitId, "attacker.battleUnitId");
+  const redirect = selectTargetRedirect(attackerBeforeRedirect, defenderUnitId, "DAMAGE", working);
+  if (redirect !== undefined) {
+    const eventsStart = context.recorder.getEvents().length;
+    lastEventId = emitRedirected("TARGET_REDIRECT", defenderUnitId, redirect.redirectToUnitId, {
+      effectInstanceId: redirect.effectInstanceId,
+      definitionId: redirect.effectActionDefinitionId,
+    });
+    defenderUnitId = redirect.redirectToUnitId;
+    yield* notifyOrYieldNewEvents(context, working, eventsStart);
+    const revalidation = revalidateHit(context, working, attackerUnitId, defenderUnitId);
+    if (revalidation.kind !== "CONTINUE") {
+      return { kind: revalidation.kind, lastEventId };
+    }
+  }
+
+  // R-INT-01 #2: 肩代わり。redirect後の対象に対して評価する。
+  const attackerBeforeCover = findUnit(working, attackerUnitId, "attacker.battleUnitId");
+  const cover = selectCover(attackerBeforeCover, defenderUnitId, "DAMAGE", working);
+  if (cover !== undefined) {
+    const eventsStart = context.recorder.getEvents().length;
+    lastEventId = emitRedirected(
+      "COVER",
+      defenderUnitId,
+      cover.covererUnitId,
+      {
+        effectInstanceId: cover.effectInstanceId,
+        definitionId: cover.effectActionDefinitionId,
+      },
+      { damageShareRate: cover.damageShareRate, guardRate: cover.guardRate },
+    );
+    defenderUnitId = cover.covererUnitId;
+    guardRate = cover.guardRate;
+    yield* notifyOrYieldNewEvents(context, working, eventsStart);
+    const revalidation = revalidateHit(context, working, attackerUnitId, defenderUnitId);
+    if (revalidation.kind !== "CONTINUE") {
+      return { kind: revalidation.kind, lastEventId };
+    }
+  }
+
+  // R-INT-01 #3（`APPLY_DAMAGE_LINK`）はDMG-007（Issue #187）のスコープ。
+  // R-INT-01 #4: 反射の成立判定。最終的な防御側が保持する`APPLY_REFLECT`を採る。
+  const defender = findUnit(working, defenderUnitId, "hits[].targetBattleUnitId");
+  return {
+    kind: "RESOLVED",
+    defenderUnitId,
+    guardRate,
+    reflects: selectReflects(defender),
+    lastEventId,
+  };
+}
+
 /** `absorbBeforeHitPointsSteps`が返す、HP適用より前に吸収された量の内訳。 */
 interface AbsorptionBeforeHitPoints {
   /** R-SHD-02 #2: ダメージタイプに対応するタイプありシールドの吸収量。 */
@@ -1225,6 +1402,12 @@ function* absorbBeforeHitPointsSteps(
 type ConfirmedDamageApplication = {
   readonly kind: "APPLIED" | "INTERRUPT" | "SKIP";
   readonly lastEventId: DomainEventId;
+  /**
+   * R-INT-03（DMG-006、Issue #188）: この適用が発行した`DamageApplied`のID。反射は
+   * 「元ダメージの確定後」に発生するため、`ReflectedDamageGenerated`の直接の契機
+   * （`parentEventId`）としてこれを使う。`kind`が`APPLIED`の場合だけ存在する。
+   */
+  readonly damageAppliedEventId?: DomainEventId;
 };
 
 /**
@@ -1247,6 +1430,16 @@ function* applyConfirmedDamageSteps(
   >,
   finalDamage: number,
   parentEventId: DomainEventId,
+  options: {
+    /**
+     * R-INT-03（DMG-006、Issue #188）: 反射ダメージの適用。`DamageApplied`へ
+     * `isReflectedDamage: true`を載せ、R-EFF-07のヒット消費
+     * （`OUTGOING_HIT`/`INCOMING_HIT`）を行わない — 反射は命中判定を持つヒットでは
+     * なく（`HitConfirmed`も`DamageWillBeApplied`も伴わない）、消費条件が数える
+     * 「攻撃」に当たらないためである。
+     */
+    readonly isReflectedDamage?: true;
+  } = {},
 ): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
   let lastEventId = parentEventId;
   const targetBeforeAbsorption = findUnit(working, targetUnitId, "hits[].targetBattleUnitId");
@@ -1284,8 +1477,44 @@ function* applyConfirmedDamageSteps(
   const hpBefore = targetAfterAbsorption.currentHp;
   // R-SHD-02 #5: 吸収先を通り抜けた残りがHPへ向かう（`hpDirectDamage`を含む）。
   const hitPointDamage = finalDamage - absorbedBeforeHitPoints;
-  const hpAfter = Math.max(0, hpBefore - hitPointDamage);
-  // R-SHD-03第2項「HPを0未満にせず、超過分を破棄する」。
+  // R-INT-01 #5（DMG-006、Issue #188）: HPが0へ落ちる量が確定したこの時点で致死耐えを
+  // 評価する（「致死かどうか」はここで初めて決まる）。成立すれば`survivalHp`
+  // （Formula評価結果をR-NUM-02で整数化し、1以上・現在HP以下へ収めた値）でHPを止める。
+  // 元々0（既に戦闘不能。`includeDefeated: true`で到達しうる）の対象は「致死ダメージを
+  // 受けた」に当たらないため耐えの対象にしない — R-INT-01は蘇生規則を持たない。
+  //
+  // この判定はこの関数を通る全てのダメージ（通常ヒット・R-SUB-02の追加ヒット・
+  // R-INT-03の反射）へ一様に効く。継続ダメージ（R-DOT-01〜04、
+  // `continuous-damage-service.ts`）はR-INT-01が介入の評価点として定める
+  // `DamageWillBeApplied`を発行せず、この適用経路自体を通らないため対象外である
+  // （R-DOT-01「ダメージ軽減・増加、属性相性の影響を受けない」と同じ、継続ダメージが
+  // ダメージpipelineの外にあることの帰結）。
+  const wouldBeLethal = hpBefore > 0 && hpBefore - hitPointDamage <= 0;
+  const survival = wouldBeLethal ? selectDeathSurvival(targetAfterAbsorption) : undefined;
+  const survivalHp =
+    survival === undefined
+      ? 0
+      : Math.min(
+          hpBefore,
+          Math.max(
+            1,
+            truncateFraction(
+              evaluateFormula(
+                survival.survivalHp,
+                {
+                  skillSource: targetAfterAbsorption,
+                  target: targetAfterAbsorption,
+                  allUnits: Array.from(working.values()),
+                },
+                "deathSurvival.survivalHp",
+              ),
+            ),
+          ),
+        );
+  const hpAfter = survival !== undefined ? survivalHp : Math.max(0, hpBefore - hitPointDamage);
+  // R-SHD-03第2項「HPを0未満にせず、超過分を破棄する」。致死耐えで適用されなかった分も
+  // ここが説明する（`08_ドメインイベント.md`ダメージイベント不変条件#6の保存則は
+  // そのまま成立する）。
   const discardedDamage = hitPointDamage - (hpBefore - hpAfter);
   const updatedTarget: BattleUnit = {
     ...targetAfterAbsorption,
@@ -1365,6 +1594,7 @@ function* applyConfirmedDamageSteps(
       hpBefore,
       hpAfter,
       defeated: isDefeated(updatedTarget),
+      ...(options.isReflectedDamage === true ? { isReflectedDamage: true as const } : {}),
     },
   });
 
@@ -1396,6 +1626,33 @@ function* applyConfirmedDamageSteps(
     });
     factEvents.push(unitDefeated);
     lastEventId = unitDefeated.eventId;
+  } else if (survival !== undefined) {
+    // R-INT-01 #5（DMG-006、Issue #188）: 致死耐えが成立したヒットは`UnitDefeated`の
+    // 代わりに`LethalDamageSurvived`を発行する（両者は排他 — HPは`survivalHp`で
+    // 止まっているため上の`isDefeated(updatedTarget)`は常にfalseになる）。
+    const survived = context.recorder.record({
+      eventType: "LethalDamageSurvived",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: damageApplied.eventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: attackerUnitId,
+      targetUnitIds: [targetUnitId],
+      payload: {
+        effectInstanceId: survival.effectInstanceId,
+        effectActionDefinitionId: survival.effectActionDefinitionId,
+        battleUnitId: targetUnitId,
+        lethalDamage: hitPointDamage,
+        hpBefore,
+        survivalHp,
+      },
+    });
+    factEvents.push(survived);
+    lastEventId = survived.eventId;
   }
 
   // PS/Memory自身のEffectSequence解決（callback未指定）では、これらのFACTイベントを
@@ -1413,24 +1670,193 @@ function* applyConfirmedDamageSteps(
     }
   }
 
+  // R-INT-01 #5（DMG-006、Issue #188）: 耐えたインスタンス自身の消費条件
+  // （production定義はすべて`consumption.kind: LETHAL_DAMAGE`、`maxCount: 1`）を、
+  // `LethalDamageSurvived`とその連鎖の後に1消費する。R-HIT-04のNヒット回避と同じく
+  // 消費対象をこのインスタンスへ限定する — 同じ対象が複数の致死耐えを保持していても、
+  // 実際に耐えた1件だけを消費するためである。
+  if (survival !== undefined) {
+    lastEventId = yield* consumeAndExpire(
+      context,
+      working,
+      targetUnitId,
+      "LETHAL_DAMAGE",
+      lastEventId,
+      survival.effectInstanceId,
+    );
+    // `healAfterSurvival`（`ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL`の最大HP65%回復など）は
+    // R-HEAL-01の手順で適用する。`combat/`は`lifecycle/`へ到達できないため、
+    // 呼び出し側が注入するhookへ委譲する（未指定なら耐えるだけで回復しない）。
+    if (survival.healAfterSurvival !== null && context.applyDeathSurvivalHeal !== undefined) {
+      const healed = yield* driveRemovalSteps(
+        context,
+        working,
+        context.applyDeathSurvivalHeal(
+          targetUnitId,
+          survival.effectActionDefinitionId,
+          survival.healAfterSurvival,
+          Array.from(working.values()),
+          lastEventId,
+        ),
+      );
+      lastEventId = healed.lastEventId;
+    }
+  }
+
   // R-EFF-07: このヒットがMISSでなく確定した時点でOUTGOING_HIT（攻撃者側）/
   // INCOMING_HIT（対象側）を消費する。R-HIT-04の回避効果（EVASION/HIT_EVASION）は
   // この一括消費の対象外で、`consumeEffectDurations`が常に除外する — Nヒット回避は
   // 自身が回避した被ヒットでだけ消費するため（PR #275レビュー[P1]）。
-  lastEventId = yield* consumeAndExpire(
-    context,
-    working,
-    attackerUnitId,
-    "OUTGOING_HIT",
-    lastEventId,
-  );
-  lastEventId = yield* consumeAndExpire(
-    context,
-    working,
-    targetUnitId,
-    "INCOMING_HIT",
-    lastEventId,
-  );
+  // R-INT-03（DMG-006）: 反射ダメージは命中判定を持つヒットではないため消費しない。
+  if (options.isReflectedDamage !== true) {
+    lastEventId = yield* consumeAndExpire(
+      context,
+      working,
+      attackerUnitId,
+      "OUTGOING_HIT",
+      lastEventId,
+    );
+    lastEventId = yield* consumeAndExpire(
+      context,
+      working,
+      targetUnitId,
+      "INCOMING_HIT",
+      lastEventId,
+    );
+  }
+  return { kind: "APPLIED", lastEventId, damageAppliedEventId: damageApplied.eventId };
+}
+
+/**
+ * R-INT-01 #4／R-INT-03（DMG-006、Issue #188）: 元ダメージの適用が完了した直後に、
+ * 防御側が保持していた反射（`resolveDefensiveInterventionsSteps`が確定させた集合）を
+ * 付与順に発生させる。
+ *
+ * - R-INT-03第1項「反射は元ダメージの確定後、元ダメージの適用結果を巻き戻さずに
+ *   発生する」: 元ダメージの`DamageApplied`（`sourceDamageEventId`）を契機として
+ *   `ReflectedDamageGenerated`を発行し、続けて反射先へ適用する。この適用で反射元が
+ *   戦闘不能になっていても（元ダメージで倒れていても）反射は取り消さない
+ * - R-INT-03第2項「反射からさらに反射を発生させない」: 反射ダメージの適用は
+ *   `applyConfirmedDamageSteps`を直接呼び、介入解決（`resolveDefensiveInterventionsSteps`）と
+ *   この関数自身をもう一度通らない。したがって再反射も、引き寄せ・肩代わりによる
+ *   反射先の差し替えも起きない
+ * - R-INT-03第3項: 適用の`DamageApplied`は`isReflectedDamage: true`を持つ
+ *
+ * 反射量は`APPLY_REFLECT.formula`（production例は`DAMAGE_RECEIVED_RATIO`／
+ * `LAST_DAMAGE_RECEIVED`の75%）の評価結果へ、R-DMG-02の最終切り捨てと最低1ダメージ
+ * だけを適用する。属性相性・会心・与/被ダメージ補正はいずれも掛けない — R-INT-03は
+ * 反射量を「元ダメージからの割合」としてのみ規定し、反射元のスキル威力でも攻撃でも
+ * ないためである（R-DOT-01の継続ダメージと同じ扱い）。ダメージタイプと貫通は
+ * 元ダメージから引き継ぐ／持たない。
+ *
+ * 反射先（`reflectTo: TRIGGER_SOURCE`＝元ダメージの攻撃者）が戦闘不能、または
+ * 反射元自身の場合は発生させない（R-ACTN-01 #2、および自己反射が恒等になる
+ * `allocateHealingLinkTransfers`の自己リンクと同じ扱い）。
+ */
+function* applyReflectedDamageSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  reflectToUnitId: BattleUnitId,
+  reflectedByUnitId: BattleUnitId,
+  damageType: DamageType,
+  sourceDamage: number,
+  reflects: readonly ReflectSelection[],
+  sourceDamageEventId: DomainEventId,
+  parentEventId: DomainEventId,
+): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
+  let lastEventId = parentEventId;
+  if (reflects.length === 0 || reflectToUnitId === reflectedByUnitId) {
+    return { kind: "APPLIED", lastEventId };
+  }
+  for (const reflect of reflects) {
+    const destination = working.get(reflectToUnitId);
+    if (destination === undefined || isDefeated(destination)) {
+      break;
+    }
+    const reflectingUnit = findUnit(working, reflectedByUnitId, "reflect.holderUnitId");
+    // 反射元がこの元ダメージ（またはその連鎖）で戦闘不能になっていれば反射しない。
+    // R-INT-03第1項が禁じているのは「元ダメージの適用結果を巻き戻すこと」であって、
+    // 戦闘不能になった保持者が以後も効果を発生させることまでは認めていない
+    // （R-ACTN-01 #2の一般則、および`heal-application-service.ts`が戦闘不能の
+    // 転送先へ転送しないのと同じ扱い）。
+    if (isDefeated(reflectingUnit)) {
+      break;
+    }
+    const formulaResult = evaluateFormula(
+      reflect.formula,
+      {
+        skillSource: reflectingUnit,
+        target: destination,
+        allUnits: Array.from(working.values()),
+        lastResults: {
+          ...damageResultsFor(context.damageResults, reflectedByUnitId, context.skillUseId),
+          // R-INT-03: 反射が参照する「受けたダメージ」はこの元ダメージそのものである。
+          // registryの直前結果に依存させない — 元ダメージの適用後に解決するPS連鎖が
+          // 別のDAMAGEを挟むと、registry側の`LAST_DAMAGE_RECEIVED`が既にそちらへ
+          // 置き換わっている可能性があるためである。
+          LAST_DAMAGE_RECEIVED: sourceDamage,
+        },
+      },
+      "reflect.formula",
+    );
+    // R-DMG-02 #1/#3: 最終結果で切り捨て、1未満は1にする。
+    const reflectedDamage = Math.max(1, Math.floor(formulaResult));
+    const generatedEventsStart = context.recorder.getEvents().length;
+    const generated = context.recorder.record({
+      eventType: "ReflectedDamageGenerated",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: reflectedByUnitId,
+      targetUnitIds: [reflectToUnitId],
+      payload: {
+        sourceDamageEventId,
+        effectInstanceId: reflect.effectInstanceId,
+        effectActionDefinitionId: reflect.effectActionDefinitionId,
+        reflectedByUnitId,
+        reflectToUnitId,
+        sourceDamage,
+        formulaResult,
+        reflectedDamage,
+        damageType,
+      },
+    });
+    lastEventId = generated.eventId;
+    yield* notifyOrYieldNewEvents(context, working, generatedEventsStart);
+
+    // 連鎖が反射先を倒していれば適用しない（R-ACTN-01 #2）。反射元の戦闘不能は
+    // 反射を取り消さない（R-INT-03第1項）。
+    const destinationBeforeApply = working.get(reflectToUnitId);
+    if (destinationBeforeApply === undefined || isDefeated(destinationBeforeApply)) {
+      break;
+    }
+    const application = yield* applyConfirmedDamageSteps(
+      context,
+      working,
+      reflectedByUnitId,
+      reflectToUnitId,
+      {
+        effectActionDefinitionId: reflect.effectActionDefinitionId,
+        // 反射はヒット列を持たないため常に0（`08_ドメインイベント.md`の
+        // `isReflectedDamage`と併せて通常ヒットと区別できる）。
+        hitIndex: 0,
+        damageType,
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      reflectedDamage,
+      lastEventId,
+      { isReflectedDamage: true },
+    );
+    lastEventId = application.lastEventId;
+    if (application.kind !== "APPLIED") {
+      return { kind: application.kind, lastEventId };
+    }
+  }
   return { kind: "APPLIED", lastEventId };
 }
 
@@ -1610,8 +2036,22 @@ function* applyOneSubUnitAdditionalDamageSteps(
   if (observation.kind !== "CONFIRMED") {
     return { kind: observation.kind, lastEventId: observation.lastEventId };
   }
-  const owner = observation.attacker;
-  const target = observation.target;
+  // R-INT-01（DMG-006、Issue #188）: 追加ヒットも`DamageWillBeApplied`を発行する
+  // 1ヒットである以上、防御介入の評価点を通常ヒットと分けない（`observeHitSteps`と
+  // `applyConfirmedDamageSteps`を共有しているのと同じ理由）。
+  const intervention = yield* resolveDefensiveInterventionsSteps(
+    context,
+    working,
+    attackerUnitId,
+    targetUnitId,
+    { effectActionDefinitionId: profile.effectActionDefinitionId, hitIndex: profile.hitIndex },
+    observation.lastEventId,
+  );
+  if (intervention.kind !== "RESOLVED") {
+    return { kind: intervention.kind, lastEventId: intervention.lastEventId };
+  }
+  const owner = findUnit(working, attackerUnitId, "attacker.battleUnitId");
+  const target = findUnit(working, intervention.defenderUnitId, "hits[].targetBattleUnitId");
 
   const formulaContext = {
     skillSource: owner,
@@ -1644,10 +2084,14 @@ function* applyOneSubUnitAdditionalDamageSteps(
   // R-DMG-02 #1/#3「最低1ダメージ」。属性相性（`attributeMultiplier`）と会心倍率が
   // 1のままなのは、R-SUB-02の計算式がそれらの項を持たないためである（`calculateDamage`の
   // 基本ダメージ式自体を経由しない）。
-  const preTruncationDamage =
+  // R-INT-02第2項（DMG-006、Issue #188）: 肩代わりの軽減率も通常ヒットと同じ位置
+  // （最終切り捨ての前）で掛ける。
+  const preTruncationDamage = guardedDamage(
     formulaResult *
-    damageModifierMultipliers.outgoingMultiplier *
-    damageModifierMultipliers.incomingMultiplier;
+      damageModifierMultipliers.outgoingMultiplier *
+      damageModifierMultipliers.incomingMultiplier,
+    intervention.guardRate,
+  );
   const truncatedDamage = Math.max(1, Math.floor(preTruncationDamage));
   // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: 通常ヒットと同じく、
   // 切り捨て後の値を「incoming raw damage」として対象の有効なDAMAGE_IMMUNITYを判定する。
@@ -1704,6 +2148,23 @@ function* applyOneSubUnitAdditionalDamageSteps(
   let lastEventId = application.lastEventId;
   if (application.kind !== "APPLIED") {
     return { kind: application.kind, lastEventId };
+  }
+
+  // R-INT-01 #4／R-INT-03: 追加ヒットも確定後に反射を発生させる（通常ヒットと同じ）。
+  const reflected = yield* applyReflectedDamageSteps(
+    context,
+    working,
+    owner.battleUnitId,
+    target.battleUnitId,
+    profile.damageType,
+    finalDamage,
+    intervention.reflects,
+    application.damageAppliedEventId ?? lastEventId,
+    lastEventId,
+  );
+  lastEventId = reflected.lastEventId;
+  if (reflected.kind === "INTERRUPT") {
+    return { kind: "INTERRUPT", lastEventId };
   }
 
   // R-SUB-02第3項「追加デバフが定義されている場合も対象ごとに適用する」。
@@ -1869,9 +2330,45 @@ export function* applyDamageActionSteps(
       outcomes.push(skip(hit));
       continue;
     }
+    // R-INT-01（DMG-006、Issue #188）: `DamageWillBeApplied`の後・ダメージ確定前に
+    // 防御介入を規定順で評価する。引き寄せ・肩代わりはこのヒットの防御側そのものを
+    // 差し替えるため、以降の計算・吸収・HP適用はすべて`defenderUnitId`を使う。
+    const intervention = yield* resolveDefensiveInterventionsSteps(
+      context,
+      working,
+      attacker.battleUnitId,
+      hit.targetBattleUnitId,
+      {
+        effectActionDefinitionId: damageAction.effectActionDefinitionId,
+        hitIndex: hit.hitIndex,
+      },
+      lastEventId,
+    );
+    lastEventId = intervention.lastEventId;
+    if (intervention.kind === "INTERRUPT") {
+      interruptedCount = hits.length - i;
+      interrupted = true;
+      outcomes.push(...hits.slice(i).map(skip));
+      break;
+    }
+    if (intervention.kind === "SKIP") {
+      recordDamageResult(
+        context.damageResults,
+        attacker.battleUnitId,
+        hit.targetBattleUnitId,
+        0,
+        context.skillUseId,
+      );
+      outcomes.push(skip(hit));
+      continue;
+    }
+    const defenderUnitId = intervention.defenderUnitId;
+
     const critical = observation.critical;
-    const attackerBeforeDamage = observation.attacker;
-    const targetBeforeDamage = observation.target;
+    // 介入の`DamageRedirected`連鎖が能力値を変え得るため、攻撃側も差し替え後の防御側も
+    // 連鎖解決後の最新状態から取り直す（`observeHitSteps`の各再検証と同じ規約）。
+    const attackerBeforeDamage = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
+    const targetBeforeDamage = findUnit(working, defenderUnitId, "hits[].targetBattleUnitId");
 
     // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003、Issue #196。PR #296レビュー[P1]）:
     // このヒットで実際に使う貫通率を、`DamageWillBeApplied`のsnapshotではなく
@@ -1976,8 +2473,12 @@ export function* applyDamageActionSteps(
     const attackDamageBonus = attackerBeforeDamage.appliedEffects
       .filter((effect) => effect.isAttackDamageBonus === true)
       .reduce((sum, effect) => sum + effect.magnitude, 0);
-    const combinedPreTruncationDamage =
-      rawDamageResult.preTruncationDamage * freezeMultiplier + attackDamageBonus;
+    // R-INT-02第2項（DMG-006、Issue #188）: 肩代わりが成立していれば、その軽減率を
+    // 最終切り捨ての**前**に適用する（Q-DMG-01「計算の途中では丸めない」）。
+    const combinedPreTruncationDamage = guardedDamage(
+      rawDamageResult.preTruncationDamage * freezeMultiplier + attackDamageBonus,
+      intervention.guardRate,
+    );
     const combinedFinalDamage = Math.max(1, Math.floor(combinedPreTruncationDamage));
     // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: `calculateDamage`
     // 自身は`AppliedEffect`を知らない純粋な数値計算のため、ここで対象の
@@ -2009,12 +2510,15 @@ export function* applyDamageActionSteps(
       parentEventId: observation.damageWillBeAppliedEventId,
       rootEventId: context.rootEventId,
       sourceUnitId: attacker.battleUnitId,
-      targetUnitIds: [hit.targetBattleUnitId],
+      // R-INT-01/02（DMG-006、Issue #188）: 引き寄せ・肩代わりの後は、確定した
+      // ダメージが向かう先（`defenderUnitId`）が対象である。差し替え自体は直前の
+      // `DamageRedirected`が元対象と併せて表す。
+      targetUnitIds: [defenderUnitId],
       payload: {
         skillDefinitionId: context.skillDefinitionId,
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
-        targetUnitId: hit.targetBattleUnitId,
+        targetUnitId: defenderUnitId,
         attackerAttack: attackerBeforeDamage.combatStats.attack,
         defenderDefense: targetBeforeDamage.combatStats.defense,
         effectiveDefense: damageResult.effectiveDefense,
@@ -2122,13 +2626,39 @@ export function* applyDamageActionSteps(
       continue;
     }
 
+    // R-INT-01 #4／R-INT-03（DMG-006、Issue #188）: 元ダメージの確定後に反射を発生させる。
+    const reflected = yield* applyReflectedDamageSteps(
+      context,
+      working,
+      attackerBeforeDamage.battleUnitId,
+      targetBeforeDamage.battleUnitId,
+      damageAction.payload.damageType,
+      damageResult.finalDamage,
+      intervention.reflects,
+      application.damageAppliedEventId ?? lastEventId,
+      lastEventId,
+    );
+    lastEventId = reflected.lastEventId;
+
+    // R-INT-02第2項「元の攻撃対象を参照する後続効果は…最終的にダメージを受けた対象を
+    // 参照する」: 後続step・R-SUB-02の追加ダメージ対象・`lastResult.targetUnitIds`が
+    // 参照する対象は、引き寄せ・肩代わり後の防御側にする。
     outcomes.push({
-      targetBattleUnitId: hit.targetBattleUnitId,
+      targetBattleUnitId: targetBeforeDamage.battleUnitId,
       hitIndex: hit.hitIndex,
       applied: true,
       isCritical: critical.isCritical,
       damage: damageResult.finalDamage,
     });
+
+    // 反射の適用（およびその連鎖）が使用者を戦闘不能にしていれば、残りのヒットを
+    // 中断する（R-SKL-01）。このヒット自身は既に適用済みのため`outcomes`へは残す。
+    if (reflected.kind === "INTERRUPT") {
+      interruptedCount = hits.length - (i + 1);
+      interrupted = true;
+      outcomes.push(...hits.slice(i + 1).map(skip));
+      break;
+    }
   }
 
   // R-SUB-02（DMG-005、Issue #190）: 使用者がサブユニットを保持していれば、この

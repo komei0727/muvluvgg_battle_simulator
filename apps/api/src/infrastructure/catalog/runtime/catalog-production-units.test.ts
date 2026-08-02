@@ -264,7 +264,23 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // as `DEBUFF` (not `BUFF`) by `effect-category-classifier.ts`, recorded in
     // `CAP_CRITICAL_CONTROL`'s description plus two more `verification.testCaseIds`.
     // Capability metadata only — no definition changed.
-    expect(catalog.catalogRevision).toBe("2026-08-02.5");
+    // Bumped again by DMG-006 (Issue #188, R-INT-01〜03): `CAP_TARGET_REDIRECT` /
+    // `CAP_COVER_DAMAGE` / `CAP_DEATH_SURVIVAL` flipped to `IMPLEMENTED` and the
+    // missing `CAP_REFLECT_DAMAGE` was registered (47 → 48 capabilities), which
+    // also let `SKL_LUNA_HUNGRY_PS1` convert its reflect without approximation
+    // (`ACT_LUNA_HUNGRY_PS1_REDIRECT` / `ACT_LUNA_HUNGRY_PS1_REFLECT` added, its
+    // cover moved onto the attacker like Karina's and Evie's). The 10 promoted
+    // units' definitions are unchanged, but every remaining production unit
+    // becomes `selectable` (60 → 69, tracked in `docs/ddd/17_残作業対応表.json`'s
+    // `m7Audit`).
+    // `.7` is the same PR's review fix [P2]: `appliesTo.actionKinds` beyond
+    // `["DAMAGE"]` is rejected at Catalog load time
+    // (`UNSUPPORTED_DEFENSIVE_INTERVENTION`) because `R-INT-01` only evaluates
+    // defensive interventions after `DamageWillBeApplied`, recorded in
+    // `CAP_TARGET_REDIRECT`'s and `CAP_COVER_DAMAGE`'s descriptions. Capability
+    // metadata only — no definition changed (every production row already
+    // declares `["DAMAGE"]`).
+    expect(catalog.catalogRevision).toBe("2026-08-02.7");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

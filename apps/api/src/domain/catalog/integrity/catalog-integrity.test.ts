@@ -1160,6 +1160,127 @@ function capability(id: string, status = "PLANNED"): CapabilityDefinition {
   });
 }
 
+/**
+ * DMG-006（Issue #188、R-INT-01/R-INT-02）: production定義
+ * （`ACT_KARINA_DOWNER_PS1_REDIRECT`／`ACT_EVIE_ECO_PS1_COVER`）と同じ形の防御介入定義。
+ * 実装済みの形（`SELF`・`["DAMAGE"]`・`damageShareRate: 1`）を既定にし、テストごとに
+ * 未実装の形へ差し替える。
+ */
+function targetRedirectAction(
+  id: string,
+  overrides: {
+    redirectTo?: { kind: string };
+    actionKinds?: readonly string[];
+    requiredCapabilities?: readonly string[];
+  } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_TARGET_REDIRECT",
+      payload: {
+        redirectTo: overrides.redirectTo ?? { kind: "SELF" },
+        appliesTo: { actionKinds: overrides.actionKinds ?? ["DAMAGE"] },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_TARGET_REDIRECT"],
+    },
+    "effectAction",
+  );
+}
+
+function coverAction(
+  id: string,
+  overrides: {
+    coverer?: { kind: string };
+    damageShareRate?: number;
+    actionKinds?: readonly string[];
+    requiredCapabilities?: readonly string[];
+  } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_COVER",
+      payload: {
+        coverer: overrides.coverer ?? { kind: "SELF" },
+        damageShareRate: overrides.damageShareRate ?? 1,
+        guardRate: 0.5,
+        appliesTo: { actionKinds: overrides.actionKinds ?? ["DAMAGE"] },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_COVER_DAMAGE"],
+    },
+    "effectAction",
+  );
+}
+
+function reflectAction(
+  id: string,
+  overrides: {
+    reflectTo?: { kind: string };
+    allowRecursiveReflect?: boolean;
+    requiredCapabilities?: readonly string[];
+  } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_REFLECT",
+      payload: {
+        reflectTo: overrides.reflectTo ?? { kind: "TRIGGER_SOURCE" },
+        formula: {
+          kind: "DAMAGE_RECEIVED_RATIO",
+          sourceResult: "LAST_DAMAGE_RECEIVED",
+          ratio: 0.75,
+        },
+        timing: "AFTER_DAMAGE_APPLIED",
+        allowRecursiveReflect: overrides.allowRecursiveReflect ?? false,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_REFLECT_DAMAGE"],
+    },
+    "effectAction",
+  );
+}
+
+function deathSurvivalAction(
+  id: string,
+  overrides: { lethalDamageOnly?: boolean; requiredCapabilities?: readonly string[] } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_DEATH_SURVIVAL",
+      payload: {
+        trigger: { lethalDamageOnly: overrides.lethalDamageOnly ?? true },
+        survivalHp: { kind: "CONSTANT", value: 1 },
+        healAfterSurvival: null,
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          consumption: { kind: "LETHAL_DAMAGE", maxCount: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_DEATH_SURVIVAL"],
+    },
+    "effectAction",
+  );
+}
+
 function baseDefinitions(): CatalogDefinitions {
   return {
     units: [unit("UNIT_001")],
@@ -2106,6 +2227,152 @@ describe("buildCatalogIndex", () => {
           (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_LINK",
         ),
       ).toBe(true);
+    }
+  });
+
+  it("UT-R-INT-01-020 (DMG-006 Issue #188): accepts the production shape of every defensive intervention kind (SELF destination, DAMAGE-only appliesTo, full damageShareRate, non-recursive reflect, lethal-only survival)", () => {
+    const defs = baseDefinitions();
+    const withInterventions: CatalogDefinitions = {
+      ...defs,
+      skills: [
+        ...defs.skills,
+        asSkill("SKL_AS2", "ACT_REDIRECT"),
+        asSkill("SKL_AS3", "ACT_COVER"),
+        asSkill("SKL_AS4", "ACT_REFLECT"),
+        asSkill("SKL_AS5", "ACT_SURVIVAL"),
+      ],
+      units: [
+        unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2", "SKL_AS3", "SKL_AS4", "SKL_AS5"] }),
+      ],
+      effectActions: [
+        ...defs.effectActions,
+        targetRedirectAction("ACT_REDIRECT"),
+        coverAction("ACT_COVER"),
+        reflectAction("ACT_REFLECT"),
+        deathSurvivalAction("ACT_SURVIVAL"),
+      ],
+      capabilities: [
+        capability("CAP_TARGET_REDIRECT"),
+        capability("CAP_COVER_DAMAGE"),
+        capability("CAP_REFLECT_DAMAGE"),
+        capability("CAP_DEATH_SURVIVAL"),
+      ],
+    };
+
+    const index = buildCatalogIndex(withInterventions);
+
+    expect(index.effectActions.get("ACT_REDIRECT" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_COVER" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_REFLECT" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_SURVIVAL" as never)).toBeDefined();
+  });
+
+  it("UT-R-INT-01-021 (DMG-006 Issue #188, PR #298レビュー[P2], NEGATIVE): rejects an APPLY_TARGET_REDIRECT/APPLY_COVER whose appliesTo.actionKinds reaches beyond DAMAGE, so a declaration that would never take effect is caught at Catalog load time", () => {
+    const defs = baseDefinitions();
+
+    /** `damage-application-service.ts`はDAMAGEでしか介入解決を呼ばないため、どちらもsilent no-opになる。 */
+    for (const [actionId, action] of [
+      ["ACT_REDIRECT", targetRedirectAction("ACT_REDIRECT", { actionKinds: ["DEBUFF"] })],
+      ["ACT_REDIRECT", targetRedirectAction("ACT_REDIRECT", { actionKinds: ["ANY"] })],
+      ["ACT_REDIRECT", targetRedirectAction("ACT_REDIRECT", { actionKinds: ["DAMAGE", "DEBUFF"] })],
+      ["ACT_COVER", coverAction("ACT_COVER", { actionKinds: ["ANY"] })],
+    ] as const) {
+      const withUnimplementedAppliesTo: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", actionId)],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, action],
+        capabilities: [capability("CAP_TARGET_REDIRECT"), capability("CAP_COVER_DAMAGE")],
+      };
+
+      try {
+        buildCatalogIndex(withUnimplementedAppliesTo);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) => v.rule === "UNSUPPORTED_DEFENSIVE_INTERVENTION" && v.targetId === actionId,
+          ),
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("UT-R-INT-02-020 (DMG-006 Issue #188, NEGATIVE): rejects the defensive intervention payload shapes the runtime does not implement (non-SELF destination, partial damageShareRate, non-TRIGGER_SOURCE reflect, recursive reflect, non-lethal-only survival)", () => {
+    const defs = baseDefinitions();
+
+    for (const [actionId, action] of [
+      [
+        "ACT_REDIRECT",
+        targetRedirectAction("ACT_REDIRECT", { redirectTo: { kind: "TRIGGER_SOURCE" } }),
+      ],
+      ["ACT_COVER", coverAction("ACT_COVER", { coverer: { kind: "TRIGGER_SOURCE" } })],
+      ["ACT_COVER", coverAction("ACT_COVER", { damageShareRate: 0.5 })],
+      ["ACT_REFLECT", reflectAction("ACT_REFLECT", { reflectTo: { kind: "SELF" } })],
+      ["ACT_REFLECT", reflectAction("ACT_REFLECT", { allowRecursiveReflect: true })],
+      ["ACT_SURVIVAL", deathSurvivalAction("ACT_SURVIVAL", { lethalDamageOnly: false })],
+    ] as const) {
+      const withUnimplementedShape: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", actionId)],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, action],
+        capabilities: [
+          capability("CAP_TARGET_REDIRECT"),
+          capability("CAP_COVER_DAMAGE"),
+          capability("CAP_REFLECT_DAMAGE"),
+          capability("CAP_DEATH_SURVIVAL"),
+        ],
+      };
+
+      try {
+        buildCatalogIndex(withUnimplementedShape);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) => v.rule === "UNSUPPORTED_DEFENSIVE_INTERVENTION" && v.targetId === actionId,
+          ),
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("UT-R-INT-02-021 (DMG-006 Issue #188, NEGATIVE): rejects a defensive intervention that omits its Capability from requiredCapabilities (same declaration-gate as CAP_HEALING_LINK)", () => {
+    const defs = baseDefinitions();
+
+    for (const [actionId, action] of [
+      ["ACT_REDIRECT", targetRedirectAction("ACT_REDIRECT", { requiredCapabilities: [] })],
+      ["ACT_COVER", coverAction("ACT_COVER", { requiredCapabilities: [] })],
+      ["ACT_REFLECT", reflectAction("ACT_REFLECT", { requiredCapabilities: [] })],
+      ["ACT_SURVIVAL", deathSurvivalAction("ACT_SURVIVAL", { requiredCapabilities: [] })],
+    ] as const) {
+      const withMissingCapability: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", actionId)],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, action],
+        capabilities: [
+          capability("CAP_TARGET_REDIRECT"),
+          capability("CAP_COVER_DAMAGE"),
+          capability("CAP_REFLECT_DAMAGE"),
+          capability("CAP_DEATH_SURVIVAL"),
+        ],
+      };
+
+      try {
+        buildCatalogIndex(withMissingCapability);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === actionId,
+          ),
+        ).toBe(true);
+      }
     }
   });
 

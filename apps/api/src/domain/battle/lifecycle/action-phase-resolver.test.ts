@@ -1780,7 +1780,12 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-004: throws when a resolved plan targets an EffectAction kind this resolver does not implement yet (APPLY_COVER, CAP_COVER PLANNED)", () => {
+  // DMG-006（Issue #188）: `APPLY_COVER`は`UT-ACTION-PHASE-004`が「このresolverが
+  // まだ実装していないkind」の代表として使っていたが、R-INT-01〜03の配線で実装済みに
+  // なった。同じ定義を使い、実ライフサイクルで`AppliedEffect.cover`が付与されることを
+  // 検証するテストへ置き換える（`EFFECT_ACTION_KINDS`はこれで全kindが実装済みになり、
+  // 未実装kindを表せる定義自体が存在しなくなった）。
+  it("UT-R-INT-02-001 (DMG-006, Issue #188): grants APPLY_COVER as an AppliedEffect carrying the coverer resolved at grant time through the real action lifecycle", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_COVERER");
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_COVERER",
@@ -1795,18 +1800,28 @@ describe("resolveActionPhase", () => {
     const random = new SequenceRandomSource([]);
 
     const ctx = actionPhaseContext();
-    expect(() =>
-      resolveActionPhase(
-        [ally],
-        [enemy],
-        definitions,
-        random,
-        ctx.recorder,
-        ctx.turnNumber,
-        ctx.turnRootEventId,
-        ctx.turnScopeParentEventId,
-      ),
-    ).toThrow(DomainValidationError);
+    const result = resolveActionPhase(
+      [ally],
+      [enemy],
+      definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const holder = result.enemyUnits.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(holder.appliedEffects).toHaveLength(1);
+    // `coverer: SELF`は付与時点で使用者（ALLY_1）へ解決して焼き込む。
+    expect(holder.appliedEffects[0]!.cover).toEqual({
+      covererUnitId: ally.battleUnitId,
+      damageShareRate: 1,
+      guardRate: 0,
+      actionKinds: ["ANY"],
+    });
+    // R-INT-01/02: 攻撃側が保持する介入状態はデバフに分類する。
+    expect(holder.appliedEffects[0]!.categories).toEqual(["DEBUFF"]);
   });
 
   it("UT-R-SHD-01-010 (DMG-004, Issue #194): grants APPLY_SHIELD as an AppliedEffect carrying an untyped pool through the real action lifecycle", () => {

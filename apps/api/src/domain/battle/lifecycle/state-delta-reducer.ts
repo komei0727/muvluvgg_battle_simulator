@@ -197,6 +197,59 @@ function sameSubUnitState(a: EffectSnapshot["subUnit"], b: EffectSnapshot["subUn
 }
 
 /**
+ * R-INT-01〜03（DMG-006、Issue #188）: 防御介入系の4状態を`sameSubUnitState`と同じ
+ * 理由・同じ方針で構造比較する。Formula（`reflect.formula`／`deathSurvival.*`）は
+ * Catalog由来の決定的なプレーン値で`deepFreeze`済みのため`JSON.stringify`で比較する。
+ */
+function sameTargetRedirectState(
+  a: EffectSnapshot["targetRedirect"],
+  b: EffectSnapshot["targetRedirect"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.redirectToUnitId === b.redirectToUnitId &&
+    JSON.stringify(a.actionKinds) === JSON.stringify(b.actionKinds)
+  );
+}
+
+function sameCoverState(a: EffectSnapshot["cover"], b: EffectSnapshot["cover"]): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.covererUnitId === b.covererUnitId &&
+    a.damageShareRate === b.damageShareRate &&
+    a.guardRate === b.guardRate &&
+    JSON.stringify(a.actionKinds) === JSON.stringify(b.actionKinds)
+  );
+}
+
+function sameReflectState(a: EffectSnapshot["reflect"], b: EffectSnapshot["reflect"]): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    a.allowRecursiveReflect === b.allowRecursiveReflect &&
+    JSON.stringify(a.formula) === JSON.stringify(b.formula)
+  );
+}
+
+function sameDeathSurvivalState(
+  a: EffectSnapshot["deathSurvival"],
+  b: EffectSnapshot["deathSurvival"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    JSON.stringify(a.survivalHp) === JSON.stringify(b.survivalHp) &&
+    JSON.stringify(a.healAfterSurvival) === JSON.stringify(b.healAfterSurvival)
+  );
+}
+
+/**
  * R-DOT-01〜04（DMG-008、Issue #189）: `APPLY_CONTINUOUS_DAMAGE`由来の効果だけが
  * 持つ種別・ダメージタイプを`sameShieldState`と同じ理由で構造比較する。
  */
@@ -274,6 +327,10 @@ export function sameEffectSnapshot(
     sameShieldState(a.shield, b.shield) &&
     sameSubUnitState(a.subUnit, b.subUnit) &&
     sameContinuousDamageState(a.continuousDamage, b.continuousDamage) &&
+    sameTargetRedirectState(a.targetRedirect, b.targetRedirect) &&
+    sameCoverState(a.cover, b.cover) &&
+    sameReflectState(a.reflect, b.reflect) &&
+    sameDeathSurvivalState(a.deathSurvival, b.deathSurvival) &&
     sameCategories(a.categories, b.categories) &&
     a.statModStat === b.statModStat &&
     sameSnapshot(a.snapshot, b.snapshot)

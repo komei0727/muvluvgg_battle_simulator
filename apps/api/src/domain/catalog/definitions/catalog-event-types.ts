@@ -69,6 +69,8 @@ export const EVENT_TYPE_CATEGORIES: Readonly<Record<string, EventCategory>> = {
   LinkedDamageGenerated: "FACT",
   DamageRedirected: "FACT",
   ReflectedDamageGenerated: "FACT",
+  // 防御介入イベント（DMG-006、Issue #188、R-INT-01 #5）
+  LethalDamageSurvived: "FACT",
   // 継続ダメージイベント（DMG-008、Issue #189、R-DOT-01〜04）
   ContinuousDamageApplied: "FACT",
   // 回復イベント
