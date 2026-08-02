@@ -13,6 +13,16 @@ AGENTS.md
 
 raw/
 
+# .claude/ is user-local (often ignored via a global gitignore), but the
+# muvluvgg-implement-issue skill is a project asset: its quality-gate wrapper
+# must ship with the repo so the gate definition stays unified (Issue #310).
+# These negations take precedence over a global `.claude/` ignore.
+!.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/muvluvgg-implement-issue/
+
 apps/ui/playwright-report/
 apps/ui/test-results/
 

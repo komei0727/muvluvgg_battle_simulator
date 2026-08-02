@@ -61,7 +61,8 @@ bash scripts/run-quality-gates.sh
 #            → ui:e2e:visual（Linux のみ。baseline が Linux 専用のため他OSではskip）
 ```
 
-前提: Docker daemon が起動していること。Playwright Chromium はスクリプトが自動インストールする。
+前提: Docker daemon が起動していること。Playwright Chromium はスクリプトが自動インストールする
+（Linux では PR CI と同じ `--with-deps` で OS 依存ライブラリも導入する。CI 外では sudo を求められることがある）。
 
 `mise run check` は coverage・container・e2e を含まない**開発中の軽量チェック**であり、
 PR CI の再現ではない。`.claude/skills/muvluvgg-implement-issue/scripts/run-quality-gates.sh`

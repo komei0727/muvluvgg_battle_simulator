@@ -7,7 +7,8 @@
 # Prerequisites:
 #   - Docker daemon running (test:container builds and smoke-tests the
 #     production image).
-#   - Playwright Chromium is installed automatically before ui:e2e.
+#   - Playwright Chromium is installed automatically before ui:e2e
+#     (on Linux with --with-deps, same as the PR CI).
 #
 # Platform note: ui:e2e:visual only runs on Linux — its screenshot
 # baselines are Linux-only (apps/ui/e2e/visual-regression.spec.ts), so on
@@ -38,7 +39,13 @@ mise run ui:typecheck
 mise run ui:lint
 mise run ui:test
 mise run ui:build
-mise exec -- pnpm --filter ui exec playwright install chromium
+if [[ "$(uname -s)" == "Linux" ]]; then
+  # Same as PR CI: install OS-level browser dependencies too (uses apt,
+  # may prompt for sudo outside CI).
+  mise exec -- pnpm --filter ui exec playwright install --with-deps chromium
+else
+  mise exec -- pnpm --filter ui exec playwright install chromium
+fi
 mise run ui:e2e
 if [[ "$(uname -s)" == "Linux" ]]; then
   mise run ui:e2e:visual
