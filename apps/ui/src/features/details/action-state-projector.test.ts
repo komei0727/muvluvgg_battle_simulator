@@ -526,3 +526,117 @@ describe("selectUnitActionStates", () => {
     expect(states[0]?.effectsKnown).toBe(true);
   });
 });
+
+// DMG-010（Issue #191）: 07_UI実装・拡張計画.md §12「shield吸収、HP damage内訳」
+// 「sub unit」。`finalState.units[].shields`（プール合計、R-SHD-01第3項）と
+// `subUnits`（インスタンス単位、R-SUB-01第3項）を正本として読む。
+describe("selectUnitActionStates shields and sub units (DMG-010)", () => {
+  it("reads the three shield pools from finalState.units[].shields (UI-UT-DMG-022)", () => {
+    const response = responseWith({
+      finalUnits: [
+        {
+          battleUnitId: "ally:1",
+          cooldowns: [],
+          effects: [],
+          shields: { physical: 120, energy: 0, untyped: 30 },
+          subUnits: [],
+        },
+        { battleUnitId: "enemy:1", cooldowns: [], effects: [], shields: null, subUnits: [] },
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.shields).toEqual({ physical: 120, energy: 0, untyped: 30 });
+    // 契約違反のshieldsは「0」と断定せず不明として落とす。
+    expect(states[1]?.shields).toBeUndefined();
+  });
+
+  it("keeps sub units as instances with their durability instead of a pool total (UI-UT-DMG-023)", () => {
+    const response = responseWith({
+      finalUnits: [
+        {
+          battleUnitId: "ally:1",
+          cooldowns: [],
+          effects: [],
+          shields: { physical: 0, energy: 0, untyped: 0 },
+          subUnits: [
+            {
+              subUnitInstanceId: "battle-1:effect:9",
+              subUnitDefinitionId: "ACT_SUBUNIT_DRONE",
+              durability: { current: 20, maximum: 50 },
+              appliedTurnNumber: 1,
+            },
+            {
+              subUnitInstanceId: "battle-1:effect:10",
+              subUnitDefinitionId: "ACT_SUBUNIT_SHELL",
+              durability: { current: 50, maximum: 50 },
+              appliedTurnNumber: 2,
+            },
+          ],
+        },
+        { battleUnitId: "enemy:1", cooldowns: [], effects: [], shields: null, subUnits: [] },
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.subUnits).toEqual([
+      {
+        subUnitInstanceId: "battle-1:effect:9",
+        subUnitDefinitionId: "ACT_SUBUNIT_DRONE",
+        durability: { current: 20, maximum: 50 },
+      },
+      {
+        subUnitInstanceId: "battle-1:effect:10",
+        subUnitDefinitionId: "ACT_SUBUNIT_SHELL",
+        durability: { current: 50, maximum: 50 },
+      },
+    ]);
+    expect(states[0]?.subUnitsKnown).toBe(true);
+  });
+
+  it("reports sub units as unknown, not as none, for a fixture recorded before the DMG-005 contract (UI-UT-DMG-024)", () => {
+    const response = responseWith({
+      finalUnits: [
+        { battleUnitId: "ally:1", cooldowns: [], effects: [] },
+        { battleUnitId: "enemy:1", cooldowns: [], effects: [] },
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.shields).toBeUndefined();
+    expect(states[0]?.subUnits).toEqual([]);
+    expect(states[0]?.subUnitsKnown).toBe(false);
+  });
+
+  it("skips a sub unit entry whose required shape is broken without dropping the well-formed ones (UI-UT-DMG-025)", () => {
+    const response = responseWith({
+      finalUnits: [
+        {
+          battleUnitId: "ally:1",
+          cooldowns: [],
+          effects: [],
+          subUnits: [
+            { subUnitInstanceId: 42 },
+            {
+              subUnitInstanceId: "battle-1:effect:11",
+              subUnitDefinitionId: "ACT_SUBUNIT_DRONE",
+              durability: { current: 5, maximum: 50 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+        { battleUnitId: "enemy:1", cooldowns: [], effects: [] },
+      ],
+    });
+
+    const states = selectUnitActionStates(response, roster, "DETAILED");
+
+    expect(states[0]?.subUnits.map((subUnit) => subUnit.subUnitInstanceId)).toEqual([
+      "battle-1:effect:11",
+    ]);
+    expect(states[0]?.subUnitsKnown).toBe(true);
+  });
+});

@@ -476,6 +476,7 @@ export function applyOneContinuousDamage(
       calculatedDamage: amount.calculatedDamage,
       typedShieldAbsorbed,
       untypedShieldAbsorbed,
+      subUnitAbsorbed,
       discardedDamage,
       hitPointDamage: hpBefore - hpAfter,
       hpBefore,

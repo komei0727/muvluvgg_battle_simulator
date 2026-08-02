@@ -6,6 +6,11 @@
 // 見ない）なので、これを正本として読む(PR #131レビューで露呈したSUMMARYログの
 // 「不明」表示問題は、finalStateを使う限りそもそも発生しない)。
 //
+// DMG-010（Issue #191、07_UI実装・拡張計画.md §12）でシールドプール
+// （`finalState.units[].shields`）とサブユニット（`subUnits`）を追加した。
+// どちらも同じ後方互換規約に従い、配列・オブジェクトが無いfixtureでは
+// 「なし」ではなく不明として返す。
+//
 // `cooldowns`はM5以降の契約で必須配列（空でも`[]`）のため、その有無で
 // finalStateがM5以降の形かどうかを判別できる。`cooldowns`キー自体が無い
 // unit(M5より前に録取したUI fixture)だけ、events[]のCOOLDOWN_*/CHARGE_*を
@@ -53,6 +58,28 @@ export interface UnitEffectState {
   readonly duration?: { readonly unit: string; readonly remaining: number };
 }
 
+/**
+ * `10_API設計.md`「ShieldStateResponse」（DMG-004、Issue #194、R-SHD-01第3項）。
+ * タイプ別プールは`APPLY_SHIELD`由来の効果インスタンスからの導出値であり、
+ * インスタンスごとの残量はAPIが公開しないため、UIもプール合計だけを表示する。
+ */
+export interface UnitShieldState {
+  readonly physical: number;
+  readonly energy: number;
+  readonly untyped: number;
+}
+
+/**
+ * `10_API設計.md`「SubUnitStateResponse」（DMG-005、Issue #190、R-SUB-01第3項）。
+ * サブユニットは「消費順と固有効果を追跡するためインスタンスごとに返す」ため、
+ * `shields`のようなプール合計へは合算しない。
+ */
+export interface UnitSubUnitState {
+  readonly subUnitInstanceId: string;
+  readonly subUnitDefinitionId: string;
+  readonly durability: ResourceValue;
+}
+
 export interface UnitActionState {
   readonly battleUnitId: string;
   readonly ap?: ResourceValue;
@@ -65,6 +92,11 @@ export interface UnitActionState {
   readonly effects: readonly UnitEffectState[];
   /** falseの場合、effectsが空でも「効果なし」を意味しない(effects契約より前に録取したfixture)。 */
   readonly effectsKnown: boolean;
+  /** undefinedは「シールド0」ではなく不明(shields契約より前に録取したfixture)。 */
+  readonly shields?: UnitShieldState;
+  readonly subUnits: readonly UnitSubUnitState[];
+  /** falseの場合、subUnitsが空でも「サブユニットなし」を意味しない。 */
+  readonly subUnitsKnown: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -164,6 +196,65 @@ function readEffectsFromFinalState(finalUnit: unknown): readonly UnitEffectState
     });
   }
   return effects;
+}
+
+/**
+ * DMG-010（Issue #191）: `finalUnit["shields"]`を`UnitShieldState`へ変換する。
+ * 3プールが揃った数値でない場合（shields契約より前に手で録取したUI fixture、
+ * または契約違反）は`undefined`を返し、呼び出し側が「シールド0」ではなく
+ * 「不明」として扱えるようにする — `cooldowns`/`effects`と同じ後方互換規約。
+ */
+function readShieldsFromFinalState(finalUnit: unknown): UnitShieldState | undefined {
+  if (!isRecord(finalUnit)) {
+    return undefined;
+  }
+  const shields = finalUnit["shields"];
+  if (
+    !isRecord(shields) ||
+    typeof shields["physical"] !== "number" ||
+    typeof shields["energy"] !== "number" ||
+    typeof shields["untyped"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    physical: shields["physical"],
+    energy: shields["energy"],
+    untyped: shields["untyped"],
+  };
+}
+
+/**
+ * DMG-010（Issue #191）: `finalUnit["subUnits"]`（`10_API設計.md`
+ * 「SubUnitStateResponse」）を`UnitSubUnitState`へ変換する。配列でない場合は
+ * `undefined`を返して「なし」と「不明」を区別する。個々の要素が必須項目を欠く
+ * 場合はその要素だけ落とす（`effects`と同じ規約 — 1件の契約違反で一覧全体を
+ * 消さない）。APIは付与順（＝消費順、R-SUB-01）で返すため並べ替えない。
+ */
+function readSubUnitsFromFinalState(finalUnit: unknown): readonly UnitSubUnitState[] | undefined {
+  if (!isRecord(finalUnit) || !Array.isArray(finalUnit["subUnits"])) {
+    return undefined;
+  }
+  const subUnits: UnitSubUnitState[] = [];
+  for (const entry of finalUnit["subUnits"]) {
+    if (
+      !isRecord(entry) ||
+      typeof entry["subUnitInstanceId"] !== "string" ||
+      typeof entry["subUnitDefinitionId"] !== "string"
+    ) {
+      continue;
+    }
+    const durability = readResourceValue(entry, "durability");
+    if (durability === undefined) {
+      continue;
+    }
+    subUnits.push({
+      subUnitInstanceId: entry["subUnitInstanceId"],
+      subUnitDefinitionId: entry["subUnitDefinitionId"],
+      durability,
+    });
+  }
+  return subUnits;
 }
 
 interface MutableUnitAccumulator {
@@ -330,6 +421,8 @@ export function selectUnitActionStates(
         ? readChargeFromFinalState(finalUnit)
         : accumulator?.charge;
     const effects = readEffectsFromFinalState(finalUnit);
+    const shields = readShieldsFromFinalState(finalUnit);
+    const subUnits = readSubUnitsFromFinalState(finalUnit);
     return {
       battleUnitId: entry.battleUnitId,
       ...(ap !== undefined ? { ap } : {}),
@@ -340,6 +433,9 @@ export function selectUnitActionStates(
       cooldownChargeKnown,
       effects: effects ?? [],
       effectsKnown: effects !== undefined,
+      ...(shields !== undefined ? { shields } : {}),
+      subUnits: subUnits ?? [],
+      subUnitsKnown: subUnits !== undefined,
     };
   });
 }

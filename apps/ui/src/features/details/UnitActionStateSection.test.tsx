@@ -319,4 +319,121 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText("クールタイムなし")).toBeInTheDocument();
     expect(screen.queryByText(/SUMMARYログ/)).not.toBeInTheDocument();
   });
+
+  // DMG-010（Issue #191）: 07_UI実装・拡張計画.md §12「shield吸収、HP damage内訳」
+  // 「sub unit」をUnit詳細へ追加する（サマリ列は増やさない）。
+  it("shows the shield pools and sub unit instances of finalState (UI-CT-022)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+          shields: { physical: 120, energy: 0, untyped: 30 },
+          subUnits: [
+            {
+              subUnitInstanceId: "battle-1:effect:9",
+              subUnitDefinitionId: "ACT_SUBUNIT_DRONE",
+              durability: { current: 20, maximum: 50 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/シールド.*物理 120.*EN 0.*タイプなし 30/)).toBeInTheDocument();
+    expect(screen.getByText(/ACT_SUBUNIT_DRONE.*20 \/ 50/)).toBeInTheDocument();
+  });
+
+  it("says there is no shield or sub unit when finalState truthfully reports zero and an empty list (UI-CT-023)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+          shields: { physical: 0, energy: 0, untyped: 0 },
+          subUnits: [],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText("シールドなし")).toBeInTheDocument();
+    expect(screen.getByText("サブユニットなし")).toBeInTheDocument();
+  });
+
+  // PR #301 レビュー[P2]: DMG-004後・DMG-005前のように片方だけを持つレスポンスでは、
+  // 欠落側が何も描画されず「不明」とも読めなくなっていた。個別に不明表示する。
+  it("says only the missing side is unknown when a response carries shields but not subUnits (UI-CT-025)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+          shields: { physical: 40, energy: 0, untyped: 0 },
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/シールド.*物理 40/)).toBeInTheDocument();
+    expect(screen.getByText(/サブユニット.*不明/)).toBeInTheDocument();
+    expect(screen.queryByText("サブユニットなし")).not.toBeInTheDocument();
+    expect(screen.queryByText(/シールド.*不明/)).not.toBeInTheDocument();
+  });
+
+  it("says only the missing side is unknown when a response carries subUnits but not shields (UI-CT-026)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+          subUnits: [],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/シールド.*不明/)).toBeInTheDocument();
+    expect(screen.getByText("サブユニットなし")).toBeInTheDocument();
+    expect(screen.queryByText("シールドなし")).not.toBeInTheDocument();
+  });
+
+  it("says shields and sub units are unknown, not absent, for a fixture recorded before the M8 contract (UI-CT-024)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.queryByText("シールドなし")).not.toBeInTheDocument();
+    expect(screen.queryByText("サブユニットなし")).not.toBeInTheDocument();
+    expect(screen.getByText(/シールド.*不明/)).toBeInTheDocument();
+    expect(screen.getByText(/サブユニット.*不明/)).toBeInTheDocument();
+  });
 });

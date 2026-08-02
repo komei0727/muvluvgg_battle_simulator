@@ -96,6 +96,23 @@
   font-size: 11px;
 }
 
+/* DMG-010 (Issue #191): finalState.units[].shields のプール合計。 */
+.shields {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+/* DMG-010 (Issue #191): finalState.units[].subUnits のインスタンス一覧。 */
+.subUnitList {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 /* M7-009 (Issue #182): finalState.units[].effects の一覧。 */
 .effectList {
   margin: var(--space-1) 0 0;

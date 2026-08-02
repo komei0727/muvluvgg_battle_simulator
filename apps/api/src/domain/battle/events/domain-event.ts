@@ -737,6 +737,18 @@ export interface BattleDomainEventPayloadMap {
     readonly typedShieldAbsorbed: number;
     /** R-DOT-02: タイプなしシールド吸収量。`BURN`/`POISON`は常に0。 */
     readonly untypedShieldAbsorbed: number;
+    /**
+     * R-SUB-01第1項「通常シールドをすべて適用した後にサブユニットがダメージを
+     * 受ける」の吸収量（DMG-010、Issue #191、PR #301レビュー[P1]）。`BURN`/`POISON`は
+     * 第2項によりサブユニットでも受けないため常に0。
+     *
+     * この項が無いと、下の保存則がサブユニット吸収分だけ成立せず、クライアントは
+     * `calculatedDamage`と`hitPointDamage`の差を説明できない（`DamageApplied`側は
+     * DMG-005で同じ項を持っている）。公開ログのJSON schemaでは`DamageApplied.
+     * subUnitAbsorbed`と同じ理由で**任意プロパティ**として追加する
+     * （`08_ドメインイベント.md`「DamageApplied payload」の`subUnitAbsorbed`の段落）。
+     */
+    readonly subUnitAbsorbed: number;
     /** R-SHD-03第2項と同じ、HPを0未満にしないために破棄した超過分。 */
     readonly discardedDamage: number;
     readonly hitPointDamage: number;
