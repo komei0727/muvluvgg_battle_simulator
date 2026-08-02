@@ -42,6 +42,20 @@ interface Row {
 // 有無だけで状態異常と決めない。分類の正本はDomainの
 // `effect-category-classifier.ts`であり、UIはその結果を受け取るだけにする）。
 // `effectKindKey`は定義IDの命名規則を解析せずそのまま見せる。
+// DMG-010（Issue #191）: 07_UI実装・拡張計画.md §12「shield吸収、HP damage内訳」
+// 「sub unit」。UI変更方針「内訳はevent詳細またはUnit分析drawerへ追加する」
+// 「shield absorbedをDEFENSE列へ混ぜない」に従い、サマリ表の列を増やさず
+// Unit詳細（このタブ）へ出す。シールドは`10_API設計.md`「ShieldStateResponse」の
+// プール合計（R-SHD-01第3項の導出値）、サブユニットはR-SUB-01第3項どおり
+// インスタンス単位で、消費順（APIの返却順）のまま並べる。
+function shieldLabel(shields: NonNullable<UnitActionState["shields"]>): string {
+  return `シールド: 物理 ${shields.physical} / EN ${shields.energy} / タイプなし ${shields.untyped}`;
+}
+
+function subUnitLabel(subUnit: UnitActionState["subUnits"][number]): string {
+  return `${subUnit.subUnitDefinitionId}: 耐久 ${subUnit.durability.current} / ${subUnit.durability.maximum}`;
+}
+
 function effectLabel(effect: UnitActionState["effects"][number]): string {
   const head =
     effect.statusKind !== undefined
@@ -106,6 +120,30 @@ function UnitActionStateGroup({
                   チャージ中: {actionState.charge.skillDefinitionId}
                 </p>
               ) : null}
+              {actionState.shields === undefined && !actionState.subUnitsKnown ? (
+                <p className={styles["muted"]}>
+                  シールド・サブユニット: このレスポンスに含まれず不明
+                </p>
+              ) : (
+                <>
+                  {actionState.shields === undefined ? null : actionState.shields.physical === 0 &&
+                    actionState.shields.energy === 0 &&
+                    actionState.shields.untyped === 0 ? (
+                    <p className={styles["muted"]}>シールドなし</p>
+                  ) : (
+                    <p className={styles["shields"]}>{shieldLabel(actionState.shields)}</p>
+                  )}
+                  {!actionState.subUnitsKnown ? null : actionState.subUnits.length === 0 ? (
+                    <p className={styles["muted"]}>サブユニットなし</p>
+                  ) : (
+                    <ul className={styles["subUnitList"]}>
+                      {actionState.subUnits.map((subUnit) => (
+                        <li key={subUnit.subUnitInstanceId}>{subUnitLabel(subUnit)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
               {!actionState.effectsKnown ? (
                 <p className={styles["muted"]}>効果・状態異常: このレスポンスに含まれず不明</p>
               ) : actionState.effects.length === 0 ? (
@@ -151,6 +189,8 @@ export function UnitActionStateSection({
         cooldownChargeKnown: logLevel !== "SUMMARY",
         effects: [],
         effectsKnown: false,
+        subUnits: [],
+        subUnitsKnown: false,
       },
     }));
   }, [roster, actionStates, logLevel]);

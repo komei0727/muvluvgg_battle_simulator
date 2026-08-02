@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { battleDamageBreakdownFixture } from "./fixtures/battle-damage-breakdown.js";
 import { battleHealEffectsFixture } from "./fixtures/battle-heal-effects.js";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
@@ -61,6 +62,54 @@ test("shows the actually applied healing and the granted effects/status of an M7
   const actionStatePanel = page.getByRole("tabpanel", { name: "ユニット状態" });
   await expect(actionStatePanel.getByText(/ACT_ALLY_ATTACK_UP/)).toBeVisible();
   await expect(actionStatePanel.getByText(/STUN（STATUS_ABNORMALITY）/)).toBeVisible();
+});
+
+// UI-E2E-010 (DMG-010, Issue #191): calculated / shield absorbed / subUnit
+// absorbed / HP damage を混同せず表示し、subUnit状態とcollection deltaを
+// 汎用JSONではなく意味のある表示で辿れる (07_UI実装・拡張計画.md §12完了条件)。
+test("separates calculated damage, shield/sub unit absorption and HP damage of an M8 battle", async ({
+  page,
+}) => {
+  await mockSimulationSequence(page, [{ status: 200, body: battleDamageBreakdownFixture }]);
+  await page.goto("./");
+
+  await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await page.getByRole("button", { name: "戦闘を開始" }).click();
+  await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
+
+  // DAMAGE列は実HPダメージ 160 + 40 = 200。計算ダメージ 250 + 40 でも、
+  // 吸収された90を足した値でもない (01_UI要求・画面設計.md §7.2)。
+  const allyRow = page.getByRole("row", { name: /アライアルファ/ });
+  await expect(allyRow.getByRole("cell", { name: "200", exact: true })).toBeVisible();
+
+  // 内訳はイベント要約側に出る。
+  await expect(
+    page.getByText(
+      /計算ダメージ250（タイプありシールド吸収30、タイプなしシールド吸収10、サブユニット吸収50） → HPダメージ160/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/PHYSICALシールドがヒット1で30吸収しました/)).toBeVisible();
+  await expect(
+    page.getByText(/サブユニット「ACT_ENEMY_SUBUNIT」がヒット1で50吸収しました/),
+  ).toBeVisible();
+  // 継続ダメージはヒット単位のダメージと別種別として読める。
+  await expect(page.getByText(/継続ダメージ BURN（ENERGY）/)).toBeVisible();
+
+  // finalStateのシールドプールとサブユニットはユニット状態タブに出る。
+  const tabs = page.getByRole("tablist", { name: "戦闘詳細" });
+  await tabs.getByRole("tab", { name: "ユニット状態" }).click();
+  const actionStatePanel = page.getByRole("tabpanel", { name: "ユニット状態" });
+  await expect(
+    actionStatePanel.getByText(/シールド: 物理 0 \/ EN 25 \/ タイプなし 0/),
+  ).toBeVisible();
+  await expect(actionStatePanel.getByText(/ACT_ALLY_SUBUNIT: 耐久 60 \/ 60/)).toBeVisible();
+
+  // 状態遷移のEntityCollectionDeltaは件数だけでなく、消えたインスタンスを名指しする。
+  await tabs.getByRole("tab", { name: "状態遷移" }).click();
+  const transitionPanel = page.getByRole("tabpanel", { name: "状態遷移" });
+  await expect(
+    transitionPanel.getByText(/- ACT_ENEMY_SUBUNIT（battle-e2e-003:effect:1）/),
+  ).toBeVisible();
 });
 
 // UI-E2E-002: memory dialogに未対応itemと理由が表示される。

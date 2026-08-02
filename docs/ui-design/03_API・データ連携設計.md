@@ -388,6 +388,37 @@ type EventFormatter = (event: BattleLogEvent, roster: RosterIndex) => EventPrese
 
 英語のerror messageやID命名規則を解析して日本語化しない。
 
+### 12.1 M8 ダメージイベントの内訳（DMG-010、Issue #191）
+
+M8ダメージのformatterは`damage-event-formatters.ts`が持ち、`event-formatters.ts`のregistryへ合成する。共通の型・helper（`EventPresentation`／`RosterIndex`／`resolveDisplayName`）は`event-presentation.ts`にあり、2ファイル間の循環importを避ける。
+
+`DAMAGE_APPLIED`は`08_ドメインイベント.md`の不変条件#6を読み手が突き合わせられる形で並べる。
+
+```text
+{攻撃者} → {対象} {ヒットN|反射ダメージ|リンクダメージ}:
+  計算ダメージ{calculatedDamage}
+  （タイプありシールド吸収{typedShieldAbsorbed}、タイプなしシールド吸収{untypedShieldAbsorbed}、
+    サブユニット吸収{subUnitAbsorbed}、シールド迂回直撃{hpDirectDamage}、破棄{discardedDamage}）
+  → HPダメージ{hitPointDamage}。HP {hpBefore} → {hpAfter}
+```
+
+- 内訳項目はすべて任意として扱う。M4〜M7に録取したfixtureは持たないため、欠落を「吸収0」と断定しない。
+- 値が0の項目は出さない。通常ヒットの1行を短く保つため。
+- 複数hitは`hitIndex + 1`を「ヒットN」として出す。`isReflectedDamage`／`isLinkedDamage`のダメージは命中判定を通らず`hitIndex`が常に0のため、ヒット番号ではなく由来ラベルを出す。
+- `shieldType: null`はタイプなしプールであり、`null`をそのまま見せない。`reason: DECAY`は吸収ではなく時間減衰のため動詞を分ける。
+- `reason`／`damageType`／`continuousDamageKind`／`mode`などの列挙値は翻訳せずそのまま出す。UI側で列挙値の部分集合を持つとDomainの分類と黙って乖離するため。
+- `confusionDamageMultiplier`（R-CFS-02）は与ダメージ倍率と別の語で出す。`APPLY_DAMAGE_MOD`由来ではない減少をR-DMG-04の集計へ混ぜないというDomain側の分離をそのまま保つ。
+- summary adapter（§11.4）は変更しない。`CONTINUOUS_DAMAGE_APPLIED`もDAMAGE/DEFENSE列へ足さない（[07_UI実装・拡張計画.md](./07_UI実装・拡張計画.md) §12「shield absorbedをDEFENSE列へ混ぜない。別指標を追加する場合は名称と集計規則を新規ADRで定義する」）。
+
+### 12.2 状態遷移deltaの展開（DMG-010、Issue #191）
+
+`EntityCollectionDelta`は件数（`+n / ~n / -n`）に加えて、`added`／`updated`／`removed`ごとに1行を出す。
+
+- エンティティ名は`10_API設計.md`が定義するID項目（`effectInstanceId`／`subUnitInstanceId`／`markerInstanceId`／`id`と、`effectDefinitionId`／`subUnitDefinitionId`／`markerId`／`skillDefinitionId`／`effectKindKey`）から取る。定義IDの命名規則を解析しない。
+- `updated`は`before`/`after`を再帰比較し、変わったleafだけを`path before → after`として出す。
+- IDが読めない未知shapeはcompact JSONへ退避する。件数へ黙って畳まないことで、将来のエンティティ種別も可視のまま残る。
+- 差分が公開projectionに現れない`updated`は「表示可能な変更項目なし」と明示する。`EffectStateResponse.value`はDMG-004/005時点で`{ magnitude }`だけを持ち、シールド残量・サブユニット耐久の増減を運ばないため、この文言が実際に出うる。
+
 ## 13. エラー正規化
 
 ```ts

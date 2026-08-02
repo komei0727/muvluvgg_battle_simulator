@@ -4,62 +4,21 @@
 // `source → targets`, details=JSON整形表示, severity=neutral) を使う
 // (UI-AC-011)。英語のerror messageやID命名規則を解析して日本語化しない。
 
-import type { RosterEntry } from "../summary/summary-projector.js";
+import { damageEventFormatters } from "./damage-event-formatters.js";
+import { buildRosterIndex, isRecord, resolveDisplayName } from "./event-presentation.js";
+import type {
+  EventFormatter,
+  EventPresentation,
+  EventSeverity,
+  RosterIndex,
+} from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../simulation/api-contract.js";
 
-export type EventSeverity = "neutral" | "positive" | "negative";
-
-export interface EventPresentation {
-  readonly title: string;
-  readonly summary: string;
-  readonly details: unknown;
-  readonly severity: EventSeverity;
-}
-
-export type RosterIndex = ReadonlyMap<string, RosterEntry>;
-
-export function buildRosterIndex(roster: readonly RosterEntry[]): RosterIndex {
-  return new Map(roster.map((entry) => [entry.battleUnitId, entry] as const));
-}
-
-export function resolveDisplayName(roster: RosterIndex, battleUnitId: string): string {
-  return roster.get(battleUnitId)?.displayName ?? battleUnitId;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-type EventFormatter = (
-  event: BattleLogEventResponse,
-  roster: RosterIndex,
-) => EventPresentation | undefined;
-
-function formatDamageApplied(
-  event: BattleLogEventResponse,
-  roster: RosterIndex,
-): EventPresentation | undefined {
-  const details = event["details"];
-  const sourceUnitId = event["sourceUnitId"];
-  if (
-    !isRecord(details) ||
-    typeof sourceUnitId !== "string" ||
-    typeof details["targetUnitId"] !== "string" ||
-    typeof details["hitPointDamage"] !== "number" ||
-    typeof details["hpBefore"] !== "number" ||
-    typeof details["hpAfter"] !== "number"
-  ) {
-    return undefined;
-  }
-  const sourceName = resolveDisplayName(roster, sourceUnitId);
-  const targetName = resolveDisplayName(roster, details["targetUnitId"]);
-  return {
-    title: event.type,
-    summary: `${sourceName} → ${targetName} に ${details["hitPointDamage"]} ダメージ。HP ${details["hpBefore"]} → ${details["hpAfter"]}`,
-    details,
-    severity: "negative",
-  };
-}
+// 共通の型・helperは`event-presentation.ts`が持つ（DMG-010／Issue #191で
+// M8ダメージformatterを別ファイルへ分けた際に循環importを避けるため）。
+// 既存の利用側importを壊さないよう、ここから再exportする。
+export { buildRosterIndex, resolveDisplayName };
+export type { EventPresentation, EventSeverity, RosterIndex };
 
 function formatUnitDefeated(
   event: BattleLogEventResponse,
@@ -902,7 +861,6 @@ const eventFormatters: Readonly<Record<string, EventFormatter>> = {
   COOLDOWN_COMPLETED: formatCooldownCompleted,
   CHARGE_STARTED: formatChargeStarted,
   CHARGE_RELEASED: formatChargeReleased,
-  DAMAGE_APPLIED: formatDamageApplied,
   UNIT_DEFEATED: formatUnitDefeated,
   BATTLE_COMPLETED: formatBattleCompleted,
   PASSIVE_ACTIVATED: formatPassiveActivated,
@@ -930,6 +888,9 @@ const eventFormatters: Readonly<Record<string, EventFormatter>> = {
   EVASION_ACTIVATED: formatEvasionActivated,
   CHARGE_CANCELLED: formatChargeCancelled,
   CHARGE_HELD_BY_FREEZE: formatChargeHeldByFreeze,
+  // DMG-010（Issue #191）: M8 高度ダメージ（07_UI実装・拡張計画.md §12）。
+  // `DAMAGE_APPLIED`もM8で内訳フィールドを得たため、そちらのregistryが持つ。
+  ...damageEventFormatters,
 };
 
 function genericFallback(event: BattleLogEventResponse, roster: RosterIndex): EventPresentation {
