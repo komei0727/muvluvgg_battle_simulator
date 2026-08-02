@@ -187,6 +187,60 @@ describe("calculateDamage", () => {
     expect(result.finalDamage).toBe(30);
   });
 
+  // --- R-CFS-02 (DMG-009, Issue #193): 混乱時のダメージ ---
+
+  const confusion = { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 };
+
+  it("UT-R-CFS-02-001: applies the confusion multiplier (1 - damageReductionRate) on top of the ordinary calculation", () => {
+    const result = calculateDamage(input({ confusion }));
+    // 基礎ダメージ 50 - 20 = 30、混乱倍率 0.7 → 21
+    expect(result.confusionDamageMultiplier).toBe(0.7);
+    expect(result.finalDamage).toBe(21);
+  });
+
+  it("UT-R-CFS-02-002: the confusion multiplier is 1 when the attacker is not confused", () => {
+    const result = calculateDamage(input());
+    expect(result.confusionDamageMultiplier).toBe(1);
+    expect(result.finalDamage).toBe(30);
+  });
+
+  it("UT-R-CFS-02-003: substitutes attack x lowAttackBaseDamageRate for the base damage when attack is at or below the effective defense", () => {
+    // 攻撃力50 = 実効防御力50（境界: 「以下」なので差し替える）。
+    // 基礎ダメージ 50 * 0.1 = 5、混乱倍率 0.7 → 3.5 → 切り捨てて3
+    const boundary = calculateDamage(input({ attackerAttack: 50, defenderDefense: 50, confusion }));
+    expect(boundary.finalDamage).toBe(3);
+    // 攻撃力 < 実効防御力でも同じ差し替えを行う（通常なら基礎ダメージ0 → 最低1）。
+    const below = calculateDamage(input({ attackerAttack: 50, defenderDefense: 80, confusion }));
+    expect(below.finalDamage).toBe(3);
+  });
+
+  it("UT-R-CFS-02-004: keeps the ordinary base damage when attack exceeds the effective defense by even 1", () => {
+    const result = calculateDamage(input({ attackerAttack: 51, defenderDefense: 50, confusion }));
+    // 差分1 × 混乱倍率0.7 = 0.7 → R-DMG-02の最低1ダメージ
+    expect(result.finalDamage).toBe(1);
+  });
+
+  it("UT-R-CFS-02-005: the substitution follows the effective defense, so defense piercing can lift the attacker back above it", () => {
+    const result = calculateDamage(
+      input({ attackerAttack: 50, defenderDefense: 80, defenseIgnoreRate: 0.5, confusion }),
+    );
+    // 実効防御力 40 < 攻撃力 50 なので差し替えない: (50 - 40) * 0.7 = 7
+    expect(result.finalDamage).toBe(7);
+  });
+
+  it("UT-R-CFS-02-006: leaves non-SKILL_POWER formulas alone — their evaluation result is the base damage and uses no attack-defense difference", () => {
+    const result = calculateDamage(
+      input({
+        attackerAttack: 10,
+        defenderDefense: 80,
+        skillPowerFormula: { kind: "CONSTANT", value: 200 },
+        confusion,
+      }),
+    );
+    // 基礎ダメージは差し替えず200のまま。混乱倍率だけ掛かる: 200 * 0.7 = 140
+    expect(result.finalDamage).toBe(140);
+  });
+
   it("UT-DAMAGE-CALCULATOR-004 (R-NUM-04): a damageModifiers entry can use any FormulaKind now, not just CONSTANT (e.g. MARKER_COUNT_SCALE)", () => {
     const skillSource = unitAt("U_ATTACKER", "ALLY", {
       markerStates: [

@@ -538,6 +538,13 @@ const damageCalculatedDetailsSchema = {
     outgoingDamageMultiplier: { type: "number" },
     incomingDamageMultiplier: { type: "number" },
     actionDamageMultiplier: { type: "number" },
+    /**
+     * R-CFS-02（DMG-009、Issue #193）の混乱倍率。`10_API設計.md`「バージョニング」に
+     * 従い、`schemaVersion: 1`のまま既存イベントへ**必須**項目を足すのは後方互換で
+     * ないため、`subUnitAbsorbed`（DMG-005）と同じく任意項目として追加する
+     * （Response Mapperは常に値を設定する）。
+     */
+    confusionDamageMultiplier: { type: "number" },
     preTruncationDamage: { type: "number" },
     finalDamage: { type: "integer", minimum: 0 },
     damageType: { type: "string", enum: DAMAGE_TYPE_ENUM },
@@ -775,6 +782,38 @@ const linkedDamageGeneratedDetailsSchema = {
     linkedDamage: { type: "integer", minimum: 0 },
     damageType: { type: "string", enum: [...DAMAGE_TYPE_ENUM] },
     shieldApplicable: { type: "boolean" },
+  },
+} as const;
+
+/**
+ * `DamageConvertedToHeal`（DMG-009、Issue #193、R-DTH-01）。幻惑を保持する攻撃側の
+ * ヒットが、ダメージの適用の代わりに回復を適用した時に発行する。`DAMAGE_APPLIED`と
+ * 排他であり、`healAmount - appliedHeal`が最大HP超過で破棄された量を表す。
+ */
+const damageConvertedToHealDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "effectActionDefinitionId",
+    "hitIndex",
+    "targetUnitId",
+    "calculatedDamage",
+    "healRate",
+    "healAmount",
+    "appliedHeal",
+    "hpBefore",
+    "hpAfter",
+  ],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    hitIndex: { type: "integer", minimum: 0 },
+    targetUnitId: { type: "string" },
+    calculatedDamage: { type: "integer", minimum: 0 },
+    healRate: { type: "number", minimum: 0 },
+    healAmount: { type: "integer", minimum: 0 },
+    appliedHeal: { type: "integer", minimum: 0 },
+    hpBefore: { type: "integer", minimum: 0 },
+    hpAfter: { type: "integer", minimum: 0 },
   },
 } as const;
 
@@ -2081,6 +2120,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   SUB_UNIT_DAMAGED: subUnitDamagedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
+  DAMAGE_CONVERTED_TO_HEAL: damageConvertedToHealDetailsSchema,
   LINKED_DAMAGE_GENERATED: linkedDamageGeneratedDetailsSchema,
   DAMAGE_REDIRECTED: damageRedirectedDetailsSchema,
   REFLECTED_DAMAGE_GENERATED: reflectedDamageGeneratedDetailsSchema,

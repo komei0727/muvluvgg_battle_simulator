@@ -127,6 +127,9 @@
               "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAMAGE"
             },
             {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAZZLE"
+            },
+            {
               "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_MARK"
             },
             {
@@ -179,7 +182,8 @@
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_DAMAGE_TO_HEAL"
     ],
     "metadata": {
       "displayName": "遅効の毒針",

@@ -21,6 +21,7 @@ import type {
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
+import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type {
@@ -661,6 +662,107 @@ export function flattenEffectSequencePlan(
   return result;
 }
 
+/**
+ * R-CFS-01（DMG-009、Issue #193）: この`EffectSequence`のうち、`DAMAGE`
+ * EffectActionを適用する`ACTION` stepが対象に指定するTargetBindingのidを、
+ * `BRANCH`/`RANDOM_BRANCH`/`REPEAT`の内側まで再帰的に集める。
+ *
+ * 「攻撃の対象だけを振り替える」というRuleの限定を、実行時ではなく定義構造だけ
+ * から静的に決めるための集合である（`collectStructuralCandidateTargetUnitIds`と
+ * 同じ「条件評価も乱数消費も行わない構造走査」）。DeferredなstepのbindingでもJIT
+ * 解決時には同じ`resolvedBindings`を引くため、binding評価より前のこの時点で
+ * 決め切れる。
+ */
+function collectDamageTargetedBindingIds(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  collected: Set<TargetBindingId>,
+): void {
+  for (const step of steps) {
+    switch (step.kind) {
+      case "ACTION": {
+        if (step.target.kind !== "BINDING") {
+          break;
+        }
+        const targetsDamage = step.actions.some(
+          (action) => effectActions.get(action.effectActionDefinitionId)?.kind === "DAMAGE",
+        );
+        if (targetsDamage) {
+          collected.add(step.target.targetBindingId as TargetBindingId);
+        }
+        break;
+      }
+      case "BRANCH":
+        collectDamageTargetedBindingIds(step.thenSteps, effectActions, collected);
+        collectDamageTargetedBindingIds(step.elseSteps, effectActions, collected);
+        break;
+      case "RANDOM_BRANCH":
+        for (const branch of step.branches) {
+          collectDamageTargetedBindingIds(branch.steps, effectActions, collected);
+        }
+        break;
+      case "REPEAT":
+        collectDamageTargetedBindingIds(step.steps, effectActions, collected);
+        break;
+    }
+  }
+}
+
+/**
+ * R-CFS-01「`TargetSelector.side`を反転（`ALLY`↔`ENEMY`）して評価する」「`fallback`
+ * selectorも再帰的に反転する」「`side`を持たないselectorは反転しない」。
+ */
+function invertSelectorSide(selector: TargetSelectorDefinition): TargetSelectorDefinition {
+  const invertedFallback =
+    selector.fallback === undefined ? undefined : invertSelectorSide(selector.fallback);
+  if (selector.side === undefined) {
+    return invertedFallback === undefined ? selector : { ...selector, fallback: invertedFallback };
+  }
+  return {
+    ...selector,
+    side: selector.side === "ALLY" ? "ENEMY" : "ALLY",
+    ...(invertedFallback !== undefined ? { fallback: invertedFallback } : {}),
+  };
+}
+
+/** R-CFS-01: 使用者が混乱を保持しているか（`R-STS-*`の`activeStatusEffect`と同じ「`statusKind`で直接scanする」パターン）。 */
+function isConfused(actor: BattleUnit): boolean {
+  return actor.appliedEffects.some((effect) => effect.statusKind === "CONFUSION");
+}
+
+/**
+ * R-CFS-01: 混乱を保持するユニットがASを使用する場合に限り、`DAMAGE`が対象に
+ * 取るTargetBindingのselectorだけを反転した`EffectSequence`へ差し替える。それ以外は
+ * 元の定義をそのまま返す（オブジェクトの同一性も保つ）。
+ *
+ * 反転はここ（binding評価の入口）で一度だけ行う — R-SKL-01 #1が「binding は
+ * sequence 開始時に一度だけ評価する」と定める以上、対象集合の確定より後に
+ * 混乱の有無を見ても遅く、逆にstepごとに見ると同じbindingが二つの陣営を指しうる。
+ */
+function applyConfusionTargetRedirect(
+  sequence: EffectSequence,
+  skill: SkillDefinition,
+  actor: BattleUnit,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): EffectSequence {
+  if (skill.skillType !== "AS" || !isConfused(actor)) {
+    return sequence;
+  }
+  const damageBindingIds = new Set<TargetBindingId>();
+  collectDamageTargetedBindingIds(sequence.steps, effectActions, damageBindingIds);
+  if (damageBindingIds.size === 0) {
+    return sequence;
+  }
+  return {
+    ...sequence,
+    targetBindings: sequence.targetBindings.map((binding) =>
+      damageBindingIds.has(binding.targetBindingId)
+        ? { ...binding, selector: invertSelectorSide(binding.selector) }
+        : binding,
+    ),
+  };
+}
+
 export function resolveSkillOrder(
   skill: SkillDefinition,
   actor: BattleUnit,
@@ -676,7 +778,7 @@ export function resolveSkillOrder(
     );
   }
   return resolveEffectSequence(
-    skill.resolution,
+    applyConfusionTargetRedirect(skill.resolution, skill, actor, effectActions),
     actor,
     allUnits,
     effectActions,
@@ -731,7 +833,8 @@ export function resolveChargeReleaseOrder(
     );
   }
   return resolveEffectSequence(
-    skill.resolution.chargeRelease,
+    // R-CFS-01: ASのチャージ解放は同じASの攻撃であるため、即時解決と同じく反転する。
+    applyConfusionTargetRedirect(skill.resolution.chargeRelease, skill, actor, effectActions),
     actor,
     allUnits,
     effectActions,

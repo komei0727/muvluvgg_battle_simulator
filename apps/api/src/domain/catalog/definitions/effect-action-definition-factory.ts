@@ -40,8 +40,10 @@ import {
   STAT_MOD_STACKING_MODES,
   STATUS_AILMENT_KINDS,
   STATUS_KINDS,
+  type ConfusionDefinition,
   type DamageModConditionDefinition,
   type DamageThreshold,
+  type DamageToHealDefinition,
   type ShieldDecayDefinition,
   type StatModStackingMode,
 } from "./effect-action-payload.js";
@@ -136,6 +138,8 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "appliesTo",
     "damageAmplificationOnBreak",
     "damageThreshold",
+    "confusion",
+    "damageToHeal",
   ],
   APPLY_SHIELD: ["formula", "duration", "shieldType", "decay"],
   REMOVE_EFFECTS: ["categories", "effectActionDefinitionIds", "maxRemovals"],
@@ -182,6 +186,10 @@ const SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS = ["formula"] as const;
 const SUBUNIT_ADDITIONAL_DAMAGE_ALLOWED_KEYS = ["formula", "damageType", "debuff"] as const;
 const SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF_ALLOWED_KEYS = ["effectActionDefinitionId"] as const;
 const DAMAGE_THRESHOLD_ALLOWED_KEYS = ["op", "formula"] as const;
+/** R-CFS-02（DMG-009、Issue #193）: `APPLY_STATUS.confusion`が持てるfield。 */
+const CONFUSION_ALLOWED_KEYS = ["damageReductionRate", "lowAttackBaseDamageRate"] as const;
+/** R-DTH-01（DMG-009、Issue #193）: `APPLY_STATUS.damageToHeal`が持てるfield。 */
+const DAMAGE_TO_HEAL_ALLOWED_KEYS = ["healRate"] as const;
 
 function requireField<T>(value: T | undefined, path: string): T {
   if (value === undefined) {
@@ -796,6 +804,8 @@ function createPayload(
         appliesTo?: { incomingActionKinds: readonly ActionKind[] };
         damageAmplificationOnBreak?: number;
         damageThreshold?: DamageThreshold;
+        confusion?: ConfusionDefinition;
+        damageToHeal?: DamageToHealDefinition;
       } = {
         status,
         duration: createDurationField(payload, path),
@@ -855,6 +865,55 @@ function createPayload(
           op,
           formula: createFormulaField(damageThresholdRaw, "formula", `${path}.damageThreshold`),
         };
+      }
+      // R-CFS-02／R-DTH-01（DMG-009、Issue #193）: 混乱・幻惑の数値は、その状態
+      // でしか意味を持たない。`damageThreshold`が`DAMAGE_IMMUNITY`以外を拒否する
+      // のと同じ理由で、宣言先のstatusと1対1に固定する — 別のstatusへ書いても
+      // 実行時に一切参照されず、silent no-opになるためである。逆に、対応する
+      // statusで宣言を省略すると「混乱しているのにダメージが変わらない」近似へ
+      // 退行するため、既定値でfallbackせず必須にする。
+      const confusionRaw = payload["confusion"] as
+        | { damageReductionRate?: number; lowAttackBaseDamageRate?: number }
+        | undefined;
+      if (confusionRaw !== undefined && status !== "CONFUSION") {
+        throw new DomainValidationError(
+          `${path}.confusion`,
+          `is only meaningful when status is "CONFUSION", got "${status}"`,
+        );
+      }
+      if (status === "CONFUSION") {
+        const raw = requireField(confusionRaw, `${path}.confusion`);
+        assertKnownKeys(raw, CONFUSION_ALLOWED_KEYS, `${path}.confusion`);
+        result.confusion = {
+          damageReductionRate: requireRate(
+            raw.damageReductionRate,
+            `${path}.confusion.damageReductionRate`,
+          ),
+          lowAttackBaseDamageRate: requireRate(
+            raw.lowAttackBaseDamageRate,
+            `${path}.confusion.lowAttackBaseDamageRate`,
+          ),
+        };
+      }
+      const damageToHealRaw = payload["damageToHeal"] as { healRate?: number } | undefined;
+      if (damageToHealRaw !== undefined && status !== "DAMAGE_TO_HEAL") {
+        throw new DomainValidationError(
+          `${path}.damageToHeal`,
+          `is only meaningful when status is "DAMAGE_TO_HEAL", got "${status}"`,
+        );
+      }
+      if (status === "DAMAGE_TO_HEAL") {
+        const raw = requireField(damageToHealRaw, `${path}.damageToHeal`);
+        assertKnownKeys(raw, DAMAGE_TO_HEAL_ALLOWED_KEYS, `${path}.damageToHeal`);
+        const healRate = requireField(raw.healRate, `${path}.damageToHeal.healRate`);
+        assertFinite(healRate, `${path}.damageToHeal.healRate`);
+        if (healRate < 0) {
+          throw new DomainValidationError(
+            `${path}.damageToHeal.healRate`,
+            `must not be negative, got ${healRate}`,
+          );
+        }
+        result.damageToHeal = { healRate };
       }
       return { kind: "APPLY_STATUS", payload: result };
     }

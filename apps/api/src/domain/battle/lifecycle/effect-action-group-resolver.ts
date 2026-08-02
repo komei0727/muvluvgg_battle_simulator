@@ -74,7 +74,11 @@ import type {
   SkillDefinitionId,
   TargetBindingId,
 } from "../../catalog/definitions/catalog-ids.js";
-import type { ConsumptionKind, StatusKind } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  ConsumptionKind,
+  SkillType,
+  StatusKind,
+} from "../../catalog/definitions/catalog-enums.js";
 import {
   evaluateFormula,
   damageResultsFor,
@@ -304,6 +308,21 @@ function requireSkillDefinitionId(context: EffectActionGroupContext): SkillDefin
   return context.skillDefinitionId;
 }
 
+/**
+ * R-CFS-02（DMG-009、Issue #193）: このEffectActionを解決しているスキルの種別。
+ * 混乱は「アクティブスキルで攻撃する際」だけに働くため、`combat/`が読む
+ * `DamageEventContext.skillType`をここで解決して渡す（`combat/`はCatalogの
+ * `skillDefinitions`マップへ到達できない、module境界）。Memory由来の解決
+ * （`skillDefinitionId`を持たない）と、Catalogに載っていない合成スキルでは
+ * `undefined`になり、その場合は混乱を適用しない。
+ */
+function skillTypeOf(context: EffectActionGroupContext): SkillType | undefined {
+  if (context.skillDefinitionId === undefined) {
+    return undefined;
+  }
+  return context.definitions.skillDefinitions.get(context.skillDefinitionId)?.skillType;
+}
+
 /** イベントエンベロープ／payloadの発生源（`08_ドメインイベント.md`「Memory由来イベントは`sourceSide`を持つ」）。 */
 function sourceEnvelopeOf(
   context: EffectActionGroupContext,
@@ -453,6 +472,8 @@ const SUPPORTED_APPLY_STATUS_KINDS: Readonly<Record<StatusKind, true>> = {
   GUARANTEED_HIT: true,
   CRITICAL_GUARANTEE: true,
   CRITICAL_PREVENTION: true,
+  CONFUSION: true,
+  DAMAGE_TO_HEAL: true,
 };
 
 /**
@@ -757,6 +778,8 @@ function* resolveOneEffectActionApplication(
         rootEventId: context.rootEventId,
         parentEventId: starting.eventId,
         skillDefinitionId: requireSkillDefinitionId(context),
+        // R-CFS-02（DMG-009、Issue #193）: 混乱はASの攻撃だけに働く。
+        ...(skillTypeOf(context) !== undefined ? { skillType: skillTypeOf(context)! } : {}),
         consumeEffectDuration,
         finalizeConsumedEffectDurations,
         includeDefeated: application.includeDefeated,
@@ -1258,6 +1281,25 @@ function* resolveOneEffectActionApplication(
       // （`ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT`）はどれも持たないため、
       // STUNと同じ理由で「未対応として明確に失敗する」ままにし、silent partial
       // implementationへ退行させない。
+      // R-CFS-01/02・R-DTH-01（DMG-009、Issue #193）: 混乱・幻惑はどちらも保持者の
+      // 攻撃側（OUTGOING）に働く効果であり、`GUARANTEED_HIT`・会心状態とまったく
+      // 同じ理由で被効果側のfield（`appliesTo.incomingActionKinds`・
+      // `damageThreshold`・`damageAmplificationOnBreak`）を解釈する余地がない。
+      // 付与確率もどちらの経路も参照しないため、1未満を受け取ると「必ず付与される
+      // 混乱・幻惑」へ黙って退行する。production定義（`ACT_OLGA_VETERAN_EX_CONFUSION`・
+      // `ACT_TATIANA_SAGE_AS1_DAZZLE`）はいずれも該当しない。
+      if (
+        (status === "CONFUSION" || status === "DAMAGE_TO_HEAL") &&
+        (effectAction.payload.appliesTo !== undefined ||
+          effectAction.payload.damageThreshold !== undefined ||
+          effectAction.payload.damageAmplificationOnBreak !== undefined ||
+          (effectAction.payload.probability !== undefined && effectAction.payload.probability < 1))
+      ) {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_STATUS status "${status}" with appliesTo/damageThreshold/damageAmplificationOnBreak or probability < 1 is not supported (R-CFS-01/R-DTH-01 apply to the holder's outgoing attacks; production confusion/damage-to-heal definitions declare none of them)`,
+        );
+      }
       if (
         status === "GUARANTEED_HIT" &&
         (effectAction.payload.appliesTo !== undefined ||
@@ -1303,7 +1345,9 @@ function* resolveOneEffectActionApplication(
         effectAction.payload.probability !== undefined ||
         effectAction.payload.appliesTo !== undefined ||
         effectAction.payload.damageAmplificationOnBreak !== undefined ||
-        effectAction.payload.damageThreshold !== undefined
+        effectAction.payload.damageThreshold !== undefined ||
+        effectAction.payload.confusion !== undefined ||
+        effectAction.payload.damageToHeal !== undefined
           ? {
               ...(effectAction.payload.probability !== undefined
                 ? { probability: effectAction.payload.probability }
@@ -1316,6 +1360,15 @@ function* resolveOneEffectActionApplication(
                 : {}),
               ...(effectAction.payload.damageThreshold !== undefined
                 ? { damageThreshold: effectAction.payload.damageThreshold }
+                : {}),
+              // R-CFS-02／R-DTH-01（DMG-009、Issue #193）: 混乱倍率・基礎ダメージ
+              // 差し替え率・回復変換率は、付与時ではなく`damage-application-service.ts`
+              // （combat層）が読む。`damageThreshold`と同じ理由でインスタンス側へ運ぶ。
+              ...(effectAction.payload.confusion !== undefined
+                ? { confusion: effectAction.payload.confusion }
+                : {}),
+              ...(effectAction.payload.damageToHeal !== undefined
+                ? { damageToHeal: effectAction.payload.damageToHeal }
                 : {}),
             }
           : undefined;

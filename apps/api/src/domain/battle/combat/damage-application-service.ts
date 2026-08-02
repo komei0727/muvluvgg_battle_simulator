@@ -1,6 +1,6 @@
 import { activeStatusEffect, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { AppliedEffect } from "../model/applied-effect.js";
-import { calculateDamage } from "./damage-calculator.js";
+import { calculateDamage, type ConfusionDamageInput } from "./damage-calculator.js";
 import {
   resolveCritical,
   resolveEffectiveCriticalMode,
@@ -51,6 +51,7 @@ import type {
   ConsumptionKind,
   CriticalMode,
   DamageType,
+  SkillType,
 } from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
@@ -120,6 +121,18 @@ export interface DamageEventContext {
   /** 各ヒットの直接の契機（`SkillUseStarted.eventId`）。ヒット同士は互いを親としない。 */
   readonly parentEventId: DomainEventId;
   readonly skillDefinitionId: SkillDefinitionId;
+  /**
+   * R-CFS-02（DMG-009、Issue #193）: このDAMAGEを発生させたスキルの種別。混乱は
+   * 「アクティブスキルで攻撃する際」だけに働くため、`AS`かどうかをここで判別する。
+   * `skillDefinitionId`から引けば済むように見えるが、`combat/`はCatalogの
+   * `skillDefinitions`マップへ到達できない（`onFactEventForPassiveChain`等と同じ
+   * module境界）ため、呼び出し側（`lifecycle/`）が解決して渡す。
+   *
+   * 未指定なら混乱の効果を適用しない — 「ASかどうか分からない攻撃」を混乱の
+   * 対象に含めると、継続ダメージ由来のような非スキル経路まで巻き込むためである
+   * （R-DTH-01の幻惑はスキル種別を問わないため、この値を参照しない）。
+   */
+  readonly skillType?: SkillType;
   /**
    * Issue #34: `DamageApplied`（および`UnitDefeated`）の確定直後にPS即時連鎖を
    * 同期的に解決するフック。呼び出し側（`lifecycle/`、Domain層のmodule境界に
@@ -317,6 +330,34 @@ export interface DamageEventContext {
  * 個別消滅条件であり、失効経路（`expireEffectsSteps`）を共有する。
  */
 export type DepletedAbsorberReason = "SHIELD_DEPLETED" | "SUBUNIT_DEPLETED";
+
+/**
+ * R-CFS-02（DMG-009、Issue #193）: このヒットへ適用する混乱の数値。ASでない攻撃、
+ * 混乱を保持しない攻撃側では`undefined`（＝混乱倍率1・基礎ダメージ差し替えなし）。
+ *
+ * 「複数の混乱を保持する場合は付与順で最初の1件だけを適用する」は`activeStatusEffect`
+ * （`appliedEffects`を付与順に走査して最初の一致を返す）がそのまま満たす。
+ * 混乱は`STATUS_KINDS`のうちCatalog factoryが`confusion`を必須にしている唯一の
+ * statusのため、`statusDetails.confusion`が欠けるのはCatalogを経由しない構築だけで、
+ * その場合は混乱なしとして扱う（silentに既定値へ落とすより安全側）。
+ */
+function resolveConfusion(
+  attacker: BattleUnit,
+  skillType: SkillType | undefined,
+): ConfusionDamageInput | undefined {
+  if (skillType !== "AS") {
+    return undefined;
+  }
+  return activeStatusEffect(attacker, "CONFUSION")?.statusDetails?.confusion;
+}
+
+/**
+ * R-DTH-01（DMG-009、Issue #193）: このヒットのダメージを回復へ変換する割合。
+ * 幻惑を保持しない攻撃側では`undefined`。混乱と違いスキル種別を問わない。
+ */
+function resolveDamageToHealRate(attacker: BattleUnit): number | undefined {
+  return activeStatusEffect(attacker, "DAMAGE_TO_HEAL")?.statusDetails?.damageToHeal?.healRate;
+}
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
   return {
@@ -2277,6 +2318,9 @@ function* applyOneSubUnitAdditionalDamageSteps(
       outgoingDamageMultiplier: damageModifierMultipliers.outgoingMultiplier,
       incomingDamageMultiplier: damageModifierMultipliers.incomingMultiplier,
       actionDamageMultiplier: 1,
+      // R-CFS-02（DMG-009、Issue #193）: サブユニットの追加ダメージは混乱の対象外
+      // （「ASの`DAMAGE` EffectActionだけに適用する」）ため常に1。
+      confusionDamageMultiplier: 1,
       preTruncationDamage,
       finalDamage,
       damageType: profile.damageType,
@@ -2406,6 +2450,105 @@ function* applyOneSubUnitAdditionalDamageSteps(
  * `yield`された値を読み捨てるため、連鎖driverを持たない呼び出し元・テストでは
  * 従来どおりの振る舞いになる。
  */
+/**
+ * R-DTH-01（DMG-009、Issue #193）: 幻惑を保持する攻撃側のヒットについて、R-DMG-05
+ * #7の適用だけをダメージから回復へ差し替える。`DamageCalculated`までは通常の
+ * ヒットとまったく同じ経路を通っており、この関数はその確定ダメージを受け取る。
+ *
+ * - 回復量は`floor(最終ダメージ × healRate)`。回復量補正（R-HEAL-02）も回復リンク
+ *   （R-HEAL-04）も適用しない — 本来のダメージ量からの変換であって回復Formulaの
+ *   評価ではないためで、リンクダメージが属性・会心・ダメージ増減を再計算しないの
+ *   （R-LNK-02第3項）とまったく同じ規約である
+ * - 最大HPを超える分は破棄する（R-HEAL-01の`overheal: DISCARD`と同じ）。`healAmount`と
+ *   実際に増えた`appliedHeal`の両方をpayloadへ載せ、破棄量を監査できるようにする
+ * - HP変化のStateDeltaはこのイベントが持つ（`HealApplied`・`HitPointReduced`と同じ
+ *   規約 — 1つのHP変化を2つのイベントへ付けると独立Reducer復元が二重適用する）
+ * - ダメージを適用しないため`DamageApplied`・`UnitDefeated`・リンク・反射は発生しない。
+ *   一方、命中は確定しているためR-EFF-07のヒット消費（`OUTGOING_HIT`/`INCOMING_HIT`）
+ *   は通常のヒットと同じく行う
+ */
+function* applyDamageToHealConversionSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  attackerUnitId: BattleUnitId,
+  targetUnitId: BattleUnitId,
+  profile: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+  },
+  calculatedDamage: number,
+  healRate: number,
+  parentEventId: DomainEventId,
+): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+  const target = findUnit(working, targetUnitId, "hits[].targetBattleUnitId");
+  const healAmount = Math.floor(calculatedDamage * healRate);
+  const hpBefore = target.currentHp;
+  // R-NUM-02: `combatStats.maximumHp`は全精度で保持されるため、HPゲージへ渡す境界で
+  // 0方向へ切り捨てて整数化する（ダメージ側のHP適用とまったく同じ扱い）。
+  const maximumHp = truncateFraction(target.combatStats.maximumHp);
+  const hpAfter = Math.min(maximumHp, hpBefore + healAmount);
+  const appliedHeal = hpAfter - hpBefore;
+  working.set(targetUnitId, { ...target, currentHp: createHitPoint(hpAfter, maximumHp) });
+
+  // R-DTH-01「変換されたヒットは、R-SKL-08が参照する直前DAMAGE結果として0を記録する」。
+  recordDamageResult(context.damageResults, attackerUnitId, targetUnitId, 0, context.skillUseId);
+
+  const converted = context.recorder.record({
+    eventType: "DamageConvertedToHeal",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    skillUseId: context.skillUseId,
+    resolutionScopeId: context.resolutionScopeId,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: attackerUnitId,
+    targetUnitIds: [targetUnitId],
+    payload: {
+      effectActionDefinitionId: profile.effectActionDefinitionId,
+      hitIndex: profile.hitIndex,
+      targetUnitId,
+      calculatedDamage,
+      healRate,
+      healAmount,
+      appliedHeal,
+      hpBefore,
+      hpAfter,
+    },
+    stateDelta: { units: { [targetUnitId]: { hp: { before: hpBefore, after: hpAfter } } } },
+  });
+  // `DamageApplied`とまったく同じ規約: AS/EX・チャージ解放（callbackあり）ではその場で
+  // 連鎖を解決し、PS/Memory自身のEffectSequence解決では`effect-action-group-resolver.ts`が
+  // `innerEvents`としてEffectAction完了時にまとめてdriverへ渡す。
+  if (context.onFactEventForPassiveChain !== undefined) {
+    const updatedUnits = context.onFactEventForPassiveChain(
+      converted,
+      Array.from(working.values()),
+    );
+    for (const unit of updatedUnits) {
+      working.set(unit.battleUnitId, unit);
+    }
+  }
+
+  let lastEventId = converted.eventId;
+  lastEventId = yield* consumeAndExpire(
+    context,
+    working,
+    attackerUnitId,
+    "OUTGOING_HIT",
+    lastEventId,
+  );
+  lastEventId = yield* consumeAndExpire(
+    context,
+    working,
+    targetUnitId,
+    "INCOMING_HIT",
+    lastEventId,
+  );
+  return lastEventId;
+}
+
 export function* applyDamageActionSteps(
   attacker: BattleUnit,
   hits: readonly ResolvedEffectApplication[],
@@ -2600,6 +2743,7 @@ export function* applyDamageActionSteps(
       damageType: damageAction.payload.damageType,
       damageReductionIgnoreRate: piercing.damageReductionIgnoreRate,
     });
+    const confusionInput = resolveConfusion(attackerBeforeDamage, context.skillType);
     const rawDamageResult = calculateDamage({
       attackerAttack: attackerBeforeDamage.combatStats.attack,
       attackerAttribute: attackerBeforeDamage.attribute,
@@ -2613,6 +2757,10 @@ export function* applyDamageActionSteps(
       outgoingDamageMultiplier: damageModifierMultipliers.outgoingMultiplier,
       incomingDamageMultiplier: damageModifierMultipliers.incomingMultiplier,
       formulaContext,
+      // R-CFS-02（DMG-009、Issue #193）: 混乱の有無も`composeDamageModifiers`と
+      // 同じくヒットごとに、連鎖解決後の最新の攻撃側から取り直す（`DamageWillBeApplied`
+      // 起点のPS連鎖が混乱を付け外ししうるため）。
+      ...(confusionInput !== undefined ? { confusion: confusionInput } : {}),
     });
     // R-STS-03「新たな攻撃スキルによるダメージで解除する」「解除契機となった
     // ダメージを凍結効果定義の増幅率だけ増加させる（既定値+50%）」＋
@@ -2695,6 +2843,8 @@ export function* applyDamageActionSteps(
         outgoingDamageMultiplier: damageResult.outgoingDamageMultiplier,
         incomingDamageMultiplier: damageResult.incomingDamageMultiplier,
         actionDamageMultiplier: damageResult.actionDamageMultiplier,
+        // R-CFS-02（DMG-009、Issue #193）: 混乱倍率は与ダメージ倍率とは別枠で公開する。
+        confusionDamageMultiplier: damageResult.confusionDamageMultiplier,
         preTruncationDamage: damageResult.preTruncationDamage,
         finalDamage: damageResult.finalDamage,
         damageType: damageAction.payload.damageType,
@@ -2717,6 +2867,39 @@ export function* applyDamageActionSteps(
     // 呼び出し元（`resolveOneEffectActionApplication`）が`driveActivation`の
     // 共有stateへ正しく参加させる。
     let lastEventIdBeforeHp = damageCalculated.eventId;
+
+    // R-DTH-01（DMG-009、Issue #193）: 幻惑を保持する攻撃側のヒットは、ここまでの
+    // R-DMG-05 #1〜#6をそのまま経たうえで#7の適用だけを回復へ差し替える。ダメージを
+    // 適用しないため、この下の凍結解除（R-STS-03の解除契機は「攻撃スキルによる
+    // ダメージ」）・シールド/サブユニット吸収・`DamageApplied`・`UnitDefeated`・
+    // リンク（R-LNK-*）・反射（R-INT-03）はいずれも通らない。
+    const damageToHealRate = resolveDamageToHealRate(attackerBeforeDamage);
+    if (damageToHealRate !== undefined) {
+      lastEventId = yield* applyDamageToHealConversionSteps(
+        context,
+        working,
+        attackerBeforeDamage.battleUnitId,
+        targetBeforeDamage.battleUnitId,
+        {
+          effectActionDefinitionId: damageAction.effectActionDefinitionId,
+          hitIndex: hit.hitIndex,
+        },
+        damageResult.finalDamage,
+        damageToHealRate,
+        lastEventIdBeforeHp,
+      );
+      // R-INT-02第2項と同じく、後続stepやR-SUB-02の追加ダメージが参照する対象は
+      // 引き寄せ・肩代わり後の防御側にする。ダメージは与えていないため`damage`は0。
+      outcomes.push({
+        targetBattleUnitId: targetBeforeDamage.battleUnitId,
+        hitIndex: hit.hitIndex,
+        applied: true,
+        isCritical: critical.isCritical,
+        damage: 0,
+      });
+      continue;
+    }
+
     if (frozenEffect !== undefined) {
       const removeGen =
         context.removeFreezeEffect !== undefined

@@ -295,7 +295,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 劉翠蘭's clock with its parent shield ([P1]), and every `APPLY_DAMAGE_LINK`
     // declares `polarity` because the same kind is used in both directions ([P2]).
     // Capability metadata and the four DMG-007 rows only.
-    expect(catalog.catalogRevision).toBe("2026-08-02.9");
+    // `.10` is DMG-009 (Issue #193, R-CFS-01/R-CFS-02/R-DTH-01): `APPLY_STATUS`
+    // gained the `CONFUSION` and `DAMAGE_TO_HEAL` statuses, plus `CAP_CONFUSION`
+    // and `CAP_DAMAGE_TO_HEAL` (49 → 51 capabilities). `SKL_OLGA_VETERAN_EX`'s
+    // identifying marker became `ACT_OLGA_VETERAN_EX_CONFUSION` and
+    // `SKL_TATIANA_SAGE_AS1` regained the omitted 幻惑 as
+    // `ACT_TATIANA_SAGE_AS1_DAZZLE`, converting the last two
+    // `CONFUSION_OR_DAMAGE_TO_HEAL` ledger rows without approximation. Neither
+    // unit is one of the 10 promoted units, so `selectable` stays at 69.
+    expect(catalog.catalogRevision).toBe("2026-08-02.10");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

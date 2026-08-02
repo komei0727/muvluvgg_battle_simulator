@@ -1173,6 +1173,8 @@ payload:
 - `CRITICAL_PREVENTION`
 - `GUARANTEED_HIT`
 - `HIT_EVASION`
+- `CONFUSION`
+- `DAMAGE_TO_HEAL`
 
 凍結のダメージ解除倍率は status payload に保持する。スキルに具体の倍率が記載されていない場合は `damageAmplificationOnBreak: 0.5` を既定値として生成する。
 
@@ -1191,6 +1193,44 @@ payload:
 回避は `APPLY_STATUS` の `EVASION` / `HIT_EVASION` として表す。両者は同じ「特別な回避効果」であり、判定（R-HIT-02）もヒット数の消費（R-HIT-04）も同一に扱う。確率と対象攻撃種別は status payload に、ヒット数制限は `duration.consumption`（`kind: INCOMING_HIT`、`maxCount` がヒット数）に保持する。
 
 必中は `APPLY_STATUS` の `GUARANTEED_HIT` として表す（R-HIT-05）。保持者の攻撃を、攻撃側定義の `accuracy.mode` に関わらず必中として扱う。被効果側の絞り込み（`appliesTo`）やダメージ側のfield（`damageThreshold`/`damageAmplificationOnBreak`）は解釈しない — 指定された定義はCatalogロードではなくresolverが明示的に拒否する。
+
+混乱・幻惑は `APPLY_STATUS` の `CONFUSION` / `DAMAGE_TO_HEAL` として表す（R-CFS-01／R-CFS-02／R-DTH-01、`DMG-009`／Issue #193）。どちらも**保持者の攻撃**に働き、数値は専用の宣言に保持する。`CONFUSION` は `confusion` を、`DAMAGE_TO_HEAL` は `damageToHeal` を必須とし、対応しない `status` へ宣言するとCatalogロード時点で拒否する（既定値でfallbackすると「混乱しているのにダメージが変わらない」近似へ黙って退行するため）。被効果側の絞り込み（`appliesTo`）・ダメージ側のfield（`damageThreshold`/`damageAmplificationOnBreak`）・1未満の `probability` はいずれも解釈しないため、指定された定義はresolverが明示的に拒否する。解除カテゴリはどちらも `DEBUFF` だけで `STATUS` は付かない — `戦闘システム.md`「3. 状態異常について」が列挙する定義済み状態異常に混乱・幻惑は含まれないためである（`CRITICAL_PREVENTION` と同じ扱い）。
+
+```yaml
+kind: APPLY_STATUS
+payload:
+  status: CONFUSION
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+    dispellable: true
+  confusion:
+    damageReductionRate: 0.3
+    lowAttackBaseDamageRate: 0.1
+```
+
+| フィールド                | 型     | 制約                                                                                                                |
+| ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| `damageReductionRate`     | number | `[0, 1]`。混乱倍率が `1 - damageReductionRate` になる（R-CFS-02）。raw原文「この際のダメージは30%減少する」＝ `0.3` |
+| `lowAttackBaseDamageRate` | number | `[0, 1]`。攻撃力が実効防御力以下のとき基礎ダメージへ使う攻撃力の割合。raw原文「攻撃力×10%の値を使用し」＝ `0.1`     |
+
+```yaml
+kind: APPLY_STATUS
+payload:
+  status: DAMAGE_TO_HEAL
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 1
+    dispellable: true
+  damageToHeal:
+    healRate: 0.7
+```
+
+| フィールド | 型     | 制約                                                                                       |
+| ---------- | ------ | ------------------------------------------------------------------------------------------ |
+| `healRate` | number | 0以上。本来のダメージ量に対する回復量の割合。raw原文「本来ダメージ値の70％となる」＝ `0.7` |
 
 会心保証・会心不可は `APPLY_STATUS` の `CRITICAL_GUARANTEE` / `CRITICAL_PREVENTION` として表す（R-CRT-03）。`GUARANTEED_HIT` と同じく**保持者の攻撃**に働き、攻撃側定義の `critical.mode` に関わらずその攻撃を会心確定／会心不可として扱う（防御側が保持していても、その対象へ向かう攻撃の会心は変わらない）。両方を保持する場合は会心不可が勝つ。解除カテゴリは会心保証が `BUFF`、会心不可が `DEBUFF`（定義済みの状態異常ではないため `STATUS` は付かない）。被効果側の絞り込み（`appliesTo`）・ダメージ側のfield（`damageThreshold`/`damageAmplificationOnBreak`）・1未満の `probability` はいずれも解釈しないため、指定された定義はresolverが明示的に拒否する。
 

@@ -36,6 +36,8 @@ export const STATUS_KINDS = [
   "CRITICAL_PREVENTION",
   "GUARANTEED_HIT",
   "HIT_EVASION",
+  "CONFUSION",
+  "DAMAGE_TO_HEAL",
 ] as const;
 
 /**
@@ -376,6 +378,30 @@ export interface DamageThreshold {
   readonly formula: FormulaDefinition;
 }
 
+/**
+ * `R-CFS-01`／`R-CFS-02`（DMG-009、Issue #193、`status: CONFUSION`だけが持つ）:
+ * 混乱がASの攻撃へ与える2つの数値。raw原文（`SKL_OLGA_VETERAN_EX`「鉄の女」）は
+ * 「この際のダメージは30%減少する」「攻撃力と防御力の差分値の代わりに
+ * 攻撃力×10%の値を使用し」であり、対象陣営の反転自体は数値を持たないため
+ * この宣言には現れない（`CONFUSION`であること自体が反転を表す）。
+ */
+export interface ConfusionDefinition {
+  /** R-CFS-02: 混乱中のAS攻撃へ掛ける混乱倍率が `1 - damageReductionRate` になる（定義域 [0, 1]）。 */
+  readonly damageReductionRate: number;
+  /** R-CFS-02: 攻撃力が実効防御力以下のとき、基礎ダメージへ使う攻撃力の割合（定義域 [0, 1]）。 */
+  readonly lowAttackBaseDamageRate: number;
+}
+
+/**
+ * `R-DTH-01`（DMG-009、Issue #193、`status: DAMAGE_TO_HEAL`だけが持つ）: 幻惑が
+ * ダメージを回復へ変換するときの割合。raw原文（`SKL_TATIANA_SAGE_AS1`「遅効の
+ * 毒針」）は「回復値は本来ダメージ値の70％となる」。
+ */
+export interface DamageToHealDefinition {
+  /** 本来のダメージ量に対する回復量の割合（0以上）。 */
+  readonly healRate: number;
+}
+
 export interface ApplyStatusPayload {
   readonly status: (typeof STATUS_KINDS)[number];
   readonly duration: DurationDefinition;
@@ -383,6 +409,10 @@ export interface ApplyStatusPayload {
   readonly appliesTo?: { readonly incomingActionKinds: readonly ActionKind[] };
   readonly damageAmplificationOnBreak?: number;
   readonly damageThreshold?: DamageThreshold;
+  /** `status: CONFUSION`のときだけ必須（R-CFS-02）。他のstatusでは宣言できない。 */
+  readonly confusion?: ConfusionDefinition;
+  /** `status: DAMAGE_TO_HEAL`のときだけ必須（R-DTH-01）。他のstatusでは宣言できない。 */
+  readonly damageToHeal?: DamageToHealDefinition;
 }
 
 export interface EffectImmunityPayload {

@@ -151,6 +151,7 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
       outgoingDamageMultiplier: 1,
       incomingDamageMultiplier: 1,
       actionDamageMultiplier: 1,
+      confusionDamageMultiplier: 1,
       preTruncationDamage: 10,
       finalDamage: 10,
       damageType: "PHYSICAL",

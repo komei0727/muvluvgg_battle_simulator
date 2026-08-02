@@ -70,6 +70,27 @@
     }
   },
   {
+    "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAZZLE",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "DAMAGE_TO_HEAL",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      },
+      "damageToHeal": {
+        "healRate": 0.7
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_TO_HEAL"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
     "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_MARK",
     "kind": "APPLY_MARKER",
     "payload": {

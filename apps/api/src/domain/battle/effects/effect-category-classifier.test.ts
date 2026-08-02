@@ -119,6 +119,41 @@ describe("effectCategoriesOf", () => {
     expect([...categories]).toEqual(["DEBUFF"]);
   });
 
+  it("UT-R-EFF-02-028 (R-CFS-01/R-DTH-01, DMG-009/Issue #193): classifies CONFUSION and DAMAGE_TO_HEAL as DEBUFF only — neither is one of the defined 状態異常", () => {
+    const confusion = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_CONFUSION",
+        kind: "APPLY_STATUS",
+        payload: {
+          status: "CONFUSION",
+          duration: { timeLimit: { unit: "ACTION", count: 1 } },
+          confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    const damageToHeal = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_DAMAGE_TO_HEAL",
+        kind: "APPLY_STATUS",
+        payload: {
+          status: "DAMAGE_TO_HEAL",
+          duration: { timeLimit: { unit: "ACTION", count: 1 } },
+          damageToHeal: { healRate: 0.7 },
+        },
+        requiredCapabilities: [],
+      },
+      "effectAction",
+    );
+    expect([
+      ...effectCategoriesOf(effect({ magnitude: 0, statusKind: "CONFUSION" }), confusion),
+    ]).toEqual(["DEBUFF"]);
+    expect([
+      ...effectCategoriesOf(effect({ magnitude: 0, statusKind: "DAMAGE_TO_HEAL" }), damageToHeal),
+    ]).toEqual(["DEBUFF"]);
+  });
+
   it("UT-R-EFF-02-027 (R-CRT-03, DMG-003A/Issue #295): classifies CRITICAL_GUARANTEE as BUFF — the counterpart status strengthens its holder's attacks", () => {
     const categories = effectCategoriesOf(
       effect({ magnitude: 0, statusKind: "CRITICAL_GUARANTEE" }),

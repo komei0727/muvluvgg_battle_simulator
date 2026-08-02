@@ -1,22 +1,22 @@
 [
   {
-    "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION_MARKER",
-    "kind": "APPLY_MARKER",
+    "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION",
+    "kind": "APPLY_STATUS",
     "payload": {
-      "markerId": "MARKER_OLGA_VETERAN_CONFUSION",
-      "stack": {
-        "policy": "REPLACE",
-        "max": 1
-      },
+      "status": "CONFUSION",
       "duration": {
         "dispellable": true,
         "timeLimit": {
           "unit": "ACTION",
           "count": 1
         }
+      },
+      "confusion": {
+        "damageReductionRate": 0.3,
+        "lowAttackBaseDamageRate": 0.1
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_CONFUSION"],
     "metadata": {
       "tags": []
     }

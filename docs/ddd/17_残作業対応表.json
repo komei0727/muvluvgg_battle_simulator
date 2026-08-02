@@ -25,14 +25,14 @@
   },
   "current": {
     "rules": {
-      "total": 114,
-      "completed": 111,
+      "total": 117,
+      "completed": 114,
       "remaining": 3
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 3
+      "incompleteConversionRows": 1
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 0
     },
     "capabilities": {
-      "total": 49,
-      "implemented": 46
+      "total": 51,
+      "implemented": 48
     }
   },
   "tasks": [
@@ -463,7 +463,7 @@
       "issue": 193,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "DMG-010",
@@ -547,12 +547,6 @@
     }
   ],
   "conversionThemeAssignments": [
-    {
-      "milestone": "M8",
-      "theme": "CONFUSION_OR_DAMAGE_TO_HEAL",
-      "rowCount": 2,
-      "taskId": "DMG-009"
-    },
     {
       "milestone": "M9",
       "theme": "UNREACHABLE_BRANCH_BY_RAW_DATA",

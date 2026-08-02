@@ -982,3 +982,264 @@ describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Iss
     ).toEqual([createBattleUnitId("NEAREST")]);
   });
 });
+
+describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issue #193)", () => {
+  /** 混乱（`APPLY_STATUS` の `CONFUSION`）を保持する`AppliedEffect`。 */
+  function confusionEffect(targetId: string): AppliedEffect {
+    const definitionId = createEffectActionDefinitionId("ACT_CONFUSION_TEST");
+    return {
+      effectInstanceId: createEffectInstanceId(`ei-confusion-${targetId}`),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      sourceId: createBattleUnitId("SOURCE"),
+      targetId: createBattleUnitId(targetId),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      statusKind: "CONFUSION",
+      statusDetails: { confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 } },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  const confusedActor = (): BattleUnit =>
+    unit(
+      "ACTOR",
+      "ALLY",
+      { column: "LEFT", row: "FRONT" },
+      {
+        appliedEffects: [confusionEffect("ACTOR")],
+      },
+    );
+
+  const buffAction = (id: string): EffectActionDefinition => ({
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0.1 },
+      stacking: { mode: "STACKABLE", max: null },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+  });
+
+  it("UT-R-CFS-01-001: an AS attack by a confused actor resolves its damage binding against the opposite side", () => {
+    const actor = confusedActor();
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions),
+    );
+
+    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([
+      createBattleUnitId("ACTOR"),
+      createBattleUnitId("ALLY_1"),
+    ]);
+  });
+
+  it("UT-R-CFS-01-002: the same skill used by an unconfused actor keeps its declared side", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions),
+    );
+
+    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([createBattleUnitId("ENEMY_1")]);
+  });
+
+  it("UT-R-CFS-01-003: an EX skill is never redirected — R-CFS-01 limits the inversion to AS", () => {
+    const actor = confusedActor();
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill: SkillDefinition = {
+      ...skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          },
+        ],
+      }),
+      skillType: "EX",
+    };
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions),
+    );
+
+    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([createBattleUnitId("ENEMY_1")]);
+  });
+
+  it("UT-R-CFS-01-004: a binding that no DAMAGE action targets keeps its declared side", () => {
+    const actor = confusedActor();
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const buff = buffAction("ACT_BUFF");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_ATTACK"), selector: ENEMY_ALL_SELECTOR },
+        {
+          targetBindingId: createTargetBindingId("TGT_BUFF"),
+          selector: { ...ENEMY_ALL_SELECTOR, side: "ALLY" },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ATTACK") },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_BUFF") },
+          actions: [{ effectActionDefinitionId: buff.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([
+      [attack.effectActionDefinitionId, attack],
+      [buff.effectActionDefinitionId, buff],
+    ]);
+
+    const plan = resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions);
+
+    expect(
+      plan.resolvedBindings
+        .get(createTargetBindingId("TGT_ATTACK"))!
+        .units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")]);
+    expect(
+      plan.resolvedBindings
+        .get(createTargetBindingId("TGT_BUFF"))!
+        .units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")]);
+  });
+
+  it("UT-R-CFS-01-005: a DAMAGE action nested inside a BRANCH still inverts the binding it targets", () => {
+    const actor = confusedActor();
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [
+        {
+          kind: "BRANCH",
+          condition: { kind: "TRUE" },
+          thenSteps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+              actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+            },
+          ],
+          elseSteps: [],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+
+    const plan = resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions);
+
+    expect(
+      plan.resolvedBindings.get(createTargetBindingId("TGT_1"))!.units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")]);
+  });
+
+  it("UT-R-CFS-01-006: an AS charge release is inverted too — it is the same AS attack (R-SKL-05)", () => {
+    const actor = confusedActor();
+    const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const hit = damageAction("ACT_RELEASE_HIT");
+    const skill = skillOf({
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+          },
+        ],
+      },
+    });
+    const effectActions = new Map([[hit.effectActionDefinitionId, hit]]);
+
+    const plan = flattenEffectSequencePlan(
+      resolveChargeReleaseOrder(skill, actor, [actor, ally, enemy], effectActions),
+    );
+
+    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([
+      createBattleUnitId("ACTOR"),
+      createBattleUnitId("ALLY_1"),
+    ]);
+  });
+});
