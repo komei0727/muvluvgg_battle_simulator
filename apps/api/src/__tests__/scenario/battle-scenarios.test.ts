@@ -7,6 +7,7 @@ import {
   createSkillDefinitionId,
   createTargetBindingId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
@@ -16,6 +17,7 @@ import {
   attackSkill,
   battleCommand,
   damageEffectAction,
+  ENEMY_ALL,
   formationSlot,
   unitDefinition,
 } from "../../testing/scenario/definition-builders.js";
@@ -24,7 +26,9 @@ import { runScenario } from "../../testing/scenario/run-scenario.js";
 /**
  * harness ベースの Battle シナリオ（`12_テスト戦略.md`「基準シナリオ」）。散在する既存の
  * `SCN-BTL-*` とは別に、`runScenario` + `CatalogBuilder` を実運用へ載せる集約先。
- * ルール未実装の SCN-BTL-015〜018（シールド/リンク/DoT/状態異常）は該当ルール実装後に追加する。
+ * SCN-BTL-015〜017（シールド/サブユニット・リンク・継続ダメージ）は `DMG-011`
+ * （Issue #186、M8完了監査）が該当ルールの実装完了を確認して追加した。ルール未実装の
+ * SCN-BTL-018（状態異常）は該当ルール実装後に追加する。
  */
 describe("battle scenarios (harness)", () => {
   it("SCN-BTL-022: a definition graph requiring an unimplemented Capability is rejected with UNSUPPORTED_RULE before the battle starts", () => {
@@ -525,5 +529,407 @@ describe("battle scenarios (harness)", () => {
       stateTransitions.map((t) => t.stateDelta),
     );
     expect(restored).toEqual(finalState);
+  });
+
+  /**
+   * `DMG-011`（Issue #186、M8完了監査）が追加した M8 の基準シナリオ。
+   * `12_テスト戦略.md`「基準シナリオ」は `SCN-BTL-015`〜`017` を M8 の重点確認
+   * （物理/EN→無属性→サブユニット→HP、全対象同量・個別吸収・再リンクなし、
+   * 付与時攻撃力のsnapshot）として定義していたが、ルール未実装を理由に保留され、
+   * 個々の実装Task（`DMG-004`〜`DMG-008`）はいずれもunit levelとproduction定義
+   * 単位の検証で完了していた。完了監査の一部としてここで harness へ載せる。
+   */
+  describe("M8 advanced damage (DMG-011)", () => {
+    const untypedShield = (id: string, amount: number): EffectActionDefinition => ({
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: amount },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    });
+
+    const typedShield = (
+      id: string,
+      amount: number,
+      shieldType: "PHYSICAL" | "EN",
+    ): EffectActionDefinition => ({
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: amount },
+        shieldType,
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    });
+
+    const subUnit = (id: string, durability: number): EffectActionDefinition => ({
+      kind: "APPLY_SUBUNIT",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        durability: { formula: { kind: "CONSTANT", value: durability } },
+        additionalDamage: {
+          formula: {
+            kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+            ownerAttack: "CURRENT_ATTACK",
+            providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+            skillMultiplier: 0.1,
+            targetDefense: "TARGET_CURRENT_DEFENSE",
+          },
+        },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    });
+
+    /**
+     * 指定した順の ACTION step だけを持つ AS。各stepは1つのbindingを対象にする
+     * （`bindingId: "SELF"` だけは使用者自身を指す）。`cooldownTurns` を渡すと
+     * 複数ターンのシナリオでも初回1回だけ使われる。
+     */
+    const stagedSkill = (
+      id: string,
+      bindings: readonly {
+        readonly bindingId: string;
+        readonly selector: TargetSelectorDefinition;
+      }[],
+      steps: readonly { readonly bindingId: string; readonly actionIds: readonly string[] }[],
+      cooldownTurns = 0,
+    ): SkillDefinition => ({
+      skillDefinitionId: createSkillDefinitionId(id),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: bindings.map((binding) => ({
+          targetBindingId: createTargetBindingId(binding.bindingId),
+          selector: binding.selector,
+        })),
+        steps: steps.map((step) => ({
+          kind: "ACTION" as const,
+          stepCondition: { kind: "TRUE" as const },
+          targetCondition: { kind: "TRUE" as const },
+          // `"SELF"` は binding ではなく使用者自身を指す `TargetReference`。
+          target:
+            step.bindingId === "SELF"
+              ? ({ kind: "SELF" } as const)
+              : ({
+                  kind: "BINDING" as const,
+                  targetBindingId: createTargetBindingId(step.bindingId),
+                } as const),
+          actions: step.actionIds.map((actionId) => ({
+            effectActionDefinitionId: createEffectActionDefinitionId(actionId),
+          })),
+        })),
+      },
+      cooldown:
+        cooldownTurns > 0 ? { unit: "TURN", count: cooldownTurns } : { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: true },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      requiredCapabilities: [],
+      metadata: { displayName: id, tags: [] },
+    });
+
+    const enemyAtColumn = (column: "LEFT" | "CENTER" | "RIGHT"): TargetSelectorDefinition => ({
+      kind: "SELECT",
+      side: "ENEMY",
+      count: 1,
+      filters: [{ kind: "POSITION_COLUMN", column }],
+      order: ["DEFAULT"],
+      includeDefeated: false,
+    });
+
+    it("SCN-BTL-015 (R-SHD-01〜03/R-SUB-01): one hit drains the matching typed shield, then the untyped shield, then the sub unit, and only the remainder reaches HP — while the non-matching typed shield is untouched", () => {
+      // 攻撃力100 - 防御力20 = 計算ダメージ80（会心PREVENTED・属性相性1・貫通なし）。
+      // 物理10 → 無属性10 → サブユニット10 → HP50 の順で振り分けられる。
+      // EN シールド10は物理ダメージの適用先ではないため残る（R-SHD-02「対応しない
+      // タイプありシールドへダメージを適用しない」）。
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_ATK", {
+            baseStats: { maximumAp: 1, attack: 100 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SHIELD_THEN_HIT")],
+          }),
+          unitDefinition("UNIT_DEF", { baseStats: { maximumHp: 200, defense: 20 } }),
+        )
+        .withSkill(
+          stagedSkill(
+            "SKL_SHIELD_THEN_HIT",
+            [{ bindingId: "TGT_1", selector: ENEMY_ALL }],
+            [
+              {
+                bindingId: "TGT_1",
+                actionIds: [
+                  "ACT_SHIELD_PHYSICAL",
+                  "ACT_SHIELD_EN",
+                  "ACT_SHIELD_UNTYPED",
+                  "ACT_SUBUNIT",
+                ],
+              },
+              { bindingId: "TGT_1", actionIds: ["ACT_HIT"] },
+            ],
+          ),
+        )
+        .withEffectAction(
+          typedShield("ACT_SHIELD_PHYSICAL", 10, "PHYSICAL"),
+          typedShield("ACT_SHIELD_EN", 10, "EN"),
+          untypedShield("ACT_SHIELD_UNTYPED", 10),
+          subUnit("ACT_SUBUNIT", 10),
+          damageEffectAction("ACT_HIT", 1, "PREVENTED"),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_DEF", 0)], memoryDefinitionIds: [] },
+          turnLimit: 1,
+        }),
+        randomValues: Array.from({ length: 20 }, () => 0.99),
+      });
+
+      const applied = result.events.filter((event) => event.type === "DAMAGE_APPLIED");
+      expect(applied).toHaveLength(1);
+      expect(applied[0]!.details).toMatchObject({
+        calculatedDamage: 80,
+        typedShieldAbsorbed: 10,
+        untypedShieldAbsorbed: 10,
+        subUnitAbsorbed: 10,
+        hitPointDamage: 50,
+        discardedDamage: 0,
+      });
+
+      // R-SHD-02の適用順が吸収イベントの発行順としても観測できる。
+      const absorptions = result.events
+        .filter((event) => event.type === "SHIELD_CONSUMED" || event.type === "SUB_UNIT_DAMAGED")
+        .map((event) => ({
+          type: event.type,
+          shieldType: (event.details as { shieldType?: string | null }).shieldType,
+        }));
+      expect(absorptions).toEqual([
+        { type: "SHIELD_CONSUMED", shieldType: "PHYSICAL" },
+        { type: "SHIELD_CONSUMED", shieldType: null },
+        { type: "SUB_UNIT_DAMAGED", shieldType: undefined },
+      ]);
+
+      const restored = reduceStateDeltas(
+        result.initialState,
+        result.stateTransitions.map((transition) => transition.stateDelta),
+      );
+      expect(restored).toEqual(result.finalState);
+    });
+
+    it("SCN-BTL-016 (R-LNK-01〜03): both link destinations take the same undivided amount, absorb it with their own shields, and generate no further link", () => {
+      // リンク元（LEFT）への1ヒットが、CENTER と RIGHT の2つのリンク先へ
+      // それぞれ 元ダメージ×50% を発生させる（対象数で分割しない）。CENTER だけが
+      // 自前のシールドを持ち、そのシールドでリンクダメージを吸収する。
+      // リンクダメージからさらにリンクは発生しない。
+      const linkTo = (id: string, bindingId: string): EffectActionDefinition => ({
+        kind: "APPLY_DAMAGE_LINK",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          linkTo: { kind: "BINDING", targetBindingId: createTargetBindingId(bindingId) },
+          polarity: "DEBUFF",
+          linkRate: 0.5,
+          duration: { dispellable: false, linkedEffectGroupId: null },
+        },
+      });
+
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_ATK", {
+            baseStats: { maximumAp: 1, attack: 100 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_LINK_THEN_HIT")],
+          }),
+          unitDefinition("UNIT_DEF", { baseStats: { maximumHp: 200, defense: 20 } }),
+        )
+        .withSkill(
+          stagedSkill(
+            "SKL_LINK_THEN_HIT",
+            [
+              { bindingId: "TGT_HOLDER", selector: enemyAtColumn("LEFT") },
+              { bindingId: "TGT_DEST_SHIELDED", selector: enemyAtColumn("CENTER") },
+              { bindingId: "TGT_DEST_BARE", selector: enemyAtColumn("RIGHT") },
+            ],
+            [
+              { bindingId: "TGT_DEST_SHIELDED", actionIds: ["ACT_SHIELD_UNTYPED"] },
+              { bindingId: "TGT_HOLDER", actionIds: ["ACT_LINK_SHIELDED", "ACT_LINK_BARE"] },
+              { bindingId: "TGT_HOLDER", actionIds: ["ACT_HIT"] },
+            ],
+          ),
+        )
+        .withEffectAction(
+          untypedShield("ACT_SHIELD_UNTYPED", 1000),
+          linkTo("ACT_LINK_SHIELDED", "TGT_DEST_SHIELDED"),
+          linkTo("ACT_LINK_BARE", "TGT_DEST_BARE"),
+          damageEffectAction("ACT_HIT", 1, "PREVENTED"),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+          enemyFormation: {
+            slots: [
+              formationSlot("UNIT_DEF", 0),
+              formationSlot("UNIT_DEF", 1),
+              formationSlot("UNIT_DEF", 2),
+            ],
+            memoryDefinitionIds: [],
+          },
+          turnLimit: 1,
+        }),
+        randomValues: Array.from({ length: 40 }, () => 0.99),
+      });
+
+      const generated = result.events.filter((event) => event.type === "LINKED_DAMAGE_GENERATED");
+      // 再リンク禁止（R-LNK-03 #2）: リンクダメージの適用が新しいリンクを生まない。
+      expect(generated).toHaveLength(2);
+      const amounts = generated.map(
+        (event) => (event.details as { linkedDamage: number }).linkedDamage,
+      );
+      // R-LNK-02 #1/#2: リンク先が2体でも各リンク先が同量を受け、件数で割らない。
+      expect(amounts).toEqual([40, 40]);
+
+      // R-LNK-02 #4: リンク先ごとに、そのリンク先自身のシールドとHPへ適用する。
+      const linkedApplications = result.events
+        .filter(
+          (event) =>
+            event.type === "DAMAGE_APPLIED" &&
+            (event.details as { isLinkedDamage?: boolean }).isLinkedDamage === true,
+        )
+        .map((event) => event.details as Record<string, number>);
+      expect(linkedApplications).toHaveLength(2);
+      expect(linkedApplications[0]).toMatchObject({
+        calculatedDamage: 40,
+        untypedShieldAbsorbed: 40,
+        hitPointDamage: 0,
+      });
+      expect(linkedApplications[1]).toMatchObject({
+        calculatedDamage: 40,
+        untypedShieldAbsorbed: 0,
+        hitPointDamage: 40,
+      });
+
+      const restored = reduceStateDeltas(
+        result.initialState,
+        result.stateTransitions.map((transition) => transition.stateDelta),
+      );
+      expect(restored).toEqual(result.finalState);
+    });
+
+    it("SCN-BTL-017 (R-DOT-01/R-DOT-02): a fixed continuous damage keeps using the attack snapshotted at grant time, even after the granter's attack changes", () => {
+      // 付与時の攻撃力100 → 固定継続ダメージは毎回 floor(100 × 40%) = 40。
+      // 付与直後に付与者自身の攻撃力を半減させても（R-DOT-01 #2「付与後の攻撃力
+      // 変化……は計算へ影響しない」）、以降のtickは40のまま変わらない。
+      const continuousDamage: EffectActionDefinition = {
+        kind: "APPLY_CONTINUOUS_DAMAGE",
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_DOT"),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          continuousDamageKind: "FIXED",
+          damageType: "PHYSICAL",
+          formula: {
+            kind: "STAT_RATIO",
+            source: { kind: "SKILL_SOURCE" },
+            stat: "ATTACK",
+            ratio: 0.4,
+          },
+          timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+          duration: {
+            timeLimit: { unit: "TURN", count: 5 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+        },
+      };
+      const halveOwnAttack: EffectActionDefinition = {
+        kind: "APPLY_STAT_MOD",
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_SELF_ATTACK_DOWN"),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          stat: "ATTACK",
+          valueType: "RATIO",
+          formula: { kind: "CONSTANT", value: -0.5 },
+          stacking: { mode: "STACKABLE", max: null },
+          duration: {
+            timeLimit: { unit: "TURN", count: 5 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+        },
+      };
+
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_ATK", {
+            baseStats: { maximumAp: 1, attack: 100, actionSpeed: 20 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_DOT_THEN_WEAKEN")],
+          }),
+          unitDefinition("UNIT_DEF", { baseStats: { maximumHp: 500, defense: 20 } }),
+        )
+        .withSkill(
+          stagedSkill(
+            "SKL_DOT_THEN_WEAKEN",
+            [{ bindingId: "TGT_1", selector: ENEMY_ALL }],
+            [
+              { bindingId: "TGT_1", actionIds: ["ACT_DOT"] },
+              { bindingId: "SELF", actionIds: ["ACT_SELF_ATTACK_DOWN"] },
+            ],
+            9,
+          ),
+        )
+        .withEffectAction(continuousDamage, halveOwnAttack)
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_DEF", 0)], memoryDefinitionIds: [] },
+          turnLimit: 3,
+        }),
+        randomValues: Array.from({ length: 40 }, () => 0.99),
+      });
+
+      const ticks = result.events
+        .filter((event) => event.type === "CONTINUOUS_DAMAGE_APPLIED")
+        .map((event) => event.details as Record<string, unknown>);
+      // 付与ターンを含めて複数回発火し、そのすべてが付与時攻撃力ベースのまま。
+      expect(ticks.length).toBeGreaterThan(1);
+      for (const tick of ticks) {
+        expect(tick).toMatchObject({ continuousDamageKind: "FIXED", calculatedDamage: 40 });
+      }
+      // 対照条件: 付与者の攻撃力が実際に100→50へ下がっている。ここが変わらない
+      // ままだと「snapshotだから40のまま」ではなく「そもそも何も変えていない」
+      // ことの確認になってしまう。
+      const attacker = result.finalState.units[createBattleUnitId("ally:1")];
+      expect(attacker?.combatStats.attack).toBe(50);
+
+      const restored = reduceStateDeltas(
+        result.initialState,
+        result.stateTransitions.map((transition) => transition.stateDelta),
+      );
+      expect(restored).toEqual(result.finalState);
+    });
   });
 });
