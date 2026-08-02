@@ -846,6 +846,42 @@ describe("evaluateTriggerCondition", () => {
       );
     });
 
+    it("UT-R-LNK-03-020 (DMG-007, Issue #187): narrows by effectActionDefinitionIds and grantedBy: SELF, matching only the link this owner granted (SKL_DOROTHEA_PIONEER_PS2)", () => {
+      const ownLink: ConditionDefinition = {
+        kind: "TARGET_HAS_EFFECT",
+        target: { kind: "TRIGGER_TARGET" },
+        categories: ["DEBUFF"],
+        effectActionDefinitionIds: [createEffectActionDefinitionId("ACT_LINK")],
+        grantedBy: "SELF",
+      };
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const linkFrom = (
+        sourceId: string | undefined,
+        definitionId = "ACT_LINK",
+      ): AppliedEffect => ({
+        ...effect("link", ["DEBUFF"]),
+        effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
+        ...(sourceId === undefined ? {} : { sourceId: createBattleUnitId(sourceId) }),
+        damageLink: { linkToUnitId: createBattleUnitId("PEER"), linkRate: 0.35 },
+      });
+      const check = (held: AppliedEffect): boolean => {
+        const target = unitAt("TARGET", "ENEMY", "FRONT", "LEFT", { appliedEffects: [held] });
+        return evaluateTriggerCondition(
+          ownLink,
+          { payload: {}, targetUnitIds: [target.battleUnitId] },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => target },
+        );
+      };
+
+      expect(check(linkFrom("OWNER"))).toBe(true);
+      // 別のユニットが付与した同じ定義のリンクは「自身が付与した」に当たらない。
+      expect(check(linkFrom("SOMEONE_ELSE"))).toBe(false);
+      // 自身が付与していても別定義のリンクは一致しない。
+      expect(check(linkFrom("OWNER", "ACT_OTHER_LINK"))).toBe(false);
+      // 付与者を持たない付与（Memory由来など）も一致しない。
+      expect(check(linkFrom(undefined))).toBe(false);
+    });
+
     it("UT-R-PS-01-058: narrows a DEBUFF query to burn, so a poisoned (but not burning) target does not match", () => {
       const burnQuery: ConditionDefinition = {
         kind: "TARGET_HAS_EFFECT",

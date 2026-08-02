@@ -135,6 +135,16 @@ export function effectCategoriesOf(
       // `APPLY_CONTINUOUS_DAMAGE`と同じ理由で符号から導く既定の分岐に任せない
       // （どちらも`magnitude`に効果量としての意味を持たない）。
       return new Set<EffectImmunityCategory>(["DEBUFF"]);
+    case "APPLY_DAMAGE_LINK":
+      // R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187）: リンクは保持者が受けた
+      // ダメージと同量をリンク先へ追加で発生させる。保持者から見れば自分の被弾が
+      // そのまま味方・敵へ波及する不利な状態であり（`戦闘システム.md`「リンク効果
+      // について」）、`APPLY_TARGET_REDIRECT`/`APPLY_COVER`と同じ理由で符号から
+      // 導く既定の分岐に任せず`DEBUFF`で固定する（`magnitude`は監査用の`linkRate`
+      // であって効果量としての強弱を表さない）。production定義
+      // `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`が「解除不可」（`dispellable: false`）
+      // なのは`duration`側で表す。
+      return new Set<EffectImmunityCategory>(["DEBUFF"]);
     case "APPLY_REFLECT":
     case "APPLY_DEATH_SURVIVAL":
       // R-INT-01/03（DMG-006、Issue #188）: 反射・致死耐えは保持者自身を利する

@@ -2,37 +2,78 @@
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.2048 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.2048
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_EX_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
-      "stack": { "policy": "REPLACE", "max": 1 },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
+      "stack": {
+        "policy": "REPLACE",
+        "max": 1
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 3
+        }
+      }
     },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_SHIELD1",
     "kind": "APPLY_SHIELD",
     "payload": {
-      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.1 },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "ratio": 0.1
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
     "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.56
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_SHIELD2",
@@ -43,10 +84,43 @@
         "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 1.0
       },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        },
+        "linkedEffectGroupId": "SUIRAN_CASINO_AS1_SHOWDOWN",
+        "linkedEffectGroupRole": "PARENT"
+      }
     },
     "requiredCapabilities": ["CAP_SHIELD", "CAP_SUM_DAMAGE_RESULT"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": {
+        "kind": "SELF"
+      },
+      "linkRate": 0.5,
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        },
+        "linkedEffectGroupId": "SUIRAN_CASINO_AS1_SHOWDOWN",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_HP_COST",
@@ -56,13 +130,20 @@
       "operation": "ADD",
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "ratio": -0.1
       },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
     "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_DAMAGE",
@@ -71,12 +152,16 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "ratio": 0.424
       }
     },
     "requiredCapabilities": ["CAP_FORMULA"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS2_AP_DOWN",
@@ -84,22 +169,35 @@
     "payload": {
       "resource": "AP",
       "operation": "ADD",
-      "formula": { "kind": "CONSTANT", "value": -1 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
     "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 0.624 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.624
+      },
       "hitCount": 3
     },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS3_HEAL",
@@ -113,18 +211,31 @@
       "overheal": "DISCARD"
     },
     "requiredCapabilities": ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS3_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
-      "stack": { "policy": "REPLACE", "max": 1 },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "stack": {
+        "policy": "REPLACE",
+        "max": 1
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_PS1_DEBUFF",
@@ -132,27 +243,48 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.5 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 2
+        }
       }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CASINO_PS1_SHIELD",
     "kind": "APPLY_SHIELD",
     "payload": {
-      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 },
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "ratio": 0.2
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 1
+        }
       }
     },
     "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

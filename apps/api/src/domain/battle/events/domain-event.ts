@@ -476,6 +476,15 @@ export interface BattleDomainEventPayloadMap {
      * `DamageCalculated`／`DamageWillBeApplied`も伴わない（`hitIndex`は常に0）。
      */
     readonly isReflectedDamage?: true;
+    /**
+     * R-LNK-03第1項「リンクダメージに`isLinkedDamage=true`を付ける」（DMG-007、
+     * Issue #187）。リンクで生じたダメージの適用だけが`true`を持ち、通常のヒットでは
+     * 省略する（`isReflectedDamage`と同じ規約）。リンクダメージは命中判定・会心判定・
+     * 防御介入をどれも通らないため`DamageWillBeApplied`/`DamageCalculated`も伴わず、
+     * `hitIndex`は常に0である。第2項「`isLinkedDamage=true`のダメージから新たな
+     * リンクを発生させない」は、この適用が介入解決を通らないことで満たす。
+     */
+    readonly isLinkedDamage?: true;
   };
   /**
    * `08_ドメインイベント.md`「ダメージイベント」DamageRedirected（DMG-006、
@@ -532,6 +541,40 @@ export interface BattleDomainEventPayloadMap {
     /** R-DMG-02の切り捨て・最低1ダメージを適用した反射ダメージ量。 */
     readonly reflectedDamage: number;
     readonly damageType: DamageType;
+  };
+  /**
+   * `08_ドメインイベント.md`「ダメージイベント」LinkedDamageGenerated（DMG-007、
+   * Issue #187、R-INT-01 #3・R-LNK-01〜03）: リンク先ダメージを生成した時に発行する
+   * `FACT`。R-LNK-01「対象へ算出された最終ダメージをリンク元の量とする。シールド・
+   * HPへの振り分け前の量を使用する」のとおり、元ダメージの`DamageApplied`
+   * （`sourceDamageEventId`）の後に、その`calculatedDamage`を基準として発行し、
+   * 続けてリンク先への適用（`ShieldConsumed`→`HitPointReduced`→`DamageApplied`）が
+   * 起きる。R-INT-01の評価順どおり反射（`ReflectedDamageGenerated`）より前である。
+   *
+   * このイベント自身は量の確定だけを表すため`stateDelta`を持たない。
+   */
+  readonly LinkedDamageGenerated: {
+    /** リンクの契機になった元ダメージの`DamageApplied`。 */
+    readonly sourceDamageEventId: DomainEventId;
+    readonly effectInstanceId: EffectInstanceId;
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    /** リンク元（元ダメージを受けた側＝リンク効果の保持者）。 */
+    readonly linkedFromUnitId: BattleUnitId;
+    /** リンク先（`linkTo`を付与時点で解決した`AppliedEffect.damageLink.linkToUnitId`）。 */
+    readonly linkToUnitId: BattleUnitId;
+    /** R-LNK-01: リンク元の量＝元ダメージの`calculatedDamage`（シールド・HPへの振り分け前）。 */
+    readonly sourceDamage: number;
+    /** R-LNK-02: この1リンクが発生させる割合（`AppliedEffect.damageLink.linkRate`）。 */
+    readonly linkRate: number;
+    /** R-DMG-02の切り捨て・最低1ダメージを適用したリンクダメージ量。 */
+    readonly linkedDamage: number;
+    /** R-LNK-01第3項: 元ダメージから引き継いだ物理／ENタイプ。 */
+    readonly damageType: DamageType;
+    /**
+     * R-LNK-01第3項／R-LNK-02第5項: 元ダメージから引き継いだシールド適用可否。
+     * `false`ならリンク先でもシールド・サブユニットで受けずHPへ直接向かう。
+     */
+    readonly shieldApplicable: boolean;
   };
   /**
    * `08_ドメインイベント.md`「ダメージイベント」LethalDamageSurvived（DMG-006、

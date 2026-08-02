@@ -855,6 +855,17 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_MAXHP" },
+      "linkRate": 0.35,
+      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS2_DEATH_SURVIVAL",
     "kind": "APPLY_DEATH_SURVIVAL",
     "payload": {
@@ -1396,16 +1407,25 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_DMG_UP",
-    "kind": "APPLY_DAMAGE_MOD",
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST",
+    "kind": "APPLY_DAMAGE_LINK",
     "payload": {
-      "direction": "INCOMING",
-      "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.35 },
-      "stacking": { "mode": "STACKABLE" },
+      "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
+      "linkRate": 0.35,
       "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
+    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+      "linkRate": 0.35,
+      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": { "tags": [] }
   },
   {
@@ -8507,9 +8527,30 @@
     "kind": "APPLY_SHIELD",
     "payload": {
       "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 1 },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "SUIRAN_CASINO_AS1_SHOWDOWN",
+        "linkedEffectGroupRole": "PARENT"
+      }
     },
     "requiredCapabilities": ["CAP_SHIELD", "CAP_SUM_DAMAGE_RESULT"],
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": { "kind": "SELF" },
+      "linkRate": 0.5,
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "SUIRAN_CASINO_AS1_SHOWDOWN",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": { "tags": [] }
   },
   {

@@ -2,7 +2,10 @@
   {
     "skillDefinitionId": "SKL_CHIZURU_DOMESTIC_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -20,98 +23,191 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_ROW_AS_BASE",
+              "includeBase": true
+            }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_EX_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ROW"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_EX_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_EX_HEAL" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_EX_HEAL"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "強襲掃討", "tags": [] }
+    "metadata": {
+      "displayName": "強襲掃討",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CHIZURU_DOMESTIC_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_TWO",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 2, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 2,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_TWO" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_AS1_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_TWO"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_AS1_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": { "kind": "SELF" },
+            "target": {
+              "kind": "SELF"
+            },
             "markerId": "MARKER_CHIZURU_DOMESTIC_ANTIGRAV"
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_TWO" },
-              "actions": [{ "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_AS1_STUN" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_TWO"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_AS1_STUN"
+                }
+              ]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_MARKER",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT"
     ],
-    "metadata": { "displayName": "連単射", "tags": [] }
+    "metadata": {
+      "displayName": "連単射",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CHIZURU_DOMESTIC_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 2 },
+    "cost": {
+      "resource": "PP",
+      "amount": 2
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_LOWEST_MAXHP",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["LOWEST_MAX_HP"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_MAX_HP"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_MAXHP" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST_MAXHP"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "TURN", "count": 99 },
-    "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "チェーンマニューバ", "tags": [] },
+    "cooldown": {
+      "unit": "TURN",
+      "count": 99
+    },
+    "traits": {
+      "priorityAttack": true
+    },
+    "requiredCapabilities": [
+      "CAP_DAMAGE_LINK_STATE",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": {
+      "displayName": "チェーンマニューバ",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnStarted",
@@ -150,29 +246,44 @@
   {
     "skillDefinitionId": "SKL_CHIZURU_DOMESTIC_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
+          "target": {
+            "kind": "SELF"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS2_DEATH_SURVIVAL" },
-            { "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS2_MAXHP_UP" }
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS2_DEATH_SURVIVAL"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS2_MAXHP_UP"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "TURN", "count": 99 },
+    "cooldown": {
+      "unit": "TURN",
+      "count": 99
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_DEATH_SURVIVAL",
       "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TRIGGER_CONTEXT"
     ],
-    "metadata": { "displayName": "ハイ・リカバリー", "tags": [] },
+    "metadata": {
+      "displayName": "ハイ・リカバリー",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "UnitBeingAttacked",
@@ -182,7 +293,12 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "skillType",
+              "op": "EQ",
+              "value": "AS"
+            },
             {
               "kind": "RUNTIME_COUNTER",
               "counter": "SKL_CHIZURU_DOMESTIC_PS2_ACTIVATIONS",
@@ -217,35 +333,59 @@
   {
     "skillDefinitionId": "SKL_CHIZURU_DOMESTIC_PS3",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_NEAREST",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_NEAREST"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_DMG_DOWN" },
-            { "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_DMG_DOWN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_STUN"
+            }
           ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
+          "target": {
+            "kind": "SELF"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_IMMUNITY" },
-            { "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_MARKER" }
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_IMMUNITY"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS3_MARKER"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [
       "CAP_DAMAGE_MOD",
@@ -253,7 +393,10 @@
       "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TARGET_FILTER_ORDER"
     ],
-    "metadata": { "displayName": "怒らせすぎ注意", "tags": [] },
+    "metadata": {
+      "displayName": "怒らせすぎ注意",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "RuntimeCounterChanged",
@@ -269,7 +412,12 @@
               "op": "EQ",
               "value": "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT"
             },
-            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "valueChanged",
+              "op": "EQ",
+              "value": true
+            }
           ]
         }
       }

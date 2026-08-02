@@ -1,6 +1,7 @@
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
 import type { AppliedEffect } from "./applied-effect.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import type { BattleUnit } from "./battle-unit.js";
 
 /**
@@ -18,8 +19,31 @@ export type TargetHasEffectQuery = Extract<ConditionDefinition, { kind: "TARGET_
  * `EFFECT_IMMUNITY`のselectorと同じく、カテゴリ一致へANDで重ねる — 指定がある場合、
  * 対応するfieldを持たない効果（例: 継続ダメージでないデバフ）は一致しない。
  */
-function matchesQuery(effect: AppliedEffect, query: TargetHasEffectQuery): boolean {
+function matchesQuery(
+  effect: AppliedEffect,
+  query: TargetHasEffectQuery,
+  evaluatorUnitId: BattleUnitId | undefined,
+): boolean {
   if (!query.categories.some((category) => effect.categories.includes(category))) {
+    return false;
+  }
+  // DMG-007（Issue #187）: 特定のEffectAction定義由来かどうか。分類軸ではなく定義IDの
+  // 直接一致であるため、`categories`とはANDで重ねる（`EFFECT_IMMUNITY`と同じ扱い）。
+  if (
+    query.effectActionDefinitionIds !== undefined &&
+    !query.effectActionDefinitionIds.some((id) => id === effect.effectActionDefinitionId)
+  ) {
+    return false;
+  }
+  // DMG-007（Issue #187）: `grantedBy: SELF`は「この条件を評価しているユニット自身が
+  // 付与した」インスタンスだけに一致する。付与者を持たない付与（Memory由来など
+  // `sourceId`が無いもの）は自身が付与したとは言えないため一致しない。評価元が
+  // 渡されていない呼び出し経路も同じ理由で一致させない — 黙って全インスタンスへ
+  // 広がるより、条件が成立しない方が安全側である。
+  if (
+    query.grantedBy === "SELF" &&
+    (evaluatorUnitId === undefined || effect.sourceId !== evaluatorUnitId)
+  ) {
     return false;
   }
   if (
@@ -47,8 +71,17 @@ function matchesQuery(effect: AppliedEffect, query: TargetHasEffectQuery): boole
  * `Marker`は`AppliedEffect`ではないため対象外である（`TARGET_HAS_MARKER`が担い、
  * `condition-definition.ts`の`TARGET_HAS_EFFECT_CATEGORIES`が`MARKER`を拒否する）。
  */
-export function holdsMatchingEffect(unit: BattleUnit, query: TargetHasEffectQuery): boolean {
-  return unit.appliedEffects.some((effect) => matchesQuery(effect, query));
+export function holdsMatchingEffect(
+  unit: BattleUnit,
+  query: TargetHasEffectQuery,
+  /**
+   * DMG-007（Issue #187）: `query.grantedBy: "SELF"`が指す「自身」— この条件を
+   * 評価しているユニット（PSの保持者／EffectSequenceの使用者）。`grantedBy`を
+   * 持たない照会では使わないため省略できる。
+   */
+  evaluatorUnitId?: BattleUnitId,
+): boolean {
+  return unit.appliedEffects.some((effect) => matchesQuery(effect, query, evaluatorUnitId));
 }
 
 /**

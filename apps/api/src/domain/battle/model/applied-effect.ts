@@ -210,6 +210,24 @@ export interface ReflectState {
 }
 
 /**
+ * R-LNK-01〜03（DMG-007、Issue #187、`APPLY_DAMAGE_LINK`由来の付与だけが持つ）:
+ * 保持者が**受けた**ダメージと同じ量（`linkRate`の割合）を`linkToUnitId`へ追加で
+ * 発生させる。`ReflectState`と同じく状態は**受け手側**が保持するが、反射が
+ * 「元ダメージの攻撃者へ返す」のに対し、リンクは付与時点で確定した固定の
+ * リンク先へ送る点が異なる。
+ *
+ * `linkToUnitId`はCatalogの`payload.linkTo`（実装済みは`SELF`＝付与者と`BINDING`）を
+ * 付与時点で解決した結果である（`HealingLinkState.transferToUnitId`と同じ
+ * 「付与時snapshot」規約 — ダメージ適用時点にはTargetBindingもトリガーcontextも
+ * 残っていない）。`linkRate`を焼き込むのは`shield`/`damageModifier`と同じ理由で、
+ * `combat/`がCatalogの`effectActions`マップを引けないためである。
+ */
+export interface DamageLinkState {
+  readonly linkToUnitId: BattleUnitId;
+  readonly linkRate: number;
+}
+
+/**
  * R-INT-01 #5（DMG-006、Issue #188、`APPLY_DEATH_SURVIVAL`由来の付与だけが持つ）:
  * 保持者が致死ダメージを受けたとき、HPを0にせず`survivalHp`で耐える。
  *
@@ -412,6 +430,8 @@ export interface AppliedEffect {
   readonly cover?: CoverState;
   /** R-INT-01/03（DMG-006、Issue #188）: `APPLY_REFLECT`由来の付与だけが持つ。 */
   readonly reflect?: ReflectState;
+  /** R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187）: `APPLY_DAMAGE_LINK`由来の付与だけが持つ。 */
+  readonly damageLink?: DamageLinkState;
   /** R-INT-01 #5（DMG-006、Issue #188）: `APPLY_DEATH_SURVIVAL`由来の付与だけが持つ。 */
   readonly deathSurvival?: DeathSurvivalState;
   /**

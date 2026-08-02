@@ -214,6 +214,7 @@ export const effectActionDefinitionSchema = {
         "APPLY_TARGET_REDIRECT",
         "APPLY_COVER",
         "APPLY_REFLECT",
+        "APPLY_DAMAGE_LINK",
         "APPLY_SUBUNIT",
         "COOLDOWN_MANIPULATION",
         "APPLY_ATTACK_DAMAGE_BONUS",

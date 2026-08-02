@@ -3883,6 +3883,17 @@ function reflectHeldByDefender(id: string, defenderId: string, ratio: number): A
   });
 }
 
+function damageLinkHeldByDamaged(
+  id: string,
+  damagedId: string,
+  linkToUnitId: string,
+  linkRate = 0.5,
+): AppliedEffect {
+  return interventionEffect(id, damagedId, {
+    damageLink: { linkToUnitId: createBattleUnitId(linkToUnitId), linkRate },
+  });
+}
+
 function deathSurvivalHeldByTarget(
   id: string,
   targetId: string,
@@ -4123,6 +4134,247 @@ describe("defensive interventions in the damage pipeline (DMG-006, Issue #188, R
     expect(
       context.recorder.getEvents().filter((e) => e.eventType === "ReflectedDamageGenerated"),
     ).toEqual([]);
+  });
+
+  it("UT-R-LNK-01-010: a link the damaged unit holds emits LinkedDamageGenerated after the original DamageApplied and applies isLinkedDamage damage to the destination", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [damageLinkHeldByDamaged("LINK", "TARGET", "PEER", 0.5)],
+    };
+    const peer = unit("PEER", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, peer],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    const originalApplied = context.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          (e.payload as { targetUnitId: string }).targetUnitId === target.battleUnitId,
+      )!;
+    const generated = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "LinkedDamageGenerated")!;
+    expect(generated.payload).toMatchObject({
+      sourceDamageEventId: originalApplied.eventId,
+      linkedFromUnitId: target.battleUnitId,
+      linkToUnitId: peer.battleUnitId,
+      // R-LNK-01: シールド・HPへの振り分け前の最終ダメージ（攻撃30 - 防御10）。
+      sourceDamage: 20,
+      linkRate: 0.5,
+      linkedDamage: 10,
+      damageType: "PHYSICAL",
+      shieldApplicable: true,
+    });
+
+    const linkedApplied = context.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          (e.payload as { isLinkedDamage?: true }).isLinkedDamage === true,
+      )!;
+    expect(linkedApplied.payload).toMatchObject({
+      targetUnitId: peer.battleUnitId,
+      calculatedDamage: 10,
+      hitPointDamage: 10,
+      isLinkedDamage: true,
+    });
+    // R-LNK-02: 元ダメージはそのまま残り、リンク先へ**追加で**発生する（転送ではない）。
+    expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(80);
+    expect(result.units.find((u) => u.battleUnitId === peer.battleUnitId)!.currentHp).toBe(90);
+  });
+
+  it("UT-R-LNK-02-010: every link the damaged unit holds fires with the full amount — R-LNK-02 does not divide by the number of destinations", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [
+        damageLinkHeldByDamaged("LINK_A", "TARGET", "PEER_A", 1),
+        damageLinkHeldByDamaged("LINK_B", "TARGET", "PEER_B", 1),
+      ],
+    };
+    const peerA = unit("PEER_A", "ENEMY", { defense: 10, maximumHp: 100 });
+    const peerB = unit("PEER_B", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, peerA, peerB],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    expect(
+      context.recorder
+        .getEvents()
+        .filter((e) => e.eventType === "LinkedDamageGenerated")
+        .map((e) => (e.payload as { linkedDamage: number }).linkedDamage),
+    ).toEqual([20, 20]);
+    expect(result.units.find((u) => u.battleUnitId === peerA.battleUnitId)!.currentHp).toBe(80);
+    expect(result.units.find((u) => u.battleUnitId === peerB.battleUnitId)!.currentHp).toBe(80);
+  });
+
+  it("UT-R-LNK-03-010: linked damage never links again, even when the destination also holds a link back (R-LNK-03第2項)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [damageLinkHeldByDamaged("LINK", "TARGET", "PEER", 1)],
+    };
+    const peer = {
+      ...unit("PEER", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [damageLinkHeldByDamaged("LINK_BACK", "PEER", "TARGET", 1)],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, peer],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    // 相互リンクでも1回で止まる（無限往復しない）。
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "LinkedDamageGenerated"),
+    ).toHaveLength(1);
+    expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(80);
+    expect(result.units.find((u) => u.battleUnitId === peer.battleUnitId)!.currentHp).toBe(80);
+  });
+
+  it("UT-R-LNK-02-011: linked damage is absorbed by the destination's own shields (R-LNK-02第4項)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [damageLinkHeldByDamaged("LINK", "TARGET", "PEER", 1)],
+    };
+    const peerShield: AppliedEffect = interventionEffect("PEER_SHIELD", "PEER", {
+      magnitude: 12,
+      categories: ["SHIELD"],
+      shield: { shieldType: "PHYSICAL", remaining: 12 },
+    });
+    const peer = {
+      ...unit("PEER", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [peerShield],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, peer],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    const linkedApplied = context.recorder
+      .getEvents()
+      .find(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          (e.payload as { isLinkedDamage?: true }).isLinkedDamage === true,
+      )!;
+    expect(linkedApplied.payload).toMatchObject({
+      typedShieldAbsorbed: 12,
+      hitPointDamage: 8,
+    });
+    expect(result.units.find((u) => u.battleUnitId === peer.battleUnitId)!.currentHp).toBe(92);
+  });
+
+  it("UT-R-LNK-02-012: R-INT-01 evaluates the link (#3) before the reflect (#4), so LinkedDamageGenerated precedes ReflectedDamageGenerated", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [
+        damageLinkHeldByDamaged("LINK", "TARGET", "PEER", 0.5),
+        reflectHeldByDefender("REFLECT", "TARGET", 0.75),
+      ],
+    };
+    const peer = unit("PEER", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, peer],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    const order = context.recorder.getEvents().map((e) => e.eventType);
+    expect(order.indexOf("LinkedDamageGenerated")).toBeGreaterThan(-1);
+    expect(order.indexOf("LinkedDamageGenerated")).toBeLessThan(
+      order.indexOf("ReflectedDamageGenerated"),
+    );
+  });
+
+  it("UT-R-LNK-01-011: a link whose source unit was killed by the original hit does not fire (R-ACTN-01 #2)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 });
+    const dying = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(5, 100),
+      appliedEffects: [damageLinkHeldByDamaged("LINK", "TARGET", "PEER", 1)],
+    };
+    const peer = unit("PEER", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, dying, peer],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    expect(isDefeated(result.units.find((u) => u.battleUnitId === dying.battleUnitId)!)).toBe(true);
+    expect(
+      context.recorder.getEvents().filter((e) => e.eventType === "LinkedDamageGenerated"),
+    ).toEqual([]);
+    expect(result.units.find((u) => u.battleUnitId === peer.battleUnitId)!.currentHp).toBe(100);
+  });
+
+  it("UT-R-LNK-02-013: the linked amount keeps R-DMG-02's truncation and 1-damage floor", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 11, maximumHp: 100 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      // 元ダメージ1 × 1% = 0.01 → 切り捨て0 → 最低1。
+      appliedEffects: [damageLinkHeldByDamaged("LINK", "TARGET", "PEER", 0.01)],
+    };
+    const peer = unit("PEER", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, target, peer],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    expect(
+      (
+        context.recorder.getEvents().find((e) => e.eventType === "LinkedDamageGenerated")!
+          .payload as { linkedDamage: number }
+      ).linkedDamage,
+    ).toBe(1);
+    expect(result.units.find((u) => u.battleUnitId === peer.battleUnitId)!.currentHp).toBe(99);
   });
 
   it("UT-R-INT-01-011: a lethal hit against a death-survival holder stops HP at survivalHp, discards the rest, and replaces UnitDefeated with LethalDamageSurvived", () => {

@@ -26,13 +26,13 @@
   "current": {
     "rules": {
       "total": 114,
-      "completed": 108,
-      "remaining": 6
+      "completed": 111,
+      "remaining": 3
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 1,
-      "incompleteConversionRows": 7
+      "incompleteConversionRows": 3
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -40,8 +40,8 @@
       "unconverted": 0
     },
     "capabilities": {
-      "total": 48,
-      "implemented": 45
+      "total": 49,
+      "implemented": 46
     }
   },
   "tasks": [
@@ -449,7 +449,7 @@
       "issue": 187,
       "phase": 3,
       "milestone": "M8",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "DMG-008",
@@ -542,21 +542,11 @@
       "ruleIds": ["R-TGT-06"]
     },
     {
-      "taskId": "DMG-007",
-      "ruleIds": ["R-LNK-01", "R-LNK-02", "R-LNK-03"]
-    },
-    {
       "taskId": "DMG-011",
       "ruleIds": ["R-ACTN-02", "R-DMG-05"]
     }
   ],
   "conversionThemeAssignments": [
-    {
-      "milestone": "M8",
-      "theme": "DAMAGE_LINK",
-      "rowCount": 4,
-      "taskId": "DMG-007"
-    },
     {
       "milestone": "M8",
       "theme": "CONFUSION_OR_DAMAGE_TO_HEAL",

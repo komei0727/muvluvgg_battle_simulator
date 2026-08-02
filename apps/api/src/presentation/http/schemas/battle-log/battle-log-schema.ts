@@ -674,6 +674,11 @@ const damageAppliedDetailsSchema = {
      * `subUnitAbsorbed`と同じ理由で`required`へは入れない（v1デコーダ互換）。
      */
     isReflectedDamage: { type: "boolean", enum: [true] },
+    /**
+     * DMG-007（Issue #187、R-LNK-03第1項）: リンクで生じたダメージだけが`true`を持つ。
+     * `isReflectedDamage`と同じ理由で`required`へは入れない（v1デコーダ互換）。
+     */
+    isLinkedDamage: { type: "boolean", enum: [true] },
   },
 } as const;
 
@@ -736,6 +741,40 @@ const reflectedDamageGeneratedDetailsSchema = {
     formulaResult: { type: "number" },
     reflectedDamage: { type: "integer", minimum: 0 },
     damageType: { type: "string", enum: [...DAMAGE_TYPE_ENUM] },
+  },
+} as const;
+
+/**
+ * `LinkedDamageGenerated`（DMG-007、Issue #187、R-INT-01 #3・R-LNK-01〜03）。元ダメージの
+ * `DamageApplied`の後、反射より前にリンク量を確定させた時点で発行する。
+ */
+const linkedDamageGeneratedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "sourceDamageEventId",
+    "effectInstanceId",
+    "effectActionDefinitionId",
+    "linkedFromUnitId",
+    "linkToUnitId",
+    "sourceDamage",
+    "linkRate",
+    "linkedDamage",
+    "damageType",
+    "shieldApplicable",
+  ],
+  properties: {
+    /** 元ダメージの`DAMAGE_APPLIED`イベントID（`REFLECTED_DAMAGE_GENERATED`と同じ規約）。 */
+    sourceDamageEventId: { type: "string" },
+    effectInstanceId: { type: "string" },
+    effectActionDefinitionId: { type: "string" },
+    linkedFromUnitId: { type: "string" },
+    linkToUnitId: { type: "string" },
+    sourceDamage: { type: "integer", minimum: 0 },
+    linkRate: { type: "number", minimum: 0, maximum: 1 },
+    linkedDamage: { type: "integer", minimum: 0 },
+    damageType: { type: "string", enum: [...DAMAGE_TYPE_ENUM] },
+    shieldApplicable: { type: "boolean" },
   },
 } as const;
 
@@ -2042,6 +2081,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   SUB_UNIT_DAMAGED: subUnitDamagedDetailsSchema,
   HIT_POINT_REDUCED: hitPointReducedDetailsSchema,
   DAMAGE_APPLIED: damageAppliedDetailsSchema,
+  LINKED_DAMAGE_GENERATED: linkedDamageGeneratedDetailsSchema,
   DAMAGE_REDIRECTED: damageRedirectedDetailsSchema,
   REFLECTED_DAMAGE_GENERATED: reflectedDamageGeneratedDetailsSchema,
   LETHAL_DAMAGE_SURVIVED: lethalDamageSurvivedDetailsSchema,

@@ -150,6 +150,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
   APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
   APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
+  APPLY_DAMAGE_LINK: ["linkTo", "linkRate", "duration"],
   APPLY_SUBUNIT: ["durability", "additionalDamage", "duration"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
   APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
@@ -1114,6 +1115,27 @@ function createPayload(
           formula: createFormulaField(payload, "formula", path),
           timing,
           allowRecursiveReflect,
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "APPLY_DAMAGE_LINK": {
+      // R-LNK-01〜03（DMG-007、Issue #187）: リンク先も割合も既定を持たないため必須。
+      // `linkTo`のkindごとの実装範囲（`SELF`/`BINDING`）はCatalog整合性検証
+      // （`UNSUPPORTED_DAMAGE_LINK_TARGET`）が担う — Factoryは`APPLY_HEALING_LINK`と
+      // 同じく形式検証だけを行う。`EffectActionDefinition`は自分を使う
+      // EffectSequenceのTargetBinding集合を知らないため、`BINDING`が実在する
+      // bindingを指すかは`DAMAGE_LINK_UNBOUNDED_BINDING`（`catalog-integrity.ts`、
+      // `ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`と同じ扱い）がSkill側から検証する。
+      const linkTo = requireField(
+        payload["linkTo"] as TargetReferenceInput | undefined,
+        `${path}.linkTo`,
+      );
+      return {
+        kind: "APPLY_DAMAGE_LINK",
+        payload: {
+          linkTo: createTargetReference(linkTo, `${path}.linkTo`, undefined),
+          linkRate: requireRate(payload["linkRate"] as number | undefined, `${path}.linkRate`),
           duration: createDurationField(payload, path),
         },
       };

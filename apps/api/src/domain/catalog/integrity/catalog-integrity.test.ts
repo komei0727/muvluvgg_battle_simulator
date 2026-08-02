@@ -1223,6 +1223,37 @@ function coverAction(
   );
 }
 
+/**
+ * DMG-007（Issue #187、R-LNK-01〜03）: リンクダメージ状態の最小定義。既定は
+ * production `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK` と同じ`linkTo: SELF`・50%。
+ */
+function damageLinkAction(
+  id: string,
+  overrides: {
+    linkTo?: { kind: string; targetBindingId?: string };
+    linkRate?: number;
+    requiredCapabilities?: readonly string[];
+  } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_DAMAGE_LINK",
+      payload: {
+        linkTo: overrides.linkTo ?? { kind: "SELF" },
+        linkRate: overrides.linkRate ?? 0.5,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+          dispellable: false,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_DAMAGE_LINK_STATE"],
+    },
+    "effectAction",
+  );
+}
+
 function reflectAction(
   id: string,
   overrides: {
@@ -2373,6 +2404,156 @@ describe("buildCatalogIndex", () => {
           ),
         ).toBe(true);
       }
+    }
+  });
+
+  it("UT-R-LNK-03-034 (DMG-007 Issue #187, NEGATIVE): rejects TARGET_HAS_EFFECT.grantedBy outside a trigger condition, where no evaluating unit exists", () => {
+    const defs = baseDefinitions();
+    const skill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS2",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_PRIMARY",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+            targetCondition: {
+              kind: "TARGET_HAS_EFFECT",
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              categories: ["DEBUFF"],
+              grantedBy: "SELF",
+            },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE" }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities: [],
+      metadata: { displayName: "AS" },
+    });
+    const withMisscopedGrantedBy: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, skill],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+    };
+
+    try {
+      buildCatalogIndex(withMisscopedGrantedBy);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "GRANTED_BY_OUTSIDE_TRIGGER")).toBe(true);
+    }
+  });
+
+  it("UT-R-LNK-02-030 (DMG-007 Issue #187): accepts an APPLY_DAMAGE_LINK whose linkTo is SELF and whose binding reference is declared by the using skill", () => {
+    const defs = baseDefinitions();
+    const withLinks: CatalogDefinitions = {
+      ...defs,
+      skills: [
+        ...defs.skills,
+        asSkill("SKL_AS2", "ACT_LINK_SELF"),
+        asSkill("SKL_AS3", "ACT_LINK_BINDING"),
+      ],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2", "SKL_AS3"] })],
+      effectActions: [
+        ...defs.effectActions,
+        damageLinkAction("ACT_LINK_SELF"),
+        damageLinkAction("ACT_LINK_BINDING", {
+          // `asSkill`が宣言するbinding。
+          linkTo: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+        }),
+      ],
+      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+    };
+
+    const index = buildCatalogIndex(withLinks);
+
+    expect(index.effectActions.get("ACT_LINK_SELF" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_LINK_BINDING" as never)).toBeDefined();
+  });
+
+  it("UT-R-LNK-02-031 (DMG-007 Issue #187, NEGATIVE): rejects a linkTo kind the runtime cannot resolve at grant time", () => {
+    for (const linkTo of [{ kind: "TRIGGER_SOURCE" }, { kind: "LAST_DAMAGED_TARGETS" }]) {
+      const defs = baseDefinitions();
+      const withUnsupportedLink: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, damageLinkAction("ACT_LINK", { linkTo })],
+        capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+      };
+
+      try {
+        buildCatalogIndex(withUnsupportedLink);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) => v.rule === "UNSUPPORTED_DEFENSIVE_INTERVENTION" && v.targetId === "ACT_LINK",
+          ),
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("UT-R-LNK-02-032 (DMG-007 Issue #187, NEGATIVE): rejects an APPLY_DAMAGE_LINK that omits CAP_DAMAGE_LINK_STATE from requiredCapabilities", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        damageLinkAction("ACT_LINK", { requiredCapabilities: [] }),
+      ],
+      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_LINK",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-LNK-02-033 (DMG-007 Issue #187, NEGATIVE): rejects a BINDING linkTo that the using skill never declares (silent no-op at grant time)", () => {
+    const defs = baseDefinitions();
+    const withUnboundBinding: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        damageLinkAction("ACT_LINK", {
+          linkTo: { kind: "BINDING", targetBindingId: "TGT_NOT_DECLARED" },
+        }),
+      ],
+      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+    };
+
+    try {
+      buildCatalogIndex(withUnboundBinding);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "DAMAGE_LINK_UNBOUNDED_BINDING")).toBe(true);
     }
   });
 

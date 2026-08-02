@@ -4,6 +4,7 @@ import type {
   ApplyContinuousDamagePayload,
   ApplyContinuousHealPayload,
   ApplyCoverPayload,
+  ApplyDamageLinkPayload,
   ApplyDamageModPayload,
   ApplyPiercingModPayload,
   ApplyDeathSurvivalPayload,
@@ -32,8 +33,10 @@ import type {
  * `APPLY_HEALING_MOD`, `MODIFY_RESOURCE_CAPACITY`, `APPLY_SHIELD`,
  * `REMOVE_EFFECTS` were unsupported pending payload design; Issue #44
  * (G-01/G-02/G-04/G-08/G-09) adds their payload shapes below.
- * `APPLY_DAMAGE_LINK` remains unsupported — the doc's own "後続設計で具体化
- * する点" still flags Cover/Reflect/DamageLink ordering as open.
+ * `APPLY_DAMAGE_LINK` was unsupported while the doc's own "後続設計で具体化
+ * する点" still flagged Cover/Reflect/DamageLink ordering as open; `DMG-006`
+ * (Issue #188) fixed that ordering as R-INT-01 #1〜#5 and `DMG-007`
+ * (Issue #187, R-LNK-01〜03) adds the payload below.
  */
 export const EFFECT_ACTION_KINDS = [
   "DAMAGE",
@@ -57,6 +60,7 @@ export const EFFECT_ACTION_KINDS = [
   "APPLY_TARGET_REDIRECT",
   "APPLY_COVER",
   "APPLY_REFLECT",
+  "APPLY_DAMAGE_LINK",
   "APPLY_SUBUNIT",
   "COOLDOWN_MANIPULATION",
   "APPLY_ATTACK_DAMAGE_BONUS",
@@ -86,6 +90,7 @@ export type EffectActionPayload =
   | { readonly kind: "APPLY_TARGET_REDIRECT"; readonly payload: ApplyTargetRedirectPayload }
   | { readonly kind: "APPLY_COVER"; readonly payload: ApplyCoverPayload }
   | { readonly kind: "APPLY_REFLECT"; readonly payload: ApplyReflectPayload }
+  | { readonly kind: "APPLY_DAMAGE_LINK"; readonly payload: ApplyDamageLinkPayload }
   | { readonly kind: "APPLY_SUBUNIT"; readonly payload: ApplySubunitPayload }
   | { readonly kind: "COOLDOWN_MANIPULATION"; readonly payload: CooldownManipulationPayload }
   | {

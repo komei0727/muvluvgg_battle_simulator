@@ -916,6 +916,7 @@ describe("OpenAPI document", () => {
       SubUnitDamaged: true,
       HitPointReduced: true,
       DamageApplied: true,
+      LinkedDamageGenerated: true,
       DamageRedirected: true,
       ReflectedDamageGenerated: true,
       LethalDamageSurvived: true,

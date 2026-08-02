@@ -1466,6 +1466,38 @@ decay:
 
 raw原文の例は `SKL_SHIRANA_LUCKY_EX`（薄暮の宵火）「シールドは1行動に付き最大値の25%減少する」。基準はその時点の残量ではなく付与時最大値であるため等差で減り、`ratio: 0.25` なら4行動でちょうど枯渇する。減少そのものは `ShieldConsumed`（`reason: DECAY`）として記録し、0になったインスタンスは `EffectExpired`（`reason: SHIELD_DEPLETED`）で失効する — 失効経路は時間制限（`TIME_LIMIT`）と共有するため、R-EFF-09 の `linkedEffectGroupId` カスケードと CombatStat 再計算も同じ振る舞いになる。
 
+### APPLY_DAMAGE_LINK
+
+`DMG-007`（Issue #187、R-INT-01 #3・R-LNK-01〜03）。保持者が**受けた**ダメージと同じ量（`linkRate` の割合）を `linkTo` へ追加で発生させる継続効果（`AppliedEffect`）。`APPLY_HEALING_LINK`（回復リンク）とは方向も配分規則も異なる別kindである — 回復リンクは保持者の回復量を転送先へ**移し替える**のに対し、ダメージリンクは元ダメージをそのまま残したうえでリンク先へ**追加で発生**させる。
+
+```yaml
+kind: APPLY_DAMAGE_LINK
+payload:
+  linkTo:
+    kind: SELF
+  linkRate: 0.5
+  duration:
+    timeLimit:
+      unit: ACTION
+      count: 2
+    dispellable: false
+```
+
+| フィールド | 型                 | 制約                                         |
+| ---------- | ------------------ | -------------------------------------------- |
+| `linkTo`   | TargetReference    | 実装済みは `SELF`（付与者自身）と `BINDING`  |
+| `linkRate` | number             | `0`以上`1`以下。`1` が `R-LNK-02` の「同量」 |
+| `duration` | DurationDefinition | —                                            |
+
+`linkTo` は付与時点に解決して `AppliedEffect.damageLink.linkToUnitId` へ焼き込む（`APPLY_HEALING_LINK.transferTo` と同じ「付与時snapshot」規約 — ダメージ適用時点にはTargetBindingもトリガーcontextも残っていない）。したがって実装済みなのは付与時点に高々1体へ確定できる参照だけである。
+
+- `SELF`: 付与者自身。production 例は `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`（味方が受けたダメージの50%を劉翠蘭自身へ）
+- `BINDING`: **この効果アクションを使う EffectSequence** が宣言し、高々1体へ解決する TargetBinding。production 例は `ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST`／`ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST`（互いを指す35%の相互リンク）と `ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK`（保持者は自身、リンク先は攻撃対象）
+
+他のkindは `UNSUPPORTED_DEFENSIVE_INTERVENTION`、宣言のない（または複数体へ解決しうる）bindingを指す `BINDING` は `DAMAGE_LINK_UNBOUNDED_BINDING` として Catalog ロード時点で拒否する。`EffectActionDefinition` は自分の使われ方を知らないため、後者の検証は Skill／Memory 側から行う（`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE` と同じ扱い）。
+
+`requiredCapabilities` へ `CAP_DAMAGE_LINK_STATE` を宣言しなければ `MISSING_REQUIRED_CAPABILITY` になる（他の防御介入系kindと同じ宣言ゲート）。「元効果の消滅と同時にリンクも消滅する」（`SKL_SUIRAN_CASINO_AS1` の「2枚目の消滅と同時にダメージリンクも消滅する」）は `duration.linkedEffectGroupId`／`linkedEffectGroupRole` の親子連動（R-EFF-09）で表す。
+
 ### APPLY_SUBUNIT
 
 ```yaml
@@ -1977,12 +2009,14 @@ condition:
   statKinds: [ATTACK]
 ```
 
-| フィールド              | 型       | 必須 | 制約                                                                                     |
-| ----------------------- | -------- | ---- | ---------------------------------------------------------------------------------------- |
-| `target`                | object   | ✓    | `TargetReference`                                                                        |
-| `categories`            | string[] | ✓    | 1件以上。`BUFF` / `DEBUFF` / `STATUS` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT`              |
-| `continuousDamageKinds` | string[] | —    | 1件以上。`FIXED` / `BURN` / `POISON`。**値ごと**に到達可能な`categories`が異なる（下表） |
-| `statKinds`             | string[] | —    | 1件以上。`StatKind`。`categories`が`BUFF`または`DEBUFF`を含む場合だけ指定できる          |
+| フィールド                  | 型       | 必須 | 制約                                                                                      |
+| --------------------------- | -------- | ---- | ----------------------------------------------------------------------------------------- |
+| `target`                    | object   | ✓    | `TargetReference`                                                                         |
+| `categories`                | string[] | ✓    | 1件以上。`BUFF` / `DEBUFF` / `STATUS` / `DAMAGE_MOD` / `SHIELD` / `SUBUNIT`               |
+| `continuousDamageKinds`     | string[] | —    | 1件以上。`FIXED` / `BURN` / `POISON`。**値ごと**に到達可能な`categories`が異なる（下表）  |
+| `statKinds`                 | string[] | —    | 1件以上。`StatKind`。`categories`が`BUFF`または`DEBUFF`を含む場合だけ指定できる           |
+| `effectActionDefinitionIds` | string[] | —    | 1件以上。一致対象を特定のEffectAction定義由来の付与へ絞る（`DMG-007`／Issue #187）        |
+| `grantedBy`                 | enum     | —    | `SELF` のみ。一致対象を「この条件を評価しているユニット自身が付与した」インスタンスへ絞る |
 
 判定は「`categories`のいずれかに一致する`AppliedEffect`を対象が1つ以上保持している」ことであり、絞り込み（`continuousDamageKinds`／`statKinds`）はその一致へANDで重ねる。到達できない組み合わせ（例: `categories: [SHIELD]`に`statKinds`）はCatalogロード時点で拒否する — `EFFECT_IMMUNITY.statusKinds`と同じく「schemaは通るが実行時に一切一致しない定義」を作らせないためである。
 
@@ -1997,7 +2031,9 @@ condition:
 
 `categories: ["STATUS"]`は「対象が状態異常にある場合」という**総称**の照会であり、`R-STS-01`が定める5種（気絶・凍結・暗闇＝`APPLY_STATUS`、炎上・毒＝`APPLY_CONTINUOUS_DAMAGE`）すべてに一致する（`RES-004-STATUS-CONDITION`／Issue #224）。Catalog側で種別を列挙してはならない — 列挙は必ず取りこぼしうる近似になる。個別種別を問う場合だけ`continuousDamageKinds`（毒・炎上）や`TARGET_STATE.field: HAS_STATUS`（気絶・凍結・暗闇）で明示的に絞り込む。production例: `SKL_CHIYURU_MAZE_EX`（AOEの`targetCondition`。条件成立対象だけへ気絶と被ダメージ増デバフを適用する）、`SKL_MERU_FLATSPIN_AS1`〜`AS3`・`SKL_NANAE_COMMANDER_PS1`（BRANCH）。
 
-`MARKER`と`SPECIFIC_EFFECT`は`categories`に指定できない。`MarkerState`は`AppliedEffect`ではなく`TARGET_HAS_MARKER`が照会し、`SPECIFIC_EFFECT`は分類軸ではなく`effectActionDefinitionId`の直接一致だからである。
+`MARKER`と`SPECIFIC_EFFECT`は`categories`に指定できない。`MarkerState`は`AppliedEffect`ではなく`TARGET_HAS_MARKER`が照会し、`SPECIFIC_EFFECT`は分類軸ではなく`effectActionDefinitionId`の直接一致だからである。その直接一致を表す正しい場所が`effectActionDefinitionIds`（`DMG-007`／Issue #187、`EFFECT_IMMUNITY`の同名fieldと同じ参照方式）で、`categories`とはANDで重ねる。
+
+`grantedBy: SELF`は「**自身が**付与したインスタンスだけ」に絞る（`AppliedEffect.sourceId`との一致）。production例は`SKL_DOROTHEA_PIONEER_PS2`の「自身がダメージリンクを付与した敵が倒された際に発動」で、定義IDの一致だけでは同名ユニットが両陣営に居る場合に他者が付与したリンクも拾ってしまうため必要になる。「自身」を知っているのは評価元ユニット（`context.owner`）を受け取るPS/Memoryのtrigger条件evaluatorだけであり、EffectSequence内の条件（`stepCondition`／`targetCondition`／BRANCHの`condition`）と`activationCondition`は評価元を持たないため、そこへ書くと黙って常に偽になる。したがって`GRANTED_BY_OUTSIDE_TRIGGER`としてCatalogロード時点で拒否する。
 
 分類の正本は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`の`effectCategoriesOf`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込む。`EffectApplied.payload.categories`・`EffectSnapshot.categories`も同じ値を運ぶため、独立Reducerで復元した状態でも同じ判定になる。
 
@@ -2524,7 +2560,7 @@ production Catalog には source text を含めない。出典と転記根拠は
 
 Catalog v2 DTO・Domain Definition・Mapperの実装（Issue #6）で、本書の記述だけでは一意に決まらない箇所が見つかった。次はpayload例やenum一覧が未確定であり、production Catalogの authoring 前に本書へ追記が必要。
 
-1. `EffectActionDefinition.kind` のうち `APPLY_HEALING_MOD`、`MODIFY_RESOURCE_CAPACITY`、`APPLY_SHIELD`、`REMOVE_EFFECTS`、`APPLY_DAMAGE_LINK` の5種はpayload例が示されていなかった。Issue #44でこのうち `APPLY_HEALING_MOD`・`MODIFY_RESOURCE_CAPACITY`・`APPLY_SHIELD`・`REMOVE_EFFECTS` の4種のpayload形状を本書へ追記し、Mapperへ実装した（下記「Issue #44実装で追加した拡張」）。`APPLY_DAMAGE_LINK` はCover/Reflect/DamageLinkの割り込み順（本書「後続設計で具体化する点」#3）が未確定のため、引き続きMapperは未サポートとして拒否する。`REMOVE_MARKER` は `APPLY_MARKER` の対称形（`markerId` のみ）として実装した。
+1. `EffectActionDefinition.kind` のうち `APPLY_HEALING_MOD`、`MODIFY_RESOURCE_CAPACITY`、`APPLY_SHIELD`、`REMOVE_EFFECTS`、`APPLY_DAMAGE_LINK` の5種はpayload例が示されていなかった。Issue #44でこのうち `APPLY_HEALING_MOD`・`MODIFY_RESOURCE_CAPACITY`・`APPLY_SHIELD`・`REMOVE_EFFECTS` の4種のpayload形状を本書へ追記し、Mapperへ実装した（下記「Issue #44実装で追加した拡張」）。`APPLY_DAMAGE_LINK` はCover/Reflect/DamageLinkの割り込み順（本書「後続設計で具体化する点」#3）が未確定のため長く未サポートのままだったが、`DMG-006`（Issue #188）がその割り込み順を `R-INT-01` #1〜#5 として確定させたため、`DMG-007`（Issue #187）が上記「APPLY_DAMAGE_LINK」のpayload形状を本書へ追記しMapperへ実装した。`REMOVE_MARKER` は `APPLY_MARKER` の対称形（`markerId` のみ）として実装した。
 2. `FormulaDefinition` の `HP_RATIO_SCALE.direction` は値候補が本書のどこにも列挙されておらず、Mapperは長らく `HP_RATIO_SCALE` 自体を未サポートとして拒否していた。`DMG-002`（Issue #192、`HP_RATIO_SCALE_FORMULA`）が下記「HP_RATIO_SCALE」節へ2値を定義し、Mapper・`FormulaEvaluator` へ実装して解消した。
 3. `APPLY_STAT_MOD.stacking.mode` / `APPLY_DAMAGE_MOD.stacking.mode` は例で `STACKABLE` しか示されていない。「重複なし」(`R-STA-03`) に対応する値が未定義のため、Mapperは `STACKABLE` のみを許可していた。`M7-012`（Issue #266）が `APPLY_STAT_MOD` 側について `NON_STACKABLE` と重複上限 `stacking.max` を本書「APPLY_STAT_MOD」節へ定義し、Mapper・実ライフサイクルへ実装して解消した（`R-EFF-05` 完了）。`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD` は最強選択を行う合成経路を持たないため引き続き `STACKABLE` のみである。
 4. Formulaの `source`/`target` 参照（`STAT_RATIO.source`、`MARKER_COUNT_SCALE.target` など）はHEAL/MARKER_COUNT_SCALE例では `{kind: ...}` オブジェクト形式、APPLY_SUBUNIT例 (`source: SKILL_SOURCE`) では裸のenum文字列形式と表記が揺れている。Mapperはオブジェクト形式 `{kind, targetBindingId?}` に統一した（`BINDING` 種別が追加フィールドを要するため）。

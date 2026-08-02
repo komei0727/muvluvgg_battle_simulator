@@ -1206,12 +1206,21 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_MAXHP" },
           "actions": [{ "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK" }]
         }
       ]
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": { "priorityAttack": true },
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": [
+      "CAP_DAMAGE_LINK_STATE",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "チェーンマニューバ", "tags": [] },
     "triggers": [
       {
@@ -2286,19 +2295,19 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_DMG_UP" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_DMG_UP" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
+      "CAP_DAMAGE_LINK_STATE",
       "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TARGET_FILTER_ORDER"
     ],
@@ -2382,7 +2391,12 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
+    "requiredCapabilities": [
+      "CAP_SHIELD",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
     "metadata": { "displayName": "新時代の先駆け", "tags": [] },
     "triggers": [
       {
@@ -2391,10 +2405,25 @@
         "sourceSelector": "ENEMY",
         "targetSelector": "ENEMY",
         "condition": {
-          "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_DOROTHEA_PIONEER_PS2_ACTIVATIONS",
-          "op": "LT",
-          "value": 1
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_DOROTHEA_PIONEER_PS2_ACTIVATIONS",
+              "op": "LT",
+              "value": 1
+            },
+            {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "categories": ["DEBUFF"],
+              "effectActionDefinitionIds": [
+                "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST",
+                "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST"
+              ],
+              "grantedBy": "SELF"
+            }
+          ]
         }
       }
     ],
@@ -14157,6 +14186,10 @@
         {
           "targetBindingId": "TGT_TRIPLE",
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["HIGHEST_MAX_HP"] }
+        },
+        {
+          "targetBindingId": "TGT_ALLIES",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL", "order": ["DEFAULT"] }
         }
       ],
       "steps": [
@@ -14191,15 +14224,21 @@
           "kind": "ACTION",
           "target": { "kind": "SELF" },
           "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_SHIELD2" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
     "requiredCapabilities": [
+      "CAP_DAMAGE_LINK_STATE",
+      "CAP_EFFECT_STEP_CONDITION",
       "CAP_MARKER",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_EFFECT_STEP_CONDITION",
       "CAP_SHIELD",
       "CAP_TARGET_FILTER_ORDER"
     ],

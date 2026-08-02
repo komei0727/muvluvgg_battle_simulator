@@ -323,7 +323,8 @@ export function evaluateTriggerCondition(
       const { owner, getUnit } = context;
       return resolveTargetReferenceIds(condition.target, owner, event).some((id) => {
         const target = getUnit(id);
-        return target !== undefined && holdsMatchingEffect(target, condition);
+        // DMG-007（Issue #187）: `grantedBy: SELF`が指す「自身」はこのPSの保持者。
+        return target !== undefined && holdsMatchingEffect(target, condition, owner?.battleUnitId);
       });
     }
     case "TARGET_HAS_MARKER": {

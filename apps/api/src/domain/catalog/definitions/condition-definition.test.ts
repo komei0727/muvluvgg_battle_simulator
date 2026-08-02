@@ -645,6 +645,49 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     }
   });
 
+  it("UT-CAT-COND-046 (DMG-007, Issue #187): maps effectActionDefinitionIds and grantedBy: SELF (SKL_DOROTHEA_PIONEER_PS2)", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_HAS_EFFECT",
+        target: { kind: "TRIGGER_TARGET" },
+        categories: ["DEBUFF"],
+        effectActionDefinitionIds: ["ACT_LINK_A", "ACT_LINK_B"],
+        grantedBy: "SELF",
+      },
+      "condition",
+      undefined,
+    );
+
+    expect(result).toEqual({
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "TRIGGER_TARGET" },
+      categories: ["DEBUFF"],
+      effectActionDefinitionIds: ["ACT_LINK_A", "ACT_LINK_B"],
+      grantedBy: "SELF",
+    });
+  });
+
+  it("UT-CAT-COND-047 (DMG-007, Issue #187, NEGATIVE): rejects an empty effectActionDefinitionIds and an unknown grantedBy", () => {
+    for (const narrowing of [
+      { effectActionDefinitionIds: [] },
+      { grantedBy: "TRIGGER_SOURCE" },
+      { effectActionDefinitionIds: ["not-an-act-id"] },
+    ]) {
+      expect(() =>
+        createConditionDefinition(
+          {
+            kind: "TARGET_HAS_EFFECT",
+            target: { kind: "SELF" },
+            categories: ["DEBUFF"],
+            ...narrowing,
+          },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
   it("UT-CAT-COND-044 (RES-004-STATUS-CONDITION, Issue #224): accepts continuousDamageKinds under categories STATUS", () => {
     // 炎上・毒は`STATUS`にも分類されるようになった（`effect-category-classifier.ts`）
     // ため、「状態異常のうち毒だけ」という照会は実行時に到達可能であり、

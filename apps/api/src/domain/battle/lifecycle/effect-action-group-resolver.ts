@@ -46,6 +46,7 @@ import {
   type EffectActionApplication,
   type EffectSequencePlan,
   type LastResultTargetContext,
+  type ResolvedBinding,
 } from "../skill/skill-resolution-service.js";
 import {
   conditionReferencesTargetSetCount,
@@ -71,6 +72,7 @@ import type { BattleDomainEvent, EffectActionResultKind } from "../events/domain
 import type {
   EffectActionDefinitionId,
   SkillDefinitionId,
+  TargetBindingId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { ConsumptionKind, StatusKind } from "../../catalog/definitions/catalog-enums.js";
 import {
@@ -149,6 +151,15 @@ export interface EffectActionGroupContext {
    * EffectActionは`FormulaEvaluator`が明確な例外で拒否する。
    */
   readonly damageResults?: DamageResultRegistry;
+  /**
+   * R-LNK-01/02（DMG-007、Issue #187）: このEffectSequenceが解決済みの
+   * TargetBinding。`APPLY_DAMAGE_LINK.linkTo`の`BINDING`をリンク先ユニットへ
+   * 解決するためだけに使う（`resolveEffectSequencePlan`が`plan.resolvedBindings`
+   * から必ず設定するため、実resolverでは常に存在する）。EffectAction単位の解決へ
+   * bindingを届ける唯一の経路である — `resolveOneEffectActionApplication`は
+   * `EffectSequencePlan`を受け取らないためである。
+   */
+  readonly resolvedBindings?: ReadonlyMap<TargetBindingId, ResolvedBinding>;
   /**
    * CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因イベントの
    * 発生源・対象の`BattleUnitId`。`TargetReference.kind: TRIGGER_SOURCE`/
@@ -2760,6 +2771,88 @@ function* resolveOneEffectActionApplication(
       effectLastEventId = grantResult.lastEventId;
       resultKind = "APPLIED";
     }
+  } else if (effectAction.kind === "APPLY_DAMAGE_LINK") {
+    // R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187、production例:
+    // `SKL_SUIRAN_CASINO_AS1`「自身以外の味方が受けたダメージの50%を自身に転送」／
+    // `SKL_DOROTHEA_PIONEER_PS1`「対象同士が受けたダメージの35%を共有しあう」／
+    // `SKL_CHIZURU_DOMESTIC_PS1`「自身が受けたダメージの35%を対象に送り込む」）:
+    // リンク先を付与時点で解決し、割合とともに`AppliedEffect.damageLink`へ焼き込む
+    // （`APPLY_HEALING_LINK`と同じ「付与時snapshot」規約）。`magnitude`は監査用に
+    // 割合をそのまま持つ。CombatStatsは変えないため再計算は呼ばない。
+    const linkToUnitId = resolveDamageLinkDestination(effectAction, context, box);
+    if (linkToUnitId === undefined) {
+      // `BINDING`が0件へ解決した（候補が全滅した等）場合、焼き込むリンク先が
+      // 存在しない。R-SKL-08の対象0件と同じく`SKIPPED`として記録し、何も付与しない
+      // — 既定のリンク先へ黙って寄せると定義に無い相手へリンクが張られるためである。
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = starting.eventId;
+      resultKind = "SKIPPED";
+    } else {
+      const magnitude = effectAction.payload.linkRate;
+      const blockingImmunity = findBlockingImmunity(
+        requireUnit(box.units, application.targetBattleUnitId),
+        { effectActionDefinitionId: application.effectActionDefinitionId, magnitude },
+        effectAction,
+      );
+      const grantContext = {
+        recorder: context.recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+        skillUseId: context.skillUseId,
+        resolutionScopeId: context.actionScope,
+        rootEventId: context.rootEventId,
+      };
+      if (blockingImmunity !== undefined) {
+        const rejection = rejectEffectApplication(
+          grantContext,
+          box.units,
+          {
+            effectActionDefinitionId: application.effectActionDefinitionId,
+            ...grantSourceOf(context),
+            targetId: application.targetBattleUnitId,
+            blockingEffect: blockingImmunity,
+          },
+          starting.eventId,
+        );
+        box.units = rejection.units;
+        if (context.onFactEventForPassiveChain !== undefined) {
+          for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+            box.units = context.onFactEventForPassiveChain(event, box.units);
+          }
+        }
+        resolvedCount = application.hits.length;
+        interruptedCount = 0;
+        effectLastEventId = rejection.lastEventId;
+        resultKind = "REJECTED";
+      } else {
+        const grantResult = grantEffect(
+          grantContext,
+          box.units,
+          {
+            definition: effectAction,
+            ...grantSourceOf(context),
+            targetId: application.targetBattleUnitId,
+            duplicate: true,
+            magnitude,
+            damageLink: { linkToUnitId, linkRate: effectAction.payload.linkRate },
+            durationDefinition: effectAction.payload.duration,
+          },
+          starting.eventId,
+        );
+        box.units = grantResult.units;
+        if (context.onFactEventForPassiveChain !== undefined) {
+          for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+            box.units = context.onFactEventForPassiveChain(event, box.units);
+          }
+        }
+        resolvedCount = application.hits.length;
+        interruptedCount = 0;
+        effectLastEventId = grantResult.lastEventId;
+        resultKind = "APPLIED";
+      }
+    }
   } else if (
     effectAction.kind === "APPLY_TARGET_REDIRECT" ||
     effectAction.kind === "APPLY_COVER" ||
@@ -2854,7 +2947,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE_CAPACITY"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_PIERCING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT"/"APPLY_TARGET_REDIRECT"/"APPLY_COVER"/"APPLY_REFLECT"/"APPLY_DEATH_SURVIVAL" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE_CAPACITY"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_PIERCING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT"/"APPLY_TARGET_REDIRECT"/"APPLY_COVER"/"APPLY_REFLECT"/"APPLY_DEATH_SURVIVAL"/"APPLY_DAMAGE_LINK" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
@@ -3932,6 +4025,40 @@ function* sweepDepletedShields(
  * バフ／デバフの分類は`magnitude`の符号ではなくkindから決まる
  * （`effect-category-classifier.ts`）ため、この0が分類へ影響することはない。
  */
+/**
+ * R-LNK-01/02（DMG-007、Issue #187）: `APPLY_DAMAGE_LINK.linkTo`を付与時点で
+ * リンク先ユニットへ解決する。`AppliedEffect.damageLink.linkToUnitId`は単一
+ * ユニットであり、実装済みの参照はどちらも付与時点に確定しているものだけである。
+ *
+ * - `SELF`: 付与者自身（`APPLY_HEALING_LINK.transferTo: SELF`と同じ意味 —
+ *   効果対象ではなく**付与した側**）
+ * - `BINDING`: このEffectSequenceが解決済みのTargetBindingの先頭1体。
+ *   `DAMAGE_LINK_UNBOUNDED_BINDING`（`catalog-integrity.ts`）が「宣言済みで、
+ *   高々1体へ解決するbinding」であることをロード時に保証しているため、
+ *   実行時に2体目が現れることはない。0件へ解決した場合だけ`undefined`を返し、
+ *   呼び出し側が`SKIPPED`として何も付与しない
+ *
+ * それ以外のkindはCatalogロード時点で拒否済み（`UNSUPPORTED_DEFENSIVE_INTERVENTION`）
+ * だが、Catalogを経由しない合成定義に対する実行時backstopとして明確に拒否する。
+ */
+function resolveDamageLinkDestination(
+  effectAction: Extract<EffectActionDefinition, { kind: "APPLY_DAMAGE_LINK" }>,
+  context: EffectActionGroupContext,
+  box: UnitsBox,
+): BattleUnitId | undefined {
+  const linkTo = effectAction.payload.linkTo;
+  if (linkTo.kind === "SELF") {
+    return requireActorUnit(context, box).battleUnitId;
+  }
+  if (linkTo.kind !== "BINDING" || linkTo.targetBindingId === undefined) {
+    throw new DomainValidationError(
+      "effectActionDefinitionId",
+      `APPLY_DAMAGE_LINK payload.linkTo.kind "${linkTo.kind}" is not supported (R-LNK-01/02 implements "SELF" and "BINDING" only)`,
+    );
+  }
+  return context.resolvedBindings?.get(linkTo.targetBindingId)?.units[0]?.battleUnitId;
+}
+
 function buildDefensiveInterventionGrant(
   effectAction: Extract<
     EffectActionDefinition,
@@ -4180,8 +4307,17 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
 export function* resolveEffectSequencePlan(
   plan: EffectSequencePlan,
   box: UnitsBox,
-  context: EffectActionGroupContext,
+  incomingContext: EffectActionGroupContext,
 ): Generator<EffectResolutionStep, EffectActionGroupsResult, void> {
+  // R-LNK-01/02（DMG-007、Issue #187）: `APPLY_DAMAGE_LINK.linkTo`の`BINDING`は
+  // 付与時点でリンク先ユニットへ解決する必要があるが、EffectAction単位の解決
+  // （`resolveOneEffectActionApplication`）は`EffectSequencePlan`を受け取らない。
+  // 呼び出し側すべてに解決済みbindingの引き回しを強いる代わりに、この入口で
+  // contextへ載せ替えて以降の全経路へ届ける。
+  const context: EffectActionGroupContext = {
+    ...incomingContext,
+    resolvedBindings: plan.resolvedBindings,
+  };
   const lastResultState: LastResultState = {
     lastActionTargetUnitIds: [],
     lastDamagedTargetUnitIds: [],

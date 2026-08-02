@@ -280,7 +280,17 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `CAP_TARGET_REDIRECT`'s and `CAP_COVER_DAMAGE`'s descriptions. Capability
     // metadata only — no definition changed (every production row already
     // declares `["DAMAGE"]`).
-    expect(catalog.catalogRevision).toBe("2026-08-02.7");
+    // `.8` is DMG-007 (Issue #187, R-LNK-01〜03): `APPLY_DAMAGE_LINK` and
+    // `CAP_DAMAGE_LINK_STATE` were added (48 → 49 capabilities), converting the
+    // four `DAMAGE_LINK` ledger rows without approximation —
+    // `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`,
+    // `ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST` /
+    // `ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST` (replacing the +35% incoming
+    // damage approximation), `ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK`, and
+    // `SKL_DOROTHEA_PIONEER_PS2`'s trigger narrowed to the links it granted.
+    // None of the 10 promoted units is involved, so their definitions are
+    // unchanged and `selectable` stays at 69.
+    expect(catalog.catalogRevision).toBe("2026-08-02.8");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

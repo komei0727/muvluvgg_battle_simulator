@@ -11,8 +11,10 @@ import type {
   StatKind,
 } from "./catalog-enums.js";
 import {
+  createEffectActionDefinitionId,
   createMarkerId,
   createRuntimeCounterId,
+  type EffectActionDefinitionId,
   type MarkerId,
   type RuntimeCounterId,
 } from "./catalog-ids.js";
@@ -280,7 +282,16 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   POSITION_RELATION: ["kind", "target", "relation"],
   RESOLUTION_PHASE: ["kind", "phase", "negate"],
   TARGET_SET_COUNT: ["kind", "target", "countOf", "op", "value"],
-  TARGET_HAS_EFFECT: ["kind", "target", "categories", "continuousDamageKinds", "statKinds"],
+  TARGET_HAS_EFFECT: [
+    "kind",
+    "target",
+    "categories",
+    "continuousDamageKinds",
+    "statKinds",
+    // DMG-007（Issue #187）: 特定定義由来か・自身が付与したかの絞り込み。
+    "effectActionDefinitionIds",
+    "grantedBy",
+  ],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
@@ -389,6 +400,23 @@ export type ConditionDefinition =
       readonly continuousDamageKinds?: readonly ContinuousDamageKind[];
       /** 指定時、一致対象を`APPLY_STAT_MOD`のこの補正stat（攻撃力など）へ絞る。 */
       readonly statKinds?: readonly StatKind[];
+      /**
+       * DMG-007（Issue #187）: 指定時、一致対象をこのEffectAction定義由来の付与へ絞る
+       * （`EFFECT_IMMUNITY.effectActionDefinitionIds`と同じ参照方式）。
+       * `TARGET_HAS_EFFECT_CATEGORIES`が`SPECIFIC_EFFECT`を分類軸として拒否するのは
+       * 「特定の効果か」が分類ではなく定義IDの直接一致だからであり、その一致を表す
+       * 正しい場所がこのfieldである。production例は`SKL_DOROTHEA_PIONEER_PS2`
+       * 「自身がダメージリンクを付与した敵が倒された際」。
+       */
+      readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
+      /**
+       * DMG-007（Issue #187）: 指定時、一致対象を「この条件を評価しているユニット自身が
+       * 付与した」インスタンスへ絞る（`AppliedEffect.sourceId`との一致）。実装済みは
+       * `SELF`だけで、`SKL_DOROTHEA_PIONEER_PS2`の「**自身が**付与したダメージリンク」を
+       * 定義IDだけに頼らず表すために存在する（同名ユニットが両陣営に居る場合、定義IDの
+       * 一致だけでは他者が付与したリンクも拾ってしまう）。
+       */
+      readonly grantedBy?: "SELF";
     };
 
 export interface ConditionDefinitionInput {
@@ -400,6 +428,8 @@ export interface ConditionDefinitionInput {
   readonly op?: string;
   readonly value?: JsonPrimitive;
   readonly markerId?: string;
+  readonly effectActionDefinitionIds?: readonly string[];
+  readonly grantedBy?: string;
   readonly countCondition?: { readonly op: string; readonly value: number };
   readonly counter?: string;
   readonly modulo?: number;
@@ -439,6 +469,45 @@ function createOperator(input: ConditionDefinitionInput, path: string): Comparis
   const op = requireField(input, "op", path);
   assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
   return op;
+}
+
+/**
+ * DMG-007（Issue #187）: `TARGET_HAS_EFFECT.effectActionDefinitionIds`を検証して、
+ * 指定がある場合だけ持つ部分オブジェクトを返す。`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`の
+ * 同名fieldと同じく、空配列（一致しようのない照会）とID体系に合わない値を拒否する。
+ * 参照先の定義が実在するかは`DANGLING_REFERENCE`（`catalog-integrity.ts`）が担う。
+ */
+function createEffectActionDefinitionIdsNarrowing(
+  input: ConditionDefinitionInput,
+  path: string,
+): { readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[] } {
+  const values = input.effectActionDefinitionIds;
+  if (values === undefined) {
+    return {};
+  }
+  assertNonEmptyArray(values, `${path}.effectActionDefinitionIds`);
+  return {
+    effectActionDefinitionIds: values.map((value, i) =>
+      createEffectActionDefinitionId(value, `${path}.effectActionDefinitionIds[${i}]`),
+    ),
+  };
+}
+
+/**
+ * DMG-007（Issue #187）: `TARGET_HAS_EFFECT.grantedBy`を検証する。実装済みは`SELF`
+ * （この条件を評価しているユニット自身が付与した`AppliedEffect`だけに一致）だけで、
+ * 他の値は実行時に解決できないためロード時に拒否する。
+ */
+function createGrantedByNarrowing(
+  input: ConditionDefinitionInput,
+  path: string,
+): { readonly grantedBy?: "SELF" } {
+  const value = input.grantedBy;
+  if (value === undefined) {
+    return {};
+  }
+  assertEnumValue(value, ["SELF"] as const, `${path}.grantedBy`);
+  return { grantedBy: value };
 }
 
 /**
@@ -651,6 +720,8 @@ export function createConditionDefinition(
           path,
         ),
         ...createNarrowing(input, "statKinds", STAT_KINDS, typedCategories, path),
+        ...createEffectActionDefinitionIdsNarrowing(input, path),
+        ...createGrantedByNarrowing(input, path),
       };
     }
   }
