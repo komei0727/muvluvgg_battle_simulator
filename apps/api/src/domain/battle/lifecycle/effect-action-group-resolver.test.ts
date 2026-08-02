@@ -1376,7 +1376,7 @@ describe("applyEffectActionGroups", () => {
     );
   });
 
-  it("UT-R-HIT-05-009 (M7-018/Issue #272 boundary): APPLY_STATUS status kinds owned by another Task (CRITICAL_GUARANTEE, CAP_CRITICAL_CONTROL / Issue #196) stay rejected by the resolver", () => {
+  it("UT-R-CRT-03-010 (R-CRT-03, DMG-003A/Issue #295, CAP_CRITICAL_CONTROL): an APPLY_STATUS(CRITICAL_GUARANTEE) ACTION step shaped like ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE grants a statusKind CRITICAL_GUARANTEE AppliedEffect with its ACTION time limit", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const criticalGuarantee: EffectActionDefinition = {
@@ -1386,7 +1386,11 @@ describe("applyEffectActionGroups", () => {
       metadata: { tags: [] },
       payload: {
         status: "CRITICAL_GUARANTEE",
-        duration: { dispellable: true, linkedEffectGroupId: null },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
       },
     };
     const effectActions = new Map([
@@ -1403,9 +1407,96 @@ describe("applyEffectActionGroups", () => {
       resolvedBindings: new Map(),
     };
 
-    expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
-      DomainValidationError,
-    );
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "CRITICAL_GUARANTEE",
+      duration: { timeLimitRemaining: 2 },
+    });
+  });
+
+  it("UT-R-CRT-03-011 (R-CRT-03, DMG-003A/Issue #295): an APPLY_STATUS(CRITICAL_PREVENTION) ACTION step shaped like ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION grants a statusKind CRITICAL_PREVENTION AppliedEffect", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const criticalPrevention: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_CRIT_PREVENTION"),
+      requiredCapabilities: [],
+      metadata: { tags: [] },
+      payload: {
+        status: "CRITICAL_PREVENTION",
+        probability: 1,
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([
+      [criticalPrevention.effectActionDefinitionId, criticalPrevention],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        singleActionStep(0, true, enemy.battleUnitId, criticalPrevention.effectActionDefinitionId),
+      ],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const target = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]).toMatchObject({
+      statusKind: "CRITICAL_PREVENTION",
+      duration: { timeLimitRemaining: 1 },
+    });
+  });
+
+  it("UT-R-CRT-03-012 (R-CRT-03 negative, DMG-003A/Issue #295): a critical status carrying incoming-side fields or a probability below 1 is rejected instead of being granted without effect", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const enemy = unit("ENEMY", "ENEMY");
+    const unsupportedPayloads = [
+      {
+        status: "CRITICAL_GUARANTEE" as const,
+        appliesTo: { incomingActionKinds: ["DAMAGE" as const] },
+      },
+      {
+        status: "CRITICAL_PREVENTION" as const,
+        damageThreshold: { op: "GTE" as const, formula: { kind: "CONSTANT" as const, value: 10 } },
+      },
+      { status: "CRITICAL_PREVENTION" as const, damageAmplificationOnBreak: 0.5 },
+      { status: "CRITICAL_GUARANTEE" as const, probability: 0.5 },
+    ];
+
+    for (const [index, extra] of unsupportedPayloads.entries()) {
+      const definition: EffectActionDefinition = {
+        kind: "APPLY_STATUS",
+        effectActionDefinitionId: createEffectActionDefinitionId(`ACT_CRIT_UNSUPPORTED_${index}`),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: { ...extra, duration: { dispellable: true, linkedEffectGroupId: null } },
+      };
+      const effectActions = new Map([[definition.effectActionDefinitionId, definition]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, enemy.battleUnitId, definition.effectActionDefinitionId)],
+        targetUnitIds: [enemy.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      expect(() => applyEffectActionGroups(plan, [actor, enemy], context)).toThrow(
+        DomainValidationError,
+      );
+    }
   });
 
   it("UT-R-HIT-03-008 (R-HIT-03/R-STS-04, Issue #183): an actor whose own BLIND effect rolls MISS skips the entire EffectSequence — no ACTION step resolves, BlindnessCheckResolved and SkillMissed are recorded instead", () => {

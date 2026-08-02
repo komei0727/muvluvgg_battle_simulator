@@ -1,7 +1,72 @@
 import { describe, expect, it } from "vitest";
-import { resolveCritical } from "./critical-policy.js";
+import { resolveCritical, resolveEffectiveCriticalMode } from "./critical-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import {
+  createBattleUnit,
+  type BattleUnit,
+  type BattleUnitResourceLimits,
+} from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { createBattleUnitId } from "../../shared/ids.js";
+import { createEffectInstanceId } from "../../shared/event-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createUnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
+import type { StatusKind } from "../../catalog/definitions/catalog-enums.js";
+import type { FormationPosition } from "../model/formation-input.js";
+import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import type { BattlePartyMember } from "../model/battle-party.js";
+
+const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
+
+function unit(id: string): BattleUnit {
+  const position: FormationPosition = { column: "LEFT", row: "FRONT" };
+  const member: BattlePartyMember = {
+    battleUnitId: createBattleUnitId(id),
+    unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+    attribute: "AGGRESSIVE",
+    position,
+    globalCoordinate: toGlobalCoordinate("ALLY", position),
+    combatStats: {
+      maximumHp: 100,
+      attack: 30,
+      defense: 10,
+      criticalRate: 0,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+    },
+  };
+  return createBattleUnit(member, "ALLY", LIMITS);
+}
+
+function statusEffect(id: string, holderId: string, statusKind: StatusKind): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId(`ACT_${statusKind}`);
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceId: createBattleUnitId(holderId),
+    targetId: createBattleUnitId(holderId),
+    magnitude: 0,
+    categories: ["BUFF"],
+    statusKind,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
+function holderOf(...statusKinds: readonly StatusKind[]): BattleUnit {
+  return {
+    ...unit("ATTACKER"),
+    appliedEffects: statusKinds.map((statusKind, index) =>
+      statusEffect(`eff-${index + 1}`, "ATTACKER", statusKind),
+    ),
+  };
+}
 
 describe("resolveCritical", () => {
   it("UT-R-CRT-01-001: NORMAL mode with 0% criticalRate never crits, even with the lowest possible roll", () => {
@@ -111,5 +176,77 @@ describe("resolveCritical", () => {
     const result = resolveCritical("PREVENTED", createPercentage(1), 0.9, random);
 
     expect(result.multiplier).toBe(1);
+  });
+});
+
+describe("resolveEffectiveCriticalMode (R-CRT-03)", () => {
+  it("UT-R-CRT-03-001 (R-CRT-03 #2, DMG-003A/Issue #295): an attacker holding CRITICAL_GUARANTEE turns a NORMAL declaration into GUARANTEED", () => {
+    expect(resolveEffectiveCriticalMode(holderOf("CRITICAL_GUARANTEE"), "NORMAL")).toBe(
+      "GUARANTEED",
+    );
+  });
+
+  it("UT-R-CRT-03-002 (R-CRT-03 #1): an attacker holding CRITICAL_PREVENTION turns a NORMAL declaration into PREVENTED", () => {
+    expect(resolveEffectiveCriticalMode(holderOf("CRITICAL_PREVENTION"), "NORMAL")).toBe(
+      "PREVENTED",
+    );
+  });
+
+  it("UT-R-CRT-03-003 (R-CRT-03 #3): an attacker holding neither status keeps the declared NORMAL mode", () => {
+    expect(resolveEffectiveCriticalMode(holderOf(), "NORMAL")).toBe("NORMAL");
+  });
+
+  it("UT-R-CRT-03-004 (non-critical statusKind ignored): an unrelated status-kind AppliedEffect does not change the declared mode", () => {
+    expect(resolveEffectiveCriticalMode(holderOf("STUN", "GUARANTEED_HIT"), "NORMAL")).toBe(
+      "NORMAL",
+    );
+  });
+
+  it("UT-R-CRT-03-005 (R-CRT-03 #1 precedence): holding both statuses resolves to PREVENTED — 会心不可 forbids the critical outright, 会心保証 only guarantees it", () => {
+    expect(
+      resolveEffectiveCriticalMode(holderOf("CRITICAL_GUARANTEE", "CRITICAL_PREVENTION"), "NORMAL"),
+    ).toBe("PREVENTED");
+    // 付与順に依存しない。
+    expect(
+      resolveEffectiveCriticalMode(holderOf("CRITICAL_PREVENTION", "CRITICAL_GUARANTEE"), "NORMAL"),
+    ).toBe("PREVENTED");
+  });
+
+  it("UT-R-CRT-03-006 (R-CRT-03 #1 boundary): CRITICAL_PREVENTION overrides a definition that declares GUARANTEED", () => {
+    expect(resolveEffectiveCriticalMode(holderOf("CRITICAL_PREVENTION"), "GUARANTEED")).toBe(
+      "PREVENTED",
+    );
+  });
+
+  it("UT-R-CRT-03-007 (R-CRT-03 #1 boundary / R-SUB-02): a definition declaring PREVENTED stays PREVENTED even for an attacker holding CRITICAL_GUARANTEE — sub-unit additional damage has no critical term", () => {
+    expect(resolveEffectiveCriticalMode(holderOf("CRITICAL_GUARANTEE"), "PREVENTED")).toBe(
+      "PREVENTED",
+    );
+  });
+
+  it("UT-R-CRT-03-008: a declared GUARANTEED mode is unchanged when the attacker holds no critical status", () => {
+    expect(resolveEffectiveCriticalMode(holderOf(), "GUARANTEED")).toBe("GUARANTEED");
+    expect(resolveEffectiveCriticalMode(holderOf(), "PREVENTED")).toBe("PREVENTED");
+  });
+
+  it("UT-R-CRT-03-009 (R-CRT-03 boundary): the resolved mode drives resolveCritical without consuming the RandomSource", () => {
+    const random = new SequenceRandomSource([]);
+
+    const prevented = resolveCritical(
+      resolveEffectiveCriticalMode(holderOf("CRITICAL_PREVENTION"), "NORMAL"),
+      createPercentage(1),
+      0.5,
+      random,
+    );
+    const guaranteed = resolveCritical(
+      resolveEffectiveCriticalMode(holderOf("CRITICAL_GUARANTEE"), "NORMAL"),
+      createPercentage(0),
+      0.5,
+      random,
+    );
+
+    expect(prevented.isCritical).toBe(false);
+    expect(guaranteed.isCritical).toBe(true);
+    random.assertFullyConsumed();
   });
 });

@@ -1,7 +1,11 @@
 import { activeStatusEffect, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { AppliedEffect } from "../model/applied-effect.js";
 import { calculateDamage } from "./damage-calculator.js";
-import { resolveCritical, type CriticalResult } from "./critical-policy.js";
+import {
+  resolveCritical,
+  resolveEffectiveCriticalMode,
+  type CriticalResult,
+} from "./critical-policy.js";
 import { composePiercing } from "./piercing-policy.js";
 import {
   damageResultsFor,
@@ -885,9 +889,17 @@ function* observeHitSteps(
 
   // 会心判定は上の連鎖を反映した最新の使用者状態から行う（連鎖が会心率・会心
   // ダメージのバフを付与・失効させ得るため）。
+  // R-CRT-03（DMG-003A、Issue #295）: 攻撃側定義の`critical.mode`と、使用者が持つ
+  // 会心状態効果（`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`）を実効値へ畳み込んで
+  // から判定する。使用者を同じ最新状態から取り直すのはR-HIT-05の必中付与と同じ
+  // 理由で、直前の連鎖がこれらの効果を付与・失効させ得るためである。
   const attackerBeforeCritical = afterHitConfirmed.attacker;
-  const critical = resolveCritical(
+  const effectiveCriticalMode = resolveEffectiveCriticalMode(
+    attackerBeforeCritical,
     profile.criticalMode,
+  );
+  const critical = resolveCritical(
+    effectiveCriticalMode,
     createPercentage(attackerBeforeCritical.combatStats.criticalRate),
     attackerBeforeCritical.combatStats.criticalDamageBonus,
     random,
@@ -907,7 +919,8 @@ function* observeHitSteps(
     sourceUnitId: attackerUnitId,
     targetUnitIds: [targetUnitId],
     payload: {
-      mode: profile.criticalMode,
+      // R-CRT-03: 実際に判定へ使った実効値を通知する（宣言値ではない）。
+      mode: effectiveCriticalMode,
       baseCriticalRate: critical.baseRate,
       effectiveCriticalRate: critical.effectiveRate,
       result: critical.isCritical,

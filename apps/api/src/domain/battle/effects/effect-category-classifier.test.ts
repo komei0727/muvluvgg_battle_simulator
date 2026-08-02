@@ -111,6 +111,22 @@ describe("effectCategoriesOf", () => {
     }
   });
 
+  it("UT-R-EFF-02-026 (R-CRT-03, DMG-003A/Issue #295, PR #297 レビュー[P1]): classifies CRITICAL_PREVENTION as DEBUFF only — it weakens its own holder's attacks, but is not one of the defined 状態異常", () => {
+    const categories = effectCategoriesOf(
+      effect({ magnitude: 0, statusKind: "CRITICAL_PREVENTION" }),
+      statusDefinition("ACT_CRIT_PREVENTION", "CRITICAL_PREVENTION"),
+    );
+    expect([...categories]).toEqual(["DEBUFF"]);
+  });
+
+  it("UT-R-EFF-02-027 (R-CRT-03, DMG-003A/Issue #295): classifies CRITICAL_GUARANTEE as BUFF — the counterpart status strengthens its holder's attacks", () => {
+    const categories = effectCategoriesOf(
+      effect({ magnitude: 0, statusKind: "CRITICAL_GUARANTEE" }),
+      statusDefinition("ACT_CRIT_GUARANTEE", "CRITICAL_GUARANTEE"),
+    );
+    expect([...categories]).toEqual(["BUFF"]);
+  });
+
   function continuousDamageDefinition(
     id: string,
     continuousDamageKind: "FIXED" | "BURN" | "POISON",

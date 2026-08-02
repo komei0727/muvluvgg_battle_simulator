@@ -23,6 +23,26 @@ import type { AppliedEffect } from "../model/applied-effect.js";
 const STATUS_AILMENT_KIND_SET: ReadonlySet<StatusKind> = new Set<StatusKind>(STATUS_AILMENT_KINDS);
 
 /**
+ * R-CRT-03（DMG-003A、Issue #295、PR #297レビュー[P1]）: `APPLY_STATUS`のうち、
+ * 定義済みの状態異常ではないが**保持者を弱化する**ためデバフに分類するもの。
+ * 会心不可は保持者自身の攻撃が会心しなくなる効果であり、`戦闘システム.md`
+ * 「2. デバフについて」の「相手を不利にする効果」そのものである。production定義
+ * （`ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION`・
+ * `ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION`）もraw原文が「会心不可の**デバフ**を
+ * 付与する」と明示している。
+ *
+ * `STATUS`は付けない — `戦闘システム.md`「3. 状態異常について」が列挙する定義済み
+ * 状態異常（気絶・炎上・毒・凍結・暗闇）に会心不可は含まれず、同節が「『状態異常解除』
+ * 『状態異常無効』などの効果は定義されている状態異常のみが対象となります」と限定して
+ * いるためである。
+ *
+ * 対になる`CRITICAL_GUARANTEE`は保持者の攻撃を強化するため既定どおり`BUFF`のままとする。
+ */
+const DEBUFF_STATUS_KIND_SET: ReadonlySet<StatusKind> = new Set<StatusKind>([
+  "CRITICAL_PREVENTION",
+]);
+
+/**
  * RES-004-STATUS-CONDITION（Issue #224）: `APPLY_CONTINUOUS_DAMAGE`のうち`STATUS`
  * カテゴリの対象になる種別（炎上・毒）。`STATUS_AILMENT_KINDS`（`APPLY_STATUS`側）と
  * 同じ理由でCatalog側（`catalog-enums.ts`）を正本とし、ここが再利用する。
@@ -65,6 +85,10 @@ export function effectCategoriesOf(
     case "APPLY_STATUS": {
       if (effect.statusKind !== undefined && STATUS_AILMENT_KIND_SET.has(effect.statusKind)) {
         return new Set<EffectImmunityCategory>(["STATUS", "DEBUFF"]);
+      }
+      if (effect.statusKind !== undefined && DEBUFF_STATUS_KIND_SET.has(effect.statusKind)) {
+        // 会心不可（R-CRT-03）: 状態異常ではないが保持者を弱化するデバフ。
+        return new Set<EffectImmunityCategory>(["DEBUFF"]);
       }
       // STEALTH等、対象に有利な状態は状態異常ではなくバフとして扱う。
       return new Set<EffectImmunityCategory>(["BUFF"]);

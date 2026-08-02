@@ -66,7 +66,7 @@ import type {
   EffectActionDefinitionId,
   SkillDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
-import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
+import type { ConsumptionKind, StatusKind } from "../../catalog/definitions/catalog-enums.js";
 import {
   evaluateFormula,
   damageResultsFor,
@@ -413,6 +413,30 @@ const DEFERRED_EXPIRY_CONSUMPTION_KINDS: ReadonlySet<ConsumptionKind> = new Set(
   "NEXT_OUTGOING_ATTACK",
   "NEXT_INCOMING_ATTACK",
 ]);
+
+/**
+ * `APPLY_STATUS`の`status`のうち、resolverが実効処理まで配線済みのもの。この
+ * 許可リストはCapability経由ではなくここでハードコードしており（TGT-004フェーズ3
+ * 再レビュー[P1]）、未配線のstatusを「付与だけされて何も起きない」silent partial
+ * implementationへ退行させないための門である。
+ *
+ * DMG-003A（Issue #295）が最後の2種（`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`、
+ * R-CRT-03）を配線したため、現時点では`StatusKind`の全値が`true`である。`Record`で
+ * 網羅を要求しているのはそのためで、`StatusKind`へ新しい値を足したときにここが
+ * コンパイルエラーになり、実効処理の配線漏れに気付ける。
+ */
+const SUPPORTED_APPLY_STATUS_KINDS: Readonly<Record<StatusKind, true>> = {
+  STEALTH: true,
+  STUN: true,
+  EVASION: true,
+  BLIND: true,
+  DAMAGE_IMMUNITY: true,
+  FREEZE: true,
+  HIT_EVASION: true,
+  GUARANTEED_HIT: true,
+  CRITICAL_GUARANTEE: true,
+  CRITICAL_PREVENTION: true,
+};
 
 /**
  * R-EFF-07: `damage-application-service.ts`（`combat/`）が`effects/`へ直接
@@ -1164,19 +1188,32 @@ function* resolveOneEffectActionApplication(
       resultKind = "REJECTED";
     } else {
       const status = effectAction.payload.status;
+      if (SUPPORTED_APPLY_STATUS_KINDS[status] !== true) {
+        throw new DomainValidationError(
+          "effectActionDefinitionId",
+          `APPLY_STATUS status "${status}" is not supported by this resolver (each status kind requires its own runtime behavior)`,
+        );
+      }
+      // R-CRT-03（DMG-003A、Issue #295）: 会心保証・会心不可はどちらも保持者の
+      // 攻撃側（OUTGOING）に働く効果であり、R-HIT-05の`GUARANTEED_HIT`と同じ理由で
+      // 被効果側のfield（`appliesTo.incomingActionKinds`・`damageThreshold`・
+      // `damageAmplificationOnBreak`）を解釈する余地がない。付与確率も
+      // `resolveEffectiveCriticalMode`が参照しないため、1未満を受け取ると
+      // 「必ず付与される会心状態」へ黙って退行する。production定義
+      // （`ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE`は`probability`省略、
+      // `ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION`・
+      // `ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION`は`probability: 1`）はいずれも
+      // 該当しないため、STUN・GUARANTEED_HITと同じく明確に失敗させる。
       if (
-        status !== "STEALTH" &&
-        status !== "STUN" &&
-        status !== "EVASION" &&
-        status !== "BLIND" &&
-        status !== "DAMAGE_IMMUNITY" &&
-        status !== "FREEZE" &&
-        status !== "HIT_EVASION" &&
-        status !== "GUARANTEED_HIT"
+        (status === "CRITICAL_GUARANTEE" || status === "CRITICAL_PREVENTION") &&
+        (effectAction.payload.appliesTo !== undefined ||
+          effectAction.payload.damageThreshold !== undefined ||
+          effectAction.payload.damageAmplificationOnBreak !== undefined ||
+          (effectAction.payload.probability !== undefined && effectAction.payload.probability < 1))
       ) {
         throw new DomainValidationError(
           "effectActionDefinitionId",
-          `APPLY_STATUS status "${status}" is not yet supported by this resolver (only "STEALTH"/"STUN"/"EVASION"/"BLIND"/"DAMAGE_IMMUNITY"/"FREEZE"/"HIT_EVASION"/"GUARANTEED_HIT" are; other status kinds require their own runtime behavior, tracked separately — CRITICAL_GUARANTEE/CRITICAL_PREVENTION are CAP_CRITICAL_CONTROL / DMG-003 / Issue #196)`,
+          `APPLY_STATUS status "${status}" with appliesTo/damageThreshold/damageAmplificationOnBreak or probability < 1 is not supported (R-CRT-03 applies to the holder's outgoing attacks; production critical status definitions declare none of them)`,
         );
       }
       // R-HIT-05（M7-018、Issue #272）: 必中付与は使用者側（OUTGOING）の効果で
