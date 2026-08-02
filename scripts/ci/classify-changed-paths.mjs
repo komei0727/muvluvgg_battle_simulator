@@ -1,10 +1,10 @@
 // Decides which CI quality gates a changed-path list must run.
 //
-// Used by the `changes` job in .github/workflows/pr.yml and main.yml. That
-// job always runs (workflow-level `on.*.paths` filters are avoided so
-// required status checks report success/skipped instead of never
-// triggering — PR #118 review); its output feeds job-level `if:` guards on
-// the API/UI quality gates and the Cloud Run deploy job.
+// Used by the `changes` job in .github/workflows/reusable-changes.yml
+// (called from pr.yml and main.yml). That job always runs (workflow-level
+// `on.*.paths` filters are avoided so required status checks report
+// success/skipped instead of never triggering); its output feeds job-level
+// `if:` guards on the API/UI quality gates and the Cloud Run deploy job.
 
 // raw/ is intentionally absent: it is gitignored, so it can never appear
 // in a git diff (a prefix for it would be a dead condition).

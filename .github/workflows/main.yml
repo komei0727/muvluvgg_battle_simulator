@@ -5,138 +5,65 @@ on:
     branches: [main]
 
 jobs:
-  # Always runs (no workflow-level `on.push.paths` filter) so required
-  # status checks report success/skipped rather than never triggering when
-  # a merge only touches one workspace. Downstream jobs (including the
-  # Cloud Run deploy) read its outputs and skip themselves at the job level
-  # — this avoids creating an unnecessary API revision on a UI-only merge
-  # (PR #118 review). Decision logic: scripts/ci/classify-changed-paths.mjs.
+  # Always runs — no workflow-level `on.push.paths` filter — so required
+  # status checks report success/skipped rather than never triggering (see
+  # reusable-changes.yml). Downstream jobs (including the Cloud Run deploy)
+  # skip themselves via the `gate` job below — this avoids creating an
+  # unnecessary API revision on a UI-only merge.
   changes:
-    name: Detect changed workspaces
-    runs-on: ubuntu-latest
-    outputs:
-      run_api: ${{ steps.classify.outputs.run_api }}
-      run_ui: ${{ steps.classify.outputs.run_ui }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: jdx/mise-action@v2
-
-      - name: Install dependencies
-        run: mise run install
-
-      # Runs here, not in `quality`, because `quality` skips on a UI-only
-      # merge — this job is the only one guaranteed to always run, and
-      # format:check covers the whole repo tree regardless of workspace
-      # (PR #118 review: a UI-only Prettier violation was passing CI).
-      - name: Format check
-        run: mise run format:check
-
-      - name: Test the change-classification logic
-        run: mise run ci:test
-
-      - name: Classify changed paths
-        id: classify
-        env:
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
-        run: |
-          ZERO_SHA="0000000000000000000000000000000000000000"
-          if [ "$BEFORE_SHA" = "$ZERO_SHA" ] || ! git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
-            # New branch or an unresolvable base (force-push, history
-            # rewrite): fail safe and run both gates rather than guess.
-            echo "run_api=true" >> "$GITHUB_OUTPUT"
-            echo "run_ui=true" >> "$GITHUB_OUTPUT"
-          else
-            git diff --name-only "$BEFORE_SHA" "$AFTER_SHA" \
-              | mise exec -- node scripts/ci/classify-changed-paths.mjs \
-              >> "$GITHUB_OUTPUT"
-          fi
+    uses: ./.github/workflows/reusable-changes.yml
+    with:
+      base-sha: ${{ github.event.before }}
+      head-sha: ${{ github.sha }}
+      merge-base-diff: false
 
   quality:
-    name: Full Quality Gate
     needs: changes
     if: needs.changes.outputs.run_api == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: jdx/mise-action@v2
-
-      - name: Install dependencies
-        run: mise run install
-
-      - name: Type check
-        run: mise run typecheck
-
-      - name: Lint
-        run: mise run lint
-
-      - name: Unit / Scenario / Contract tests with coverage
-        run: mise run test:coverage
-
-      - name: Build
-        run: mise run build
-
-      - name: Worker integration tests
-        run: mise run test:integration
-
-      - name: HTTP + Worker end-to-end tests
-        run: mise run test:e2e
-
-      - name: Circular dependency check
-        run: mise run check:circular
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: apps/api/coverage/
+    uses: ./.github/workflows/reusable-quality.yml
+    with:
+      extended: true
 
   ui:
-    name: UI Quality Gate
     needs: changes
     if: needs.changes.outputs.run_ui == 'true'
+    uses: ./.github/workflows/reusable-ui.yml
+
+  # Single place that decides how skipped-vs-success gate results propagate
+  # to the deploy jobs. A gate job is skipped either legitimately
+  # (run_api/run_ui said it need not run) or as a dependency casualty of
+  # another failure — downstream jobs cannot tell those apart from the
+  # `result` alone, so the distinction is encoded once here instead of
+  # per-job condition expressions.
+  gate:
+    name: Evaluate quality gate results
+    needs: [changes, quality, ui]
+    # always() — a failed or skipped gate must still be evaluated, not
+    # cascade-skip this job.
+    if: always()
     runs-on: ubuntu-latest
+    outputs:
+      # The API may deploy only when its own gate actually succeeded (a
+      # skipped quality on run_api=false must not deploy an unchanged API
+      # image) and the UI gate did not fail.
+      deploy_api: ${{ needs.changes.outputs.run_api == 'true' && needs.quality.result == 'success' && (needs.ui.result == 'success' || needs.ui.result == 'skipped') }}
+      # The UI may publish only when its own gate actually succeeded and
+      # the API gate did not fail — a Full Quality Gate failure must not
+      # publish to Pages even when the ui job itself succeeded.
+      publish_ui: ${{ needs.changes.outputs.run_ui == 'true' && needs.ui.result == 'success' && (needs.quality.result == 'success' || needs.quality.result == 'skipped') }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: jdx/mise-action@v2
-
-      - name: Install dependencies
-        run: mise run install
-
-      - name: UI type check
-        run: mise run ui:typecheck
-
-      - name: UI lint
-        run: mise run ui:lint
-
-      - name: UI unit / component tests
-        run: mise run ui:test
-
-      - name: UI build (GitHub Pages base path)
-        run: mise run ui:build
-        env:
-          VITE_BASE_PATH: /muvluvgg_battle_simulator/
-          VITE_API_BASE_URL: https://ci-build-placeholder.invalid.example
-
-      - name: Install Playwright browser
-        run: pnpm --filter ui exec playwright install --with-deps chromium
-
-      - name: UI end-to-end smoke test
-        run: mise run ui:e2e
+      - name: Record gate evaluation
+        run: |
+          {
+            echo "### Quality gate evaluation"
+            echo "- run_api: ${{ needs.changes.outputs.run_api }} / quality: ${{ needs.quality.result }}"
+            echo "- run_ui: ${{ needs.changes.outputs.run_ui }} / ui: ${{ needs.ui.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     name: Deploy to Cloud Run
-    needs: [changes, quality, ui]
-    # `needs` on a skipped job does not by itself skip this job (a skipped
-    # dependency is not a failure, so the implicit success() check still
-    # passes) — the run_api check must be explicit, or a UI-only merge
-    # would still deploy an unchanged API image (PR #118 review).
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.run_api == 'true'
+    needs: gate
+    if: github.ref == 'refs/heads/main' && needs.gate.outputs.deploy_api == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -249,20 +176,15 @@ jobs:
   # 済みの値がそのまま`production` environmentに残っているため利用できる。
   pages-build:
     name: Build UI for GitHub Pages
-    needs: [changes, quality, ui, deploy]
-    # `deploy`同様、`needs`の暗黙のsuccess()は依存jobがskipでも真になる
-    # （PR #118 review、上のコメント参照）ため、run_ui・ui成功・quality/deployの
-    # 成功/skip許容を明示条件にする。`quality`が失敗すると`deploy`はdependency
-    # failureで`skipped`になり、run_api=='false'によるUI-only mergeの正常な
-    # `skipped`と区別がつかない——`needs.quality.result`も明示チェックしない
-    # 限り、Full Quality Gate失敗commitでもui成功だけでPagesへ公開されてしまう
-    # （PR #125レビュー指摘 P1）。
+    needs: [gate, deploy]
+    # always(): UI-only mergeでは`deploy`が正当にskipされるが、その場合も
+    # このjobは実行されなければならない。skipped-vs-successの判定自体は
+    # `gate`のoutputsに集約済みで、ここでは「deployが失敗していないこと」
+    # だけを追加で確認する。
     if: |
       always() &&
       github.ref == 'refs/heads/main' &&
-      needs.changes.outputs.run_ui == 'true' &&
-      needs.ui.result == 'success' &&
-      (needs.quality.result == 'success' || needs.quality.result == 'skipped') &&
+      needs.gate.outputs.publish_ui == 'true' &&
       (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
     runs-on: ubuntu-latest
     environment: production
@@ -318,9 +240,8 @@ jobs:
   pages-deploy:
     name: Deploy to GitHub Pages
     needs: pages-build
-    # 上と同じ理由でskipを明示的に伝播させる——pages-buildがskipされた場合、
-    # 既定のsuccess()はなお真になり得るため、artifactが存在しないままdeployを
-    # 試みてしまう。
+    # pages-buildがskipされた場合にdeployまで素通りさせない——artifactが
+    # 存在しないままdeployを試みてしまうため、successを明示的に要求する。
     if: needs.pages-build.result == 'success'
     runs-on: ubuntu-latest
     environment:

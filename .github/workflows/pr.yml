@@ -5,71 +5,20 @@ on:
     branches: [main]
 
 jobs:
-  # Always runs (no workflow-level `on.pull_request.paths` filter) so that
+  # Always runs — no workflow-level `on.pull_request.paths` filter — so
   # required status checks report success/skipped rather than never
-  # triggering when a PR only touches one workspace. Downstream jobs read
-  # its outputs and skip themselves at the job level instead — PR #118
-  # review. Decision logic: scripts/ci/classify-changed-paths.mjs.
+  # triggering (see reusable-changes.yml).
   changes:
-    name: Detect changed workspaces
-    runs-on: ubuntu-latest
-    outputs:
-      run_api: ${{ steps.classify.outputs.run_api }}
-      run_ui: ${{ steps.classify.outputs.run_ui }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: jdx/mise-action@v2
-
-      - name: Install dependencies
-        run: mise run install
-
-      # Runs here, not in `quality`, because `quality` skips on a UI-only
-      # change — this job is the only one guaranteed to always run, and
-      # format:check covers the whole repo tree regardless of workspace
-      # (PR #118 review: a UI-only Prettier violation was passing CI).
-      - name: Format check
-        run: mise run format:check
-
-      - name: Test the change-classification logic
-        run: mise run ci:test
-
-      - name: Classify changed paths
-        id: classify
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git diff --name-only "$BASE_SHA...$HEAD_SHA" \
-            | mise exec -- node scripts/ci/classify-changed-paths.mjs \
-            >> "$GITHUB_OUTPUT"
+    uses: ./.github/workflows/reusable-changes.yml
+    with:
+      base-sha: ${{ github.event.pull_request.base.sha }}
+      head-sha: ${{ github.event.pull_request.head.sha }}
+      merge-base-diff: true
 
   quality:
-    name: Quality Gate
     needs: changes
     if: needs.changes.outputs.run_api == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: jdx/mise-action@v2
-
-      - name: Install dependencies
-        run: mise run install
-
-      - name: Type check
-        run: mise run typecheck
-
-      - name: Lint
-        run: mise run lint
-
-      - name: Unit / Scenario / Contract tests with coverage
-        run: mise run test:coverage
-
-      - name: Circular dependency check
-        run: mise run check:circular
+    uses: ./.github/workflows/reusable-quality.yml
 
   container:
     name: Container Build and Smoke Test
@@ -88,55 +37,8 @@ jobs:
         run: mise run test:container
 
   ui:
-    name: UI Quality Gate
     needs: changes
     if: needs.changes.outputs.run_ui == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: jdx/mise-action@v2
-
-      - name: Install dependencies
-        run: mise run install
-
-      - name: UI type check
-        run: mise run ui:typecheck
-
-      - name: UI lint
-        run: mise run ui:lint
-
-      - name: UI unit / component tests
-        run: mise run ui:test
-
-      - name: UI build (GitHub Pages base path)
-        run: mise run ui:build
-        env:
-          VITE_BASE_PATH: /muvluvgg_battle_simulator/
-          VITE_API_BASE_URL: https://ci-build-placeholder.invalid.example
-
-      - name: Install Playwright browser
-        run: pnpm --filter ui exec playwright install --with-deps chromium
-
-      - name: UI end-to-end smoke test
-        run: mise run ui:e2e
-
-      # Visual regression baselines are Linux-only (see
-      # apps/ui/e2e/visual-regression.spec.ts), so this runs as its own step
-      # against the same ubuntu-latest runner the baselines were captured on,
-      # separate from the platform-portable "UI end-to-end smoke test" step
-      # above that a contributor also runs locally via `mise run ui:e2e`.
-      - name: UI visual regression test
-        run: mise run ui:e2e:visual
-
-      # Diagnostic-only: lets a maintainer download actual/diff screenshots
-      # after a visual-regression failure (missing/changed baseline) without
-      # rerunning locally. Playwright's own report already ships the
-      # comparison images under test-results/; nothing here gates the job.
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: apps/ui/test-results/
-          retention-days: 7
+    uses: ./.github/workflows/reusable-ui.yml
+    with:
+      visual-regression: true

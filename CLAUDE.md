@@ -152,3 +152,5 @@ apps/ui/src/
 ## CI変更判定 (`.github/workflows/`)
 
 `pr.yml`・`main.yml` は常時起動する `changes` job で変更pathを判定し (`scripts/ci/classify-changed-paths.mjs`)、API/UI各jobは `needs.changes.outputs.run_api` / `run_ui` を見て job単位で `if:` skipする。workflow-level の `on.*.paths` filterは使わない — workflow自体が起動しないとrequired checkが `Pending` のまま残るため、job-level skip (`Success/Skipped` 扱い) にしている。判定ロジックは `mise run ci:test` でテストできる。
+
+`changes`・`quality`（API）・`ui` の各jobは reusable workflow（`reusable-changes.yml` / `reusable-quality.yml` / `reusable-ui.yml`、`workflow_call`）に定義され、`pr.yml`・`main.yml` から呼び出される — CI step の追加は reusable 側の1箇所で済む。main.yml の skipped-vs-success 判定（skip が正当な workspace 未変更か、上流失敗の巻き添えかの区別）は `gate` job の outputs（`deploy_api` / `publish_ui`）に集約され、`deploy`・`pages-build` はそれを参照する。
